@@ -72,7 +72,6 @@ func prepareCommitData(hash string, index int) (string, error) {
 // generatePromptScript は解説生成を指示するシェルスクリプトを作成します。
 func generatePromptScript(hash string, index int, commitDataPath string) error {
 	scriptPath := filepath.Join(promptsDir, fmt.Sprintf("%d.sh", index))
-	outputPath := filepath.Join(outputDir, fmt.Sprintf("%d.md", index))
 	githubURL := fmt.Sprintf("https://github.com/golang/go/commit/%s", hash)
 
 	// 絶対パスを生成
@@ -132,9 +131,7 @@ echo "🚀 Generating explanation for commit %d..."
 {{AI_CLI_COMMAND}} <<'EOF'
 %s
 EOF
-
-echo -e "\n✅ Done. Output will be saved automatically to: %s"
-`, index, hash, index, prompt, outputPath)
+`, index, hash, index, prompt)
 
 	return os.WriteFile(scriptPath, []byte(scriptContent), 0755)
 }
@@ -165,6 +162,10 @@ func executePrompts(cliCommand string) error {
 		cliCommandLine = "gemini -m gemini-2.5-flash -p"
 	case "claude":
 		cliCommandLine = "claude"
+	case "claude-haiku":
+		cliCommandLine = "claude --model claude-3-haiku-20240307"
+	case "claude-sonnet":
+		cliCommandLine = "claude --model claude-3-5-sonnet-20241022"
 	default:
 		cliCommandLine = cliCommand
 	}
@@ -228,9 +229,9 @@ func executePrompts(cliCommand string) error {
 				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
 				fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
 				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
-				os.Exit(1) // プログラム全体を終了
+				os.Exit(1)                                         // プログラム全体を終了
 			}
-			
+
 			// その他のAPI エラーパターンをチェック
 			if strings.Contains(outputStr, "quota") ||
 				strings.Contains(outputStr, "token") ||
@@ -252,19 +253,17 @@ func executePrompts(cliCommand string) error {
 				return // スクリプトは削除しない
 			}
 
-			// 成功した場合、出力をファイルに保存
-			fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
-
-			// AI の出力部分のみを抽出してファイルに保存
-			// "🚀 Generating explanation for commit" で始まる行より後の部分を抽出
+			// AI の出力部分のみを抽出
 			lines := strings.Split(outputStr, "\n")
 			var aiOutput []string
 			capturing := false
+			foundValidContent := false
 
 			for _, line := range lines {
 				// AI の実際の出力開始を検出
-				if strings.Contains(line, "# [インデックス") || (capturing && len(strings.TrimSpace(line)) > 0) {
+				if strings.Contains(line, "# [インデックス") {
 					capturing = true
+					foundValidContent = true
 				}
 
 				// "✅ Done" メッセージが出たら終了
@@ -277,14 +276,33 @@ func executePrompts(cliCommand string) error {
 				}
 			}
 
-			// AIの出力をファイルに保存
-			if len(aiOutput) > 0 {
-				aiOutputContent := strings.Join(aiOutput, "\n")
+			// 出力の品質をチェック
+			aiOutputContent := strings.Join(aiOutput, "\n")
+			outputValid := foundValidContent &&
+				len(strings.TrimSpace(aiOutputContent)) > 100 && // 最小文字数
+				strings.Contains(aiOutputContent, "## コミット") && // 必須セクションの存在
+				!strings.Contains(outputStr, "GaxiosError") && // エラー出力がない
+				!strings.Contains(outputStr, "API Error") // APIエラーがない
+
+			if outputValid {
+				// 成功した場合のみファイルに保存
 				if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving output to %s: %v\n", outputPath, err)
-				} else {
-					fmt.Printf("Saved output to: %s\n", outputPath)
+					return
 				}
+				fmt.Printf("--- ✅ Successfully executed script: %s ---\n", scriptPath)
+				fmt.Printf("Saved output to: %s\n", outputPath)
+			} else {
+				// 出力が不完全または無効な場合
+				fmt.Fprintf(os.Stderr, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
+				fmt.Fprintf(os.Stderr, "Output length: %d characters\n", len(aiOutputContent))
+				fmt.Fprintf(os.Stderr, "Found valid content: %v\n", foundValidContent)
+				if len(outputStr) > 500 {
+					fmt.Fprintf(os.Stderr, "Output preview:\n%s...\n", outputStr[:500])
+				} else {
+					fmt.Fprintf(os.Stderr, "Full output:\n%s\n", outputStr)
+				}
+				return // スクリプトを削除せずに終了
 			}
 
 			if err := os.Remove(scriptPath); err != nil {
@@ -557,7 +575,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, gemini")
+		fmt.Println("                            Supported: claude, claude-haiku, claude-sonnet, gemini")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
@@ -582,11 +600,13 @@ func main() {
 
 		// サポートされているCLIかチェック
 		supportedCLIs := map[string]bool{
-			"claude": true,
-			"gemini": true,
+			"claude":        true,
+			"claude-haiku":  true,
+			"claude-sonnet": true,
+			"gemini":        true,
 		}
 		if !supportedCLIs[cliCommand] {
-			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, gemini\n", cliCommand)
+			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, claude-haiku, claude-sonnet, gemini\n", cliCommand)
 			os.Exit(1)
 		}
 
@@ -604,7 +624,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, gemini")
+		fmt.Println("                            Supported: claude, claude-haiku, claude-sonnet, gemini")
 		fmt.Println("                            Only available with execute command")
 		os.Exit(1)
 	}
