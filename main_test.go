@@ -15,7 +15,7 @@ const (
 	filePermission   = 0644 // 通常のファイルのパーミッション
 	scriptPermission = 0755 // 実行可能なスクリプトのパーミッション
 	dirPermission    = 0755 // ディレクトリのパーミッション
-	
+
 	// テスト設定
 	maxTestCommits = 3 // テストで処理する最大コミット数
 )
@@ -560,13 +560,13 @@ func executePromptsWithPath(t *testing.T, promptsDir string) {
 	// 実際には実行しない
 	for _, fileName := range shFiles {
 		scriptPath := filepath.Join(promptsDir, fileName)
-		
+
 		// スクリプトが読み取り可能で期待される内容を持つかチェック
 		content, err := os.ReadFile(scriptPath)
 		assert.NoError(t, err, "failed to read script %s", scriptPath)
-		
+
 		assert.NotEmpty(t, content, "script %s should not be empty", scriptPath)
-		
+
 		// スクリプトが基本構造を持つか検証
 		scriptStr := string(content)
 		assert.Contains(t, scriptStr, "#!/bin/bash", "script %s should contain shebang", scriptPath)
@@ -578,7 +578,7 @@ func TestExecutePrompts(t *testing.T) {
 	// Create temporary directories
 	tempDir := t.TempDir()
 	promptsDir := filepath.Join(tempDir, "prompts")
-	
+
 	// プロンプトディレクトリを作成
 	err := os.MkdirAll(promptsDir, dirPermission)
 	assert.NoError(t, err, "Failed to create prompts directory")
@@ -596,7 +596,7 @@ echo "Index: %d"
 echo "Hash: test-hash-%d"
 echo "Done."
 `, i, i, i, i)
-		
+
 		err = os.WriteFile(scriptPath, []byte(scriptContent), scriptPermission)
 		assert.NoError(t, err, fmt.Sprintf("Failed to create test script %d", i))
 	}

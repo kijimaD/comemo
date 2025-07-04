@@ -175,7 +175,7 @@ func executePrompts() error {
 			if strings.Contains(outputStr, "quota") || strings.Contains(outputStr, "token") || strings.Contains(outputStr, "rate limit") {
 				fmt.Fprintf(os.Stderr, "\n!!! Detected potential token/quota error. Terminating immediately. !!!\n")
 				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
-				os.Exit(1) // Terminate the program immediately
+				os.Exit(1)                                         // Terminate the program immediately
 			}
 
 			if cmdErr != nil {
