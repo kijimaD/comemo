@@ -1,0 +1,15 @@
+commit 7c48a39423f9e055a25b903eedf12cc7e977c1a1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 23 15:08:39 2008 -0700
+
+    better debuggers:
+            - follow through segmented stacks
+            - a couple of fixes to db
+    
+    R=rsc
+    DELTA=72  (62 added, 0 deleted, 10 changed)
+    OCL=15713
+    CL=15717
+
+ src/libmach_amd64/8db.c | 62 +++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 58 insertions(+), 4 deletions(-)

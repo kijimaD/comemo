@@ -1,0 +1,18 @@
+commit fb9b818bbd2273579ea09f71017ee42bbc91a3b3
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 18:21:11 2019 +0100
+
+    cmd/link/internal/wasm: do not generate more than 100000 data segments
+    
+    Some WebAssembly runtimes (e.g. Node.js) fail to load a wasm binary if
+    it has more than 100000 data segments. Do not skip zero regions any more
+    if the limit was reached.
+    
+    Change-Id: I14c4c2aba142d1d2b887bce6d03b8c1c1746c5ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168884
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/wasm/asm.go | 38 +++++++++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 15 deletions(-)

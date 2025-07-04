@@ -1,0 +1,18 @@
+commit 09e8de70c2ee36d99ba02389da0fe2e203879022
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 21 21:26:50 2021 +0000
+
+    runtime: eliminate rendundant loads gcPercent
+    
+    The previous change was an automated change that made gcPercent a
+    type-safe atomic variable. However, that introduced a lot of redundant
+    formal atomic loads of the variable. Remove them by only loading once in
+    each case, and reusing the value.
+    
+    Change-Id: I49647135f423574f94506d456d1cc390150fad02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357795
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcpacer.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

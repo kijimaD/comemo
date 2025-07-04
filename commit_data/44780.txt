@@ -1,0 +1,22 @@
+commit dc289d3dcb59f80b9e23c7e8f237628359d21d92
+Author: Simão Gomes Viana <simaogmv@gmail.com>
+Date:   Tue Mar 23 21:50:41 2021 +0000
+
+    io: fix spelling in documentation for io.Discard
+    
+    In the process of refactoring ioutil.Discard to io.Discard in
+    CL 263141 "an" should have been changed to "a" but was likely
+    missed in the process.
+    
+    This commit corrects the spelling of the documentation.
+    
+    Change-Id: I0609c45878291f8f01560efc3f3e6fba191e095b
+    GitHub-Last-Rev: e3257ca272dff42ed7d07b6e6a5fc49493772653
+    GitHub-Pull-Request: golang/go#45190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304209
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

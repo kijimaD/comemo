@@ -1,0 +1,28 @@
+commit 347536201124400705d0d217e2180c9f01066808
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 7 21:08:40 2015 +0000
+
+    syscall: fix InotifyInit on linux/arm64
+    
+    There is no SYS_INOTIFY_INIT on linux/arm64, only SYS_INOTIFY_INIT1.
+    
+    Change-Id: I97f430f2c2b910fb19dce495ff1adf591b8634fc
+    Reviewed-on: https://go-review.googlesource.com/9870
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/syscall/syscall_linux.go          |  1 -
+ src/syscall/syscall_linux_386.go      |  1 +
+ src/syscall/syscall_linux_amd64.go    |  1 +
+ src/syscall/syscall_linux_arm.go      |  1 +
+ src/syscall/syscall_linux_arm64.go    |  5 ++++-
+ src/syscall/syscall_linux_ppc64x.go   |  1 +
+ src/syscall/zsyscall_linux_386.go     | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_amd64.go   | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_arm.go     | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_arm64.go   | 11 -----------
+ src/syscall/zsyscall_linux_ppc64.go   | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_ppc64le.go | 22 +++++++++++-----------
+ 12 files changed, 63 insertions(+), 68 deletions(-)

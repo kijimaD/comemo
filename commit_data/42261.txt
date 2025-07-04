@@ -1,0 +1,37 @@
+commit 2d323f900df420a29de29cbab949eea08e3d1a61
+Author: Daniel Kumor <rdkumor@gmail.com>
+Date:   Tue Jan 7 02:16:40 2020 +0000
+
+    net/http/httputil: handle escaped paths in SingleHostReverseProxy
+    
+    When forwarding a request, a SingleHostReverseProxy appends the
+    request's path to the target URL's path. However, if certain path
+    elements are encoded, (such as %2F for slash in either the request or
+    target path), simply joining the URL.Path elements is not sufficient,
+    since the field holds the decoded path.
+    
+    Since 87a605, the RawPath field was added which holds a decoding
+    hint for the URL. When joining URL paths, this decoding hint needs
+    to be taken into consideration.
+    
+    As an example, if the target URL.Path is /a/b, and URL.RawPath
+    is /a%2Fb, joining the path with /c should result in /a/b/c
+    in URL.Path, and /a%2Fb/c in RawPath.
+    
+    The added joinURLPath function combines the two URL's Paths,
+    while taking into account escaping, and replaces the previously used
+    singleJoiningSlash in NewSingleHostReverseProxy.
+    
+    Fixes #35908
+    
+    Change-Id: I45886aee548431fe4031883ab1629a41e35f1727
+    GitHub-Last-Rev: 7be6b8d421c63928639f499b984a821585992c2b
+    GitHub-Pull-Request: golang/go#36378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 23 ++++++++++++++++++++++-
+ src/net/http/httputil/reverseproxy_test.go | 29 ++++++++++++++++++++++++++++-
+ 2 files changed, 50 insertions(+), 2 deletions(-)

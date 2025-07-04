@@ -1,0 +1,18 @@
+commit c1f0edae04dccd509618ab8b594d18cb2b0a49f7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 12:51:50 2020 -0400
+
+    net: convert many Close tests to use parallel subtests
+    
+    Also set a deadline in TestCloseWrite so that we can more easily
+    determine which kind of connection is getting stuck on the
+    darwin-arm64-corellium builder (#34837).
+    
+    Change-Id: I8ccacbf436e8e493fb2298a79b17e0af8fc6eb81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227588
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go | 542 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 289 insertions(+), 253 deletions(-)

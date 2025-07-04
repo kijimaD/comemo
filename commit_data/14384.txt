@@ -1,0 +1,24 @@
+commit 7e7b89f7d0191537094d91963c9fe1647ef43635
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Nov 12 15:31:42 2012 -0800
+
+    net/textproto: faster header canonicalization with fewer allocations
+    
+    By keeping a single copy of the strings that commonly show up
+    in headers, we can avoid one string allocation per header.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkReadMIMEHeader        19590        10824  -44.75%
+    BenchmarkUncommon               3168         1861  -41.26%
+    
+    benchmark                 old allocs   new allocs    delta
+    BenchmarkReadMIMEHeader           32           25  -21.88%
+    BenchmarkUncommon                  5            5    0.00%
+    
+    R=bradfitz, golang-dev, dave, rsc, jra
+    CC=golang-dev
+    https://golang.org/cl/6721055
+
+ src/pkg/net/textproto/reader.go      | 85 +++++++++++++++++++++++++++++++-----
+ src/pkg/net/textproto/reader_test.go | 83 +++++++++++++++++++++++++++++++++--
+ 2 files changed, 154 insertions(+), 14 deletions(-)

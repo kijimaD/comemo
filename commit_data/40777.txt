@@ -1,0 +1,13 @@
+commit a56d755f41461bd3a1eb700b0095d82f7a812c1a
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 30 13:36:37 2019 -0400
+
+    cmd/compile: expand initial $GOROOT in optimizer logging json/lsp file names
+    
+    Change-Id: I9596536e04aef034623b51b42f44e4978f07ac47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204339
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/logopt/log_opts.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

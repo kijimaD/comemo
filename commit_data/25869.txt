@@ -1,0 +1,14 @@
+commit 4feb47bc765d2cd7d774b0a28b06e8d81a1affe7
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Tue Feb 23 18:19:52 2016 -0800
+
+    encoding/csv: clarify that TrimLeadingSpace can trim the delimiter
+    
+    Fixes #14464
+    
+    Change-Id: Iafc21641cca7d35b7a5631cfc94742ee8e7d5042
+    Reviewed-on: https://go-review.googlesource.com/19861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/csv/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

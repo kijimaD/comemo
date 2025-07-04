@@ -1,0 +1,33 @@
+commit 93a18acf1e32c37c73e450319b78b5f9f4e11fe7
+Author: Cezar Sa Espinola <cezarsa@gmail.com>
+Date:   Wed Dec 7 22:45:06 2016 -0200
+
+    image/png: reduce memory allocs encoding images by reusing buffers
+    
+    This change allows greatly reducing memory allocations with a slightly
+    performance improvement as well.
+    
+    Instances of (*png).Encoder can have a optional BufferPool attached to
+    them. This allows reusing temporary buffers used when encoding a new
+    image. This buffers include instances to zlib.Writer and bufio.Writer.
+    
+    Also, buffers for current and previous rows are saved in the encoder
+    instance and reused as long as their cap() is enough to fit the current
+    image row.
+    
+    A new benchmark was added to demonstrate the performance improvement
+    when setting a BufferPool to an Encoder instance:
+    
+    $ go test -bench BenchmarkEncodeGray -benchmem
+    BenchmarkEncodeGray-4                       1000           2349584 ns/op         130.75 MB/s      852230 B/op         32 allocs/op
+    BenchmarkEncodeGrayWithBufferPool-4         1000           2241650 ns/op         137.04 MB/s         900 B/op          3 allocs/op
+    
+    Change-Id: I4488201ae53cb2ad010c68c1e0118ee12beae14e
+    Reviewed-on: https://go-review.googlesource.com/34150
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/png/writer.go      | 106 +++++++++++++++++++++++++++++++++----------
+ src/image/png/writer_test.go |  25 ++++++++++
+ 2 files changed, 107 insertions(+), 24 deletions(-)

@@ -1,0 +1,16 @@
+commit c729ed631f1de47c7fb1fb2413b6f69be6d0f3bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 09:16:29 2013 -0700
+
+    spec: result type of a comparison is always untyped bool
+    
+    For details see the cited issue.
+    
+    Fixes #4793.
+    
+    R=rsc, r, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/7524044
+
+ doc/go_spec.html | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

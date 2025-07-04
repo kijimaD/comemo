@@ -1,0 +1,42 @@
+commit 6760f20ef58a8d99ffe898b51d938577ab19c900
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 11 16:17:03 2023 -0400
+
+    net/http: scale rstAvoidanceDelay to reduce test flakiness
+    
+    As far as I can tell, some flakiness is unavoidable in tests
+    that race a large client request write against a server's response
+    when the server doesn't read the full request.
+    It does not appear to be possible to simultaneously ensure that
+    well-behaved clients see EOF instead of ECONNRESET and also prevent
+    misbehaving clients from consuming arbitrary server resources.
+    (See RFC 7230 §6.6 for more detail.)
+    
+    Since there doesn't appear to be a way to cleanly eliminate
+    this source of flakiness, we can instead work around it:
+    we can allow the test to adjust the hard-coded delay if it
+    sees a plausibly-related failure, so that the test can retry
+    with a longer delay.
+    
+    As a nice side benefit, this also allows the tests to run more quickly
+    in the typical case: since the test will retry in case of spurious
+    failures, we can start with an aggressively short delay, and only back
+    off to a longer one if it is really needed on the specific machine
+    running the test.
+    
+    Fixes #57084.
+    Fixes #51104.
+    For #58398.
+    
+    Change-Id: Ia4050679f0777e5eeba7670307a77d93cfce856f
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-race,gotip-linux-amd64-race,gotip-windows-amd64-race
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527196
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/http/export_test.go    |  18 ++
+ src/net/http/serve_test.go     | 492 +++++++++++++++++++++++------------------
+ src/net/http/server.go         |  29 ++-
+ src/net/http/transport_test.go | 169 ++++++++------
+ 4 files changed, 419 insertions(+), 289 deletions(-)

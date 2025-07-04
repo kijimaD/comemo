@@ -1,0 +1,18 @@
+commit 1b79cd2e71852a6fae3c70d2da662565c28ce635
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 12:45:39 2010 -0700
+
+    undo changes accidentally included in 09c5add99d50
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1736042
+
+ src/cmd/prof/gopprof            |  6 ++++--
+ src/pkg/image/png/reader.go     |  3 +--
+ src/pkg/rpc/client.go           |  6 ------
+ src/pkg/rpc/jsonrpc/all_test.go |  6 ++----
+ src/pkg/rpc/jsonrpc/server.go   |  4 ++--
+ src/pkg/rpc/server.go           | 32 +++++++++++---------------------
+ test/arm-pass.txt               |  2 ++
+ 7 files changed, 22 insertions(+), 37 deletions(-)

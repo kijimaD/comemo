@@ -1,0 +1,19 @@
+commit 2f45981679551e88880a18684a4d65ca3d9b45d9
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 7 17:50:37 2022 +0000
+
+    .github: remove duplicate security link
+    
+    Since a SECURITY.md file is present in the main Go repository,
+    GitHub already shows a "Report a security vulnerability" link
+    in the issue template list. Remove the duplicate custom link.
+    
+    Fixes #49962.
+    
+    Change-Id: Ifdf7e93b76ebd9258d907aa9cb4915c0dbc4f93e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376357
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+
+ .github/ISSUE_TEMPLATE/config.yml | 3 ---
+ 1 file changed, 3 deletions(-)

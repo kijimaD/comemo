@@ -1,0 +1,22 @@
+commit 837984f37291f4fc48f9c99b65b0ab3f050bf4b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 21:32:47 2016 -0700
+
+    cmd/cgo: use function arg type for _cgoCheckPointerN function
+    
+    When cgo writes a _cgoCheckPointerN function to handle unsafe.Pointer,
+    use the function's argument type rather than interface{}. This permits
+    type errors to be detected at build time rather than run time.
+    
+    Fixes #13830.
+    
+    Change-Id: Ic7090905e16b977e2379670e0f83640dc192b565
+    Reviewed-on: https://go-review.googlesource.com/23675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/errors/issue13830.go | 26 ++++++++++++++++++++++++++
+ misc/cgo/errors/test.bash     |  7 ++++---
+ src/cmd/cgo/out.go            |  2 +-
+ 3 files changed, 31 insertions(+), 4 deletions(-)

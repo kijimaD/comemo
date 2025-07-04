@@ -1,0 +1,30 @@
+commit 139448fe95402d1b7ff0fa08c459a07de95ddbe4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 18 13:24:04 2013 -0500
+
+    cmd/6c, cmd/8c: cut stack frames by about half
+    
+    The routine that adds an automatic to the stack was
+    adding ptrsize-1 to the size before rounding up.
+    That addition would only make sense to turn a round down
+    into a round up. Before a round up, it just wastes a word.
+    
+    The effect was that a 6c function with one local and
+    one two-word function call used (8+8)+(16+8) = 40 bytes
+    instead of 8+16 = 24 bytes.
+    
+    The wasted space mostly didn't matter, but one place where
+    it does matter is when trying to stay within the 128-byte
+    total frame constraint for #pragma textflag 7 functions.
+    
+    This only affects the C compilers, not the Go compilers.
+    
+    5c already had correct code, which is now copied to 6c and 8c.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7303099
+
+ src/cmd/6c/swt.c | 4 ++--
+ src/cmd/8c/swt.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit a70a2a8ad69f481d5fcaf9e006e224fbab7df754
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 22:06:51 2018 -0700
+
+    cmd/cgo: don't update each call in place
+    
+    Updating each call in place broke when there were multiple cgo calls
+    used as arguments to another cgo call where some required rewriting.
+    Instead, rewrite calls to strings via the existing mangling mechanism,
+    and only substitute the top level call in place.
+    
+    Fixes #28540
+    
+    Change-Id: Ifd66f04c205adc4ad6dd5ee8e79e57dce17e86bb
+    Reviewed-on: https://go-review.googlesource.com/c/146860
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/test/twoargs.go |  22 +++++++++
+ src/cmd/cgo/gcc.go       | 116 ++++++++++++++++++++++++++++++++---------------
+ src/cmd/cgo/main.go      |   1 +
+ 3 files changed, 102 insertions(+), 37 deletions(-)

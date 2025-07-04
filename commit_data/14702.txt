@@ -1,0 +1,15 @@
+commit ebcaf081a7a58bbe0f7599aeb3e075202205f082
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 21 14:19:33 2012 +0900
+
+    net: make unix connection tests more robust
+    
+    Avoids unlink the underlying file before the socket close.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7004044
+
+ src/pkg/net/conn_test.go       | 16 +++++++++-------
+ src/pkg/net/packetconn_test.go | 21 ++++++++++++---------
+ 2 files changed, 21 insertions(+), 16 deletions(-)

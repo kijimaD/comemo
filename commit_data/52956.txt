@@ -1,0 +1,20 @@
+commit 200a01ff5589e2b8eb8cebeb4dcf6469aceaab27
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 10 17:08:59 2023 +0200
+
+    html: convert fuzz test to native Go fuzzing
+    
+    Convert the existing gofuzz based fuzz test to a testing.F based fuzz
+    test.
+    
+    Change-Id: Ieae69ba7fb17bd54d95c7bb2f4ed04c323c9f15f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/html/fuzz.go      | 31 -------------------------------
+ src/html/fuzz_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 31 deletions(-)

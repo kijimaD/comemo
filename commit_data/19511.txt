@@ -1,0 +1,20 @@
+commit be91bc29a43ae582b6ca7f6adf561cfb25bd6911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 11 09:10:49 2014 -0700
+
+    math/big: implement Rat.Float32
+    
+    Pending CL 101750048.
+    For submission after the 1.3 release.
+    
+    Fixes #8065.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/93550043
+
+ src/pkg/math/big/int.go      |  31 +++++--
+ src/pkg/math/big/rat.go      | 177 ++++++++++++++++++++++++++++++-------
+ src/pkg/math/big/rat_test.go | 201 +++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 350 insertions(+), 59 deletions(-)

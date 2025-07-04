@@ -1,0 +1,20 @@
+commit 4dccb7858289ec7702d18f6a8307d677ad492cc8
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 01:42:30 2024 +0000
+
+    unique: use stringslite.Clone
+    
+    Change-Id: Icb1ba7df1f0414090632e663b6a92b492546070d
+    GitHub-Last-Rev: 5169d2681311d2631d9119aea17114602efcaa24
+    GitHub-Pull-Request: golang/go#67092
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581940
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/unique/clone.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

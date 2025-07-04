@@ -1,0 +1,21 @@
+commit f64bb56bae3029ab2491bd40634284677ab191e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 17:21:34 2009 -0800
+
+    rand: add explicit Int31n to avoid 64-bit divide on 32-bit machines
+        use Int31n in Intn when possible.
+    
+    Fixes #390.
+    
+    (using 8g)
+    Intn1000      50000000         38 ns/op
+    Int31n1000    50000000         39 ns/op
+    Int63n1000    20000000        114 ns/op
+    
+    R=r
+    CC=golang-dev, skybrian
+    https://golang.org/cl/180054
+
+ src/pkg/rand/rand.go      | 19 +++++++++++++++++--
+ src/pkg/rand/rand_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 9e0facd26ecefa5a3aa5bfd9e4034fe6d4b2f64e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 28 16:14:12 2021 -0700
+
+    cmd/compile/internal/types2: implement types2.Instantiate
+    
+    Instantiation support for imports. This is experimental
+    but it also doesn't affect Go 1.17 as this code is not
+    executed unless we enable generics (in the parser).
+    
+    Change-Id: If2da09ac3a557ec6a180707a53f75f3ce354f3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314773
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go | 63 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/subst.go       | 31 ++++++++-----
+ 2 files changed, 83 insertions(+), 11 deletions(-)

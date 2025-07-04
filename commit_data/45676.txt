@@ -1,0 +1,27 @@
+commit 3c656445f139d8b6def40aa7beffd5da9fceccdb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 21 16:33:42 2021 -0400
+
+    cmd/go: in TestScript/mod_replace, download an explicit module path
+    
+    As of CL 318629, 'go mod download' without arguments does not save
+    checksums for module source code. Without a checksum, 'go list' will
+    not report the location of the source code even if it is present, in
+    order to prevent accidental access of mismatched code.
+    
+    Downloading an explicit module here also more clearly expresses the
+    intent of the test (“download this module and see where it is”), and
+    may be somewhat more efficient (since the test doesn't need source
+    code for the other modules in the build list).
+    
+    Updates #45332
+    
+    Change-Id: Ic589b22478e3ed140b95365bb6729101dd598ccc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321956
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_replace.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

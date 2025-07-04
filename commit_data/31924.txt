@@ -1,0 +1,15 @@
+commit 7f93232a1088ee7984bb2891075ec2eabb177f84
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Jun 27 01:18:30 2017 -0400
+
+    encoding/binary: improve comment formatting consistency
+    
+    Use 2 slashes, space, then tab. This is more consistent, and removes
+    inadvertent leading space.
+    
+    Change-Id: I383770ed4eb8ac17c78c7ae5675b553d4fb70b1e
+    Reviewed-on: https://go-review.googlesource.com/46726
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/binary/varint.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

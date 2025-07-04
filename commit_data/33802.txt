@@ -1,0 +1,28 @@
+commit c3fa046f543526cf1fd15d9d2b995f57511837c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 14:38:50 2017 -0500
+
+    encoding/pem: change Encode, EncodeToMemory not to generate partial PEM blocks
+    
+    Originally these routines could not fail except by
+    returning errors from the underlying writer.
+    
+    Then we realized that header keys containing colons
+    needed to be rejected, and we started returning an error
+    from Encode. But that only happens after writing a
+    partial PEM block to the underlying writer, which is
+    unfortunate, but at least it was undocumented.
+    
+    CL 77790 then documented this unfortunate behavior.
+    
+    Instead of documenting unfortunate behavior, fix it.
+    
+    Change-Id: Ic7467a576c4cecd16a99138571a1269cc4f96204
+    Reviewed-on: https://go-review.googlesource.com/82076
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/pem.go      | 26 ++++++++++++++++++--------
+ src/encoding/pem/pem_test.go | 14 ++++++++++++++
+ 2 files changed, 32 insertions(+), 8 deletions(-)

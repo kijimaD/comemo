@@ -1,0 +1,14 @@
+commit c9089e64be4b3b020425a29f5ec17400bac40b50
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 12 22:13:21 2015 +1300
+
+    cmd/asm/internal/asm: report arch if assembly fails
+    
+    Just a trivial thing I noticed in passing.
+    
+    Change-Id: I875069ceffd623f9e430d07feb5042ab9e69917e
+    Reviewed-on: https://go-review.googlesource.com/7472
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

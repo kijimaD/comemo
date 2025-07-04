@@ -1,0 +1,12 @@
+commit 9224b4c873f09c310787b12830acdb5577a099c9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Oct 7 14:14:46 2012 +0800
+
+    cmd/gc: fix output filename generation on Windows
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6610060
+
+ src/cmd/gc/lex.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

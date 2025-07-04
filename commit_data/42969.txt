@@ -1,0 +1,28 @@
+commit 66e66e71132034aa620ffbae9008f951da0f9f27
+Author: Dominic Della Valle <ddvpublic@Gmail.com>
+Date:   Sun Sep 13 17:03:48 2020 +0000
+
+    make.bat: fix compare between GOROOT and srcdir paths, when either contains whitespace.
+    
+    CL 96455 brings CL 57753 to Windows
+    However, a path comparison within it was left unquoted.
+    If the Go source directory resides in a path containing whitespace,
+    the interpreter will compare against the first portion of the path string,
+    and treat the remainder as an expression.
+    This patch amends that.
+    
+    For example, consider the path
+    `C:\Users\Dominic Della Valle\Projects\Go\goroot\src`
+    Issuing `make.bat` will print out `'Della' is not recognized as an internal or external command, operable program or batch file.` before proceeding.
+    
+    Change-Id: Ifcec159baeec940c29c61aa721c64c13c6fd8c14
+    GitHub-Last-Rev: 809ddbb4dbc80d834f8108ca44c2826016d78d1c
+    GitHub-Pull-Request: golang/go#41319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253898
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

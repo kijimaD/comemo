@@ -1,0 +1,14 @@
+commit 557f6a13beb9e2da58d439d228e7f8f838c61159
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 22:05:34 2017 +0000
+
+    doc: delete go1.8.txt
+    
+    Fixes #20591
+    
+    Change-Id: I2a4674a3430c5a4d3c569f3ea654c6ff4d9bf7ee
+    Reviewed-on: https://go-review.googlesource.com/45015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.txt | 55 -------------------------------------------------------
+ 1 file changed, 55 deletions(-)

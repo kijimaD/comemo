@@ -1,0 +1,21 @@
+commit dbb1d198ab883e9b617ba9cdfb2059fc212f4762
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 29 15:55:40 2017 -0500
+
+    cmd/compile: fix loop depth of range expression in escape analysis
+    
+    ORANGE node's Right node is the expression it is ranging over,
+    which is evaluated before the loop. In the escape analysis,
+    we should walk this node without loop depth incremented.
+    
+    Fixes #21709.
+    
+    Change-Id: Idc1e4c76e39afb5a344d85f6b497930a488ce5cf
+    Reviewed-on: https://go-review.googlesource.com/80740
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 11 +++++++++++
+ test/fixedbugs/issue21709.go       | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

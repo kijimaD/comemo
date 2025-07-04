@@ -1,0 +1,19 @@
+commit aff2f6ece896e0fe76a2c8853abf868f689006f0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Nov 20 21:49:41 2018 +0100
+
+    misc/wasm: add stub for fs.read on browsers
+    
+    Using fmt.Scanln in a browser environment caused a panic, since there
+    was no stub for fs.read. This commit adds a stub that returns ENOSYS.
+    
+    Fixes #27773.
+    
+    Change-Id: I79b019039e4bc90da51d71a4edddf3bd7809ff45
+    Reviewed-on: https://go-review.googlesource.com/c/150617
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js | 5 +++++
+ 1 file changed, 5 insertions(+)

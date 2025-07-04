@@ -1,0 +1,22 @@
+commit 513faccb6fe4c2163384b3ddd7c103f79c4c0378
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 15:41:37 2009 -0700
+
+    final AES: CMAC authentication and EAX authenticated encryption
+    
+    R=r
+    DELTA=791  (779 added, 0 deleted, 12 changed)
+    OCL=29045
+    CL=29058
+
+ src/lib/crypto/block/cfb.go           |   2 +-
+ src/lib/crypto/block/cipher.go        |  16 +++
+ src/lib/crypto/block/cmac.go          | 105 ++++++++++++++
+ src/lib/crypto/block/cmac_aes_test.go | 165 ++++++++++++++++++++++
+ src/lib/crypto/block/ctr.go           |   4 +-
+ src/lib/crypto/block/eax.go           | 254 ++++++++++++++++++++++++++++++++++
+ src/lib/crypto/block/eax_aes_test.go  | 239 ++++++++++++++++++++++++++++++++
+ src/lib/crypto/block/ofb.go           |   4 +-
+ src/lib/crypto/block/xor.go           |  14 +-
+ src/lib/crypto/block/xor_test.go      |   4 +-
+ 10 files changed, 795 insertions(+), 12 deletions(-)

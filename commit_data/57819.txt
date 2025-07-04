@@ -1,0 +1,32 @@
+commit 89d7f031720c999e8226cd9624cc2c531f8477e3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Oct 24 00:56:07 2024 +1100
+
+    cmd/internal/obj/riscv: update RISC-V instruction table
+    
+    Regenerate RISC-V instruction table from the riscv-opcodes repository,
+    due to various changes and shuffling upstream.
+    
+    This has been changed to remove pseudo-instructions, since Go only
+    needs the instruction encodings and including the pseudo-instructions
+    is creating unnecessary complications (for example, the inclusion
+    of ANOP and ARET, as well as strangely named aliases such as
+    AJALPSEUDO/AJALRPSEUDO). Remove pseudo-instructions that are not
+    currently supported by the assembler and add specific handling for
+    RDCYCLE, RDTIME and RDINSTRET, which were previously implemented
+    via the instruction encodings.
+    
+    Change-Id: I78be4506ba6b627eba1f321406081a63bab5b2e6
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616116
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/anames.go | 23 +++++----------------
+ src/cmd/internal/obj/riscv/cpu.go    | 36 ++++++++------------------------
+ src/cmd/internal/obj/riscv/inst.go   | 40 ------------------------------------
+ src/cmd/internal/obj/riscv/obj.go    | 35 +++++++++++++++++++++++--------
+ 4 files changed, 40 insertions(+), 94 deletions(-)

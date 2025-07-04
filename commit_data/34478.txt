@@ -1,0 +1,18 @@
+commit 084143d84434b66f3d75afcdb609b71097a07e65
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 6 10:16:32 2018 -0500
+
+    math/big: don't use R18 in ARM64 assembly
+    
+    R18 seems reserved on Apple platforms.
+    
+    May fix darwin/arm64 build.
+    
+    Change-Id: Ia2c1de550a64827c85a64affa53b94c62aacce8e
+    Reviewed-on: https://go-review.googlesource.com/98896
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ src/math/big/arith_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

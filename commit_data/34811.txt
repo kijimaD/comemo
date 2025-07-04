@@ -1,0 +1,31 @@
+commit 19ee2ef9502795dd9517b6b7fa789922241d2a03
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 23 19:57:07 2017 +0100
+
+    cmd/compile: introduce gc.Node.copy method
+    
+    When making a shallow copy of a node, various methods were used,
+    including calling nod(OXXX, nil, nil) and then overwriting it, or
+    "n1 := *n" and then using &n1.
+    
+    Add a copy method instead, simplifying all of those and making them
+    consistent.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I3f3fc88bad708edc712bf6d87214cda4ddc43b01
+    Reviewed-on: https://go-review.googlesource.com/72710
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     |  6 ++---
+ src/cmd/compile/internal/gc/dcl.go       |  6 ++---
+ src/cmd/compile/internal/gc/inl.go       | 10 +++-----
+ src/cmd/compile/internal/gc/order.go     | 24 +++++++++---------
+ src/cmd/compile/internal/gc/racewalk.go  |  6 ++---
+ src/cmd/compile/internal/gc/sinit.go     | 43 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go      | 20 ++++++++-------
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ src/cmd/compile/internal/gc/walk.go      |  4 +--
+ 9 files changed, 57 insertions(+), 66 deletions(-)

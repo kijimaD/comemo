@@ -1,0 +1,33 @@
+commit 4fb10b2118cb16445f2d089f79beb3d32db3db12
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon May 10 18:10:18 2021 -0400
+
+    cmd/go: in 'go mod download' without args, don't save module zip sums
+    
+    'go mod download' without arguments is frequently used to populate the
+    module cache. It tends to fetch a lot of extra files (for modules in
+    the build list that aren't needed to build packages in the main
+    module). It's annoying when sums are written for these extra files.
+    
+    'go mod download mod@version' will still write sums for specific
+    modules in the build list. 'go mod download all' still has the
+    previous behavior.
+    
+    For now, all invocations of 'go mod download' still update go.mod and
+    go.sum with changes needed to load the build list (1.15 behavior).
+    
+    Fixes #45332
+    
+    Change-Id: I9e17d18a7466ac7271a0e1a2b663f6b3cb168c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318629
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.17.html                                    | 11 +++++++
+ src/cmd/go/internal/modcmd/download.go             | 29 ++++++++++++++---
+ src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_download.txt        | 37 +++++++++++++++++++---
+ .../go/testdata/script/mod_get_trailing_slash.txt  | 10 ++++--
+ src/cmd/go/testdata/script/mod_query.txt           |  5 +--
+ src/cmd/go/testdata/script/mod_retract.txt         |  8 +++--
+ 7 files changed, 85 insertions(+), 17 deletions(-)

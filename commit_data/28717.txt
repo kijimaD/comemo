@@ -1,0 +1,30 @@
+commit fa9b57bb1d84bf81b49346341ad14297d0195187
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 29 11:46:53 2016 -0400
+
+    runtime: make next_gc ^0 when GC is disabled
+    
+    When GC is disabled, we set gcpercent to -1. However, we still use
+    gcpercent to compute several values, such as next_gc and gc_trigger.
+    These calculations are meaningless when gcpercent is -1 and result in
+    meaningless values. This is okay in a sense because we also never use
+    these values if gcpercent is -1, but they're confusing when exposed to
+    the user, for example via MemStats or the execution trace. It's
+    particularly unfortunate in the execution trace because it attempts to
+    plot the underflowed value of next_gc, which scales all useful
+    information in the heap row into oblivion.
+    
+    Fix this by making next_gc ^0 when gcpercent < 0. This has the
+    advantage of being true in a way: next_gc is effectively infinite when
+    gcpercent < 0. We can also detect this special value when updating the
+    execution trace and report next_gc as 0 so it doesn't blow up the
+    display of the heap line.
+    
+    Change-Id: I4f366e4451f8892a4908da7b2b6086bdc67ca9a9
+    Reviewed-on: https://go-review.googlesource.com/30016
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go    | 9 +++++++++
+ src/runtime/mstats.go | 2 +-
+ src/runtime/trace.go  | 7 ++++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

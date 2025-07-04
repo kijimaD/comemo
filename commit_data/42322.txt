@@ -1,0 +1,12 @@
+commit 98d20fb23551a7ab900fcfe9d25fd9cb6a98a07f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 22 10:22:12 2020 -0700
+
+    database/sql: form a complete sentence in code comment
+    
+    Change-Id: Ib6d0f81b5f64473f9ee6be26a08d5102e8edadc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229477
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

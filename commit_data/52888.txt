@@ -1,0 +1,20 @@
+commit 0212b80eacaf03365810ea93e0380aefe8b8ab42
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 4 15:11:28 2023 -0400
+
+    runtime: don't run TestStackGrowth in parallel with other tests
+    
+    This test calls runtime.GC quite a number of times. GC is a global
+    operation. To reduce interference with other tests, don't run this
+    test in parallel with other tests.
+    
+    May fix #57601.
+    
+    Change-Id: I6efadb62c4dada37a927455f5c6cd98cafb88aaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/stack_test.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 9b8da82d72fa41452c6640fce33a80414f48cfca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 13 09:55:24 2009 -0800
+
+    Tweak code to make it easier to compile with gcc.
+      + Use macros to name symbols with non-ASCII characters.
+      + Make some variables unsigned, because they are compared
+        against unsigned values.
+      + Fix a few void* pointers to be MLink*.
+    
+    R=rsc
+    DELTA=94  (44 added, 3 deleted, 47 changed)
+    OCL=22303
+    CL=22638
+
+ src/runtime/malloc.c   | 23 ++++++++-----
+ src/runtime/malloc.h   |  2 +-
+ src/runtime/mcentral.c |  3 +-
+ src/runtime/mem.c      |  8 ++---
+ src/runtime/mheap.c    |  7 ++--
+ src/runtime/msize.c    |  4 +--
+ src/runtime/runtime.h  | 92 +++++++++++++++++++++++++++++++++++---------------
+ 7 files changed, 90 insertions(+), 49 deletions(-)

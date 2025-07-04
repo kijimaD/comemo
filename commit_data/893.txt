@@ -1,0 +1,13 @@
+commit 907fea6b543af4c131305533b4f98c598af78193
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 17 15:52:49 2008 -0700
+
+    Link against -lm so that we can find the function "floor".
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=17375
+    CL=17375
+
+ src/cmd/6g/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

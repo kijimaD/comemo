@@ -1,0 +1,21 @@
+commit f7f6329e26f9c587fb00606205a3cd2c04c45c31
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 5 14:21:42 2008 -0700
+
+    kill trailing white space.
+    (apparently my first attempt didn't work.)
+    
+    R=r
+    OCL=13888
+    CL=13888
+
+ src/runtime/chan.c             |  2 +-
+ src/runtime/proc.c             | 34 +++++++++++++++++-----------------
+ src/runtime/rt0_amd64.s        |  2 +-
+ src/runtime/rt1_amd64_darwin.c |  4 ++--
+ src/runtime/rt1_amd64_linux.c  | 20 ++++++++++----------
+ src/runtime/rune.c             |  8 ++++----
+ src/runtime/runtime.c          |  6 +++---
+ src/runtime/runtime.h          |  2 +-
+ src/runtime/sys_amd64_linux.s  |  6 +++---
+ 9 files changed, 42 insertions(+), 42 deletions(-)

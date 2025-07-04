@@ -1,0 +1,12 @@
+commit e91b31bc79809ccb3ac86dc9c71d7fad4acbc40d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 15:27:49 2012 -0800
+
+    fix build
+    
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/5528090
+
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

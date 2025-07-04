@@ -1,0 +1,17 @@
+commit 48906a6d57fdc3c6fd2b6b9fe4c0e31dc225a058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 12:09:17 2020 -0800
+
+    net/http/pprof: don't treat os.Args as format string in Cmdline handler
+    
+    Found by @josharian running staticcheck against a fork of this code
+    elsewhere.
+    
+    Change-Id: Ica8bae5df71adde1a71e541dd55b0b81b97b3baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277992
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

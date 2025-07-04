@@ -1,0 +1,18 @@
+commit efacb2a1b48df1a389289c045754ddb30f1a4038
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 18 21:18:13 2012 -0800
+
+    os: remove Getenverror
+    
+    Fixes #3065
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5675094
+
+ doc/go1.html                   |  7 +++++++
+ doc/go1.tmpl                   |  7 +++++++
+ misc/dashboard/builder/main.go | 20 ++++++++++++++++----
+ src/pkg/os/env.go              | 23 ++---------------------
+ test/env.go                    | 12 ++++--------
+ 5 files changed, 36 insertions(+), 33 deletions(-)

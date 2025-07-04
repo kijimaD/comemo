@@ -1,0 +1,20 @@
+commit fc1f0bd5e90119278f71cb468bb02a4ecf9d37ac
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 13:15:55 2011 +1000
+
+    exp/template: allow range actions to declare a key and element variable.
+            {{range $key, $element := pipeline}}
+    This CL is smaller than it looks due to some rearrangement and renaming.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4709047
+
+ src/pkg/exp/template/doc.go        | 15 +++++++++---
+ src/pkg/exp/template/exec.go       | 30 +++++++++++++++---------
+ src/pkg/exp/template/exec_test.go  | 15 +++++++-----
+ src/pkg/exp/template/lex.go        | 47 +++++++++++++++++++++-----------------
+ src/pkg/exp/template/lex_test.go   | 44 +++++++++++++++++++++++++++--------
+ src/pkg/exp/template/parse.go      | 45 ++++++++++++++++++++++--------------
+ src/pkg/exp/template/parse_test.go |  9 +++++---
+ 7 files changed, 135 insertions(+), 70 deletions(-)

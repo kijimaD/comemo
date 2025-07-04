@@ -1,0 +1,16 @@
+commit 14be733a253d5b47910ad8c46b6070880a120a96
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 13:41:47 2009 -0700
+
+    bug197
+    
+    R=ken
+    OCL=33765
+    CL=33765
+
+ src/cmd/gc/const.c       |  2 ++
+ src/cmd/gc/go.h          |  2 +-
+ src/cmd/gc/print.c       |  3 +++
+ src/cmd/gc/typecheck.c   | 10 +++++++++-
+ test/fixedbugs/bug197.go | 33 +++++++++++++++++++++++++++++++++
+ 5 files changed, 48 insertions(+), 2 deletions(-)

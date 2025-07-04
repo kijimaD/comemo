@@ -1,0 +1,13 @@
+commit eb984f524e6b53eb32277adba81fe79177a28d8c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jan 23 14:45:30 2012 -0500
+
+    cgo: -cdefs should translate unsafe.Pointer to void *
+            Fixes #2454.
+    
+    R=rsc, mikioh.mikioh, golang-dev, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5557068
+
+ src/cmd/cgo/godefs.go | 5 +++++
+ 1 file changed, 5 insertions(+)

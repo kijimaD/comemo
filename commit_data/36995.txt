@@ -1,0 +1,25 @@
+commit 39fa301bdc5cd99e4f71d7da5f6f38a6f313d611
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 15 12:53:07 2018 -0400
+
+    test/codegen: enable more tests for ppc64/ppc64le
+    
+    Adding cases for ppc64,ppc64le to the codegen tests
+    where appropriate.
+    
+    Change-Id: Idf8cbe88a4ab4406a4ef1ea777bd15a58b68f3ed
+    Reviewed-on: https://go-review.googlesource.com/c/142557
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/codegen/arithmetic.go  | 22 ++++++++++++++++++++++
+ test/codegen/comparisons.go |  1 +
+ test/codegen/copy.go        |  7 +++++++
+ test/codegen/floats.go      | 12 ++++++++++++
+ test/codegen/math.go        | 15 +++++++++++++++
+ test/codegen/mathbits.go    | 20 ++++++++++++++++++--
+ test/codegen/noextend.go    | 42 ++++++++++++++++++++++++++++++++++++++++++
+ test/codegen/rotate.go      |  8 ++++++++
+ test/codegen/stack.go       |  5 +++++
+ 9 files changed, 130 insertions(+), 2 deletions(-)

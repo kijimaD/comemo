@@ -1,0 +1,12 @@
+commit 9a04cba807f15cb2b2658083d358a0d630b59a06
+Author: Martin Neubauer <m.ne@gmx.net>
+Date:   Wed Aug 25 12:44:13 2010 -0400
+
+    src/pkg/Makefile: delete use of QUOTED_GOBIN
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1997044
+
+ src/pkg/Makefile | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)

@@ -1,0 +1,23 @@
+commit f235275097eb68b36d171908cea6a0be23351a94
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jul 28 12:49:52 2020 -0700
+
+    net/http: fix cancelation of requests with a readTrackingBody wrapper
+    
+    Use the original *Request in the reqCanceler map, not the transient
+    wrapper created to handle body rewinding.
+    
+    Change the key of reqCanceler to a struct{*Request}, to make it more
+    difficult to accidentally use the wrong request as the key.
+    
+    Fixes #40453.
+    
+    Change-Id: I4e61ee9ff2c794fb4c920a3a66c9a0458693d757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245357
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/transport.go      | 73 ++++++++++++++++++++++++------------------
+ src/net/http/transport_test.go | 44 +++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 31 deletions(-)

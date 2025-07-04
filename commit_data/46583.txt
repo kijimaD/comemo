@@ -1,0 +1,14 @@
+commit 242d02dd5e9bddc3392237752abe7dfe1f9cb300
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 21:47:45 2021 -0700
+
+    cmd/compile/internal/types2: assume generic code for std lib
+    
+    Change-Id: Ib24890af8caa02af61358cadac6637574d62ff52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351792
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

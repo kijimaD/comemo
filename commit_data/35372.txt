@@ -1,0 +1,14 @@
+commit f94b5a81057ccf6d16da3a78b2ff5c08383f9768
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri May 11 20:51:39 2018 +0530
+
+    math/rand: clarify documentation for Seed example
+    
+    Fixes #25325
+    
+    Change-Id: I101641be99a820722edb7272918e04e8d2e1646c
+    Reviewed-on: https://go-review.googlesource.com/112775
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/rand/example_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

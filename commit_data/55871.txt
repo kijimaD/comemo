@@ -1,0 +1,20 @@
+commit 707eba9b941230be1afe809466afa3465ed60fdb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 28 22:24:48 2024 +0000
+
+    runtime: fix EvFrequency event value on Windows in the new tracer
+    
+    The value produced for the EvFrequency event on Windows is missing the
+    fact that the cputicks clock gets divided. This results in durations
+    that are consistently wrong by the same factor (about 256).
+    
+    Fixes #65997.
+    
+    Change-Id: I930cbfce3499d435c20699f41c11e3227d84f911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567937
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace2time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

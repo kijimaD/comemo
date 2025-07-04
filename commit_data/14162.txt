@@ -1,0 +1,22 @@
+commit ea7c57a03135118dde12cb27b735c48c24c88b37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 11:08:42 2012 -0700
+
+    go spec: restrictions for index and slice expressions
+    
+    At the moment, gc and gccgo report compile-
+    time errors for certain constant indexes that
+    are out of bounds. The spec however requests
+    a run-time panic for out-of-bounds indexes
+    (http://tip.golang.org/ref/spec#Indexes).
+    
+    Document the status quo.
+    
+    Fixes #4231.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6699048
+
+ doc/go_spec.html | 53 +++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 16 deletions(-)

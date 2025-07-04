@@ -1,0 +1,17 @@
+commit d08f57e68c2343822ebd449b4bc234a657ee56f3
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 11 11:18:45 2011 -0500
+
+    exp/terminal: rename terminal.go to util.go
+    
+    (This is part of removing the duplicate code between exp/terminal and
+    exp/ssh, but hg is having a very hard time keeping up so I'm doing it
+    in small steps.)
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5373061
+
+ src/pkg/exp/terminal/Makefile                 | 2 +-
+ src/pkg/exp/terminal/{terminal.go => util.go} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)

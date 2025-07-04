@@ -1,0 +1,37 @@
+commit e0c3d85f08431540abaaa909fb8185dfe05304b0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 17:01:30 2015 -0400
+
+    runtime: fix background marking at 25% utilization
+    
+    Currently, in accordance with the GC pacing proposal, we schedule
+    background marking with a goal of achieving 25% utilization *total*
+    between mutator assists and background marking. This is stricter than
+    was set out in the Go 1.5 proposal, which suggests that the garbage
+    collector can use 25% just for itself and anything the mutator does to
+    help out is on top of that. It also has several technical
+    drawbacks. Because mutator assist time is constantly changing and we
+    can't have instantaneous information on background marking time, it
+    effectively requires hitting a moving target based on out-of-date
+    information. This works out in the long run, but works poorly for
+    short GC cycles and on short time scales. Also, this requires
+    time-multiplexing all Ps between the mutator and background GC since
+    the goal utilization of background GC constantly fluctuates. This
+    results in a complicated scheduling algorithm, poor affinity, and
+    extra overheads from context switching.
+    
+    This change modifies the way we schedule and run background marking so
+    that background marking always consumes 25% of GOMAXPROCS and mutator
+    assist is in addition to this. This enables a much more robust
+    scheduling algorithm where we pre-determine the number of Ps we should
+    dedicate to background marking as well as the utilization goal for a
+    single floating "remainder" mark worker.
+    
+    Change-Id: I187fa4c03ab6fe78012a84d95975167299eb9168
+    Reviewed-on: https://go-review.googlesource.com/9013
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      | 232 ++++++++++++++++++++++++++++++++----------------
+ src/runtime/proc1.go    |   2 +-
+ src/runtime/runtime2.go |   6 +-
+ 3 files changed, 161 insertions(+), 79 deletions(-)

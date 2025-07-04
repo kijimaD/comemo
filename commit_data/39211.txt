@@ -1,0 +1,12 @@
+commit d0aca5759e22dc00c06474c9123fb21129f6272b
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue May 21 21:18:23 2019 +0700
+
+    cmd/compile: fix doc typo in ssa.go
+    
+    Change-Id: Ie299a5eca6f6a7c5a37c00ff0de7ce322450375b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178123
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

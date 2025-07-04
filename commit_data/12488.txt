@@ -1,0 +1,13 @@
+commit 6b770f05aded85c6e6eabeef498271cdf5df3c71
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 8 03:56:31 2012 +0800
+
+    doc/go_mem: init-created goroutine behavior changes for Go 1
+            They can start execution even before all init functions end.
+    
+    R=rsc, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5732061
+
+ doc/go_mem.html | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

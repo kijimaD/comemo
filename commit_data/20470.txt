@@ -1,0 +1,39 @@
+commit c3b5db895b11ba28bc1546f37178efcb057ab3f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 14:49:24 2014 -0400
+
+    runtime: delete panicstring; move its checks into gopanic
+    
+    In Go 1.3 the runtime called panicstring to report errors like
+    divide by zero or memory faults. Now we call panic (gopanic)
+    with pre-allocated error values. That new path is missing the
+    checking that panicstring did, so add it there.
+    
+    The only call to panicstring left is in cnew, which is problematic
+    because if it fails, probably the heap is corrupt. In that case,
+    calling panicstring creates a new errorCString (no allocation there),
+    but then panic tries to print it, invoking errorCString.Error, which
+    does a string concatenation (allocating), which then dies.
+    Replace that one panicstring with a throw: cnew is for allocating
+    runtime data structures and should never ask for an inappropriate
+    amount of memory.
+    
+    With panicstring gone, delete newErrorCString, errorCString.
+    While we're here, delete newErrorString, not called by anyone.
+    (It can't be: that would be C code calling Go code that might
+    block or grow the stack.)
+    
+    Found while debugging a malloc corruption.
+    This resulted in 'panic during panic' instead of a more useful message.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/138290045
+
+ src/runtime/error.go  | 22 -------------------
+ src/runtime/malloc.c  |  2 +-
+ src/runtime/panic.go  | 59 +++++++++++++++++++++++++--------------------------
+ src/runtime/proc.c    |  7 ------
+ src/runtime/runtime.h |  3 ---
+ 5 files changed, 30 insertions(+), 63 deletions(-)

@@ -1,0 +1,16 @@
+commit 635093e4b178c2605604bb1a33456540c7f7e740
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 5 18:38:27 2010 -0800
+
+    Match gccgo error messages.
+    
+    ddd1.go:16:10: error: argument 1 has incompatible type
+    ddd1.go:17:10: error: argument 1 has incompatible type
+    ddd1.go:15:10: error: floating point constant truncated to integer
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204048
+
+ test/ddd1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

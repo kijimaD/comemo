@@ -1,0 +1,12 @@
+commit fad27ec5d4fa7aa271aab205a200adfcc28c3495
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 17 17:26:44 2013 +1000
+
+    os: clarify windows read console code
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9458043
+
+ src/pkg/os/file_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

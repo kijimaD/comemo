@@ -1,0 +1,28 @@
+commit 8cd931ff0d4652b333996299d63603c659dbcc6c
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 6 14:04:32 2022 -0800
+
+    all: update vendored golang.org/x/net
+    
+    Pull in HTTP/2 security fix:
+    
+            1e63c2f08a http2: limit canonical header cache by bytes, not entries
+    
+    Fixes #56350
+    
+    Change-Id: Ib14024ed894ba266f05d4a6e8c454234a45677d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455717
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                         |  2 +-
+ src/cmd/go.sum                                         |  4 ++--
+ .../vendor/golang.org/x/sys/windows/syscall_windows.go |  1 +
+ .../golang.org/x/sys/windows/zsyscall_windows.go       |  7 +++++++
+ src/cmd/vendor/modules.txt                             |  2 +-
+ src/go.mod                                             |  6 +++---
+ src/go.sum                                             | 12 ++++++------
+ src/net/http/h2_bundle.go                              | 18 +++++++++++-------
+ src/vendor/modules.txt                                 |  6 +++---
+ 9 files changed, 35 insertions(+), 23 deletions(-)

@@ -1,0 +1,12 @@
+commit 8629e5a648327a2ec7461b438d9800059e52b1e9
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Wed Jul 21 12:01:15 2010 -0700
+
+    strings.Bytes: fix typo in comment
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/1886042
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

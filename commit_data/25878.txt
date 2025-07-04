@@ -1,0 +1,14 @@
+commit d17727bdb4b925427dd03d6b235b586418e47f89
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 24 11:49:31 2016 -0800
+
+    cmd/compile: cleanup escape sequence lexing
+    
+    Change-Id: I7fe4d0cdcc284d5319c130ee3c351f23489af273
+    Reviewed-on: https://go-review.googlesource.com/19902
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 143 +++++++++++++++++--------------------
+ 1 file changed, 65 insertions(+), 78 deletions(-)

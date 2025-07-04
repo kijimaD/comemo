@@ -1,0 +1,23 @@
+commit 6c0daa733192031eab23d09ed6515c4cd959aa92
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Oct 16 17:17:21 2021 +0200
+
+    syscall/js: remove Wrapper interface
+    
+    This change removes the js.Wrapper interface for performance reasons.
+    See proposal #44006 for details.
+    
+    This is a breaking change, but syscall/js is exempt from Go's
+    compatibility promise.
+    
+    Fixes #44006
+    
+    Change-Id: I968cd14b1e61cc72ea9f84240b6bd29e8b8ae673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356430
+    Trust: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/syscall/js/func.go |  2 --
+ src/syscall/js/js.go   | 17 +++--------------
+ 2 files changed, 3 insertions(+), 16 deletions(-)

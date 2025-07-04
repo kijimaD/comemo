@@ -1,0 +1,19 @@
+commit 62c309c54ccfdda4586a3ddb7e39b928a81ab04e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 6 17:08:07 2019 -0400
+
+    runtime/internal/atomic: export more ABI0 wrappers
+    
+    Somehow I missed these two functions in CL 179863. This should fix the
+    linux-arm builders.
+    
+    Updates #31230.
+    
+    Change-Id: I3f8bef3fac331b505a55c0850b0fbc799b7c06c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181077
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/atomic_arm.go | 4 ++++
+ 1 file changed, 4 insertions(+)

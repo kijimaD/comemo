@@ -1,0 +1,20 @@
+commit c0e8e405c02388fb8e7d3bea092f5aa8b19b2ad9
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Tue May 26 17:45:11 2020 +0300
+
+    cmd/go: clean -cache -n should not delete cache
+    
+    Uses the `cfg.BuildN` flag to avoid deleting inside the `if cleanCache`
+    block. Introduces a test in src/cmd/go/testdata/script.
+    
+    Fixes #39250
+    
+    Change-Id: I857c441b1d7aa7c68cfd646d6833e6eaca5b18d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235140
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/clean/clean.go           | 25 ++++++++++++++++---------
+ src/cmd/go/testdata/script/clean_cache_n.txt | 25 +++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 9 deletions(-)

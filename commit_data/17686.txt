@@ -1,0 +1,15 @@
+commit 2be62360b2748636a2849e959dede7359383b200
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Sep 23 22:33:42 2013 -0400
+
+    net: fix Close of autobind unix listener
+    
+    Fixes #6455.
+    
+    R=mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/13457058
+
+ src/pkg/net/unix_test.go      | 14 +++++++++++++-
+ src/pkg/net/unixsock_posix.go |  2 +-
+ 2 files changed, 14 insertions(+), 2 deletions(-)

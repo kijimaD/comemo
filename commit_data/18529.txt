@@ -1,0 +1,18 @@
+commit 9b0736fc5850271ed89880202eed797692976a49
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 14 11:36:52 2014 -0800
+
+    cmd/go: remove cross compiling restriction on cgo
+    
+    A previous CL added support for cross compiling with cgo, but
+    missed the GOOS check in cmd/go. Remove it.
+    
+    Update #4714
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/57210046
+
+ src/cmd/go/build.go | 4 ----
+ 1 file changed, 4 deletions(-)

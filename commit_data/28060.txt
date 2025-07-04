@@ -1,0 +1,14 @@
+commit e022dcd35f3047134c661ef27cafdf1d845df447
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 25 17:19:28 2016 -0700
+
+    syscall: fix plan9/386 RawSyscall6
+    
+    Fixes the build.
+    
+    Change-Id: I34bcae08cfb43257aeb9086336966ef85f15fe1d
+    Reviewed-on: https://go-review.googlesource.com/27815
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/syscall/asm_plan9_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

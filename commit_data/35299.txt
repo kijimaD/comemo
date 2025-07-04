@@ -1,0 +1,24 @@
+commit a33c595753ea52421818069a923d8acccbf692ff
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat May 5 21:26:23 2018 -0700
+
+    text/tabwriter: don't mimic previous lines on flush
+    
+    \f triggers a flush.
+    
+    This is used (by gofmt, among others) to indicate that
+    the current aligned segment has ended.
+    
+    When flushed, it is unlikely that the previous line is
+    in fact a good predictor of the upcoming line,
+    so stop treating it as such.
+    
+    No performance impact on the existing benchmarks,
+    which do not perform any flushes.
+    
+    Change-Id: Ifdf3e6d4600713c90db7b51a10e429d9260dc08c
+    Reviewed-on: https://go-review.googlesource.com/111644
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/text/tabwriter/tabwriter.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

@@ -1,0 +1,14 @@
+commit 6524310770649b6aa9786711edd2f6eeab4ba61a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 17 11:47:12 2014 -0700
+
+    cmd/pack: handle very long lines in pkgdef
+    
+    LGTM=rsc, bradfitz
+    R=golang-codereviews, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/88170049
+
+ src/cmd/pack/pack.go      |  20 +++++----
+ src/cmd/pack/pack_test.go | 102 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 98 insertions(+), 24 deletions(-)

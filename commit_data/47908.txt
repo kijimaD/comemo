@@ -1,0 +1,30 @@
+commit 7de2249a08aab44c512d0ea86f50481d76e135f1
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 28 18:40:12 2021 -0800
+
+    cmd/compile, test: updated comments in crawler.go, added test
+    
+    Added a test to make sure that the private methods of a local generic
+    type are properly exported, if there is a global variable with that
+    type.
+    
+    Added comments in crawler.go, to give more detail and to give more about
+    the overall purpose.
+    
+    Fixed one place where t.isFullyInstantiated() should be replaced by
+    isPtrFullyInstantiated(t), so that we catch pointers to generic types
+    that may be used as a method receiver.
+    
+    Change-Id: I9c42d14eb6ebe14d249df7c8fa39e889f7cd3f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374754
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/crawler.go | 38 ++++++++++++++++++++-------
+ test/typeparam/gencrawler.dir/a.go            | 27 +++++++++++++++++++
+ test/typeparam/gencrawler.dir/main.go         | 12 +++++++++
+ test/typeparam/gencrawler.go                  | 10 +++++++
+ test/typeparam/gencrawler.out                 |  2 ++
+ 5 files changed, 80 insertions(+), 9 deletions(-)

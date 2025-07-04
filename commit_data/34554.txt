@@ -1,0 +1,20 @@
+commit 4902778607938459fe07d22b8445250fd7987917
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 8 12:37:01 2018 -0800
+
+    runtime: set libcall values for Solaris system calls
+    
+    This lets SIGPROF signals get a useful traceback.
+    Without it we just see sysvicallN calling asmcgocall.
+    
+    Updates #24142
+    
+    Change-Id: I5dfe3add51f0c3a4cb1c98acb7738be6396214bc
+    Reviewed-on: https://go-review.googlesource.com/99617
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_solaris.go | 119 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go       |   2 +-
+ 2 files changed, 120 insertions(+), 1 deletion(-)

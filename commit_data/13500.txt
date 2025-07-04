@@ -1,0 +1,13 @@
+commit fda29b6a4204d8658b3c1f763ac775afcc6cac00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 26 11:47:29 2012 -0700
+
+    A+C: added Andrew Wilkins (individual contributor)
+    
+    R=rsc, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/6447050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

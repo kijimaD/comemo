@@ -1,0 +1,22 @@
+commit ef67022471bb26973168827ebf41e09f839fa0a7
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 12 08:20:08 2023 -0400
+
+    runtime/coverage: add coverage snapshot helper routine
+    
+    Add a new function runtime/coverage.snapshot(), which samples the
+    current values of coverage counters in a running "go test -cover"
+    binary and returns percentage of statements executed so far. This
+    function is intended to be used by the function testing.Coverage().
+    
+    Updates #59590.
+    
+    Change-Id: I861393701c0cef47b4980aec14331168a9e64e8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495449
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/coverage/testsupport.go | 47 +++++++++++++++++++++++++++++++++++++
+ src/runtime/coverage/ts_test.go     | 40 +++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

@@ -1,0 +1,12 @@
+commit 378c806c31ad47b67918f18f75c8b096aa090757
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 1 07:24:33 2011 +1000
+
+    gophertool: make the keyword 'golang'
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4529102
+
+ misc/chrome/gophertool/manifest.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

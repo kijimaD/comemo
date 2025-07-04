@@ -1,0 +1,14 @@
+commit 8fbbf63cc61ffbb953a6d44649b644e4211c5d83
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 20 11:22:21 2018 -0400
+
+    cmd/cgo: document that #including source files in subdirectories is a bad idea
+    
+    Suggested in discussion on #26366.
+    
+    Change-Id: Id9ad2e429a915f88b4c4b30fc415c722eebe0ea4
+    Reviewed-on: https://go-review.googlesource.com/125297
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

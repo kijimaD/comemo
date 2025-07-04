@@ -1,0 +1,19 @@
+commit 83da0fd989d7e5c981bde26a8a9cc0d0f88fe9ed
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 13:03:00 2013 +1000
+
+    doc/go1.2.html: compiler changes
+    Document the semantic changes within the gc toolchain.
+    
+    Also delete the mention of unbalanced right delims in template
+    That change was rolled back.
+    
+    Absent typos, things we've forgotten, and new things that happen,
+    the release notes are ready.
+    
+    R=golang-dev, adg, dominik.honnef
+    CC=golang-dev
+    https://golang.org/cl/13368052
+
+ doc/go1.2.html | 59 +++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 36 insertions(+), 23 deletions(-)

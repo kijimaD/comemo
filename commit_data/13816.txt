@@ -1,0 +1,17 @@
+commit d06dcd45959f83c3b82c10116acc9a64beff14cd
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Sep 13 18:40:50 2012 +0200
+
+    cmd/gc: Specify which package import caused an redeclaration error.
+    
+    Fixes #4012.
+    
+    R=dave, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/6490082
+
+ src/cmd/gc/dcl.c    | 11 +++++++----
+ src/cmd/gc/export.c |  8 ++++++--
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/subr.c   |  5 ++++-
+ 4 files changed, 18 insertions(+), 7 deletions(-)

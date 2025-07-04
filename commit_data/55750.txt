@@ -1,0 +1,22 @@
+commit b2bd7ebafcd8588fadef6b73755ee98bc8889233
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:57 2024 -0500
+
+    runtime: merge timerModifiedEarlier and timerModifierLater
+    
+    Nothing actually needs to know the difference between these
+    two states, so merge them.
+    
+    This is part of a larger simplification of the state set.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: Ia30699ac92e66467773942e7df1fb21470a6e51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/time.go | 76 ++++++++++++++++-------------------------------------
+ 1 file changed, 23 insertions(+), 53 deletions(-)

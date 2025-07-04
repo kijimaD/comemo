@@ -1,0 +1,14 @@
+commit 0c3a43e7b2fcbc99279de4a2d0c04b777360e381
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 13:42:59 2009 -0700
+
+    error handling had a bug in execute: the error channel was being shared.
+    fix that and clean up state handling a little.
+    
+    R=rsc
+    DELTA=44  (18 added, 8 deleted, 18 changed)
+    OCL=28359
+    CL=28359
+
+ src/lib/template/template.go | 56 ++++++++++++++++++++++++++------------------
+ 1 file changed, 33 insertions(+), 23 deletions(-)

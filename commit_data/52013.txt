@@ -1,0 +1,21 @@
+commit 518889b35cb07f3e71963f2ccfc0f96ee26a51ce
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 15 16:11:37 2023 -0800
+
+    cmd/compile: ensure InitMem comes after Args
+    
+    The debug info generation currently depends on this invariant.
+    
+    A small update to CL 468455.
+    
+    Update #58482
+    
+    Change-Id: Ica305d360d9af04036c604b6a65b683f7cb6e212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468695
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/schedule.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

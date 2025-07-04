@@ -1,0 +1,14 @@
+commit 4d2b3a0b5fc4f17c7806f7e66df0ea272d31cd6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 00:59:37 2015 -0400
+
+    runtime: fix arm build
+    
+    Make mask uint32, and move down one line to match atomic_arm64.go.
+    
+    Change-Id: I4867de494bc4076b7c2b3bf4fd74aa984e3ea0c8
+    Reviewed-on: https://go-review.googlesource.com/7854
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/atomic_arm.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

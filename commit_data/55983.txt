@@ -1,0 +1,25 @@
+commit eb636f778a733ab4e5684d4dc451874922fc3df2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 18 21:22:27 2024 +0100
+
+    all: use "unix" build tag where appropriate
+    
+    For #51572
+    
+    Change-Id: I23bb25b8cf1ecb9be25eb6ab9e89cd397b58b3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572535
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/mapfile_read.go | 2 +-
+ src/cmd/internal/bio/buf_mmap.go              | 2 +-
+ src/cmd/internal/bio/buf_nommap.go            | 2 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go       | 2 +-
+ src/cmd/link/internal/ld/outbuf_nommap.go     | 2 +-
+ src/runtime/pprof/pprof_norusage.go           | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit 46c3e217188043c7cea9e181f0d61825d2636ad7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 1 22:20:06 2019 +0000
+
+    runtime: skip broken TestLldbPython
+    
+    It's broken on our builders (once we enabled dev mode on our Macs,
+    see CL 170339)
+    
+    Updates #31188
+    
+    Change-Id: Iceea65dc79576057b401a461bfe39254fed1f7ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170281
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

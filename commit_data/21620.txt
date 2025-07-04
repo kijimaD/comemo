@@ -1,0 +1,15 @@
+commit ccdbfe31747621fbdb15ade5c4d34b339e45407f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 12 14:52:46 2015 -0800
+
+    math/big: only permit bases 2, 10, 16 when scanning number w/ "decimal" point
+    
+    TBR adonovan
+    
+    Change-Id: I4fd694101c2cf1c0c39bf73d16cab18502742dd9
+    Reviewed-on: https://go-review.googlesource.com/4881
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/natconv.go      | 20 +++++++++++++-------
+ src/math/big/natconv_test.go |  6 +-----
+ 2 files changed, 14 insertions(+), 12 deletions(-)

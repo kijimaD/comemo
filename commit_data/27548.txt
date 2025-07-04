@@ -1,0 +1,17 @@
+commit 65dd08197ece4f64b990aa0023286c8f6abc25fa
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri May 27 02:31:59 2016 -0600
+
+    doc/go1.7: document signal name printing during panics
+    
+    Document new behavior about signal name printing
+    in panics as per CL golang.org/cl/22753.
+    
+    For #15810
+    
+    Change-Id: I9c677d5dd779b41e82afa25e3c797d8e739600d3
+    Reviewed-on: https://go-review.googlesource.com/23493
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.7.html | 5 +++++
+ 1 file changed, 5 insertions(+)

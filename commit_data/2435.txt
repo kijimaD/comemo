@@ -1,0 +1,15 @@
+commit bf5c0c957c3c3ea9add6cfd51b90c463cb4814b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 9 09:45:30 2009 -0700
+
+    bug: pointer arithmetic involving large offsets
+    needs to dereference the base pointer to make
+    sure it catches nil.
+    
+    R=r,ken
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=30083
+    CL=30101
+
+ test/bugs/bug162.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

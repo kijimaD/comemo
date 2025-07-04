@@ -1,0 +1,20 @@
+commit 75f499e3a0e8830efb861c9ba6ca61bc03583962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 15:04:20 2020 -0700
+
+    os/exec: create extra threads when starting a subprocess
+    
+    TestExtraFiles seems to be flaky on GNU/Linux systems when using cgo
+    because creating a new thread will call malloc which can create a new
+    arena which can open a file to see how many processors there are.
+    Try to avoid the flake by creating several new threads at process
+    startup time.
+    
+    For #25628
+    
+    Change-Id: Ie781acdbba475d993c39782fe172cf7f29a05b24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228099
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/exec/exec_linux_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

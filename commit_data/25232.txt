@@ -1,0 +1,15 @@
+commit a4fd325c178ea29f554d69de4f2c3ffa09b53874
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 5 01:15:26 2015 -0500
+
+    net: do not unlink unix socket in UnixListener created from fd
+    
+    Fixes #11826.
+    
+    Change-Id: Id220dd558ca8d8d78c01975087122d27757deea0
+    Reviewed-on: https://go-review.googlesource.com/17458
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/file_unix.go      | 2 +-
+ src/net/unixsock_posix.go | 9 +++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

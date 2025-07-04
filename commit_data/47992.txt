@@ -1,0 +1,16 @@
+commit 48ec6df16c285cda50bd38970b82402e8c46919b
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Jan 22 12:24:41 2022 -0500
+
+    go/types: panic if named type instances are mutated
+    
+    Change-Id: Idc4d561c7037f33aa9c844b411c38c6cb5bbfbcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380374
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/named.go | 10 +++++++++-
+ src/go/types/named.go                    | 10 +++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

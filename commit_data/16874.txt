@@ -1,0 +1,13 @@
+commit cdd35983341cf64cb5c68ea71f15a14988d753d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 26 00:21:37 2013 +0900
+
+    net: give more detail when test panics
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11811043
+
+ src/pkg/net/interface_linux_test.go | 2 +-
+ src/pkg/net/unicast_posix_test.go   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

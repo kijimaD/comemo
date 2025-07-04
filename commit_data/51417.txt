@@ -1,0 +1,19 @@
+commit 6a72514076f6e2be54af267959e3098693e02980
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 21 23:24:58 2022 +0100
+
+    crypto/internal/boring: tolerate empty ECDSA signatures
+    
+    VerifyASN1 became directly reachable without encoding/decoding in
+    CL 353849, so it's now possible for the signature to be empty.
+    
+    Change-Id: I37d6400945ab541120180bf73335e0ec93322947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452635
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/internal/boring/ecdsa.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

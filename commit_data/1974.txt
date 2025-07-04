@@ -1,0 +1,20 @@
+commit 3067781ab93deb9f7c92d0c119548b253d17a558
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 7 22:20:37 2009 -0700
+
+    func f() (int, int);
+    x := f();
+    
+    used to give
+            fatal error: dowidth fn struct struct { int; int }
+    
+    now gives
+            assignment count mismatch: 1 = 2
+    
+    R=ken
+    OCL=27198
+    CL=27201
+
+ src/cmd/gc/walk.c | 58 +++++++++++++++++++++++++++++++++----------------------
+ test/golden.out   |  6 ++++--
+ 2 files changed, 39 insertions(+), 25 deletions(-)

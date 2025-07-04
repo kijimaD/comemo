@@ -1,0 +1,15 @@
+commit 41d6315e34f677c7102c73253819b12cf6e3e209
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 10 09:23:46 2018 +0200
+
+    hash/crc64: use t.Fatalf in TestGolden
+    
+    Use t.Fatalf instead of t.Errorf followed by t.FailNow.
+    
+    Change-Id: Ie31f8006e7d9daca7f59bf6f0d5ae688222be486
+    Reviewed-on: https://go-review.googlesource.com/c/144111
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc64/crc64_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

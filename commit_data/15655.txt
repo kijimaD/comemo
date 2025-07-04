@@ -1,0 +1,15 @@
+commit 18f926aab3dca78d8e617c5c8923eb3acf5630ea
+Author: Steve McCoy <mccoyst@gmail.com>
+Date:   Sat Mar 9 14:51:57 2013 -0800
+
+    cgo: enable external linking mode on FreeBSD amd64.
+    
+    Tested on FreeBSD 9.1 amd64, per rsc's instructions at
+    https://groups.google.com/d/topic/golang-dev/HjRTLvRsJXo/discussion .
+    
+    R=golang-dev, lucio.dere, devon.odell, rsc
+    CC=golang-dev
+    https://golang.org/cl/7664044
+
+ src/cmd/6l/obj.c | 1 +
+ 1 file changed, 1 insertion(+)

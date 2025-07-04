@@ -1,0 +1,33 @@
+commit 5be24046c7b40d0ed522cba8d38c45e406269b28
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 14:09:00 2012 +1100
+
+    all: avoid bytes.NewBuffer(nil)
+    The practice encourages people to think this is the way to
+    create a bytes.Buffer when new(bytes.Buffer) or
+    just var buf bytes.Buffer work fine.
+    (html/token.go was missing the point altogether.)
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5637043
+
+ src/pkg/bufio/bufio_test.go            | 2 +-
+ src/pkg/compress/flate/deflate_test.go | 6 +++---
+ src/pkg/compress/lzw/reader_test.go    | 6 +++---
+ src/pkg/compress/zlib/writer_test.go   | 4 ++--
+ src/pkg/encoding/asn1/marshal.go       | 2 +-
+ src/pkg/encoding/gob/encoder_test.go   | 5 ++---
+ src/pkg/encoding/hex/hex.go            | 4 ++--
+ src/pkg/encoding/hex/hex_test.go       | 4 ++--
+ src/pkg/encoding/pem/pem.go            | 4 ++--
+ src/pkg/encoding/pem/pem_test.go       | 4 ++--
+ src/pkg/exp/html/escape.go             | 4 ++--
+ src/pkg/exp/html/parse_test.go         | 4 ++--
+ src/pkg/exp/html/token.go              | 3 +--
+ src/pkg/exp/html/token_test.go         | 4 ++--
+ src/pkg/html/escape.go                 | 4 ++--
+ src/pkg/image/jpeg/writer_test.go      | 6 +++---
+ src/pkg/image/png/writer_test.go       | 6 +++---
+ src/pkg/old/template/template_test.go  | 4 ++--
+ 18 files changed, 37 insertions(+), 39 deletions(-)

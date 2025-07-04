@@ -1,0 +1,19 @@
+commit 71888fe4b0d804f44371944f93f12442a6b0a862
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 14 11:46:42 2022 -0500
+
+    doc/go1.18: add a release note for 'go mod tidy' checksum changes
+    
+    Updates #47738
+    Fixes #49598
+    
+    Change-Id: I708dcb880a701699116227a9eaca994cf460fef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378577
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,12 @@
+commit 80f07cfbeadb2c008827f6d6ce4ddd70d7cf0528
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 15:02:07 2011 -0800
+
+    arm: disable peep for release
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4001051
+
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

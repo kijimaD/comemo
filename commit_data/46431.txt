@@ -1,0 +1,25 @@
+commit ee91bb83198f61aa8f26c3100ca7558d302c0a98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 10 08:34:03 2021 +0700
+
+    cmd/compile: prevent typecheck importer reading type parameter twice
+    
+    This is a port of CL 349009 to typecheck importer.
+    
+    Fixes #48306
+    
+    Change-Id: Iec3f078089346bd85f0ab739896e079940325011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349011
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go |  6 +-----
+ src/go/internal/gcimporter/gcimporter_test.go |  2 --
+ test/run.go                                   |  2 --
+ test/typeparam/issue48306.dir/a.go            |  9 +++++++++
+ test/typeparam/issue48306.dir/main.go         | 15 +++++++++++++++
+ test/typeparam/issue48306.go                  |  7 +++++++
+ 6 files changed, 32 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit a6a0b1903d7029abe14f00c6cf2138cde9d81160
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Sun Feb 12 21:41:29 2017 +0100
+
+    crypto: add BLAKE2b and BLAKE2s hash constants
+    
+    Fixes golang/go#19060
+    Change-Id: I1844edc3dcccc8d83a11d1145b60b2b92f2658ca
+    Reviewed-on: https://go-review.googlesource.com/36876
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/crypto.go | 68 +++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 38 insertions(+), 30 deletions(-)

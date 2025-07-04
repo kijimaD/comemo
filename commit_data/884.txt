@@ -1,0 +1,22 @@
+commit 1163b1db6fb7cae94daf3b939df3dee26f48ee21
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 15:59:31 2008 -0700
+
+    diagnose various conversion problems
+    
+    R=ken
+    OCL=17320
+    CL=17320
+
+ src/cmd/gc/const.c | 28 +++++++++++++---------------
+ src/cmd/gc/dcl.c   |  7 +++++++
+ src/cmd/gc/go.h    |  2 ++
+ src/cmd/gc/go.y    |  4 ++++
+ src/cmd/gc/lex.c   |  1 +
+ src/cmd/gc/subr.c  | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c  |  7 +++++--
+ test/convlit.go    | 35 +++++++++++++++++++++++++++++++++++
+ test/convlit1.go   | 15 +++++++++++++++
+ test/errchk        |  2 +-
+ test/golden.out    | 44 +++++++++++++++++++++++++++++++++++---------
+ 11 files changed, 164 insertions(+), 27 deletions(-)

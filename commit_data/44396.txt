@@ -1,0 +1,25 @@
+commit ae1fa08e4138c49c8e7fa10c3eadbfca0233842b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 29 15:41:18 2021 -0800
+
+    context: reduce contention in cancelCtx.Done
+    
+    Use an atomic.Value to hold the done channel.
+    Conveniently, we have a mutex handy to coordinate writes to it.
+    
+    name                 old time/op  new time/op  delta
+    ContextCancelDone-8  67.5ns ±10%   2.2ns ±11%  -96.74%  (p=0.000 n=30+28)
+    
+    Fixes #42564
+    
+    Change-Id: I5d72e0e87fb221d4e230209e5fb4698bea4053c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288193
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/context/benchmark_test.go | 15 +++++++++++++++
+ src/context/context.go        | 30 +++++++++++++++++-------------
+ 2 files changed, 32 insertions(+), 13 deletions(-)

@@ -1,0 +1,19 @@
+commit 8b221092b9a9664918c28a76b109786956e0057d
+Author: Charlie Dorian <cldorian@gmail.com>
+Date:   Tue Jun 30 20:14:30 2015 -0400
+
+    math: Expm1 returns -1 with large negative argument.
+    
+    Fixes #11442
+    
+    Change-Id: I2053fe752c6a122924d28565f1338f73e00ed417
+    Reviewed-on: https://go-review.googlesource.com/11791
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/all_test.go | 4 ++++
+ src/math/expm1.go    | 8 ++++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)

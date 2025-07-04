@@ -1,0 +1,26 @@
+commit c253ea47e1310d3bb7d9e3e5e23717b934a7db7f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 12 15:37:00 2017 -0400
+
+    cmd/dist: require _ before GOOS and GOARCH when building bootstrap
+    
+    Currently, dist allows GOOS and GOARCH to appear as *any* substring in
+    a file name when selecting source files to go into go_bootstrap. This
+    was necessary prior to Go 1.4, where it needed to match names like
+    "windows.c", but now it's gratuitously different from go/build. This
+    led to a bug chase to figure out why "stubs_nonlinux.go" was not being
+    built on non-Linux OSes.
+    
+    Change shouldbuild to require an "_" before the GOOS and GOARCH in a
+    file name. This is still less strict than go/build, but the behavior
+    is much closer.
+    
+    Change-Id: I580e9344a3c40d57c0721d345e911e8b4f141f5d
+    Reviewed-on: https://go-review.googlesource.com/40435
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

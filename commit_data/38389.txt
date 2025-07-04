@@ -1,0 +1,14 @@
+commit 5d4fa147c70b5ec2dfa812220c1ddc135e3b5381
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 13 10:29:14 2019 -0400
+
+    cmd/go/internal/modload: remove unused InitGoMod function
+    
+    Change-Id: I0223d935184017e841d56abe114d78b670457c5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167437
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 7 -------
+ 1 file changed, 7 deletions(-)

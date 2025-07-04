@@ -1,0 +1,25 @@
+commit 8cca427d17d56cfa7bdf63386bc78cf946ecb5bf
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 14 16:28:57 2022 -0800
+
+    doc/go1.20: add release notes for net/http and net/http/httputil
+    
+    For #41773
+    For #41773
+    For #50465
+    For #51914
+    For #53002
+    For #53896
+    For #53960
+    For #54136
+    For #54299
+    
+    Change-Id: I729d5eafc1940d5706f980882a08ece1f69bb42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450515
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 143 ++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 119 insertions(+), 24 deletions(-)

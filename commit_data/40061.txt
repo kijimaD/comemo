@@ -1,0 +1,24 @@
+commit e72f002ed0f2b13f114be914f63b1ddd276675f8
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 08:42:48 2019 -0400
+
+    cmd/link: create DWARF types for autos based R_USETYPE relocs
+    
+    Switch the linker over to use dummy R_USETYPE relocations on DWARF
+    subprogram DIEs as a means of insuring that DWARF types are created
+    for types of autotmp values used in live functions.
+    
+    This change is part of a series intended to clean up handling of
+    autotmp types and remove use of autom's in the compiler and linker.
+    
+    Updates #34554.
+    
+    Change-Id: Ic74da6bd723ab7e4d8a16ad46e23228650d4b525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197498
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go        | 18 ++++++++++++++++++
+ src/cmd/link/internal/objfile/objfile.go |  4 ++++
+ 2 files changed, 22 insertions(+)

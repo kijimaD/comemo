@@ -1,0 +1,16 @@
+commit d6f2f833c93a41ec1c68e49804b8387a06b131c5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 31 20:13:50 2019 +0000
+
+    strings: remove a redundant and flaky part of a test
+    
+    Fixes #35280
+    
+    Change-Id: I6fa3747ff7b92c6fcabdf8692d85e103de55859f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204598
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/builder_test.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

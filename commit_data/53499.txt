@@ -1,0 +1,18 @@
+commit 72b08dbaf316dcc9df210ad71d827922d11984d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 11:19:27 2023 -0700
+
+    spec: add temporary note to type inference section
+    
+    The section on type inference has not been updated yet for Go 1.21.
+    Add a temporary note so that readers referred to this section from
+    the release notes are not confused.
+    
+    Change-Id: Idc4c74d6d700f891c625289e873ad5aa9c2c5213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501308
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

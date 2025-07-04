@@ -1,0 +1,31 @@
+commit e862f98d1e49eadac1b7f35a8c9d5c7610d37744
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 21 17:55:18 2017 -0500
+
+    test: make inline_callers.go test not inline the runtime
+    
+    CL 76551 modified inline_callers.go to build everything, including the
+    runtime, with -l=4. While that works in most places (and ideally
+    should work everywhere), it blows out the nosplit stack on
+    solaris/amd64.
+    
+    Fix this by only building the test itself with -l=4.
+    
+    This undoes some of the changes to this test from CL 73212, which
+    originally changed the go tool to rebuild all packages with the given
+    flags. This change modified the expected output of this test, so now
+    that we can go back to building only the test itself with inlining, we
+    revert these changes to the expected output. (That CL also changed
+    log.Fatalf to log.Printf, but didn't add "\n" to the end of the lines,
+    so this CL fixes that, too.)
+    
+    Fixes #22797.
+    
+    Change-Id: I6a91963a59ebe98edbe0921d8717af6b2c2191b0
+    Reviewed-on: https://go-review.googlesource.com/79197
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/inline_callers.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

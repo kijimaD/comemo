@@ -1,0 +1,21 @@
+commit 802d6d4455194a480c35ff5b2a236a24b4d89343
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 13:33:40 2009 -0700
+
+    linux 386 support; now in same state as darwin 386
+    (stuck on 8l bug).
+    
+    R=r
+    DELTA=349  (342 added, 1 deleted, 6 changed)
+    OCL=29882
+    CL=29886
+
+ src/lib/os/dir_linux_386.go            |  83 +++++++++++++++++++++++++
+ src/lib/os/stat_linux_386.go           |  47 ++++++++++++++
+ src/lib/syscall/PORT                   |   4 ++
+ src/lib/syscall/asm_linux_386.s        | 108 +++++++++++++++++++++++++++++++++
+ src/lib/syscall/syscall_linux.go       |  14 ++---
+ src/lib/syscall/syscall_linux_386.go   | 100 ++++++++++++++++++++++++++++++
+ src/lib/syscall/syscall_linux_amd64.go |   8 +++
+ src/lib/syscall/types_linux_386.c      |   5 ++
+ 8 files changed, 362 insertions(+), 7 deletions(-)

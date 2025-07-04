@@ -1,0 +1,24 @@
+commit 99253ea4f49eb96a6448e0af88bcad523efe0c61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 12:51:28 2024 -0800
+
+    cmd/internal/goobj: regenerate builtinlist
+    
+    CL 622042 added rand as a compiler builtin, but did not update builtinlist.
+    
+    Also update the mkbuiltin comment to refer to the current file location,
+    and add a comment for runtime.rand that it is called from the compiler.
+    
+    For #54766
+    
+    Change-Id: I99d2c0bb0658da333775afe2ed0447265c845c82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626755
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/goobj/builtinlist.go | 1 +
+ src/cmd/internal/goobj/mkbuiltin.go   | 2 +-
+ src/runtime/rand.go                   | 2 ++
+ 3 files changed, 4 insertions(+), 1 deletion(-)

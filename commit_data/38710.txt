@@ -1,0 +1,24 @@
+commit a6af1041f6889fddd71c2a08308f52637b3f345d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Apr 10 11:06:58 2019 -0700
+
+    syscall: store skip count in file descriptor offset
+    
+    Multiple calls to ReadDirent expect to return subsequent
+    portions of the directory listing. There's no place to store
+    our progress other than the file descriptor offset.
+    
+    Fortunately, the file descriptor offset doesn't need to be
+    a real offset. We can store any int64 we want there.
+    
+    Fixes #31368
+    
+    Change-Id: I49e4e0e7ff707d3e96aa5d43e3b0199531013cde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171477
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/dirent_bsd_test.go | 59 +++++++++++++++++++++++++++++++++++++++++-
+ src/syscall/syscall_darwin.go  | 34 +++++++++++++++++-------
+ 2 files changed, 82 insertions(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit 00c00558e1513d4f110f0b778242c965e7f6505a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 2 11:27:37 2021 -0400
+
+    cmd/go/internal/modload: remove unused functions
+    
+    Also unexport functions that are not used outside the modload package.
+    
+    Change-Id: I0de187cbb673cadafce95a27f5ccff934ae21104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332570
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go  | 37 ------------------------------------
+ src/cmd/go/internal/modload/query.go |  4 ++--
+ 2 files changed, 2 insertions(+), 39 deletions(-)

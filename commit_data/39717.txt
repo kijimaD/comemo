@@ -1,0 +1,19 @@
+commit cb325fed43009d5197caa5b1afa859cbc0e39355
+Author: Tomas Dabasinskas <tomas@dabasinskas.net>
+Date:   Tue Jul 16 05:38:02 2019 +0000
+
+    net: fix resolving local windows machine ptr
+    
+    Fixes #29600
+    
+    Change-Id: Ie60b5c8f8356dfc16b3ef6d3cee520b9ce6a61aa
+    GitHub-Last-Rev: 76cbdb96a69fb48a2c65966174e53e5aa68ce13d
+    GitHub-Pull-Request: golang/go#32214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178701
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/lookup_windows.go      |  3 +-
+ src/net/lookup_windows_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 1 deletion(-)

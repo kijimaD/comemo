@@ -1,0 +1,22 @@
+commit e85e67889931e10908e912622a6954943fb28ed5
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 15 10:27:34 2013 -0400
+
+    crypto/rsa: check for minimal PKCS#1 v1.5 padding.
+    
+    The PKCS#1 spec requires that the PS padding in an RSA message be at
+    least 8 bytes long. We were not previously checking this. This isn't
+    important in the most common situation (session key encryption), but
+    the impact is unclear in other cases.
+    
+    This change enforces the specified minimum size.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9222045
+
+ src/pkg/crypto/rsa/pkcs1v15.go              |  6 +++++-
+ src/pkg/crypto/rsa/pkcs1v15_test.go         |  8 ++++++++
+ src/pkg/crypto/subtle/constant_time.go      |  8 ++++++++
+ src/pkg/crypto/subtle/constant_time_test.go | 20 ++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 1 deletion(-)

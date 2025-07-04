@@ -1,0 +1,18 @@
+commit c129af90eb20a5723fc7ed19b19afe054036fe71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 1 12:32:41 2021 -0700
+
+    text/template: undo reflect.Value wrapping for short-circuit and/or
+    
+    For #31103
+    
+    Change-Id: I9c0aa64f95f564de31a4c178e3930584d41316bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353610
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/text/template/exec.go      | 16 ++++++++++------
+ src/text/template/exec_test.go |  1 +
+ 2 files changed, 11 insertions(+), 6 deletions(-)

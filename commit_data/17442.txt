@@ -1,0 +1,19 @@
+commit aeb8b45866b8e9664d931c1c297b122237fe679e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 30 16:03:16 2013 +1000
+
+    image/color/palette: move Plan9Palette and WebSafePalette out of the
+    image/color package into their own package. They require some non-
+    trivial init-time code (interface conversions, currently 40KiB of text)
+    that would otherwise burden any Go program that imported image/color.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13256046
+
+ src/pkg/image/color/palette.go           | 497 ------------------------------
+ src/pkg/image/color/{ => palette}/gen.go |  21 +-
+ src/pkg/image/color/palette/palette.go   | 500 +++++++++++++++++++++++++++++++
+ src/pkg/image/gif/reader_test.go         |  22 +-
+ src/pkg/image/gif/writer.go              |   5 +-
+ 5 files changed, 526 insertions(+), 519 deletions(-)

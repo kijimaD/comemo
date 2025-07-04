@@ -1,0 +1,13 @@
+commit ebf2b92e9a7fe7f8de079d8aa76fe88f89dee02b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 08:18:03 2011 +1000
+
+    effective_go: fix brace quotes.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4932044
+
+ doc/effective_go.html | 5 +++--
+ doc/effective_go.tmpl | 6 +++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)

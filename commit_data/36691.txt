@@ -1,0 +1,16 @@
+commit 19ac6a82d3be818572881d60026109946a5a69e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 18 07:58:11 2018 -0700
+
+    runtime: ignore EAGAIN from exec in TestCgoExecSignalMask
+    
+    Fixes #27731
+    
+    Change-Id: Ifb4d57923b1bba0210ec1f623d779d7b5f442812
+    Reviewed-on: https://go-review.googlesource.com/135995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprogcgo/exec.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,15 @@
+commit b850f3629fa9c2dfb6a94a3d0e472a0cc87b949c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 24 10:30:36 2022 -0800
+
+    cmd/compile: always print stack trace for -dpanic
+    
+    Change-Id: I40cfc87731d3a29670a3e183948898ea0cb2402d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380534
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

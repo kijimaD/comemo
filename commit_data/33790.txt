@@ -1,0 +1,23 @@
+commit 9d70b3ae04316c5753435dddee54fe7373502e09
+Author: Keith Randall <khr@google.com>
+Date:   Mon Dec 4 13:30:13 2017 -0800
+
+    cmd/compile: fix noopt builder, weird append case
+    
+    Turn off append-to-itself optimization if optimizations are turned off.
+    
+    This optimization triggered a bug when doing
+      s = append(s, s)
+    where we write to the leftmost s before reading the rightmost s.
+    
+    Update #17039
+    
+    Change-Id: I21996532d20a75db6ec8d49db50cb157a1360b80
+    Reviewed-on: https://go-review.googlesource.com/81816
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

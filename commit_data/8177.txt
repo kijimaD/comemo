@@ -1,0 +1,19 @@
+commit 1f09cc25a16ab8f752e79379bc86fe126d2be08f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 21 08:32:58 2011 -0700
+
+    runtime: skip functions with no lines when building src line table
+    
+    Avoid getting out of synch when a function, such as main.init,
+    has no associated line number information.  Without this the
+    function before main.init can skip the PC all the way to the
+    next function, which will cause the next function's line table
+    to be associated with main.init, and leave subsequent
+    functions with the wrong line numbers.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4426055
+
+ src/pkg/runtime/symtab.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

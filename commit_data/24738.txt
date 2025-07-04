@@ -1,0 +1,33 @@
+commit c99d7f7f852b525694c645e00b6c06729a6735a2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 11:27:37 2015 -0400
+
+    runtime: decentralize mark done and mark termination
+    
+    This moves all of the mark 1 to mark 2 transition and mark termination
+    to the mark done transition function. This means these transitions are
+    now handled on the goroutine that detected mark completion. This also
+    means that the GC coordinator and the background completion barriers
+    are no longer used and various workarounds to yield to the coordinator
+    are no longer necessary. These will be removed in follow-up commits.
+    
+    One consequence of this is that mark workers now need to be
+    preemptible when performing the mark done transition. This allows them
+    to stop the world and to perform the final clean-up steps of GC after
+    restarting the world. They are only made preemptible while performing
+    this transition, so if the worker findRunnableGCWorker would schedule
+    isn't available, we didn't want to schedule it anyway.
+    
+    Fixes #11970.
+    
+    Change-Id: I9203a2d6287eeff62d589ec02ad9cb1e29ddb837
+    Reviewed-on: https://go-review.googlesource.com/16391
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go  |   3 +-
+ src/runtime/mgc.go     | 173 +++++++++++++++++++++++++++++++------------------
+ src/runtime/mgcmark.go |   7 +-
+ src/runtime/proc.go    |  11 ++--
+ 4 files changed, 119 insertions(+), 75 deletions(-)

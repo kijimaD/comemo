@@ -1,0 +1,21 @@
+commit 47b403ad2dba61e653ec24da7d84cb9decea4939
+Author: amdahliu <zenghao235711@gmail.com>
+Date:   Mon Jul 3 10:09:36 2023 +0000
+
+    slices: refactor DeleteFunc to improve code readability
+    
+    Reuse IndexFunc function to avoid confusing subscript indexing, and to reduce code nesting depth.
+    
+    Change-Id: I309416ebf928071f71054433e078f0fda802fba8
+    GitHub-Last-Rev: af54738bda7f27afda5f92496363c0a68493c369
+    GitHub-Pull-Request: golang/go#61154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/slices/slices.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 6e7d5d0326a50b06fd47553cb2d96ede28b1680c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 27 15:55:15 2017 +1100
+
+    debug/pe: add TestBuildingWindowsGUI
+    
+    Change-Id: I6b6a6dc57e48e02ff0d452755b8dcf5543b3caed
+    Reviewed-on: https://go-review.googlesource.com/38759
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/pe/file_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

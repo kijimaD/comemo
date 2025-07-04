@@ -1,0 +1,12 @@
+commit 7b175236cbcea9bec55c655db501987b5b1869d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 22 14:20:15 2010 -0700
+
+    http: Change redirect test URL, as the old one now fails.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2267042
+
+ src/pkg/http/request_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

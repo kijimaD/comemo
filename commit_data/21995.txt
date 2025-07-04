@@ -1,0 +1,21 @@
+commit 6d0e87afe6beb3848bd98faed702ed7694d55059
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 11 11:31:49 2015 -0700
+
+    cmd/asm: add MRC and MCR to end-to-end test for arm
+    
+    The old, per-architecture operand printers didn't lock down the
+    format of the constant in the MRC and MCR instructions (a value
+    that could be presented more helpfully - maybe how the
+    input looks? - but that is an issue for another day). But there is
+    a portable standard printer now so we can enable tests for these
+    instructions.
+    
+    Change-Id: I437a3b112ce63f4d6e1fe3450fc21d8c3372602f
+    Reviewed-on: https://go-review.googlesource.com/7420
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
+ src/cmd/asm/internal/asm/testdata/arm.out | 14 ++++++++------
+ src/cmd/asm/internal/asm/testdata/arm.s   |  4 ++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

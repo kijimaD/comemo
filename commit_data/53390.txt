@@ -1,0 +1,32 @@
+commit 125c2cac642c4feacfc7d98a52f2287646d03fc7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 26 17:56:39 2023 +0000
+
+    runtime: make TestCPUMetricsSleep even more lenient
+    
+    This test was introduced as a regression test for #60276. However, it
+    was quite flaky on a number of different platforms because there are
+    myriad ways the runtime can eat into time one might expect is completely
+    idle.
+    
+    This change re-enables the test, but makes it much more resilient.
+    Because the issue we're testing for is persistent, we now require 10
+    consecutive failures to count. Any single success counts as a test
+    success. This change also makes the test's idle time bound more lenient,
+    allowing for a little bit of time to be eaten up. The regression we're
+    testing for results in nearly zero idle time being accounted for.
+    
+    If this is still not good enough to eliminate flakes, this test should
+    just be deleted.
+    
+    For #60276.
+    Fixes #60376.
+    
+    Change-Id: Icd81f0c9970821b7f386f6d27c8a566fee4d0ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498274
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics_test.go | 91 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 33 deletions(-)

@@ -1,0 +1,15 @@
+commit 212cb0375a6954121add281f355386740ed6fa27
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 8 16:03:19 2013 +1000
+
+    cmd/go: clarify what "pkg.test" means wrt the -c flag
+    
+    Fixes #5230.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8507043
+
+ src/cmd/go/doc.go  | 1 +
+ src/cmd/go/test.go | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit f33e8f66980dc6d09f54e032266043beb2dbb75e
+Author: fangguizhen <1297394526@qq.com>
+Date:   Mon Jan 16 17:46:20 2023 +0000
+
+    time: no need to wrap error with errors.New
+    
+    Change-Id: Ibd519ed6419f8f21c89a111a0326d0788aca9d19
+    GitHub-Last-Rev: 45e3224f9afef57f49eebf3cbdf6b1d01cfd7346
+    GitHub-Pull-Request: golang/go#57819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462046
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/time/tick.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

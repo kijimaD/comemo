@@ -1,0 +1,12 @@
+commit 61978aa579531d63936e13ded7831970426eca68
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 31 12:46:38 2011 -0800
+
+    effective go: remove non-blocking ops in leaky bucket example
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4029048
+
+ doc/effective_go.html | 38 ++++++++++++++++++++++++--------------
+ 1 file changed, 24 insertions(+), 14 deletions(-)

@@ -1,0 +1,14 @@
+commit 23bd1298f746102b33263617ea3c90239239ab4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:52:05 2008 -0800
+
+    add -chatty flag to test.
+    was supposed to be in some other cl but got dropped.
+    
+    R=r
+    DELTA=21  (16 added, 2 deleted, 3 changed)
+    OCL=19531
+    CL=19539
+
+ src/lib/testing.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

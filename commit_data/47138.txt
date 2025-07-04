@@ -1,0 +1,16 @@
+commit 3fa9ee49a077a0bcb7419110da02ca54a019f2cc
+Author: Alexander Melentyev <alexander@melentyev.org>
+Date:   Sun Oct 31 17:50:22 2021 +0000
+
+    bytes: remove redundant type conversion
+    
+    Change-Id: Icafb2d9fd11b23d3acaf9df07e7f90d8bcd829fa
+    GitHub-Last-Rev: 2b766460554860510f3fec03a4b9fe2e65fad268
+    GitHub-Pull-Request: golang/go#49243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360096
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+
+ src/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

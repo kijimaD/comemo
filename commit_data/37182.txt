@@ -1,0 +1,15 @@
+commit fde4b9ed14e339b5064373c1d4a73e211ec32ac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 29 13:44:44 2018 -0700
+
+    cmd/compile: better documentation around checkwidth
+    
+    Change-Id: I5c7ec9676b5573c883c196459acea85aa9ff8130
+    Reviewed-on: https://go-review.googlesource.com/c/146021
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go   | 16 ++++++++--------
+ src/cmd/compile/internal/types/type.go | 12 ++++++------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

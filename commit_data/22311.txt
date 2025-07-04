@@ -1,0 +1,17 @@
+commit da5ebecc6e1290d505825eabaf00400848943984
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 3 14:33:18 2015 -0700
+
+    cmd/internal/gc/big: update vendored version of math/big
+    
+    This fixes the formerly extremely slow conversion of floating-point
+    constants with large exponents (e.g., "const c = 1e1000000000" could
+    stall the machine).
+    
+    Change-Id: I36e02158e3334d32b18743ec0c259fec77baa74f
+    Reviewed-on: https://go-review.googlesource.com/8466
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/internal/gc/big/floatconv.go      | 50 ++++++++++++++++++++++++-------
+ src/cmd/internal/gc/big/floatconv_test.go |  6 ++++
+ 2 files changed, 46 insertions(+), 10 deletions(-)

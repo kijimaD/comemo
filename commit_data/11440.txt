@@ -1,0 +1,19 @@
+commit 45a8fae996700a40bc671bc48e78931d277dee0a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 27 17:05:51 2012 -0500
+
+    go: introduce support for "go build" with gccgo.
+    
+    The use of gccgo is triggered by GC=gccgo in environment. It
+    still needs the standard distribution to behave properly, but
+    allows using the test, build, run, install subcommands with
+    gccgo.
+    
+    R=rsc, iant, fullung
+    CC=golang-dev, remy
+    https://golang.org/cl/5562045
+
+ src/cmd/go/build.go | 177 +++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/go/pkg.go   |  10 +++
+ src/cmd/go/test.go  |   7 +--
+ 3 files changed, 154 insertions(+), 40 deletions(-)

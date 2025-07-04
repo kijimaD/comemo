@@ -1,0 +1,21 @@
+commit c6e455bb11d6da5c7a6334e0a7ea174586a83379
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 15 15:20:57 2018 -0400
+
+    cmd/compile: conditional on -race, disable inline of go:norace
+    
+    Adds the appropriate check to inl.go.
+    Includes tests of both -race+go:norace and plain go:norace.
+    
+    Fixes #24651.
+    
+    Change-Id: Id806342430c20baf4679a985d12eea3b677092e0
+    Reviewed-on: https://go-review.googlesource.com/119195
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go |  6 ++++++
+ test/fixedbugs/issue24651a.go      | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue24651b.go      | 24 ++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+)

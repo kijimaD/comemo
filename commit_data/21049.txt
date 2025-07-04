@@ -1,0 +1,26 @@
+commit 2a617d46f3ed39a71d8af8fb004fdfe8711160c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 13:11:08 2014 -0800
+
+    sort: reduce leaf calls in Stable
+    
+    Move the symMerge recursion stopping condition
+    from the beginning of symMerge to the callers.
+    
+    This halves the number of calls to symMerge
+    while running 'go test sort'.
+    
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStable1e6          8358117060     7954143849     -4.83%
+    BenchmarkStable1e4          40116117       38583285       -3.82%
+    BenchmarkStableInt1K        119150         115182         -3.33%
+    BenchmarkStableInt64K       9799845        9515475        -2.90%
+    BenchmarkStableString1K     388901         393516         +1.19%
+    BenchmarkStable1e2          124917         123618         -1.04%
+    
+    Change-Id: I7ba2ca277f213b076fe6830e1139edb47ac53800
+    Reviewed-on: https://go-review.googlesource.com/1820
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/sort/sort.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

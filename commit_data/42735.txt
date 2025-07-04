@@ -1,0 +1,30 @@
+commit 06337823ef4d9c57b1b01f9b97a348a47277a9df
+Author: Junchen Li <junchen.li@arm.com>
+Date:   Fri Jul 10 11:39:23 2020 +0800
+
+    cmd/compile: optimize unsigned comparisons to 0/1 on arm64
+    
+    For an unsigned integer, it's useful to convert its order test with 0/1
+    to its equality test with 0. We can save a comparison instruction that
+    followed by a conditional branch on arm64 since it supports
+    compare-with-zero-and-branch instructions. For example,
+    
+      if x > 0 { ... } else { ... }
+    
+    the original version:
+      CMP $0, R0
+      BLS 9
+    
+    the optimized version:
+      CBZ R0, 8
+    
+    Updates #21439
+    
+    Change-Id: Id1de6f865f6aa72c5d45b29f7894818857288425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246857
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 204 +++++++++++++++++++++++++++
+ test/codegen/comparisons.go                  |  32 +++++
+ 3 files changed, 246 insertions(+)

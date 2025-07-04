@@ -1,0 +1,14 @@
+commit 00f42437fdc68684f36412243adc1c1458369f0e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Oct 27 16:30:32 2015 +1300
+
+    cmd/internal/obj/x86: remove REGTMP
+    
+    Nothing uses this.
+    
+    Change-Id: Ibc13066940bd2ea5c74d955a67f9dc531bef2758
+    Reviewed-on: https://go-review.googlesource.com/16344
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go | 1 -
+ 1 file changed, 1 deletion(-)

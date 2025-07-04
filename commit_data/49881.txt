@@ -1,0 +1,21 @@
+commit 7f3569c33acb2e1a23c55a29ddff2203e39c0176
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 15:05:59 2022 -0700
+
+    cmd/compile/internal/ssa: include "ppc64" in has-regabi arches list
+    
+    While here, rename helper function to follow Go naming idioms:
+    https://github.com/golang/go/wiki/CodeReviewComments#initialisms
+    
+    Fixes #53456.
+    
+    Change-Id: I041dd25968e192ea2b430d58e3348626a970f92b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422957
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

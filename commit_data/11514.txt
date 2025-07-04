@@ -1,0 +1,12 @@
+commit 847197d3393e1e51576a156b5117828f4fe68355
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 1 02:42:56 2012 +0900
+
+    net: disable normal multicast testing on linux/arm
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5603043
+
+ src/pkg/net/multicast_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,14 @@
+commit 96d7997f0355d165e953f15e10d626556b08e46c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 17 13:40:14 2013 +0900
+
+    net: enable runtime-integrated network pollster on netbsd
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13080043
+
+ src/pkg/net/fd_bsd.go          | 2 +-
+ src/pkg/net/fd_poll_runtime.go | 2 +-
+ src/pkg/net/fd_poll_unix.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

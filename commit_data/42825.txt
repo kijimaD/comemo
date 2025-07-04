@@ -1,0 +1,39 @@
+commit 3d774611feee49aa44b4f5ed65d40497a47ad4c8
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Aug 22 05:47:06 2020 -0700
+
+    src/go.mod, net/http: update bundled and latest golang.org/x/net
+    
+    Updates x/net/http2 to git rev c89045814202410a2d67ec20ecf177ec77ceae7f
+    
+        http2: perform connection health check
+        https://golang.org/cl/198040 (fixes #31643)
+    
+        http2: use ASCII space trimming for parsing Trailer header
+        https://golang.org/cl/231437
+    
+        all: update golang.org/x/crypto to v0.0.0-20200622213623-75b288015ac9
+        https://golang.org/cl/239700 (updates #30965)
+    
+        net/http2: fix erringRoundTripper
+        https://golang.org/cl/243257 (updates #40213)
+    
+    also updates the vendored version of golang.org/x/net as per
+    
+    $ go get golang.org/x/net@c890458142
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate -run bundle std
+    
+    Change-Id: Iea2473ef086df760144d9656f03a0218eb9da91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249842
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 +--
+ src/net/http/h2_bundle.go | 70 +++++++++++++++++++++++++++++++++++++++++++----
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 68 insertions(+), 10 deletions(-)

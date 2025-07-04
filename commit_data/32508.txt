@@ -1,0 +1,14 @@
+commit dc10aeeff853c2156c1290144d5a004e03b91b76
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 26 06:55:34 2017 -0700
+
+    runtime: only clear key string's pointer in mapdelete_faststr
+    
+    Change-Id: I0360d294868ec4423e4ae036009fac4e72425c9c
+    Reviewed-on: https://go-review.googlesource.com/59152
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap_fast.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit e253d37d3e743fb5c08cef5aa6013b92e1e6661f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 16 12:51:01 2010 +1100
+
+    doc/devel: release notes tweak
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3707041
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

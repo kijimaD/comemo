@@ -1,0 +1,14 @@
+commit 0f5902d6beab85b2882bbe8490866b88d97b71a5
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Aug 29 22:12:56 2011 +1000
+
+    runtime: fix stack cleanup on windows/amd64
+    
+    In amd64 it is the caller who cleans the stack.
+    
+    R=alex.brainman, vcc.163, jp
+    CC=golang-dev
+    https://golang.org/cl/4966046
+
+ src/pkg/runtime/windows/amd64/sys.s | 39 ++++++-------------------------------
+ 1 file changed, 6 insertions(+), 33 deletions(-)

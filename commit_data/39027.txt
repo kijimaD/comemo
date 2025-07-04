@@ -1,0 +1,27 @@
+commit 0a4d352992606d3becebfa0cdac392827039b49d
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu May 2 22:59:27 2019 -0400
+
+    net/http: fix TestTransportMaxConnsPerHost flakes
+    
+    The testcase created a race between the close of the current connection
+    and the client grabbing a connection for the next request. The client
+    may receive the current connection which may be closed during its use.
+    We can have the trasnport close all idle connections thereby forcing the
+    client to receive a new connection.
+    
+    Closing idle connections did not handle cleaning up host connection
+    counts for http/2. We will now decrement the host connection count for
+    http/2 connections.
+    
+    Fixes #31784
+    
+    Change-Id: Iefc0d0d7ed9fa3acd8b4f42004f1579fc1de63fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 11 +++--------
+ src/net/http/transport_test.go |  4 ++--
+ 2 files changed, 5 insertions(+), 10 deletions(-)

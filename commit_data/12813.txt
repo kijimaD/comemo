@@ -1,0 +1,17 @@
+commit b0f4d805f27fc8b24ced42fdce39b859d90ce101
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Apr 2 12:59:37 2012 -0400
+
+    misc/emacs: fix go-mode syntax table and whitespace handling.
+    - flag * and / as comment characters
+    - mark newline as a comment-ender
+    - include newline in go-mode-whitespace-p
+    
+    Thanks Jonathan Amsterdam and Steve Yegge for the patch!
+    
+    R=golang-dev, rsc
+    CC=golang-dev, jba, stevey
+    https://golang.org/cl/5938056
+
+ misc/emacs/go-mode.el | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

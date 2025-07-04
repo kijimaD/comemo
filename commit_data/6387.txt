@@ -1,0 +1,12 @@
+commit 6866026c45d78ffdca67f9791701b4e95c8961a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 24 17:07:42 2010 -0700
+
+    test: Add test which causes incorrect error from gccgo.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2220048
+
+ test/fixedbugs/bug307.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

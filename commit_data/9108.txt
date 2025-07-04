@@ -1,0 +1,20 @@
+commit e8689404a7ba46acb491702fa8554c1394223325
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 18 07:23:52 2011 -0700
+
+    cgo: add missing semicolon in generated struct
+    
+    This affected certain signatures needing padding
+    like:
+    
+    //export Foo
+    func Foo() (int, C.long) { ... }
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4745047
+
+ misc/cgo/test/Makefile   |  1 +
+ misc/cgo/test/exports.go | 12 ++++++++++++
+ src/cmd/cgo/out.go       |  2 +-
+ 3 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit dee62a440c928dd93ba96b273c30e1399fb16994
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 24 23:17:16 2012 +0800
+
+    cmd/5g: fix URL typo
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5919054
+
+ src/cmd/5g/peep.c | 2 +-
+ src/cmd/5g/reg.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

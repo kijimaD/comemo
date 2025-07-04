@@ -1,0 +1,25 @@
+commit 290ec2d92bca6472fdabce51fc331b3bcaa7129d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 26 21:52:58 2025 -0800
+
+    bufio: don't do empty Write at start of WriteTo
+    
+    The empty Write will cause the wrong thing to happen when using
+    io.Copy to copy to a package-based stream.
+    
+    Fixes #71424
+    
+    Change-Id: I046a27539447182692ac76a8bdd422327345dd8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644535
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/bufio/bufio.go      |  8 +++--
+ src/bufio/bufio_test.go |  2 +-
+ src/bufio/net_test.go   | 96 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 102 insertions(+), 4 deletions(-)

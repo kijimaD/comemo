@@ -1,0 +1,18 @@
+commit 4149493443f09c14d9f0fad7030704ed57149b55
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 17 16:32:33 2020 +0200
+
+    runtime: move startupRandomData declaration to os_linux.go
+    
+    startupRandomData is only used in sysauxv and getRandomData on linux,
+    thus move it closer to where it is used. Also adjust its godoc comment.
+    
+    Change-Id: Ice51d579ec33436adbfdf247caf4ba00bae865e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248761
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux.go | 4 ++++
+ src/runtime/runtime2.go | 4 ----
+ 2 files changed, 4 insertions(+), 4 deletions(-)

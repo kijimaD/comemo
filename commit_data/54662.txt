@@ -1,0 +1,18 @@
+commit 025e8ad6e9aa08d57614628c4027f63ad79940a2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Oct 8 15:52:43 2023 +0000
+
+    go/token: use "// Output:" instead of "//Output:" in examples
+    
+    Change-Id: I86eb365650749bb4f41e9ae62123674581dffe2b
+    GitHub-Last-Rev: 7a9d6800ab3f2c8e6c738d36c2f882486ce2703a
+    GitHub-Pull-Request: golang/go#63449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533120
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/go/token/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

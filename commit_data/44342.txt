@@ -1,0 +1,17 @@
+commit 5a0e4fc4e7188fb36e64a7d7d25bab943f081811
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 20:00:33 2021 -0800
+
+    cmd/compile/internal/types2: review of conversions.go
+    
+    The changes between (equivalent, and reviewed) go/types/conversions.go
+    and conversions.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
+    
+    Change-Id: I86d20d8100ec29fe3be996b975c9b4aff01be85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294509
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 1e9f59a7da374b24b5512cd7fcf1f605df4f862d
+Author: Ingo Krabbe <ikrabbe.ask@gmail.com>
+Date:   Wed Jul 22 09:23:21 2015 +0200
+
+    cmd/dist: add command output for dist tests
+    
+    It is very useful to see which test commands are executed.
+    This is of global use, but I wrote it for #11654.
+    
+    Change-Id: I9bfc8e55d5bef21f4c49b917f58bc9a44aefcade
+    Reviewed-on: https://go-review.googlesource.com/12510
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go | 3 +++
+ 1 file changed, 3 insertions(+)

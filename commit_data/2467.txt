@@ -1,0 +1,14 @@
+commit 410ba58604ae215beba78a99b2f1a580e790d234
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 13:21:01 2009 -0700
+
+    do use $$ in path names, so that multiple
+    runs on the same machine don't collide.
+    
+    R=r
+    DELTA=4  (0 added, 1 deleted, 3 changed)
+    OCL=30426
+    CL=30429
+
+ test/run | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

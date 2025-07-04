@@ -1,0 +1,14 @@
+commit ec767c10b30819d907b010a8cfb4831420db7718
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 6 08:41:55 2015 -0800
+
+    runtime: add comment about channels already handling zero-sized objects correctly.
+    
+    update #9401
+    
+    Change-Id: I634a772814e7cd066f631a68342e7c3dc9d27e72
+    Reviewed-on: https://go-review.googlesource.com/2370
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/chan.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

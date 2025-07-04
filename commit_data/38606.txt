@@ -1,0 +1,31 @@
+commit ee780d4a780be9d8517583bb7c3598c834b6f775
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Mar 26 20:21:21 2019 -0400
+
+    cmd/go: clarify error when package is removed in a module
+    
+    If no module in the build list provides an imported package, we
+    try to upgrade to the "@latest" version. If there is a requirement on
+    a version of the module which is newer than the "@latest" version
+    (e.g., a prerelease or pseudoversion), we cannot upgrade further.
+    
+    We previously reported "looping trying to add package" when we saw the
+    package in "@latest" but it was removed later. The meaning of this is
+    unclear for users, so with this change, we explain the package was
+    removed.
+    
+    Fixes #30394
+    
+    Change-Id: I1b7fec2c37e762fb600e66ee8a4df4aeaf13e67a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169720
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import.go                   | 17 ++++++++++++++++-
+ src/cmd/go/internal/modload/load.go                     |  3 +++
+ .../go/testdata/mod/example.com_missingpkg_v1.0.0.txt   | 11 +++++++++++
+ .../testdata/mod/example.com_missingpkg_v1.0.1-beta.txt |  8 ++++++++
+ .../testdata/mod/example.com_usemissingpre_v1.0.0.txt   | 13 +++++++++++++
+ .../go/testdata/script/mod_missingpkg_prerelease.txt    | 12 ++++++++++++
+ 6 files changed, 63 insertions(+), 1 deletion(-)

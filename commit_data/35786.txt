@@ -1,0 +1,32 @@
+commit f422bea498b138022135060050bbbc249589a945
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 21 16:12:17 2018 -0700
+
+    cmd/compile: fix compile failure for lazily resolved shadowed types
+    
+    If expanding an inline function body required lazily expanding a
+    package-scoped type whose identifier was shadowed within the function
+    body, the lazy expansion would instead overwrite the local symbol
+    definition instead of the package-scoped symbol. This was due to
+    importsym using s.Def instead of s.PkgDef.
+    
+    Unfortunately, this is yet another consequence of the current awkward
+    scope handling code.
+    
+    Passes toolstash-check.
+    
+    Fixes #25984.
+    
+    Change-Id: Ia7033e1749a883e6e979c854d4b12b0b28083dd8
+    Reviewed-on: https://go-review.googlesource.com/120456
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/export.go   |  4 ++--
+ src/cmd/compile/internal/types/scope.go | 13 +++++++++++--
+ test/fixedbugs/issue25984.dir/p.go      | 15 +++++++++++++++
+ test/fixedbugs/issue25984.dir/q.go      | 11 +++++++++++
+ test/fixedbugs/issue25984.go            |  7 +++++++
+ 5 files changed, 46 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 9611d12b7e9b945099c18b1144a90aec7b849686
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 11:17:48 2011 -0700
+
+    C+A: add Jongmin Kim (individual CLA)
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5312057
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

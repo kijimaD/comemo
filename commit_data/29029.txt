@@ -1,0 +1,20 @@
+commit 4c9c023346415908390b68cfab0677ef53cf38ac
+Author: Alexander Döring <email@alexd.ch>
+Date:   Mon Oct 24 22:40:31 2016 +0200
+
+    math,math/cmplx: fix linter issues
+    
+    Change-Id: If061f1f120573cb109d97fa40806e160603cd593
+    Reviewed-on: https://go-review.googlesource.com/31871
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/cmplx/tan.go | 8 ++++----
+ src/math/expm1.go     | 2 +-
+ src/math/jn.go        | 2 +-
+ src/math/log1p.go     | 7 +++----
+ src/math/sin.go       | 8 ++++----
+ src/math/sincos.go    | 4 ++--
+ src/math/tan.go       | 4 ++--
+ 7 files changed, 17 insertions(+), 18 deletions(-)

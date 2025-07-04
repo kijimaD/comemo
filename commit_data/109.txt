@@ -1,0 +1,19 @@
+commit 5182aff001488a791747439f33d6d92d076ebd7a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 16:59:54 2008 -0700
+
+    - more tests (mostly redeclaration errors that are not checked)
+    
+    SVN=121546
+
+ test/bug032.go  | 11 +++++++++++
+ test/bug033.go  | 11 +++++++++++
+ test/bug034.go  | 12 ++++++++++++
+ test/bug035.go  | 13 +++++++++++++
+ test/bug036.go  | 14 ++++++++++++++
+ test/bug037.go  | 11 +++++++++++
+ test/bug038.go  | 13 +++++++++++++
+ test/bug039.go  | 11 +++++++++++
+ test/bug040.go  | 11 +++++++++++
+ test/golden.out | 31 +++++++++++++++++++++++++++++++
+ 10 files changed, 138 insertions(+)

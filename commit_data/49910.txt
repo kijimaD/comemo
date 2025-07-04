@@ -1,0 +1,20 @@
+commit 5e7697b6275bb28bcfd18b2f21de9905164926dd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 14 19:08:00 2022 +0700
+
+    test: add regression test for issue 43942
+    
+    CL 356011 fixed this issue too.
+    
+    Fixes #43942
+    
+    Change-Id: I35ad397e78eeb80eff3a4217c4d40f15d40bdebb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423814
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/fixedbugs/issue43942.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

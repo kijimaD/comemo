@@ -1,0 +1,33 @@
+commit 0ae3b7cb742c586df9b68d9eac042b32148abf9c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Nov 16 09:40:45 2020 -0500
+
+    cmd/compile: fix rules regression with shifts on PPC64
+    
+    Some rules for PPC64 were checking for a case
+    where a shift followed by an 'and' of a mask could
+    be lowered, depending on the format of the mask. The
+    function to verify if the mask was valid for this purpose
+    was not checking if the mask was 0 which we don't want to
+    allow. This case can happen if previous optimizations
+    resulted in that mask value.
+    
+    This fixes isPPC64ValidShiftMask to check for a mask of 0 and return
+    false.
+    
+    This also adds a codegen testcase to verify it doesn't try to
+    match the rules in the future.
+    
+    Fixes #42610
+    
+    Change-Id: I565d94e88495f51321ab365d6388c01e791b4dbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270358
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go |  7 ++++---
+ test/codegen/issue42610.go              | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

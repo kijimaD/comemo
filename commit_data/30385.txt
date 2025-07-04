@@ -1,0 +1,27 @@
+commit d9270ecb3ad35079df62ad85b3a5e52e46e4a1c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 22 21:19:29 2017 -0800
+
+    cmd/compile: evaluate zero-sized values converted to interfaces
+    
+    CL 35562 substituted zerobase for the pointer for
+    interfaces containing zero-sized values.
+    However, it failed to evaluate the zero-sized value
+    expression for side-effects. Fix that.
+    
+    The other similar interface value optimizations
+    are not affected, because they all actually use the
+    value one way or another.
+    
+    Fixes #19246
+    
+    Change-Id: I1168a99561477c63c29751d5cd04cf81b5ea509d
+    Reviewed-on: https://go-review.googlesource.com/37395
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/walk.go |  1 +
+ test/fixedbugs/issue19246.go        | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

@@ -1,0 +1,18 @@
+commit 76a42d74356e3c5bee0851c99665b21bf29f0c27
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 18:23:25 2024 -0700
+
+    internal/testenv: add missing t.Helper calls
+    
+    ...and move a few so they won't be called when not needed.
+    
+    Change-Id: I024b9552ed5ed839cde4fbae4815ec6ba8b67265
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609300
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/testenv/exec.go    |  2 ++
+ src/internal/testenv/testenv.go | 12 ++++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

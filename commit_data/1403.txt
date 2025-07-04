@@ -1,0 +1,14 @@
+commit be76898cb31a4a9da97965cfa753685d560874e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 5 11:18:20 2009 -0800
+
+    change time.Tick test to use 100ms intervals.
+    now passes even under loaded conditions on r45.
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=22019
+    CL=22022
+
+ src/lib/time/tick_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

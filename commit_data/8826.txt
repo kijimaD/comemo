@@ -1,0 +1,12 @@
+commit 36b5e1d6986d38aa47d9c8e3147b2dd488d22155
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 22 19:33:07 2011 -0400
+
+    io: clarify Read, ReadAt, Copy, Copyn EOF behavior
+    
+    R=golang-dev, bradfitz, iant, dsymonds, nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/4629062
+
+ src/pkg/io/io.go | 55 +++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 18 deletions(-)

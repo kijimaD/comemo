@@ -1,0 +1,17 @@
+commit fda1dc2939a245cae354fbac68a5c47d7b152c87
+Author: Shubham Sharma <shubham.sha12@gmail.com>
+Date:   Mon Mar 11 11:39:25 2019 +0530
+
+    cmd/go: document GOGCCFLAGS
+    
+    Fixes #30123
+    
+    Change-Id: I310b89a344a262bb758d39dfdd485ed2940cc6aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166577
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 ++
+ src/cmd/go/internal/help/helpdoc.go | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,23 @@
+commit fffe6229637d1cf37c1400623bdeba57b4a787cb
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 14:52:15 2020 -0700
+
+    runtime/race: rebuild race detector .syso files
+    
+    Update #37355
+    
+    Change-Id: I90cc121c158a9d44df01772083a7a9301598532e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231297
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 448992 -> 449292 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 577864 -> 579744 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 516064 -> 518680 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 493992 -> 497656 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 618664 -> 619560 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 602384 -> 602664 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 457408 -> 458427 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

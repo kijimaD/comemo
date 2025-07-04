@@ -1,0 +1,35 @@
+commit 6436270dadb232e3ef1afc0d4cf714bcb9434910
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 11 16:32:02 2018 -0500
+
+    cmd/compile: add fence-post implications to prove
+    
+    This adds four new deductions to the prove pass, all related to adding
+    or subtracting one from a value. This is the first hint of actual
+    arithmetic relations in the prove pass.
+    
+    The most effective of these is
+    
+       x-1 >= w && x > min  ⇒  x > w
+    
+    This helps eliminate bounds checks in code like
+    
+      if x > 0 {
+        // do something with s[x-1]
+      }
+    
+    Altogether, these deductions prove an additional 260 branches in std
+    and cmd. Furthermore, they will let us eliminate some tricky
+    compiler-inserted panics in the runtime that are interfering with
+    static analysis.
+    
+    Fixes #23354.
+    
+    Change-Id: I7088223e0e0cd6ff062a75c127eb4bb60e6dce02
+    Reviewed-on: https://go-review.googlesource.com/87480
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+
+ src/cmd/compile/internal/ssa/prove.go | 73 +++++++++++++++++++++++++++++++++++
+ test/prove.go                         | 54 ++++++++++++++++++++++++++
+ 2 files changed, 127 insertions(+)

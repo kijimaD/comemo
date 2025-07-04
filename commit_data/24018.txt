@@ -1,0 +1,58 @@
+commit d931716cde778a3a4c9ab14410f791e9e8b72785
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 11 23:22:57 2015 +0300
+
+    net/http: fix races cloning TLS config
+    
+    Found in a Google program running under the race detector.
+    No test, but verified that this fixes the race with go run -race of:
+    
+            package main
+    
+            import (
+                    "crypto/tls"
+                    "fmt"
+                    "net"
+                    "net/http"
+                    "net/http/httptest"
+            )
+    
+            func main() {
+                    for {
+                            ts := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {}))
+                            conf := &tls.Config{} // non-nil
+                            a, b := net.Pipe()
+                            go func() {
+                                    sconn := tls.Server(a, conf)
+                                    sconn.Handshake()
+                            }()
+                            tr := &http.Transport{
+                                    TLSClientConfig: conf,
+                            }
+                            req, _ := http.NewRequest("GET", ts.URL, nil)
+                            _, err := tr.RoundTrip(req)
+                            println(fmt.Sprint(err))
+                            a.Close()
+                            b.Close()
+                            ts.Close()
+                    }
+            }
+    
+    Also modified cmd/vet to report the copy-of-mutex bug statically
+    in CL 13646, and fixed two other instances in the code found by vet.
+    But vet could not have told us about cloneTLSConfig vs cloneTLSClientConfig.
+    
+    Confirmed that original report is also fixed by this.
+    
+    Fixes #12099.
+    
+    Change-Id: Iba0171549e01852a5ec3438c25a1951c98524dec
+    Reviewed-on: https://go-review.googlesource.com/13453
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/net/http/server.go    |  7 ++---
+ src/net/http/transport.go | 80 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 72 insertions(+), 15 deletions(-)

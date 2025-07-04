@@ -1,0 +1,27 @@
+commit d4dd1de19fcef835fca14ad8cb590dbfcf8e9859
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jul 12 14:01:26 2023 -0700
+
+    runtime: enforce standard file descriptors open on init on unix
+    
+    On Unix-like platforms, enforce that the standard file descriptions (0,
+    1, 2) are always open during initialization. If any of the FDs are
+    closed, we open them pointing at /dev/null, or fail.
+    
+    Fixes #60641
+    
+    Change-Id: Iaab6b3f3e5ca44006ae3ba3544d47da9a613f58f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509020
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/fds_nonunix.go           | 11 +++++
+ src/runtime/fds_test.go              | 78 ++++++++++++++++++++++++++++++++++++
+ src/runtime/fds_unix.go              | 44 ++++++++++++++++++++
+ src/runtime/proc.go                  |  1 +
+ src/runtime/security_unix.go         | 40 +-----------------
+ src/runtime/testdata/testfds/main.go | 29 ++++++++++++++
+ 6 files changed, 165 insertions(+), 38 deletions(-)

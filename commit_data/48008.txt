@@ -1,0 +1,43 @@
+commit 6eb58cdffa1ab334493776a25ccccfa89c2ca7ac
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Jan 25 17:31:52 2022 -0500
+
+    all: update vendored golang.org/x/tools
+    
+    Update the vendored x/tools to pick up CL 380014, which updates the
+    ifaceassert vet analyzer to remove spurious errors for assertions
+    involving interfaces with type parameters.
+    
+    This also picks up some superficial changes related to refactoring of
+    the x/tools/internal/typeparams API.
+    
+    The following commands were used:
+    
+      go get -d golang.org/x/tools@master
+      go mod tidy
+      go mod vendor
+    
+    Fixes #50658
+    
+    Change-Id: I2f612fd186a1a260cab21860b192c9f6dc3f560f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380777
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/analysis/passes/ifaceassert/ifaceassert.go  |   6 ++
+ .../analysis/passes/ifaceassert/parameterized.go   | 112 +++++++++++++++++++++
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   3 +-
+ .../passes/testinggoroutine/testinggoroutine.go    |   7 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |   6 +-
+ .../golang.org/x/tools/go/types/typeutil/callee.go |   3 +-
+ .../x/tools/internal/lsp/fuzzy/symbol.go           |  26 +++--
+ .../x/tools/internal/typeparams/common.go          |  71 ++++++++++---
+ .../tools/internal/typeparams/typeparams_go117.go  |  32 ------
+ .../tools/internal/typeparams/typeparams_go118.go  |  50 ---------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 13 files changed, 208 insertions(+), 116 deletions(-)

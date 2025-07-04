@@ -1,0 +1,24 @@
+commit 0c18d1387d805c6e04801772335ea79ed666e783
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 15:43:43 2009 -0700
+
+    delete unused file
+    ### 3656
+    XXstart 3656
+    XXedit 3656 src/cmd/5g/ggen.c
+    XXedit 3656 src/pkg/runtime/arm/asm.s
+    XXedit 3656 test/arm-pass.txt
+    # submit 3656
+    hg ci -u 'Kai Backman <kaib@golang.org>' -d '1253922857 25200' -l - <<'HGEOF'
+    support for go and defer.
+    
+    go/test: passes 64% (218/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=60  (39 added, 0 deleted, 21 changed)
+    OCL=35018
+    CL=35018
+
+ usr/gri/pretty/symboltable.go | 412 ------------------------------------------
+ 1 file changed, 412 deletions(-)

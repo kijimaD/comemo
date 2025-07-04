@@ -1,0 +1,15 @@
+commit 14968bc1e52842b098408516472ebd3fb97e4714
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 2 15:42:14 2016 +0200
+
+    cmd/dist: skip an unsupported test on darwin/arm
+    
+    Fixes the darwin/arm builder (I hope)
+    
+    Change-Id: I8a3502a1cdd468d4bf9a1c895754ada420b305ce
+    Reviewed-on: https://go-review.googlesource.com/23684
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

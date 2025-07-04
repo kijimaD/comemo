@@ -1,0 +1,17 @@
+commit 6c848c6e888781b5385cec34e5740ac192323242
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 14 18:29:49 2015 -0700
+
+    A+C: more updates before release
+    
+    Includes subrepos and some special cases.
+    
+    Updates #10639
+    
+    Change-Id: I3c9ad4f6ec689903f88ccf5599d93a338e3eec4d
+    Reviewed-on: https://go-review.googlesource.com/12211
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ AUTHORS      | 7 ++++++-
+ CONTRIBUTORS | 8 ++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

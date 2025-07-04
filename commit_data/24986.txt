@@ -1,0 +1,14 @@
+commit 23791ee11d7869fe73b9b19218c91674cff6d733
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 18 23:39:53 2015 -0500
+
+    cmd/compile: set log prefix and suppress date
+    
+    Fixes #13320.
+    
+    Change-Id: I3a96a6707982629caf89656c479d096891783328
+    Reviewed-on: https://go-review.googlesource.com/17050
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

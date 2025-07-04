@@ -1,0 +1,43 @@
+commit 57d751370c9c44a1d13df1ed1f72c4316239dff3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 15:44:57 2020 -0400
+
+    runtime: use conservative scanning for debug calls
+    
+    A debugger can inject a call at almost any PC, which causes
+    significant complications with stack scanning and growth. Currently,
+    the runtime solves this using precise stack maps and register maps at
+    nearly all PCs, but these extra maps require roughly 5% of the binary.
+    These extra maps were originally considered worth this space because
+    they were intended to be used for non-cooperative preemption, but are
+    now used only for debug call injection.
+    
+    This CL switches from using precise maps to instead using conservative
+    frame scanning, much like how non-cooperative preemption works. When a
+    call is injected, the runtime flushes all potential pointer registers
+    to the stack, and then treats that frame as well as the interrupted
+    frame conservatively.
+    
+    The limitation of conservative frame scanning is that we cannot grow
+    the goroutine stack. That's doable because the previous CL switched to
+    performing debug calls on a new goroutine, where they are free to grow
+    the stack.
+    
+    With this CL, there are no remaining uses of precise register maps
+    (though we still use the unsafe-point information that's encoded in
+    the register map PCDATA stream), and stack maps are only used at call
+    sites.
+    
+    For #36365.
+    
+    Change-Id: Ie217b6711f3741ccc437552d8ff88f961a73cee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229300
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_amd64.s  |  6 ++----
+ src/runtime/debugcall.go | 13 +++++++++++++
+ src/runtime/mgcmark.go   |  5 +++--
+ src/runtime/stack.go     | 23 +----------------------
+ 4 files changed, 19 insertions(+), 28 deletions(-)

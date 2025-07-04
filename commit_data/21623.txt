@@ -1,0 +1,14 @@
+commit 5aa448ff8cc5aed0832a7e1218e0d6b032b89d07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 13 18:31:30 2015 -0800
+
+    test: add test case for issue 4365
+    
+    This is an update of http://golang.org/cl/151410043 by Tim Shen.
+    
+    Change-Id: I43ab7fcedd785059c535f45a3c8cdb7b618c1499
+    Reviewed-on: https://go-review.googlesource.com/4873
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ test/fixedbugs/issue4365.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

@@ -1,0 +1,22 @@
+commit d21b37bbe7b98316cc58df65a6032c3f3c20a605
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:49:19 2014 -0400
+
+    os: make Process.Signal 'process finished' error consistent on Unix
+    
+    While we're here, fix the implementation of Release on both
+    Unix and Windows: Release is supposed to make Signal an error.
+    
+    While we're here, make sure we never Signal pid 0.
+    (Don't try this at home.)
+    
+    Fixes #7658.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/152240043
+
+ src/os/exec_unix.go    | 14 +++++++++++---
+ src/os/exec_windows.go |  3 +++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

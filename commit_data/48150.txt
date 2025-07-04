@@ -1,0 +1,28 @@
+commit badba359da9f09dfd75d81c7175b78eb1dbc998f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 11 13:16:52 2022 -0800
+
+    go/types, types2: better error message for invalid array length
+    
+    If an invalid array length is just an identifier, mention
+    "array length" so that it's clear this is an invalid array
+    declaration and not a (invalid) generic type declaration.
+    
+    Fixes #51145.
+    
+    Change-Id: I8878cbb6c7b1277fc0a9a014712ec8d55499c5c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385255
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../types2/testdata/fixedbugs/issue43527.go2         |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue51145.go | 18 ++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go           | 20 ++++++++++++++------
+ src/go/types/errorcodes.go                           |  7 ++-----
+ src/go/types/testdata/fixedbugs/issue43527.go2       |  2 +-
+ src/go/types/testdata/fixedbugs/issue51145.go        | 18 ++++++++++++++++++
+ src/go/types/typexpr.go                              | 20 ++++++++++++++------
+ test/fixedbugs/bug255.go                             | 13 +++++++------
+ 8 files changed, 75 insertions(+), 25 deletions(-)

@@ -1,0 +1,15 @@
+commit bc2fda9c8995b3dc8915e5bccb399ab0dcb36d72
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 11:59:19 2009 -0700
+
+    Regenerate Linux 386 syscall bindings to add ptrace.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=82  (80 added, 2 deleted, 0 changed)
+    OCL=31610
+    CL=31612
+
+ src/pkg/syscall/zsyscall_linux_386.go |  6 +++
+ src/pkg/syscall/ztypes_linux_386.go   | 76 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 80 insertions(+), 2 deletions(-)

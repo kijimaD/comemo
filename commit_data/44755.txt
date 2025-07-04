@@ -1,0 +1,80 @@
+commit d8394bfc7fa728da9654f5e902df03a29d2a03ca
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Mar 15 06:55:37 2021 +0000
+
+    cmd/internal/obj/arm64: mark functions with small stacks NOSPLIT
+    
+    This change omits the stack check on arm64 when the size of a stack
+    frame is less than obj.StackSmall.
+    
+    The effect is not very significant, because CL 92040 has set the leaf
+    function with a framesize of 0 to NOFRAME, which makes the code
+    prologue on arm64 much closer to other architectures. But it is not
+    without effect, for example, it is effective for std library functions
+    such as runtime.usleep, fmt.isSpace, etc. Since this CL is very simple,
+    I think this optimization is worthwhile.
+    
+    compilecmp results on linux/arm64:
+    name                      old time/op       new time/op       delta
+    Template                        284ms ± 1%        283ms ± 1%  -0.29%  (p=0.000 n=50+50)
+    Unicode                         125ms ± 2%        125ms ± 1%    ~     (p=0.445 n=49+49)
+    GoTypes                         1.70s ± 1%        1.69s ± 1%  -0.36%  (p=0.000 n=50+50)
+    Compiler                        124ms ± 1%        124ms ± 1%  -0.31%  (p=0.003 n=48+48)
+    SSA                             12.7s ± 1%        12.7s ± 1%    ~     (p=0.117 n=50+50)
+    Flate                           172ms ± 1%        171ms ± 1%  -0.55%  (p=0.000 n=50+50)
+    GoParser                        265ms ± 1%        264ms ± 1%  -0.23%  (p=0.000 n=47+48)
+    Reflect                         653ms ± 1%        646ms ± 1%  -1.12%  (p=0.000 n=48+50)
+    Tar                             246ms ± 1%        245ms ± 1%  -0.41%  (p=0.000 n=46+47)
+    XML                             328ms ± 1%        327ms ± 1%  -0.18%  (p=0.020 n=46+50)
+    LinkCompiler                    599ms ± 1%        598ms ± 1%    ~     (p=0.237 n=50+49)
+    ExternalLinkCompiler            1.87s ± 1%        1.87s ± 1%  -0.18%  (p=0.000 n=50+50)
+    LinkWithoutDebugCompiler        365ms ± 1%        364ms ± 2%    ~     (p=0.131 n=50+50)
+    [Geo mean]                      490ms             488ms       -0.32%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       38.8MB ± 1%       38.8MB ± 1%  +0.16%  (p=0.013 n=47+49)
+    Unicode                        28.4MB ± 0%       28.4MB ± 0%    ~     (p=0.512 n=46+44)
+    GoTypes                         169MB ± 1%        169MB ± 1%    ~     (p=0.628 n=50+50)
+    Compiler                       23.2MB ± 1%       23.2MB ± 1%    ~     (p=0.424 n=46+44)
+    SSA                            1.55GB ± 0%       1.55GB ± 0%    ~     (p=0.603 n=48+50)
+    Flate                          23.7MB ± 1%       23.8MB ± 1%    ~     (p=0.797 n=50+50)
+    GoParser                       35.3MB ± 1%       35.3MB ± 1%    ~     (p=0.932 n=49+49)
+    Reflect                        85.0MB ± 0%       84.9MB ± 0%  -0.05%  (p=0.038 n=45+40)
+    Tar                            34.4MB ± 1%       34.5MB ± 1%    ~     (p=0.288 n=50+50)
+    XML                            43.8MB ± 2%       43.9MB ± 2%    ~     (p=0.798 n=46+49)
+    LinkCompiler                    136MB ± 0%        136MB ± 0%    ~     (p=0.750 n=50+50)
+    ExternalLinkCompiler            127MB ± 0%        127MB ± 0%    ~     (p=0.852 n=50+50)
+    LinkWithoutDebugCompiler       84.1MB ± 0%       84.1MB ± 0%    ~     (p=0.890 n=50+50)
+    [Geo mean]                     70.4MB            70.4MB       +0.01%
+    
+    file      before    after     Δ       %
+    addr2line 4006004   4006012   +8      +0.000%
+    asm       4936863   4936919   +56     +0.001%
+    buildid   2594947   2594859   -88     -0.003%
+    cgo       4399702   4399806   +104    +0.002%
+    compile   22233139  22233107  -32     -0.000%
+    cover     4443681   4443785   +104    +0.002%
+    dist      3365902   3365806   -96     -0.003%
+    doc       3776175   3776231   +56     +0.001%
+    fix       3218624   3218552   -72     -0.002%
+    nm        3923345   3923329   -16     -0.000%
+    objdump   4295473   4295673   +200    +0.005%
+    pack      2390561   2390497   -64     -0.003%
+    pprof     12866419  12866275  -144    -0.001%
+    test2json 2587113   2587129   +16     +0.001%
+    trace     9609814   9609710   -104    -0.001%
+    vet       6790272   6791048   +776    +0.011%
+    total     106832751 106833455 +704    +0.001%
+    
+    Updates #13379 (for arm64)
+    
+    Change-Id: I07664ab0b978c66c0b18b8482222e9ba3772290d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302853
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/obj7.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

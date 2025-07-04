@@ -1,0 +1,16 @@
+commit 1e8ab99b37dd67aaf7b188be743bdb938005df7a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 11:56:00 2017 -0400
+
+    runtime: add benchmark for write barriers
+    
+    For #22460.
+    
+    Change-Id: I798f26d45bbe1efd16b632e201413cb26cb3e6c7
+    Reviewed-on: https://go-review.googlesource.com/73811
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/gc_test.go | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

@@ -1,0 +1,19 @@
+commit 6533cc1ce899fa3c7fac1a85ad724e333fb9710f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 10:14:15 2017 -0800
+
+    cmd/internal/goobj: update to support go19ld
+    
+    Updates the disassembler to support the same object file version used
+    by the assembler and linker.
+    
+    Related #14782.
+    
+    Change-Id: I4cd7560c4e4e1350cfb27ca9cbe0fde25fe693cc
+    Reviewed-on: https://go-review.googlesource.com/37797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/goobj/read.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

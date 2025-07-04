@@ -1,0 +1,24 @@
+commit 1b7e71e8ae824c2ac661dd793bca29cf60378936
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 29 00:32:14 2022 -0400
+
+    all: disable tests that fail on Alpine
+    
+    These changes are enough to pass all.bash using the
+    disabled linux-amd64-alpine builder via debugnewvm.
+    
+    For #19938.
+    For #39857.
+    
+    Change-Id: I7d160612259c77764b70d429ad94f0864689cdce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/test/issue1435.go             | 6 ++++++
+ misc/cgo/test/pkg_test.go              | 4 ++++
+ misc/cgo/testcarchive/carchive_test.go | 7 +++++++
+ misc/cgo/testcshared/cshared_test.go   | 6 ++++++
+ src/syscall/syscall_linux_test.go      | 3 +++
+ 5 files changed, 26 insertions(+)

@@ -1,0 +1,12 @@
+commit bdac989ef7f7f3223d8dd4928dee3da595260f47
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:52:07 2013 +0800
+
+    doc/go_spec: more examples for unspecified cases of the evaluation order
+    
+    R=golang-dev, bradfitz, gri, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/7235044
+
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

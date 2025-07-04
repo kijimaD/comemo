@@ -1,0 +1,15 @@
+commit de489fb38c269aee152025b769276091139e3008
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 20 22:38:14 2009 -0700
+
+    Refactor exvar to use interface types, and add mapVar.
+    
+    R=r
+    APPROVED=r
+    DELTA=170  (136 added, 6 deleted, 28 changed)
+    OCL=27628
+    CL=27652
+
+ src/lib/exvar.go      | 137 ++++++++++++++++++++++++++++++++++++++++++--------
+ src/lib/exvar_test.go |  61 ++++++++++++++++------
+ 2 files changed, 164 insertions(+), 34 deletions(-)

@@ -1,0 +1,12 @@
+commit c088ebef16c3510677153581a53a262b7c9200ea
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 20 15:48:01 2012 -0500
+
+    go run: correctly handle -n and -x flags
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5557069
+
+ src/cmd/go/run.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 9bce7b70fde8572880e7a47bc2a4df8fb7b2c286
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 18:01:46 2021 +0000
+
+    runtime: create initializer for gcControllerState
+    
+    Now that gcControllerState contains almost all of the pacer state,
+    create an initializer for it instead of haphazardly setting some fields.
+    
+    For #44167.
+    
+    Change-Id: I4ce1d5dd82003cb7c263fa46697851bb22a32544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306601
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 16 +++-------------
+ src/runtime/mgcpacer.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 13 deletions(-)

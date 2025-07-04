@@ -1,0 +1,14 @@
+commit d021dd6a3fe61059094dba591aba265cbf6f7733
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 29 08:38:24 2019 -0400
+
+    cmd/go: add test of $GONOPROXY, $GONOSUMDB behavior
+    
+    Change-Id: I8a4917ce14ea22d5991226e485d43a9c9312950e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174219
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/script_test.go                    |  2 ++
+ src/cmd/go/testdata/script/mod_gonoproxy.txt | 31 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

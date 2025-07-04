@@ -1,0 +1,14 @@
+commit 18f7c0a3f6f39af5cd2db484dbf0817fbfb526d5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 21 11:46:42 2011 -0800
+
+    path/filepath.Rel: document that the returned path is always relative
+    
+    Fixes #2593.
+    
+    R=rsc, alex.brainman, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5500052
+
+ src/pkg/path/filepath/path.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,20 @@
+commit 818eff0367528dea7b0d05d601d6dbf7fc41c699
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:56:49 2015 -0500
+
+    cmd/internal/obj/i386: delete
+    
+    Now unused.
+    
+    Change-Id: I0ba27e58721ad66cc3068346d6d31ba0ac37ad64
+    Reviewed-on: https://go-review.googlesource.com/6893
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/i386/8.out.go   |  594 ------
+ src/cmd/internal/obj/i386/anames8.go |  507 -----
+ src/cmd/internal/obj/i386/asm8.go    | 3462 ----------------------------------
+ src/cmd/internal/obj/i386/list8.go   |  161 --
+ src/cmd/internal/obj/i386/obj8.go    |  942 ---------
+ src/cmd/internal/obj/i386/util.go    |   12 -
+ 6 files changed, 5678 deletions(-)

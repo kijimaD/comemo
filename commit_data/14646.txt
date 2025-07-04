@@ -1,0 +1,27 @@
+commit 04f0d148e9946d4ec20d8d8a521560b091877665
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 14 17:33:59 2012 +1100
+
+    cmd/go: handle os signals
+    
+    Ignore signals during "go run" and wait for running child
+    process to exit. Stop executing further tests during "go test",
+    wait for running tests to exit and report error exit code.
+    
+    Original CL 6351053 by dfc.
+    
+    Fixes #3572.
+    Fixes #3581.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6903061
+
+ src/cmd/dist/build.c         |  1 +
+ src/cmd/go/build.go          | 31 +++++++++++++++++++++----------
+ src/cmd/go/run.go            |  1 +
+ src/cmd/go/signal.go         | 31 +++++++++++++++++++++++++++++++
+ src/cmd/go/signal_notunix.go | 13 +++++++++++++
+ src/cmd/go/signal_unix.go    | 14 ++++++++++++++
+ src/cmd/go/test.go           |  1 +
+ 7 files changed, 82 insertions(+), 10 deletions(-)

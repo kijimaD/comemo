@@ -1,0 +1,14 @@
+commit d9d8d4c62c658f7c4015c73fcb2a1b809dbc0182
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 21:21:11 2013 -0700
+
+    cmd/godoc: don't warn about HEAD requests
+    
+    Fixes #5451
+    
+    R=gri
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/9388043
+
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

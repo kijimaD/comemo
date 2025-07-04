@@ -1,0 +1,14 @@
+commit 03048ae454131e5274161c6dbe044a5f30a263db
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Apr 5 13:43:18 2013 +1100
+
+    testing: structure package documentation
+    
+    Makes finding the relevant information much easier.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8353045
+
+ src/pkg/testing/testing.go | 4 ++++
+ 1 file changed, 4 insertions(+)

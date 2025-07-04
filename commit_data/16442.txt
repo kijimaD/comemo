@@ -1,0 +1,12 @@
+commit 85fc2f70acf1ad1f834e826a1bbde3e02fe2c9ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 30 12:41:20 2013 -0400
+
+    doc/go1.2.txt: AllocsPerRun now quantized
+    
+    R=golang-dev, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/9728045
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

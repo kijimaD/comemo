@@ -1,0 +1,14 @@
+commit 622d729b86bbc0b0b1b31903df4504e22b4dfaac
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 21:09:33 2011 -0800
+
+    io: add ReadRuner
+    Put it in the same package as ReadByter.
+    There is no implementation here for either interface.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4121051
+
+ src/pkg/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,16 @@
+commit 6e3a6c4d384bb1ca532727bbd7a1cd221786c42a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 10 13:07:04 2015 -0400
+
+    runtime: library entry point for darwin/arm
+    
+    Tested by using -buildmode=c-archive to generate an archive, add it
+    to an Xcode project and calling a Go function from an iOS app. (I'm
+    still investigating proper buildmode tests for all.bash.)
+    
+    Change-Id: I7890df15246df8e90ad27837b8d64ba2cde409fe
+    Reviewed-on: https://go-review.googlesource.com/8719
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_darwin_arm.s | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

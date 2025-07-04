@@ -1,0 +1,22 @@
+commit d62866ef793872779c9011161e51b9c805fcb73d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 27 20:07:00 2021 +0700
+
+    cmd/compile: move checkptr alignment to SSA generation
+    
+    This is followup of CL 343972, moving the checkptr alignment
+    instrumentation during SSA generation instead of walk.
+    
+    Change-Id: I29b2953e4eb8631277fe2e0f44b9d987dd7a69f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345430
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/expr.go      |  9 +++---
+ src/cmd/compile/internal/ir/symtab.go    | 55 ++++++++++++++++----------------
+ src/cmd/compile/internal/ssagen/ssa.go   | 51 +++++++++++++++++++++++++----
+ src/cmd/compile/internal/walk/convert.go | 38 ----------------------
+ src/cmd/compile/internal/walk/expr.go    | 13 +-------
+ 5 files changed, 77 insertions(+), 89 deletions(-)

@@ -1,0 +1,14 @@
+commit c9399f13f8f33c0730021c9379ad1444f4e9c5d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 14:05:21 2009 -0700
+
+    You can't set a fixed array to nil.
+    
+    R=r
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=31915
+    CL=31936
+
+ test/bugs/bug170.go | 13 +++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 16 insertions(+)

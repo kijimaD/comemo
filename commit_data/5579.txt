@@ -1,0 +1,12 @@
+commit ac1d4980dbd58bb482c635d1bfed301ff5114f7a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 1 16:50:16 2010 +0200
+
+    doc/code.html: fix error string format
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1444041
+
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

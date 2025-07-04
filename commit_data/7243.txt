@@ -1,0 +1,13 @@
+commit 549d7f49d567b0ab33733b3eb4a7b7cc182d102e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 26 17:25:37 2011 +1000
+
+    doc/codelab/wiki: rename textarea name from Body to body
+    
+    R=mattn
+    CC=golang-dev
+    https://golang.org/cl/4034046
+
+ doc/codelab/wiki/edit.html  | 2 +-
+ doc/codelab/wiki/index.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

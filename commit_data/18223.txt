@@ -1,0 +1,16 @@
+commit 3233a12f614723317f5d2e127b87b69aa236cd58
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 13 11:24:56 2014 +1100
+
+    syscall: remove getsockname workaround for openbsd
+    
+    Remove the getsockname workaround for unix domain sockets on OpenBSD.
+    This was fixed in OpenBSD 5.2 and we now have a minimum requirement
+    for OpenBSD 5.4-current.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/50960043
+
+ src/pkg/syscall/syscall_bsd.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

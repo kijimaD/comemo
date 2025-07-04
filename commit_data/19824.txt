@@ -1,0 +1,12 @@
+commit 42d0785bbdfa91102b57359721b60fdf8b87ab63
+Author: Asim Shankar <asimshankar@gmail.com>
+Date:   Mon Jul 28 14:46:34 2014 -0700
+
+    crypto/tls: Support ECDSA keys in generate_cert.go
+    
+    R=golang-codereviews, bradfitz, agl
+    CC=golang-codereviews
+    https://golang.org/cl/117180043
+
+ src/pkg/crypto/tls/generate_cert.go | 62 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 54 insertions(+), 8 deletions(-)

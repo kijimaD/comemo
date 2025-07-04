@@ -1,0 +1,15 @@
+commit 9f31353a6cc4c1ee3a74e6dd0ebf6c08579d50a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 13 15:28:42 2018 +0000
+
+    cmd/go: use Windows %AppData% for build cache if %LocalAppData% is empty
+    
+    Fixes #23190
+    
+    Change-Id: I96805aaab44ddaae6098b4e3af30f9e52585eae0
+    Reviewed-on: https://go-review.googlesource.com/87675
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/cache/default.go | 5 +++++
+ 1 file changed, 5 insertions(+)

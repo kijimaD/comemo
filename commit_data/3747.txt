@@ -1,0 +1,19 @@
+commit 4818d346b6b08c1bba551a19c80f4da7f1ab3e7f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 3 19:40:26 2009 -0800
+
+    support for command documentation:
+    - made package tree handler generic so it can work on any fs tree
+    - cleanups along the way
+    
+    R=rsc
+    CC=r
+    http://go/go-review/1017020
+
+ lib/godoc/dirs.html    |   2 +-
+ lib/godoc/godoc.html   |   1 +
+ lib/godoc/package.html |  22 ++++++----
+ lib/godoc/package.txt  |   4 ++
+ src/cmd/godoc/godoc.go | 117 ++++++++++++++++++++++++++++++++++---------------
+ src/cmd/godoc/main.go  |  21 +++++----
+ 6 files changed, 114 insertions(+), 53 deletions(-)

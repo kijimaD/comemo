@@ -1,0 +1,19 @@
+commit 1ae729e6d34040a84da8ef2fc0b9781efe9b0d95
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Jan 5 10:20:03 2024 +0000
+
+    doc: s/adjustements/adjustments
+    
+    Change-Id: I904b1adee13c63bc7d47d4325b794c1a650eb18d
+    GitHub-Last-Rev: 8eced8db566c4dea433260f87456902542095970
+    GitHub-Pull-Request: golang/go#64969
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554255
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

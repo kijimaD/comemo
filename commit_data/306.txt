@@ -1,0 +1,16 @@
+commit 6810f39edf213a64d9c8a024413a53629ef82c7d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 8 12:22:21 2008 -0700
+
+    test update. also remove two duplicates
+    
+    SVN=126336
+
+ test/func.go           |  36 ++++----
+ test/func1.go          |   6 +-
+ test/golden.out        |   6 +-
+ test/ken/robliteral.go | 220 -------------------------------------------------
+ test/ken/robswitch.go  | 131 -----------------------------
+ test/literal.go        |   5 +-
+ test/switch.go         |  14 ++--
+ 7 files changed, 31 insertions(+), 387 deletions(-)

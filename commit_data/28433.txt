@@ -1,0 +1,18 @@
+commit fb4e49059c28fc2de64f0c1b83b178f4bede4a75
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 17:10:44 2016 -0400
+
+    cmd/dist: disable plugin test on ppc64le and s390x
+    
+    These are close to working, but untested and failing on
+    build.golang.org. So disable for now.
+    
+    Change-Id: I330b8d1a91f0bf5139c894913868f01ec87e986d
+    Reviewed-on: https://go-review.googlesource.com/29359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

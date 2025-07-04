@@ -1,0 +1,40 @@
+commit a1bb3030c8d8256c5c45c0caad25f171bd15031a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 12 15:20:33 2015 -0700
+
+    cmd/yacc: generate arrays instead of slices where possible
+    
+    Yacc generates a bunch of global variables of the form
+    
+        var yyFoo = []int{...}
+    
+    where yyFoo is never subsequently modified to point to a different
+    slice.  Since these variables are implicitly compiled as
+    
+        var yyFoo = ([...]int{...})[:]
+    
+    anyway, by simply converting them all to
+    
+        var yyFoo = [...]int{...}
+    
+    we save sizeof(sliceStruct) bytes of data memory for each variable and
+    also make len(yyFoo) into compile-time constant expressions, which
+    shaves some bytes off text size:
+    
+        $ size 6g.before 6g.after
+           text        data     bss     dec     hex filename
+        4598019      605968  342700 5546687  54a2bf 6g.before
+        4597810      605552  342700 5546062  54a04e 6g.after
+    
+    Change-Id: I53c7aa6efdb2d52738013e9d337a59afbfcb2494
+    Reviewed-on: https://go-review.googlesource.com/7520
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/go.y |  2 --
+ src/cmd/internal/gc/y.go | 26 +++++++++++++-------------
+ src/cmd/yacc/yacc.go     | 10 +++++-----
+ 3 files changed, 18 insertions(+), 20 deletions(-)

@@ -1,0 +1,17 @@
+commit 358d35455d06b1ebee948efff123842490dcb797
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Nov 26 14:16:33 2020 -0500
+
+    bufio: make string(int) conversion safer
+    
+    Updates #42792.
+    
+    Change-Id: I7e53426c41e5609d9dadceb300f7983ba7ad6577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273526
+    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

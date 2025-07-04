@@ -1,0 +1,15 @@
+commit f962fc0820f13d6a44b8ef88e0fe20c02123b1b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 21:28:06 2016 -0500
+
+    doc: mention that Go no longer calls timeBeginPeriod(1) on Windows
+    
+    Fixes #13731.
+    
+    Change-Id: Iaf70a8b41c947f0d86013808564112ab676136e3
+    Reviewed-on: https://go-review.googlesource.com/18345
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.6.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

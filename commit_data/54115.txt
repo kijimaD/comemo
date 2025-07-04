@@ -1,0 +1,21 @@
+commit 3761e3fbfd1a1e40074cc123e1912007abfd0e92
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 18:13:58 2023 -0700
+
+    cmd/compile/internal/typecheck: simplify NewMethodExpr
+    
+    This CL changes NewMethodExpr to directly construct the OMETHEXPR
+    node, instead of running through the generic OXDOT typechecking
+    machinery.
+    
+    Change-Id: Ic2af0bab6ff1aef45e8463bccb1f69c50db68f65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520919
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go      |  4 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 50 ++++++-------------------
+ 2 files changed, 14 insertions(+), 40 deletions(-)

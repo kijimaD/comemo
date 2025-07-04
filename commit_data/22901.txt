@@ -1,0 +1,24 @@
+commit 072a26331ae4d7d6f7cbcd76465dd79c0e22ab79
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 08:26:51 2015 -0700
+
+    os: rewrite LookupEnv's test
+    
+    GOROOT is not dependably set.
+    
+    When I first wrote this test, I thought it was a waste of time
+    because the function can't fail if the other environment functions
+    work, but I didn't want to add functionality without testing it.
+    Of course, the test broke, and I learned something: GOROOT is not
+    set on iOS or, to put it more broadly, the world continues to
+    surprise me with its complexity and horror, such as a version of
+    cat with syntax coloring.
+    
+    In that vein, I built this test around smallpox.
+    
+    Change-Id: Ifa6c218a927399d05c47954fdcaea1015e558fb6
+    Reviewed-on: https://go-review.googlesource.com/9791
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/env_test.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

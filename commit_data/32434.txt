@@ -1,0 +1,21 @@
+commit f7aa454c58ed0d06823f509fc39474b6f52f7c3a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 20 11:47:50 2017 -0700
+
+    runtime: mask shifts in map implementation on x86
+    
+    This slightly improves the generated code on x86 architectures,
+    including on many hot paths.
+    
+    It is a no-op on other architectures.
+    
+    Change-Id: I86336fd846bc5805a27bbec572e8c73dcbd0d567
+    Reviewed-on: https://go-review.googlesource.com/57411
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go      | 37 +++++++++++++++++++++++++------------
+ src/runtime/hashmap_fast.go | 24 ++++++++++++------------
+ src/runtime/runtime_test.go |  2 +-
+ 3 files changed, 38 insertions(+), 25 deletions(-)

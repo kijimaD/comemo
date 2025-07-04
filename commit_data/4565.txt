@@ -1,0 +1,17 @@
+commit fd1db67e87852eb9f9721a7c31c00b8aa5883a62
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Jan 8 14:12:10 2010 -0800
+
+    math: special cases for Atan, Asin and Acos
+    Added tests for NaN and out-of-range values.
+    Combined asin.go and atan.go into atan.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180065
+
+ src/pkg/math/all_test.go | 107 +++++++++++++++++++++----------
+ src/pkg/math/asin.go     |  11 +---
+ src/pkg/math/atan.go     |   3 +-
+ src/pkg/math/sqrt.go     | 163 ++++++++++++++++++++++++++++++++++-------------
+ 4 files changed, 198 insertions(+), 86 deletions(-)

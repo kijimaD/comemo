@@ -1,0 +1,25 @@
+commit 4026500d1873953ef76b9a21122cd7b934c23503
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 18 20:06:28 2008 -0800
+
+    arrays
+    
+    R=r
+    OCL=21564
+    CL=21564
+
+ src/cmd/6g/align.c     |   5 +-
+ src/cmd/6g/cgen.c      |  38 ++++++---
+ src/cmd/gc/dcl.c       |   5 --
+ src/cmd/gc/go.h        |   9 ++-
+ src/cmd/gc/go.y        |   4 +-
+ src/cmd/gc/subr.c      |  19 ++++-
+ src/cmd/gc/sys.go      |  10 +--
+ src/cmd/gc/sysimport.c |  10 +--
+ src/cmd/gc/walk.c      | 214 ++++++++++++++++++++++++-------------------------
+ src/runtime/array.c    |  78 ++++++++----------
+ src/runtime/runtime.h  |   1 -
+ test/ken/array.go      |   8 +-
+ test/ken/chan.go       |  21 +++--
+ test/ken/range.go      |   2 +-
+ 14 files changed, 226 insertions(+), 198 deletions(-)

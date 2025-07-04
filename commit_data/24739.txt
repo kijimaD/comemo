@@ -1,0 +1,23 @@
+commit bbf2da00fcd04746ec486a4361a28c99374b7eb6
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 27 17:34:11 2015 -0400
+
+    runtime: remove GC start up/shutdown workaround in mallocgc
+    
+    Currently mallocgc detects if the GC is in a state where it can't
+    assist, but also can't allocate uncontrolled and yields to help out
+    the GC. This was a workaround for periods when we were trying to
+    schedule the GC coordinator. It is no longer necessary because there
+    is no GC coordinator and malloc can always assist with any GC
+    transitions that are necessary.
+    
+    Updates #11970.
+    
+    Change-Id: I4f7beb7013e85e50ae99a3a8b0bb708ba49cbcd4
+    Reviewed-on: https://go-review.googlesource.com/16392
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,0 +1,13 @@
+commit e315fac7af2ee89cffb9da13749a3d159487b8d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 19 01:12:42 2014 -0700
+
+    test: add some tests for mismatches between call results and uses
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/111360045
+
+ test/fixedbugs/bug487.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

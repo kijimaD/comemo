@@ -1,0 +1,23 @@
+commit f29e53d66419713f011cda50a3001cc20950bc7e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 22 15:27:01 2019 -0500
+
+    cmd/link: fix bug with -newobj and "ld -r" ELF host objects
+    
+    When the ELF host object loader encounters a static/hidden symbol, it
+    creates a sym.Symbol for it but does not enter it into the sym.Symbols
+    lookup table. Under -newobj mode, this was not happening correctly; we
+    were adding the sym via loader.LookupOrCreate, which resulted in
+    collisions when it encountered symbols with the same name + version +
+    section (this can happen for "ld -r" objects).
+    
+    Fixes #35779.
+    
+    Change-Id: I36d40fc1efc03fc1cd8ae6b76cb6a0d2a957389c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208479
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go |  8 +++++++-
+ src/cmd/link/internal/loader/loader.go | 33 ++++++++++++++++++++++++++++++---
+ 2 files changed, 37 insertions(+), 4 deletions(-)

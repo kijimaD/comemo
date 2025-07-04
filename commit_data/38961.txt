@@ -1,0 +1,20 @@
+commit 858064fb01c52e2c8a703854333ea25dff26ee33
+Author: Romain Baugue <romain.baugue@elwinar.com>
+Date:   Tue Apr 30 15:41:26 2019 +0200
+
+    encoding/csv: add a Fuzz function
+    
+    Adds a sample Fuzz test function to package encoding/csv based on
+    https://github.com/dvyukov/go-fuzz-corpus/blob/master/csv/main.go
+    
+    Updates #19109
+    Updates #31309
+    
+    Change-Id: Ieb0cb6caa1df72dbb7e29df4bdeed0bfa91187d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174302
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/fuzz.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

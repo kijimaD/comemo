@@ -1,0 +1,15 @@
+commit ee9c9392b81023e29564d3fe308a15aca7d416ef
+Author: Stephen Lewis <stephen@sock.org.uk>
+Date:   Wed Jun 20 19:38:19 2018 +0100
+
+    doc: fix spelling of G Suite
+    
+    'G Suite' seems to be the preferred spelling according to
+    https://gsuite.google.com/
+    
+    Change-Id: Ica60938cf942594157bba84ef205e1cdcb8c1b08
+    Reviewed-on: https://go-review.googlesource.com/120132
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 478090851b020822dcf81b752b1d386f2f0a66bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 13:26:52 2008 -0700
+
+    - adjust my code and tests to new function syntax
+    
+    R=r
+    OCL=14939
+    CL=14941
+
+ usr/gri/gosrc/decls.go   | 32 ++++++++++++++++----------------
+ usr/gri/gosrc/globals.go |  8 ++++----
+ usr/gri/gosrc/parser.go  |  4 ++--
+ usr/gri/gosrc/test/c.go  |  2 +-
+ 4 files changed, 23 insertions(+), 23 deletions(-)

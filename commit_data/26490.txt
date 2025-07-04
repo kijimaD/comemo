@@ -1,0 +1,18 @@
+commit 570a2b0eecc6ae8e398b2f1b56785cc9cacf0dbe
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 10:16:46 2016 +0100
+
+    cmd/dist: skip testcarchive test in Android and iOS
+    
+    CL 20892 converted the misc/cgo/testcarchive test to Go.
+    Unfortunately, dist does not (yet) support tests running off the host
+    so the testcarchive is disabled for now.
+    
+    For #14318
+    
+    Change-Id: Iab3d0a7b5309187a603b48f22a7fa736f089f89d
+    Reviewed-on: https://go-review.googlesource.com/21070
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

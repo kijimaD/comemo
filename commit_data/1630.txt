@@ -1,0 +1,19 @@
+commit 0970c4686350f772b481a270bd48767a953d3eb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 6 13:47:10 2009 -0800
+
+    closures - 6g support
+    
+    R=ken
+    OCL=24501
+    CL=24566
+
+ src/cmd/6g/cgen.c      |  15 +++-
+ src/cmd/gc/dcl.c       | 218 +++++++++++++++++++++++++++++++++++++++++++------
+ src/cmd/gc/go.h        |  14 ++++
+ src/cmd/gc/go.y        |  24 +-----
+ src/cmd/gc/subr.c      |  13 +++
+ src/cmd/gc/sys.go      |   2 +
+ src/cmd/gc/sysimport.c |   1 +
+ src/cmd/gc/walk.c      |  25 +++---
+ 8 files changed, 251 insertions(+), 61 deletions(-)

@@ -1,0 +1,27 @@
+commit 3d7f83612390d913e7e8bb4ffa3dc69c41b3078d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 19 11:26:46 2022 -0800
+
+    net/http: deflake request-not-written path
+    
+    When we receive an error writing the first byte of a request to a
+    reused connection, we retry the request on a new connection. Remove
+    a flaky path which could cause the request to not be retried if
+    persistConn.roundTrip reads the error caused by closing the connection
+    before it reads the write error that caused the connection to be
+    closed.
+    
+    Fixes #30938.
+    
+    Change-Id: Iafd99e3239cd9dba4a4c9ddd950a877ca9815e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379554
+    Trust: Bryan Mills <bcmills@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/transport.go               | 6 ++++++
+ src/net/http/transport_internal_test.go | 9 +++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

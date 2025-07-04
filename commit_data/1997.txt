@@ -1,0 +1,15 @@
+commit a62467af93d94081fabbb0b7b753c7515ea6e36f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 05:31:44 2009 -0700
+
+    fix stringrange test
+    
+    R=ken
+    OCL=27353
+    CL=27353
+
+ src/cmd/gc/obj.c    |  1 -
+ src/cmd/gc/walk.c   | 48 ++++++++++++++++++++++++++++--------------------
+ test/golden.out     |  4 ----
+ test/stringrange.go | 16 +++++++++++++++-
+ 4 files changed, 43 insertions(+), 26 deletions(-)

@@ -1,0 +1,12 @@
+commit bbf38e931a8a4e8a49b45206ff7ed679eece70d7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 18 11:59:16 2015 -0800
+
+    doc: add cgi change go1.5.txt
+    
+    Change-Id: I829529929906d4758c7ba10d356c251b44e35a8d
+    Reviewed-on: https://go-review.googlesource.com/5190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

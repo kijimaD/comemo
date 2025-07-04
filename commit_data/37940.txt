@@ -1,0 +1,18 @@
+commit 3fc276ccf8c95a799c240905d35ad187abd34b20
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 2 16:03:28 2019 -0800
+
+    cmd/cgo: don't copy a simple variable x in &x[0]
+    
+    Fixes #30065
+    
+    Change-Id: I3d0fb03bab397548653d5f3b386cfe2980ac1030
+    Reviewed-on: https://go-review.googlesource.com/c/160830
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue30065.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 38 ++++++++++++++++++++++++++++++++------
+ 3 files changed, 71 insertions(+), 6 deletions(-)

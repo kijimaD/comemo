@@ -1,0 +1,22 @@
+commit b86105e80da7fd994656f134d006a700fe037fc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:47:51 2014 -0400
+
+    cmd/go: make malformed import path message more precise
+    
+    If you say 'go get -v' you get extra information when import
+    paths are not of the expected form.
+    
+    If you say 'go get -v src/rsc.io/pdf' the message says that
+    src/rsc.io/pdf does not contain a hostname, which is incorrect.
+    The problem is that it does not begin with a hostname.
+    
+    Fixes #7432.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant
+    https://golang.org/cl/144650043
+
+ src/cmd/go/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

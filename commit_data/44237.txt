@@ -1,0 +1,17 @@
+commit ff0e93ea313e53f08018b90bada2edee267a8f55
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 11 16:24:26 2021 -0500
+
+    doc/go1.16: note that package path elements beginning with '.' are disallowed
+    
+    For #43985
+    
+    Change-Id: I1a16f66800c5c648703f0a0d2ad75024525a710f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291389
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.16.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

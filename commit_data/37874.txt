@@ -1,0 +1,16 @@
+commit 7cbfa55b5d17c8deaecff05e4221f828467cfa97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 11 14:26:24 2019 -0800
+
+    net: pass if at least one matching entry in TestLookupGmailTXT
+    
+    Fixes #29698
+    
+    Change-Id: I0531c0a274b120af8871aa2f5975744ff6c912a3
+    Reviewed-on: https://go-review.googlesource.com/c/157638
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

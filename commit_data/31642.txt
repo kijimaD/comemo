@@ -1,0 +1,26 @@
+commit 8a1c5b2e486be7a2df7667582a1b8cd53c8c7745
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 13:59:00 2017 -0400
+
+    runtime: fix stackFromSystem returning memory
+    
+    The stackFromSystem debug mode has two problems:
+    
+    1) It rounds the stack allocation to _PageSize. If the physical page
+    size is >8K, this can cause unmapping the memory later to either
+    under-unmap or over-unmap.
+    
+    2) It doesn't return the rounded-up allocation size to its caller, so
+    when we later unmap the memory, we may pass the wrong length.
+    
+    Fix these problems by rounding the size up to the physical page size
+    and putting that rounded-up size in the returned stack bounds.
+    
+    Fixes #17289.
+    
+    Change-Id: I6b854af3b06bb16e3750798397bb5e2a722ec1cb
+    Reviewed-on: https://go-review.googlesource.com/43636
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stack.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

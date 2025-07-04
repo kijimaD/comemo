@@ -1,0 +1,13 @@
+commit 20c1ec263a8910ae1b794cb017f59e73997a9296
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 7 11:28:02 2009 -0800
+
+    pick off special one-byte case in copy. worth 2x in benchmarks (38ns->16ns).
+    the one-item case could be generalized easily with no cost. worth considering.
+    
+    R=rsc
+    CC=golang-dev, cw
+    https://golang.org/cl/167044
+
+ src/pkg/runtime/slice.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

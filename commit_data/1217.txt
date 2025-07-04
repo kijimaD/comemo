@@ -1,0 +1,15 @@
+commit 284a50c109495973def8b9e7d94fa329a207a99e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 21 16:13:11 2008 -0800
+
+    fix 6l bug - moved symbol table without
+            recording correct place in mach tables
+            used by debuggers.
+    
+    R=r
+    DELTA=4  (0 added, 2 deleted, 2 changed)
+    OCL=19810
+    CL=19849
+
+ src/cmd/6l/asm.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

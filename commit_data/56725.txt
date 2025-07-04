@@ -1,0 +1,19 @@
+commit 639cc0dcc0948dd02c9d5fc12fbed730a21ebebc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 20:51:15 2024 -0700
+
+    runtime: remove zhangyunhao116/fastrand from cheaprand linkname comment
+    
+    As of version 0.5.0 and Go 1.22 it no longer linknames cheaprand.
+    
+    Fixes #67709
+    
+    Change-Id: Ie00900e6428244fa1506bc509c265c10dc322f7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589555
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/rand.go | 1 -
+ 1 file changed, 1 deletion(-)

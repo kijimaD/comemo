@@ -1,0 +1,18 @@
+commit a505312c89a0468081173da3042de6ac8582a3ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:34:41 2020 -0400
+
+    api: update next.txt
+    
+    A bunch of new API hasn't been added yet and is cluttering all.bash output.
+    
+    Change-Id: Ic7f255cce8c162716b9a1144f78b5f9ce6220b33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262878
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Rob Pike <r@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ api/next.txt | 246 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 241 insertions(+), 5 deletions(-)

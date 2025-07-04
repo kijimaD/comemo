@@ -1,0 +1,20 @@
+commit f5752848fde774c5c16c5e58f15558a253a03119
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Wed May 16 15:09:28 2012 -0700
+
+    pkg/runtime: Fix semasleep on Plan 9
+    
+    With the timed semacquire patch
+    (kernel-tsemacquire) for Plan 9,
+    we can now properly do a timed
+    wait for the semaphore, in
+    semasleep.
+    
+    R=golang-dev, rsc, rminnich, ality, r
+    CC=0intro, golang-dev, john, mirtchovski
+    https://golang.org/cl/6197046
+
+ src/pkg/runtime/os_plan9.h      |  1 +
+ src/pkg/runtime/sys_plan9_386.s |  5 +++++
+ src/pkg/runtime/thread_plan9.c  | 28 +++++-----------------------
+ 3 files changed, 11 insertions(+), 23 deletions(-)

@@ -1,0 +1,16 @@
+commit 176d5769d9b0c1ce450423545aa05761f18e516d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 12:38:54 2011 -0500
+
+    lib9: update to Unicode 6.0.0
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4121042
+
+ src/lib9/utf/Makefile             |   16 +
+ src/lib9/utf/mkrunetype.c         |   10 +-
+ src/lib9/utf/runetype.c           |   47 +-
+ src/lib9/utf/runetypebody-6.0.0.c | 1565 +++++++++++++++++++++++++++++++++++++
+ src/lib9/utf/utf.h                |    6 -
+ 5 files changed, 1588 insertions(+), 56 deletions(-)

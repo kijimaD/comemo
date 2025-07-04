@@ -1,0 +1,33 @@
+commit 3d1699ea787f38be6088f9a098d6e08dafca9387
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 31 08:45:10 2017 -0700
+
+    runtime: new itab lookup table
+    
+    Keep itabs in a growable hash table.
+    Use a simple open-addressable hash table, quadratic probing, power
+    of two sized.
+    Synchronization gets a bit more tricky. The common read path now
+    has two atomic reads, one to get the table pointer and one to read
+    the entry out of the table.
+    
+    I set the max load factor to 75%, kind of arbitrarily. There's a
+    space-speed tradeoff here, and I'm not sure where we should land.
+    
+    Because we use open addressing the itab.link field is no longer needed.
+    I'll remove it in a separate CL.
+    
+    Fixes #20505
+    
+    Change-Id: Ifb3d9a337512d6cf968c1fceb1eeaf89559afebf
+    Reviewed-on: https://go-review.googlesource.com/44472
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/reflect.go |  11 +-
+ src/reflect/value.go                   |  13 +-
+ src/runtime/iface.go                   | 224 ++++++++++++++++++++++-----------
+ src/runtime/plugin.go                  |   8 +-
+ src/runtime/runtime2.go                |  15 ++-
+ 5 files changed, 174 insertions(+), 97 deletions(-)

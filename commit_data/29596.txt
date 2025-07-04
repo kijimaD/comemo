@@ -1,0 +1,19 @@
+commit b01f612a693b2b39064c0b5bd75a5d0280e4179e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 10:49:29 2016 -0800
+
+    spec: add subtitles to section on "for" statements
+    
+    This matches what we already do for switch statements and makes
+    this large section more visibly organized. No other changes besides
+    introducing the titles.
+    
+    Fixes #4486.
+    
+    Change-Id: I73f274e4fdd27c6cfeaed79090b4553e57a9c479
+    Reviewed-on: https://go-review.googlesource.com/33410
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

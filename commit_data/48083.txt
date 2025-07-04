@@ -1,0 +1,57 @@
+commit e052044d6b25a76603cafbfb1099cf4196528556
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 31 21:25:14 2022 -0800
+
+    go/types, types2: better error messages for comparisons
+    
+    Refactor Checker.comparison such that its logic is easier to reason
+    about and so that special cases can be handled more directly.
+    
+    Use the appropriate operand (of 1st or 2nd operand) for error
+    reporting (position and type), rather than always using the
+    first operand.
+    
+    Use an extra parameter to indicate a switch case
+    comparison; in this case the error is always reported at
+    the position of the first operand. (The error messages are
+    not yet adjusted for switches; see next CL.)
+    
+    Introduce a new kindString function which is used to print simplified
+    types in error messages (related to comparisons only): instead of
+    printing the details of a struct type, we just print "struct" where
+    the details are not relevant. This matches the 1.17 compiler behavior.
+    
+    Added a "reportf" parameter to the internal comparable function so we
+    can report an error cause in addition to the boolean result. Rather
+    than passing a *string for cause, we pass a function to record the
+    cause so that we can use the *Checker context for printing (needed
+    for proper type qualification). This mechanism reports the same
+    details now as the 1.17 compiler.
+    
+    Adjusted various tests as needed added new test files.
+    
+    Fixes #50918.
+    
+    Change-Id: I1f0e7af22f09db4d31679c667c71a9038a8dc9d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381964
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 178 +++++++++++++++-----
+ src/cmd/compile/internal/types2/predicates.go      |  18 +-
+ src/cmd/compile/internal/types2/stmt.go            |   2 +-
+ .../internal/types2/testdata/check/expr2.src       |  28 ++--
+ .../types2/testdata/fixedbugs/issue48712.go2       |  22 +--
+ .../types2/testdata/fixedbugs/issue50918.go        |  21 +++
+ .../internal/types2/testdata/spec/comparisons.go2  | 120 ++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |   2 +-
+ src/go/types/expr.go                               | 182 ++++++++++++++++-----
+ src/go/types/predicates.go                         |  18 +-
+ src/go/types/stmt.go                               |   2 +-
+ src/go/types/testdata/check/expr2.src              |  28 ++--
+ src/go/types/testdata/fixedbugs/issue48712.go2     |  22 +--
+ src/go/types/testdata/fixedbugs/issue50918.go      |  21 +++
+ src/go/types/testdata/spec/comparisons.go2         | 120 ++++++++++++++
+ src/go/types/typeset.go                            |   2 +-
+ test/fixedbugs/issue11737.go                       |   2 +-
+ 17 files changed, 643 insertions(+), 145 deletions(-)

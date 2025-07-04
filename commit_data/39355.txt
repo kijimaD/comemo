@@ -1,0 +1,14 @@
+commit 34a43d7c1de171691546e95aca503ece4602d82b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Jun 8 07:32:13 2019 -0400
+
+    errors: improve As tests
+    
+    Check the value of target after As returns true.
+    
+    Change-Id: I76a2b25fe825ee1dbb5f39f8f0b211c55bd25a4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181299
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/errors/wrap_test.go | 35 +++++++++++++++++++++++++++--------
+ 1 file changed, 27 insertions(+), 8 deletions(-)

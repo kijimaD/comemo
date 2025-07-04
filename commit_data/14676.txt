@@ -1,0 +1,15 @@
+commit 2d3bdab0d61b9636e487ce4bc16429b8f0de8760
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 18 07:52:23 2012 +1100
+
+    time: fix panic with time.Parse(time.StampNano, ... )
+    
+    Fixes #4502.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6949058
+
+ src/pkg/time/format.go    | 15 ++++++++++-----
+ src/pkg/time/time_test.go | 14 ++++++++++++--
+ 2 files changed, 22 insertions(+), 7 deletions(-)

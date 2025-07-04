@@ -1,0 +1,14 @@
+commit 45b4ed7577f87c9c88271e803e76f2d81b0f1f77
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Nov 5 18:07:10 2019 +0900
+
+    runtime/pprof: delete unused locForPC
+    
+    Change-Id: Ie4754fefba6057b1cf558d0096fe0e83355f8eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205098
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/pprof/proto.go | 85 ----------------------------------------------
+ 1 file changed, 85 deletions(-)

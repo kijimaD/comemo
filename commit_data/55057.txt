@@ -1,0 +1,28 @@
+commit d33ad2d8f357d83dfdc14c3358e3956aac76a9b0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 15 13:08:23 2023 +0000
+
+    syscall: support O_SYNC flag for os.OpenFile on windows
+    
+    os.OpenFile on windows did not use the O_SYNC flag. This meant
+    that even if the user set O_SYNC, os.OpenFile would ignore it.
+    
+    This change adds a new flag FILE_FLAG_WRITE_THROUGH, which is
+    the equivalent of O_SYNC flag on Linux and is documented in
+    https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+    
+    Fixes #35358
+    
+    Change-Id: Ib338caed5bb2f215723bfe30a2551a83998d92c9
+    GitHub-Last-Rev: 82c6275cb49602d7903b2bff7d60b7c772a5d91a
+    GitHub-Pull-Request: golang/go#64027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541015
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/syscall/syscall_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

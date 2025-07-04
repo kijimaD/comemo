@@ -1,0 +1,18 @@
+commit d1bfa3c68d11c861f3e3629e525b2515aa1ef68f
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 17 14:26:57 2016 -0700
+
+    Revert "crypto/tls: add CloseWrite method to Conn"
+    
+    This reverts commit c6185aa63217c84a1a73c578c155e7d4dec6cec8. That
+    commit seems to be causing flaky failures on the builders. See
+    discussion on the original thread: https://golang.org/cl/25159.
+    
+    Change-Id: I26e72d962d4efdcee28a0bc61a53f246b046df77
+    Reviewed-on: https://go-review.googlesource.com/31316
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/crypto/tls/conn.go     | 44 ++----------------------
+ src/crypto/tls/tls_test.go | 86 ----------------------------------------------
+ 2 files changed, 2 insertions(+), 128 deletions(-)

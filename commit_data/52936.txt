@@ -1,0 +1,20 @@
+commit 5751939d1161456f380efbb5c5d0a8962006eea4
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Mon May 8 22:21:19 2023 -0700
+
+    misc/wasm: add wasmer to wasip1 script
+    
+    The wasmer runtime will be used to test our wasip1
+    implementation against the WASI runtime from wasmer.io.
+    
+    For #59907
+    
+    Change-Id: Ie7e48c39e03075815ddca46d996b6ec87009b12a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493775
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 3 +++
+ 1 file changed, 3 insertions(+)

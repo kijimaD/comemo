@@ -1,0 +1,12 @@
+commit fdb460ec11500881ecfd57abd93a9c1e409898b7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 11 00:53:54 2010 -0700
+
+    runtime: free lock handles on Windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1652041
+
+ src/pkg/runtime/windows/thread.c | 2 ++
+ 1 file changed, 2 insertions(+)

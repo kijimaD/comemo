@@ -1,0 +1,21 @@
+commit 9d3718e834fcf5b602b84539364606445cfc8a1a
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 4 16:38:20 2021 -0500
+
+    cmd/compile: remove I-saw-a-register-pragma chatter
+    
+    It is not multithreaded-compilation-safe, and also seems
+    to cause problems on the noopt-builder.
+    
+    Change-Id: I52dbcd507d256990f1ec7c8040ec7b76595aae4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298850
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  4 ----
+ test/abi/regabipragma.dir/main.go      | 36 ----------------------------------
+ test/abi/regabipragma.dir/tmp/foo.go   | 19 ------------------
+ test/abi/regabipragma.go               | 13 ------------
+ test/abi/regabipragma.out              |  6 ------
+ 5 files changed, 78 deletions(-)

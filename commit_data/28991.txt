@@ -1,0 +1,23 @@
+commit 3cbfcaa4ba898faba516fbb9f3debf4ceac1a557
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 2 18:46:02 2016 -0400
+
+    runtime: make mspan.isFree do what's on the tin
+    
+    Currently mspan.isFree technically returns whether the object was not
+    allocated *during this cycle*. Fix it so it actually returns whether
+    or not the object is allocated so the method is more generally useful
+    (especially for debugging).
+    
+    It has one caller, which is carefully written to be insensitive to
+    this distinction, but this lets us simplify this caller.
+    
+    Change-Id: I9d79cf784a56015e434961733093c1d8d03fc091
+    Reviewed-on: https://go-review.googlesource.com/30145
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/heapdump.go | 2 +-
+ src/runtime/mbitmap.go  | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

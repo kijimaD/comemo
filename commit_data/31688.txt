@@ -1,0 +1,19 @@
+commit 708a01fbf40cfd82675923f88dd306ef6eb17114
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon May 29 19:50:24 2017 +0300
+
+    cmd/vet: add a test for embedded stringer
+    
+    This should help narrowing down the possible cause of #20514.
+    
+    Updates #20514.
+    
+    Change-Id: Ie997400c9749aace7783bd585b23dbb4cefc181d
+    Reviewed-on: https://go-review.googlesource.com/44375
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/testdata/print.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

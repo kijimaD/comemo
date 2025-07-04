@@ -1,0 +1,14 @@
+commit f09462707fb74ec576b9bd363392c7d6028177e0
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 27 16:46:11 2016 +0100
+
+    cmd/dist: enable extLink tests for mips{,le}
+    
+    Change-Id: I9e37aece5ace374e89bee70962a19f76ae3266bc
+    Reviewed-on: https://go-review.googlesource.com/34646
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

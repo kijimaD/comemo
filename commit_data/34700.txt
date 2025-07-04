@@ -1,0 +1,24 @@
+commit ea1f4832401afb6bd89bf145db3791e7de6cadc4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Thu Mar 22 12:51:13 2018 -0400
+
+    cmd/trace: beautify goroutine page
+    
+    - Summary: also includes links to pprof data.
+    - Sortable table: sorting is done on server-side. The intention is
+      that later, I want to add pagination feature and limit the page
+      size the browser has to handle.
+    - Stacked horizontal bar graph to present total time breakdown.
+    - Human-friendly time representation.
+    - No dependency on external fancy javascript libraries to allow
+      it to function without an internet connection.
+    
+    Change-Id: I91e5c26746e59ad0329dfb61e096e11f768c7b73
+    Reviewed-on: https://go-review.googlesource.com/102156
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/goroutines.go | 234 +++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 175 insertions(+), 59 deletions(-)

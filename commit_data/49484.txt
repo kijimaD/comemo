@@ -1,0 +1,19 @@
+commit bcce8ef4982cf29715895277ad84aaf16991e06b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 22:08:31 2022 -0700
+
+    spec: adjust incorrect sentence in section on rune literals
+    
+    Add an additional example.
+    
+    Fixes #53217.
+    
+    Change-Id: I899376b9c1fa8dc5d475d8d3d6c8788ab79b0847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412238
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 6089fc767cb2c5892fd077349e5c03cf818b1639
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 18 09:58:54 2014 -0700
+
+    go/ast: fix typo in comment
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/111330043
+
+ src/pkg/go/ast/scope.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

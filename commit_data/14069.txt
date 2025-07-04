@@ -1,0 +1,17 @@
+commit c1d06cef122b221340a1f4c5884dda4aff32c3da
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 16:36:14 2012 -0400
+
+    cmd/8l: add SSE2 instructions
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/6610065
+
+ src/cmd/8l/8.out.h | 137 +++++++++++++++++++++++++++++++++++++----
+ src/cmd/8l/l.h     |   8 +++
+ src/cmd/8l/list.c  |   9 +++
+ src/cmd/8l/obj.c   |  14 +++++
+ src/cmd/8l/optab.c | 178 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8l/span.c  |  78 ++++++++++++++++++++++-
+ 6 files changed, 411 insertions(+), 13 deletions(-)

@@ -1,0 +1,50 @@
+commit 980f0c00bb07b01d2150a5b858573d9ba0a15890
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 1 11:23:05 2019 -0700
+
+    net/http: make Transport.IdleConnTimeout consider wall (not monotonic) time
+    
+    Both laptops closing their lids and cloud container runtimes
+    suspending VMs both faced the problem where an idle HTTP connection
+    used by the Transport could be cached for later reuse before the
+    machine is frozen, only to wake up many minutes later to think that
+    their HTTP connection was still good (because only a second or two of
+    monotonic time passed), only to find out that the peer hung up on them
+    when they went to write.
+    
+    HTTP/1 connection reuse is inherently racy like this, but no need for
+    us to step into a trap if we can avoid it. Also, not everybody sets
+    Request.GetBody to enable re-tryable POSTs. And we can only safely
+    retry requests in some cases.
+    
+    So with this CL, before reusing an old connection, double check the walltime.
+    
+    Testing was done both with a laptop (closing the lid for a bit) and
+    with QEMU, running "stop" and "cont" commands in the monitor and
+    sending QMP guest agent commands to update its wall clock after the
+    "cont":
+    
+    echo '{"execute":"guest-set-time"}' | socat STDIN UNIX-CONNECT:/var/run/qemu-server/108.qga
+    
+    In both cases, I was running
+    https://gist.github.com/bradfitz/260851776f08e4bc4dacedd82afa7aea and
+    watching that the RemoteAddr changed after resume.
+    
+    It's kinda difficult to write an automated test for. I gave a lightning talk on
+    using pure emulation user mode qemu for such tests:
+    
+       https://www.youtube.com/watch?v=69Zy77O-BUM
+       https://docs.google.com/presentation/d/1rAAyOTCsB8GLbMgI0CAbn69r6EVWL8j3DPl4qc0sSlc/edit?usp=sharing
+       https://github.com/google/embiggen-disk/blob/master/integration_test.go
+    
+    ... that would probably be a good direction if we want an automated
+    test here. But I don't have time to do that now.
+    
+    Updates #29308 (HTTP/2 remains)
+    
+    Change-Id: I03997e00491f861629d67a0292da000bd94ed5ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/transport.go | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)

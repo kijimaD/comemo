@@ -1,0 +1,19 @@
+commit 2ceb79db526eabff880a8a03caab07258883b216
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 22 17:05:32 2021 -0500
+
+    cmd/go/internal/modload: make EditBuildList report whether the build list was changed
+    
+    For #36460
+    
+    Change-Id: I8dd6e6f998a217a4287212815ce61209df6f007f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296609
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modget/get.go        | 11 +++++------
+ src/cmd/go/internal/modload/buildlist.go | 17 +++++++++++------
+ src/cmd/go/internal/work/build.go        |  2 +-
+ 3 files changed, 17 insertions(+), 13 deletions(-)

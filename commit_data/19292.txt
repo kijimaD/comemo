@@ -1,0 +1,25 @@
+commit 97aa90d251f6f2a951d01b7d1033bc7a42bf6f69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 7 10:40:39 2014 -0700
+
+    spec: several clarifications to language on channels
+    
+    - A channel may be used between any number of goroutines,
+      not just two.
+    - Replace "passing a value" (which is not further defined)
+      by "sending and receiving a value".
+    - Made syntax production more symmetric.
+    - Talk about unbuffered channels before buffered channels.
+    - Clarify what the comma,ok receive values mean (issue 7785).
+    
+    Not a language change.
+    
+    Fixes #7785.
+    
+    LGTM=rsc, r, iant
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/94030045
+
+ doc/go_spec.html | 72 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 34 deletions(-)

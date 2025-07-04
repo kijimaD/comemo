@@ -1,0 +1,20 @@
+commit d5b5ab929bf49403de3e2b61e9e771e775893d01
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Wed Nov 1 18:08:23 2023 +0700
+
+    cmd/go: handle '@' in local path when running 'go mod edit -replace'
+    
+    The existing implementation considers everything after '@' as a version.
+    
+    Fixes #61500
+    
+    Change-Id: I72c32529c2726c2b59c089f5ffd6a2e361ef2c65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538916
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modcmd/edit.go      |  7 ++++---
+ src/cmd/go/testdata/script/mod_edit.txt | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

@@ -1,0 +1,51 @@
+commit 737efeb5b8fe18451adfbd29fe663df2f2b4b384
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:26:01 2014 +0900
+
+    syscall: regenerate z-files on FreeBSD 10
+    
+    Unfortunately FreeBSD 10 has changed its syscall arguments for
+    some reasons but as per request at golang-dev this CL does not
+    generate some structures, syscall numbers and constants as
+    compatible to FreeBSD 10 as follows:
+    
+    Structure: Stat_t, IfData, IfMsghdr are based on 8-STABLE
+    Syscall number: Capsicum API is based on 9-STABLE
+    Constant: IFT_CARP, SIOCAIFADDR, SIOCSIFPHYADDR are based on 9-STABLE
+    
+    Update #7193
+    
+    FreeBSD 10 breaking changes:
+    
+    r205792: Rename st_*timespec fields to st_*tim for POSIX 2008
+    compliance.
+    http://svnweb.freebsd.org/base?view=revision&revision=205792
+    
+    r254804: Restructure the mbuf pkthdr to make it fit for upcoming
+    capabilities and features.
+    http://svnweb.freebsd.org/base?view=revision&revision=254804
+    
+    r255219: Change the cap_rights_t type from uint64_t to a structure
+    that we can extend in the future in a backward compatible (API and
+    ABI) way.
+    http://svnweb.freebsd.org/base?view=revision&revision=255219
+    
+    LGTM=iant
+    R=golang-codereviews, rsc, minux.ma, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/56770044
+
+ src/pkg/syscall/mkall.sh                 |   6 +-
+ src/pkg/syscall/mkerrors.sh              |   9 +++
+ src/pkg/syscall/mksysnum_freebsd.pl      |  13 ++++
+ src/pkg/syscall/types_freebsd.go         | 105 ++++++++++++++++++++++++++---
+ src/pkg/syscall/zerrors_freebsd_386.go   |  33 +++++++++-
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  34 +++++++++-
+ src/pkg/syscall/zerrors_freebsd_arm.go   |  35 +++++++---
+ src/pkg/syscall/zsysnum_freebsd_386.go   |  20 ++++--
+ src/pkg/syscall/zsysnum_freebsd_amd64.go |  20 ++++--
+ src/pkg/syscall/zsysnum_freebsd_arm.go   |  27 ++++----
+ src/pkg/syscall/ztypes_freebsd_386.go    |  45 +++++++++++--
+ src/pkg/syscall/ztypes_freebsd_amd64.go  |  45 +++++++++++--
+ src/pkg/syscall/ztypes_freebsd_arm.go    | 110 ++++++++++++++++++++++---------
+ 13 files changed, 409 insertions(+), 93 deletions(-)

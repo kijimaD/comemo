@@ -1,0 +1,18 @@
+commit 57d06fff3e7e020510fe9460ccfa247370c472ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 10:29:32 2017 -0500
+
+    cmd/go, go/build: better defenses against GOPATH=GOROOT
+    
+    Fixes #18863.
+    
+    Change-Id: I0723563cd23728b0d43ebcc25979bf8d21e2a72c
+    Reviewed-on: https://go-review.googlesource.com/36427
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go          | 198 ++++++++++++++---------------------------
+ src/cmd/go/internal/get/get.go |   2 +-
+ src/cmd/go/main.go             |   2 +-
+ src/go/build/build.go          |   2 +-
+ 4 files changed, 71 insertions(+), 133 deletions(-)

@@ -1,0 +1,20 @@
+commit 7d11924c1382a619639098b437e239bc79554f6c
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 24 17:16:06 2008 -0700
+
+    middle dot as alpha package separator
+    
+    SVN=124419
+
+ src/cmd/6g/gen.c               |   1 +
+ src/cmd/6g/obj.c               |   9 ++-
+ src/cmd/cc/lexbody             |  16 +++-
+ src/cmd/gc/walk.c              |  73 +++++++++++------
+ src/runtime/rt0_amd64_darwin.s |  16 ++--
+ src/runtime/rt0_amd64_linux.s  |  20 ++---
+ src/runtime/rt1_amd64_darwin.c |  52 ++++++------
+ src/runtime/rt1_amd64_linux.c  |  14 ++--
+ src/runtime/rt2_amd64.c        |   6 +-
+ src/runtime/runtime.c          | 177 +++++++++++++++++++++--------------------
+ src/runtime/runtime.h          |  45 ++++++-----
+ 11 files changed, 238 insertions(+), 191 deletions(-)

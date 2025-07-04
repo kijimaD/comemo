@@ -1,0 +1,14 @@
+commit 88cf76a9b37992c65b916060ca44c87f3a9bde5e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 3 18:05:14 2011 -0700
+
+    gob: fix bug when registering the same type multiple times
+    Need to compare user type, not base type.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5340041
+
+ src/pkg/encoding/gob/type.go      | 15 ++++++++-------
+ src/pkg/encoding/gob/type_test.go |  8 ++++++++
+ 2 files changed, 16 insertions(+), 7 deletions(-)

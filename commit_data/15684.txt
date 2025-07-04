@@ -1,0 +1,13 @@
+commit fe017550ac3429d2fb0d808f581e7f7247a79767
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Mar 11 22:31:34 2013 +0400
+
+    os/signal: deflake test
+    Fixes #4987.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7713043
+
+ src/pkg/os/signal/signal_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

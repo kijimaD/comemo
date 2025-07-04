@@ -1,0 +1,12 @@
+commit 34cc011276b667f68f6d41fa2197ff86fbf8aae8
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Fri Jun 18 22:42:48 2010 -0700
+
+    test: add missing import for zerodivide
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/1706043
+
+ test/zerodivide.go | 1 +
+ 1 file changed, 1 insertion(+)

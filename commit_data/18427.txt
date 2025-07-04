@@ -1,0 +1,13 @@
+commit f95a311c9b2fda14da2c2303ffe7003b7baf9f38
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 7 15:43:40 2014 +0100
+
+    cmd/gc: fix nil pointer dereference
+    
+    LGTM=iant
+    R=golang-codereviews, dave, iant
+    CC=golang-codereviews
+    https://golang.org/cl/60740044
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

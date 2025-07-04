@@ -1,0 +1,48 @@
+commit b71883e9b0eff7e89081d20204bf33f369cdf735
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 16:24:06 2012 -0800
+
+    net: change SetTimeout to SetDeadline
+    
+    Previously, a timeout (in int64 nanoseconds) applied to a granularity
+    even smaller than one operation:  a 100 byte read with a 1 second timeout
+    could take 100 seconds, if the bytes all arrived on the network 1 second
+    apart.  This was confusing.
+    
+    Rather than making the timeout granularity be per-Read/Write,
+    this CL makes callers set an absolute deadline (in time.Time)
+    after which operations will fail.  This makes it possible to
+    set deadlines at higher levels, without knowing exactly how
+    many read/write operations will happen in e.g. reading an HTTP
+    request.
+    
+    Fixes #2723
+    
+    R=r, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/5555048
+
+ doc/go1.html                      | 15 ++++++++--
+ doc/go1.tmpl                      | 15 ++++++++--
+ src/pkg/crypto/tls/conn.go        | 26 ++++++++---------
+ src/pkg/exp/ssh/tcpip.go          | 31 ++++++++++----------
+ src/pkg/log/syslog/syslog_test.go |  3 +-
+ src/pkg/net/dnsclient_unix.go     |  6 +++-
+ src/pkg/net/fd.go                 | 45 +++--------------------------
+ src/pkg/net/fd_windows.go         | 36 +++++++++++++----------
+ src/pkg/net/http/httputil/dump.go | 13 +++++----
+ src/pkg/net/http/serve_test.go    |  6 ++--
+ src/pkg/net/http/server.go        |  8 ++---
+ src/pkg/net/ipraw_test.go         |  3 +-
+ src/pkg/net/iprawsock_posix.go    | 25 ++++++++--------
+ src/pkg/net/net.go                | 61 ++++++++++++++++++++++-----------------
+ src/pkg/net/pipe.go               | 13 +++++----
+ src/pkg/net/sendfile_linux.go     |  9 ------
+ src/pkg/net/server_test.go        |  5 ++--
+ src/pkg/net/sockopt.go            | 15 +++++-----
+ src/pkg/net/tcpsock_posix.go      | 26 +++++++++--------
+ src/pkg/net/timeout_test.go       | 48 ++++++++++++++++++++----------
+ src/pkg/net/udpsock_posix.go      | 23 ++++++++-------
+ src/pkg/net/unixsock_posix.go     | 30 ++++++++++---------
+ src/pkg/websocket/websocket.go    | 27 ++++++++---------
+ 23 files changed, 254 insertions(+), 235 deletions(-)

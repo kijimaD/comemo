@@ -1,0 +1,14 @@
+commit c4ea1c955e4ed1c43afb145bd95a190864868970
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 00:29:07 2012 -0400
+
+    cmd/8a, cmd/8l: add BSWAPL
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6208093
+
+ src/cmd/8a/lex.c   | 1 +
+ src/cmd/8l/8.out.h | 2 ++
+ src/cmd/8l/optab.c | 7 +++++++
+ 3 files changed, 10 insertions(+)

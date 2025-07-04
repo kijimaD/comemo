@@ -1,0 +1,19 @@
+commit 33649bd2780ec6fd28d6812769f9a1ad5ff3118b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 15:51:58 2009 -0800
+
+    runtime: introduce unsafe.New and unsafe.NewArray
+        to provide functionality previously hacked in to
+        reflect and gob.
+    
+    R=r
+    https://golang.org/cl/165076
+
+ src/cmd/gc/builtin.c.boot |  2 ++
+ src/cmd/gc/unsafe.go      |  2 ++
+ src/pkg/gob/decode.go     | 26 +++++++++++---------------
+ src/pkg/reflect/value.go  | 27 +++++++++------------------
+ src/pkg/runtime/iface.c   | 41 ++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/slice.c   |  5 ++---
+ src/pkg/unsafe/unsafe.go  | 14 +++++++++++++-
+ 7 files changed, 79 insertions(+), 38 deletions(-)

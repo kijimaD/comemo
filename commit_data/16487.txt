@@ -1,0 +1,12 @@
+commit 61f5fd6f668fe6e2043361d312ec8c418702b9b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 5 09:11:49 2013 +1000
+
+    C: add Will Norris (Google CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10019045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

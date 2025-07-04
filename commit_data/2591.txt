@@ -1,0 +1,14 @@
+commit a7735f8a16d30ab7f8865c5cffa1f58fc6201b48
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 6 06:36:25 2009 -0700
+
+    fixed bug that cause -g to segfault
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=48  (30 added, 16 deleted, 2 changed)
+    OCL=31152
+    CL=31187
+
+ src/cmd/5g/list.c | 50 ++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 18 deletions(-)

@@ -1,0 +1,21 @@
+commit af5943f90cc919c38188067bbe006bdc148b576c
+Author: ALX99 <alx245669@gmail.com>
+Date:   Sat Feb 17 04:43:34 2024 +0000
+
+    context: update doc comment to link to context interface
+    
+    Linking to the Context interface in the WithCancel doc comment makes
+    it more consistent with the WithDeadline and WithTimeout doc comments.
+    
+    Change-Id: Ic935c63e8262784be5f3564816402221ba2fbd63
+    GitHub-Last-Rev: 9c6bb607a94f6f4cd27cc3f5e39c192e088ab386
+    GitHub-Pull-Request: golang/go#65768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564996
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

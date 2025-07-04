@@ -1,0 +1,15 @@
+commit 394842e2a56e49cb4e81f1d3cc875195cfe507a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 28 08:12:38 2011 -0700
+
+    net: add shutdown: TCPConn.CloseWrite and CloseRead
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5136052
+
+ src/pkg/net/fd.go            | 16 ++++++++++++++++
+ src/pkg/net/fd_windows.go    | 16 ++++++++++++++++
+ src/pkg/net/net_test.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsock_posix.go | 18 ++++++++++++++++++
+ 4 files changed, 94 insertions(+)

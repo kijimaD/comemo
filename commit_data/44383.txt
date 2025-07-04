@@ -1,0 +1,17 @@
+commit 0694fb3d78f9ce2add154203dbd42a7a5a07c2da
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Nov 10 17:56:33 2020 +0800
+
+    image: resolve the TODO of doc comment style
+    
+    Change-Id: Ic7701a9e4635fe1a331c9a1df776ed580759eb9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268758
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Rob Pike <r@golang.org>
+
+ src/image/jpeg/reader.go | 3 ---
+ src/image/png/writer.go  | 1 +
+ 2 files changed, 1 insertion(+), 3 deletions(-)

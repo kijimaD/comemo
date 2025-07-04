@@ -1,0 +1,19 @@
+commit e5ef4846911d91eed4fdea27e6bfeb5733d829a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 15:38:35 2023 -0700
+
+    spec: document range over integer expression
+    
+    This CL is partly based on CL 510535.
+    
+    For #61405.
+    
+    Change-Id: Ic94f6726f9eb34313f11bec7b651921d7e5c18d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538859
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 28 +++++++++++++++++++++-------
+ 1 file changed, 21 insertions(+), 7 deletions(-)

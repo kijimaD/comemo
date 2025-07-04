@@ -1,0 +1,14 @@
+commit 671cf92c322788b4ded03ded6c078c130c7de362
+Author: rajender <rajenderreddykompally@gmail.com>
+Date:   Mon Nov 27 23:58:29 2017 +0530
+
+    encoding/json: remove the word "text" in "JSON text" from package docs.
+    
+    It was added in CL 79995. It is unnecessarily confusing.
+    
+    Change-Id: Ib8ff35b9f71b54ff99d2d6e0534c7128e1f4345a
+    Reviewed-on: https://go-review.googlesource.com/80035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

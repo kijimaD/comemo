@@ -1,0 +1,14 @@
+commit 9c1f54c9ed67b77385940c58fb15af18166d4840
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 15 13:26:22 2012 -0500
+
+    cmd/go: go test -i correctly handle cgo packages
+    Previous CL (5674043) omit the case where runtime/cgo itself is out-of-date.
+    Fixes #2936 (again).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5674048
+
+ src/cmd/go/test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

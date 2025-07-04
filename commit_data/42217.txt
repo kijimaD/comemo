@@ -1,0 +1,17 @@
+commit 769a1cf7b6b79e747e3a4d886992b2a7e54f33d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 19:47:34 2020 -0700
+
+    debug/gosym: correct comments for Table.{Files,Objs}
+    
+    The fields aren't too useful for Go 1.2 and later, but they aren't
+    actually nil.
+    
+    Fixes #38754
+    
+    Change-Id: Ia13a224f623697a00dea8ba0225633e1b9308c9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/gosym/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

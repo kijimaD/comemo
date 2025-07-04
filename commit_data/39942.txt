@@ -1,0 +1,21 @@
+commit 1aa64b55f1edc68b2e8f4b301e33f4a9588f7c1f
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Sep 18 13:59:52 2019 -0400
+
+    cmd/link: prefix Go syms with _ on darwin
+    
+    RELNOTE=This change adds an underscore to all Go symbols in darwin, and
+    the behavior might be confusing to users of tools like "nm", etc.
+    
+    Fixes #33808
+    
+    Change-Id: I1849e6618c81215cb9bfa62b678f6f389cd009d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196217
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/issue33808_test.go | 54 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go           |  5 +--
+ src/debug/macho/file.go                     |  7 +++-
+ 3 files changed, 63 insertions(+), 3 deletions(-)

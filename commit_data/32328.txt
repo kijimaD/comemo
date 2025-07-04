@@ -1,0 +1,16 @@
+commit fcbcc0fd18c922e52bb59eca2437c2bafd1c0141
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 08:54:39 2017 +0900
+
+    debug/macho: make tests more comprehensive
+    
+    add tests for LC_LOAD_DYLIB.
+    
+    Change-Id: Ic4b7a0f6296709175e9a75240aecd1d5291ade4b
+    Reviewed-on: https://go-review.googlesource.com/56311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/file_test.go | 98 +++++++++++++++++++++++---------------------
+ 1 file changed, 51 insertions(+), 47 deletions(-)

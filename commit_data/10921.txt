@@ -1,0 +1,12 @@
+commit a63262b6c0576e11bb45a3ba090b7666ed92d022
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 20:37:58 2011 -0500
+
+    build: fix for freebsd, openbsd
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5505052
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

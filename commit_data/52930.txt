@@ -1,0 +1,18 @@
+commit 8af1067698ada0a835a265b49f7913d4d33f32fb
+Author: Jabar Asadi <jasadi@d2iq.com>
+Date:   Tue May 2 17:49:52 2023 +0000
+
+    net: correct Dialer.ControlContext documentation
+    
+    Change-Id: I4ec5883fc8713e0f711bb6beff45f426dae8f9f4
+    GitHub-Last-Rev: 9ea0c1505c2f3974e5d224299db5f888a4cf7618
+    GitHub-Pull-Request: golang/go#59819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dial.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

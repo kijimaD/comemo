@@ -1,0 +1,50 @@
+commit 2f1d6a5d91372b71b4e9049d9440cdf28f56851c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 5 16:04:45 2009 -0800
+
+    Cleaned up gccgo error messages require minor adjustment to
+    test.
+    
+    const1.go:27: error: integer constant overflow
+    const1.go:29: error: integer constant overflow
+    const1.go:30: error: integer constant overflow
+    const1.go:31: error: integer constant overflow
+    const1.go:32: error: integer constant overflow
+    const1.go:33: error: integer constant overflow
+    const1.go:33: error: integer constant overflow
+    const1.go:34: error: integer constant overflow
+    const1.go:37: error: integer constant overflow
+    const1.go:38: error: integer constant overflow
+    const1.go:40: error: integer constant overflow
+    const1.go:41: error: integer constant overflow
+    const1.go:43: error: integer constant overflow
+    const1.go:44: error: integer constant overflow
+    const1.go:45: error: integer constant overflow
+    const1.go:48: error: integer constant overflow
+    const1.go:50: error: integer constant overflow
+    const1.go:51: error: integer constant overflow
+    const1.go:52: error: integer constant overflow
+    const1.go:53: error: integer constant overflow
+    const1.go:55: error: integer constant overflow
+    const1.go:56: error: division by zero
+    const1.go:59: error: floating point constant overflow
+    const1.go:61: error: floating point constant overflow
+    const1.go:62: error: division by zero
+    const1.go:47: error: integer constant overflow
+    const1.go:49: error: integer constant overflow
+    const1.go:60: error: floating point constant overflow
+    const1.go:68: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:69: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:70: error: argument 1 has incompatible type (cannot use type uint8 as type int)
+    const1.go:72: error: argument 1 has incompatible type (cannot use type float32 as type int)
+    const1.go:73: error: argument 1 has incompatible type (cannot use type float as type int)
+    const1.go:74: error: floating point constant truncated to integer
+    const1.go:76: error: argument 1 has incompatible type (cannot use type float64 as type int)
+    const1.go:77: error: argument 1 has incompatible type
+    const1.go:78: error: argument 1 has incompatible type
+    
+    R=rsc
+    http://go/go-review/1022001
+
+ test/const1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

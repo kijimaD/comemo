@@ -1,0 +1,33 @@
+commit 01103d7af867a018da683c12128bc7cae6b28007
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 16:55:51 2024 -0500
+
+    cmd/go: add GOFIPS140 snapshot support
+    
+    GOFIPS140 does two things: (1) control whether to build binaries that
+    run in FIPS-140 mode by default, and (2) control which version of the
+    crypto/internal/fips source tree to use during a build.
+    
+    This CL implements part (2). The older snapshot source trees are
+    stored in GOROOT/lib/fips140 in module-formatted zip files,
+    even though crypto/internal/fips is not technically a module.
+    (Reusing the module packing and unpacking code avoids reinventing it.)
+    
+    See cmd/go/internal/fips/fips.go for an overview.
+    
+    The documentation for GOFIPS140 is in a follow-up CL.
+    
+    For #70200.
+    
+    Change-Id: I73a610fd2c9ff66d0cced37d51acd8053497238e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629201
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/fips/fips.go        | 133 +++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/fips/mkzip.go       | 127 ++++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go         |  36 ++++++++-
+ src/cmd/go/internal/modload/load.go     |   4 +
+ src/cmd/go/testdata/script/fipssnap.txt |  69 +++++++++++++++++
+ 5 files changed, 366 insertions(+), 3 deletions(-)

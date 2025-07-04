@@ -1,0 +1,14 @@
+commit d90d0ede3f14c0f3984ddec091c0119bdcf2dae3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 29 07:30:36 2010 -0800
+
+    fmt: allow "% X" as well as "% x"
+    
+    R=rsc, cw, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/3319042
+
+ src/pkg/fmt/doc.go      | 2 +-
+ src/pkg/fmt/fmt_test.go | 3 ++-
+ src/pkg/fmt/format.go   | 3 +++
+ 3 files changed, 6 insertions(+), 2 deletions(-)

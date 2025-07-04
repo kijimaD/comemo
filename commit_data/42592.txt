@@ -1,0 +1,17 @@
+commit fcf1cb2cf51bae37a8d5d0425a39e21ce5073bff
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 5 23:39:45 2020 -0400
+
+    go/build: remove use of package log
+    
+    package log does not belong here,
+    even for an impossible condition.
+    
+    Change-Id: I6180a4f7766a8e5759db4f33d03703d0b678d0b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241077
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

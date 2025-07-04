@@ -1,0 +1,15 @@
+commit d1cd8294051a09dcb8f78f72178d1085d04ddc65
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 15:17:34 2011 -0500
+
+    runtime: omit breakpoint during terminal panic
+    
+    again.
+    CL 4222043 missed this case.
+    
+    R=brainman, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4235043
+
+ src/pkg/runtime/runtime.c | 2 --
+ 1 file changed, 2 deletions(-)

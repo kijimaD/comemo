@@ -1,0 +1,20 @@
+commit 82e046535571c121b836bc2425f0fc8d5cc0b80b
+Author: David Anderson <danderson@tailscale.com>
+Date:   Thu Feb 2 20:13:46 2023 +0000
+
+    time: add /etc/zoneinfo as valid path for tzdata for NixOS
+    
+    NixOS has no /usr/share, but does have tzdata at /etc/zoneinfo.
+    
+    Change-Id: Ic7d7f42a215e06c2e4f5c54ee11db82240f27167
+    GitHub-Last-Rev: 9969dd3e2cc49b30c3cd6b0858cb60b00bcbdf60
+    GitHub-Pull-Request: golang/go#58267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464995
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/time/zoneinfo_unix.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

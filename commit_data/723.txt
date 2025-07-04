@@ -1,0 +1,19 @@
+commit afd04fdb98d7a19b312e288836b108507b176077
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 15:28:03 2008 -0700
+
+    cleanup; sys.sleep can go.
+    
+    R=r
+    OCL=15786
+    CL=15792
+
+ src/cmd/gc/sys.go              |   2 -
+ src/cmd/gc/sysimport.c         | 301 ++++++++++++++++++++---------------------
+ src/runtime/amd64_darwin.h     |   1 -
+ src/runtime/amd64_linux.h      |   1 -
+ src/runtime/rt1_amd64_darwin.c |  10 --
+ src/runtime/rt1_amd64_linux.c  |  10 --
+ src/runtime/sys_amd64_darwin.s |  11 --
+ src/runtime/sys_amd64_linux.s  |  11 --
+ 8 files changed, 148 insertions(+), 199 deletions(-)

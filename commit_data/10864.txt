@@ -1,0 +1,15 @@
+commit 0b28de9a05be8eea49f9a31325a0091d9fa8b191
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 19 14:59:41 2011 +1100
+
+    archive/zip: add SetModTime method to FileHeader
+    
+    Fixes #2574.
+    
+    R=golang-dev, bradfitz, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5494072
+
+ src/pkg/archive/zip/struct.go   | 16 ++++++++++++++++
+ src/pkg/archive/zip/zip_test.go | 11 +++++++++++
+ 2 files changed, 27 insertions(+)

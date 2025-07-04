@@ -1,0 +1,17 @@
+commit 889c0a66fc7a43b23cc02ee42cfa17d221fce3c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 22 14:50:20 2016 -0700
+
+    cmd/compile: don't export pos info in new export format for now
+    
+    Exporting filenames as part of the position information can lead
+    to different object files which breaks tests.
+    
+    Change-Id: Ia678ab64293ebf04bf83601e6ba72919d05762a4
+    Reviewed-on: https://go-review.googlesource.com/22385
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/bimport.go | 11 +++++++++--
+ src/go/internal/gcimporter/bimport.go  | 11 +++++++++--
+ 3 files changed, 33 insertions(+), 4 deletions(-)

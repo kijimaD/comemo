@@ -1,0 +1,28 @@
+commit 966c459fa437e9b2678a08f11e15db7b97c99481
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 9 10:11:00 2017 +0100
+
+    cmd/link: various cleanups using tools
+    
+    * remove unnecessary explicit types
+    * remove dead assignments
+    * remove unused fields
+    * unindent code using early continues
+    * remove some unnecessary type conversions
+    * remove some unused func parameters
+    
+    Change-Id: I202c67e92940beacbd80fc2dc179f9556dc5d9e5
+    Reviewed-on: https://go-review.googlesource.com/69118
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go               |  3 +--
+ src/cmd/link/internal/ld/elf.go                 | 20 ++++++++++----------
+ src/cmd/link/internal/ld/ldelf.go               | 24 ++++++++++++------------
+ src/cmd/link/internal/ld/lib.go                 |  4 ++--
+ src/cmd/link/internal/ld/link.go                |  6 +++---
+ src/cmd/link/internal/ld/macho.go               |  2 +-
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  2 +-
+ src/cmd/link/internal/ld/symtab.go              |  4 ++--
+ 8 files changed, 32 insertions(+), 33 deletions(-)

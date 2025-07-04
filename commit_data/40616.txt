@@ -1,0 +1,32 @@
+commit b82404837d3f2227115f70687d318689535b8a2d
+Author: Austin Clements <austin@google.com>
+Date:   Sat Nov 2 18:39:17 2019 -0400
+
+    runtime: remove write barrier in WaitForSigusr1
+    
+    WaitForSigusr1 registers a callback to be called on SIGUSR1 directly
+    from the runtime signal handler. Currently, this callback has a write
+    barrier in it, which can crash with a nil P if the GC is active and
+    the signal arrives on an M that doesn't have a P.
+    
+    Fix this by recording the ID of the M that receives the signal instead
+    of the M itself, since that's all we needed anyway. To make sure there
+    are no other problems, this also lifts the callback into a package
+    function and marks it "go:nowritebarrierrec".
+    
+    Fixes #35248.
+    
+    Updates #35276, since in principle a write barrier at exactly the
+    wrong time while entering the scheduler could cause issues, though I
+    suspect that bug is unrelated.
+    
+    Change-Id: I47b4bc73782efbb613785a93e381d8aaf6850826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204620
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/export_unix_test.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

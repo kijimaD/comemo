@@ -1,0 +1,45 @@
+commit ddad9b618cce0ed91d66f0470ddb3e12cfd7eeac
+Author: korzhao <korzhao95@gmail.com>
+Date:   Fri Aug 11 17:20:36 2023 +0800
+
+    encoding/json: avoid allocation when decoding number types
+    
+    In CL 345488, we optimized strconv.ParseXXX for []byte arguments.
+    That allows immediate casting of a []byte to a string that does not escape to be copied on the stack.
+    
+    Performance:
+    
+            goos: darwin
+            goarch: arm64
+            pkg: encoding/json
+                                    old sec/op      new sec/op      delta
+            CodeUnmarshal-10        3.019m ± 6%   2.865m ± 10%   -5.10% (p=0.043 n=10)
+            CodeUnmarshalReuse-10   2.528m ± 4%   2.274m ± 13%  -10.03% (p=0.009 n=10)
+            geomean                 2.762m        2.553m         -7.60%
+    
+                                    old B/s         new B/s         delta
+            CodeUnmarshal-10        613.1Mi ± 5%   646.0Mi ±  9%   +5.37% (p=0.043 n=10)
+            CodeUnmarshalReuse-10   732.1Mi ± 4%   813.7Mi ± 12%  +11.15% (p=0.009 n=10)
+            geomean                 669.9Mi        725.0Mi         +8.22%
+    
+                                    old B/op        new B/op        delta
+            CodeUnmarshal-10         2.782Mi ± 0%   1.918Mi ± 0%  -31.04% (p=0.000 n=10)
+            CodeUnmarshalReuse-10   1600.8Ki ± 0%   713.3Ki ± 0%  -55.44% (p=0.000 n=10)
+            geomean                  2.085Mi        1.156Mi       -44.57%
+    
+                                    old allocs/op   new allocs/op   delta
+            CodeUnmarshal-10        91.31k ± 0%   39.99k ± 0%  -56.20% (p=0.000 n=10)
+            CodeUnmarshalReuse-10   76.58k ± 0%   25.23k ± 0%  -67.06% (p=0.000 n=10)
+            geomean                 83.62k        31.76k       -62.02%
+    
+    Change-Id: I208c57089040daee0f9d979d1df725e3acf34f81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518277
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/decode.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit c996d07feed18fdebaadf2c61e62cd8b14fe1aa7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 13 16:50:45 2017 -0400
+
+    cmd/link: use the correct module data on ppc64le
+    
+    Fixes #22250
+    
+    Change-Id: I0e39d10ff6f0785cd22b0105de2d839e569db4b7
+    Reviewed-on: https://go-review.googlesource.com/70810
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

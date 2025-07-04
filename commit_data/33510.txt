@@ -1,0 +1,25 @@
+commit 283558e42b88a6afa39da6ad4ae87558dc053776
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 21:23:08 2017 -0500
+
+    cmd/go: allow -coverprofile with multiple packages being tested
+    
+    It's easy to merge the coverage profiles from the
+    multiple executed tests, so do that.
+    
+    Also ensures that at least an empty coverage profile
+    is always written.
+    
+    Fixes #6909.
+    Fixes #18909.
+    
+    Change-Id: I28b88e1fb0fb773c8f57e956b18904dc388cdd82
+    Reviewed-on: https://go-review.googlesource.com/76875
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go                | 13 +++++-
+ src/cmd/go/internal/test/cover.go    | 80 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go     | 56 ++++++++++++++++---------
+ src/cmd/go/internal/test/testflag.go |  8 ++--
+ 4 files changed, 131 insertions(+), 26 deletions(-)

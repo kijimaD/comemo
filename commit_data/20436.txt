@@ -1,0 +1,17 @@
+commit c1c5d479bd9ead47f718156866c8bd188a8e19b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 13:16:43 2014 -0400
+
+    cmd/5g, cmd/8g: make 'out of registers' a fatal error
+    
+    There's no point in continuing. We will only get confused.
+    6g already makes this fatal.
+    
+    LGTM=dave, minux, iant
+    R=iant, dave, minux
+    CC=golang-codereviews
+    https://golang.org/cl/140660043
+
+ src/cmd/5g/gsubr.c | 4 ++--
+ src/cmd/8g/gsubr.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

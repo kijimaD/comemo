@@ -1,0 +1,19 @@
+commit 8aa0175368ec8822f8bf14c89a5a2ba56dc4e0fa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 7 18:36:38 2023 +1100
+
+    cmd/internal/obj/arm64: remove bogus omovlit return value check
+    
+    omovlit never returns zero, so it does not make any sense to check for that.
+    Additionally, no other call site does this.
+    
+    Change-Id: I5769dcdb557bed4ec4d727abe0869a1549fcf04c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461136
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 4 ----
+ 1 file changed, 4 deletions(-)

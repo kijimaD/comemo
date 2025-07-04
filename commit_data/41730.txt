@@ -1,0 +1,16 @@
+commit 9dcd6b32c80bd481602a959995af7c898ed62503
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Mar 23 10:11:43 2020 -0400
+
+    crypto: implement Hash.String
+    
+    Fixes #33430
+    
+    Change-Id: I323323b3136dd7b408005c3bb5ea05e3b566bd38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224937
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/crypto.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

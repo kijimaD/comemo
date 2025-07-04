@@ -1,0 +1,48 @@
+commit 50af50d136551e2009b2b52e829570536271cdaa
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 14 08:36:11 2020 -0400
+
+    reflect,runtime: use internal ABI for selected ASM routines
+    
+    Change the definitions of selected runtime assembly routines
+    from ABI0 (the default) to ABIInternal. The ABIInternal def is
+    intended to indicate that these functions don't follow the existing Go
+    runtime ABI. In addition, convert the assembly reference to
+    runtime.main (from runtime.mainPC) to ABIInternal. Finally, for
+    functions such as "runtime.duffzero" that are called directly from
+    generated code, make sure that the compiler looks up the correct
+    ABI version.
+    
+    This is intended to support the register abi work, however these
+    changes should not have any issues even when GOEXPERIMENT=regabi is
+    not in effect.
+    
+    Updates #27539, #40724.
+    
+    Change-Id: I9846f8dcaccc95718cf2e61a18b7e924a0677e4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262319
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go   | 86 ++++++++++++++++----------------
+ src/cmd/internal/obj/wasm/wasmobj.go |  6 +--
+ src/reflect/asm_amd64.s              | 12 +++--
+ src/runtime/asm_amd64.s              | 96 ++++++++++++++++++++++--------------
+ src/runtime/asm_wasm.s               |  4 +-
+ src/runtime/duff_amd64.s             |  4 +-
+ src/runtime/mkpreempt.go             |  3 +-
+ src/runtime/preempt_386.s            |  3 +-
+ src/runtime/preempt_amd64.s          |  3 +-
+ src/runtime/preempt_arm.s            |  3 +-
+ src/runtime/preempt_arm64.s          |  3 +-
+ src/runtime/preempt_mips64x.s        |  3 +-
+ src/runtime/preempt_mipsx.s          |  3 +-
+ src/runtime/preempt_ppc64x.s         |  3 +-
+ src/runtime/preempt_riscv64.s        |  3 +-
+ src/runtime/preempt_s390x.s          |  3 +-
+ src/runtime/preempt_wasm.s           |  3 +-
+ src/runtime/race_amd64.s             | 12 +++--
+ src/runtime/sys_linux_amd64.s        | 13 +++--
+ 19 files changed, 154 insertions(+), 112 deletions(-)

@@ -1,0 +1,24 @@
+commit 6de8443f3b324be69a3082a67ce71fa869d1a32b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 22 10:58:12 2021 -0500
+
+    doc/asm: add a section on go_asm.h, clean up go_tls.h section
+    
+    Currently the only mention of go_asm.h is buried in a confusing
+    section about the runtime-specific go_tls.h header. We actually want
+    people to use go_asm.h, so this CL adds a section with a proper
+    discussion of this header. As part of this, we remove the discussion
+    of go_asm.h from the go_tls.h section and clean up what remains.
+    
+    I stumbled on this when working on the internal ABI specification. I
+    wanted to refer to stable documentation on how to access struct fields
+    from assembly and found there was none.
+    
+    Change-Id: I0d53741e7685e65794611939e76285f7c82e1d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286052
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/asm.html | 72 ++++++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 58 insertions(+), 14 deletions(-)

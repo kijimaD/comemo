@@ -1,0 +1,15 @@
+commit b889a9f94174823fc68c1dfe340750165ab4019c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 21 00:27:50 2011 -0300
+
+    build: reenable clean.bash without gomake
+    
+    This change had already been made in revision 7371, but
+    was then undone with changes in revision 7606.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4239064
+
+ src/clean.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

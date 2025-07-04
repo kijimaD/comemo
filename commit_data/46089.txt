@@ -1,0 +1,20 @@
+commit c92c2c9d625ff3957d1c9313183fd0fe8f26984e
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 16 07:25:29 2021 +0000
+
+    cmd/internal/obj/arm64: disable the pre and post index formats for pseudo registers
+    
+    When using the FP or SP pseudo-register to load or store, pre-index and post-index formats
+    are not supported because the RSP and pseudo registers are not allowed to be modified in this
+    way. This CL deletes the related entries in optab and adds a few test cases.
+    
+    Change-Id: Ie30d27d0e7b959242f0e6298b950489669d07989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342770
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
+ src/cmd/internal/obj/arm64/asm7.go             | 29 ++++----------------------
+ 2 files changed, 8 insertions(+), 25 deletions(-)

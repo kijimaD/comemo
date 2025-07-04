@@ -1,0 +1,32 @@
+commit 997d7a1893ae15df1438c46487dd69903f16c57f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 28 15:44:41 2018 -0700
+
+    reflect: remove struct tags from unexported types
+    
+    Before CL 4281055 in 2011, the reflect package was quite different.
+    rtype, then called commonType, was embedded in exported structs with
+    names like StructType. In order to avoid accidental conversions
+    between pointers to these public structs, which sometimes had
+    identical fields, the embedded commonType fields were tagged.
+    
+    In CL 4281055 the formerly public structs were unexported, and all
+    access was done through the Type interface. At that point the field
+    tags in the reflect structs were no longer useful.
+    
+    In Go 1.8 the language was changed to ignore struct field tags when
+    converting between types. This made the field tags in the reflect
+    structs doubly useless.
+    
+    This CL simply removes them.
+    
+    Fixes #20914
+    
+    Change-Id: I9af4d6d0709276a91a6b6ee5323cad9dcd0cd0a0
+    Reviewed-on: https://go-review.googlesource.com/121475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

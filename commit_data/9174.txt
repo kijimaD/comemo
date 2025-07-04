@@ -1,0 +1,12 @@
+commit 38e512824336971bcb3d067ad46d01728501b959
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 22 14:57:17 2011 +1000
+
+    archive/zip: handle zip files with more than 65535 files
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4812048
+
+ src/pkg/archive/zip/reader.go | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

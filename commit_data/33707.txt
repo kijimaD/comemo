@@ -1,0 +1,15 @@
+commit 21672b36eb0ad3bf1e2220b247900b2c63664464
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 29 16:05:01 2017 +1100
+
+    doc/faq: tweak the wording in the new section on goroutine IDs
+    
+    There were too many changes of direction. Tidy up the intro a little
+    for better flow, and delete some unnecessary comments.
+    
+    Change-Id: Ib5d85c0992626bd3152f86a51585884d3e0cab72
+    Reviewed-on: https://go-review.googlesource.com/80495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

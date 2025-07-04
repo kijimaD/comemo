@@ -1,0 +1,13 @@
+commit 32a81fa8bb61a46eecea5d5956ad8fbc49fee7a3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 12 12:59:37 2010 +1000
+
+    sync.once: document that Do cannot be invoked recursively.
+    documentation change only.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1964043
+
+ src/pkg/sync/once.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

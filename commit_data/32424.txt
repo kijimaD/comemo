@@ -1,0 +1,20 @@
+commit e974f4fddf385b81036609d6008b923377d18e99
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Tue Aug 15 12:13:23 2017 -0400
+
+    syscall: move ptrace setup to right before exec
+    
+    This will prevent any ptrace calls from getting trace output from the runtime
+    itself setting up after fork.
+    
+    Fixes #21428.
+    
+    Change-Id: I9d835bd5a8f404394eb6237679f2111a72e5bc17
+    Reviewed-on: https://go-review.googlesource.com/55811
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ src/syscall/exec_linux.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit 46b4f675bf49a851bcda4812bd015061f1f30171
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 15:53:05 2015 -0400
+
+    cmd/internal/ld: use usual flooding for c-archive
+    
+    I said I removed this from cl/8711 in response to your comment, but
+    apparently I did not.
+    
+    misc/cgo/testcarchive continues to pass on darwin/amd64.
+    
+    Change-Id: I6410782f2a78bf117741628fb71cac56e289b590
+    Reviewed-on: https://go-review.googlesource.com/9010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/go.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

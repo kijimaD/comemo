@@ -1,0 +1,17 @@
+commit 8da91a6297d5960b69ca22d764ef73906f6d61e9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 11 14:56:16 2017 -0800
+
+    runtime: add Frames example
+    
+    Based on sample code from iant.
+    
+    Fixes #18788.
+    
+    Change-Id: I6bb33ed05af2538fbde42ddcac629280ef7c00a6
+    Reviewed-on: https://go-review.googlesource.com/36892
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,0 +1,37 @@
+commit 052da5717e02659da49707873b3868fe36f2aaf0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 22 12:42:09 2021 -0400
+
+    cmd/compile: do not change field offset in ABI analysis
+    
+    Currently, the ABI analysis assigns parameter/result offsets
+    to the fields of function *Type. In some cases, we may have
+    an ABI0 function reference and an ABIInternal reference share
+    the same function *Type. For example, for an ABI0 function F,
+    "f := F" will make f and (ABI0) F having the same *Type. But f,
+    as a func value, should use ABIInternal. Analyses on F and f will
+    collide and cause ICE.
+    
+    Also, changing field offsets in ABI analysis has to be done very
+    carefully to avoid data races. It has been causing
+    trickiness/difficulty.
+    
+    This CL removes the change of field offsets in ABI analysis
+    altogether. The analysis result is stored in ABIParamAssignment,
+    which is the only way to access parameter/result stack offset now.
+    
+    Fixes #47317.
+    Fixes #47227.
+    
+    Change-Id: I23a3e081a6cf327ac66855da222daaa636ed1ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336629
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go | 21 +++------------------
+ src/cmd/compile/internal/ssagen/ssa.go   | 11 +++++++----
+ test/fixedbugs/issue47317.dir/a.s        |  6 ++++++
+ test/fixedbugs/issue47317.dir/x.go       | 17 +++++++++++++++++
+ test/fixedbugs/issue47317.go             |  7 +++++++
+ 5 files changed, 40 insertions(+), 22 deletions(-)

@@ -1,0 +1,31 @@
+commit b6a0450bece6820b6a6d272ce7468915c4aaf796
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Sun Apr 12 19:50:52 2015 +0200
+
+    testing/quick: align tests with reflect.Kind.
+    
+    This commit is largely cosmetic in the sense that it is the remnants
+    of a change proposal I had prepared for testing/quick, until I
+    discovered that 3e9ed27 already implemented the feature I was looking
+    for: quick.Value() for reflect.Kind Array.  What you see is a merger
+    and manual cleanup; the cosmetic cleanups are as follows:
+    
+    (1.) Keeping the TestCheckEqual and its associated input functions
+    in the same order as type kinds defined in reflect.Kind.  Since
+    3e9ed27 was committed, the test case began to diverge from the
+    constant's ordering.
+    
+    (2.) The `Intptr` derivatives existed to exercise quick.Value with
+    reflect.Kind's `Ptr` constant.  All `Intptr` (unrelated to `uintptr`)
+    in the test have been migrated to ensure the parallelism of the
+    listings and to convey that `Intptr` is not special.
+    
+    (3.) Correct a misspelling (transposition) of "alias", whereby it is
+    named as "Alais".
+    
+    Change-Id: I441450db16b8bb1272c52b0abcda3794dcd0599d
+    Reviewed-on: https://go-review.googlesource.com/8804
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/quick/quick_test.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

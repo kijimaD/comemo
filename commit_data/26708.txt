@@ -1,0 +1,12 @@
+commit e8f01e5cae3d72ea78c06d95a5ac622076f455ed
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 5 15:19:27 2016 +1000
+
+    expvar: document that the Var interface's String method should return a valid JSON value.
+    
+    Change-Id: If4e740f3dbef4053355542eebdd899b3099d872c
+    Reviewed-on: https://go-review.googlesource.com/21525
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/expvar/expvar.go | 1 +
+ 1 file changed, 1 insertion(+)

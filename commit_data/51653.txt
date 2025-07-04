@@ -1,0 +1,30 @@
+commit 627765a861c6762d15cfdfeb2f7e4872523edbe4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 23:39:49 2022 -0500
+
+    time/tzdata: generate zip constant during cmd/dist
+    
+    We have a make.bash-time generation capability,
+    so use it to generate the embedded zip file for time/tzdata.
+    This is one less file to try to review in CLs like CL 455356.
+    
+    For #22487.
+    Fixes #43350.
+    
+    Change-Id: I2fcd0665fa0b1c830baec5fb4cd714483fea25a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455357
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .gitignore                          |    1 +
+ lib/time/update.bash                |    3 +-
+ src/cmd/dist/build.go               |    7 +-
+ src/cmd/dist/buildgo.go             |   17 +
+ src/time/tzdata/generate_zipdata.go |   77 -
+ src/time/tzdata/tzdata.go           |    4 +-
+ src/time/tzdata/zipdata.go          | 6643 -----------------------------------
+ 7 files changed, 27 insertions(+), 6725 deletions(-)

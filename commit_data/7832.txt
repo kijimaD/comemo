@@ -1,0 +1,23 @@
+commit f91b37b962dabc6ac0e5bae5ff35e4b7037cac8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 22 13:05:51 2011 -0700
+
+    Make.pkg: add support for SWIG, and add two SWIG examples
+    
+    The SWIG examples are not yet built or tested by default.
+    
+    R=r, rsc, iant2
+    CC=golang-dev
+    https://golang.org/cl/4287056
+
+ misc/swig/callback/Makefile         |  17 +++++++++
+ misc/swig/callback/callback.h       |  24 ++++++++++++
+ misc/swig/callback/callback.swigcxx |  18 +++++++++
+ misc/swig/callback/run              | Bin 0 -> 1179384 bytes
+ misc/swig/callback/run.go           |  39 +++++++++++++++++++
+ misc/swig/stdio/Makefile            |  17 +++++++++
+ misc/swig/stdio/file.swig           |  11 ++++++
+ misc/swig/stdio/hello               | Bin 0 -> 231270 bytes
+ misc/swig/stdio/hello.go            |  11 ++++++
+ src/Make.pkg                        |  74 ++++++++++++++++++++++++++++++++----
+ 10 files changed, 203 insertions(+), 8 deletions(-)

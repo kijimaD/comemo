@@ -1,0 +1,23 @@
+commit d0ed476f3e08a66e379682d4f7538c23ec1c2284
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 15:49:09 2023 -0500
+
+    doc/go1.22: add TODOs for missing APIs
+    
+    Add TODOs for APIs mentioned in api/go1.22.txt but missing from the
+    release notes.
+    
+    The issue list was generated with:
+    
+        $ awk '{print substr($NF, 2, length($NF)-1)}' < ../api/go1.22.txt | uniq | xargs -I{} sh -c 'echo -n "{}: " && grep -c {} ../doc/go1.22.html'
+    
+    For #61422.
+    
+    Change-Id: I85d41c28530e6b5e3e388a41206b251278c91dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548937
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

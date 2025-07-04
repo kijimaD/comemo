@@ -1,0 +1,23 @@
+commit 7dce257ac85b37972d0975863c220986faf8cd75
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Aug 17 16:00:02 2011 +1000
+
+    exp/template/html: rework Reverse(*Template) to do naive autoescaping
+    
+    Replaces the toy func Reverse(*Template) with one that implements
+    naive autoescaping.
+    
+    Now Escape(*Template) walks a template parse tree to find all
+    template actions and adds the |html command to them if it is not
+    already present.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4867049
+
+ src/pkg/exp/template/html/Makefile        |   2 +-
+ src/pkg/exp/template/html/escape.go       | 105 +++++++++++++++++++++++
+ src/pkg/exp/template/html/escape_test.go  |  75 +++++++++++++++++
+ src/pkg/exp/template/html/reverse.go      | 134 ------------------------------
+ src/pkg/exp/template/html/reverse_test.go |  48 -----------
+ 5 files changed, 181 insertions(+), 183 deletions(-)

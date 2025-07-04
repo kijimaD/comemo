@@ -1,0 +1,29 @@
+commit 9364c0e337dfc2c5ae3b1e66823d41e9408530cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 10:47:30 2017 -0400
+
+    cmd/vet: do not import net/http at startup
+    
+    The httpresponse.go module wants to be able to tell if a particular type t
+    is net/http.Response (and also net/http.Client). It does this by importing
+    net/http, looking up Response, and then comparing that saved type against
+    each t.
+    
+    Instead of doing an eager import of net/http, wait until we have a type t
+    to ask a question about, and then just look to see if that t is http.Response.
+    This kind of lazy check does not require assuming that net/http is available
+    or will be important (perhaps the check is disabled in this run, or perhaps
+    other conditions that lead to the comparison are not satisfied).
+    
+    Not loading these kinds of types at startup time will scale better.
+    
+    Change-Id: Ibb00623901a96e725a4ff6f231e6d15127979dfd
+    Reviewed-on: https://go-review.googlesource.com/74353
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/httpresponse.go | 10 +++-------
+ src/cmd/vet/tests.go        |  2 +-
+ src/cmd/vet/types.go        | 22 ++++++++++++----------
+ 3 files changed, 16 insertions(+), 18 deletions(-)

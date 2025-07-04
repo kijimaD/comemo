@@ -1,0 +1,44 @@
+commit babeb4a963126e4c543ec717ef25ab1173833ae0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 7 15:34:02 2015 -0500
+
+    runtime: improve GC times printing
+    
+    This improves the printing of GC times to be both more human-friendly
+    and to provide enough information for the construction of MMU curves
+    and other statistics.  The new times look like:
+    
+    GC: #8 72413852ns @143036695895725 pause=622900 maxpause=427037 goroutines=11 gomaxprocs=4
+    GC:     sweep term: 190584ns       max=190584   total=275001    procs=4
+    GC:     scan:       260397ns       max=260397   total=902666    procs=1
+    GC:     install wb: 5279ns         max=5279     total=18642     procs=4
+    GC:     mark:       71530555ns     max=71530555 total=186694660 procs=1
+    GC:     mark term:  427037ns       max=427037   total=1691184   procs=4
+    
+    This prints gomaxprocs and the number of procs used in each phase for
+    the benefit of analyzing mutator utilization during concurrent phases.
+    This also means the analysis doesn't have to hard-code which phases
+    are STW.
+    
+    This prints the absolute start time only for the GC cycle.  The other
+    start times can be derived from the phase durations.  This declutters
+    the view for humans readers and doesn't pose any additional complexity
+    for machine readers.
+    
+    This removes the confusing "cycle" terminology.  Instead, this places
+    the phase duration after the phase name and adds a "ns" unit, which
+    both makes it implicitly clear that this is the duration of that phase
+    and indicates the units of the times.
+    
+    This adds a "GC:" prefix to all lines for easier identification.
+    
+    Finally, this generally cleans up the code as well as the placement of
+    spaces in the output and adds print locking so the statistics blocks
+    are never interrupted by other prints.
+    
+    Change-Id: Ifd056db83ed1b888de7dfa9a8fc5732b01ccc631
+    Reviewed-on: https://go-review.googlesource.com/2542
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

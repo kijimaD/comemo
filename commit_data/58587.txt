@@ -1,0 +1,56 @@
+commit dcebb675b3fa0fd8d3056323a9f7f857ce4a2105
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 14:45:09 2024 -0800
+
+    internal/routebsd: simplify for standard library
+    
+    Discard everything we don't need from x/net/route.
+    
+    Change-Id: If6a4ecb37e5e2349bc4df46c151990719a14f2c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637696
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/internal/routebsd/address.go              | 251 +++++---------------------
+ src/internal/routebsd/address_darwin_test.go  |  29 ++-
+ src/internal/routebsd/address_test.go         |  14 +-
+ src/internal/routebsd/binary.go               |  52 +-----
+ src/internal/routebsd/empty.s                 |   7 -
+ src/internal/routebsd/interface.go            |  23 +--
+ src/internal/routebsd/interface_announce.go   |  32 ----
+ src/internal/routebsd/interface_classic.go    |   6 +-
+ src/internal/routebsd/interface_freebsd.go    |  29 +--
+ src/internal/routebsd/interface_multicast.go  |   4 +-
+ src/internal/routebsd/interface_openbsd.go    |  31 +---
+ src/internal/routebsd/message.go              |  29 +--
+ src/internal/routebsd/message_darwin_test.go  |  19 +-
+ src/internal/routebsd/message_freebsd_test.go |  73 +-------
+ src/internal/routebsd/message_test.go         | 199 +-------------------
+ src/internal/routebsd/route.go                | 145 ++++-----------
+ src/internal/routebsd/route_classic.go        |  75 --------
+ src/internal/routebsd/route_openbsd.go        |  67 -------
+ src/internal/routebsd/route_test.go           | 173 ++----------------
+ src/internal/routebsd/sys.go                  |   2 +-
+ src/internal/routebsd/sys_darwin.go           |  71 +-------
+ src/internal/routebsd/sys_dragonfly.go        |  71 ++------
+ src/internal/routebsd/sys_freebsd.go          | 124 ++-----------
+ src/internal/routebsd/sys_netbsd.go           |  63 +------
+ src/internal/routebsd/sys_openbsd.go          |  66 +------
+ src/internal/routebsd/syscall.go              |  12 --
+ src/internal/routebsd/zsys_darwin.go          |  22 ---
+ src/internal/routebsd/zsys_dragonfly.go       |  20 --
+ src/internal/routebsd/zsys_freebsd_386.go     |  55 ------
+ src/internal/routebsd/zsys_freebsd_amd64.go   |  52 ------
+ src/internal/routebsd/zsys_freebsd_arm.go     |  52 ------
+ src/internal/routebsd/zsys_freebsd_arm64.go   |  52 ------
+ src/internal/routebsd/zsys_freebsd_riscv64.go |  52 ------
+ src/internal/routebsd/zsys_netbsd.go          |  17 --
+ src/internal/routebsd/zsys_openbsd.go         |  12 --
+ src/net/interface_bsd.go                      |  35 ++--
+ src/net/interface_bsdvar.go                   |   6 +-
+ src/net/interface_darwin.go                   |  26 ++-
+ src/net/interface_freebsd.go                  |  26 ++-
+ 39 files changed, 254 insertions(+), 1840 deletions(-)

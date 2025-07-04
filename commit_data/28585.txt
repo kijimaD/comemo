@@ -1,0 +1,26 @@
+commit f5516559e65175887f2fadb73cd8e5fdfc44bcd6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 11:38:47 2016 -0700
+
+    cmd/compile/internal/x86: fix zero-range merging logic
+    
+    All other architectures merge stack-zeroing ranges if there are at
+    most two pointers/registers of memory between them, but x86 is
+    erroneously coded to require *exactly* two.
+    
+    Shaves a tiny amount of text size off cmd/go when building for
+    GOARCH=386 and eliminates an unnecessary inconsistency between x86's
+    defframe and the other GOARCHes'.
+    
+       text    data     bss     dec     hex filename
+    5241015  191051   93336 5525402  544f9a go.before
+    5240224  191051   93336 5524611  544c83 go.after
+    
+    Change-Id: Ib15ec8c07bca11e824640f0ab32abfc4bb160496
+    Reviewed-on: https://go-review.googlesource.com/30050
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/x86/ggen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

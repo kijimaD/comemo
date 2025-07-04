@@ -1,0 +1,21 @@
+commit c46bcd4d13492d3588638ea3ea4c752166709044
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 28 13:23:10 2014 -0700
+
+    runtime: move finalizer thread to Go.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/124630043
+
+ src/cmd/cc/godefs.c       |  16 +---
+ src/pkg/runtime/iface.go  |   3 +-
+ src/pkg/runtime/malloc.c  | 107 ++++-----------------
+ src/pkg/runtime/malloc.go | 234 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/malloc.h  |  23 +++++
+ src/pkg/runtime/mgc0.c    | 186 +++++-------------------------------
+ src/pkg/runtime/proc.go   |   2 +-
+ src/pkg/runtime/stubs.go  |   5 +
+ src/pkg/runtime/thunk.s   |   3 +
+ 9 files changed, 299 insertions(+), 280 deletions(-)

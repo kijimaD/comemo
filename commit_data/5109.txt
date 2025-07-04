@@ -1,0 +1,20 @@
+commit 2b7d147f1a916f26df6ee15ed0d54c30c7bede43
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 23 17:01:17 2010 -0700
+
+    runtime: add Callers
+    
+    cut copies of traceback from 6 to 1.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/703041
+
+ src/pkg/runtime/386/traceback.c   | 149 -----------------------------
+ src/pkg/runtime/Makefile          |   8 ++
+ src/pkg/runtime/amd64/traceback.c | 195 ++++++++++++++++----------------------
+ src/pkg/runtime/arm/traceback.c   | 133 +-------------------------
+ src/pkg/runtime/extern.go         |   2 -
+ src/pkg/runtime/runtime.c         |  26 +++++
+ src/pkg/runtime/runtime.h         |   1 +
+ 7 files changed, 121 insertions(+), 393 deletions(-)

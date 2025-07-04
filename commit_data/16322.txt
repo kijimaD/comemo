@@ -1,0 +1,14 @@
+commit a65f861bfa7a393e61cbe7aad0d1ecd42a0237be
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 16 17:20:13 2013 +1000
+
+    os: use small buffer when reading from windows console
+    
+    Fixes #5481.
+    
+    R=golang-dev, dominik.honnef, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9437044
+
+ src/pkg/os/file_windows.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

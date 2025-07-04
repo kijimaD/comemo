@@ -1,0 +1,22 @@
+commit 724fd131861946a7329ce59070bd6fd1e3309fa1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 3 12:24:04 2017 +0000
+
+    net/http: update bundled http2
+    
+    Updates bundled http2 to x/net/http2 git rev feeb485 for:
+    
+        http2: add all bad ciphers, use package constants
+        https://golang.org/cl/42510
+    
+    Updates #20213
+    
+    Change-Id: I851453e3785e6b126db7a5c5eec2ebbbf61358ae
+    Reviewed-on: https://go-review.googlesource.com/42494
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Savintsev <dsavints@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 656 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 633 insertions(+), 23 deletions(-)

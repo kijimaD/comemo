@@ -1,0 +1,19 @@
+commit dc1e255104f3fee2589da61b7fa80627beb885f4
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Mar 13 19:51:03 2025 +0800
+
+    runtime, internal/fuzz: add comparison tracing for libFuzzer on loong64
+    
+    Change-Id: I212330962453139fa353db29928786b64c9ff063
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667455
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ .../cgo/internal/testsanitizers/libfuzzer_test.go  |   2 +
+ src/internal/fuzz/counters_supported.go            |   2 +-
+ src/internal/fuzz/counters_unsupported.go          |   2 +-
+ src/internal/platform/supported.go                 |   2 +-
+ src/runtime/libfuzzer_loong64.s                    | 112 +++++++++++++++++++++
+ 5 files changed, 117 insertions(+), 3 deletions(-)

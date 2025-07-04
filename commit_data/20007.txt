@@ -1,0 +1,20 @@
+commit a18a3603795064cf45496f97da628308b2dc9700
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Aug 15 16:37:19 2014 +1000
+
+    net: fix CNAME resolving on Windows
+    
+    Fixes #8492
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/122200043
+
+ src/pkg/net/lookup_windows.go             |  79 ++++++++--
+ src/pkg/net/lookup_windows_test.go        | 243 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |   1 +
+ src/pkg/syscall/zsyscall_windows_386.go   |   9 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go |   9 +-
+ src/pkg/syscall/ztypes_windows.go         |  12 ++
+ 6 files changed, 341 insertions(+), 12 deletions(-)

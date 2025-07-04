@@ -1,0 +1,16 @@
+commit e335ec98b5f897afee90462bd95cf3cec42e115a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 13:33:22 2012 -0500
+
+    cmd/dist: ignore file names beginning with . or _
+    
+    This is the same heuristic that build.ScanDir uses.
+    It avoids considering 'resource fork' files on OS X;
+    the resource for x.go is ._x.go.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5616073
+
+ src/cmd/dist/build.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

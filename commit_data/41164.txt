@@ -1,0 +1,12 @@
+commit f889845ad8e291af85a4fca97cd9206b41e059b5
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 23 23:12:41 2020 -0700
+
+    doc/go1.14: mention math/big.GCD argument change
+    
+    Change-Id: Ib3b5f64471e7b9794b15a97ba86ba001f2c7d2ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216200
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.14.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

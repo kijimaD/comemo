@@ -1,0 +1,16 @@
+commit dc6e51cfd22336654f5a3ab5b3dcbbe45d998f1a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 8 17:02:08 2013 +0900
+
+    net: delete duplicate listenerSockaddr
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7299067
+
+ src/pkg/net/sock_bsd.go     | 31 -------------------------------
+ src/pkg/net/sock_linux.go   | 31 -------------------------------
+ src/pkg/net/sock_posix.go   |  4 +---
+ src/pkg/net/sock_unix.go    | 36 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/sock_windows.go | 18 +++++++-----------
+ 5 files changed, 44 insertions(+), 76 deletions(-)

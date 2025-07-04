@@ -1,0 +1,14 @@
+commit 929290d5a0e276bf6fde0c6d3c41b9611231fbb5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 29 18:20:59 2011 +1100
+
+    html: spin doctype.go out of parse.go.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5445049
+
+ src/pkg/html/Makefile   |   1 +
+ src/pkg/html/doctype.go | 156 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/parse.go   | 147 ---------------------------------------------
+ 3 files changed, 157 insertions(+), 147 deletions(-)

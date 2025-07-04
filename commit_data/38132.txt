@@ -1,0 +1,22 @@
+commit 62f5e8156ef56fa61e6af56f4ccc633bde1a9120
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Feb 23 00:09:40 2019 +0100
+
+    errors: add Unwrap, Is, and As
+    
+    Unwrap, Is and As are as defined in proposal
+    Issue #29934.
+    
+    Also add Opaque for enforcing an error cannot
+    be unwrapped.
+    
+    Change-Id: I4f3feaa42e3ee7477b588164ac622ba4d5e77cad
+    Reviewed-on: https://go-review.googlesource.com/c/163558
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/example_test.go |  15 +++
+ src/errors/wrap.go         | 106 +++++++++++++++++++
+ src/errors/wrap_test.go    | 258 +++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go  |   2 +-
+ 4 files changed, 380 insertions(+), 1 deletion(-)

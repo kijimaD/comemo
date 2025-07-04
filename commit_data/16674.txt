@@ -1,0 +1,17 @@
+commit 64441d6d6605a9fbf27f163afbc359d9cb1af0cc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Jun 28 12:24:45 2013 -0700
+
+    net/smtp: preserve Auth errors
+    
+    If authentication failed, the initial error was being thrown away.
+    
+    Fixes #5700.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10744043
+
+ src/pkg/net/smtp/smtp.go      |  4 +++-
+ src/pkg/net/smtp/smtp_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

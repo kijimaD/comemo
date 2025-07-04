@@ -1,0 +1,14 @@
+commit 93195e1f314a0c3595e4d0c477f6b0dbcc96f944
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 10:11:24 2012 -0700
+
+    encoding/gob: fix comment
+    
+    Fixes #4100.
+    
+    R=adg, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6535055
+
+ src/pkg/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

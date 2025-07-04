@@ -1,0 +1,16 @@
+commit bb6e265fed09754d2a71966f661be9ab084ef43a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 10 19:14:41 2013 +1000
+
+    os: return io.EOF from windows ReadAt as documented
+    
+    Fixes #5619.
+    
+    R=golang-dev, r, peter.armitage, go.peter.90
+    CC=golang-dev
+    https://golang.org/cl/9952044
+
+ src/pkg/os/file_windows.go        |  4 ++++
+ src/pkg/os/os_test.go             | 16 ++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |  1 +
+ 3 files changed, 21 insertions(+)

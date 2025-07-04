@@ -1,0 +1,25 @@
+commit bc723cf3400b7dd4e0b9d8e947da9b6fbdfb4831
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 31 11:48:13 2017 -0400
+
+    cmd/compile: on ARM, make sure *const's AuxInt fit into int32
+    
+    Previously some of the AuxInt are uint32, which may not fit into
+    int32. This CL convert them to int32. This does not change the
+    generated code, but make ssacheck happy.
+    
+    Pass "toolstash -cmp" for std cmd on ARM.
+    
+    Fixes #22499.
+    
+    Change-Id: Ib072d3c14962388bfeb0766c861995d00b4fa7c4
+    Reviewed-on: https://go-review.googlesource.com/74770
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 21356 +++++++++++++------
+ .../internal/gc/testdata/gen/arithConstGen.go      |    15 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |    74 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         |   148 +-
+ 4 files changed, 15454 insertions(+), 6139 deletions(-)

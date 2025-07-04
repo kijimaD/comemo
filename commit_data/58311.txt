@@ -1,0 +1,18 @@
+commit c5adb8216968be46bd11f7b7360a7c8bde1258d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 29 20:30:48 2024 -0500
+
+    crypto/rsa: check hash message length first in SignPKCS1v15
+    
+    This restores the error checking behavior from Go 1.23.
+    In particular, the boringcrypto code path now contains this
+    check again.
+    
+    Change-Id: Ie38c68c27bc3a95c6a0b5a78fc4196694527cd6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rsa/fips.go     | 15 ++++++++-------
+ src/crypto/rsa/rsa_test.go |  8 +++++++-
+ 2 files changed, 15 insertions(+), 8 deletions(-)

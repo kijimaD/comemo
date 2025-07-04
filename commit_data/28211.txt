@@ -1,0 +1,16 @@
+commit 6bcca5e91836cae42fc9a88c4ac9a6a5ffed67f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 6 07:43:15 2016 -0700
+
+    cmd/go: run mkalldocs.sh
+    
+    This should have happened as part of CL 28485.
+    
+    Change-Id: I63cd31303e542ceaec3f4002c5573f186a1e9a52
+    Reviewed-on: https://go-review.googlesource.com/28547
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

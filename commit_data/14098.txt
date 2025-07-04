@@ -1,0 +1,13 @@
+commit 49a5c28a183bbcdf4a9f89377391db1b9c4ed60f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Oct 9 21:08:53 2012 +0400
+
+    io/ioutil: fix data race on rand
+    Fixes #4212.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6641050
+
+ src/pkg/io/ioutil/tempfile.go | 4 ++++
+ 1 file changed, 4 insertions(+)

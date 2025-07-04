@@ -1,0 +1,15 @@
+commit 98f610fe094ad3fd4b36133ea99771451c5c2d48
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 20 09:33:25 2015 -0400
+
+    misc/cgo/testcarchive: enable test on darwin/arm
+    
+    Change-Id: I0d3f9841500e0a41f1c427244869bf3736a31e18
+    Reviewed-on: https://go-review.googlesource.com/9075
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/cgo/testcarchive/main.c             |  1 +
+ misc/cgo/testcarchive/src/libgo/libgo.go |  6 ++----
+ misc/cgo/testcarchive/test.bash          |  2 +-
+ src/cmd/dist/test.go                     | 12 +++++++++---
+ 4 files changed, 13 insertions(+), 8 deletions(-)

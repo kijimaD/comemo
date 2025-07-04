@@ -1,0 +1,19 @@
+commit 42812a2feec29873aa6ee594d1355948e78e92a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 12:54:39 2021 -0700
+
+    types2: disambiguate package qualifiers in error messages
+    
+    This is a port of the go/types CL https://golang.org/cl/313035
+    with minor adjustments (use of package syntax rather than go/ast).
+    
+    Change-Id: I89410efb3d27be85fdbe827f966c2c91ee5693b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314410
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go       | 21 ++++++++---
+ src/cmd/compile/internal/types2/errors.go      | 27 ++++++++++++-
+ src/cmd/compile/internal/types2/issues_test.go | 52 +++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/resolver.go    |  6 ++-
+ 4 files changed, 94 insertions(+), 12 deletions(-)

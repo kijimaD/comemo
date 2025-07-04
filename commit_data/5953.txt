@@ -1,0 +1,14 @@
+commit 6b8ec5c57216d94a8bcf1179574785122a9af88d
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Wed Aug 4 17:15:04 2010 -0700
+
+    cgo: generate correct multiple return value function invocations
+    
+    Fixes #967.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1855051
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 4d6dfd64c1aeefc49cb072f727adc51060ae600c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 17:53:08 2020 +1000
+
+    runtime: add defs for openbsd/mips64
+    
+    Update #40995
+    
+    Change-Id: I6963ead1a7c4520092361cce80edb17010e7f436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250579
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/defs_openbsd.go        |   8 +-
+ src/runtime/defs_openbsd_mips64.go | 167 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 173 insertions(+), 2 deletions(-)

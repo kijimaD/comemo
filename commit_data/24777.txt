@@ -1,0 +1,16 @@
+commit e36494e3820323489f819614d06365928e54394c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 5 07:53:28 2015 +0100
+
+    net/http/internal: ignore chunk-extension when reading chunked encoding bodies
+    
+    Fixes #13135
+    
+    Change-Id: I45666f32cd91102211bf01a306edcb10deb65187
+    Reviewed-on: https://go-review.googlesource.com/16680
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/internal/chunked.go      | 35 +++++++++++++++++++++++++++++------
+ src/net/http/internal/chunked_test.go | 15 +++++++++++++++
+ 2 files changed, 44 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit d8c9dd604801958c649a32511deef373adeecfe0
+Author: OneOfOne <oneofone@gmail.com>
+Date:   Sun Apr 10 03:50:11 2016 +0200
+
+    math/big: implement GobDecode/Encode for big.Float
+    
+    Added GobEncode/Decode and a test for them.
+    
+    Fixes #14593
+    
+    Change-Id: Ic8d3efd24d0313a1a66f01da293c4c1fd39764a8
+    Reviewed-on: https://go-review.googlesource.com/21755
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/floatmarsh.go      | 65 ++++++++++++++++++++++++++++++++++++++++-
+ src/math/big/floatmarsh_test.go | 63 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 127 insertions(+), 1 deletion(-)

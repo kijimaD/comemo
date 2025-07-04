@@ -1,0 +1,16 @@
+commit 96c91fa9dbc9327b5a9526c9c3ccc1a5c5694cb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 11:56:29 2015 -0400
+
+    cmd/internal/gc: add String methods to *Mpint, *Mpflt, *Node, *NodeList, *Sym, *Type
+    
+    The next CL will remove unnecessary conv calls.
+    
+    Change-Id: I0e8dbd1756cdec1ef6095ae67629cd3fae0fb4a4
+    Reviewed-on: https://go-review.googlesource.com/9031
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/fmt.go      | 16 ++++++++++++++++
+ src/cmd/internal/gc/mparith2.go |  4 ++++
+ src/cmd/internal/gc/mparith3.go |  4 ++++
+ 3 files changed, 24 insertions(+)

@@ -1,0 +1,20 @@
+commit c9e5600f7d3c46d3053eadc83a9b02642413bcb3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 9 00:10:34 2012 -0500
+
+    runtime: move runtime.write back to C
+    
+    It may have to switch stacks, since we are calling
+    a DLL instead of a system call.
+    
+    badcallback says where it is, because it is being called
+    on a Windows stack already.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5782060
+
+ src/pkg/runtime/sys_windows_386.s   | 24 ++----------------------
+ src/pkg/runtime/sys_windows_amd64.s | 23 +----------------------
+ src/pkg/runtime/thread_windows.c    | 21 +++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 44 deletions(-)

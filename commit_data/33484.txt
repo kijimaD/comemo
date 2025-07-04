@@ -1,0 +1,29 @@
+commit d8ee5d11e5d13398671346c8c4dff824754a2144
+Author: filewalkwithme <maiconscosta@gmail.com>
+Date:   Fri Nov 3 03:45:04 2017 +0100
+
+    crypto/tls: limit number of consecutive warning alerts
+    
+    In the current implementation, it is possible for a client to
+    continuously send warning alerts, which are just dropped on the floor
+    inside readRecord.
+    
+    This can enable scenarios in where someone can try to continuously
+    send warning alerts to the server just to keep it busy.
+    
+    This CL implements a simple counter that triggers an error if
+    we hit the warning alert limit.
+    
+    Fixes #22543
+    
+    Change-Id: Ief0ca10308cf5a4dea21a5a67d3e8f6501912da6
+    Reviewed-on: https://go-review.googlesource.com/75750
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go   |  9 ++++----
+ src/crypto/tls/conn.go     | 16 ++++++++++++++
+ src/crypto/tls/tls_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 4 deletions(-)

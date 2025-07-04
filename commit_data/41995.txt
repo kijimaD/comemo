@@ -1,0 +1,18 @@
+commit de2318e3c68530cd3ff6d3a1d378239598301fb0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 01:38:31 2020 -0400
+
+    cmd/link: add a test that reflect.Value.Call does not bring methods live
+    
+    reflect.Value.Call, if reachable, used to bring all exported
+    methods live. CL 228792 fixes this, removing the check of
+    reflect.Value.Call. This CL adds a test.
+    
+    Updates #38505.
+    
+    Change-Id: Ib4cab3c3c86c9c9702d041266e59b159d0ff0a97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228878
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/deadcode_test.go | 61 +++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

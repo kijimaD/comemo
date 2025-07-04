@@ -1,0 +1,12 @@
+commit a696db1be16592dbb57c3dca6a1a6ca32741859a
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Wed Sep 20 11:01:32 2017 +0200
+
+    bytes: correct message in test log
+    
+    Change-Id: Ib731874b9a37ff141e4305d8ccfdf7c165155da6
+    Reviewed-on: https://go-review.googlesource.com/64930
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/buffer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

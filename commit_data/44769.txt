@@ -1,0 +1,29 @@
+commit b8371d495bb291f61e4fa3ac1b84116c70ac1223
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 11 19:10:10 2021 +0100
+
+    runtime: support long paths without fixup on Windows 10 >= 1607
+    
+    Windows 10 >= 1607 allows CreateFile and friends to use long paths if
+    bit 0x80 of the PEB's BitField member is set.
+    
+    In time this means we'll be able to entirely drop our long path hacks,
+    which have never really worked right (see bugs below). Until that point,
+    we'll simply have things working well on recent Windows.
+    
+    Updates #41734.
+    Updates #21782.
+    Updates #36375.
+    
+    Change-Id: I765de6ea4859dd4e4b8ca80af7f337994734118e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291291
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/export_windows_test.go |  1 +
+ src/os/path_windows.go        |  7 ++++
+ src/os/path_windows_test.go   | 23 ++++++++++
+ src/runtime/os_windows.go     | 97 ++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 118 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 69334ee62ba8bdfd754e8c38eb6b90768e2d3807
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Tue Feb 8 12:42:31 2011 -0800
+
+    netchan: graceful handling of closed connection
+    Currently, when an importer closes the connection, the exporter gives an
+    error message 'netchan export: error decoding client header:EOF'.  This
+    change causes the exporter to look for an EOF during the parse of the
+    header, and silences the log message in that case.
+    
+    R=r
+    CC=golang-dev, rog
+    https://golang.org/cl/4132044
+
+ src/pkg/netchan/export.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

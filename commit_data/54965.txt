@@ -1,0 +1,80 @@
+commit 30de0b5ef4dda725f29fbdb88e1429a6dd3ae8cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 10 18:11:15 2023 -0800
+
+    go/types, types2: implement Alias proposal (export API)
+    
+    This CL exports the previously unexported Alias type and
+    corresponding functions and methods per issue #63223.
+    
+    Whether Alias types are used or not is controlled by
+    the gotypesalias setting with the GODEBUG environment
+    variable. Setting gotypesalias to "1" enables the Alias
+    types:
+    
+            GODEBUG=gotypesalias=1
+    
+    By default, gotypesalias is not set.
+    
+    Adjust test cases that enable/disable the use of Alias
+    types to use -gotypesalias=1 or -gotypesalias=0 rather
+    than -alias and -alias=false for consistency and to
+    avoid confusion.
+    
+    For #63223.
+    
+    Change-Id: I51308cad3320981afac97dd8c6f6a416fdb0be55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541737
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/63223.txt                                 |  6 ++++
+ doc/godebug.md                                     |  7 ++++
+ src/cmd/compile/internal/types2/alias.go           | 39 ++++++++++++----------
+ src/cmd/compile/internal/types2/api.go             |  5 ---
+ src/cmd/compile/internal/types2/check.go           | 33 ++++++++++++------
+ src/cmd/compile/internal/types2/check_test.go      | 16 ++++++---
+ src/cmd/compile/internal/types2/decl.go            |  8 ++---
+ src/cmd/compile/internal/types2/infer.go           |  8 ++---
+ src/cmd/compile/internal/types2/issues_test.go     |  5 ++-
+ src/cmd/compile/internal/types2/lookup.go          |  2 +-
+ src/cmd/compile/internal/types2/mono.go            |  2 +-
+ src/cmd/compile/internal/types2/named.go           |  4 +--
+ src/cmd/compile/internal/types2/object.go          |  2 +-
+ src/cmd/compile/internal/types2/predicates.go      | 20 +++++------
+ src/cmd/compile/internal/types2/resolver.go        |  6 ++--
+ src/cmd/compile/internal/types2/signature.go       |  2 +-
+ src/cmd/compile/internal/types2/typestring.go      |  6 ++--
+ src/cmd/compile/internal/types2/typexpr.go         |  4 +--
+ src/cmd/compile/internal/types2/unify.go           |  4 +--
+ src/cmd/compile/internal/types2/validtype.go       |  2 +-
+ src/go/types/alias.go                              | 39 ++++++++++++----------
+ src/go/types/api.go                                |  5 ---
+ src/go/types/check.go                              | 35 ++++++++++++-------
+ src/go/types/check_test.go                         | 16 ++++++---
+ src/go/types/decl.go                               |  8 ++---
+ src/go/types/infer.go                              |  8 ++---
+ src/go/types/issues_test.go                        |  5 ++-
+ src/go/types/lookup.go                             |  2 +-
+ src/go/types/mono.go                               |  2 +-
+ src/go/types/named.go                              |  4 +--
+ src/go/types/object.go                             |  2 +-
+ src/go/types/predicates.go                         | 20 +++++------
+ src/go/types/resolver.go                           |  6 ++--
+ src/go/types/signature.go                          |  2 +-
+ src/go/types/typestring.go                         |  6 ++--
+ src/go/types/typexpr.go                            |  4 +--
+ src/go/types/unify.go                              |  4 +--
+ src/go/types/validtype.go                          |  2 +-
+ src/internal/godebugs/table.go                     |  1 +
+ src/internal/types/testdata/check/cycles5.go       |  2 +-
+ src/internal/types/testdata/check/cycles5a.go      |  2 +-
+ .../types/testdata/fixedbugs/issue46461.go         |  2 +-
+ .../types/testdata/fixedbugs/issue46461a.go        |  2 +-
+ .../types/testdata/fixedbugs/issue50779.go         |  2 +-
+ .../types/testdata/fixedbugs/issue50779a.go        |  2 +-
+ src/runtime/metrics/doc.go                         |  4 +++
+ 46 files changed, 209 insertions(+), 159 deletions(-)

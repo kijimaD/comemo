@@ -1,0 +1,28 @@
+commit 0ae9389609f23dc905c58fc2ad7bcc16b770f337
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 28 09:29:40 2019 -0400
+
+    runtime: fix textOff for multiple text sections
+    
+    If a compilation has multiple text sections, code in
+    textOff must compare the offset argument against the range
+    for each text section to determine which one it is in.
+    The comparison looks like this:
+    
+    if uintptr(off) >= sectaddr && uintptr(off) <= sectaddr+sectlen
+    
+    If the off value being compared is equal to sectaddr+sectlen then it
+    is not within the range of the text section but after it. The
+    comparison should be just '<'.
+    
+    Updates #35207
+    
+    Change-Id: I114633fd734563d38f4e842dd884c6c239f73c95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203817
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

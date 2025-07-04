@@ -1,0 +1,31 @@
+commit c305e49e96deafe54a8e43010ea76fead6da0a98
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 14:32:13 2020 -0400
+
+    cmd/go,cmd/compile,sync: remove special import case in cmd/go
+    
+    CL 253748 introduced a special case in cmd/go to allow sync to import
+    runtime/internal/atomic. Besides introducing unnecessary complexity
+    into cmd/go, this breaks other packages (like gopls) that understand
+    how imports work, but don't understand this special case.
+    
+    Fix this by using the more standard linkname-based approach to pull
+    the necessary functions from runtime/internal/atomic into sync. Since
+    these are compiler intrinsics, we also have to tell the compiler that
+    the linknamed symbols are intrinsics to get this optimization in sync.
+    
+    Fixes #42196.
+    
+    Change-Id: I1f91498c255c91583950886a89c3c9adc39a32f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265124
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  4 ++++
+ src/cmd/go/internal/load/pkg.go    |  5 -----
+ src/sync/pool.go                   | 25 +++++++++++++++++--------
+ 3 files changed, 21 insertions(+), 13 deletions(-)

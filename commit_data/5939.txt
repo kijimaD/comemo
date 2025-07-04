@@ -1,0 +1,21 @@
+commit 7748a7f159f43a7098dfdb170d26b152d8d5ba77
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Aug 3 12:26:48 2010 -0400
+
+    crypto/x509: unwrap Subject Key Identifier
+    
+    RFC 5280, 4.2.1.2 says:
+      SubjectKeyIdentifier ::= KeyIdentifier
+      KeyIdentifier ::= OCTET STRING
+    
+    Previously, we were failing to unwrap the second level of OCTET STRING
+    encoding.
+    
+    Fixes #993.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1917044
+
+ src/pkg/crypto/x509/x509.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

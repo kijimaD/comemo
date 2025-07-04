@@ -1,0 +1,22 @@
+commit 4b0e086348c99eaa458f18e4b3e4498f0aaadc1a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 5 11:58:35 2024 -0500
+
+    dog/go1.22: tweak coverage testing notes
+    
+    Clarify the section in the "go" command notes that deals with the
+    changes to "go test -cover" for packages without tests, adding a note
+    that if a package has not tests and no executable code, you still get
+    a "package has no test files" diagnostic.
+    
+    Fixes #65262.
+    
+    Change-Id: Ie960871f9d5c1a1965090738644eace28fc3e156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561337
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
+
+ doc/go1.22.html | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

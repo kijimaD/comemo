@@ -1,0 +1,21 @@
+commit 86954d5246339231dc0c45f5547c37a1c3650264
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 13 14:42:45 2020 -0500
+
+    cmd/compile: mark plugin-exported types as used in interface
+    
+    Plugin exports symbols as interfaces. Mark their types as used in
+    interfaces, so their methods will be kept alive by the linker.
+    
+    Fixes #42579.
+    
+    Change-Id: If1b5aacc21510c20c25f88bb131bca61db6f1d56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269819
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testplugin/plugin_test.go            | 14 ++++++++++++++
+ misc/cgo/testplugin/testdata/method/main.go   | 26 ++++++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/method/plugin.go | 13 +++++++++++++
+ src/cmd/compile/internal/gc/reflect.go        |  6 +++++-
+ 4 files changed, 58 insertions(+), 1 deletion(-)

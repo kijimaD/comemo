@@ -1,0 +1,14 @@
+commit 9cd4a0467ae2494b0734693b90d47c604610a9ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:22:01 2012 +1100
+
+    regexp: name result parameters referenced from docs
+    
+    Fixes #2953
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5653051
+
+ src/pkg/regexp/regexp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

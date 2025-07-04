@@ -1,0 +1,19 @@
+commit e6ff6c8e5629880c88c3610f2d3d55eab35b5400
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jun 23 18:49:47 2009 -0700
+
+    Fix http client handling of status messages with spaces (e.g. "HTTP/1.1 400 Bad
+    Request".
+    Use chunked Transfer-Encoding for all POSTs.
+    Implement chunked reading.
+    Change http.Request.write to be HTTP/1.1 only.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=178  (123 added, 26 deleted, 29 changed)
+    OCL=30563
+    CL=30673
+
+ src/pkg/http/client.go  |  57 ++++++++++------------
+ src/pkg/http/request.go | 122 ++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 137 insertions(+), 42 deletions(-)

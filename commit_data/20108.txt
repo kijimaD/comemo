@@ -1,0 +1,13 @@
+commit 639dc6c794d682dd7efff21107d0e085ed66726c
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Mon Aug 25 11:29:53 2014 +0400
+
+    runtime: Loosen conditions in TestMemstat in an attempt to fix the nacl/arm build.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews, khr
+    https://golang.org/cl/128680043
+
+ src/pkg/runtime/malloc_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

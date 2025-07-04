@@ -1,0 +1,26 @@
+commit c4a8550421ce16f233b48a85dc5dd04b16469b7f
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Tue Nov 23 20:52:07 2021 +0100
+
+    .github: use multiple issue templates
+    
+    There are currently multiple issue templates floating around for
+    different projects, these can sometimes be hard to find.
+    
+    Fixes #29839
+    
+    Change-Id: I6600b6f78842736d81d35e6a64247d00706d9e0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366736
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../{ISSUE_TEMPLATE => ISSUE_TEMPLATE/00-bug.md}   | 11 +++-
+ .github/ISSUE_TEMPLATE/01-pkgsite.md               | 47 +++++++++++++++++
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.md       | 39 ++++++++++++++
+ .github/ISSUE_TEMPLATE/03-gopls.md                 | 61 ++++++++++++++++++++++
+ .github/ISSUE_TEMPLATE/10-proposal.md              | 13 +++++
+ .github/ISSUE_TEMPLATE/11-language-change.md       | 52 ++++++++++++++++++
+ .github/ISSUE_TEMPLATE/config.yml                  |  8 +++
+ 7 files changed, 229 insertions(+), 2 deletions(-)

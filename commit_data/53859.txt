@@ -1,0 +1,22 @@
+commit 54e9d6d5efdd03a75574f78e8cf379a9eec79f6d
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Aug 2 00:37:49 2023 +0000
+
+    reflect: update Type.FieldByName documentation
+    
+    Fixes #61495
+    
+    Change-Id: I9abaf3613c797006b803dcb1dbee16f25ffb7516
+    
+    Change-Id: I9abaf3613c797006b803dcb1dbee16f25ffb7516
+    GitHub-Last-Rev: 7bc2cba77286be1bd322ee31eee3e1df3d8761f1
+    GitHub-Pull-Request: golang/go#61645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/type.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

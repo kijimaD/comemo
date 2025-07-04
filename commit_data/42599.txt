@@ -1,0 +1,14 @@
+commit 6ba3e6a8c76c3266d75e62c6ecf47b2f795ba371
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 30 13:23:32 2020 -0400
+
+    doc/go1.15: add html/template and text/template docs
+    
+    Updates #37419
+    
+    Change-Id: I23abfeabc6be704aad9da2649bbbe7c8e237dfab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240546
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.15.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,0 +1,28 @@
+commit 2478b6f6d6c1da1085e958ece8b17255aa17be6e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 8 19:24:53 2021 -0400
+
+    runtime: simplify multiple text section handling in findfunc
+    
+    In findfunc, we first us the relative PC to find the function's
+    index in functab. When we split text sections, as the external
+    linker may shift the sections, and the PC may not match the
+    (virtual) PC we used to build the functab. So the index may be
+    inaccurate, and we need to do a (forward or backward) linear
+    search to find the actual entry.
+    
+    Instead of using the PC directly, we can first compute the
+    (pre-external-link virtual) relative PC and use that to find the
+    index in functab. This way, the index will be accurate and we will
+    not need to do the special backward linear search.
+    
+    Change-Id: I8ab11c66b7a5a3d79aae00198b98780e10db27b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354873
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/symtab.go | 70 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 35 insertions(+), 35 deletions(-)

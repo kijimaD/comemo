@@ -1,0 +1,15 @@
+commit 97dcc68f1ec4202b467210dcd2607c7630bb9d6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 19:20:35 2009 -0800
+
+    insert ${GOOS} and ${GOARCH} in
+    command-line comment.
+    
+    R=r
+    DELTA=11  (6 added, 0 deleted, 5 changed)
+    OCL=25051
+    CL=25051
+
+ src/cmd/gobuild/gobuild.c | 12 +++++++++---
+ src/lib/net/Makefile      |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

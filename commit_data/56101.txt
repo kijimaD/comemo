@@ -1,0 +1,24 @@
+commit e565720e4920fe14eaeac55c8a271444d5499e44
+Author: Mohammad Abbasi <mohammad.v184@gmail.com>
+Date:   Sun Mar 12 00:23:14 2023 +0000
+
+    database/sql: refactor unused variables to use blank identifiers
+    
+    Hi
+    I've replaced unused variables in database/sql with blank identifiers to improve code readability.
+    
+    This change has no impact on the functionality of the code, but makes it easier to read and understand.
+    
+    Change-Id: I701e93fd9bf86725f411085bf2e8f8e6b235af14
+    GitHub-Last-Rev: eb40bd5e2ef9e28871fae2e97b4433e8d6e2c652
+    GitHub-Pull-Request: golang/go#58986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475675
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/convert.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 4d8aefde470de630a1f6f6fc2c481fedb4a293c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 1 20:32:53 2013 -0400
+
+    reflect: add Value.Slice3 and Value.SetCap methods, to match x[i:j:k]
+    
+    Design doc at golang.org/s/go12slice.
+    
+    R=golang-dev, r, nightlyone
+    CC=golang-dev
+    https://golang.org/cl/10761045
+
+ src/pkg/reflect/all_test.go | 68 ++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 85 ++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 141 insertions(+), 12 deletions(-)

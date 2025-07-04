@@ -1,0 +1,17 @@
+commit c48ce6930ffcab5d4beaf9654e276bb132a2b66c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 1 10:23:15 2012 -0400
+
+    cmd/6l: loop alignment, disabled
+    
+    Saving the code in case we improve things enough that
+    it matters later, but at least right now it is not worth doing.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6248071
+
+ src/cmd/6l/l.h    | 17 +++++++++++++++++
+ src/cmd/6l/span.c | 45 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/libmach/8db.c |  1 +
+ 3 files changed, 62 insertions(+), 1 deletion(-)

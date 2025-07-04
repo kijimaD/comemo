@@ -1,0 +1,44 @@
+commit d73885588ac0a7520ac3e848112e44f5dbe97006
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 31 12:20:09 2022 -0400
+
+    cmd/compile/internal/pgo: remove ListOfHotCallSites
+    
+    The global ListOfHotCallSites set is used to communicate between
+    CanInline and InlineCalls the set of call sites that InlineCalls may
+    increase the budget for.
+    
+    CanInline clears this map on each call, thus assuming that
+    InlineCalls(x) is called immediately after CanInline(x). This assumption
+    is false, as CanInline (among other cases) is recursive (CanInline ->
+    hairyVisitor.doNode -> inlCallee -> CanInline).
+    
+    When this assumption proves false, we will lose the opportunity to
+    inline hot calls.
+    
+    This CL is the least invasive fix for this. ListOfHotCallSites is
+    actually just a subset of the candHotEdgeMap, with CallSiteInfo.Callee
+    cleared. candHotEdgeMap doesn't actually need to distinguish based on
+    Callee, so we can drop callee from candHotEdgeMap as well and just use
+    that directly [1].
+    
+    Later CLs should do more work to remove the globals entirely.
+    
+    For cmd/compile, this inceases the number of PGO inlined functions by
+    ~50% for one set of PGO parameters. I have no evaluated performance
+    impact.
+    
+    [1] This is something that we likely want to change in the future.
+    
+    For #55022.
+    
+    Change-Id: I57735958d651f6dfa9bd296499841213d20e1706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446755
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go  | 21 ++++++++++-----------
+ src/cmd/compile/internal/pgo/irgraph.go | 15 ++++-----------
+ 2 files changed, 14 insertions(+), 22 deletions(-)

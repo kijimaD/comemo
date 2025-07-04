@@ -1,0 +1,16 @@
+commit 11b992818549aa169c96363c9242fe66b4073d34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 13:14:06 2015 -0700
+
+    cmd/go: update documentation: use 'go doc' rather than 'godoc'
+    
+    Change-Id: I318c1ef75b18d4687f13499ac225dde2d053505e
+    Reviewed-on: https://go-review.googlesource.com/10776
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 12 ++++++------
+ src/cmd/go/fix.go     |  2 +-
+ src/cmd/go/fmt.go     |  2 +-
+ src/cmd/go/help.go    |  2 +-
+ src/cmd/go/test.go    |  4 ++--
+ 5 files changed, 11 insertions(+), 11 deletions(-)

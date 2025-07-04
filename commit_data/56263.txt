@@ -1,0 +1,21 @@
+commit 734fd7a949e17a0ad379d9db593ce9b0d03703ab
+Author: zhangjian <zj.cosmos@gmail.com>
+Date:   Sun Apr 21 12:03:35 2024 +0000
+
+    cmd/compile/internal/ssa: fix the description of auxCCop as auxInt
+    
+    The auxCCop has been modified from aux to auxInt in CL 252517.
+    
+    Change-Id: I5c472d684c51fd38fd38f61561d1b1644e20bafe
+    GitHub-Last-Rev: 78d1cf40f476adbda2f42b929607501b07f0c91c
+    GitHub-Pull-Request: golang/go#66950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580635
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/cmd/compile/internal/ssa/op.go    | 2 +-
+ src/cmd/compile/internal/ssa/value.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

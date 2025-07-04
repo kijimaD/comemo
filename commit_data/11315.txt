@@ -1,0 +1,14 @@
+commit 41914c1df8f8689f2fba59cbdd1f8d00e73dbeed
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jan 22 10:35:15 2012 -0800
+
+    6l, 8l: remove unused macro definition
+            Their last use is removed in rev 70ed048caad2.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5532115
+
+ src/cmd/6l/asm.c | 2 --
+ src/cmd/8l/asm.c | 2 --
+ 2 files changed, 4 deletions(-)

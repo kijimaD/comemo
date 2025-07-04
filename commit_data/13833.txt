@@ -1,0 +1,22 @@
+commit 0aad3cdc59c245eb5a09159f43c0bf590893d9ab
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Sep 17 11:50:15 2012 +1000
+
+    strings: implement a faster generic Replacer
+    
+    This also fixes the semantics of some corner cases with the empty
+    match. TODOs for genericReplacer in the tests are fixed.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkGenericNoMatch        71395         3132  -95.61%
+    BenchmarkGenericMatch1         75610        20280  -73.18%
+    BenchmarkGenericMatch2        837995        86725  -89.65%
+    
+    R=nigeltao, rsc
+    CC=golang-dev
+    https://golang.org/cl/6492076
+
+ src/pkg/strings/export_test.go  |  27 ++++
+ src/pkg/strings/replace.go      | 300 +++++++++++++++++++++++++++++++---------
+ src/pkg/strings/replace_test.go |  96 +++++++++++--
+ 3 files changed, 348 insertions(+), 75 deletions(-)

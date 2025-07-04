@@ -1,0 +1,17 @@
+commit 8fa468d511b8b1197137ce0ad0ea4260167d2348
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 19 13:29:29 2020 +0200
+
+    doc/go1.15: consolidate notes regarding package testing
+    
+    Fold the descriptions of testing.T.Deadline and TestMain related changes
+    into the existing section for package testing.
+    
+    Also link T.Deadline to its godoc.
+    
+    Change-Id: I732c45fb879305099cb8a51a77ef11fba1b2f1e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234557
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.15.html | 30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)

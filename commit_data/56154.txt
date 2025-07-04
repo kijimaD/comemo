@@ -1,0 +1,23 @@
+commit 50a5059056e2233c5112e1dbb65c19bfc79ebb5d
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Apr 8 11:43:03 2024 -0700
+
+    net/http: update HandlerWritesTooMuch test to allow different h1/h2 behavior
+    
+    Rather than requiring that HTTP/1 and HTTP/2 servers behave identically
+    when a misbehaving handler writes too many bytes, check only that both
+    behave reasonably.
+    
+    In particular, allow the handler to defer detection of a write overrun
+    until flush time, and permit the HTTP/2 handler to reset the stream
+    rather than requring it to return a truncated body as HTTP/1 must.
+    
+    For #56019
+    
+    Change-Id: I0838e550c4fc202dcbb8bf39ce0fa4a367ca7e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/clientserver_test.go | 42 +++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

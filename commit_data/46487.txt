@@ -1,0 +1,20 @@
+commit f01721efb941edadc2e6a897e42919b0d68480e1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 16 13:55:45 2021 -0400
+
+    cmd/compile: remove self copies in tail-call wrappers
+    
+    The previous CL re-enables tail calls for method wrappers. But
+    with the changed IR and SSA representation, for stack arguments
+    it generates self copies. This CL makes the compiler detect the
+    self copies and remove them.
+    
+    Change-Id: I7252572a1a47834f28b6706e45906e2356408e02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350349
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

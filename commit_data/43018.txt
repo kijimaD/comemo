@@ -1,0 +1,17 @@
+commit 6796a7fb127676b61375339076ae1c982a721dde
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 17 09:09:39 2020 -0400
+
+    cmd/addr2line: don't assume that GOROOT_FINAL is clean
+    
+    Fixes #41447
+    
+    Change-Id: I4460c1c7962d02c41622a5ea1a3c4bc3714a1873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255477
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

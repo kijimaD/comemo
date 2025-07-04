@@ -1,0 +1,14 @@
+commit 1b651556c3f3cbf3d2d98dc30d76a164f850d19b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 16:17:59 2013 -0400
+
+    syslog: fix data race on 'crashy' in test function
+    
+    Fixes #5894.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13303051
+
+ src/pkg/log/syslog/syslog_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

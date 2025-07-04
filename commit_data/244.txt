@@ -1,0 +1,12 @@
+commit 553771314cfdf50a08454f560256455db8c79025
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 16:52:15 2008 -0700
+
+    - moved integer code into src/pkg
+    
+    SVN=125003
+
+ {test => src/pkg}/integer.go      |  0
+ src/pkg/make.bash                 | 14 ++++++++++++++
+ {test => src/pkg}/test_integer.go |  0
+ 3 files changed, 14 insertions(+)

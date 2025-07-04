@@ -1,0 +1,17 @@
+commit 57020705f321d5c652c38ace050e78e2455cd07e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 4 21:23:25 2018 +0100
+
+    internal/cpu: make arm64 capability bits naming less verbose
+    
+    This makes the constant names less verbose and aligns them more
+    with the Linux kernel which uses HWCAP_XXX for the constant names.
+    
+    Change-Id: Ia7d079b59b57978adc045945951eaa1d99b41fac
+    Reviewed-on: https://go-review.googlesource.com/91738
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu_arm64.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

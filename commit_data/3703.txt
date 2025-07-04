@@ -1,0 +1,11 @@
+commit 5b72f9cd0ba7dc520b65b204c56b9fed6a35f687
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:48:21 2009 -0800
+
+    save some text from the old FAQ; will get reworked in time
+    
+    R=rsc
+    http://go/go-review/1018008
+
+ doc/contribute.html | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit e93891f348a8cd74272c1060458a2e64cc0543ab
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Sep 18 08:50:24 2012 -0700
+
+    doc/effective_go: Closed some tags; removed extra spaces.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6488122
+
+ doc/effective_go.html | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

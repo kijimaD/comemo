@@ -1,0 +1,12 @@
+commit 483e031525c2677d36322ed547fccd04553fd324
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 6 17:29:07 2008 -0800
+
+    - binomial implementation (fixing broken build)
+    
+    R=r
+    OCL=18738
+    CL=18738
+
+ src/lib/bignum.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit 652bb7c2bed501110d7371ea0187d56dd58acef3
+Author: Eden Li <eden.li@gmail.com>
+Date:   Wed Nov 18 09:59:10 2009 -0800
+
+    Mangle C struct fields that happen to be named after Go keywords by prefixing them with _.  Collisions with existing fields are resolved by prefixing the new Go identifier with _ until it matches nothing else in the struct.
+    Fixes #36.
+    
+    R=rsc
+    https://golang.org/cl/157061
+
+ src/cmd/cgo/gcc.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

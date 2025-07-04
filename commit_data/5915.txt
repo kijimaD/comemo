@@ -1,0 +1,16 @@
+commit 500425ac7b6a563dc135ab97f7e5dc15b3ad7b7e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 29 18:14:49 2010 -0700
+
+    bug300: literal types must not be parenthesized
+    
+    ( This CL is dependent on acceptance of
+    https://golang.org/cl/1913041/show )
+    
+    R=go-dev
+    CC=golang-dev
+    https://golang.org/cl/1860045
+
+ test/bugs/bug300.go | 29 +++++++++++++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 32 insertions(+)

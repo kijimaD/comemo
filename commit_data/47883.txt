@@ -1,0 +1,29 @@
+commit 2bfa6ef63d3cfa89f46cc5f6708c1078f15fb875
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 4 21:01:21 2022 -0800
+
+    go/types, types2: remove unused code in lookupFieldOrMethod
+    
+    The underlying type of a type parameter is an interface,
+    so we don't need a special case for type parameters anymore.
+    Simply share the (identical) code for interfaces.
+    
+    Adjust code in types.NewMethodSet accordingly.
+    
+    No functional difference.
+    Preparation for fix of issues below.
+    
+    For #50233.
+    For #50417.
+    
+    Change-Id: Ib2deadd12f89e6918dec224b4ce35583001c3101
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375514
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go | 32 ++++---------------------------
+ src/go/types/lookup.go                    | 26 ++++---------------------
+ src/go/types/methodset.go                 | 12 +-----------
+ 3 files changed, 9 insertions(+), 61 deletions(-)

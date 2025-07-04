@@ -1,0 +1,12 @@
+commit a66ae1d39eecce74f03d6e68a35df2ee932c7572
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 19 12:16:08 2011 +1000
+
+    doc: update release.r60.1 notes
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5045045
+
+ doc/devel/release.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

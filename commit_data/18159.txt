@@ -1,0 +1,14 @@
+commit 13141315ad00f25f18ca1a30c71f90e962fada68
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Jan 3 22:48:03 2014 -0800
+
+    spec: Fix broken type identity link
+    
+    Fixes #7003.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/47780043
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

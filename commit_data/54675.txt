@@ -1,0 +1,20 @@
+commit ee8b8e988c47a400d035891539a045031854b391
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 12:20:19 2023 -0400
+
+    cmd/go: clean up "cover" debug output
+    
+    Currently, the two places that run the cover tool manually construct a
+    terse command description. However, this actually prevents Builder.run
+    from constructing a more detailed description from the actual command
+    being run. Fix this by passing "" as the description to get the
+    default behavior.
+    
+    Change-Id: I27d42cb1fda9bba70c631dc43417a03b8bddec92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534157
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

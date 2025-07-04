@@ -1,0 +1,21 @@
+commit 035696c59a5af44977c37f91f1b6febbb233b05f
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Nov 1 17:52:26 2010 -0400
+
+    debug/pe, cgo: add windows support
+    
+    R=rsc, mattn
+    CC=golang-dev
+    https://golang.org/cl/1976045
+
+ src/Make.pkg                                 |   1 +
+ src/cmd/cgo/gcc.go                           |   5 +-
+ src/pkg/Makefile                             |   1 +
+ src/pkg/debug/pe/Makefile                    |  12 ++
+ src/pkg/debug/pe/file.go                     | 231 +++++++++++++++++++++++++++
+ src/pkg/debug/pe/file_test.go                |  99 ++++++++++++
+ src/pkg/debug/pe/pe.go                       |  51 ++++++
+ src/pkg/debug/pe/testdata/gcc-386-mingw-exec | Bin 0 -> 29941 bytes
+ src/pkg/debug/pe/testdata/gcc-386-mingw-obj  | Bin 0 -> 2372 bytes
+ src/pkg/debug/pe/testdata/hello.c            |   8 +
+ 10 files changed, 407 insertions(+), 1 deletion(-)

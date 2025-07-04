@@ -1,0 +1,16 @@
+commit 4760b33326392c459bb5825938d57ce55d40224a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 20 17:10:16 2024 +0100
+
+    time: use bytealg.IndexByte in byteString
+    
+    Change-Id: I0d42bca7c6ee63c05a0ca09c165f2f591edf7c34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565356
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/time/zoneinfo_read.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

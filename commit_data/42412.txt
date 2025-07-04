@@ -1,0 +1,22 @@
+commit 1519bc4457af7179557a4f04bb35a4e07bedd118
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue May 26 16:55:28 2020 +0200
+
+    net/http: clarify that AddCookie only sanitizes the Cookie being added
+    
+    AddCookie properly encodes a cookie and appends it to the Cookie header
+    field but does not modify or sanitize what the Cookie header field
+    contains already. If a user manualy sets the Cookie header field to
+    something not conforming to RFC 6265 then a cookie added via AddCookie
+    might not be retrievable.
+    
+    Fixes #38437
+    
+    Change-Id: I232b64ac489b39bb962fe4f7dbdc2ae44fcc0514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235141
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

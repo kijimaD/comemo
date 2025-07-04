@@ -1,0 +1,14 @@
+commit ec59b840f93fff4631b60323e28a44967c704e7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 16:42:22 2012 -0500
+
+    runtime: coalesce 0-size allocations
+    
+    Fixes #3996.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7001052
+
+ src/pkg/runtime/malloc.goc | 41 +++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)

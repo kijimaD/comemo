@@ -1,0 +1,18 @@
+commit 222f371118754382145735186fe3aedfca16d5f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 24 17:31:31 2015 -0700
+
+    syscall: regenerate zsyscall_darwin_arm.go
+    
+    This is mostly straightforward but it does introduce an odd change to
+    Fchflags and adds the Mlock related functions.  These changes look
+    correct to me but I don't know why they weren't in the original file.
+    
+    Change-Id: I1a01e075566d327a78b77e7354c9fb85b6ad1f22
+    Reviewed-on: https://go-review.googlesource.com/8062
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/zsyscall_darwin_arm.go | 109 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 102 insertions(+), 7 deletions(-)

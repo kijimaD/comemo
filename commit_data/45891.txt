@@ -1,0 +1,15 @@
+commit 4711bf30e5fec4cf290964785871deba5955c29a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 30 11:54:46 2021 -0400
+
+    doc/go1.17: linkify "language changes" in the runtime section
+    
+    Change-Id: I82bd3954bfc5da59c7952eba2a28ff0e3b41427f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331969
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

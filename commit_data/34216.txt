@@ -1,0 +1,15 @@
+commit b1d94c118fd163381537a22be4913742103baece
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 3 19:28:28 2017 -0500
+
+    runtime: validate lfnode addresses
+    
+    Change-Id: Ic8c506289caaf6218494e5150d10002e0232feaa
+    Reviewed-on: https://go-review.googlesource.com/85876
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/lfstack.go | 10 ++++++++++
+ src/runtime/mgcwork.go |  1 +
+ 2 files changed, 11 insertions(+)

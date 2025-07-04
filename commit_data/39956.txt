@@ -1,0 +1,15 @@
+commit b7e9c7a3919195f718249aba0e09d03f9e1fdf9d
+Author: Andrew <andybons@golang.org>
+Date:   Wed Sep 18 21:34:24 2019 -0400
+
+    doc/go1.13: add id tag to note about removal of NaCl port in Go 1.14
+    
+    This was in response to a post-merge review comment in
+    golang.org/cl/185537
+    
+    Change-Id: I866b3882c8e83bf1fef60115cff5d1c6a9863f09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186319
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

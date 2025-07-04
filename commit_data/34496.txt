@@ -1,0 +1,16 @@
+commit 9094946f0d09fbde9bc8cbb4499377e359708af4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 7 11:44:41 2018 +0100
+
+    androidtest.bash: don't require GOARCH set
+    
+    The host GOARCH is most likely supported (386, amd64, arm, arm64).
+    
+    Change-Id: I86324b9c00f22c592ba54bda7d2ae97c86bda904
+    Reviewed-on: https://go-review.googlesource.com/99155
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/androidtest.bash | 4 ----
+ 1 file changed, 4 deletions(-)

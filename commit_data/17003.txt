@@ -1,0 +1,18 @@
+commit bbf143002188a7af7d60e28da472f06c6d99aa03
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Fri Aug 2 14:15:33 2013 -0700
+
+    cmd/go: Fix go get when the fetched XML uses ASCII encoding
+    
+    Also, add a meaningful error message when an encoding which
+    can't be parsed is found.
+    
+    Fixes #5801.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12343043
+
+ src/cmd/go/discovery.go | 22 ++++++++++++++++++++--
+ src/cmd/go/vcs.go       | 11 +++++++++--
+ 2 files changed, 29 insertions(+), 4 deletions(-)

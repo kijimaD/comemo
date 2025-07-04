@@ -1,0 +1,12 @@
+commit a48115bf2e1fe30dd9bfe43f1f37d199400b6889
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Mar 29 10:09:29 2010 -0700
+
+    strconv.Unquote could wrongly return a nil error on error.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/773041
+
+ src/pkg/strconv/quote.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

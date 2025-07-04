@@ -1,0 +1,14 @@
+commit a3c75d9b313cc9f06969125ff28501c081dac3b8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 12 10:57:23 2018 -0700
+
+    cmd/compile: enable indexed export format by default
+    
+    Change-Id: Id018eeb79afbe2c695a583b3845cfbc1aab08388
+    Reviewed-on: https://go-review.googlesource.com/106797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

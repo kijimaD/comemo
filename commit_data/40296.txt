@@ -1,0 +1,22 @@
+commit 8d2ea2936b337f6276054dd4ac40999dd0f22dbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 17 16:28:38 2019 -0700
+
+    go/types: don't update the underlying type of an imported type
+    
+    Updating the underlying type of an imported type (even though
+    is was set to the same type again) leads to a race condition
+    if the imported package is imported by separate, concurrently
+    type-checked packages.
+    
+    Fixes #31749.
+    
+    Change-Id: Iabb8e8593eb067eb4816c1df81e545ff52d32c6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201838
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/decl.go        | 21 ++++++++++++++-------
+ src/go/types/issues_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 7 deletions(-)

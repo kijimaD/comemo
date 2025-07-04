@@ -1,0 +1,12 @@
+commit 79ae1ad48911ac6d36105cd5ec38247892f8a10b
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Mar 22 14:54:20 2013 +1100
+
+    math: remove repeated comment.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7835046
+
+ src/pkg/math/sqrt.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

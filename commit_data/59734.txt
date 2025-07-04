@@ -1,0 +1,25 @@
+commit 4878b4471bf1267a8f87b40ed49b36ab82b79d18
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 12 13:16:23 2025 -0400
+
+    slices: document and test nilness behavior of all functions
+    
+    This change documents the current nilness behavior of all
+    functions in the package, and asserts each with a test.
+    
+    There is no change to behavior, but the postcondition is
+    strengthened, so this may require a proposal.
+    
+    Fixes #73604
+    Fixes #73048
+    
+    Change-Id: Ieb68e609a1248bd81c8507d3795785622a65f8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671996
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/slices/iter.go        |  5 +++
+ src/slices/slices.go      | 10 ++++++
+ src/slices/slices_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+)

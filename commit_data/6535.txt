@@ -1,0 +1,14 @@
+commit 6e18e8c82f64017fe4a7a33ee79230d7387e8f69
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 15 15:29:25 2010 -0400
+
+    8l: blind attempt to fix windows build
+    or at least gather more information
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2515042
+
+ src/cmd/8l/obj.c | 2 +-
+ src/cmd/ld/pe.c  | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

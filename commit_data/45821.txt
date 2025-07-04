@@ -1,0 +1,15 @@
+commit d77f4c0c5c966c37960cd691656fba184ae770ff
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jul 9 18:49:05 2020 -0400
+
+    net/http: improve some server docs
+    
+    Change-Id: I04662a08e07c49f629f9067a89bf453e697d44dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327813
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/server.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

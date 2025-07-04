@@ -1,0 +1,16 @@
+commit d410642f498cb96734c55a4c0d91256671a03bae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 30 16:19:58 2019 -0700
+
+    runtime: use correct register in darwin/386 pipe_trampoline
+    
+    Updates #31264
+    
+    Change-Id: I745744dd3fdaa432d70e8dc9336547017bac89ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ src/runtime/sys_darwin_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

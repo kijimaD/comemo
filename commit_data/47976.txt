@@ -1,0 +1,15 @@
+commit e4ab8b0fe6d34c6cbfe29031a9c4df58ac1c452f
+Author: luochuanhang <chuanhangluo@gmail.com>
+Date:   Tue Jan 18 01:59:20 2022 +0000
+
+    regexp: add the missing is
+    
+    Change-Id: I23264972329aa3414067cd0e0986b69bb39bbeb5
+    GitHub-Last-Rev: d1d668a3cbe852d9a06f03369e7e635232d85139
+    GitHub-Pull-Request: golang/go#50650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378935
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

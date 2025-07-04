@@ -1,0 +1,17 @@
+commit dc4427f3727804ded270bc6a7a8066ccb3c151d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 19 18:08:43 2016 +0000
+
+    context: make DeadlineExceeded have a Timeout method
+    
+    Fixes #14238
+    
+    Change-Id: I1538bfb5cfa63e36a89df1f6eb9f5a0dcafb6ce5
+    Reviewed-on: https://go-review.googlesource.com/23256
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go      |  8 +++++++-
+ src/context/context_test.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 8765e89a8ac2f4f2cfb8a4aea21b563168b6b6b6
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Nov 20 00:40:28 2018 +0800
+
+    cmd/go/internal/modcmd: fix go mod edit -module replaces empty string
+    
+    Fixes golang/go#28820.
+    
+    Change-Id: Id931617efcf161ec934eb6d44062ad95e8a6ab8d
+    Reviewed-on: https://go-review.googlesource.com/c/150277
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/edit.go      |  2 +-
+ src/cmd/go/testdata/script/mod_edit.txt | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

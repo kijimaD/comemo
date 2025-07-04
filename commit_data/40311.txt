@@ -1,0 +1,22 @@
+commit 78c168fc60592bdc75cebd6ba33351493e14719f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 18 15:52:00 2019 +0200
+
+    syscall: don't use 32-bit aligned access for cmsgAlignOf on dragonfly after ABI change
+    
+    Use 32-bit alignment for versions before the September 2019 ABI changes
+    http://lists.dragonflybsd.org/pipermail/users/2019-September/358280.html
+    
+    Fixes #34958
+    
+    Change-Id: Iab4b23083a7c9ca7e96a737b03e75cd36d98ee24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201977
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/sockcmsg_dragonfly.go  | 16 ++++++++++++++++
+ src/syscall/sockcmsg_unix.go       | 26 --------------------------
+ src/syscall/sockcmsg_unix_other.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_dragonfly.go   | 20 +++++++++++++++++++-
+ 4 files changed, 73 insertions(+), 27 deletions(-)

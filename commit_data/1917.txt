@@ -1,0 +1,14 @@
+commit 79b55e226a72cc995fef58f683d6c8e77d181c87
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 30 19:01:59 2009 -0700
+
+    log.Stderr should actually go to stderr.
+    
+    R=r
+    APPROVED=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=26926
+    CL=26928
+
+ src/lib/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

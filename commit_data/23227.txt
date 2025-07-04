@@ -1,0 +1,12 @@
+commit 107aab6c340a5ea90b7f50761f2c90e0d7e39032
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 16:28:45 2015 -0400
+
+    doc/go1.5.txt: add note about internal
+    
+    Change-Id: I6476284a2cf80d50bd0a57fd9a0de9bc74273c7e
+    Reviewed-on: https://go-review.googlesource.com/10680
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

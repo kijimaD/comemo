@@ -1,0 +1,24 @@
+commit 09496599520d73171550987b138d85ae1fb13b76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 09:43:25 2017 -0800
+
+    runtime: add explicit (void) in C to avoid GCC 7 problem
+    
+    This avoids errors like
+        ./traceback.go:80:2: call of non-function C.f1
+    
+    I filed https://gcc.gnu.org/PR79289 for the GCC problem. I think this
+    is a bug in GCC, and it may be fixed before the final GCC 7 release.
+    This CL is correct either way.
+    
+    Fixes #18855.
+    
+    Change-Id: I0785a7b7c5b1d0ca87b454b5eca9079f390fcbd4
+    Reviewed-on: https://go-review.googlesource.com/35919
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/testdata/testprogcgo/threadpprof.go | 2 +-
+ src/runtime/testdata/testprogcgo/traceback.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

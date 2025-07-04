@@ -1,0 +1,13 @@
+commit e0c9d04aec958b4b4f9315037a49c4459424a728
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Nov 1 12:56:25 2012 -0400
+
+    runtime: add memorydump() debugging function
+    
+    R=golang-dev
+    CC=golang-dev, remyoudompheng, rsc
+    https://golang.org/cl/6780059
+
+ src/pkg/runtime/malloc.h |  2 ++
+ src/pkg/runtime/mgc0.c   | 75 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)

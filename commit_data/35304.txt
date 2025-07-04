@@ -1,0 +1,26 @@
+commit 44286b17c5ca6673648ba57b4a9d49ab8dffedf6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 1 16:13:08 2017 -0500
+
+    runtime: replace system goroutine whitelist with symbol test
+    
+    Currently isSystemGoroutine has a hard-coded list of known entry
+    points into system goroutines. This list is annoying to maintain. For
+    example, it's missing the ensureSigM goroutine.
+    
+    Replace it with a check that simply looks for any goroutine with
+    runtime function as its entry point, with a few exceptions. This also
+    matches the definition recently added to the trace viewer (CL 81315).
+    
+    Change-Id: Iaed723d4a6e8c2ffb7c0c48fbac1688b00b30f01
+    Reviewed-on: https://go-review.googlesource.com/81655
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/objabi/funcid.go |  4 +---
+ src/cmd/link/internal/ld/pcln.go  |  8 ++------
+ src/cmd/trace/trace.go            |  8 +++++++-
+ src/runtime/symtab.go             |  4 +---
+ src/runtime/traceback.go          | 21 ++++++++++++++-------
+ 5 files changed, 25 insertions(+), 20 deletions(-)

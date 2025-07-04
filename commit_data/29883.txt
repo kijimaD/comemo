@@ -1,0 +1,23 @@
+commit 9719ca9c0e6fdda273cd178e6cce6b88d738518e
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Dec 28 14:24:08 2016 -0500
+
+    cmd/go: fix two formatting issues in documentation of testing flags
+    
+    Remove unneeded second colon.
+    
+    Remove unneeded space at the beginning of a line (before a tab).
+    
+    Regenerate alldocs.go with mkalldocs.sh.
+    
+    Updates https://golang.org/cl/28783.
+    Updates https://golang.org/cl/29650.
+    Fixes #18448.
+    
+    Change-Id: I1830136a2b760827d4cec565744807a0fd147584
+    Reviewed-on: https://go-review.googlesource.com/34718
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 4 ++--
+ src/cmd/go/test.go    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

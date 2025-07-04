@@ -1,0 +1,20 @@
+commit 0490eb60bbe27e74e4a884867335128690ff8eb3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jul 15 11:51:59 2011 -0400
+
+    8l: nits
+    
+    8l/Makefile:
+    . Dropped unnecessary prefix from "../8l/8.out.h"
+    
+    8l/l.h:
+    . Dropped unnecessary prefix from "../8l/8.out.h"
+    . Dropped unused and inconsistent "I" vararg pragma.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4754041
+
+ src/cmd/8l/Makefile | 2 +-
+ src/cmd/8l/l.h      | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 6030c7531539619003e651e8836f451ea6b832b0
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Feb 17 14:02:26 2016 -0800
+
+    doc: document Go 1.6
+    
+    Change-Id: I4910105d48ed650289ecb1490d556929db05bc38
+    Reviewed-on: https://go-review.googlesource.com/19526
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/19527
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,15 @@
+commit 1c26176b67786151db0e4162ce6f8ad2f5c9ffd1
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 00:04:42 2015 -0400
+
+    net/url: fix docs for URL.String
+    
+    Fixes #10227.
+    
+    Change-Id: I64d5522e76da5a717e3c4169405e5ef35d6c262e
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

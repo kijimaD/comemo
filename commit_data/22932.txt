@@ -1,0 +1,24 @@
+commit 96265610307eab2b160a271169632b52ad7cc455
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 15:29:48 2015 -0400
+
+    runtime: fix gccheckmark mode and enable by default
+    
+    It was testing the mark bits on what roots pointed at,
+    but not the remainder of the live heap, because in
+    CL 2991 I accidentally inverted this check during
+    refactoring.
+    
+    The next CL will turn it back off by default again,
+    but I want one run on the builders with the full
+    checkmark checks.
+    
+    Change-Id: Ic166458cea25c0a56e5387fc527cb166ff2e5ada
+    Reviewed-on: https://go-review.googlesource.com/9824
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go  | 2 +-
+ src/runtime/runtime1.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,48 @@
+commit 01b4f2dd2394a042313db0f6af823bbc54a09798
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 13:27:45 2010 -0800
+
+            Steps towards tracking scopes for identifiers.
+    
+            - Identifiers refer now to the language entity (Object)
+              that they denote. At the moment this is at best an
+              approximation.
+    
+            - Initial data structures for language entities (Objects)
+              and expression types (Type) independent of the actual
+              type notations.
+    
+            - Initial support for declaring and looking up identifiers.
+    
+            - Updated various dependent files and added support functions.
+    
+            - Extensively tested to avoid breakage. This is an AST change.
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/189080
+
+ src/cmd/cgo/ast.go              |   6 +-
+ src/cmd/cgo/gcc.go              |  12 ++--
+ src/cmd/cgo/main.go             |   8 +--
+ src/cmd/cgo/out.go              |   2 +-
+ src/cmd/godoc/godoc.go          |   8 +--
+ src/cmd/godoc/index.go          |   6 +-
+ src/cmd/godoc/snippet.go        |   4 +-
+ src/cmd/gofmt/gofmt.go          |   4 ++
+ src/cmd/gofmt/rewrite.go        |   4 +-
+ src/pkg/exp/eval/expr.go        |   4 +-
+ src/pkg/exp/eval/stmt.go        |  32 +++++-----
+ src/pkg/exp/eval/type.go        |   4 +-
+ src/pkg/exp/eval/typec.go       |  16 ++---
+ src/pkg/exp/parser/interface.go |   6 +-
+ src/pkg/exp/parser/parser.go    |  63 +++----------------
+ src/pkg/go/ast/ast.go           |  32 +++++++---
+ src/pkg/go/ast/filter.go        |   2 +-
+ src/pkg/go/ast/scope.go         | 121 +++++++++++++++++-------------------
+ src/pkg/go/doc/doc.go           |  20 +++---
+ src/pkg/go/parser/interface.go  |   2 +-
+ src/pkg/go/parser/parser.go     | 132 +++++++++++++++++++++++++---------------
+ src/pkg/go/printer/nodes.go     |   2 +-
+ src/pkg/go/printer/printer.go   |   2 +-
+ 23 files changed, 245 insertions(+), 247 deletions(-)

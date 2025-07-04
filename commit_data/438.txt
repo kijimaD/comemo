@@ -1,0 +1,16 @@
+commit 3835e01d97c26f110d9842f3279ec24bd3f15add
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 11:29:41 2008 -0700
+
+    print tracebacks for all goroutines, not just the crashing one
+    
+    R=ken
+    OCL=13518
+    CL=13518
+
+ src/runtime/proc.c             | 15 +++++++++++++++
+ src/runtime/rt1_amd64_darwin.c |  1 +
+ src/runtime/rt1_amd64_linux.c  |  3 ++-
+ src/runtime/runtime.c          |  1 +
+ src/runtime/runtime.h          |  3 ++-
+ 5 files changed, 21 insertions(+), 2 deletions(-)

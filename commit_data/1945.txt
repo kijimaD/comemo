@@ -1,0 +1,13 @@
+commit d6c59ad7b809bbb3dca80ca82936e0028ec3f572
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 16:41:53 2009 -0700
+
+    clarification suggested by rob
+    
+    R=r
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=26983
+    CL=27041
+
+ src/runtime/proc.c | 4 ++++
+ 1 file changed, 4 insertions(+)

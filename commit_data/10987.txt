@@ -1,0 +1,12 @@
+commit f927d9c1bb71e759ce035d1d6fd497a7ccfbd308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 15:52:56 2011 -0800
+
+    partial build fix: add missing argument to NewPackageDoc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5489112
+
+ misc/dashboard/builder/package.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

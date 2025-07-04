@@ -1,0 +1,18 @@
+commit 16ce29802a53d79fff673e2819034a385b81fd61
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 11:06:35 2009 -0700
+
+    delete
+    
+    R=r
+    DELTA=791  (0 added, 791 deleted, 0 changed)
+    OCL=35154
+    CL=35154
+
+ usr/rsc/gmp/6c.c        | 117 ----------------
+ usr/rsc/gmp/Makefile    |  52 --------
+ usr/rsc/gmp/gcc.c       | 349 ------------------------------------------------
+ usr/rsc/gmp/go.go       | 130 ------------------
+ usr/rsc/gmp/main.go     |  28 ----
+ usr/rsc/gmp/pidigits.go | 144 --------------------
+ 6 files changed, 820 deletions(-)

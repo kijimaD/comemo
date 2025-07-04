@@ -1,0 +1,14 @@
+commit 64e53337affd08900abfac9039322621d5373493
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 15 13:27:30 2015 -0700
+
+    runtime: fix go:nowritebarrier annotation on gcmarkwb_m
+    
+    Change-Id: I945d46d3bb63f1992bce0d0b1e89e75cac9bbd54
+    Reviewed-on: https://go-review.googlesource.com/12271
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbarrier.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

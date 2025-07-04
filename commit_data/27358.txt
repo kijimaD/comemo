@@ -1,0 +1,21 @@
+commit 0efc16284bc4fd5b8b31d3f6b6763f98700c5664
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 11 15:19:32 2016 +1000
+
+    syscall: remove mksyscall_windows.go -xsys flag
+    
+    Also run "go generate" in
+    internal/syscall/windows and internal/syscall/windows/registry
+    
+    Updates #15167
+    
+    Change-Id: I0109226962f81857fe11d308b869d561ea8ed9f9
+    Reviewed-on: https://go-review.googlesource.com/23021
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../syscall/windows/registry/zsyscall_windows.go   |  8 ++++---
+ src/internal/syscall/windows/zsyscall_windows.go   |  8 ++++---
+ src/syscall/mksyscall_windows.go                   | 28 +++++++++++++++++++---
+ 3 files changed, 35 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit 81672ef15b4078bc966d9912dd523cd332cc20ea
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 29 20:06:48 2008 -0700
+
+    fix some typos, mostly
+    
+    R=gri
+    OCL=16161
+    CL=16161
+
+ doc/go_tutorial.txt | 8 +++++---
+ doc/progs/sieve.go  | 2 +-
+ 2 files changed, 6 insertions(+), 4 deletions(-)

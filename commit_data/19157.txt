@@ -1,0 +1,16 @@
+commit c47f08657a09aaabda3974b50b8a29e460f9927a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 16 12:18:57 2014 +1000
+
+    image/png: fix crash when an alleged PNG has too much pixel data,
+    so that the zlib.Reader returns nil error.
+    
+    Fixes #7762.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/86750044
+
+ src/pkg/image/png/reader.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

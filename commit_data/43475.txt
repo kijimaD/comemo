@@ -1,0 +1,22 @@
+commit e01a1c01f830e2398b773b803dce3238b1107ce9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 21:39:52 2020 +0000
+
+    runtime: add tests for addrRanges.findSucc
+    
+    This change adds a test suite for addrRanges.findSucc so we can change
+    the implementation more safely.
+    
+    For #40191.
+    
+    Change-Id: I14a834b6d54836cbc676eb0edb292ba6176705cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242678
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go  |  24 +++++++
+ src/runtime/mranges_test.go | 172 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 196 insertions(+)

@@ -1,0 +1,13 @@
+commit 9602dd5e87b0d5cccae8ca84fcc088c065f9cae3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 4 18:26:16 2012 +0800
+
+    cmd/cgo: support Linux/ARM
+            Part 3 of CL 5601044 (cgo: Linux/ARM support)
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5991066
+
+ src/cmd/cgo/gcc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 51ed3cb702baedf400957fc2126e141fad46d4a5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 30 15:16:04 2023 -0400
+
+    net: retry TestDialTimeout subtests with progressively shorter timeouts
+    
+    The LUCI builders seem to show that the failure mode in #62359 is not
+    specific to windows/arm64, but it occurs to me that we ought to be
+    able to eventually retry by making the timeout so short that the
+    remote end can't possibly respond in time (discounting the possibility
+    that the kernel itself might short-circuit the loopback address).
+    
+    For #62377.
+    Updates #62359.
+    Updates #56876.
+    
+    Change-Id: I1fb5fa4f2a5d2cfe35465f34248ed9a035f91f4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524595
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/error_plan9_test.go   |   8 ----
+ src/net/error_unix_test.go    |   8 ----
+ src/net/error_windows_test.go |   9 ----
+ src/net/timeout_test.go       | 101 ++++++++++++++++++------------------------
+ 4 files changed, 42 insertions(+), 84 deletions(-)

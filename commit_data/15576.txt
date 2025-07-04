@@ -1,0 +1,21 @@
+commit 6dc3c9cfddc48a0668e99a641d877488b32aa1ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 4 11:23:17 2013 -0500
+
+    cmd/cgo: use explicit flag to emit dynamic linker path
+    
+    Using -import_runtime_cgo would have worked great except
+    that it doesn't get passed to the second invocation of cgo,
+    and that's the one that writes the relevant file.
+    
+    Fixes ARM build on systems with a different dynamic linker
+    than the one 5l assumes (like Gentoo).
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7432048
+
+ src/cmd/cgo/main.go | 1 +
+ src/cmd/cgo/out.go  | 4 ++--
+ src/cmd/go/build.go | 6 +++++-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

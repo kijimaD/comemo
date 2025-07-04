@@ -1,0 +1,29 @@
+commit a7db14241cf59f9d3bf4e1a68cf9e503e1a05211
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 14 10:45:15 2022 +0200
+
+    syscall: use fcntl F_DUP2FD_CLOEXEC in forkAndExecInChild on solaris
+    
+    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    
+    Note that the value for F_DUP2FD_CLOEXEC is different on Solaris and
+    Illumos and thus the definition is moved from zerrors_solaris_amd64.go
+    to solaris/illumos specific files.
+    
+    Change-Id: I9a52801d1a01471ec3f065520575e3fafee92855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_libc.go             |  4 ++--
+ src/syscall/syscall_illumos.go       |  5 +++--
+ src/syscall/syscall_solaris.go       |  4 ++--
+ src/syscall/syscall_solarisonly.go   | 10 ++++++++++
+ src/syscall/zerrors_solaris_amd64.go |  1 -
+ 5 files changed, 17 insertions(+), 7 deletions(-)

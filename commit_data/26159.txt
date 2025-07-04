@@ -1,0 +1,36 @@
+commit c52cb1fe9ef1cab19ce8de6c4da93a9d2287cc1e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 9 14:33:28 2016 +1100
+
+    compress/flate: take NewWriter out of the benchmark loop.
+    
+    This helps follow-up CLs ensure that the encoding's core computation does not
+    allocate. It is a separate CL because it has a non-trivial effect on the
+    benchmark numbers, even if it's purely an accounting change and not a change to
+    the underlying performance:
+    
+    BenchmarkEncodeDigitsSpeed1e4-4        5.65         19.31        3.42x
+    BenchmarkEncodeDigitsSpeed1e5-4        17.23        26.79        1.55x
+    BenchmarkEncodeDigitsSpeed1e6-4        26.85        27.51        1.02x
+    BenchmarkEncodeDigitsDefault1e4-4      4.41         13.21        3.00x
+    BenchmarkEncodeDigitsDefault1e5-4      5.64         6.28         1.11x
+    BenchmarkEncodeDigitsDefault1e6-4      5.54         5.65         1.02x
+    BenchmarkEncodeDigitsCompress1e4-4     4.31         13.15        3.05x
+    BenchmarkEncodeDigitsCompress1e5-4     5.52         5.91         1.07x
+    BenchmarkEncodeDigitsCompress1e6-4     5.38         5.63         1.05x
+    BenchmarkEncodeTwainSpeed1e4-4         5.45         19.06        3.50x
+    BenchmarkEncodeTwainSpeed1e5-4         17.30        29.25        1.69x
+    BenchmarkEncodeTwainSpeed1e6-4         28.06        30.86        1.10x
+    BenchmarkEncodeTwainDefault1e4-4       4.06         12.36        3.04x
+    BenchmarkEncodeTwainDefault1e5-4       6.15         7.62         1.24x
+    BenchmarkEncodeTwainDefault1e6-4       6.84         6.99         1.02x
+    BenchmarkEncodeTwainCompress1e4-4      4.06         12.27        3.02x
+    BenchmarkEncodeTwainCompress1e5-4      5.29         5.92         1.12x
+    BenchmarkEncodeTwainCompress1e6-4      5.24         5.29         1.01x
+    
+    Change-Id: I7d32866b7e2d478b0154332c1edeefe339af9a28
+    Reviewed-on: https://go-review.googlesource.com/20467
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/compress/flate/writer_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

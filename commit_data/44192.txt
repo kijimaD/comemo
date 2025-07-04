@@ -1,0 +1,16 @@
+commit cf263e9f772eeeac21df6fe8f51a8c93e8ad5a27
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 16:13:35 2021 -0800
+
+    os: correct names in CreateTemp and MkdirTemp doc comments
+    
+    For #42026
+    
+    Change-Id: I51e3ce9d3a4729cfac44bd3ff3f3ec80dcd5abb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285376
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/os/tempfile.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

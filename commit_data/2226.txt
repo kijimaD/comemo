@@ -1,0 +1,13 @@
+commit a343e5ceb170d6e41a31a0ca765e7680e5fd622f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 17:26:08 2009 -0700
+
+    fix handling of line numbers for first function
+    
+    R=r
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=28949
+    CL=28951
+
+ src/runtime/symtab.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

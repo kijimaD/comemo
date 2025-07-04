@@ -1,0 +1,30 @@
+commit a037c73ccfc7c35a389e95ffa7996c8dd38e0cde
+Author: Ryan Brown <ribrdb@google.com>
+Date:   Mon Mar 14 09:23:04 2016 -0700
+
+    cmd/link: generate DWARF info using symbols
+    
+    This updates dwarf.go to generate debug information as symbols
+    instead of directly writing to the output file. This should make
+    it easier to move generation of some of the debug info into the compiler.
+    
+    Change-Id: Id2358988bfb689865ab4d68f82716f0676336df4
+    Reviewed-on: https://go-review.googlesource.com/20679
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go        |    4 +
+ src/cmd/link/internal/amd64/asm.go  |   22 +-
+ src/cmd/link/internal/arm/asm.go    |   21 +-
+ src/cmd/link/internal/arm64/asm.go  |   21 +-
+ src/cmd/link/internal/ld/data.go    |  114 +++
+ src/cmd/link/internal/ld/dwarf.go   | 1493 +++++++++++++----------------------
+ src/cmd/link/internal/ld/elf.go     |   23 +-
+ src/cmd/link/internal/ld/macho.go   |   29 +-
+ src/cmd/link/internal/ld/symtab.go  |   12 -
+ src/cmd/link/internal/mips64/asm.go |   10 +-
+ src/cmd/link/internal/ppc64/asm.go  |   10 +-
+ src/cmd/link/internal/s390x/asm.go  |    6 +-
+ src/cmd/link/internal/x86/asm.go    |   24 +-
+ 13 files changed, 727 insertions(+), 1062 deletions(-)

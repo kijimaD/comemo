@@ -1,0 +1,18 @@
+commit ced8004a00c62b7aff4e6f6a702f0824b2312fd5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Dec 22 19:13:45 2012 +0100
+
+    cmd/gc: do not accept (**T).Method expressions.
+    
+    The typechecking code was doing an extra, unnecessary
+    indirection.
+    
+    Fixes #4458.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6998051
+
+ src/cmd/gc/typecheck.c      | 10 ++++------
+ test/fixedbugs/issue4458.go | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

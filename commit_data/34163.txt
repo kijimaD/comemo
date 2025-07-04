@@ -1,0 +1,21 @@
+commit 97124af99a9a0f0ec1b3453c67c8af474aabd660
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 12 14:27:46 2018 -0500
+
+    runtime/internal/atomic: unify sys_*_arm.s on non-linux
+    
+    Updates #23778.
+    
+    Change-Id: I80e57a15b6e3bbc2e25ea186399ff0e360fc5c21
+    Reviewed-on: https://go-review.googlesource.com/93635
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/atomic/sys_darwin_arm.s        | 11 -----------
+ src/runtime/internal/atomic/sys_nacl_arm.s          | 13 -------------
+ src/runtime/internal/atomic/sys_netbsd_arm.s        | 21 ---------------------
+ .../{sys_freebsd_arm.s => sys_nonlinux_arm.s}       | 10 ++++++----
+ src/runtime/internal/atomic/sys_openbsd_arm.s       | 11 -----------
+ src/runtime/internal/atomic/sys_plan9_arm.s         | 11 -----------
+ 6 files changed, 6 insertions(+), 71 deletions(-)

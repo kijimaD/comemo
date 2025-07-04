@@ -1,0 +1,24 @@
+commit d278d5bbdddd0e976c272d1dd3ecc41eeb37daf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 12:02:50 2024 -0500
+
+    all: enable range-over-func in Go 1.23
+    
+    GOEXPERIMENT=rangefunc still enables it for all Go modules.
+    Otherwise only enable in Go 1.23 source files.
+    More work remains but it will be done in follow-up issues.
+    
+    Fixes #61405.
+    
+    Change-Id: Icad64942deb152ee65444e4d7be289814a8a0b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557835
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go    | 5 ++---
+ src/cmd/compile/internal/types2/version.go | 1 +
+ src/go/types/stmt.go                       | 5 ++---
+ src/go/types/version.go                    | 1 +
+ src/internal/types/testdata/spec/range.go  | 2 --
+ 5 files changed, 6 insertions(+), 8 deletions(-)

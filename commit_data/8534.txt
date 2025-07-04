@@ -1,0 +1,13 @@
+commit a479bc8d02625534566dff96f096d4f29d916d38
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 30 10:55:37 2011 +1000
+
+    image/png: fix encoding of images that don't start at (0, 0).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4560049
+
+ src/pkg/image/png/writer.go      | 74 ++++++++++++++++++++++------------------
+ src/pkg/image/png/writer_test.go | 73 ++++++++++++++++++++++++++-------------
+ 2 files changed, 90 insertions(+), 57 deletions(-)

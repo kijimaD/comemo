@@ -1,0 +1,24 @@
+commit dcdee153cd61de47d0cabd6729a17673536b0418
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 18 15:19:05 2019 -0500
+
+    runtime: use innermost frame's func name for async preemption check
+    
+    We don't asynchronously preempt if we are in the runtime. We do
+    this by checking the function name. However, it failed to take
+    inlining into account. If a runtime function gets inlined into
+    a non-runtime function, it can be preempted, and bad things can
+    happen. One instance of this is dounlockOSThread inlined into
+    UnlockOSThread which is in turn inlined into a non-runtime
+    function.
+    
+    Fix this by using the innermost frame's function name.
+    
+    Change-Id: Ifa036ce1320700aaaefd829b4bee0d04d05c395d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211978
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/preempt.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

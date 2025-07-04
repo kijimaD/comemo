@@ -1,0 +1,84 @@
+commit 9e0685f9c24ff80a7e710e764c1090c680a5095c
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Sun Apr 28 01:52:06 2024 +0000
+
+    encoding/json: optimize field sorting with slices and cmp
+    
+    Refactor field sorting in typeFields to use slices.SortFunc and cmp.Compare,
+    resulting in performance improvements in cache misses and slight increases in
+    hit latency. Memory allocation and operation counts also reduced significantly
+    for cache misses.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: encoding/json
+    cpu: Apple M2 Max
+                                        │   old.txt    │              new.txt               │
+                                        │    sec/op    │   sec/op     vs base               │
+    TypeFieldsCache/MissTypes1-12          5.068µ ± 2%   5.032µ ± 1%       ~ (p=0.055 n=10)
+    TypeFieldsCache/MissTypes10-12         15.22µ ± 2%   14.79µ ± 2%  -2.84% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes100-12        98.40µ ± 3%   94.72µ ± 1%  -3.73% (p=0.002 n=10)
+    TypeFieldsCache/MissTypes1000-12       860.3µ ± 3%   840.7µ ± 1%       ~ (p=0.105 n=10)
+    TypeFieldsCache/MissTypes10000-12      8.092m ± 3%   7.987m ± 4%       ~ (p=0.280 n=10)
+    TypeFieldsCache/MissTypes100000-12     80.90m ± 9%   80.62m ± 2%       ~ (p=0.631 n=10)
+    TypeFieldsCache/MissTypes1000000-12   1009.5m ± 7%   933.8m ± 7%  -7.50% (p=0.011 n=10)
+    TypeFieldsCache/HitTypes1-12           1.554n ± 3%   1.617n ± 3%  +4.05% (p=0.004 n=10)
+    TypeFieldsCache/HitTypes10-12          1.575n ± 1%   1.624n ± 6%  +3.14% (p=0.000 n=10)
+    TypeFieldsCache/HitTypes100-12         1.566n ± 1%   1.627n ± 5%  +3.86% (p=0.000 n=10)
+    TypeFieldsCache/HitTypes1000-12        1.526n ± 4%   1.596n ± 3%  +4.55% (p=0.001 n=10)
+    TypeFieldsCache/HitTypes10000-12       1.506n ± 0%   1.573n ± 3%  +4.41% (p=0.000 n=10)
+    TypeFieldsCache/HitTypes100000-12      1.480n ± 1%   1.529n ± 7%  +3.35% (p=0.001 n=10)
+    TypeFieldsCache/HitTypes1000000-12     1.473n ± 2%   1.468n ± 2%       ~ (p=0.739 n=10)
+    geomean                                1.371µ        1.374µ       +0.25%
+    
+                                        │     old.txt     │                new.txt                 │
+                                        │      B/op       │     B/op       vs base                 │
+    TypeFieldsCache/MissTypes1-12          2.023Ki ± 0%      2.000Ki ± 0%  -1.16% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes10-12         10.95Ki ± 0%      10.71Ki ± 0%  -2.17% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes100-12       101.91Ki ± 0%      99.53Ki ± 0%  -2.34% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes1000-12      1044.3Ki ± 0%     1020.8Ki ± 0%  -2.25% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes10000-12      9.957Mi ± 0%      9.730Mi ± 0%  -2.29% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes100000-12     97.79Mi ± 0%      95.50Mi ± 0%  -2.34% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes1000000-12   1018.4Mi ± 0%      995.5Mi ± 0%  -2.25% (p=0.000 n=10)
+    TypeFieldsCache/HitTypes1-12             0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes10-12            0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes100-12           0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes1000-12          0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes10000-12         0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes100000-12        0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes1000000-12       0.000 ± 0%        0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                                             ²                  -1.06%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+                                        │    old.txt    │               new.txt                │
+                                        │   allocs/op   │  allocs/op   vs base                 │
+    TypeFieldsCache/MissTypes1-12          46.00 ± 0%      45.00 ± 0%  -2.17% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes10-12         215.0 ± 0%      205.0 ± 0%  -4.65% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes100-12       1.845k ± 0%     1.745k ± 0%  -5.42% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes1000-12      18.08k ± 0%     17.08k ± 0%  -5.53% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes10000-12     180.3k ± 0%     170.3k ± 0%  -5.55% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes100000-12    1.804M ± 0%     1.704M ± 0%  -5.54% (p=0.000 n=10)
+    TypeFieldsCache/MissTypes1000000-12   18.04M ± 0%     17.04M ± 0%  -5.54% (p=0.000 n=10)
+    TypeFieldsCache/HitTypes1-12           0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes10-12          0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes100-12         0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes1000-12        0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes10000-12       0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes100000-12      0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    TypeFieldsCache/HitTypes1000000-12     0.000 ± 0%      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                                           ²                -2.49%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+    Change-Id: I62b8f524f5747f4f1b9241a1d849efeef1851049
+    GitHub-Last-Rev: d16772d4fb44f76e2688e15f1bdfc7db14bb55c6
+    GitHub-Pull-Request: golang/go#67046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/encoding/json/encode.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

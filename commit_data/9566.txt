@@ -1,0 +1,12 @@
+commit 0c6581cc25e95b554d810b1fbbb912390f235afe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 31 13:05:49 2011 -0400
+
+    syscall: handle routing entry in ParseRoutingSockaddr on BSD variants
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4972053
+
+ src/pkg/syscall/route_bsd.go | 49 +++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 46 insertions(+), 3 deletions(-)

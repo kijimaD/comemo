@@ -1,0 +1,19 @@
+commit 07a25a9f6e46e83a6335d43b0174dfb250bca960
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 15 13:58:44 2023 -0400
+
+    runtime: pass M to traceReleaseBuffer
+    
+    This change is a no-op, but makes the acquire-release pair
+    traceAcquireBuffer / traceReleaseBuffer more explicit, since the former
+    does acquirem and the latter releasm.
+    
+    Change-Id: If8a5b1ba8709bf6f39c8ff27b2d3e0c0b0da0e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476575
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

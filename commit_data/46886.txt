@@ -1,0 +1,21 @@
+commit fbdf83072c413943ccbd3b556654276126117463
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 21:36:03 2021 -0700
+
+    go/types: avoid infinite expansion for invalid recursive generic types
+    
+    This is a clean port of CL 355732 from types2 to go/types.
+    
+    Fixes #48951.
+    
+    Change-Id: I9f8cc0655166835d9450608f6e50b726659a73f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355733
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/decl.go                           | 14 ++++++++++++--
+ src/go/types/testdata/check/issues.go2         |  4 ++--
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue39938.go2 | 12 +++++++-----
+ src/go/types/testdata/fixedbugs/issue48951.go2 | 21 +++++++++++++++++++++
+ 5 files changed, 44 insertions(+), 11 deletions(-)

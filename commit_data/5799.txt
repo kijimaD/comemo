@@ -1,0 +1,14 @@
+commit 041d11623f0332feacb15d3e10e29eec8c64200f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 13 16:23:54 2010 -0700
+
+    Go specification: Lock down some details about channels and select:
+    - nil channel in regular send or receive panics
+    - empty select blocks forever
+    
+    R=rsc, gri, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/1825043
+
+ doc/go_spec.html | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

@@ -1,0 +1,29 @@
+commit 862ba63823e23202e50d7b756e37809c4eddf54b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 12:05:00 2018 -0500
+
+    cmd/go: reject GOCACHE=off when the default cache is initialized
+    
+    Allow GOCACHE=off only for operations that never actually write
+    anything to the cache (in which case the GOCACHE setting should not
+    matter at all).
+    
+    Fixes #29127
+    
+    Change-Id: I733d02cd2fbcf3671f5adcfb73522865d131e360
+    Reviewed-on: https://go-review.googlesource.com/c/153462
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.12.html                                    |  8 +--
+ src/cmd/dist/test.go                               |  2 -
+ src/cmd/go/go_test.go                              | 60 +------------------
+ src/cmd/go/internal/cache/default.go               | 48 ++++++----------
+ src/cmd/go/internal/cache/default_unix_test.go     | 67 ----------------------
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  5 +-
+ src/cmd/go/testdata/script/build_nocache.txt       | 19 ++++++
+ .../go/testdata/script/build_relative_pkgdir.txt   |  7 +++
+ .../go/testdata/script/build_relative_tmpdir.txt   | 16 ++++++
+ src/cmd/go/testdata/script/cache_unix.txt          | 34 +++++++++++
+ 10 files changed, 103 insertions(+), 163 deletions(-)

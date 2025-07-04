@@ -1,0 +1,18 @@
+commit 78d0f8c870f9bc6e2f6dde22d3191e33be8d0c8f
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 14:57:53 2021 -0400
+
+    go/types: fix type set printing and add a test
+    
+    This is a port of CL 344873 to go/types.
+    
+    Change-Id: Iad41d6de166214178adf2123ac05023895f5208b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346435
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/typeset.go      | 12 ++++----
+ src/go/types/typeset_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 72 insertions(+), 8 deletions(-)

@@ -1,0 +1,23 @@
+commit ab15a978fb9d5b9caa68b103377720c27b779468
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 3 13:51:47 2011 -0500
+
+    cgo: os/arch dependent #cgo directives
+    
+    This enables #cgo directives to contain a os/arch
+    specification which restricts the definition of
+    the given option to matching systems.
+    
+    For example:
+    
+    #cgo amd64 CFLAGS: -DAMD64=1
+    #cgo linux CFLAGS: -DLINUX=1
+    #cgo linux/amd64 CFLAGS: -DLINUX_ON_AMD64=1
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4121048
+
+ src/cmd/cgo/doc.go |  5 ++++-
+ src/cmd/cgo/gcc.go | 25 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 17805ddb6f0cb503173731165721f0ee93bab284
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jun 18 20:31:38 2011 +1000
+
+    doc/faq: add question about converting from []T to []interface{}
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4639046
+
+ doc/go_faq.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

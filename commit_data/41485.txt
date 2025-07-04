@@ -1,0 +1,19 @@
+commit c40914b7265b6b73053e21fe595fcde2aec9dcde
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 10:54:34 2020 -0500
+
+    cmd/go: convert TestGoBuildARM to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: If1e591f28d6399a07b37ed7f4a1419bf7cd915eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214425
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                    | 20 --------------------
+ src/cmd/go/testdata/script/build_arm.txt | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 20 deletions(-)

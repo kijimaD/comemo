@@ -1,0 +1,11 @@
+commit 32ea9f51f232262dee5be1bb9d71391964bda4d5
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Nov 6 15:58:23 2009 -0800
+
+    arm port description.
+    
+    R=r
+    http://go/go-review/1026010
+
+ doc/install.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

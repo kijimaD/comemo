@@ -1,0 +1,50 @@
+commit cedb561617ea40c72dc018b38c4d5f0862595fe8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 5 13:44:36 2019 +0200
+
+    syscall: don't use deprecated syscalls on linux/arm64
+    
+    Reimplement syscall wrappers for linux/arm64 in terms of supported
+    syscalls (or in case of Ustat make it return ENOSYS) and remove the
+    manually added SYS_* consts for the deprecated syscalls. Adapted from
+    golang.org/x/sys/unix where this is already done since CL 119655.
+    
+    Change-Id: I94ab48a4645924df3822497d0575f1a1573d509f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199140
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go           |  14 +--
+ src/syscall/syscall_linux_386.go       |   7 +-
+ src/syscall/syscall_linux_amd64.go     |   8 ++
+ src/syscall/syscall_linux_arm.go       |   7 +-
+ src/syscall/syscall_linux_arm64.go     |  75 +++++++++++----
+ src/syscall/syscall_linux_mips64x.go   |   7 ++
+ src/syscall/syscall_linux_mipsx.go     |   6 ++
+ src/syscall/syscall_linux_ppc64x.go    |   8 +-
+ src/syscall/syscall_linux_s390x.go     |   9 +-
+ src/syscall/types_linux.go             |   2 +
+ src/syscall/zsyscall_linux_386.go      | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_amd64.go    | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_arm.go      | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_arm64.go    |  81 +---------------
+ src/syscall/zsyscall_linux_mips.go     | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_mips64.go   | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_mips64le.go | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_mipsle.go   | 147 +++++++++++++++--------------
+ src/syscall/zsyscall_linux_ppc64.go    | 163 +++++++++++++++++----------------
+ src/syscall/zsyscall_linux_ppc64le.go  | 163 +++++++++++++++++----------------
+ src/syscall/zsyscall_linux_s390x.go    | 163 +++++++++++++++++----------------
+ src/syscall/ztypes_linux_386.go        |   6 ++
+ src/syscall/ztypes_linux_amd64.go      |   6 ++
+ src/syscall/ztypes_linux_arm.go        |   6 ++
+ src/syscall/ztypes_linux_arm64.go      |   6 ++
+ src/syscall/ztypes_linux_mips.go       |   6 ++
+ src/syscall/ztypes_linux_mips64.go     |   6 ++
+ src/syscall/ztypes_linux_mips64le.go   |   6 ++
+ src/syscall/ztypes_linux_mipsle.go     |   6 ++
+ src/syscall/ztypes_linux_ppc64.go      |   6 ++
+ src/syscall/ztypes_linux_ppc64le.go    |   6 ++
+ src/syscall/ztypes_linux_s390x.go      |   6 ++
+ 32 files changed, 965 insertions(+), 843 deletions(-)

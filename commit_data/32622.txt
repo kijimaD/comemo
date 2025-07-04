@@ -1,0 +1,16 @@
+commit 261a8d9abdc569a864a2cde37f9b5697501a212d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 6 21:13:06 2017 +0200
+
+    testing: use time.Since instead of time.Now().Sub
+    
+    Change-Id: Ia0479f65a6ef033a65acf9ac8692777839a53b8c
+    Reviewed-on: https://go-review.googlesource.com/61990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ src/testing/example.go   | 2 +-
+ src/testing/testing.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

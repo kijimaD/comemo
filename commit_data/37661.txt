@@ -1,0 +1,32 @@
+commit 05bbec7357a22e2ddd238c2f8741f0f4c779eb80
+Author: Keith Randall <khr@google.com>
+Date:   Tue Dec 11 16:12:57 2018 -0800
+
+    cmd/compile: don't combine load+op if the op has SymAddr arguments
+    
+    By combining the load+op, we may force the op to happen earlier in
+    the store chain. That might force the SymAddr operation earlier, and
+    in particular earlier than its corresponding VarDef. That leads to
+    an invalid schedule, so avoid that.
+    
+    This is kind of a hack to work around the issue presented. I think
+    the underlying problem, that LEAQ is not directly ordered with respect
+    to its vardef, is the real problem. The benefit of this CL is that
+    it fixes the immediate issue, is small, and obviously won't break
+    anything. A real fix for this issue is much more invasive.
+    
+    The go binary is unchanged in size.
+    This situation just doesn't occur very often.
+    
+    Fixes #28445
+    
+    Change-Id: I13a765e13f075d5b6808a355ef3c43cdd7cd47b6
+    Reviewed-on: https://go-review.googlesource.com/c/153641
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/plive.go    |  2 ++
+ src/cmd/compile/internal/ssa/rewrite.go | 14 ++++++++++++++
+ test/fixedbugs/issue28445.go            | 16 ++++++++++++++++
+ 3 files changed, 32 insertions(+)

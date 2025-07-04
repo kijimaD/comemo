@@ -1,0 +1,14 @@
+commit 485d67bd38c94617921f55b99e89be0e9cbda39d
+Author: Matt Layher <mdlayher@planetscale.com>
+Date:   Thu Mar 17 19:26:55 2022 -0400
+
+    A+C: add PlanetScale, Inc.
+    
+    Change-Id: Ide2567dc66e55880b938b5814879f012c88159b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393697
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matt Layher <mdlayher@gmail.com>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

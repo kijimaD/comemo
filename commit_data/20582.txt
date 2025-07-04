@@ -1,0 +1,22 @@
+commit 5368e63b57f742495fcbbb82bb15772b761004bf
+Author: Tom Linford <tomlinford@gmail.com>
+Date:   Tue Sep 30 09:51:49 2014 +1000
+
+    x509: add root certs for android.
+    
+    On android, root certificates appear to be stored in the folder
+    /system/etc/security/cacerts, which has many certs in several
+    different files. This change adds a new array of directories in
+    which certs can be found.
+    
+    To test this, I simply tried making a request with the http
+    library to an HTTPS URL on an android emulator and manually
+    verified that it worked.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, gobot, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/151800043
+
+ src/crypto/x509/root_unix.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

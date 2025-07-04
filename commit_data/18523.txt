@@ -1,0 +1,13 @@
+commit f0023cf1d57aabd8c0aa30a65eef9ec7de041eb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 14 00:43:43 2014 -0500
+
+    cmd/gc: fix build for 'default unsigned char' compilers
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63680045
+
+ src/cmd/gc/plive.c | 2 +-
+ src/cmd/gc/popt.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

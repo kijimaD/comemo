@@ -1,0 +1,20 @@
+commit 531e3fe311c01f8c5adb37517c3293f064880773
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 12:40:56 2009 -0700
+
+    - fix regexp once more in doc.go:
+      comment markers must only be stripped if they are
+      at the very beginning otherwise comments that contain
+      code with comments get screwed up (the ast delivers clean
+      comments with no junk before or after)
+    
+    - fix indentation in google/net/rpc/rpc.go which screwed up
+      godoc formatting
+    
+    R=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=29223
+    CL=29267
+
+ src/lib/go/doc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

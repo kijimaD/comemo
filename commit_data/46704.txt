@@ -1,0 +1,20 @@
+commit 64da5e0fd5979ba489e03cedf3c63c21f8bfcefe
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri Oct 1 09:05:13 2021 +0000
+
+    net/http/pprof: use "curl" instead of "wget" in usage example
+    
+    The "curl" binary is already used at several other places inside
+    the code base, whereas this was the only occurrence of "wget".
+    
+    Change-Id: I2b9c5c353d08b3ba8289819b4a602c51f1ebd593
+    GitHub-Last-Rev: abf94855223c4ceac08dd0d18c5a2b97d1abcca9
+    GitHub-Pull-Request: golang/go#48718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353401
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 2dc7552f5701c110fd54609fc8eed421cef7f20f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 28 17:35:00 2014 +1100
+
+    runtime: ignore windows exception if not in Go binary
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/80400043
+
+ src/pkg/runtime/os_windows_386.c   | 11 +++++++++--
+ src/pkg/runtime/os_windows_amd64.c | 11 +++++++++--
+ src/pkg/runtime/sys_windows_386.s  | 31 ++++++-------------------------
+ 3 files changed, 24 insertions(+), 29 deletions(-)

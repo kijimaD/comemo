@@ -1,0 +1,15 @@
+commit 4306352182bf94f86f0cfc6a8b0ed461cbf1d82c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 11:49:53 2015 -0500
+
+    math/big: fix carry propagation in Int.Exp Montgomery code
+    
+    Fixes #13515.
+    
+    Change-Id: I7dd5fbc816e5ea135f7d81f6735e7601f636fe4f
+    Reviewed-on: https://go-review.googlesource.com/17672
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go      | 29 +++++++++++----
+ src/math/big/nat_test.go | 95 +++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 103 insertions(+), 21 deletions(-)

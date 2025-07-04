@@ -1,0 +1,13 @@
+commit 8ef0d181f6c05a8c500ad7a47a7d01d5ed92caf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 16 17:47:54 2011 -0400
+
+    A+C: Gary Burd (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4519064
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

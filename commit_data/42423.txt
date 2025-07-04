@@ -1,0 +1,24 @@
+commit 7dbbb5bacf4e52bc4efbd3caecdebf6ffb730783
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat May 30 16:34:23 2020 +0200
+
+    cmd/cgo,cmd/fix,misc/cgo: map the EGLConfig C type to uintptr in Go
+    
+    Similarly to EGLDisplay, EGLConfig is declared as a pointer but may
+    contain non-pointer values.
+    
+    I believe this is the root cause of https://todo.sr.ht/~eliasnaur/gio/121.
+    
+    Change-Id: I412c4fbc2eef4aa028534d68bda95db98e3a365d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235817
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/testdata/issue27054/egl.h        |   1 +
+ misc/cgo/test/testdata/issue27054/test27054.go |   6 +-
+ src/cmd/cgo/doc.go                             |   9 +-
+ src/cmd/cgo/gcc.go                             |   8 +-
+ src/cmd/fix/egltype.go                         |  28 ++++-
+ src/cmd/fix/egltype_test.go                    | 141 +++++++++++++------------
+ 6 files changed, 117 insertions(+), 76 deletions(-)

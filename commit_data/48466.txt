@@ -1,0 +1,22 @@
+commit 63c7614fd05052009c1eee061964241e4d73c6a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 21:50:54 2022 -0800
+
+    go/types, types2: factor out isInterface(x) && !isTypeParam(x) (cleanup)
+    
+    Fixes #51581.
+    
+    Change-Id: I3232428edd7dd86f2930af950fb5841f7394c4e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391834
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go |  2 +-
+ src/cmd/compile/internal/types2/conversions.go |  2 +-
+ src/cmd/compile/internal/types2/expr.go        | 13 ++++++++++---
+ src/cmd/compile/internal/types2/predicates.go  |  5 +++++
+ src/go/types/assignments.go                    |  2 +-
+ src/go/types/conversions.go                    |  2 +-
+ src/go/types/expr.go                           | 13 ++++++++++---
+ src/go/types/predicates.go                     |  5 +++++
+ 8 files changed, 34 insertions(+), 10 deletions(-)

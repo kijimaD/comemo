@@ -1,0 +1,17 @@
+commit 9139089ee5d3e0724157ca79e7cc2f23a0c750a7
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Sat Jun 13 11:25:17 2015 -0400
+
+    net/http: add comment to exported ErrNoCookie and ErrNoLocation values
+    
+    All other exported errors in net/http are commented.  This change adds
+    documentation to ErrNoCookie and ErrNoLocation to explain where they are
+    returned, and why.
+    
+    Change-Id: I21fa0d070dd35256681ad0714000f238477d4af1
+    Reviewed-on: https://go-review.googlesource.com/11044
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/request.go  | 1 +
+ src/net/http/response.go | 2 ++
+ 2 files changed, 3 insertions(+)

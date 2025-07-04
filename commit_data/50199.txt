@@ -1,0 +1,21 @@
+commit 3486735bf2ca08dcd84bb820fdcb0dea8102cf82
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 6 13:54:28 2022 +0100
+
+    net/http/pprof: link docs to runtime/pprof
+    
+    And add some documentation for the debug query param.
+    
+    Fixes #27737
+    Fixes #53971
+    
+    Change-Id: I629aaa2d4a43175381eb04872f1caad238519a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421635
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/pprof/pprof.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

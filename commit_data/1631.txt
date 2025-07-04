@@ -1,0 +1,14 @@
+commit 39d05ae808849f09cceb07b7970e6f493a0822e2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 6 14:32:09 2009 -0800
+
+    add a trivial visitor method, just for fun
+    
+    R=gri
+    DELTA=31  (30 added, 1 deleted, 0 changed)
+    OCL=24568
+    CL=24575
+
+ src/lib/container/array/array.go      |  7 +++++++
+ src/lib/container/array/array_test.go | 24 +++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 7fd9cfd0cc74756ffa1cb9ac58f847b7c583c4ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 10 15:40:19 2009 -0700
+
+    - parser bug: return keyword may be followed by case or default keyword as well
+    - fixed unrelated typo
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=30175
+    CL=30175
+
+ src/pkg/go/parser/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

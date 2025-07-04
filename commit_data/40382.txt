@@ -1,0 +1,20 @@
+commit 5f92939c9040c33ed19893a6b369b3dbbd3c5837
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 08:53:42 2019 -0700
+
+    runtime: update timejump function for new timers
+    
+    Since timers are now on a P, rather than having a G running timerproc,
+    timejump changes to return a P rather than a G.
+    
+    Updates #27707
+    
+    Change-Id: I3d05af2d664409a0fd906e709fdecbbcbe00b9a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 61 ++++++++++++++++++++++++++++++++++++++++-------------
+ src/runtime/time.go | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 106 insertions(+), 16 deletions(-)

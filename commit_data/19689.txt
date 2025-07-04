@@ -1,0 +1,13 @@
+commit a6cc6347669408a2d72779743d32588c9a528315
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:31:20 2014 +0200
+
+    os: fix failing test on Plan 9
+    
+    LGTM=0intro, r
+    R=0intro, r
+    CC=ality, dave, golang-codereviews, jas, mischief, rsc
+    https://golang.org/cl/105580044
+
+ src/pkg/os/os_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

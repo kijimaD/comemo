@@ -1,0 +1,31 @@
+commit 194ad16b834daf7ad8fb468845c5532f528970a6
+Author: Michael MacInnis <michael.p.macinnis@gmail.com>
+Date:   Thu Jan 29 22:37:41 2015 -0500
+
+    os/signal: add ability to ignore signals and restore initial signal handlers
+    
+    There is currently no way to ignore signals using the os/signal package.
+    It is possible to catch a signal and do nothing but this is not the same
+    as ignoring it. The new function Ignore allows a set of signals to be
+    ignored. The new function Reset allows the initial handlers for a set of
+    signals to be restored.
+    
+    Fixes #5572
+    
+    Change-Id: I5c0f07956971e3a9ff9b9d9631e6e3a08c20df15
+    Reviewed-on: https://go-review.googlesource.com/3580
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/sig.s              |  3 ++
+ src/os/signal/signal.go          | 57 ++++++++++++++++++++++++++++++++--
+ src/os/signal/signal_plan9.go    |  5 +++
+ src/os/signal/signal_test.go     | 66 ++++++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal_unix.go     |  5 +++
+ src/runtime/os1_nacl.go          |  1 +
+ src/runtime/os1_windows_386.go   |  3 ++
+ src/runtime/os1_windows_amd64.go |  3 ++
+ src/runtime/os3_plan9.go         |  3 ++
+ src/runtime/signal1_unix.go      | 12 ++++++++
+ src/runtime/sigqueue.go          |  9 ++++++
+ src/runtime/sigqueue_plan9.go    |  4 +++
+ 12 files changed, 169 insertions(+), 2 deletions(-)

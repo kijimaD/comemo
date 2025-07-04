@@ -1,0 +1,25 @@
+commit a26d687ebb23fa14b777ef5bf69b56556124ff3b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 18:18:23 2020 -0400
+
+    cmd/go: propagate context into Action.Func calls
+    
+    Action.Func is now a func(*Builder, context.Context, *Action), so that
+    contexts can be propagated into the action funcs. While context
+    is traditionally the first parameter of a function, it's the second
+    parameter of Action.Func's type to continue to allow for methods
+    on Builder to be used as functions taking a *Builder as the first
+    parameter. context.Context is instead the first parameter on
+    those functions.
+    
+    Change-Id: I5f058d6a99a1e96fe2025f2e8ce30a033d12e935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248321
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/run/run.go     |  2 +-
+ src/cmd/go/internal/test/test.go   | 10 +++++-----
+ src/cmd/go/internal/work/action.go | 15 ++++++++-------
+ src/cmd/go/internal/work/exec.go   | 17 ++++++++---------
+ 4 files changed, 22 insertions(+), 22 deletions(-)

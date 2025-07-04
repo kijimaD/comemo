@@ -1,0 +1,12 @@
+commit fc57c4b7a982979b7ed2f62af10b2b1c3cbcf8fb
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Fri Jun 24 11:19:48 2011 -0700
+
+    misc/emacs: update list of builtins.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4630065
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

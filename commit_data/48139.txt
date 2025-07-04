@@ -1,0 +1,17 @@
+commit ca3fae1e0e2a4d7d1a6ba9eeb137d1d0f001e0a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 21:49:10 2022 -0800
+
+    spec: use the term "generic" rather than "(type-)parameterized"
+    
+    This makes the prose easier to read while being just as precise.
+    
+    Change-Id: Ie46c6c5042f419de9fdeb1c75bb72b5a40c37073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384774
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go_spec.html | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

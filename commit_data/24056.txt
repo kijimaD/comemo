@@ -1,0 +1,16 @@
+commit 397b4f6cbff1c462abc25b60358298d3308d13f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 22 20:31:55 2015 -0700
+
+    cmd/internal/obj: delete Debugzerostack dead code
+    
+    Fixes #11060
+    
+    Change-Id: I4c6647fc2f103015b67e30dc2cdb6f771526c139
+    Reviewed-on: https://go-review.googlesource.com/13840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm/obj5.go | 59 ----------------------------------------
+ src/cmd/internal/obj/link.go     |  1 -
+ src/cmd/internal/obj/x86/obj6.go | 45 ------------------------------
+ 3 files changed, 105 deletions(-)

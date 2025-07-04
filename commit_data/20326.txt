@@ -1,0 +1,29 @@
+commit b6951bcc0bb081bdd46e3509bd5d4e2c1fa87323
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 21:16:13 2014 -0400
+
+    runtime: increase stack split limit again
+    
+    Increase NOSPLIT reservation from 192 to 384 bytes.
+    The problem is that the non-Unix systems (Solaris and Windows)
+    just can't make system calls in a small amount of space,
+    and then worse they do things that are complex enough
+    to warrant calling runtime.throw on failure.
+    We don't have time to rewrite the code to use less stack.
+    
+    I'm not happy about this, but it's still a small amount.
+    
+    The good news is that we're doing this to get to only
+    using copying stacks for stack growth. Once that is true,
+    we can drop the default stack size from 8k to 4k, which
+    should more than make up for the bytes we're losing here.
+    
+    LGTM=r
+    R=iant, r, bradfitz, aram.h
+    CC=golang-codereviews
+    https://golang.org/cl/140350043
+
+ src/pkg/runtime/stack.go | 92 ------------------------------------------------
+ src/pkg/runtime/stack.h  |  4 +--
+ test/nosplit.go          |  4 +--
+ 3 files changed, 4 insertions(+), 96 deletions(-)

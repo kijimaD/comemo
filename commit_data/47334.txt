@@ -1,0 +1,33 @@
+commit 7ee3f1427b079bb363689321b0565ba7b03de03e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 5 23:35:58 2021 +0000
+
+    runtime: disable GC during debug call tests
+    
+    Currently the debug call protocol implementation we use for testing is
+    riddled with write barriers, and called from a signal handler. This is
+    not safe, as write barriers need a P to execute.
+    
+    Ideally this implementation would be rewritten to avoid the write
+    barriers, but it's not straightforward, and needs some thought. As a
+    temporary measure, disable GC during the debug call tests to avoid a
+    write barrier.
+    
+    Note that this does not indicate a problem with real use of the debug
+    call protocol. Only our test implementation has this issue, because it
+    needs to get executed in a signal handler, normally a separate process
+    is interfacing with the protocol via process signals and ptrace (and the
+    like).
+    
+    Fixes #49370.
+    
+    Change-Id: Ic0fde5d0f4c64f9ecc9789b7dabb3954538fe0a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361896
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/debug_test.go        | 42 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/export_debug_test.go | 10 +++++++++-
+ 2 files changed, 51 insertions(+), 1 deletion(-)

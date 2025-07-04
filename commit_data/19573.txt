@@ -1,0 +1,16 @@
+commit 57964db3cb2ec2f3cbb1011a17a8c71d9d2c5b07
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Thu Jun 19 22:18:24 2014 +1000
+
+    image/jpeg: encode *image.Gray as grayscale JPEGs.
+    
+    Fixes #8201.
+    
+    LGTM=nigeltao
+    R=nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/105990046
+
+ src/pkg/image/jpeg/writer.go      | 131 ++++++++++++++++++++++++++++----------
+ src/pkg/image/jpeg/writer_test.go |  28 ++++++++
+ 2 files changed, 124 insertions(+), 35 deletions(-)

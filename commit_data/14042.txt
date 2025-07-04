@@ -1,0 +1,15 @@
+commit f2444f0bc18d9b3d61d115ac29479d7ff3c4f829
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 11:30:47 2012 +1100
+
+    image/jpeg: clean up BenchmarkDecode and BenchmarkEncode to not
+    refer to opacity. Those references were copy/pasted from the
+    image/png encoding benchmarks, which cares whether or not the
+    source image is opaque, but the JPEG encoder does not care.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6623052
+
+ src/pkg/image/jpeg/writer_test.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

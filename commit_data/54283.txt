@@ -1,0 +1,17 @@
+commit 7a4787d12a23f75c670f618a049eaaac69eb4016
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 31 16:26:29 2023 -0700
+
+    go/types, types2: fix doc string
+    
+    Change-Id: I9ab93c90d128d0abd0c84c7520f8c72983fee79b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524975
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/named.go | 2 +-
+ src/go/types/named.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

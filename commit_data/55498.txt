@@ -1,0 +1,22 @@
+commit 18840865d22d58ac97b79c6a972dacada3d9215b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 1 12:14:41 2024 -0500
+
+    Revert "runtime: preempt more aggressively when panicking"
+    
+    This reverts CL 546135.
+    
+    Reason for revert: Causes occasional throw during panic
+    
+    For #65416.
+    
+    Change-Id: I78c15637da18f85ede785363b777aa7d1dead3c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/os_windows.go  |  2 +-
+ src/runtime/preempt.go     | 15 ++-------------
+ src/runtime/signal_unix.go |  2 +-
+ 3 files changed, 4 insertions(+), 15 deletions(-)

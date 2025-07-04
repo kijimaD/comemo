@@ -1,0 +1,13 @@
+commit d4edee3dd0c562c22a8966f2dfad01e2eafa5d5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 17:07:24 2008 -0700
+
+    prototype nit
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=15906
+    CL=15909
+
+ src/cmd/prof/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

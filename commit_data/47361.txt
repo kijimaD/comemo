@@ -1,0 +1,17 @@
+commit f59d36d2e3f0707c8bf2b157009ffc38a9b74d25
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 11:19:20 2021 -0500
+
+    go/types: make object test an external test
+    
+    This is a port of CL 361409 to go/types.
+    
+    Change-Id: I17ccf8a5b4ba715fd8a87ea2c1811700fb1157e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362538
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/object_test.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

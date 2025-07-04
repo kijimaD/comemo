@@ -1,0 +1,19 @@
+commit 1284d7d403875d11cff97dfb7c946a7ee11e1569
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 11:48:27 2015 +0200
+
+    net/url: don't escape star requests when writing requests
+    
+    Includes a new net/http test too.
+    
+    Fixes #11202
+    
+    Change-Id: I61edc594f4de8eb6780b8dfa221269dd482e8f35
+    Reviewed-on: https://go-review.googlesource.com/11492
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/request_test.go | 26 ++++++++++++++++++++++++++
+ src/net/url/url.go           |  3 +++
+ src/net/url/url_test.go      | 11 +++++++++++
+ 3 files changed, 40 insertions(+)

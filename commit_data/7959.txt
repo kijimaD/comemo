@@ -1,0 +1,14 @@
+commit 69819c2ea303d105ccdf294dbf4e5b6804670627
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Sun Apr 3 08:52:43 2011 -0700
+
+    os: add a few missing plan9 errors
+    
+    these were needed by packages in crypto/ and by io/ioutil
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4350047
+
+ src/pkg/os/error_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

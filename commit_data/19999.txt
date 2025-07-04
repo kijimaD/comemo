@@ -1,0 +1,20 @@
+commit aa549ce449a0edccea03b7f4912ee3f9fa9b9b38
+Author: Thiago Fransosi Farina <thiago.farina@gmail.com>
+Date:   Wed Aug 13 06:47:30 2014 -0700
+
+    cmd/dist: Reuse streq whenever possible.
+    
+    Basically this cleanup replaces all the usage usages of strcmp() == 0,
+    found by the following command line:
+    
+    $ grep -R strcmp cmd/dist | grep "0"
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/123330043
+
+ src/cmd/dist/plan9.c   |  6 +++---
+ src/cmd/dist/unix.c    | 16 ++++++++--------
+ src/cmd/dist/windows.c |  4 ++--
+ 3 files changed, 13 insertions(+), 13 deletions(-)

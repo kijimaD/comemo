@@ -1,0 +1,39 @@
+commit 17105870ffbcdf8c68c1ee9cb399f71b3fbc8f81
+Author: Michał Derkacz <ziutek@lnet.pl>
+Date:   Wed Nov 9 16:01:17 2011 -0500
+
+    6l: add MOVQ xmm_reg, xmm_reg
+    
+    Added handler for:
+            MOVQ xmm_reg, xmm_reg/mem64
+            MOVQ xmm_reg/mem64, xmm_reg
+    using native MOVQ (it take precedence above REX.W MOVD)
+    I don't understood 6l code enough to be sure that my small changes
+    didn't broke it. But now 6l works with MOVQ xmm_reg, xmm_reg and
+    all.bash reports "0 unexpected bugs".
+    
+    There is test assembly source:
+    MOVQ    X0, X1
+    MOVQ    AX, X1
+    MOVQ    X1, AX
+    MOVQ    xxx+8(FP), X2
+    MOVQ    X2, xxx+8(FP)
+    
+    and generated code (gdb disassemble /r):
+    
+    0x000000000040f112 <+0>:   f3 0f 7e c8        movq  %xmm0,%xmm1
+    0x000000000040f116 <+4>:   66 48 0f 6e c8     movq  %rax,%xmm1
+    0x000000000040f11b <+9>:   66 48 0f 7e c8     movq  %xmm1,%rax
+    0x000000000040f120 <+14>:  f3 0f 7e 54 24 10  movq  0x10(%rsp),%xmm2
+    0x000000000040f126 <+20>:  66 0f d6 54 24 10  movq  %xmm2,0x10(%rsp)
+    
+    Fixes #2418.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5316076
+
+ src/cmd/6l/l.h     | 2 +-
+ src/cmd/6l/optab.c | 5 +++--
+ src/cmd/6l/span.c  | 4 ----
+ 3 files changed, 4 insertions(+), 7 deletions(-)

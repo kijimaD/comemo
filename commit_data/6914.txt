@@ -1,0 +1,14 @@
+commit ae605268488e49f4c4f0e46ac0fb69d7129d9f0c
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 9 14:45:27 2010 -0800
+
+    arm floating point simulation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3565041
+
+ src/cmd/5l/softfloat.c          |  17 +-
+ src/pkg/runtime/arm/softfloat.c | 748 ++++++++++++++++++++++------------------
+ src/pkg/runtime/runtime.h       |   4 +-
+ 3 files changed, 431 insertions(+), 338 deletions(-)

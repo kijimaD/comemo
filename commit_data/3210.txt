@@ -1,0 +1,14 @@
+commit 33be0c6465e9650c3eb5a9cffe70ac727cc383ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 15:45:43 2009 -0700
+
+    nil in DeepEqual
+    
+    R=r
+    DELTA=13  (5 added, 6 deleted, 2 changed)
+    OCL=34337
+    CL=34343
+
+ src/pkg/reflect/all_test.go  |  2 ++
+ src/pkg/reflect/deepequal.go | 13 +++++--------
+ 2 files changed, 7 insertions(+), 8 deletions(-)

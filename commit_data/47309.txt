@@ -1,0 +1,22 @@
+commit 035963c7f5d82b5bf1501f407919031f815bd038
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 31 23:13:18 2021 -0400
+
+    crypto/tls: set default minimum client version to TLS 1.2
+    
+    Updates #45428
+    
+    Change-Id: I5d70066d4091196ec6f8bfc2edf3d78fdc0520c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359779
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/common.go                 | 38 +++++++++++++++++++++++++-------
+ src/crypto/tls/handshake_client.go       |  8 +++----
+ src/crypto/tls/handshake_server.go       |  6 ++---
+ src/crypto/tls/handshake_server_test.go  | 20 ++++++++++++++++-
+ src/crypto/tls/handshake_server_tls13.go |  2 +-
+ src/crypto/tls/handshake_test.go         |  2 ++
+ 6 files changed, 59 insertions(+), 17 deletions(-)

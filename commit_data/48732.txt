@@ -1,0 +1,33 @@
+commit ae3d890202b2356fc0936f84349bdf08083884ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 08:59:56 2022 -0400
+
+    go/doc/comment: parse and print identifiers, automatic links
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement parsing and printing of unmarked identifiers
+    and automatic URL links in plain text.
+    
+    For #51082.
+    
+    Change-Id: Ib83ad482937501a6fc14fa788eab289533a68e3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397280
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/html.go            | 10 +++++
+ src/go/doc/comment/markdown.go        | 10 +++++
+ src/go/doc/comment/parse.go           | 75 ++++++++++++++++++++++++++++++++++-
+ src/go/doc/comment/print.go           |  4 ++
+ src/go/doc/comment/testdata/hello.txt |  6 +--
+ src/go/doc/comment/testdata/link.txt  | 17 ++++++++
+ src/go/doc/comment/testdata/para.txt  | 17 ++++++++
+ src/go/doc/comment/testdata/text2.txt | 14 +++++++
+ src/go/doc/comment/testdata/words.txt | 10 +++++
+ src/go/doc/comment/testdata_test.go   | 13 +++++-
+ src/go/doc/comment/text.go            | 16 +++++++-
+ 11 files changed, 185 insertions(+), 7 deletions(-)

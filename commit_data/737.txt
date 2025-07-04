@@ -1,0 +1,15 @@
+commit 6270e70b76af180747a3ac5be2a230ee3621bfd2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 25 20:31:03 2008 -0700
+
+    Add test case for 6g bug: result variable does not hide the
+    package name in the scope.
+    
+    R=r
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=15913
+    CL=15926
+
+ test/bugs/bug107.go | 14 ++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 17 insertions(+)

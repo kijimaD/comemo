@@ -1,0 +1,20 @@
+commit 68a32ced0f7b1b9abf9fd948db53c668ef6b1c66
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Wed Jul 12 19:07:55 2023 +0800
+
+    cmd/compile/internal/mips: use hardware NOP instruction as NOOP on mips platform
+    
+    This CL uses mips hardware NOP instruction as NOOP on mips platform, instead of pseudo NOP "nor $zero,$zero,$zero".
+    
+    Change-Id: I336e1ba4228b71e6bfc6be66b367a4327fb3b36e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509015
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/mips/ggen.go   | 6 +-----
+ src/cmd/compile/internal/mips64/ggen.go | 6 +-----
+ 2 files changed, 2 insertions(+), 10 deletions(-)

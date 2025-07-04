@@ -1,0 +1,25 @@
+commit c9888bdfe2cdd85d14d7d184863d2e8bc42ff73c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 30 13:23:00 2023 -0700
+
+    cmd/internal/obj/arm64: fix frame pointer restore in epilogue
+    
+    For leaf but nonzero-frame functions.
+    
+    Currently we're not restoring it properly. We also need to restore
+    it before popping the stack frame, so that the frame won't get
+    clobbered by a signal handler in the meantime.
+    
+    Fixes #63830
+    
+    Needs a test, but I'm not at all sure how we would actually do that. Leaving for inspiration.
+    
+    Change-Id: I273a25f2a838f05a959c810145cccc5428eaf164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

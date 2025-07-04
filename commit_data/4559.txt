@@ -1,0 +1,26 @@
+commit d635d846f47396efd0cb0c953c7591a0c83fca0f
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jan 7 18:45:45 2010 -0800
+
+    Add builder scripts.
+    
+    These are the scripts behind godashboard.appspot.com. Nothing is
+    particularly beautiful about it, but it does run.
+    
+    I still need to add support for per-builder keys and for running the
+    benchmarks.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183153
+
+ misc/dashboard/README                          |  33 +++
+ misc/dashboard/buildcontrol.py                 | 193 +++++++++++++++++
+ misc/dashboard/builder.sh                      |  64 ++++++
+ misc/dashboard/godashboard/_multiprocessing.py |   5 +
+ misc/dashboard/godashboard/app.yaml            |   8 +
+ misc/dashboard/godashboard/gobuild.py          | 285 +++++++++++++++++++++++++
+ misc/dashboard/godashboard/index.yaml          |  16 ++
+ misc/dashboard/godashboard/key.py              |   9 +
+ misc/dashboard/godashboard/main.html           |  84 ++++++++
+ 9 files changed, 697 insertions(+)

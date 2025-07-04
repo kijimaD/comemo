@@ -1,0 +1,16 @@
+commit 62011cfcdfa237e2f6189508f1bf83768e3ecbc6
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 11 15:45:54 2009 -0700
+
+    first cut at gob decoder.
+    
+    R=rsc
+    DELTA=184  (181 added, 1 deleted, 2 changed)
+    OCL=31474
+    CL=31486
+
+ src/pkg/gob/Makefile        |  3 +-
+ src/pkg/gob/decoder.go      | 85 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/encoder_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/gob/type.go         |  2 +-
+ 4 files changed, 184 insertions(+), 3 deletions(-)

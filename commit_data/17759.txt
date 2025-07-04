@@ -1,0 +1,17 @@
+commit 97958827048ae380ffa7ca26b49c60b6bbaa4ff5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 7 16:32:47 2013 -0700
+
+    math: the trig functions work in radians; document that
+    Fixes #6543
+    6543 is also a fine NGC object.
+    
+    R=golang-dev, dsymonds, kamil.kisiel, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/14515044
+
+ src/pkg/math/asin.go | 4 ++--
+ src/pkg/math/atan.go | 2 +-
+ src/pkg/math/sin.go  | 4 ++--
+ src/pkg/math/tan.go  | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

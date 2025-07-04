@@ -1,0 +1,21 @@
+commit 406886b51f88d29f771dea395aecda652ebbe8de
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon May 7 16:18:11 2018 -0500
+
+    net: make IPString benchmarks more representative.
+    
+    We were spending more time in duffcopy than in the String method.
+    Avoid creating a copy of test struct to make benchmark measure performance of
+    String() itself.
+    
+    IPString/IPv4-8     113ns ± 0%      57ns ± 1%  -49.83%  (p=0.000 n=8+10)
+    IPString/IPv6-8     972ns ± 1%     915ns ± 1%   -5.88%  (p=0.000 n=9+10)
+    
+    Change-Id: I5ceff2caa1b8288c43f0cf6c6b3809ca523af1fa
+    Reviewed-on: https://go-review.googlesource.com/111881
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

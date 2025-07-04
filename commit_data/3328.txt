@@ -1,0 +1,49 @@
+commit 11e313ae7221136d28df1e422d0798a363f82cf6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Sep 20 19:08:03 2009 -0700
+
+    Unit tests for image/png, based off the semi-official pngsuite from
+    libpng.org.
+    
+    R=rsc
+    APPROVED=r
+    DELTA=1176  (1175 added, 1 deleted, 0 changed)
+    OCL=34727
+    CL=34838
+
+ src/pkg/Makefile                                   |   1 -
+ src/pkg/image/image.go                             |   4 +
+ src/pkg/image/png/reader_test.go                   | 156 +++++++++++
+ src/pkg/image/png/testdata/pngsuite/README         |   9 +
+ .../image/png/testdata/pngsuite/README.original    |  85 ++++++
+ src/pkg/image/png/testdata/pngsuite/basn0g01.png   | Bin 0 -> 164 bytes
+ src/pkg/image/png/testdata/pngsuite/basn0g01.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn0g02.png   | Bin 0 -> 104 bytes
+ src/pkg/image/png/testdata/pngsuite/basn0g02.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn0g04.png   | Bin 0 -> 145 bytes
+ src/pkg/image/png/testdata/pngsuite/basn0g04.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn0g08.png   | Bin 0 -> 138 bytes
+ src/pkg/image/png/testdata/pngsuite/basn0g08.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn0g16.png   | Bin 0 -> 167 bytes
+ src/pkg/image/png/testdata/pngsuite/basn0g16.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn2c08.png   | Bin 0 -> 145 bytes
+ src/pkg/image/png/testdata/pngsuite/basn2c08.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn2c16.png   | Bin 0 -> 302 bytes
+ src/pkg/image/png/testdata/pngsuite/basn2c16.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn3p01.png   | Bin 0 -> 112 bytes
+ src/pkg/image/png/testdata/pngsuite/basn3p01.sng   |  45 ++++
+ src/pkg/image/png/testdata/pngsuite/basn3p02.png   | Bin 0 -> 146 bytes
+ src/pkg/image/png/testdata/pngsuite/basn3p02.sng   |  50 ++++
+ src/pkg/image/png/testdata/pngsuite/basn3p04.png   | Bin 0 -> 216 bytes
+ src/pkg/image/png/testdata/pngsuite/basn3p04.sng   |  61 +++++
+ src/pkg/image/png/testdata/pngsuite/basn3p08.png   | Bin 0 -> 1286 bytes
+ src/pkg/image/png/testdata/pngsuite/basn3p08.sng   | 299 +++++++++++++++++++++
+ src/pkg/image/png/testdata/pngsuite/basn4a08.png   | Bin 0 -> 126 bytes
+ src/pkg/image/png/testdata/pngsuite/basn4a08.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn4a16.png   | Bin 0 -> 2206 bytes
+ src/pkg/image/png/testdata/pngsuite/basn4a16.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn6a08.png   | Bin 0 -> 184 bytes
+ src/pkg/image/png/testdata/pngsuite/basn6a08.sng   |  41 +++
+ src/pkg/image/png/testdata/pngsuite/basn6a16.png   | Bin 0 -> 3435 bytes
+ src/pkg/image/png/testdata/pngsuite/basn6a16.sng   |  41 +++
+ 35 files changed, 1160 insertions(+), 1 deletion(-)

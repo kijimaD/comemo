@@ -1,0 +1,13 @@
+commit a896869a49ade49a029d1f6bf39e5d2f2f4f4254
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 9 14:51:29 2017 -0500
+
+    go/types: unsafe.Pointer is not an alias
+    
+    Change-Id: Ieb0808caa24c9a5e599084183ba5ee8a6536f7d8
+    Reviewed-on: https://go-review.googlesource.com/36622
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/object.go      | 4 ++++
+ src/go/types/object_test.go | 1 +
+ 2 files changed, 5 insertions(+)

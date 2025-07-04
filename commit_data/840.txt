@@ -1,0 +1,14 @@
+commit 41c462c0a12475b25adbbb9dd9c1b161d8c71906
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 10 12:41:43 2008 -0700
+
+    cat unmatched )
+    delete unused This() in preparation for removing linking via array indexes
+    
+    R=rsc
+    DELTA=26  (2 added, 23 deleted, 1 changed)
+    OCL=16895
+    CL=16909
+
+ usr/r/regexp/regexp.go | 27 +++------------------------
+ 1 file changed, 3 insertions(+), 24 deletions(-)

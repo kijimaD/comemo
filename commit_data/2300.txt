@@ -1,0 +1,12 @@
+commit 798b19bf774bdba24537375fc5c809778f0d445b
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat May 23 16:36:43 2009 -0700
+
+    improvement in registerization
+    
+    R=r
+    OCL=29317
+    CL=29317
+
+ src/cmd/6g/reg.c | 70 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 56 insertions(+), 14 deletions(-)

@@ -1,0 +1,22 @@
+commit 85138da832f8740bee9241e80acb291a4954a10a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 2 13:36:50 2013 -0800
+
+    reflect: prevent the callXX routines from calling makeFuncStub
+    and methodValueCall directly.  Instead, we inline their behavior
+    inside of reflect.call.
+    
+    This change is required because otherwise we have a situation where
+    reflect.callXX calls makeFuncStub, neither of which knows the
+    layout of the args passed between them.  That's bad for
+    precise gc & stack copying.
+    
+    Fixes #6619.
+    
+    R=golang-dev, dvyukov, rsc, iant, khr
+    CC=golang-dev
+    https://golang.org/cl/26970044
+
+ src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

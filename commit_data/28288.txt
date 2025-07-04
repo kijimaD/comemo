@@ -1,0 +1,16 @@
+commit 7b269195d30195f29080e17114aeec7821851870
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Sep 8 11:21:20 2016 -0700
+
+    cmd/go: organize test profiling flags into their own sub-section
+    
+    Fixes #17020.
+    
+    Change-Id: Ice21bd8eb4dbc208f244b275c3be604bc8e3efe7
+    Reviewed-on: https://go-review.googlesource.com/28783
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+
+ src/cmd/go/alldocs.go | 87 ++++++++++++++++++++++++++-------------------------
+ src/cmd/go/test.go    | 87 ++++++++++++++++++++++++++-------------------------
+ 2 files changed, 90 insertions(+), 84 deletions(-)

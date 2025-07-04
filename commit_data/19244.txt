@@ -1,0 +1,13 @@
+commit 6dac5502705c6daffa6645928b3e6f2b8ce319a8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 28 13:38:23 2014 +0900
+
+    syscall: don't display syscall prototype lines on godoc
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/90810045
+
+ src/pkg/syscall/syscall_solaris.go | 2 ++
+ 1 file changed, 2 insertions(+)

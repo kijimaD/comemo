@@ -1,0 +1,19 @@
+commit d514411625bdd437c7d1997b92685bb03bfbf2a8
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 12:44:04 2021 -0500
+
+    doc/go1.18: add information on new pacer.
+    
+    This is based off Michael's notes.
+    
+    Updates #47694
+    
+    Change-Id: I6e7944f85b776e8481829a2fafd177a49557c6ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368156
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.18.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,0 +1,22 @@
+commit b68f8ca89a2fb6b33d1e78fadc33d1c35693f6b8
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 22 15:19:35 2024 -0800
+
+    crypto/internal: keep fips140/aes.NewCTR from allocating
+    
+    Return a *CTR from an always-inlineable function, so the allocation
+    can be lifted to the callsite.
+    
+    Put the potentially uninlineable code in a separate function that returns a CTR.
+    
+    Fixes #70499
+    
+    Change-Id: I2531a2516e4c00aba65407f3bc24a7c21dd8f842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631317
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/aes/ctr.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

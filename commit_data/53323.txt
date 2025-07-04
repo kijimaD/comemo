@@ -1,0 +1,19 @@
+commit d5a05a0510eba98565b04e383e825bb53a5bc637
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 09:19:15 2023 -0400
+
+    cmd/go: clear HGRCPATH in script test
+    
+    Invoking 'hg' in a nonexistant HOME can break extensions the user
+    may have installed; clear HGRCPATH in the script test to keep tests
+    working in that environment.
+    
+    Change-Id: I4d21d024c6229ead38e5f24186883863511fd483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497878
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

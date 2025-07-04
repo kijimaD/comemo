@@ -1,0 +1,23 @@
+commit ec53627ed52e099685d4b60c19630ddcf22904d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 1 11:56:18 2010 -0700
+
+    runtime: correct memory leak in select
+      * adds pass 3 to dequeue from channels eagerly
+    
+    various other cleanup/churn:
+      * use switch on cas->send in each pass to
+        factor out common code.
+      * longer goto labels, commented at target
+      * be more agressive about can't happen:
+        throw instead of print + cope.
+      * use "select" instead of "selectgo" in errors
+      * use printf for debug prints when possible
+    
+    R=ken2, ken3
+    CC=golang-dev, r
+    https://golang.org/cl/875041
+
+ src/pkg/runtime/chan.c | 304 ++++++++++++++++++++-----------------------------
+ test/chan/select2.go   |  48 ++++++++
+ 2 files changed, 173 insertions(+), 179 deletions(-)

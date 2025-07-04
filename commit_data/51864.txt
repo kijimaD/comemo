@@ -1,0 +1,35 @@
+commit f36c7c5983e039e36e187d7fcd7e7e5a1aa2d74f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 13 13:59:19 2023 -0500
+
+    cmd/go: traverse module-root symlinks in Walk calls
+    
+    fsys.Walk, like filepath.Walk, avoids traversing symlinks. Also like
+    filepath.Walk, it follows a symlink at the root if the root path ends
+    in a file separator (consistent with POSIX pathname resolution¹).
+    
+    If the user's working directory is within a repository stored in
+    (and symlinked to) a different filesystem path, we want to follow the
+    symlink instead of treating the module as completely empty.
+    
+    ¹https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12
+    
+    Fixes #50807.
+    Updates #57754.
+    
+    Change-Id: Idaf6168dfffafe879e05b4ded5fda287fcd3eeec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463179
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fsys/fsys.go                   | 31 ++++++++++++++++------
+ src/cmd/go/internal/fsys/fsys_test.go              | 11 +++++---
+ src/cmd/go/internal/modindex/scan.go               | 17 +++++++-----
+ src/cmd/go/internal/modload/search.go              | 10 ++++---
+ src/cmd/go/internal/search/search.go               |  9 +++++++
+ src/cmd/go/internal/workcmd/use.go                 |  5 +++-
+ src/cmd/go/testdata/script/list_goroot_symlink.txt |  5 ++--
+ .../go/testdata/script/list_symlink_dotdotdot.txt  | 20 ++++++++++++++
+ 8 files changed, 83 insertions(+), 25 deletions(-)

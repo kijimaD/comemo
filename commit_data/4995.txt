@@ -1,0 +1,12 @@
+commit a1458298737dd52783df7f28f92e120bf56b6972
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 5 10:30:50 2010 -0800
+
+    frexp.go: remove html from comment
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/250041
+
+ src/pkg/math/frexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

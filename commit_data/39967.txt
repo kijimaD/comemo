@@ -1,0 +1,24 @@
+commit e2cbb7f629d05807925a5dcd08b61b2a30306ac5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 19 12:58:02 2019 -0400
+
+    cmd/go: don't construct module version info if there are import errors
+    
+    A precondition of modload.PackageBuildInfo is that its path and deps
+    arguments correspond to paths that have been loaded successfully with
+    modload.ImportPaths or one of the Load functions. load.Package.load
+    should not call PackageBuildInfo if there were any errors resolving
+    imports.
+    
+    Fixes #34393
+    
+    Change-Id: I107514f1c535885330ff266c85d3981b71b31c2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196520
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                   |  4 ++--
+ src/cmd/go/internal/modload/build.go              |  4 ++++
+ src/cmd/go/testdata/script/mod_build_info_err.txt | 22 ++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

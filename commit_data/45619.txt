@@ -1,0 +1,19 @@
+commit af0f8c149e8a4b237910fc7b41739bedc546473c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 11 22:40:02 2021 -0400
+
+    cmd/link: don't cast end address to int32
+    
+    When linking a very large binary, the section address may not fit
+    in int32. Don't truncate it.
+    
+    Change-Id: Ibcc8d74bf5662611949e547ce44ca8b973de383f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319289
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go   | 2 +-
+ src/cmd/link/internal/ld/macho.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

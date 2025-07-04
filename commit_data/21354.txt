@@ -1,0 +1,21 @@
+commit a7bb393628cbd6c5934e4bc34a45e1f0eabc908e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 17:19:00 2015 +0300
+
+    cmd/gc: don't emit write barriers for *tmp if tmp=&PAUTO
+    
+    This is another case where we can say that the address refers to stack.
+    We create such temps for OSTRUCTLIT initialization.
+    
+    This eliminates a handful of write barriers today.
+    But this come up a prerequisite for another change (capturing vars by value),
+    otherwise we emit writebarriers in writebarrier itself when
+    capture writebarrier arguments by value.
+    
+    Change-Id: Ibba93acd0f5431c5a4c3d90ef1e622cb9a7ff50e
+    Reviewed-on: https://go-review.googlesource.com/3285
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/typecheck.c |  3 +++
+ src/cmd/gc/walk.c      | 12 +++++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit dfe4591fc4d2d66da7740de18b32761e7a20691c
+Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
+Date:   Tue Feb 28 16:58:07 2023 +0000
+
+    io/ioutil: add doc links for deprecated function
+    
+    Go 1.19 introduced doc links (https://go.dev/doc/comment#doclinks).
+    It will be convenient when we can directly jump to the suggested
+    function when the original function is deprecated.
+    
+    Change-Id: I6172a5265f3b47aefec53179bca60f9904606b3f
+    GitHub-Last-Rev: b2aa85bf1bb67a39b5b26a047ba90a4b6a61dba4
+    GitHub-Pull-Request: golang/go#58779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471915
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/io/ioutil/ioutil.go   | 18 +++++++++---------
+ src/io/ioutil/tempfile.go |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

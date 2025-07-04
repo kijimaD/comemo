@@ -1,0 +1,13 @@
+commit f7772627ad2bb1bf356ef4f0767234bcc98f9cc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 18 19:20:54 2009 -0700
+
+    fix b/1722502
+    
+    BUG=1722502
+    R=ken
+    OCL=26526
+    CL=26526
+
+ src/cmd/gc/walk.c | 3 +++
+ 1 file changed, 3 insertions(+)

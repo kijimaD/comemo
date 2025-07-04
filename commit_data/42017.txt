@@ -1,0 +1,22 @@
+commit 0239a5c47856f758b9277e23c40a067c9644a7c8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 18 18:00:40 2020 -0700
+
+    cmd/compile: use fuse to implement shortcircuit loop
+    
+    The rewrite loop in shortcircuit is identical to the one in fuse.
+    That's not surprising; shortcircuit is fuse-like.
+    
+    Take advantage of that by merging the two loops.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I642cb39a23d2ac8964ed577678f062fce721439c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229003
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/fuse.go         |  4 ++++
+ src/cmd/compile/internal/ssa/shortcircuit.go | 15 +--------------
+ 2 files changed, 5 insertions(+), 14 deletions(-)

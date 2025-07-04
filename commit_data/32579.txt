@@ -1,0 +1,12 @@
+commit f7cb5bca1a93dfe5b4356e0c4a4c4207d2d2b194
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 31 15:02:24 2017 +0200
+
+    math/big: fix internal comment
+    
+    Change-Id: Id003e2dbecad7b3c249a747f8b4032135dfbe34f
+    Reviewed-on: https://go-review.googlesource.com/60670
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/math/big/decimal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

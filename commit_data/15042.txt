@@ -1,0 +1,14 @@
+commit 7e9f00c80c56fe325d0c0e11c4a8ce4bc368b06e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 30 12:30:26 2013 -0800
+
+    cmd/godoc: fix buggy use of strings.HasSuffix
+    
+    This code never worked. Maybe it's not necessary?
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7225070
+
+ src/cmd/godoc/godoc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

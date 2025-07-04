@@ -1,0 +1,17 @@
+commit f1fa663b6d7c80109ad0ba690751daeb9e387061
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Nov 1 01:05:48 2017 -0400
+
+    make.bash: show correct GOROOT_BOOTSTRAP when using `go env GOROOT`
+    
+    Also, support spaces in go binaries locations, and document
+    GOROOT_BOOTSTRAP at the top.
+    
+    Change-Id: I643d22df57aad9a2200cc256edd20e8c811bc70d
+    Reviewed-on: https://go-review.googlesource.com/74951
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/make.bash | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

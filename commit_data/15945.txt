@@ -1,0 +1,16 @@
+commit eb7c51c1483b2d51e5fc0b22ef692bdc96212477
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 26 08:27:18 2013 +0100
+
+    cmd/gc: more race instrumentation.
+    
+    Handle interface comparison correctly,
+    add a few more tests, mark more nodes as impossible.
+    
+    R=dvyukov, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7942045
+
+ src/cmd/gc/racewalk.c                     | 24 ++++----
+ src/pkg/runtime/race/testdata/mop_test.go | 92 +++++++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+), 10 deletions(-)

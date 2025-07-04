@@ -1,0 +1,15 @@
+commit 53e69e1db5d5960b33c93e05236afaca7f110b2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 27 14:01:20 2009 -0800
+
+    various race conditions.
+    
+    R=r
+    DELTA=43  (29 added, 5 deleted, 9 changed)
+    OCL=23608
+    CL=23611
+
+ src/runtime/proc.c             |  6 +++++-
+ src/runtime/rt1_amd64_darwin.c |  8 +++++++-
+ src/runtime/rt1_amd64_linux.c  | 38 ++++++++++++++++++++++++++------------
+ 3 files changed, 38 insertions(+), 14 deletions(-)

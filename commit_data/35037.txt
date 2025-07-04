@@ -1,0 +1,20 @@
+commit 96f6cc15949c27df4fe5df3c5ac9952f37543333
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 12 16:35:51 2018 +0200
+
+    debug/elf: add riscv64 relocations
+    
+    Based on the code from https://github.com/riscv/riscv-go/ originally
+    written by Amol Bhave.
+    
+    Change-Id: I8d5377096d4ff8b198dadb630511f9a0347f9797
+    Reviewed-on: https://go-review.googlesource.com/107339
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/elf.go                               | 121 +++++++++++++++++++++
+ src/debug/elf/file.go                              |  51 +++++++++
+ src/debug/elf/file_test.go                         |  19 ++++
+ .../testdata/go-relocation-test-gcc720-riscv64.obj | Bin 0 -> 9576 bytes
+ 4 files changed, 191 insertions(+)

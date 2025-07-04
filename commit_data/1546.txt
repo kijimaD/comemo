@@ -1,0 +1,13 @@
+commit 88da39feea6fd61b878d414f6631788c4db273eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 13:50:14 2009 -0800
+
+    - snapshot before making larger change
+    
+    R=r
+    OCL=23403
+    CL=23403
+
+ usr/gri/pretty/ast.go    | 88 ++++++++++++++++++++++++++++++++++++++++--------
+ usr/gri/pretty/parser.go | 56 +++++++++++++++---------------
+ 2 files changed, 103 insertions(+), 41 deletions(-)

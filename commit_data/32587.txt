@@ -1,0 +1,16 @@
+commit e236b6721c03033a2d475bdb6e3a0123213ac6e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 13:24:43 2017 -0700
+
+    doc/articles/wiki: fix final-test.patch
+    
+    Fixes test regression introduced by golang.org/cl/53071.
+    
+    Change-Id: Ibb085cf6d6be7b91b7c90b7bc6237c10f3097703
+    Reviewed-on: https://go-review.googlesource.com/60775
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/articles/wiki/final-test.patch | 63 ++++++++++++++++----------------------
+ 1 file changed, 27 insertions(+), 36 deletions(-)

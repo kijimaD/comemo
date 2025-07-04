@@ -1,0 +1,11 @@
+commit 2d9ff40774901444eeab6fc610678f6905bc5be1
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 14 17:41:38 2008 -0700
+
+    chan asynch
+    
+    SVN=127121
+
+ src/cmd/gc/go.y    |  5 +++++
+ src/runtime/chan.c | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 50 insertions(+), 5 deletions(-)

@@ -1,0 +1,25 @@
+commit 99339dd44537f82c9a1348b8937b68b6c61be005
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 3 11:52:20 2016 -0400
+
+    runtime: weaken claim about SetFinalizer panicking
+    
+    Currently the SetFinalizer documentation makes a strong claim that
+    SetFinalizer will panic if the pointer is not to an object allocated
+    by calling new, to a composite literal, or to a local variable. This
+    is not true. For example, it doesn't panic when passed the address of
+    a package-level variable. Nor can we practically make it true. For
+    example, we can't distinguish between passing a pointer to a composite
+    literal and passing a pointer to its first field.
+    
+    Hence, weaken the guarantee to say that it "may" panic.
+    
+    Updates #17311. (Might fix it, depending on what we want to do with
+    package-level variables.)
+    
+    Change-Id: I1c68ea9d0a5bbd3dd1b7ce329d92b0f05e2e0877
+    Reviewed-on: https://go-review.googlesource.com/30137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mfinal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit f78cd569f52d5c44792f932ebbd01a71231f38b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 1 21:51:41 2017 -0800
+
+    cmd/link: don't suggest using nm to find -X name
+    
+    It doesn't work if the package name includes a '.' or a non-ASCII
+    character (or '%', '"', or a control character).  See #16710 and CL 31970.
+    
+    Update #18246.
+    
+    Change-Id: I1487f462a3dc7b0016fce3aa1ea6239b226e6e39
+    Reviewed-on: https://go-review.googlesource.com/34791
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/doc.go | 2 --
+ 1 file changed, 2 deletions(-)

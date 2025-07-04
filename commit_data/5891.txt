@@ -1,0 +1,12 @@
+commit 0b133d8ac1c85d0c1d207ae0f35e9feea70c08a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 26 17:34:40 2010 -0700
+
+    godoc: accept '.', '!', and '?' as end of first sentence of package documentation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1875049
+
+ src/cmd/godoc/godoc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

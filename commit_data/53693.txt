@@ -1,0 +1,23 @@
+commit 28ca813a1373ff3c8845b0145ce915cca73ff182
+Author: darkfeline <darkfeline@felesatra.moe>
+Date:   Tue Jul 18 03:34:30 2023 +0000
+
+    net/rpc: use conventional `err` in example
+    
+    It is conventional to use `err` for error variables, so change the example to use `err` instead of `e`.
+    
+    Change-Id: I53bc3c5384fe608b322a55c564e9aee228b43329
+    GitHub-Last-Rev: 3e2ed84eefad7104b952bc6eab1c3b0af6f8f80e
+    GitHub-Pull-Request: golang/go#61375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510075
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Allen Li <ayatane@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/rpc/server.go      | 6 +++---
+ src/net/rpc/server_test.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

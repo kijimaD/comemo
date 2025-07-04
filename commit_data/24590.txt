@@ -1,0 +1,15 @@
+commit 163653eeaafad9e7ad9e1cea421f683b62e5904f
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 20 17:42:21 2015 -0400
+
+    go/build: test code cleanup: remove unnecessary func var
+    
+    The earlier calls to test(false) in TestDependencies were
+    removed by https://golang.org/cl/12576
+    
+    Change-Id: If5c7994172379c2d7f633d2e9c5261e668c754fa
+    Reviewed-on: https://go-review.googlesource.com/16117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

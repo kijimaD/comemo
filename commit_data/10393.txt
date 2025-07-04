@@ -1,0 +1,28 @@
+commit 3bd5082f579d3a45cfa3969d799bef2539c988f0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 15 11:39:18 2011 +1100
+
+    html: parse and render <plaintext> elements
+    
+    Pass tests2.dat, test 10:
+    <table><plaintext><td>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <plaintext>
+    |       "<td>"
+    |     <table>
+    
+    Also pass tests through test 25:
+    <!doctypehtml><p><dd>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5369109
+
+ src/pkg/html/parse.go      |  3 +++
+ src/pkg/html/parse_test.go |  5 ++++-
+ src/pkg/html/render.go     | 25 +++++++++++++++++++++----
+ src/pkg/html/token.go      | 20 ++++++++++++++------
+ 4 files changed, 42 insertions(+), 11 deletions(-)

@@ -1,0 +1,21 @@
+commit f73972fa333ad3291c9b7118cf7ca129a758cb66
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 5 22:55:54 2013 +0400
+
+    runtime: use gcpc/gcsp during traceback of goroutines in syscalls
+    gcpc/gcsp are used by GC in similar situation.
+    gcpc/gcsp are also more stable than gp->sched,
+    because gp->sched is mutated by entersyscall/exitsyscall
+    in morestack and mcall. So it has higher chances of being inconsistent.
+    Also, rename gcpc/gcsp to syscallpc/syscallsp.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12250043
+
+ src/pkg/runtime/mgc0.c          | 10 +++++-----
+ src/pkg/runtime/proc.c          | 39 +++++++++++++++++++--------------------
+ src/pkg/runtime/runtime.h       |  8 ++++----
+ src/pkg/runtime/traceback_arm.c |  4 ++--
+ src/pkg/runtime/traceback_x86.c |  4 ++--
+ 5 files changed, 32 insertions(+), 33 deletions(-)

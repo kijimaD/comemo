@@ -1,0 +1,24 @@
+commit 7ee35cb301eddf4d53e7bb2d5bf0873922d63a6e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Sep 16 13:13:50 2020 +0200
+
+    cmd/compile: be more specific in cannot assign errors
+    
+    "cannot assign to" compiler errors are very laconic: they never
+    explain why the lhs cannot be assigned to (with one exception, when
+    assigning to a struct field in a map).
+    
+    This change makes them a little more specific, in two more cases: when
+    assigning to a string, or to a const; by giving a very brief reason
+    why the lhs cannot be assigned to.
+    
+    Change-Id: I244cca7fc3c3814e00e0ccadeec62f747c293979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255199
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  9 +++++++--
+ test/cannotassign.go                     | 33 ++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 2 deletions(-)

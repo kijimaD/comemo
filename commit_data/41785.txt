@@ -1,0 +1,24 @@
+commit 7bfac4c3ddde3dd906b344f141a9d09a5f855c77
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Mar 28 23:25:18 2020 -0400
+
+    net/http: use DOMException.message property in error text
+    
+    Previously, details about the underlying fetch error
+    were not visible in the net/http error text:
+    
+            net/http: fetch() failed: <object>
+    
+    When using the message property, they are:
+    
+            net/http: fetch() failed: Failed to fetch
+            net/http: fetch() failed: The user aborted a request.
+    
+    Reference: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/message.
+    
+    Change-Id: Iecf7c6bac01abb164731a4d5c9af6582c250a1a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226205
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+
+ src/net/http/roundtrip_js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

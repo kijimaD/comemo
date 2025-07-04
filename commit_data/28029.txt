@@ -1,0 +1,16 @@
+commit a301b329e5c99693cf5a35ad93e9db5198f0b284
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 14:14:16 2016 -0700
+
+    cmd/compile: simplify isglobal
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I16ec0c11096bf4c020cf41392effeb67436f32ba
+    Reviewed-on: https://go-review.googlesource.com/26750
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

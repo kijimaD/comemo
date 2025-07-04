@@ -1,0 +1,15 @@
+commit 3b7f552fbb5e762bb84f2466da16faa7f312145c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 14:06:21 2009 -0800
+
+    fix bug in prefix code: must stop one character before any potential match of an empty string
+    
+    Fixes #308.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157142
+
+ src/pkg/regexp/all_test.go | 2 ++
+ src/pkg/regexp/regexp.go   | 9 ++++++---
+ 2 files changed, 8 insertions(+), 3 deletions(-)

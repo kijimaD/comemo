@@ -1,0 +1,19 @@
+commit babd5da61fbaa7a1b3a5413c3c8947d71fa1001d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Apr 21 08:00:07 2016 -0400
+
+    crypto/aes: use asm for BenchmarkExpand on amd64
+    
+    This reverses the change to this benchmark made in 9b6bf20.
+    
+    Change-Id: I79ab88286c3028d3be561957140375bbc413e7ab
+    Reviewed-on: https://go-review.googlesource.com/22340
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/aes/aes_test.go       |  2 +-
+ src/crypto/aes/cipher_amd64.go   | 17 +++++++++++++++++
+ src/crypto/aes/cipher_generic.go |  6 ++++++
+ src/crypto/aes/cipher_s390x.go   |  6 ++++++
+ 4 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit e0ba596c15dd82aad021c0c812fda6ca14ce118a
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 7 01:57:07 2024 +0000
+
+    cmd/link: replace bytes.Compare call with bytes.Equal
+    
+    Change-Id: Icc254cad3c861fd2b33228aa4d19424ce57a1b55
+    GitHub-Last-Rev: f557a696e4a5c632c49c7cd20745eeb771708f81
+    GitHub-Pull-Request: golang/go#66153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569695
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loader/loader_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

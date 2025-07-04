@@ -1,0 +1,20 @@
+commit ea26ce7cec7ed19b7e859dbb0e7e4354a9679911
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 9 14:52:49 2021 -0500
+
+    cmd/go: examine dependencies of main modules in workspace mode
+    
+    To make sure that we properly pull in everything in all, because
+    different main modules can interfere with each others' pruning.
+    
+    Fixes #49763
+    Change-Id: I0756993d8ae9919ccb27ec460d579d348c38ec3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370663
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go      |  46 +++++++
+ src/cmd/go/testdata/script/work_prune_all.txt | 176 ++++++++++++++++++++++++++
+ 2 files changed, 222 insertions(+)

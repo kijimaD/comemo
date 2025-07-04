@@ -1,0 +1,22 @@
+commit 4540e162b1aefda8157372764ad3d290a414ef1d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 17 14:35:54 2015 +0900
+
+    net: fix inconsistent error values on Accept
+    
+    This change fixes inconsistent error values on Accept{,TCP,Unix}.
+    
+    Updates #4856.
+    
+    Change-Id: Ie3bb534c19a724cacb3ea3f3656e46c810b2123f
+    Reviewed-on: https://go-review.googlesource.com/8996
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_test.go     | 74 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go        |  4 +--
+ src/net/fd_windows.go     | 12 +++-----
+ src/net/tcpsock_posix.go  |  2 +-
+ src/net/timeout_test.go   | 40 +++++++++++++++----------
+ src/net/unixsock_plan9.go |  4 +--
+ src/net/unixsock_posix.go |  5 ++--
+ 7 files changed, 109 insertions(+), 32 deletions(-)

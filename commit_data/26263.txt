@@ -1,0 +1,14 @@
+commit 5a50e003067672ff13bc2ea0464f0cf83a943b2d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 17 13:43:19 2016 -0500
+
+    runtime: improve comment on selectgo
+    
+    In particular, document that *sel is on the stack no matter what.
+    
+    Change-Id: I1c264215e026c27721b13eedae73ec845066cdec
+    Reviewed-on: https://go-review.googlesource.com/20032
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/select.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

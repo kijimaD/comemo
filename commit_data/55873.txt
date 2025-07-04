@@ -1,0 +1,19 @@
+commit 3ad5cd4741e438410d57f622e27b69e7e2809042
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 16 18:42:08 2024 -0500
+
+    runtime: update timers.len with Store instead of Add
+    
+    Writes to timers.len are protected by the timers.lock.
+    There is no need to use an Add instead of a Store,
+    and the code is clearer (and perhaps slightly faster)
+    using the Store.
+    
+    Change-Id: Icc6caef1b7405adec55c9b55b999b71de7d97484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564976
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

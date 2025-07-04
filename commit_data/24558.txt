@@ -1,0 +1,15 @@
+commit 684218e1353251d0b223c171c1977a4af193383d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 19 14:54:50 2015 -0700
+
+    cmd/compile: clarify where mkbuiltin.go input files are found
+    
+    Just a comment change reflecting that the files were moved to the
+    builtin directory when the compiled was converted from C to Go.
+    
+    Change-Id: I65e5340c09221684e40174feadfb69f738a9044a
+    Reviewed-on: https://go-review.googlesource.com/16089
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/mkbuiltin.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

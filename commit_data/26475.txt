@@ -1,0 +1,37 @@
+commit 4c9a470d468b6b6fa0520f32e034a1762dba3f9d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 21 22:57:26 2016 -0700
+
+    cmd/compile: start on ARM port
+    
+    Start working on arm port.  Gets close to correct
+    code for fibonacci:
+        func fib(n int) int {
+            if n < 2 {
+                return n
+            }
+            return fib(n-1) + fib(n-2)
+        }
+    
+    Still a lot to do, but this is a good starting point.
+    
+    Cleaned up some arch-specific dependencies in regalloc.
+    
+    Change-Id: I4301c6c31a8402168e50dcfee8bcf7aee73ea9d5
+    Reviewed-on: https://go-review.googlesource.com/21000
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm/galign.go         |   6 +
+ src/cmd/compile/internal/arm/ssa.go            | 152 +++++++++++++
+ src/cmd/compile/internal/gc/ssa.go             |  10 +-
+ src/cmd/compile/internal/ssa/config.go         |   8 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  32 +++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  66 ++++++
+ src/cmd/compile/internal/ssa/gen/decOps.go     |   7 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |  13 ++
+ src/cmd/compile/internal/ssa/op.go             |   2 +
+ src/cmd/compile/internal/ssa/opGen.go          | 178 +++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go       | 105 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 294 +++++++++++++++++++++++++
+ 13 files changed, 807 insertions(+), 73 deletions(-)

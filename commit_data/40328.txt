@@ -1,0 +1,20 @@
+commit 03978a97e5336c0ef46cec9b4f0733e9d897d083
+Author: sandyskies <chenmingjie0828@163.com>
+Date:   Mon Oct 21 17:32:13 2019 +0000
+
+    io: make CopyBuffer docs state when buf is not used
+    
+    Document that if either src implements the WriteTo interface
+    or if dst implements the ReaderFrom interface, then
+    buf will not be used.
+    
+    Fixes #32276
+    
+    Change-Id: Id0a69c90e255e694e7ec9f79ffe4d8391441e59e
+    GitHub-Last-Rev: 750e7e86d5d9b985fae7f2329fd219cacf72a62b
+    GitHub-Pull-Request: golang/go#32279
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179137
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/io/io.go | 3 +++
+ 1 file changed, 3 insertions(+)

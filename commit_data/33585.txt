@@ -1,0 +1,18 @@
+commit c2eb9454a99543281702413fdb8267366870ce48
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 10:44:32 2017 -0500
+
+    cmd/go: deflake TestGoTestJSON further
+    
+    Even after disabling on 1-CPU systems, builders are still flaking too often.
+    Unless there are at least 4 CPUs, don't require test interlacing at all.
+    
+    Fixes #22665 (again).
+    
+    Change-Id: Ief792c496c1ee70939532e6ca8bef012fe78178e
+    Reviewed-on: https://go-review.googlesource.com/77310
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 45 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 19 deletions(-)

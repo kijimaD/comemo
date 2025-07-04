@@ -1,0 +1,26 @@
+commit 9fa988547a778540eebfe0358536b7433efe6748
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Jul 4 16:43:19 2018 +0100
+
+    cmd/internal/obj/s390x: increase maximum number of loop iterations
+    
+    The maximum number of 'spanz' iterations that the s390x assembler
+    performs to reach a fixed point for relative offsets was 10. This
+    turned out to be too aggressive for one example of auto-generated
+    fuzzing code. Increase the number of iterations by 10x to reduce
+    the likelihood that the limit will be hit again. This limit only
+    exists to help find bugs in the assembler.
+    
+    master at tip does not fail with the example code in the issue, I
+    have therefore not submitted it as a test (it is also quite large).
+    I tested this change with the example code at the commit given and
+    it fixes the issue.
+    
+    Fixes #25269.
+    
+    Change-Id: I0e44948957a7faff51c7d27c0b7746ed6e2d47bb
+    Reviewed-on: https://go-review.googlesource.com/122235
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/s390x/asmz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

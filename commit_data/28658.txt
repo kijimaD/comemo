@@ -1,0 +1,16 @@
+commit 316f93f7164d015ce82f341bd58657cc84f2cc69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:32:11 2016 -0700
+
+    go/types: minimal support for alias declarations: don't crash
+    
+    For #16339
+    
+    Change-Id: I8927f40e0fd166795f41c784ad92449743f73af5
+    Reviewed-on: https://go-review.googlesource.com/30213
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/check_test.go          |  1 +
+ src/go/types/resolver.go            |  3 +++
+ src/go/types/testdata/aliasdecl.src | 10 ++++++++++
+ 3 files changed, 14 insertions(+)

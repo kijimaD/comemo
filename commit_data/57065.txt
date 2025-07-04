@@ -1,0 +1,31 @@
+commit b26134bf17972f959daf178087fcc0bd74b4015c
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Aug 1 06:26:48 2024 +0000
+
+    crypto: implement encoding.BinaryAppender for all crypto hashes
+    
+    For #62384
+    
+    Change-Id: I6fc7a7b8b85e02c880f1d16e0467f5076d477f0f
+    GitHub-Last-Rev: 90ba7bae6aa9ddfbcd622682314c05e5f65cbb56
+    GitHub-Pull-Request: golang/go#68651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601776
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/crypto/md5/62384.md    |  1 +
+ doc/next/6-stdlib/99-minor/crypto/sha1/62384.md   |  1 +
+ doc/next/6-stdlib/99-minor/crypto/sha256/62384.md |  1 +
+ doc/next/6-stdlib/99-minor/crypto/sha512/62384.md |  1 +
+ src/crypto/internal/boring/sha.go                 | 35 ++++++++++++++++-------
+ src/crypto/md5/md5.go                             | 14 +++++----
+ src/crypto/md5/md5_test.go                        | 12 ++++++++
+ src/crypto/sha1/sha1.go                           | 14 +++++----
+ src/crypto/sha1/sha1_test.go                      | 12 ++++++++
+ src/crypto/sha256/sha256.go                       | 16 +++++++----
+ src/crypto/sha256/sha256_test.go                  | 12 ++++++++
+ src/crypto/sha512/sha512.go                       | 27 +++++++++++++----
+ src/crypto/sha512/sha512_test.go                  | 12 ++++++++
+ 13 files changed, 127 insertions(+), 31 deletions(-)

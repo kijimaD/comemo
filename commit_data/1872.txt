@@ -1,0 +1,28 @@
+commit 878822f355a4c1c690be1189f726a129dbf25878
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 13:06:51 2009 -0700
+
+    move darwin specific code into runtime/darwin/
+    move darwin-amd64 specific code into runtime/darwin/amd64/
+    repeat for linux.
+    
+    move rt0 into runtime.a instead of keeping a separate .6 file.
+    6l seems to have no problem with that.
+    
+    TBR=r
+    OCL=26680
+    CL=26680
+
+ src/cmd/6l/obj.c                                   |  6 ----
+ src/runtime/Makefile                               | 36 +++++++++++-----------
+ .../{amd64_darwin.h => darwin/amd64/defs.h}        |  4 ---
+ .../{rt0_amd64_darwin.s => darwin/amd64/rt0.s}     |  0
+ .../{rt1_amd64_darwin.c => darwin/amd64/rt1.c}     |  4 +--
+ .../{sys_amd64_darwin.s => darwin/amd64/sys.s}     |  0
+ src/runtime/{signals_darwin.h => darwin/signals.h} |  0
+ src/runtime/{amd64_linux.h => linux/amd64/defs.h}  |  4 ---
+ .../{rt0_amd64_linux.s => linux/amd64/rt0.s}       |  0
+ .../{rt1_amd64_linux.c => linux/amd64/rt1.c}       |  0
+ .../{sys_amd64_linux.s => linux/amd64/sys.s}       |  0
+ src/runtime/{signals_linux.h => linux/signals.h}   |  0
+ 12 files changed, 20 insertions(+), 34 deletions(-)

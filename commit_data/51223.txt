@@ -1,0 +1,17 @@
+commit 4d37f968252b85ea3b26513b39ed606a5a50bc32
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 10 15:26:27 2022 -0500
+
+    net/http: fix triv.go
+    
+    CL 428137 replaced 'buf := make(bytes.Buffer)' with 'var buf strings.Builder'.
+    That change also requires passing &buf to io.Copy instead of buf.
+    
+    Change-Id: I72b3faa46693e7d1441298f49dc6b95859c3bff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/net/http/triv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

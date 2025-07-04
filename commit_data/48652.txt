@@ -1,0 +1,19 @@
+commit f8e70fc9a6d2a88d51d36208e64b12a236fce1b1
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Mar 30 15:47:57 2022 +0800
+
+    strings: document the use of simple case-folding in EqualFold
+    
+    Fixes #52022
+    
+    Change-Id: I077fc062dfd02f79eb83713490efbe0bdc783d8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/strings/example_test.go | 7 ++++++-
+ src/strings/strings.go      | 4 +++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

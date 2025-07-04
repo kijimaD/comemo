@@ -1,0 +1,17 @@
+commit 7f620a57d01ec4230a69c4ee96d3809cfd6febab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 16:25:06 2016 -0500
+
+    cmd/asm: add x86 POPCNTW, POPCNTL
+    
+    Fixes #4816.
+    
+    Change-Id: Ibeaa69f57b7519d56df4ea357edf8d9dc2102ffe
+    Reviewed-on: https://go-review.googlesource.com/18851
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/asm6.go             | 11 ++++++++++
+ 2 files changed, 27 insertions(+), 16 deletions(-)

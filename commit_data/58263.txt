@@ -1,0 +1,20 @@
+commit d524c954b14c861e6a442e09abd38ba074ad376d
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 19 17:18:38 2024 -0500
+
+    cmd/compile: use very high budget for once-called closures
+    
+    This should make it much more likely that rangefunc
+    iterators become "plain inline code".
+    
+    Change-Id: I8026603afdc5249f60cc663c4bc15cb1d26d1c83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630696
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inl.go             | 87 ++++++++++++++------
+ .../internal/inline/interleaved/interleaved.go     | 96 ++++++++++++++++++----
+ test/closure3.dir/main.go                          | 50 +++++------
+ 3 files changed, 167 insertions(+), 66 deletions(-)

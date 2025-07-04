@@ -1,0 +1,14 @@
+commit 48469a2c866ca21f6d72bc4dee52b1a3fbf187c5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Feb 21 02:53:07 2015 +0100
+
+    cmd/ld: fix warning on Plan 9
+    
+    cpp: src/cmd/ld/lib.h:349 No newline at end of file
+    
+    Change-Id: Id21851963f7778364ba9337da3bacd312443f51f
+    Reviewed-on: https://go-review.googlesource.com/5520
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/ld/lib.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

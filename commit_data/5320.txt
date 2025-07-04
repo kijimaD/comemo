@@ -1,0 +1,19 @@
+commit 1c0c252880112892427bb4ba55968a2fceef95ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 20:39:55 2010 -0700
+
+    6l, 8l: include ELF header in PT_LOAD mapping for text segment
+    
+    Due to page boundary rounding, the header would have
+    been loaded as part of the text segment already, but this
+    change placates the "paxctl" tool on so-called hardened
+    Linux distributions (as if normal distributions weren't already
+    hard enough to use).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/954041
+
+ src/cmd/6l/asm.c | 10 +++++-----
+ src/cmd/8l/asm.c | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

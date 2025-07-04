@@ -1,0 +1,39 @@
+commit 211932b98790df0ae112d7f680f6912514ae7d94
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jun 29 17:57:16 2019 +0200
+
+    go/printer: never print a newline before the returned results
+    
+    Otherwise, if one ends up with a "return result" where the two nodes are
+    in separate lines, the printer would incorrectly print a naked return:
+    
+            return
+                    result
+    
+    The fix is simple - by not telling exprList what the previous position
+    is, it never adds a leading linebreak. This is the same mechanism used
+    for identifier lists and values, so it seems appropriate.
+    
+    All other exprList calls that can produce a leading linebreak don't seem
+    buggy, because closing tokens such as parentheses and colons are needed
+    to finish the statement.
+    
+    Verified that the test failed before the patch as well:
+    
+            --- FAIL: TestIssue32854 (0.00s)
+                printer_test.go:806: got "return\n\tcall()", want "return call()"
+    
+    Finally, verified that 'gofmt -l -w src misc' doesn't make any new
+    changes, just in case we introduced any regression.
+    
+    Fixes #32854.
+    
+    Change-Id: I3384fbd711de06e742407df874c9ad85626d5d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184121
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/nodes.go        |  6 ++++--
+ src/go/printer/printer_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 2 deletions(-)

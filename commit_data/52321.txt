@@ -1,0 +1,32 @@
+commit 7a21f799a5ac23d3e191a106d71af9b8f65279fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 15 14:03:49 2023 -0700
+
+    cmd/compile: add -url flag, print URL with error messages if applicable
+    
+    If the -url flag is provided, when encountering a type checking error,
+    the compiler will also print a URL to a more detailed description of
+    the error and an example, if available.
+    
+    Example uses:
+    
+            go tool compile -url filename.go
+            go build -gcflags=-url pkg/path
+    
+    For instance, a duplicate declaration of an identifier will report
+    
+            https://pkg.go.dev/internal/types/errors#DuplicateDecl
+    
+    We may refine the provided URL over time.
+    
+    Change-Id: Iabe3008a49d9dd88bf690f99e4a4a5432dc08786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476716
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/base/flag.go  |  1 +
+ src/cmd/compile/internal/base/print.go | 20 +++++++++++++-------
+ 2 files changed, 14 insertions(+), 7 deletions(-)

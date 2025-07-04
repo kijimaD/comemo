@@ -1,0 +1,12 @@
+commit 1003b3e1f06935070a0000a41011898325b100ce
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 15 12:01:23 2016 -0700
+
+    doc: update version tag in source install instructions
+    
+    Change-Id: Id83e0371b7232b01be83640ef1e47f9026cf2a23
+    Reviewed-on: https://go-review.googlesource.com/27055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

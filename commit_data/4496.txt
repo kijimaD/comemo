@@ -1,0 +1,16 @@
+commit 5f132b93eb12109d4a09b7663decbd114e618b53
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 27 09:32:30 2009 -0800
+
+    gc: various C nits, found by plan 9 compiler.
+    reported by erik quanstrom.
+    
+    R=ken2
+    https://golang.org/cl/181071
+
+ src/cmd/gc/go.h      | 3 +--
+ src/cmd/gc/reflect.c | 2 +-
+ src/cmd/gc/subr.c    | 2 +-
+ src/cmd/gc/unsafe.c  | 1 -
+ src/cmd/gc/walk.c    | 2 +-
+ 5 files changed, 4 insertions(+), 6 deletions(-)

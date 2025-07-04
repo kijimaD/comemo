@@ -1,0 +1,14 @@
+commit a323656bb3edce6b2913a4946be8481ef1311afc
+Author: Mayank Kumar <krmayankk@gmail.com>
+Date:   Fri Sep 8 01:04:28 2017 -0700
+
+    path: add path.Dir example with trailing slash
+    
+    Change-Id: I143203a9dcf9a4da0e53a3aab6e370244b849296
+    Reviewed-on: https://go-review.googlesource.com/62270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/example_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

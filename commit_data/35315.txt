@@ -1,0 +1,19 @@
+commit b00f72e08a574297827d27779cb3aabf3b49524c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 12:36:52 2018 +0100
+
+    math, math/big: add wasm architecture
+    
+    This commit adds the wasm architecture to the math package.
+    
+    Updates #18892
+    
+    Change-Id: I5cc38552a31b193d35fb81ae87600a76b8b9e9b5
+    Reviewed-on: https://go-review.googlesource.com/106996
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/big/arith_wasm.s |  40 ++++++++++++++++++
+ src/math/floor_wasm.s     |  26 ++++++++++++
+ src/math/sqrt_wasm.s      |  12 ++++++
+ src/math/stubs_wasm.s     | 101 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 179 insertions(+)

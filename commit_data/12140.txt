@@ -1,0 +1,14 @@
+commit 024df9f6c4abbfa2ba2a753d8231f52e99ca6ebc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 22 17:10:25 2012 -0200
+
+    cgo: fix definition of opaque types
+    
+    Fixes #3082.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5683074
+
+ src/cmd/cgo/gcc.go | 1 +
+ 1 file changed, 1 insertion(+)

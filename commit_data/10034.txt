@@ -1,0 +1,26 @@
+commit 389d55fadf8ed166cc06c016d9eae3dda5e249b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 14:55:10 2011 -0400
+
+    build: pass $GCFLAGS to compiler
+    
+    For example, if you are debugging an optimization
+    problem you can now run
+    
+            GCFLAGS=-N gotest
+    
+    This is a convention for make, not for the general build,
+    so it may go away or be done differently in the eventual
+    'go' command.
+    
+    The plan is that people will be able to test their code for
+    rune safety by doing GCFLAGS=-r.
+    
+    R=golang-dev, bradfitz, lvd
+    CC=golang-dev
+    https://golang.org/cl/5294042
+
+ src/Make.cmd | 4 ++--
+ src/Make.pkg | 4 ++--
+ test/run     | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

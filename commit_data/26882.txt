@@ -1,0 +1,21 @@
+commit f6db855d5595e170bfc70d90f1eaa26034d2e191
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 12 21:51:19 2016 +0000
+
+    net: mirror Tom Sawyer in the net package for tests
+    
+    Fixes the darwin/arm builder, which has a special test runner which
+    makes the assumption that tests never use testdata from another
+    package.
+    
+    This looks large, but it's no more space in git.
+    
+    Change-Id: I81921b516443d12d21b77617d323ddebedbe40f8
+    Reviewed-on: https://go-review.googlesource.com/21907
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/sendfile_test.go                   |    4 +-
+ src/net/testdata/Mark.Twain-Tom.Sawyer.txt | 8465 ++++++++++++++++++++++++++++
+ 2 files changed, 8467 insertions(+), 2 deletions(-)

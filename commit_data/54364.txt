@@ -1,0 +1,38 @@
+commit 18c6ec1e4a62d25ce9801174c1c17360eb95233c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 14:00:30 2023 -0700
+
+    cmd/compile/internal/noder: stop preserving original const strings
+    
+    One of the more tedious quirks of the original frontend (i.e.,
+    typecheck) to preserve was that it preserved the original
+    representation of constants into the backend. To fit into the unified
+    IR model, I ended up implementing a fairly heavyweight workaround:
+    simply record the original constant's string expression in the export
+    data, so that diagnostics could still report it back, and match the
+    old test expectations.
+    
+    But now that there's just a single frontend to support, it's easy
+    enough to just update the test expectations and drop this support for
+    "raw" constant expressions.
+    
+    Change-Id: I1d859c5109d679879d937a2b213e777fbddf4f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526376
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/expr.go       | 14 -------------
+ src/cmd/compile/internal/ir/fmt.go        |  5 -----
+ src/cmd/compile/internal/ir/node_gen.go   | 19 -----------------
+ src/cmd/compile/internal/noder/expr.go    | 34 -------------------------------
+ src/cmd/compile/internal/noder/helpers.go |  5 -----
+ src/cmd/compile/internal/noder/reader.go  |  4 +---
+ src/cmd/compile/internal/noder/writer.go  |  5 -----
+ test/escape5.go                           |  2 +-
+ test/escape_reflect.go                    |  6 +++---
+ test/escape_slice.go                      |  2 +-
+ test/fixedbugs/issue13799.go              | 12 +++++------
+ 11 files changed, 12 insertions(+), 96 deletions(-)

@@ -1,0 +1,13 @@
+commit 3e6b7f35de96414a3a393f0ad25326f411101776
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 13:49:32 2015 -0400
+
+    fmt: add a few more reflect.Value tests
+    
+    Change-Id: I86530a4fd240f3e056e3277355d2965f6863b852
+    Reviewed-on: https://go-review.googlesource.com/8951
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 8 ++++++++
+ src/fmt/print.go    | 2 ++
+ 2 files changed, 10 insertions(+)

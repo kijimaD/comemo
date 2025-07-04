@@ -1,0 +1,61 @@
+commit c5f0104daf974ad8ef736dfa7cb44059ac293291
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 23 15:38:50 2018 -0700
+
+    cmd/compile: use intrinsic for LeadingZeros8 on amd64
+    
+    The previous change sped up the pure computation form of LeadingZeros8.
+    This places it somewhat close to the table lookup form.
+    Depending on something that varies from toolchain to toolchain
+    (alignment, perhaps?), the slowdown from ditching the table lookup
+    is either 20% or 5%.
+    
+    This benchmark is the best case scenario for the table lookup:
+    It is in the L1 cache already.
+    
+    I think we're close enough that we can switch to the computational version,
+    and trust that the memory effects and binary size savings will be worth it.
+    
+    Code:
+    
+    func f8(x uint8)   { z = bits.LeadingZeros8(x) }
+    
+    Before:
+    
+    "".f8 STEXT nosplit size=34 args=0x8 locals=0x0
+            0x0000 00000 (x.go:7)   TEXT    "".f8(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:7)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:7)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:7)   MOVBLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:7)   MOVBLZX AL, AX
+            0x0008 00008 (x.go:7)   LEAQ    math/bits.len8tab(SB), CX
+            0x000f 00015 (x.go:7)   MOVBLZX (CX)(AX*1), AX
+            0x0013 00019 (x.go:7)   ADDQ    $-8, AX
+            0x0017 00023 (x.go:7)   NEGQ    AX
+            0x001a 00026 (x.go:7)   MOVQ    AX, "".z(SB)
+            0x0021 00033 (x.go:7)   RET
+    
+    After:
+    
+    "".f8 STEXT nosplit size=30 args=0x8 locals=0x0
+            0x0000 00000 (x.go:7)   TEXT    "".f8(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:7)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:7)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:7)   MOVBLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:7)   MOVBLZX AL, AX
+            0x0008 00008 (x.go:7)   LEAL    1(AX)(AX*1), AX
+            0x000c 00012 (x.go:7)   BSRL    AX, AX
+            0x000f 00015 (x.go:7)   ADDQ    $-8, AX
+            0x0013 00019 (x.go:7)   NEGQ    AX
+            0x0016 00022 (x.go:7)   MOVQ    AX, "".z(SB)
+            0x001d 00029 (x.go:7)   RET
+    
+    Change-Id: Icc7db50a7820fb9a3da8a816d6b6940d7f8e193e
+    Reviewed-on: https://go-review.googlesource.com/108942
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 11 +++++------
+ test/codegen/mathbits.go           |  4 ++--
+ 2 files changed, 7 insertions(+), 8 deletions(-)

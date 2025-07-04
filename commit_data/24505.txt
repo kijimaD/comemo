@@ -1,0 +1,23 @@
+commit 1d765b77a04fb12c2d97e0a8c9491de2bbfcbacc
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Tue Oct 13 19:49:40 2015 -0700
+
+    runtime: Reduce testing for fastlog2 implementation
+    
+    The current fastlog2 testing checks all 64M values in the domain of
+    interest, which is too much for platforms with no native floating point.
+    
+    Reduce testing under testing.Short() to speed up builds for those platforms.
+    
+    Related to #12620
+    
+    Change-Id: Ie5dcd408724ba91c3b3fcf9ba0dddedb34706cd1
+    Reviewed-on: https://go-review.googlesource.com/15830
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joel Sing <jsing@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/fastlog2_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

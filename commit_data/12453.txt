@@ -1,0 +1,15 @@
+commit c10650979f3d66f231b8e69e1cd8293cde4ca778
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 00:02:07 2012 -0500
+
+    net: disable another external network test
+    
+    I don't know enough about multicast.
+    Should this be disabled on all systems, not just Windows?
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5754060
+
+ src/pkg/net/multicast_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

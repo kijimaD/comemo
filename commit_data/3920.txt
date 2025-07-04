@@ -1,0 +1,27 @@
+commit d731dc8e72955e05fc69536aae7f6be328e3922c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 23:34:08 2009 -0800
+
+    Addressing issue brought up by dsymonds:
+    - When providing alternative spellings to a query, do not
+      prefix it with a package qualifier as the suggestion may
+      not have any results. Correctly filtering is quite a bit
+      of work, and clicking the alternative spelling will always
+      also show the qualified hits if they exist (but also others).
+      Seems good enough for now.
+    - Give user feedback when the query syntax was wrong.
+    - Package names in search results are now links to the respective
+      package documentation.
+    - Experimented with excluding main packages and test files
+      from index with inconclusive results. Code is present and
+      can be enabled by changing a flag in the source. This needs
+      some more work.
+    
+    R=rsc
+    CC=r, dsymonds
+    http://go/go-review/1026033
+
+ lib/godoc/search.html  | 10 ++++++---
+ src/cmd/godoc/godoc.go |  3 ++-
+ src/cmd/godoc/index.go | 56 +++++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 49 insertions(+), 20 deletions(-)

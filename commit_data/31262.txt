@@ -1,0 +1,23 @@
+commit 24c52ee57046f5e58ce6db158b0efad02ced6606
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 08:19:35 2017 -0700
+
+    cmd/compile: move typepkg to package types
+    
+    Response to code review feedback on CL 40693.
+    
+    It is now only accessible by types.TypePkgLookup.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0c422c1a271f97467ae38de53af9dc33f4b31bdb
+    Reviewed-on: https://go-review.googlesource.com/41304
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/go.go      |  2 --
+ src/cmd/compile/internal/gc/main.go    |  2 --
+ src/cmd/compile/internal/gc/reflect.go | 10 +++++-----
+ src/cmd/compile/internal/types/pkg.go  |  7 +++++++
+ 4 files changed, 12 insertions(+), 9 deletions(-)

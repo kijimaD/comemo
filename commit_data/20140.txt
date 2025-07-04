@@ -1,0 +1,20 @@
+commit 39ffa8be78d2f54220c99b828e5346cabcf1598c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Aug 26 08:34:46 2014 +0200
+
+    runtime: convert Stack to Go.
+    
+    LGTM=khr
+    R=khr, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/129510043
+
+ src/pkg/runtime/asm_386.s      |  6 ++++++
+ src/pkg/runtime/asm_amd64.s    |  6 ++++++
+ src/pkg/runtime/asm_amd64p32.s |  6 ++++++
+ src/pkg/runtime/asm_arm.s      |  7 +++++++
+ src/pkg/runtime/debug.go       |  6 ------
+ src/pkg/runtime/mprof.go       | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mprof.goc      | 33 ---------------------------------
+ src/pkg/runtime/stubs.go       |  6 ++++++
+ 8 files changed, 72 insertions(+), 39 deletions(-)

@@ -1,0 +1,22 @@
+commit ffb6c798281f1a3ec54421a11573cec7d517d117
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun Nov 21 21:06:27 2021 +0800
+
+    go/types,types2: use allInteger to check type for shifted operand
+    
+    Fixes: #49705
+    
+    Change-Id: I35a1c5f29b57f3facc5e89d33a8dec88e0ff4afa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365895
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/types2/check_test.go                 |  1 +
+ src/cmd/compile/internal/types2/expr.go                       |  2 +-
+ .../compile/internal/types2/testdata/fixedbugs/issue49705.go2 | 11 +++++++++++
+ src/go/types/check_test.go                                    |  1 +
+ src/go/types/expr.go                                          |  2 +-
+ src/go/types/testdata/fixedbugs/issue49705.go2                | 11 +++++++++++
+ 6 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 50f2b7b76481f045649d12d2a26dd36b7cc248a3
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 17 10:26:36 2023 +0200
+
+    os: avoid allocating a string for ReadDir skipped entries on Windows
+    
+    Shave off a few allocations while reading a directory by checking
+    if the entry name is "." or ".." before allocating a string for it.
+    
+    Change-Id: I05a87d7572bd4fc191db70aaa9e22a6102f68b4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520415
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/dir_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

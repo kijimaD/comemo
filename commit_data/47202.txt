@@ -1,0 +1,18 @@
+commit eb63cbd2950e703ff2a6bd04330e97dc76c7923d
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 2 12:30:37 2021 -0700
+
+    cmd/compile: remove TODO that is no longer relevant
+    
+    types2 methods are now sorted in the same way as types1, so this TODO is
+    no longer needed.  (Comment change only).
+    
+    Change-Id: Ic975ce001a5d54f15381a9cb7b6969dff795e3b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360856
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/expr.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,34 @@
+commit 5c5f217b635d5bcbbda482f92264265eb61c13f2
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Apr 25 09:41:46 2019 -0400
+
+    cmd/compile: improve s390x sign/zero extension removal
+    
+    This CL gets rid of the MOVDreg and MOVDnop SSA operations on
+    s390x. They were originally inserted to help avoid situations
+    where a sign/zero extension was elided but a spill invalidated
+    the optimization. It's not really clear we need to do this though
+    (amd64 doesn't have these ops for example) so long as we are
+    careful when removing sign/zero extensions. Also, the MOVDreg
+    technique doesn't work if the register is spilled before the
+    MOVDreg op (I haven't seen that in practice).
+    
+    Removing these ops reduces the complexity of the rules and also
+    allows us to unblock optimizations. For example, the compiler can
+    now merge the loads in binary.{Big,Little}Endian.PutUint16 which
+    it wasn't able to do before. This CL reduces the size of the .text
+    section in the go tool by about 4.7KB (0.09%).
+    
+    Change-Id: Icaddae7f2e4f9b2debb6fabae845adb3f73b41db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173897
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/s390x/ssa.go        |    7 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  277 ++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |    3 -
+ src/cmd/compile/internal/ssa/opGen.go        |   28 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 3028 +++++++++++---------------
+ test/codegen/memcombine.go                   |   16 +
+ 6 files changed, 1435 insertions(+), 1924 deletions(-)

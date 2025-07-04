@@ -1,0 +1,18 @@
+commit 870f33f6efcbb5db7b556cbe3438aa7925270825
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:26:51 2021 -0500
+
+    doc/go1.18: add changes to strconv.Unquote to release notes
+    
+    CL 343877
+    
+    Updates #47694
+    
+    Change-Id: I37a0a0d1f7ab937b12812981ecddc89eb8c99c24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368796
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

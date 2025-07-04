@@ -1,0 +1,18 @@
+commit dad4f39971d89b56224d1eb44121305b1c0ef711
+Author: cuishuang <imcusg@gmail.com>
+Date:   Fri May 2 09:13:26 2025 +0800
+
+    cmd/go/internal: make function comment match function name
+    
+    Change-Id: Ia1909a31dececd7d883ca3bddc6293dd81aee93e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669435
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/generate/generate_test.go | 2 +-
+ src/cmd/go/internal/list/list.go              | 2 +-
+ src/cmd/go/internal/work/shell.go             | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

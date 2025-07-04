@@ -1,0 +1,37 @@
+commit 1d187fd0be9cb7b79e5a4d4f389685856fe8e065
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Sat Nov 18 11:58:34 2023 +0000
+
+    src: a/an grammar fixes
+    
+    Change-Id: I179b50ae8e73677d4d408b83424afbbfe6aa17a1
+    GitHub-Last-Rev: 2e2d9c1e45556155d02db4df381b99f2d1bc5c0e
+    GitHub-Pull-Request: golang/go#63478
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534015
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/devirtualize/devirtualize.go | 2 +-
+ src/cmd/compile/internal/escape/graph.go              | 2 +-
+ src/cmd/compile/internal/ir/expr.go                   | 2 +-
+ src/cmd/compile/internal/ssa/magic.go                 | 2 +-
+ src/cmd/compile/internal/types2/builtins.go           | 2 +-
+ src/cmd/compile/internal/walk/closure.go              | 2 +-
+ src/cmd/internal/obj/loong64/obj.go                   | 2 +-
+ src/cmd/link/internal/loader/loader.go                | 2 +-
+ src/go/types/builtins.go                              | 2 +-
+ src/net/conf.go                                       | 2 +-
+ src/net/fd_fake.go                                    | 2 +-
+ src/net/http/transport.go                             | 2 +-
+ src/os/os_windows_test.go                             | 2 +-
+ src/reflect/all_test.go                               | 2 +-
+ src/runtime/iface.go                                  | 2 +-
+ src/runtime/metrics_test.go                           | 2 +-
+ src/runtime/mgcpacer.go                               | 2 +-
+ src/runtime/race.go                                   | 2 +-
+ src/strings/strings.go                                | 2 +-
+ src/sync/map_test.go                                  | 2 +-
+ 20 files changed, 20 insertions(+), 20 deletions(-)

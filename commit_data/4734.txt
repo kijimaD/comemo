@@ -1,0 +1,12 @@
+commit af7e0f1bdd5078a2dce8cf7849ab980ccb08bf56
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jan 30 11:54:39 2010 +1100
+
+    Add a GZIP test for the empty payload.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/194131
+
+ src/pkg/compress/gzip/gzip_test.go | 94 +++++++++++++++++++++++---------------
+ 1 file changed, 57 insertions(+), 37 deletions(-)

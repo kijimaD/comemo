@@ -1,0 +1,22 @@
+commit 5a9c128a0313df72973259bea946262cb8973d86
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Feb 19 22:45:38 2016 +0100
+
+    fmt: remove math package dependency and avoid float operations
+    
+    Remove floating point comparisons and rely only on the information
+    directly provided by appendFloat.
+    Make restoring the zero padding flag explicit instead of using a defer.
+    Rearrange some case distinctions to remove duplicated code.
+    Add more test cases for zero padded floating point numbers with sign.
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkSprintfFloat-4     187           180           -3.74%
+    
+    Change-Id: Ifa2ae85257909f40b1b18118c92b516933271729
+    Reviewed-on: https://go-review.googlesource.com/19721
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go |  6 ++++++
+ src/fmt/format.go   | 43 +++++++++++++++++--------------------------
+ 2 files changed, 23 insertions(+), 26 deletions(-)

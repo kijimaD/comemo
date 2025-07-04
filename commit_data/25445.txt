@@ -1,0 +1,14 @@
+commit 7f0b4a879b24db2931e8b6e198540e6c45cb63b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 11:44:09 2016 -0500
+
+    crypto/dsa: adjust GenerateParameters comment
+    
+    Fixes #13725.
+    
+    Change-Id: I5fe46851b238fc9ab301da8f8fc37bd1b7871748
+    Reviewed-on: https://go-review.googlesource.com/18316
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/dsa/dsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

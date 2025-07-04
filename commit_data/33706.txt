@@ -1,0 +1,15 @@
+commit 992ce90f662467f04dd93b3bb565bb0414f82999
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 28 16:05:59 2017 +1100
+
+    doc/faq: explain why goroutines are anonymous
+    
+    Fixes #22770.
+    
+    Change-Id: Ief62043fb6895e215d2530d2a3bf88f7ea58c875
+    Reviewed-on: https://go-review.googlesource.com/80195
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

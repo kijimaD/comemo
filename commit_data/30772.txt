@@ -1,0 +1,31 @@
+commit 0ebaca6ba27534add5930a95acffa9acff182e2b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 21 10:23:08 2017 -0700
+
+    syscall, os: use pipe2 syscall on FreeBSD instead of pipe
+    
+    The pipe2 syscall exists in all officially supported FreeBSD
+    versions: 10, 11 and future 12.
+    The pipe syscall no longer exists in 11 and 12. To build and
+    run Go on these versions, kernel needs COMPAT_FREEBSD10 option.
+    
+    Based on Gleb Smirnoff's https://golang.org/cl/38422
+    
+    Fixes #18854
+    
+    Change-Id: I8e201ee1b15dca10427c3093b966025d160aaf61
+    Reviewed-on: https://go-review.googlesource.com/38426
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/pipe_bsd.go                    |  2 +-
+ src/os/pipe_freebsd.go                | 20 ++++++++++++++++++++
+ src/syscall/exec_bsd.go               | 14 --------------
+ src/syscall/exec_freebsd.go           |  9 +++++++++
+ src/syscall/forkpipe_bsd.go           | 20 ++++++++++++++++++++
+ src/syscall/syscall_freebsd.go        | 15 +++++++++++----
+ src/syscall/zsyscall_freebsd_386.go   |  6 ++----
+ src/syscall/zsyscall_freebsd_amd64.go |  6 ++----
+ src/syscall/zsyscall_freebsd_arm.go   |  6 ++----
+ 9 files changed, 67 insertions(+), 31 deletions(-)

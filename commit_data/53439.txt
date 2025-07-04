@@ -1,0 +1,20 @@
+commit 936ce874ace0bed17eac20dfa21fe04a45d30603
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:11:27 2023 -0400
+
+    cmd/go: add gover.Max and gover.MaxToolchain
+    
+    I've inlined these by hand enough times now.
+    
+    For #57001.
+    
+    Change-Id: Ia274bd444f12b07ce14eeb2b5a66546880db8f77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499982
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/gover/gover.go | 20 ++++++++++++++++++++
+ src/cmd/go/internal/modget/get.go  |  4 ++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

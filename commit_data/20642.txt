@@ -1,0 +1,15 @@
+commit 5b829cca12d029ca25a363637479373a6583dc93
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:49:07 2014 -0400
+
+    net/url: document result of String
+    
+    Fixes #8742.
+    
+    LGTM=bradfitz
+    R=golang-codereviews
+    CC=adg, bradfitz, golang-codereviews, iant
+    https://golang.org/cl/155910043
+
+ src/net/url/url.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

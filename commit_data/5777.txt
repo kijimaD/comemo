@@ -1,0 +1,13 @@
+commit 71ed4eb7a55cd31931fae29da641174f5cf2a479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 13:11:20 2010 -0700
+
+    fix build: adjustest a few tests that I missed before
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1762044
+
+ src/pkg/go/printer/testdata/declarations.golden | 6 ++----
+ src/pkg/go/printer/testdata/declarations.input  | 6 ++----
+ 2 files changed, 4 insertions(+), 8 deletions(-)

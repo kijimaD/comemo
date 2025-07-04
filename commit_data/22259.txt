@@ -1,0 +1,16 @@
+commit 9b696be08bd252c29de61740951dc8f0b115bfc4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 1 14:24:35 2015 -0700
+
+    go/scanner: Simplify ErrorList.Sort implementation.
+    
+    It functions exactly the same, but this is the more common
+    style for these kinds of multi-key comparison functions,
+    and is more regular.
+    
+    Change-Id: I46630948f893bcc96c05eb3d36eb82e1d97a6fa0
+    Reviewed-on: https://go-review.googlesource.com/8358
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/scanner/errors.go | 25 ++++++++-----------------
+ 1 file changed, 8 insertions(+), 17 deletions(-)

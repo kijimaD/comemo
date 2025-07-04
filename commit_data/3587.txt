@@ -1,0 +1,20 @@
+commit d4d4ff0d836fc1d7fc4e860ed0c1642577a6853b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 13:13:59 2009 -0700
+
+    - method names in method sets/interfaces must be all different
+    - specify evaluation order of floating-point expressions as
+      discussed
+    - specify floating point conversion rounding as discussed
+    - slightly reformatted section on conversions to make it
+      more readable (hopefully)
+    - fixed production for interpreted_string_lit - components
+      were not properly tagged before because of """ instead of `"`
+    
+    R=go-dev
+    DELTA=83  (41 added, 11 deleted, 31 changed)
+    OCL=35864
+    CL=35885
+
+ doc/go_spec.html | 96 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 63 insertions(+), 33 deletions(-)

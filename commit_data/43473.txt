@@ -1,0 +1,21 @@
+commit a972e8ccb9824d97f029bde5409527fb27e85989
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Thu Oct 15 00:24:14 2020 +0530
+
+    all: fix quoting for compress/bzip2 and time's godoc
+    
+    The existing usage of grave accent (`) and apostrophe (')
+    at some places made godoc to ignore them and show it as it is.
+    So, use both of the characters twice (consecutively) so that
+    godoc can convert it to {left,right} double quotation mark.
+    
+    Fixes #41958
+    
+    Change-Id: I64fd9b5fa34f416ad595009d09f5482e10bd8b4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262397
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/compress/bzip2/bzip2.go | 8 ++++----
+ src/time/tick.go            | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

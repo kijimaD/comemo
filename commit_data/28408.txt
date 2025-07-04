@@ -1,0 +1,22 @@
+commit 544010a05a90e45763ec9a8c149fc5137e1ec461
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 16:37:17 2016 -0700
+
+    cmd/compile: remove Betypeinit
+    
+    Change-Id: I5c2fd0ff1b49f3826f2b9869b0b11329804b0e2a
+    Reviewed-on: https://go-review.googlesource.com/29244
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/amd64/galign.go  | 12 ++----------
+ src/cmd/compile/internal/arm/galign.go    |  4 ----
+ src/cmd/compile/internal/arm64/galign.go  |  4 ----
+ src/cmd/compile/internal/gc/go.go         |  7 +++----
+ src/cmd/compile/internal/gc/main.go       |  1 -
+ src/cmd/compile/internal/mips64/galign.go |  4 ----
+ src/cmd/compile/internal/ppc64/galign.go  |  4 ----
+ src/cmd/compile/internal/s390x/galign.go  |  4 ----
+ src/cmd/compile/internal/x86/galign.go    |  4 ----
+ 9 files changed, 5 insertions(+), 39 deletions(-)

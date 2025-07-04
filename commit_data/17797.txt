@@ -1,0 +1,14 @@
+commit 74f639176da060afc1fa939f7165310abbbb707f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 15 14:25:29 2013 -0400
+
+    misc/cgo/test: cut out non-standard functions
+    
+    Otherwise the link fails. Fixes build.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/14483050
+
+ misc/cgo/test/issue6506.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

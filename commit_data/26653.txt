@@ -1,0 +1,77 @@
+commit b91cc5303364c4aae758ff1f0b4efc66b7802700
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 2 12:58:27 2016 +0100
+
+    cmd/compile/internal/ssa: BCE for induction variables
+    
+    There are 5293 loop in the main go repository.
+    A survey of the top most common for loops:
+    
+         18 for __k__ := 0; i < len(sa.Addr); i++ {
+         19 for __k__ := 0; ; i++ {
+         19 for __k__ := 0; i < 16; i++ {
+         25 for __k__ := 0; i < length; i++ {
+         30 for __k__ := 0; i < 8; i++ {
+         49 for __k__ := 0; i < len(s); i++ {
+         67 for __k__ := 0; i < n; i++ {
+        376 for __k__ := range __slice__ {
+        685 for __k__, __v__ := range __slice__ {
+       2074 for __, __v__ := range __slice__ {
+    
+    The algorithm to find induction variables handles all cases
+    with an upper limit. It currently doesn't find related induction
+    variables such as c * ind or c + ind.
+    
+    842 out of 22954 bound checks are removed for src/make.bash.
+    1957 out of 42952 bounds checks are removed for src/all.bash.
+    
+    Things to do in follow-up CLs:
+    * Find the associated pointer for `for _, v := range a {}`
+    * Drop the NilChecks on the pointer.
+    * Replace the implicit induction variable by a loop over the pointer
+    
+    Generated garbage can be reduced if we share the sdom between passes.
+    
+    % benchstat old.txt new.txt
+    name       old time/op     new time/op     delta
+    Template       337ms ± 3%      333ms ± 3%    ~             (p=0.258 n=9+9)
+    GoTypes        1.11s ± 2%      1.10s ± 2%    ~           (p=0.912 n=10+10)
+    Compiler       5.25s ± 1%      5.29s ± 2%    ~             (p=0.077 n=9+9)
+    MakeBash       33.5s ± 1%      34.1s ± 2%  +1.85%          (p=0.011 n=9+9)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      63.6MB ± 0%     63.9MB ± 0%  +0.52%         (p=0.000 n=10+9)
+    GoTypes        218MB ± 0%      219MB ± 0%  +0.59%         (p=0.000 n=10+9)
+    Compiler       978MB ± 0%      985MB ± 0%  +0.69%        (p=0.000 n=10+10)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        582k ± 0%       583k ± 0%  +0.10%        (p=0.000 n=10+10)
+    GoTypes        1.78M ± 0%      1.78M ± 0%  +0.12%        (p=0.000 n=10+10)
+    Compiler       7.68M ± 0%      7.69M ± 0%  +0.05%        (p=0.000 n=10+10)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       581k ± 0%       581k ± 0%  -0.08%        (p=0.000 n=10+10)
+    CmdGoSize      6.40M ± 0%      6.39M ± 0%  -0.08%        (p=0.000 n=10+10)
+    
+    name       old data-bytes  new data-bytes  delta
+    HelloSize      3.66k ± 0%      3.66k ± 0%    ~     (all samples are equal)
+    CmdGoSize       134k ± 0%       134k ± 0%    ~     (all samples are equal)
+    
+    name       old bss-bytes   new bss-bytes   delta
+    HelloSize       126k ± 0%       126k ± 0%    ~     (all samples are equal)
+    CmdGoSize       149k ± 0%       149k ± 0%    ~     (all samples are equal)
+    
+    name       old exe-bytes   new exe-bytes   delta
+    HelloSize       947k ± 0%       946k ± 0%  -0.01%        (p=0.000 n=10+10)
+    CmdGoSize      9.92M ± 0%      9.91M ± 0%  -0.06%        (p=0.000 n=10+10)
+    
+    Change-Id: Ie74bdff46fd602db41bb457333d3a762a0c3dc4d
+    Reviewed-on: https://go-review.googlesource.com/20517
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+
+ src/cmd/compile/internal/ssa/compile.go |   1 +
+ src/cmd/compile/internal/ssa/loopbce.go | 260 ++++++++++++++++++++++++++++++++
+ test/loopbce.go                         | 176 +++++++++++++++++++++
+ test/prove.go                           |   4 +-
+ 4 files changed, 439 insertions(+), 2 deletions(-)

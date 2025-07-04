@@ -1,0 +1,20 @@
+commit f9c54f9cd441110af2146d9c21eeaee9df178204
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Oct 22 17:30:37 2023 +0900
+
+    net/http: remove outdated comment about a support of CONNECT method
+    
+    The net/http.Transport already supports CONNECT after
+    https://go-review.googlesource.com/c/go/+/123156 was merged, which
+    deleted comments in transport.go.
+    
+    Change-Id: I784fdb9b044bc8a4a29bf252328c80a11aaf6901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536057
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/request.go | 4 ----
+ 1 file changed, 4 deletions(-)

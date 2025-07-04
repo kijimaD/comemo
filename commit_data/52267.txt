@@ -1,0 +1,22 @@
+commit e8543a6fa6e68a9d35178a5bbb71812cfbc2ba05
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 13 16:16:32 2023 -0400
+
+    net/http: remove more arbitrary timeouts from server tests
+    
+    This change eliminates the easy, arbitrary timouts that should
+    never happen. It leaves in place a couple of more complicated ones
+    that will probably need retry loops for robustness.
+    
+    For #49336.
+    For #36179.
+    
+    Change-Id: I657ef223a66461413a915da5ce9150f49acec04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476035
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go | 210 +++++++++------------------------------------
+ 1 file changed, 39 insertions(+), 171 deletions(-)

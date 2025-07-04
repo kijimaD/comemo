@@ -1,0 +1,14 @@
+commit 2ac4d5270f65464c136cf978ad61f293e393f0d3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 9 10:02:17 2011 -0800
+
+    rpc: delete unused field from InvalidRequest struct.
+    Was a mysterious holdover from an attempt to fix a problem
+    long-resolved, I think.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4243066
+
+ src/pkg/rpc/server.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

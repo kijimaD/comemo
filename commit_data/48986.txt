@@ -1,0 +1,23 @@
+commit f01c20bf2ba889e5c9e3565175cc4276f9c11516
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 30 22:18:43 2022 +0000
+
+    runtime/debug: export SetMemoryLimit
+    
+    This change also adds an end-to-end test for SetMemoryLimit as a
+    testprog.
+    
+    Fixes #48409.
+    
+    Change-Id: I102d64acf0f36a43ee17b7029e8dfdd1ee5f057d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397018
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/48409.txt                  |   1 +
+ src/runtime/debug/garbage.go        |  64 +++++++++++++++++++-
+ src/runtime/gc_test.go              |  28 +++++++++
+ src/runtime/mgc.go                  |   2 +-
+ src/runtime/testdata/testprog/gc.go | 115 ++++++++++++++++++++++++++++++++++++
+ 5 files changed, 208 insertions(+), 2 deletions(-)

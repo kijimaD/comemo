@@ -1,0 +1,14 @@
+commit 4cc71e336300d50a50b006779207a19deb0c715e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 3 16:38:22 2013 -0700
+
+    spec: added additional links, added missing 'label'
+    
+    No semantic spec changes.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/14363043
+
+ doc/go_spec.html | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

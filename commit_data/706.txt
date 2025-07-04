@@ -1,0 +1,12 @@
+commit 4332e0a546045f38f71f19166cdf1279391364a2
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 22 17:29:12 2008 -0700
+
+    remove extraneous print
+    
+    R=r
+    OCL=15666
+    CL=15666
+
+ src/cmd/gc/subr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

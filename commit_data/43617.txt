@@ -1,0 +1,39 @@
+commit 3a819e8998af1db3bdd34eb2ab059a3c534c6def
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Wed Oct 28 13:35:57 2020 -0700
+
+    syscall: handle undefined r2 value on linux-ppc64x
+    
+    This change fixes two failng tests on linux-ppc64x:
+    
+    - TestAllThreadsSyscall() exposed a real bug in the ppc64x support:
+      - It turns out that the r2 syscall return value is not defined
+        on all architectures. Notably linux-ppc64x so address that by
+        introducing a private architectural constant in the syscall
+        package, archHonorsR2: true if r2 has a determanistic value.
+    
+    - TestSetuidEtc() was sensitive to /proc/<PID>/status content:
+      - The amount of padding space has changed with kernel vintage.
+      - Stress testing revealed a race with /proc files disappearing.
+    
+    Fixes #42178
+    
+    Change-Id: Ie6fc0b8f2f94a409ac0e5756e73bfce113274709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266202
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/syscall/syscall_linux.go         |  8 +++--
+ src/syscall/syscall_linux_386.go     |  6 ++++
+ src/syscall/syscall_linux_amd64.go   |  6 ++++
+ src/syscall/syscall_linux_arm.go     |  6 ++++
+ src/syscall/syscall_linux_arm64.go   |  6 ++++
+ src/syscall/syscall_linux_mips64x.go |  6 ++++
+ src/syscall/syscall_linux_mipsx.go   |  6 ++++
+ src/syscall/syscall_linux_ppc64x.go  |  6 ++++
+ src/syscall/syscall_linux_riscv64.go |  6 ++++
+ src/syscall/syscall_linux_s390x.go   |  6 ++++
+ src/syscall/syscall_linux_test.go    | 60 +++++++++++++++++++-----------------
+ 11 files changed, 91 insertions(+), 31 deletions(-)

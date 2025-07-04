@@ -1,0 +1,12 @@
+commit eedfc445a3a3f4a5fb26e167a1eba717a883ea7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 18 18:23:00 2011 -0400
+
+    build: diagnose Ubuntu's buggy copy of gold
+    
+    R=iant, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4300041
+
+ src/make.bash | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

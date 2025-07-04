@@ -1,0 +1,42 @@
+commit 75ea964b3f6073076e1a86a0de2be9a2f159da24
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Feb 18 22:41:20 2020 -0500
+
+    cmd/trace: update to use WebComponents V0 polyfill
+    
+    Old trace viewer stopped working with Chrome M80+ because the
+    old trace viewer heavily depended on WebComponents V0 which are deprecated.
+    Trace viewer recently migrated to use WebComponents V0 polyfill
+    (crbug.com/1036492). This CL brings in the newly updated trace_viewer_full.html
+    (sync'd @ 9508452e)
+    and updates the javascript snippet included in the /trace endpoint
+    to use the polyfill.
+    
+    This brings in webcomponents.min.js copied from
+    https://chromium.googlesource.com/catapult/+/9508452e18f130c98499cb4c4f1e1efaedee8962/third_party/polymer/components/webcomponentsjs/webcomponents.min.js
+    
+    That is necessary because the /trace endpoint needs to import
+    the vulcanized trace_viewer_full.html.
+    
+    It's possible that some features are not working correctly with
+    this polyfill. In that case, report the issue to crbug.com/1036492.
+    There will be a warning message in the UI (yellow banner above the timeline)
+    which can be hidden by clicking the 'hide' button.
+    
+    This allows to render the trace in browsers other than chrome in theory,
+    but I observed some buttons and functions still don't work outside
+    chrome.
+    
+    Fixes #34374.
+    
+    Change-Id: Ib575f756f5e6b22ad904ede6e4d224a995ebe259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219997
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/trace/README.md              |   77 +-
+ misc/trace/trace_viewer_full.html | 1994 ++++++++++++++++++++++++++-----------
+ misc/trace/webcomponents.min.js   |   14 +
+ src/cmd/trace/trace.go            |   39 +-
+ 4 files changed, 1533 insertions(+), 591 deletions(-)

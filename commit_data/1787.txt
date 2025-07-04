@@ -1,0 +1,13 @@
+commit 2aa77352fcdc0cc67612d682f9e16437fb423d76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 9 17:16:42 2009 -0700
+
+    scanner.go documentation
+    
+    R=r
+    DELTA=22  (8 added, 3 deleted, 11 changed)
+    OCL=25947
+    CL=25955
+
+ src/lib/go/scanner.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

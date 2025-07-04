@@ -1,0 +1,18 @@
+commit c7543e5db95d80205d1a0be3b4e946fac244601c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 17:56:35 2021 -0700
+
+    go/types: fixes for pointer receivers of instantiated methods
+    
+    Backported changes from CL 349998 that were not already in go/types.
+    
+    Change-Id: I0341f76c080b4e73567b3e917a4cbbe2e82d3703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351149
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/instantiate_test.go |  4 ++--
+ src/go/types/named.go            | 22 ++++++++++++++--------
+ 2 files changed, 16 insertions(+), 10 deletions(-)

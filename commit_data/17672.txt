@@ -1,0 +1,14 @@
+commit d851c6d478fc68d88ac192ad9499726c9e393c8f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 23 15:14:26 2013 +1000
+
+    doc: mention os/exec StdinPipe change in Go 1.2 doc
+    
+    Fixes #6439.
+    
+    R=r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13478045
+
+ doc/go1.2.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

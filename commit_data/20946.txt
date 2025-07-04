@@ -1,0 +1,12 @@
+commit e67a39ed08fbc64938043ff0406a31ea02c3d8a1
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Tue Dec 9 11:45:19 2014 +1100
+
+    net/http: avoid some allocations in DetectContentType
+    
+    Change-Id: I64985f8de7ca09e63208e8c949a5d4f4fc09073f
+    Reviewed-on: https://go-review.googlesource.com/1230
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/net/http/sniff.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

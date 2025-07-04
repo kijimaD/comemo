@@ -1,0 +1,43 @@
+commit 8d9bb1e1ccd767f1ffddab7952c0981c8af904bf
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Nov 1 18:45:42 2017 +0100
+
+    vendor/golang_org/x/net/idna: update from upstream
+    
+    The only file that really changed is
+    x/net/idna (upstream 8253218a).
+    
+    See CL 73730: avoid memory leak in validation codes
+    
+    The rest is just a small change in the
+    generation line at the top.
+    
+    Change-Id: I62c5172f77f63d919c41d11c6db0a9517bc2a221
+    Reviewed-on: https://go-review.googlesource.com/74953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang_org/x/net/idna/idna.go              | 19 +++++++++++++++++--
+ src/vendor/golang_org/x/net/idna/punycode.go          |  2 +-
+ src/vendor/golang_org/x/net/idna/tables.go            |  2 +-
+ src/vendor/golang_org/x/net/idna/trie.go              |  2 +-
+ src/vendor/golang_org/x/net/idna/trieval.go           |  2 +-
+ .../golang_org/x/text/secure/bidirule/bidirule.go     |  2 +-
+ src/vendor/golang_org/x/text/secure/doc.go            |  2 +-
+ src/vendor/golang_org/x/text/transform/transform.go   |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/bidi.go     |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/bracket.go  |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/core.go     |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/prop.go     |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/tables.go   |  2 +-
+ src/vendor/golang_org/x/text/unicode/bidi/trieval.go  |  2 +-
+ src/vendor/golang_org/x/text/unicode/doc.go           |  2 +-
+ .../golang_org/x/text/unicode/norm/composition.go     |  2 +-
+ src/vendor/golang_org/x/text/unicode/norm/forminfo.go |  2 +-
+ src/vendor/golang_org/x/text/unicode/norm/input.go    |  2 +-
+ src/vendor/golang_org/x/text/unicode/norm/iter.go     |  2 +-
+ .../golang_org/x/text/unicode/norm/normalize.go       |  2 +-
+ .../golang_org/x/text/unicode/norm/readwriter.go      |  2 +-
+ src/vendor/golang_org/x/text/unicode/norm/tables.go   |  2 +-
+ .../golang_org/x/text/unicode/norm/transform.go       |  2 +-
+ src/vendor/golang_org/x/text/unicode/norm/trie.go     |  2 +-
+ 24 files changed, 40 insertions(+), 25 deletions(-)

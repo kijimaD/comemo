@@ -1,0 +1,17 @@
+commit 4c8baa0ad0f709b857710d34e662f168c16c533f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Sat Sep 3 18:32:51 2016 -0700
+
+    cmd/compile: use CheckLoweredPhi on PPC64
+    
+    This custom version is identical to CheckLoweredPhi. The addition of
+    CheckLoweredPhi likely raced with adding PPC64.
+    
+    Change-Id: I294dcb758d312e93fb8842f4d1e12bf0f63a1e06
+    Reviewed-on: https://go-review.googlesource.com/28479
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

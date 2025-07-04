@@ -1,0 +1,21 @@
+commit 7e5e4a7cef34727c8de2da218e76da23f826d608
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 01:39:18 2022 +0700
+
+    math/big: disable TestNewIntAllocs on noopt builder
+    
+    Since when that test requires inlining, which is disabled on noopt
+    builder.
+    
+    Updates #29951
+    
+    Change-Id: I9d7a0a64015a30d3bfb5ad5d806ea0955657fda3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422039
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/math/big/int_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

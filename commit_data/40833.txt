@@ -1,0 +1,21 @@
+commit 647741721cd06efd0bd17ca7f7a85ae2264a6fe7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 14:28:15 2019 -0500
+
+    cmd/go: convert TestIssue6844 to a script test
+    
+    It was attempting to write a test binary to the working directory.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I82eca3a8a3e019dc6dacbe1f02a0583577694b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207614
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                          | 13 -------------
+ src/cmd/go/testdata/dep_test.go                |  7 -------
+ src/cmd/go/testdata/script/test_rebuildall.txt | 14 ++++++++++++++
+ 3 files changed, 14 insertions(+), 20 deletions(-)

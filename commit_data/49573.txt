@@ -1,0 +1,24 @@
+commit 4914e4e334b33cd823a770bd5860f525aad44c61
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 30 14:18:02 2022 -0400
+
+    cmd/go/internal/modindex: remove spurious field from index_format documentation
+    
+    The 'path' field was removed in an earlier revision to the format.
+    
+    While auditing the format, I also cleaned up a couple of minor
+    typographical issues.
+    
+    For #53586.
+    
+    Change-Id: I4cd1ce9e970023441c11244428ed2971be1d8138
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415514
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modindex/index_format.txt | 7 +++----
+ src/cmd/go/internal/modindex/read.go          | 6 +++---
+ src/cmd/go/internal/modindex/scan.go          | 2 +-
+ 3 files changed, 7 insertions(+), 8 deletions(-)

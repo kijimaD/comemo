@@ -1,0 +1,18 @@
+commit 776a9d0958973bff6a66e61baa6a9a240ada4255
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 20 09:03:39 2020 -0400
+
+    test: fix -test.v trace output for cgo/testshared
+    
+    Trace output showing how dummy GOROOT was being set up was incorrect
+    (sense of the "cp -r" trace messages was inverted). This patch fixes
+    the problem.
+    
+    Change-Id: Ib0ee649e305bfa1bc0c49e0d5ba2ea31e0a4f67e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224377
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testshared/shared_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

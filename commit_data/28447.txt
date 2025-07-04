@@ -1,0 +1,20 @@
+commit 2266047556e7bc32e828dbfc4accdd1d4669f137
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 16 16:22:08 2016 +1200
+
+    cmd/link: give names and a type to the symbol types used by genasmsym
+    
+    Doing this revealed some dead code.
+    
+    Change-Id: I5202fcc3f73e3dfddfea3ec7b772e16da51195da
+    Reviewed-on: https://go-review.googlesource.com/29331
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go  |  6 ++--
+ src/cmd/link/internal/ld/lib.go    | 40 ++++++++++++++--------
+ src/cmd/link/internal/ld/macho.go  | 14 ++++----
+ src/cmd/link/internal/ld/pe.go     | 12 +++----
+ src/cmd/link/internal/ld/symtab.go | 68 ++++++++++++++------------------------
+ 5 files changed, 68 insertions(+), 72 deletions(-)

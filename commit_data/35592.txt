@@ -1,0 +1,19 @@
+commit 75c1aed3457238295d761b5a6f3adcf776c578e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 4 16:32:07 2018 -0700
+
+    runtime: slightly better error message for assertion panics with identical looking types
+    
+    Fixes #18911.
+    
+    Change-Id: Ice10f37460a4f0a66cddeacfe26c28045f5e60fe
+    Reviewed-on: https://go-review.googlesource.com/116255
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/error.go               |  7 ++++++-
+ test/fixedbugs/issue18911.dir/a.go |  7 +++++++
+ test/fixedbugs/issue18911.dir/b.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue18911.go       |  7 +++++++
+ 4 files changed, 41 insertions(+), 1 deletion(-)

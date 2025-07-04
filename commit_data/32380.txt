@@ -1,0 +1,18 @@
+commit 6f0b1aa0e29b2526592b47ba04c8a4d507e4f05d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 18 11:44:21 2017 -0400
+
+    cmd/go: test and fix missing deep dependencies in list Deps output
+    
+    Fixes #21522.
+    
+    Change-Id: Ifec1681b265576c47a4d736f6f124cc25485c593
+    Reviewed-on: https://go-review.googlesource.com/57011
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/deps_test.go       |  6 ++++++
+ src/cmd/go/go_test.go           | 14 ++++++++++++++
+ src/cmd/go/internal/load/pkg.go | 35 ++++++++++++++++++++---------------
+ 3 files changed, 40 insertions(+), 15 deletions(-)

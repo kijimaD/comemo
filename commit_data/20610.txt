@@ -1,0 +1,14 @@
+commit 62d3202aaa0fb131be1f0dbf21e97dbe11b177dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 1 16:51:32 2014 -0400
+
+    reflect: fix IsValid vs Kind mismatch after Elem of nil interface
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/151960044
+
+ src/reflect/all_test.go | 14 ++++++++++++++
+ src/reflect/value.go    |  4 +++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

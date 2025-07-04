@@ -1,0 +1,12 @@
+commit bd3c478f935e91e05dbb17d7a4297eb89d8c8e06
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 17 20:57:54 2009 -0700
+
+    add value checks to the other switch - should have done this in prior round
+    
+    R=rsc
+    OCL=26438
+    CL=26438
+
+ test/typeswitch.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

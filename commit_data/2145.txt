@@ -1,0 +1,12 @@
+commit 3e9b171b79de56d8a7f7f1c02d83adeccbd3f0f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 17:33:51 2009 -0700
+
+    6g bug: was dropping assignment of nil to globals
+    
+    R=ken
+    OCL=28314
+    CL=28314
+
+ src/cmd/gc/gen.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

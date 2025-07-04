@@ -1,0 +1,23 @@
+commit 9f1239b90a7a48c5dc68a7eee08d8e1fba56db80
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Feb 12 15:19:18 2022 +0000
+
+    math/big: produce valid JSON in Int.MarshalJSON when nil
+    
+    Fixes #50940.
+    
+    Change-Id: Ie2a0c4505ca9d7e448017d9d00a020a6b3996be3
+    GitHub-Last-Rev: afd8c6b5598f43de25831c700b8d76cd97571426
+    GitHub-Pull-Request: golang/go#50941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381963
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/math/big/intmarsh.go      |  5 ++++-
+ src/math/big/intmarsh_test.go | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

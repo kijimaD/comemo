@@ -1,0 +1,16 @@
+commit ab957154b68e1fe996241447ba2eb9ab893ddbef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 18 12:58:44 2011 -0500
+
+    codereview: undo last night's rollback
+    
+    Update version check from 1.4 to 1.9.  Suggest 2.0.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5413046
+
+ doc/install.html             |    2 +-
+ lib/codereview/codereview.py | 1145 +++++++++++++++++++++++-------------------
+ lib/codereview/test.sh       |  198 ++++++++
+ 3 files changed, 826 insertions(+), 519 deletions(-)

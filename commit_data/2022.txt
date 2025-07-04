@@ -1,0 +1,18 @@
+commit 457b0030f70e7179cbfb1935461071e8129ed75e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 18:38:37 2009 -0700
+
+    godoc: supporting data
+    
+    R=gri
+    DELTA=252  (240 added, 3 deleted, 9 changed)
+    OCL=27482
+    CL=27521
+
+ usr/gri/pretty/package.html     | 45 ++++++++++++++++++++++++++++++
+ usr/gri/pretty/package.txt      | 61 +++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/packagelist.html | 15 ++++++++++
+ usr/gri/pretty/packagelist.txt  | 11 ++++++++
+ usr/gri/pretty/parseerror.html  |  4 +++
+ usr/gri/pretty/parseerror.txt   |  6 ++++
+ 6 files changed, 142 insertions(+)

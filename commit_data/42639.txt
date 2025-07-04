@@ -1,0 +1,18 @@
+commit f92337422ef2ca27464c198bb3426d2dc4661653
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 1 12:55:47 2020 -0700
+
+    runtime/race: fix ppc64le build
+    
+    The .syso test also fails for ppc64le. Not sure why. For now, just
+    disable the test for that architecture. The test really only needs to
+    run on a single builder of any arch.
+    
+    Change-Id: I346cdc01ada09d43c4c504fbc30be806f59d5422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246358
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/syso_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

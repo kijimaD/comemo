@@ -1,0 +1,30 @@
+commit 761e813829d68420635f4b4f6c75cca158767329
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 3 01:08:10 2023 -0400
+
+    cmd/compile: work with new bisect command
+    
+    CL 491875 introduces a new bisect command, which we plan to
+    document for use by end users to debug semantic changes in
+    the compiler and in GODEBUGs.
+    
+    This CL adapts the existing GOSSAHASH support, which bisect
+    is a revision of, to support the specific syntax and output used
+    by bisect as well.
+    
+    A followup CL will remove the old GOSSAHASH syntax and output
+    once existing consumers of that interface have been updated.
+    
+    Change-Id: I99c4af54bb82c91c74bd8b8282ded968e6316f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491895
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/hashdebug.go       | 71 ++++++++++++------------
+ src/cmd/compile/internal/base/hashdebug_test.go  | 36 ++++++------
+ src/cmd/compile/internal/loopvar/loopvar_test.go |  2 +-
+ src/cmd/compile/internal/ssa/fmahash_test.go     |  2 +-
+ src/cmd/dist/buildtool.go                        |  1 +
+ 5 files changed, 57 insertions(+), 55 deletions(-)

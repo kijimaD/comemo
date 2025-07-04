@@ -1,0 +1,21 @@
+commit cb7d6e37d81a92eb990f314a3824ec17d9099f0c
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Dec 16 10:01:54 2011 +1100
+
+    godoc: Allow examples for methods.
+    
+    An example for a method M() of type T can be written as
+    func ExampleT_M() { ... }.
+    To differentiate between multiple examples for one function, type or
+    method a suffix with a lowercase start may be appended to the name
+    of the example function, e.g. ExampleFoo_basicUsage.
+    
+    Fixes #2465.
+    
+    R=golang-dev, adg, r, rsc, duperray.olivier, r
+    CC=golang-dev
+    https://golang.org/cl/5440100
+
+ src/cmd/godoc/godoc.go | 18 +++++++++++++++---
+ src/cmd/gotest/doc.go  | 11 +++++++++--
+ 2 files changed, 24 insertions(+), 5 deletions(-)

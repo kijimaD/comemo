@@ -1,0 +1,12 @@
+commit dfd6b6efe1908d4e0dccdefed59923e25d2da676
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 6 11:42:42 2017 +0100
+
+    doc: fix dead link in go_faq
+    
+    Change-Id: I8a9e4d00247fe9bda6e19551850bdec0367df2e1
+    Reviewed-on: https://go-review.googlesource.com/82157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

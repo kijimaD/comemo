@@ -1,0 +1,12 @@
+commit c18d1a78a4cb8e0052fb272964bbf94b5855c6f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 12:17:55 2011 -0400
+
+    gc: implement new return restriction
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5245056
+
+ src/cmd/gc/go.y | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

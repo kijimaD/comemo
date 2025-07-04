@@ -1,0 +1,59 @@
+commit 93b5309f0a239ad6a855d698c89731ff73570b47
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Feb 12 21:29:27 2022 -0500
+
+    go/types, types2: avoid infinitely recursive instantiation
+    
+    Type inference uses type parameter pointer identity to keep track of the
+    correspondence between type parameters and type arguments. However, this
+    technique can misidentify type parameters that are used in explicit type
+    arguments or function arguments, as in the recursive instantiation
+    below:
+    
+      func f[P *Q, Q any](p P, q Q) {
+            f[P]
+      }
+    
+    In this example, the fact that the P used in the instantation f[P] has
+    the same pointer identity as the P we are trying to solve for via
+    unification is coincidental: there is nothing special about recursive
+    calls that should cause them to conflate the identity of type arguments
+    with type parameters. To put it another way: any such self-recursive
+    call is equivalent to a mutually recursive call, which does not run into
+    any problems of type parameter identity. For example, the following code
+    is equivalent to the code above.
+    
+      func f[P interface{*Q}, Q any](p P, q Q) {
+            f2[P]
+      }
+    
+      func f2[P interface{*Q}, Q any](p P, q Q) {
+            f[P]
+      }
+    
+    We can turn the first example into the second example by renaming type
+    parameters in the original signature to give them a new identity. This
+    CL does this for self-recursive instantiations.
+    
+    Fixes #51158
+    Fixes #48656
+    Updates #48619
+    
+    Change-Id: I54fe37f2a79c9d98950cf6a3602335db2896dc24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385494
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go           | 70 +++++++++++++++++++++-
+ src/cmd/compile/internal/types2/subst.go           | 11 ++++
+ .../types2/testdata/fixedbugs/issue48619.go2       | 11 +---
+ .../types2/testdata/fixedbugs/issue48656.go2       | 12 ++--
+ .../types2/testdata/fixedbugs/issue51158.go2       | 18 ++++++
+ src/go/types/infer.go                              | 70 +++++++++++++++++++++-
+ src/go/types/subst.go                              | 11 ++++
+ src/go/types/testdata/fixedbugs/issue48619.go2     | 11 +---
+ src/go/types/testdata/fixedbugs/issue48656.go2     | 12 ++--
+ src/go/types/testdata/fixedbugs/issue51158.go2     | 18 ++++++
+ 10 files changed, 212 insertions(+), 32 deletions(-)

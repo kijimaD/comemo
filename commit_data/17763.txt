@@ -1,0 +1,13 @@
+commit bab2a5416ccb20cb8b25c640f2eff0da6a13d2d6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 8 14:36:20 2013 -0400
+
+    test: revert changes made for Go SSA interpreter test.
+    
+    R=r, gri
+    CC=golang-dev
+    https://golang.org/cl/14552044
+
+ test/blank.go   | 3 +--
+ test/nilptr2.go | 3 ---
+ 2 files changed, 1 insertion(+), 5 deletions(-)

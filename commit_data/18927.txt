@@ -1,0 +1,17 @@
+commit 833dae6d26c56bde5fbae27fde0cdc6efa63fefa
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Mar 24 20:36:42 2014 +0100
+
+    cmd/gc: fix spurious 'const initializer is not a constant' error
+    
+    Fixes #6403
+    
+    LGTM=rsc
+    R=iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72840044
+
+ src/cmd/gc/subr.c           |  1 +
+ src/cmd/gc/typecheck.c      |  5 ++++-
+ test/fixedbugs/issue6403.go | 14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

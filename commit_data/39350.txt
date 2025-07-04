@@ -1,0 +1,14 @@
+commit 5ce1819ccab65ceefa3198bbc78fb4dcac3cca6e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 10 13:44:56 2019 -0400
+
+    doc, net/http: add release notes for net/http and fix doc comments
+    
+    Change-Id: I684e3522e387b2d96d5cfb2878d2f77bf4558443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181545
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html           | 18 +++++++++++++-----
+ src/net/http/server.go    |  2 +-
+ src/net/http/transport.go |  5 +++--
+ 3 files changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,22 @@
+commit f9e9412ce26ca208c1d25a6b854259c94aa54030
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 18:53:30 2016 -0700
+
+    cmd/dist: run vet/all on dedicated builders
+    
+    We will soon add dedicated builders for running vet/all.
+    Their name will end with "-vetall".
+    On those builders, run vet/all and nothing else.
+    On all other builders, including local all.bash,
+    don't run vet/all at all, because it is slow.
+    
+    This will probably be refined more over time.
+    
+    Change-Id: Ib1d0337adda84353931a325515c132068d4320cd
+    Reviewed-on: https://go-review.googlesource.com/28962
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

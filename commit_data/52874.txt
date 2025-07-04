@@ -1,0 +1,25 @@
+commit 8dea63547035e2246e09ba96d0338ad9ba8b39ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 17:42:01 2023 -0700
+
+    go/types, types2: make Checker.renameTParams work on any type
+    
+    This permits the rewrite of type parameters in arbitrary types,
+    not just tuples.
+    
+    Preparation for fixing #59956.
+    For #59338.
+    
+    Change-Id: I9ccaac1f163051cb837cae2208763cafb1d239cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492515
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go  |  8 +++++---
+ src/cmd/compile/internal/types2/infer.go | 15 +++++++++------
+ src/go/types/call.go                     |  8 +++++---
+ src/go/types/infer.go                    | 15 +++++++++------
+ 4 files changed, 28 insertions(+), 18 deletions(-)

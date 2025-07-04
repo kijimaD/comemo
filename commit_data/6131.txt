@@ -1,0 +1,33 @@
+commit 5c603dbb75c0f1980717dbe6c356f586a7b55f24
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Mon Aug 30 15:40:56 2010 -0400
+
+    build: remove unnecessary references to GOBIN and GOROOT
+    
+    All scripts and makefiles assume that GOBIN is correctly set
+    in PATH.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2043041
+
+ doc/Makefile                |  4 ++--
+ doc/codelab/wiki/Makefile   | 13 ++++---------
+ doc/progs/run               | 12 +++++-------
+ misc/cgo/stdio/Makefile     |  4 ++--
+ misc/cgo/stdio/test.bash    |  5 ++---
+ src/Make.common             |  2 +-
+ src/clean.bash              |  2 +-
+ src/cmd/gc/mkbuiltin        |  2 +-
+ src/make.bash               |  6 +++---
+ src/pkg/exp/eval/Makefile   |  8 ++++----
+ src/pkg/exp/eval/test.bash  |  6 ++----
+ src/pkg/exp/ogle/Makefile   |  4 ++--
+ src/pkg/image/jpeg/Makefile |  4 ++--
+ src/pkg/runtime/Makefile    | 20 ++++++++++----------
+ src/quietgcc.bash           |  2 +-
+ src/run.bash                | 32 ++++++++++++++++----------------
+ test/bench/timing.sh        |  8 +++-----
+ test/run                    |  5 ++---
+ test/run-arm                |  2 +-
+ 19 files changed, 64 insertions(+), 77 deletions(-)

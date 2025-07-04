@@ -1,0 +1,18 @@
+commit 7548327374844719bf90cce199e7fa4b43b94e2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 10:14:29 2021 -0700
+
+    comd/compile/internal/types2: add missing nil check in const conversion
+    
+    Follow-up on CL 360396.
+    
+    Fixes #49296.
+    
+    Change-Id: Ie08f86ae884da4cfd5db557cbf4f721a237dc39f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360796
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go       |  2 ++
+ .../types2/testdata/fixedbugs/issue49296.go2         | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

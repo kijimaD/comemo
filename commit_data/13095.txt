@@ -1,0 +1,17 @@
+commit ccd63c3c19b1598d8e717c1575a01f77dd83a499
+Author: James Gray <james@james4k.com>
+Date:   Fri May 18 10:34:37 2012 -0700
+
+    net/http: non-keepalive connections close successfully
+    
+    Connections did not close if Request.Close or Response.Close was true. This meant that if the user wanted the connection to close, or if the server requested it via "Connection: close", the connection would not be closed.
+    
+    Fixes #1967.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6201044
+
+ src/pkg/net/http/transport.go      |  4 ++
+ src/pkg/net/http/transport_test.go | 86 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 88 insertions(+), 2 deletions(-)

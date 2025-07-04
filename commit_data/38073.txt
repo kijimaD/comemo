@@ -1,0 +1,22 @@
+commit c55eeeb718b0dfd008f0d722c8b8d05f8b02d62b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 8 09:25:05 2019 +0100
+
+    runtime: use hw.ncpuonline sysctl in getncpu on openbsd
+    
+    The number of CPUs reported by the hw.ncpu sysctl is twice as high as
+    the actual number of CPUs running on OpenBSD 6.4. with hyperthreading
+    disabled (hw.smt=0). Try hw.cpuonline first and fall back to hw.ncpu
+    in case it fails (which is the case on older OpenBSD before 6.4).
+    
+    Fixes #30127
+    
+    Change-Id: Id091234b8038cc9f7c40519d039fc1a05437c40d
+    Reviewed-on: https://go-review.googlesource.com/c/161757
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/os_openbsd.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

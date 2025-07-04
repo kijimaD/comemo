@@ -1,0 +1,14 @@
+commit d5269d0008126e72deccdbd2c6ee241c41986a42
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 14:46:13 2009 -0700
+
+    tests for new initializer syntax
+    
+    R=r
+    DELTA=79  (79 added, 0 deleted, 0 changed)
+    OCL=29196
+    CL=29202
+
+ test/initialize.go   | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/initializerr.go | 25 +++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

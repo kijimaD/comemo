@@ -1,0 +1,21 @@
+commit a150c4ff2464b4d72732ea57c0831f58ff9b5e0f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Nov 16 19:34:54 2015 -0800
+
+    testing: pause the test timer while waiting in T.Parallel
+    
+    Before, we reset the timer at the end of T.Parallel, which is okay
+    assuming that T.Parallel is the first thing in the test.
+    
+    Snapshot the elapsed time at the beginning of Parallel and include it in
+    the total duration so that any time spent in the test before calling
+    Parallel is reported in the test duration as well.
+    
+    Updates #12243.
+    
+    Change-Id: Ieca553e1f801e16b9b6416463fa8f7fa65425185
+    Reviewed-on: https://go-review.googlesource.com/16989
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/testing.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

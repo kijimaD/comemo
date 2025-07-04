@@ -1,0 +1,18 @@
+commit 643ef15b1640d3b1b3a3e020fe28a74f70d95637
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:58:54 2015 -0400
+
+    io: tweak Reader comment
+    
+    I think this has the same meaning as before,
+    but the text is tighter, and it makes some people happy.
+    
+    Fixes #10182.
+    
+    Change-Id: I7ee1eae4bcd6ee4a5898ea948648939e6bde5f01
+    Reviewed-on: https://go-review.googlesource.com/11674
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 7c1bb0037427ca5317e03d61e39478362bfb7755
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 15:59:32 2010 -0800
+
+    net: enable UDP broadcast before it is needed (instead of after)
+    
+    Fixes #526.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186211
+
+ src/pkg/net/sock.go    | 3 +++
+ src/pkg/net/udpsock.go | 6 +-----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit caa225dd297a467b0d720d5f1d63050e49061ad3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 26 12:50:02 2022 -0700
+
+    doc/go1.19: note that updated race syso files require GNU ld 2.26
+    
+    For #54060
+    
+    Change-Id: I6360565056d7fb7110ff00b0f3f9a3fc02ba7f2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419595
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.19.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

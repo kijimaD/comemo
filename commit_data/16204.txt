@@ -1,0 +1,16 @@
+commit 782a57811fc008d6f30fcab24590337a1253ce7d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 20 17:42:14 2013 +1000
+
+    cmd/ld: do not relocate ignored PE sections
+    
+    This should have been part of CL8715043.
+    
+    Update #5106
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/8676050
+
+ src/cmd/ld/ldpe.c | 5 +++++
+ 1 file changed, 5 insertions(+)

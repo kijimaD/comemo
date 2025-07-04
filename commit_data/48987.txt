@@ -1,0 +1,16 @@
+commit e7508598bb8007ec2a04cb25a6076643af05c033
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 3 15:40:40 2022 +0000
+
+    runtime: use Escape instead of escape in export_test.go
+    
+    I landed the bottom CL of my stack without rebasing or retrying trybots,
+    but in the rebase "escape" was removed in favor of "Escape."
+    
+    Change-Id: Icdc4d8de8b6ebc782215f2836cd191377cc211df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403755
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

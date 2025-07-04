@@ -1,0 +1,22 @@
+commit 840fad13ecd974efebe4fa25d4e444df5ec8041d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 7 23:04:50 2017 -0800
+
+    cmd/compile: fix unsafe.Pointer liveness for Syscall-like functions
+    
+    The package unsafe docs say it's safe to convert an unsafe.Pointer to
+    uintptr in the argument list to an assembly function, but it was
+    erroneously only detecting normal pointers converted to unsafe.Pointer
+    and then to intptr.
+    
+    Fixes #23051.
+    
+    Change-Id: Id1be19f6d8f26f2d17ba815191717d2f4f899732
+    Reviewed-on: https://go-review.googlesource.com/82817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/order.go |  4 ++--
+ test/live_syscall.go                 | 12 ++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

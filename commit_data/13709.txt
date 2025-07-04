@@ -1,0 +1,12 @@
+commit d6c69dc602431828c5e5818b24bbf0593652480c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 30 16:10:33 2012 -0700
+
+    go/scanner: don't print garbage if there's no error
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6489059
+
+ src/pkg/go/scanner/errors.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

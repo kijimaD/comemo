@@ -1,0 +1,36 @@
+commit ae9771713383c1ee01a544cd50cfdbc22841380a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 6 23:05:22 2021 +0000
+
+    runtime,runtime/metrics: use explicit histogram boundaries
+    
+    This change modifies the semantics of
+    runtime/metrics.Float64Histogram.Buckets to remove implicit buckets to
+    that extend to positive and negative infinity and instead defines all
+    bucket boundaries as explicitly listed.
+    
+    Bucket boundaries remain the same as before except
+    /gc/heap/allocs-by-size:objects and /gc/heap/frees-by-size:objects no
+    longer have a bucket that extends to negative infinity.
+    
+    This change simplifies the Float64Histogram API, making it both easier
+    to understand and easier to use.
+    
+    Also, add a test for allocs-by-size and frees-by-size that checks them
+    against MemStats.
+    
+    Fixes #43443.
+    
+    Change-Id: I5620f15bd084562dadf288f733c4a8cace21910c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281238
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/histogram.go         | 32 ++++++++++++++++++++++++++++----
+ src/runtime/metrics.go           | 32 +++++++++++++++++++++++---------
+ src/runtime/metrics/histogram.go | 29 ++++++++++++++++-------------
+ src/runtime/metrics_test.go      | 36 ++++++++++++++++++++++++++++++++----
+ 4 files changed, 99 insertions(+), 30 deletions(-)

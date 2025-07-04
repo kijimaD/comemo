@@ -1,0 +1,36 @@
+commit f092be8fd839f5e61745c1b7f3b5990b4b8d6565
+Merge: e3b0e3d646 bed93255ba
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Fri May 1 15:02:37 2020 +0000
+
+    Merge "cmd: merge branch 'dev.link' into master"
+
+ src/cmd/link/internal/amd64/asm.go       |  32 +-
+ src/cmd/link/internal/amd64/obj.go       |   2 +-
+ src/cmd/link/internal/arm/asm.go         |   6 +-
+ src/cmd/link/internal/arm64/asm.go       |   6 +-
+ src/cmd/link/internal/ld/data.go         | 576 ++++++++++++++++++-------------
+ src/cmd/link/internal/ld/deadcode.go     |  38 +-
+ src/cmd/link/internal/ld/decodesym.go    | 201 +++++++++--
+ src/cmd/link/internal/ld/decodesym2.go   | 174 ----------
+ src/cmd/link/internal/ld/dwarf.go        |  30 +-
+ src/cmd/link/internal/ld/dwarf2.go       |   1 +
+ src/cmd/link/internal/ld/elf.go          |  33 +-
+ src/cmd/link/internal/ld/elf2.go         |  54 +++
+ src/cmd/link/internal/ld/lib.go          |  35 +-
+ src/cmd/link/internal/ld/main.go         |  14 +-
+ src/cmd/link/internal/ld/pe.go           |   2 +-
+ src/cmd/link/internal/ld/typelink.go     |   2 +-
+ src/cmd/link/internal/ld/xcoff.go        |   2 +-
+ src/cmd/link/internal/loader/loader.go   | 255 +++++++++++---
+ src/cmd/link/internal/mips/asm.go        |   2 +-
+ src/cmd/link/internal/mips64/asm.go      |   2 +-
+ src/cmd/link/internal/ppc64/asm.go       |   6 +-
+ src/cmd/link/internal/s390x/asm.go       |   4 +-
+ src/cmd/link/internal/sym/reloc.go       |   8 +-
+ src/cmd/link/internal/sym/sizeof_test.go |   2 +-
+ src/cmd/link/internal/sym/symbol.go      |   1 -
+ src/cmd/link/internal/sym/symbols.go     |   5 -
+ src/cmd/link/internal/x86/asm.go         |  20 +-
+ src/cmd/link/internal/x86/obj.go         |   2 +-
+ 28 files changed, 910 insertions(+), 605 deletions(-)

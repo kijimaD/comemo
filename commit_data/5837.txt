@@ -1,0 +1,20 @@
+commit 95b93c28e395e4ea88ad831e87736c7ef75eb734
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 17 16:32:40 2010 -0700
+
+    1. got 29 (Mpscale) more bits of precision
+    out of floating constant multiply
+    2. added rounding code to "const fix=float"
+    to allow up to 29 (Mpscale) bits of
+    slop and still get an exact fixed constant.
+    
+    fixes #931
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1692055
+
+ src/cmd/gc/mparith1.c | 34 ++++++++++++++++++++++++++++++++--
+ src/cmd/gc/mparith2.c |  6 +++++-
+ src/cmd/gc/mparith3.c |  2 +-
+ 3 files changed, 38 insertions(+), 4 deletions(-)

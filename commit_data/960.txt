@@ -1,0 +1,19 @@
+commit b379d54deaa918191ea0b283cc3bc5c5a810fbb4
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Oct 24 20:14:28 2008 -0700
+
+    another step toward interface subtypes
+    put explicit ./ on some runtime tests
+    
+    R=r
+    OCL=17839
+    CL=17839
+
+ src/cmd/6g/obj.c        | 514 ++++++++++++++++++++++++++++++------------------
+ src/cmd/gc/go.h         |  19 +-
+ src/cmd/gc/subr.c       | 248 +++++++++++++++++++++++
+ src/cmd/gc/walk.c       | 113 -----------
+ src/run.bash            |   5 +-
+ usr/gri/pretty/Makefile |   2 +-
+ usr/gri/pretty/test.sh  |  10 +-
+ 7 files changed, 595 insertions(+), 316 deletions(-)

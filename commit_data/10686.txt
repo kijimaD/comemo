@@ -1,0 +1,16 @@
+commit 940c25faa4e495a13d6411fe23640c9d16b1e986
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 9 08:31:04 2011 -0800
+
+    tmpltohtml: feature for easier snippet extraction
+    Lines that end with OMIT are omitted from the output.
+    A comment such as
+            // Example stops here. OMIT
+    can be used as a marker but not appear in the output.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5477050
+
+ doc/tmpltohtml.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

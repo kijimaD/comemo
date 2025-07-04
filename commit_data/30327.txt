@@ -1,0 +1,17 @@
+commit d9a19f86fb5297aee62242ad14b6a69d2c990a79
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 19 10:42:34 2017 +0100
+
+    fmt: remove unused global variable byteType
+    
+    Change list https://golang.org/cl/20686/ removed the last use
+    of the variable byteType.
+    
+    Change-Id: I4ea79095136a49a9d22767b37f48f3404da05056
+    Reviewed-on: https://go-review.googlesource.com/37197
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/print.go | 2 --
+ 1 file changed, 2 deletions(-)

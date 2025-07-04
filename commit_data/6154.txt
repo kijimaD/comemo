@@ -1,0 +1,48 @@
+commit 1331084c3d7ac5f8721a29412e6b0d9ae1436683
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 1 21:05:31 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    bug284.go:33: error: invalid type conversion
+    bug284.go:36: error: invalid type conversion (cannot use type A2 as type A1)
+    bug284.go:37: error: invalid type conversion
+    bug284.go:38: error: invalid type conversion (cannot use type A1 as type A2)
+    bug284.go:56: error: invalid type conversion
+    bug284.go:59: error: invalid type conversion (cannot use type S2 as type S1)
+    bug284.go:60: error: invalid type conversion
+    bug284.go:61: error: invalid type conversion (cannot use type S1 as type S2)
+    bug284.go:71: error: invalid type conversion
+    bug284.go:74: error: invalid type conversion (cannot use type P2 as type P1)
+    bug284.go:75: error: invalid type conversion
+    bug284.go:76: error: invalid type conversion (cannot use type P1 as type P2)
+    bug284.go:96: error: invalid type conversion
+    bug284.go:99: error: invalid type conversion (cannot use type Q2 as type Q1)
+    bug284.go:101: error: invalid type conversion (cannot use type Q1 as type Q2)
+    bug284.go:111: error: invalid type conversion (different parameter types)
+    bug284.go:114: error: invalid type conversion (different parameter types)
+    bug284.go:115: error: invalid type conversion (different parameter types)
+    bug284.go:116: error: invalid type conversion (different parameter types)
+    bug284.go:134: error: invalid type conversion (incompatible type for method 'f' (different result types))
+    bug284.go:137: error: invalid type conversion (incompatible type for method 'f' (different result types))
+    bug284.go:138: error: invalid type conversion (incompatible type for method 'f' (different result types))
+    bug284.go:139: error: invalid type conversion (incompatible type for method 'f' (different result types))
+    bug284.go:149: error: invalid type conversion
+    bug284.go:152: error: invalid type conversion (cannot use type L2 as type L1)
+    bug284.go:153: error: invalid type conversion
+    bug284.go:154: error: invalid type conversion (cannot use type L1 as type L2)
+    bug284.go:164: error: invalid type conversion
+    bug284.go:167: error: invalid type conversion (cannot use type L2 as type L1)
+    bug284.go:168: error: invalid type conversion
+    bug284.go:169: error: invalid type conversion (cannot use type L1 as type L2)
+    bug284.go:179: error: invalid type conversion
+    bug284.go:182: error: invalid type conversion (cannot use type C2 as type C1)
+    bug284.go:183: error: invalid type conversion
+    bug284.go:184: error: invalid type conversion (cannot use type C1 as type C2)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2136041
+
+ test/fixedbugs/bug284.go | 70 ++++++++++++++++++++++++------------------------
+ 1 file changed, 35 insertions(+), 35 deletions(-)

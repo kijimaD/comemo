@@ -1,0 +1,20 @@
+commit 47cd14f268722882cc954a46277a80eb95821aa7
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Oct 31 10:42:23 2024 -0700
+
+    internal/runtime/maps: clean up put slot calls
+    
+    Use matchEmptyOrDeleted instead of matchEmpty.
+    Streamline the code a bit.
+    TODO: replicate in all the _fast files.
+    Change-Id: I4df16a13a19df3aaae0c42e0c12f20552f08ead6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 158 +++++++++------------
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 158 +++++++++------------
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  79 +++++------
+ src/internal/runtime/maps/table.go                 | 103 ++++++--------
+ 4 files changed, 222 insertions(+), 276 deletions(-)

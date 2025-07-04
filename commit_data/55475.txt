@@ -1,0 +1,30 @@
+commit 65f056d07ad1db7dd4fb23c4d35cf7b8bd0d6008
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jan 30 11:01:05 2024 -0500
+
+    runtime: avoid new linkname for goroutine profiles
+    
+    CL 464349 added a new linkname to provide gcount to runtime/pprof to
+    avoid a STW when estimating the goroutine profile allocation size.
+    
+    However, adding a linkname here isn't necessary for a few reasons:
+    
+    1. We already export gcount via NumGoroutines. I completely forgot about
+       this during review.
+    2. aktau suggested that goroutineProfileWithLabelsConcurrent return
+       gcount as a fast path estimate when the input is empty.
+    
+    The second point keeps the code cleaner overall, so I've done that.
+    
+    For #54014.
+    
+    Change-Id: I6cb0811a769c805e269b55774cdd43509854078e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559515
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mprof.go       | 13 ++++++++-----
+ src/runtime/pprof/pprof.go | 10 +---------
+ 2 files changed, 9 insertions(+), 14 deletions(-)

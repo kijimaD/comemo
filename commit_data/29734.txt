@@ -1,0 +1,21 @@
+commit d54b60a2b2470ea42559b58995e86ff20dd70471
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Dec 3 18:45:50 2016 -0800
+
+    html/template: lock in application/json as valid JS test
+    
+    CL https://go-review.googlesource.com/33899 added
+    application/json as a mimeType for valid JS. Let's
+    lock that fix in with a test.
+    
+    Updates #18159
+    
+    Change-Id: Ic4dfd8929aebfc5410f796688f081ca06630f672
+    Reviewed-on: https://go-review.googlesource.com/33901
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Nodir Turakulov <nodir@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/html/template/js_test.go | 1 +
+ 1 file changed, 1 insertion(+)

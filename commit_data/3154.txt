@@ -1,0 +1,13 @@
+commit e596297139499634bbdee07b1462674b00880259
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:34:43 2009 -0700
+
+    add SectionReader, ReaderAt.
+    
+    R=r
+    DELTA=85  (85 added, 0 deleted, 0 changed)
+    OCL=34141
+    CL=34144
+
+ src/pkg/io/io.go | 85 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 85 insertions(+)

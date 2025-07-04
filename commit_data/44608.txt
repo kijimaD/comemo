@@ -1,0 +1,19 @@
+commit 415ca3f1f0fa05a98561752e0787f59b77f19645
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 10 19:35:22 2021 -0800
+
+    test: add test that caused a gofrontend internal error
+    
+    For #44383
+    
+    Change-Id: I3610105dad3574e210e226d3ba80a4ba5a7eeaa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300789
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue44383.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,0 +1,35 @@
+commit 92ba9b5c40c23dad771fa471cdf24a2f18847ab8
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Sep 25 22:34:23 2017 -0300
+
+    go/printer: allow one-method interfaces to be printed on a single line
+    
+    Previously, only the empty interface could be formatted to print on a
+    single line. This behaviour made short one-method interfaces in function
+    definitions and type assertions more verbose than they had to be.
+    
+    For example, the following type assertion:
+    
+        if c, ok := v.(interface {
+            Close() error
+        }); ok {
+        }
+    
+    Can now be formatted as:
+    
+        if c, ok := v.(interface{ Close() error }); ok {
+        }
+    
+    Fixes #21952
+    
+    Change-Id: I896f796c5a30b9f4da2be3fe67cb6fea5871b835
+    Reviewed-on: https://go-review.googlesource.com/66130
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/nodes.go                    | 31 ++++++++++++++++++++----------
+ src/go/printer/testdata/expressions.golden | 10 ++++++++++
+ src/go/printer/testdata/expressions.input  | 11 ++++++++++-
+ src/go/printer/testdata/expressions.raw    | 10 ++++++++++
+ 4 files changed, 51 insertions(+), 11 deletions(-)

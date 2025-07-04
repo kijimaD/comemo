@@ -1,0 +1,18 @@
+commit 65e1fc7f1974ad49679a91046154083d9a3a9d6c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 3 22:19:42 2023 +0200
+
+    time: fix Time godoc
+    
+    The additional empty line was inadvertently introduced by CL 526676,
+    causing only part of the Time godoc to be rendered on pkg.go.dev.
+    
+    Change-Id: I868315752eb160ebaab227c8b5369054c557cb7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531877
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/time/time.go | 1 -
+ 1 file changed, 1 deletion(-)

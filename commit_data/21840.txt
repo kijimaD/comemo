@@ -1,0 +1,17 @@
+commit bfb8ad51d5151c34bd9d4101d0058fcc9eee7fe7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 2 10:43:39 2015 -0500
+
+    os: set TMPDIR on darwin/arm
+    
+    This is a roll forward of 2adc3bd6ef84. It occurred to me that we will
+    want this code on both darwin/arm and darwin/arm64. Removing _arm from
+    the file name conveniently avoids #10032.
+    
+    Change-Id: I3a96a3e7020907d9307af8f696e26ad55b2060f0
+    Reviewed-on: https://go-review.googlesource.com/6460
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/os/file_darwin.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

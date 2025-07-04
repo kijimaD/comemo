@@ -1,0 +1,17 @@
+commit c776cb999bf0dc650e233839ed5e99f9df231f24
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 6 17:29:27 2015 +1100
+
+    net: fix off by one error while counting interfaces on windows
+    
+    Fixes #12301
+    
+    Change-Id: I8d01ec9551c6cff7e6129e06a7deb36a3be9de41
+    Reviewed-on: https://go-review.googlesource.com/16751
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/interface_windows.go |  2 +-
+ src/net/net_windows_test.go  | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit b4402a49b6c9a87f27c2140beacf46ef95738455
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Jul 29 18:51:06 2012 -0400
+
+    runtime/cgo: fix netbsd build
+    
+    Copy over freebsd.c to netbsd.c.
+    
+    Fixes #3823.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6398045
+
+ src/pkg/runtime/cgo/netbsd.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

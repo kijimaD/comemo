@@ -1,0 +1,15 @@
+commit a957ceec354899e37ba75ba1cd9e5f03bb9cfcaf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 11 18:17:54 2008 -0800
+
+    The scope rules have been changed to say that labels live in a
+    separate per-function namespace.
+    
+    R=gri
+    DELTA=24  (8 added, 16 deleted, 0 changed)
+    OCL=19006
+    CL=19057
+
+ test/{bugs => fixedbugs}/bug077.go | 7 +------
+ test/golden.out                    | 3 ---
+ 2 files changed, 1 insertion(+), 9 deletions(-)

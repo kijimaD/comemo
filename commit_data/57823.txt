@@ -1,0 +1,24 @@
+commit 2220fd36368c96da3dd833bdc2bbd13be291216a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 17 16:30:04 2024 -0400
+
+    runtime: add concurrent write checks to swissmap
+    
+    This is the same design as existing maps.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I5f6ef5fea1e0f0616bcd90eaae7faee4cdac58c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616460
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  5 +-
+ src/internal/runtime/maps/map.go                  | 88 ++++++++++++++++++-----
+ src/internal/runtime/maps/runtime_swiss.go        | 38 ++++++++--
+ src/internal/runtime/maps/table.go                |  4 ++
+ src/runtime/map_swiss.go                          |  4 --
+ 5 files changed, 111 insertions(+), 28 deletions(-)

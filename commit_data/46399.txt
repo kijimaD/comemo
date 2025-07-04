@@ -1,0 +1,19 @@
+commit 1a708bcf1d17171056a42ec1597ca8848c854d2a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 14:42:42 2021 -0700
+
+    cmd/compile: don't crash while reporting invalid alias cycle
+    
+    Add a missing nil check in the formatting code for expression
+    nodes. Matches the nil checks in the same code.
+    
+    Fixes #48301.
+    
+    Change-Id: Ia9bfd3535254a94996ee190b544d95e15433d252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348740
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/fmt.go |  2 +-
+ test/fixedbugs/issue48301.go       | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

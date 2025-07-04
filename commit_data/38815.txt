@@ -1,0 +1,17 @@
+commit c8aaec2f70c5ccbca1ec2152c57d19981ac09133
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 18 21:34:41 2019 +0000
+
+    runtime/trace: also treat plan9 as a low memory system
+    
+    Fixes #31554
+    Updates #12032 (also originally about plan9, but later openbsd/arm)
+    
+    Change-Id: Ib9f35d27a2304f38bf271c38c0b9153d210d8f95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172837
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/trace/trace_test.go | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit f9238a76ff0082071527ce8ec94542a297f594f8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 15:44:19 2016 -0400
+
+    cmd/compile: make LR allocatable in non-leaf functions on ARM
+    
+    The mechanism is initially introduced (and reviewed) in CL 30597
+    on S390X.
+    
+    Reduce number of "spilled value remains" by 0.4% in cmd/go.
+    
+    Disabled on ARMv5 because LR is clobbered almost everywhere with
+    inserted softfloat calls.
+    
+    Change-Id: I2934737ce2455909647ed2118fe2bd6f0aa5ac52
+    Reviewed-on: https://go-review.googlesource.com/32178
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go      | 1038 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go   |    7 +
+ 3 files changed, 531 insertions(+), 524 deletions(-)

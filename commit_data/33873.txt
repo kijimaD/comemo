@@ -1,0 +1,19 @@
+commit 81c19cc0119d1b88e9cd26f65d93f3eede0d8620
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 11:00:14 2017 -0500
+
+    doc/go1.10: preannounce deprecation of OS X 10.9 Mavericks
+    
+    By the time Go 1.11 is released, OS X 10.9 Mavericks will have gone
+    two years with no security updates.
+    
+    For #23011.
+    
+    Change-Id: I6482852a14477985769b72c45c92416aae8be100
+    Reviewed-on: https://go-review.googlesource.com/83795
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.10.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

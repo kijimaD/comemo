@@ -1,0 +1,14 @@
+commit 34437f04fd642c43d32ac70be68c470c60b4dc4e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Dec 18 09:09:12 2018 +0100
+
+    doc/1.12: add notes about aix/ppc64 port
+    
+    Fixes #29315
+    
+    Change-Id: I6ecc5109c23e7a7d9db54250bf041acc841701e3
+    Reviewed-on: https://go-review.googlesource.com/c/154697
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 39eb1cc3f4a7d620d3faae139f83e88e652f5d25
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 25 20:21:31 2020 -0400
+
+    crypto/x509: drop compatibility hack for expired COMODO intermediates
+    
+    The hack was there for a couple intermediates with only SGC EKUs that
+    issued severAuth certificates. They now all expired, so we can drop it.
+    
+    https://crt.sh/?id=10066
+    https://crt.sh/?id=213
+    
+    Change-Id: I46820024892b2f9918ce125bafbbaf9e6c5c58b3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/781225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327809
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/name_constraints_test.go |  14 +++--
+ src/crypto/x509/root_windows.go          |   5 --
+ src/crypto/x509/verify.go                |   8 ---
+ src/crypto/x509/verify_test.go           | 100 -------------------------------
+ 4 files changed, 9 insertions(+), 118 deletions(-)

@@ -1,0 +1,12 @@
+commit 6a1ea00d59de7a1be5aaad34e90c75cde974db60
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 22:59:16 2010 -0400
+
+    gotest: leave _testmain.go for "make clean" to clean up
+    
+    R=r, brainman
+    CC=golang-dev
+    https://golang.org/cl/2297041
+
+ src/cmd/gotest/gotest | 1 -
+ 1 file changed, 1 deletion(-)

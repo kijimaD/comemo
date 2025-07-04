@@ -1,0 +1,16 @@
+commit a824ffcc93724053d73c286b1176b2c709ce25a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 13:40:28 2014 -0800
+
+    go/build: fix field mismatch in unkeyed struct literal
+    
+    Fixes #9409
+    
+    Change-Id: I2404cd8bf3ebb07f4b6a2b3e1d58ab69b9f1e8d8
+    Reviewed-on: https://go-review.googlesource.com/2040
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/go/build/build.go      |  6 +++++-
+ src/go/build/build_test.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

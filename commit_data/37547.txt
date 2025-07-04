@@ -1,0 +1,22 @@
+commit 3ce9e5a10e19055610d82e87c3fef44d71f1afc5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 30 12:26:10 2018 -0800
+
+    go/internal/gccgoimporter: fix test when using gccgo 4.7
+    
+    TestInstallationImporter checks that it can read the export data for a
+    list of known standard library packages. It was failing on the SmartOS
+    builder which has GCC 4.7 installed. Skip packages that did not exist
+    in GCC 4.7. Most packages are still there and the missing packages are
+    fairly simple, so this doesn't really affect test quality.
+    
+    Updates #29006
+    
+    Change-Id: If7ae6f83d51d40168a9692acb0b99c9bf21f2a4d
+    Reviewed-on: https://go-review.googlesource.com/c/152077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/gccgoimporter/gccgoinstallation_test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

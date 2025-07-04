@@ -1,0 +1,23 @@
+commit b9365488f017ba88540f21927a69e34351941db1
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Nov 24 17:48:38 2020 +0100
+
+    cmd/internal/objabi: assume GOARM=7 on Android
+    
+    CL 34641 changed the Go runtime to assume GOARM=7 support on Android.
+    This change completes that by assuming GOARM=7 in the toolchain, fixing
+    the gotcha of inexplicably slow performance on non-arm64 Android devices.
+    
+    There is already code in cmd/dist to force GOARM to 7 on GOOS=android. However,
+    dist is most likely run with GOOS != android.
+    
+    Change-Id: I5e2bf11c3ecd0f6c193229eaa8ddc570722799d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272846
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Elias Naur <mail@eliasnaur.com>
+
+ src/cmd/dist/util.go            | 6 ------
+ src/cmd/internal/objabi/util.go | 7 ++++++-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

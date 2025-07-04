@@ -1,0 +1,36 @@
+commit eb982727e33263c0bb67de607beb44c5e0bd2bea
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 28 09:10:57 2021 -0500
+
+    cmd/go/internal/mvs: fix Downgrade to match Algorithm 4
+    
+    mvs.Downgrade is pretty clearly intended to match Algorithm 4 from the
+    MVS blog post (https://research.swtch.com/vgo-mvs#algorithm_4).
+    
+    Per the blog post:
+    “Downgrading one module may require downgrading other modules, but we
+    want to downgrade as few other modules as possible. … To avoid an
+    unnecessary downgrade to E 1.1, we must also add a new requirement on
+    E 1.2. We can apply Algorithm R to find the minimal set of new
+    requirements to write to go.mod.”
+    
+    mvs.Downgrade does not match that behavior today: it fails to retain
+    the selected versions of transitive dependencies that are not implied
+    by downgraded direct dependencies of the target (module E in the
+    post). This bug is currently masked by the fact that we only call
+    Downgrade today with a *modload.mvsReqs, for which the Required method
+    happens to return the complete build list — rather than only the
+    direct dependencies as documented for the mvs.Reqs interface.
+    
+    For #36460
+    
+    Change-Id: If9c8f413b156b5f67c02787d9359394e169951b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287633
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go                   | 27 +++++++++++++++++++-----
+ src/cmd/go/internal/mvs/mvs_test.go              | 19 ++++++-----------
+ src/cmd/go/testdata/script/mod_load_badchain.txt |  3 +--
+ 3 files changed, 29 insertions(+), 20 deletions(-)

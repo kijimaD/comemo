@@ -1,0 +1,20 @@
+commit 1a05177d44138ac0ce341dd62dd14166ae6d316b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 31 21:39:08 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug197.go:10:5: error: incompatible type in initialization
+    bug197.go:11:5: error: incompatible type in initialization
+    bug197.go:12:5: error: incompatible type in initialization
+    bug197.go:13:5: error: incompatible type in initialization
+    bug197.go:20:13: error: incompatible types in binary expression
+    bug197.go:21:27: error: incompatible types in binary expression
+    
+    R=rsc
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=34135
+    CL=34177
+
+ test/fixedbugs/bug197.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

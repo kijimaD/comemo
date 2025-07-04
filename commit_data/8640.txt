@@ -1,0 +1,25 @@
+commit f2f3b8fa99f4390b3ce0fdd921e7116228b7b5e1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 7 12:23:08 2011 +0000
+
+    strconv: change Quote to be Unicode-friendly,
+    add QuoteToASCII.
+    The Quote and QuoteRune functions now let printable
+    runes (as defined by unicode.IsPrint) through.  When
+    true 7-bit clean stuff is necessary, there are now two
+    new functions: QuoteToASCII and QuoteRuneToASCII.
+    
+    Printf("%q") uses Quote. To get the old behavior, it
+    will now be necessary to say
+            Printf("%s", strconv.QuoteToASCII(s))
+    but that should rarely be necessary.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4561061
+
+ src/pkg/fmt/fmt_test.go            |  14 ++---
+ src/pkg/go/scanner/scanner_test.go |   2 +-
+ src/pkg/strconv/quote.go           | 119 +++++++++++++++++++++++--------------
+ src/pkg/strconv/quote_test.go      |  62 +++++++++++++------
+ 4 files changed, 125 insertions(+), 72 deletions(-)

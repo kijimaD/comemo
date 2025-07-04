@@ -1,0 +1,23 @@
+commit f0ab14647ad3c61cd13ffd169ef4a64275e87a21
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 9 11:18:29 2011 -0500
+
+    ld: preserve symbol sizes during data layout
+    
+    Fixes the broken linux/amd64 build.
+    The symbol table, itself a symbol, was having
+    its size rounded up to the nearest word boundary.
+    If the rounding add >7 zero bytes then it confused
+    the debug/gosym symbol table parser.  So you've
+    got a 1/8 chance to hit the bug on an amd64 system.
+    
+    Just started in the recent change because I fixed
+    the rounding to round to word boundary instead
+    of to 4-byte boundary.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4241056
+
+ src/cmd/ld/data.c | 2 --
+ 1 file changed, 2 deletions(-)

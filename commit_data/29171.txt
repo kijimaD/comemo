@@ -1,0 +1,14 @@
+commit 864859d209a144eb1a703381ec96b9c897d4e493
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Oct 26 11:46:06 2016 -0700
+
+    net/http/httptrace: refer http.Client users to the blog post
+    
+    Fixes #17152.
+    
+    Change-Id: I4dd5e505c65f3efe736e46d3781cccf31d7f574f
+    Reviewed-on: https://go-review.googlesource.com/32117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptrace/trace.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

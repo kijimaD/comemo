@@ -1,0 +1,22 @@
+commit 20c7e41555e2c2b393c239f581ef7e216c795db4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 15 09:03:45 2013 +0100
+
+    cmd/gc: fix escape analysis bug.
+    
+    It used to not mark parameters as escaping if only one of the
+    fields it points to leaks out of the function. This causes
+    problems when importing from another package.
+    
+    Fixes #4964.
+    
+    R=rsc, lvd, dvyukov, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/7648045
+
+ src/cmd/gc/esc.c                  |  2 +-
+ test/escape2.go                   |  7 +++++--
+ test/fixedbugs/issue4964.dir/a.go | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue4964.dir/b.go | 34 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue4964.go       | 10 ++++++++++
+ 5 files changed, 77 insertions(+), 3 deletions(-)

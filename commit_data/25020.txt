@@ -1,0 +1,12 @@
+commit 8ab6e16cc94f7d8e57246425b7b298e0228b1081
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 13:12:36 2015 -0800
+
+    doc: update 1.6.txt for fmt.Scanf change
+    
+    Change-Id: Icdce5cdb8676c3bcb73bd943b406000252509521
+    Reviewed-on: https://go-review.googlesource.com/17174
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit ce7829fdb2f9acc6a228e0fc8093afe6d2ca989c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 11 18:32:27 2019 -0500
+
+    doc: add section for major version suffixes to module reference
+    
+    Updates #33637
+    
+    Change-Id: Ieb8fce1b9c44f630cddc5ff6d19daa17185867e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206618
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)

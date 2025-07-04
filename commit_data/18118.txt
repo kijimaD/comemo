@@ -1,0 +1,12 @@
+commit d1a9143669633cd2f47f00b074d6534fc77e1e4d
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 27 08:40:14 2013 -0800
+
+    strconv: add tests for FormatBool and AppendBool
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/42480043
+
+ src/pkg/strconv/atob_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

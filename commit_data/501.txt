@@ -1,0 +1,15 @@
+commit 3963fe3b32b79af95e482a099eb66491c2fe531e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 8 10:57:23 2008 -0700
+
+    fix a couple of tests that had shell errors
+    clean up the golden file a bit to have less meaningless content and be more robust to spurious diffs.
+    now there is output only for tests that produce output or failure.
+    
+    R=gri
+    OCL=14005
+    CL=14005
+
+ test/golden.out | 189 ++++----------------------------------------------------
+ test/run        |  26 ++++++--
+ 2 files changed, 32 insertions(+), 183 deletions(-)

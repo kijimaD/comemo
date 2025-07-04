@@ -1,0 +1,16 @@
+commit 78fc59ef4235dab10119e77a0297d321ea54ae11
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sun Mar 20 09:44:18 2016 +0200
+
+    cmd/compile, cmd/link: remove unused fields from relocations
+    
+    Reduces size of archives in pkg/linux_amd64 by 3% from 41.5MB to 40.2MB
+    
+    Change-Id: Id64ca7995de8dd84c9e7ce1985730927cf4bfd66
+    Reviewed-on: https://go-review.googlesource.com/20912
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/goobj/read.go      | 2 --
+ src/cmd/internal/obj/objfile.go     | 4 ----
+ src/cmd/link/internal/ld/objfile.go | 4 ----
+ 3 files changed, 10 deletions(-)

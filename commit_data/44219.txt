@@ -1,0 +1,54 @@
+commit e491c6eea9ad599a0ae766a3217bd9a16ca3a25a
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jan 27 10:33:35 2021 -0500
+
+    math/big: fix comment in divRecursiveStep
+    
+    There appears to be a typo in the description of
+    the recursive division algorithm.
+    
+    Two things seem suspicious with the original comment:
+      1. It is talking about choosing s, but s doesn't
+         appear anywhere in the equation.
+      2. The math in the equation is incorrect.
+    
+    Where
+      B = len(v)/2
+      s = B - 1
+    
+    Proof that it is incorrect:
+        len(v) - B >= B + 1
+        len(v) - len(v)/2 >= len(v)/2 + 1
+    
+        This doesn't hold if len(v) is even, e.g. 10:
+        10 - 10/2 >= 10/2 + 1
+        10 - 5 >= 5 + 1
+        5 >= 6  // this is false
+    
+    The new equation will be the following,
+    which will be mathematically correct:
+        len(v) - s >= B + 1
+        len(v) - (len(v)/2 - 1) >= len(v)/2 + 1
+        len(v) - len(v)/2 + 1 >= len(v)/2 + 1
+        len(v) - len(v)/2 >= len(v)/2
+    
+        This holds if len(v) is even or odd.
+    
+        e.g. 10
+        10 - 10/2 >= 10/2
+        10 - 5 >= 5
+        5 >= 5
+    
+        e.g. 11
+        11 - 11/2 >= 11/2
+        11 - 5 >= 5
+        6 >= 5
+    
+    Change-Id: If77ce09286cf7038637b5dfd0fb7d4f828023f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287372
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

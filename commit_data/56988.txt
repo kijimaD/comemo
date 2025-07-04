@@ -1,0 +1,21 @@
+commit 9e40780a4633fd104777243fe2b5d07bc482d5a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 28 11:12:48 2024 -0700
+
+    go/types, types2: add test for receiver type parameters
+    
+    Issue #51503 was fixed with the rewrite in CL 594740.
+    Add a respective test case.
+    
+    Fixes #51503.
+    For #51343.
+    
+    Change-Id: Iff9e7e3274c5ad40789e107b6f62d17e335e2428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595697
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ .../types/testdata/fixedbugs/issue51503.go         | 31 ++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

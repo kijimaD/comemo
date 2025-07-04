@@ -1,0 +1,31 @@
+commit 15c12762466b4c5f92b1668f86f73d0b1e66b62b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 20 02:41:08 2023 +0000
+
+    runtime: bring back minHeapIdx in scavenge index
+    
+    The scavenge index currently doesn't guard against overflow, and CL
+    436395 removed the minHeapIdx optimization that allows the chunk scan to
+    skip scanning chunks that haven't been mapped for the heap, and are only
+    available as a consequence of chunks' mapped region being rounded out to
+    a page on both ends.
+    
+    Because the 0'th chunk is never mapped, minHeapIdx effectively prevents
+    overflow, fixing the iOS breakage.
+    
+    This change also refactors growth and initialization a little bit to
+    decouple it from pageAlloc a bit and share code across platforms.
+    
+    Change-Id: If7fc3245aa81cf99451bf8468458da31986a9b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486695
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go      |  1 +
+ src/runtime/mgcscavenge.go      | 31 +++++++++++++++++++++++++++----
+ src/runtime/mpagealloc.go       |  6 ++++--
+ src/runtime/mpagealloc_32bit.go | 35 +++++++++++++++++++++++------------
+ src/runtime/mpagealloc_64bit.go |  8 ++++----
+ 5 files changed, 59 insertions(+), 22 deletions(-)

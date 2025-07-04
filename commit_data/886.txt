@@ -1,0 +1,12 @@
+commit 7cb6b6788c0612bcc6be7b5d7f7e9f32c7bce914
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 16:51:12 2008 -0700
+
+    new convert code found error
+    
+    R=r
+    OCL=17327
+    CL=17327
+
+ src/lib/time/zoneinfo.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

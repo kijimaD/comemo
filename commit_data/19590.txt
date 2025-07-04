@@ -1,0 +1,15 @@
+commit 9cddb486433bfb3e149df98f2940b25b00b8ed52
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Jun 23 10:29:56 2014 +1000
+
+    image/png: remove unnecessary function call
+    
+    paeth(0, x, 0) == x for any uint8 value.
+    
+    LGTM=nigeltao
+    R=golang-codereviews, bradfitz, nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/105290049
+
+ src/pkg/image/png/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

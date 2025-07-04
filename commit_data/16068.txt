@@ -1,0 +1,14 @@
+commit e42584effe7b648a8da345c67bbaef3f4053e228
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Apr 3 08:30:20 2013 -0700
+
+    bytes: don't leave mprotect-ed pages after unsafe test.
+    
+    Fixes inscrutable GC faults during testing.
+    
+    R=golang-dev, bradfitz, dave, fullung
+    CC=golang-dev
+    https://golang.org/cl/8300044
+
+ src/pkg/bytes/equal_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

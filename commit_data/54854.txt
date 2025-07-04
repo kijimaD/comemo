@@ -1,0 +1,33 @@
+commit 607e020150f1bba84beec11aceadbc42abf33986
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 08:15:44 2023 -0400
+
+    cmd/cgo: disable #cgo noescape/nocallback until Go 1.23
+    
+    Go 1.21 and earlier do not understand this line, causing
+    "go mod vendor" of //go:build go1.22-tagged code that
+    uses this feature to fail.
+    
+    The solution is to include the go/build change to skip over
+    the line in Go 1.22 (making "go mod vendor" from Go 1.22 onward
+    work with this change) and then wait to deploy the cgo change
+    until Go 1.23, at which point Go 1.21 and earlier will be unsupported.
+    
+    For #56378.
+    Fixes #63293.
+    
+    Change-Id: Ifa08b134eac5a6aa15d67dad0851f00e15e1e58b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.22.html                                    | 19 +----------------
+ src/cmd/cgo/doc.go                                 | 24 ----------------------
+ src/cmd/cgo/gcc.go                                 |  2 ++
+ src/cmd/cgo/internal/test/test.go                  |  3 ++-
+ .../testerrors/testdata/notmatchedcfunction.go     |  3 ++-
+ src/runtime/crash_cgo_test.go                      |  2 ++
+ src/runtime/testdata/testprogcgo/cgonocallback.go  |  3 +--
+ src/runtime/testdata/testprogcgo/cgonoescape.go    |  2 +-
+ 8 files changed, 11 insertions(+), 47 deletions(-)

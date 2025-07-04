@@ -1,0 +1,96 @@
+commit a86b6f23f08fd42154bc5bbfa417da6ee5ef48fb
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Thu Apr 2 02:39:28 2020 +0000
+
+    cmd/internal/obj/arm64: optimize the instruction of moving long effective stack address
+    
+    Currently, when the offset of "MOVD $offset(Rn), Rd" is a large positive
+    constant or a negative constant, the assembler will load this offset from
+    the constant pool.This patch gets rid of the constant pool by encoding the
+    offset into two ADD instructions if it's a large positive constant or one
+    SUB instruction if negative. For very large negative offset, it is rarely
+    used, here we don't optimize this case.
+    
+    Optimized case 1: MOVD $-0x100000(R7), R0
+    Before: LDR 0x67670(constant pool), R27; ADD R27.UXTX, R0, R7
+    After: SUB $0x100000, R7, R0
+    
+    Optimized case 2: MOVD $0x123468(R7), R0
+    Before: LDR 0x67670(constant pool), R27; ADD R27.UXTX, R0, R7
+    After: ADD $0x123000, R7, R27; ADD $0x000468, R27, R0
+    
+    1. Binary size before/after.
+    binary                 size change
+    pkg/linux_arm64        +4KB
+    pkg/tool/linux_arm64   no change
+    go                     no change
+    gofmt                  no change
+    
+    2. go1 benckmark.
+    name                      old time/op                new time/op                delta
+    pkg:test/bench/go1 goos:linux goarch:arm64
+    BinaryTree17-64           7335721401.800000ns +-40%  6264542009.800000ns +-14%    ~     (p=0.421 n=5+5)
+    Fannkuch11-64             3886551822.600000ns +- 0%  3875870590.200000ns +- 0%    ~     (p=0.151 n=5+5)
+    FmtFprintfEmpty-64                82.960000ns +- 1%          83.900000ns +- 2%  +1.13%  (p=0.048 n=5+5)
+    FmtFprintfString-64              149.200000ns +- 1%         148.000000ns +- 0%  -0.80%  (p=0.016 n=5+4)
+    FmtFprintfInt-64                 177.000000ns +- 0%         178.400000ns +- 2%    ~     (p=0.794 n=4+5)
+    FmtFprintfIntInt-64              240.200000ns +- 2%         239.400000ns +- 4%    ~     (p=0.302 n=5+5)
+    FmtFprintfPrefixedInt-64         300.400000ns +- 0%         299.200000ns +- 1%    ~     (p=0.119 n=5+5)
+    FmtFprintfFloat-64               360.000000ns +- 0%         361.600000ns +- 3%    ~     (p=0.349 n=4+5)
+    FmtManyArgs-64                  1064.400000ns +- 1%        1061.400000ns +- 0%    ~     (p=0.087 n=5+5)
+    GobDecode-64                12080404.400000ns +- 2%    11637601.000000ns +- 1%  -3.67%  (p=0.008 n=5+5)
+    GobEncode-64                 8474973.800000ns +- 2%     7977801.600000ns +- 2%  -5.87%  (p=0.008 n=5+5)
+    Gzip-64                    416501238.400000ns +- 0%   410463405.400000ns +- 0%  -1.45%  (p=0.008 n=5+5)
+    Gunzip-64                   58088415.200000ns +- 0%    58826209.600000ns +- 0%  +1.27%  (p=0.008 n=5+5)
+    HTTPClientServer-64           128660.200000ns +-23%      117840.800000ns +- 8%    ~     (p=0.222 n=5+5)
+    JSONEncode-64               17547746.800000ns +- 4%    17216180.000000ns +- 1%    ~     (p=0.222 n=5+5)
+    JSONDecode-64               80879896.000000ns +- 1%    80063737.200000ns +- 0%  -1.01%  (p=0.008 n=5+5)
+    Mandelbrot200-64             5484901.600000ns +- 0%     5483614.400000ns +- 0%    ~     (p=0.310 n=5+5)
+    GoParse-64                   6201166.800000ns +- 6%     6150920.600000ns +- 1%    ~     (p=0.548 n=5+5)
+    RegexpMatchEasy0_32-64           135.000000ns +- 0%         139.200000ns +- 7%    ~     (p=0.643 n=5+5)
+    RegexpMatchEasy0_1K-64           484.600000ns +- 2%         483.800000ns +- 2%    ~     (p=0.984 n=5+5)
+    RegexpMatchEasy1_32-64           128.000000ns +- 1%         124.600000ns +- 1%  -2.66%  (p=0.008 n=5+5)
+    RegexpMatchEasy1_1K-64           769.400000ns +- 2%         761.400000ns +- 1%    ~     (p=0.460 n=5+5)
+    RegexpMatchMedium_32-64           12.900000ns +- 0%          12.500000ns +- 0%  -3.10%  (p=0.008 n=5+5)
+    RegexpMatchMedium_1K-64        57879.200000ns +- 1%       56512.200000ns +- 0%  -2.36%  (p=0.008 n=5+5)
+    RegexpMatchHard_32-64           3091.600000ns +- 1%        3071.000000ns +- 0%  -0.67%  (p=0.048 n=5+5)
+    RegexpMatchHard_1K-64          92941.200000ns +- 1%       92794.000000ns +- 0%    ~     (p=1.000 n=5+5)
+    Revcomp-64                1695605187.000000ns +-54%  1821697637.400000ns +-47%    ~     (p=1.000 n=5+5)
+    Template-64                112839686.800000ns +- 1%   109964069.200000ns +- 3%    ~     (p=0.095 n=5+5)
+    TimeParse-64                     587.000000ns +- 0%         587.000000ns +- 0%    ~     (all equal)
+    TimeFormat-64                    586.000000ns +- 1%         584.200000ns +- 1%    ~     (p=0.659 n=5+5)
+    [Geo mean]                      81804.262218ns             80694.712973ns       -1.36%
+    
+    name                      old speed                  new speed                  delta
+    pkg:test/bench/go1 goos:linux goarch:arm64
+    GobDecode-64                         63.6MB/s +- 2%             66.0MB/s +- 1%  +3.78%  (p=0.008 n=5+5)
+    GobEncode-64                         90.6MB/s +- 2%             96.2MB/s +- 2%  +6.23%  (p=0.008 n=5+5)
+    Gzip-64                              46.6MB/s +- 0%             47.3MB/s +- 0%  +1.47%  (p=0.008 n=5+5)
+    Gunzip-64                             334MB/s +- 0%              330MB/s +- 0%  -1.25%  (p=0.008 n=5+5)
+    JSONEncode-64                         111MB/s +- 4%              113MB/s +- 1%    ~     (p=0.222 n=5+5)
+    JSONDecode-64                        24.0MB/s +- 1%             24.2MB/s +- 0%  +1.02%  (p=0.008 n=5+5)
+    GoParse-64                           9.35MB/s +- 6%             9.42MB/s +- 1%    ~     (p=0.571 n=5+5)
+    RegexpMatchEasy0_32-64                237MB/s +- 0%              231MB/s +- 7%    ~     (p=0.690 n=5+5)
+    RegexpMatchEasy0_1K-64               2.11GB/s +- 2%             2.12GB/s +- 2%    ~     (p=1.000 n=5+5)
+    RegexpMatchEasy1_32-64                250MB/s +- 1%              257MB/s +- 1%  +2.63%  (p=0.008 n=5+5)
+    RegexpMatchEasy1_1K-64               1.33GB/s +- 2%             1.35GB/s +- 1%    ~     (p=0.548 n=5+5)
+    RegexpMatchMedium_32-64              77.6MB/s +- 0%             79.8MB/s +- 0%  +2.80%  (p=0.008 n=5+5)
+    RegexpMatchMedium_1K-64              17.7MB/s +- 1%             18.1MB/s +- 0%  +2.41%  (p=0.008 n=5+5)
+    RegexpMatchHard_32-64                10.4MB/s +- 1%             10.4MB/s +- 0%    ~     (p=0.056 n=5+5)
+    RegexpMatchHard_1K-64                11.0MB/s +- 1%             11.0MB/s +- 0%    ~     (p=0.984 n=5+5)
+    Revcomp-64                            188MB/s +-71%              155MB/s +-71%    ~     (p=1.000 n=5+5)
+    Template-64                          17.2MB/s +- 1%             17.7MB/s +- 3%    ~     (p=0.095 n=5+5)
+    [Geo mean]                            79.2MB/s                   79.3MB/s       +0.24%
+    
+    Change-Id: I593ac3e7037afafc3605ad4b0cfb51d5dd88015d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232438
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 15 ++++++++--
+ src/cmd/internal/obj/arm64/a.out.go       |  7 +++--
+ src/cmd/internal/obj/arm64/anames7.go     |  1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 46 +++++++++++++++++++++----------
+ 4 files changed, 50 insertions(+), 19 deletions(-)

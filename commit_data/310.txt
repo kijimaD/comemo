@@ -1,0 +1,12 @@
+commit c40be3b1e7288b594b6134f6bfcd7f71760445ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 8 16:39:04 2008 -0700
+
+    - go parser parses itself
+    
+    SVN=126408
+
+ usr/gri/src/parser.go      | 371 +++++++++++++++++++++++++++++++++++++++------
+ usr/gri/src/scanner.go     |   8 +-
+ usr/gri/src/test_parser.go |  12 +-
+ 3 files changed, 341 insertions(+), 50 deletions(-)

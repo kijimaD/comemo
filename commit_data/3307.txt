@@ -1,0 +1,18 @@
+commit 6b0bd43fe4d4038a26b4da718daceba6538d0944
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Sep 17 23:07:52 2009 -0700
+
+    fix code generation of CMP to use registers properly. also fix
+    one case of uninitialized memory and some output.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=73  (43 added, 1 deleted, 29 changed)
+    OCL=34743
+    CL=34772
+
+ src/cmd/5g/cgen.c  | 58 ++++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/5g/ggen.c  |  3 ++-
+ src/cmd/5g/gsubr.c | 31 ++++++++++++++++++-----------
+ src/cmd/5g/list.c  | 10 +++++++---
+ 4 files changed, 72 insertions(+), 30 deletions(-)

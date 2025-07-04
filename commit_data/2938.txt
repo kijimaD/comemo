@@ -1,0 +1,32 @@
+commit 0496040bd67834ce18216b48246e110f340d52ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 10 22:02:51 2009 -0700
+
+    remove unnecessary pkg. references
+    
+    R=r
+    DELTA=95  (0 added, 0 deleted, 95 changed)
+    OCL=33012
+    CL=33012
+
+ src/pkg/container/vector/intvector.go    |  2 +-
+ src/pkg/container/vector/stringvector.go |  2 +-
+ src/pkg/container/vector/vector_test.go  | 34 +++++++++----------
+ src/pkg/fmt/print.go                     |  2 +-
+ src/pkg/go/ast/ast.go                    |  4 +--
+ src/pkg/go/ast/filter.go                 |  2 +-
+ src/pkg/http/fs.go                       |  6 ++--
+ src/pkg/math/all_test.go                 | 58 ++++++++++++++++----------------
+ src/pkg/os/env.go                        |  2 +-
+ src/pkg/os/error.go                      |  4 +--
+ src/pkg/os/exec.go                       |  2 +-
+ src/pkg/os/file.go                       |  4 +--
+ src/pkg/os/path.go                       |  8 ++---
+ src/pkg/os/path_test.go                  | 22 ++++++------
+ src/pkg/os/proc.go                       |  2 +-
+ src/pkg/os/sys_darwin.go                 |  2 +-
+ src/pkg/os/sys_linux.go                  |  2 +-
+ src/pkg/reflect/value.go                 |  2 +-
+ src/pkg/time/tick.go                     | 10 +++---
+ src/pkg/time/time.go                     |  2 +-
+ 20 files changed, 86 insertions(+), 86 deletions(-)

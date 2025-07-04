@@ -1,0 +1,12 @@
+commit f26fc0c017e4eaaf5ebed043d39ebc03df8420ac
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Feb 8 09:20:05 2013 -0800
+
+    net/http/httptest: add examples
+    
+    R=golang-dev, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7314046
+
+ src/pkg/net/http/httptest/example_test.go | 50 +++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

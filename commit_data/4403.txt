@@ -1,0 +1,17 @@
+commit 2ef330ebd9c24ff7db7bc6222f860f6421a5e320
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Dec 13 12:27:19 2009 -0800
+
+    clean.bash: stop if $GOROOT is not set
+    
+    Doing rm -rf /pkg/.. blindly isn't nice.  It could have
+    unintended consequences.
+    
+    Secondly set bash to abort on (unexpected) errors.
+    
+    R=dho, rsc
+    CC=golang-dev
+    https://golang.org/cl/176056
+
+ src/clean.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

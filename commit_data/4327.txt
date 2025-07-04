@@ -1,0 +1,11 @@
+commit d539d079add6183b9f75740a86c2914b6cb917f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 18:34:35 2009 -0800
+
+    libmach: fix disassembly of MOVLQSX
+    
+    R=r
+    https://golang.org/cl/166068
+
+ src/libmach/8db.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

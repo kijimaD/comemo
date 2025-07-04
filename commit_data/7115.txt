@@ -1,0 +1,12 @@
+commit b814cca3c391187bc76db2fb2cbf394e18a50726
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 13 16:30:56 2011 -0800
+
+    cmath test: fix format (%g does not print booleans)
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/4003041
+
+ src/pkg/cmath/cmath_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 579ff8b1313479b795e3b536f7b9444094060b32
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 12:14:10 2021 -0700
+
+    cmd/go,cmd/compile: re-enable concurrent compilation on darwin/arm64
+    
+    I've manually reviewed all uses of ctxt.Flag_shared for concurrency safety.
+    And I manually tested with the race detector and found no issues.
+    Allow -shared to be used with compiler concurrency,
+    thereby re-enabling concurrent compilation on darwin/arm64.
+    
+    Fixes #48496
+    
+    Change-Id: I8a084cb08e6050950e404ceb9bd7e3a20e07e9c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353871
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ src/cmd/go/internal/work/gc.go        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

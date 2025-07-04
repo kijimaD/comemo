@@ -1,0 +1,20 @@
+commit 942c1c12d89a53071ccd883e16d84af2001f2557
+Author: Hiro <laciferin@gmail.com>
+Date:   Wed Jun 21 23:33:51 2023 +0000
+
+    runtime: fix trace.Stop deadlock when built with faketime
+    
+    For #60806
+    
+    Change-Id: I1ac18a6c7c703a1d6c4cd80f220059ba0be51e09
+    GitHub-Last-Rev: d300ca3f316d34f5013be43d01a9a473fe3000b2
+    GitHub-Pull-Request: golang/go#60834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503356
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/trace.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

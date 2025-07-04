@@ -1,0 +1,13 @@
+commit 8e203884dcd5c525208ffb137fed76fd2d09ffc4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 1 14:00:48 2020 +0200
+
+    doc: fix typo in contribute.html
+    
+    Change-Id: Ica27c4a9e4c364d94250aebfc4c2b59cff7f4a8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258679
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/contribute.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

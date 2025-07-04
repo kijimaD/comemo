@@ -1,0 +1,11 @@
+commit 8a902ed840b8f00e163b39991a9ffc7ccff1557a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 14:47:23 2009 -0800
+
+    video is coming soon
+    
+    R=r
+    http://go/go-review/1024049
+
+ lib/godoc/godoc.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

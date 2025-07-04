@@ -1,0 +1,26 @@
+commit 41183d015d17ab537287599e2bf72ca1cdeafb55
+Author: S.Çağlar Onur <caglar@10ur.org>
+Date:   Sun Dec 22 08:55:29 2013 -0800
+
+    cgo/runtime: replace sigprocmask with pthread_sigmask.
+    
+    sigprocmask use in a multithreaded environment is undefined so replace it with pthread_sigmask.
+    
+    Fixes #6811.
+    
+    R=jsing, iant
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/30460043
+
+ src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 4 ++--
+ src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 4 ++--
+ src/pkg/runtime/cgo/gcc_freebsd_386.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c   | 4 ++--
+ src/pkg/runtime/cgo/gcc_linux_386.c       | 4 ++--
+ src/pkg/runtime/cgo/gcc_linux_amd64.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_386.c      | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c    | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c      | 4 ++--
+ src/pkg/runtime/cgo/gcc_openbsd_386.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c   | 4 ++--
+ 11 files changed, 22 insertions(+), 22 deletions(-)

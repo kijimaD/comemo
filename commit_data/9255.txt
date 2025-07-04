@@ -1,0 +1,18 @@
+commit ffa14e849c1268fd94ecf30f7a26d3c4ba39f0ca
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jul 29 13:47:41 2011 -0400
+
+    6l: OpenBSD support
+    
+    Add linker support for OpenBSD ELF-64.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4815066
+
+ src/cmd/6l/asm.c  | 13 +++++++++++--
+ src/cmd/6l/doc.go |  2 ++
+ src/cmd/6l/obj.c  |  5 ++++-
+ src/cmd/6l/pass.c |  6 ++++--
+ src/cmd/ld/lib.h  |  1 +
+ 5 files changed, 22 insertions(+), 5 deletions(-)

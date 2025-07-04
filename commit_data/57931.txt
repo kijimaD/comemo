@@ -1,0 +1,20 @@
+commit 4c8ab993cd881d7eb1b8264f0b716c7cdd638f71
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 9 09:53:09 2024 -0800
+
+    internal/runtime/maps: don't hash twice when deleting
+    
+                         │  baseline   │             experiment              │
+                         │   sec/op    │   sec/op     vs base                │
+    MapDeleteLargeKey-24   312.0n ± 6%   162.3n ± 5%  -47.97% (p=0.000 n=10)
+    
+    Change-Id: I31f1f8e3c344cf8abf2e9eb4b51b78fcd67b93c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625906
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/map.go   |  2 +-
+ src/internal/runtime/maps/table.go |  4 +---
+ src/runtime/map_benchmark_test.go  | 11 +++++++++++
+ 3 files changed, 13 insertions(+), 4 deletions(-)

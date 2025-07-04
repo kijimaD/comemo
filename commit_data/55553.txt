@@ -1,0 +1,43 @@
+commit 3707d60606f772955cc222bc876f04bfd9c013c2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 8 14:07:40 2024 -0500
+
+    all: update golang.org/x/sys and vendor it
+    
+    Commands run (in both src and src/cmd):
+            go get golang.org/x/sys@latest
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: Ia041258c71ffb93428257b547411d359c62d9b70
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562736
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   7 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   3 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   4 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   4 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 125 +++++++++++----------
+ .../vendor/golang.org/x/sys/windows/env_windows.go |  17 +--
+ .../golang.org/x/sys/windows/syscall_windows.go    |   3 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/modules.txt                             |   2 +-
+ 25 files changed, 149 insertions(+), 78 deletions(-)

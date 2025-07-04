@@ -1,0 +1,16 @@
+commit a00de45bbbd44bf592654dd0811fa4bcb883b1ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 11:57:42 2012 -0800
+
+    mime: make FormatMediaType take full type for consistency
+    
+    Fixes #2405
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5539048
+
+ src/pkg/mime/mediatype.go      | 17 +++++++++++------
+ src/pkg/mime/mediatype_test.go | 21 +++++++++++++++++++++
+ src/pkg/mime/type.go           | 15 ++++-----------
+ 3 files changed, 36 insertions(+), 17 deletions(-)

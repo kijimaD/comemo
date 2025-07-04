@@ -1,0 +1,14 @@
+commit efbb120d8e7af19b7c2bbb2dbacce73f73d5916b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 9 18:53:11 2009 -0700
+
+    - more documentation adjustments
+    
+    R=rsc
+    DELTA=6  (0 added, 1 deleted, 5 changed)
+    OCL=25970
+    CL=25973
+
+ src/lib/go/scanner.go | 10 +++++-----
+ src/lib/go/token.go   |  1 -
+ 2 files changed, 5 insertions(+), 6 deletions(-)

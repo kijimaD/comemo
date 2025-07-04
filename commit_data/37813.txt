@@ -1,0 +1,18 @@
+commit 22738f07c88ac9dd1159da15675fedeeba80c45d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 18:47:06 2019 +0000
+
+    runtime: add GODEBUG=madvdontneed=1
+    
+    Fixes #28466
+    
+    Change-Id: I05b2e0da09394d111913963b60f2ec865c9b4744
+    Reviewed-on: https://go-review.googlesource.com/c/155931
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/extern.go    | 5 +++++
+ src/runtime/mem_linux.go | 7 ++++++-
+ src/runtime/runtime1.go  | 2 ++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

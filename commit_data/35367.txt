@@ -1,0 +1,23 @@
+commit e405c9cca34d76a3d5382086302d6f41c362c465
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 12:17:09 2018 +0300
+
+    cmd/internal/obj/x86: use named consts for movtab Z-cases
+    
+    Use 0-terminated opbyte sequences for Zlit-like movtabs instead of E=0xff.
+    
+    movCodeFullPtr is unused (load full ptr is unsupported), but it should
+    be removed in a separate CL (if removed at all).
+    
+    Passes toolstash-check.
+    
+    Change-Id: I28436718d93b017153de0e50e3bcec344ea4ee05
+    Reviewed-on: https://go-review.googlesource.com/107076
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/386enc.s         |   5 +
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |   5 +
+ src/cmd/internal/obj/x86/asm6.go                   | 255 +++++++++++----------
+ 3 files changed, 141 insertions(+), 124 deletions(-)

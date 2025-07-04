@@ -1,0 +1,16 @@
+commit 0bbc3dd4b5aa03b51114e6431541c83c6bc6b81d
+Author: Grant Griffiths <ggp493@gmail.com>
+Date:   Mon Oct 2 19:03:41 2017 -0700
+
+    net/smtp: patch for SMTP injections
+    
+    Fixes #21159.
+    
+    Change-Id: I2c5ad505d673e213a548e5d632a5b3ad706e0dde
+    Reviewed-on: https://go-review.googlesource.com/67635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/smtp/smtp.go      | 28 ++++++++++++++++++++++++++++
+ src/net/smtp/smtp_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

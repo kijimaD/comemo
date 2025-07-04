@@ -1,0 +1,41 @@
+commit ca1cfea3710a5873132d0c5f6e3710804714efd4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 9 18:17:49 2025 +0000
+
+    internal/trace: refactor how experimental batches are exposed
+    
+    This change modifies how per-generation experimental batches are
+    exposed. Rather than expose them on the ExperimentalEvent, it exposes it
+    as part of the Sync event, so it's clear to the caller when the
+    information becomes relevant and when it should be parsed.
+    
+    This change also adds a field to each ExperimentalEvent indicating which
+    experiment the event is a part of.
+    
+    Because this information needs to appear *before* a generation is
+    observed, we now ensure there is a sync event both before and after each
+    generation. This means the final sync event is now a special case;
+    previously we would only emit a sync event after each generation.
+    
+    This change is based on feedback from Austin Clements on the
+    experimental events functionality.
+    
+    For #62627.
+    
+    Change-Id: I48b0fe12b22abb7ac8820a9e73447bfed8419856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644215
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/base.go                     |  5 +-
+ src/internal/trace/event.go                    | 60 ++++++++++++++--------
+ src/internal/trace/event/go122/event.go        |  8 +++
+ src/internal/trace/event_test.go               |  2 +-
+ src/internal/trace/gc.go                       | 10 ++--
+ src/internal/trace/generation.go               | 25 +++++-----
+ src/internal/trace/internal/oldtrace/parser.go |  8 +++
+ src/internal/trace/reader.go                   | 69 +++++++++++++++++---------
+ src/internal/trace/testtrace/validation.go     | 29 ++++++-----
+ src/runtime/crash_test.go                      |  7 +--
+ 10 files changed, 141 insertions(+), 82 deletions(-)

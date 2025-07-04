@@ -1,0 +1,15 @@
+commit 0c8415699e0a790551b2f6964efac2569a997bfd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 21 08:37:27 2014 +1100
+
+    doc/effective_go.html: fix typo
+    Prose referred to 'b', code used 'buf'.
+    Fixes #7601.
+    
+    LGTM=dominik.honnef
+    R=golang-codereviews, dominik.honnef
+    CC=golang-codereviews
+    https://golang.org/cl/78470043
+
+ doc/effective_go.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

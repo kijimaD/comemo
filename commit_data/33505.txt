@@ -1,0 +1,20 @@
+commit 7badae85f20f1bce4cc344f9202447618d45d414
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 19:54:42 2017 -0500
+
+    cmd/go: guarantee all test output is on stdout
+    
+    In past releases, whether test output appears on stdout or stderr
+    has varied depending on exactly how go test was invoked and
+    also (indefensibly) on the number of CPUs available.
+    Standardize on standard output for all test output.
+    This is easy to explain and makes go test | go tool test2json work nicely.
+    
+    Change-Id: I605641213fbc6c7ff49e1fd38a0f732045a8383d
+    Reviewed-on: https://go-review.googlesource.com/76871
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/test/test.go | 56 ++++++++++++++--------------------------
+ 1 file changed, 19 insertions(+), 37 deletions(-)

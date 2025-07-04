@@ -1,0 +1,14 @@
+commit fcdcb19496d97f2e039e6fd6fff615d4adb41392
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 5 17:03:51 2018 +0000
+
+    net/http: document internal error errServerClosedIdle more
+    
+    Updates #19943
+    
+    Change-Id: Iea249be51a7af3264bee9ee2b28dbd91043275fc
+    Reviewed-on: https://go-review.googlesource.com/86375
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

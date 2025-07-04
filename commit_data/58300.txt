@@ -1,0 +1,17 @@
+commit 2a93bd0d79484281b9706e2d66a0b21b42da66de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 26 15:37:14 2024 -0800
+
+    doc/next: document that crypto/rand.Read never fails
+    
+    For #66821
+    
+    Change-Id: Id9b640a57b9d4d1f9114769f607480b14961e7b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632036
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/crypto/rand/66821.md | 7 +++++++
+ 1 file changed, 7 insertions(+)

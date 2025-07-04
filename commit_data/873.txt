@@ -1,0 +1,13 @@
+commit 801f542b0feff3c53707675df026bc30ddd89b7d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 15 17:20:37 2008 -0700
+
+    remove hack now that vector of int works.
+    
+    R=rsc
+    DELTA=9  (0 added, 3 deleted, 6 changed)
+    OCL=17248
+    CL=17250
+
+ src/lib/regexp/regexp.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

@@ -1,0 +1,56 @@
+commit 4cac885741b845bd7f4aaad5bc9844b44eb23136
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 15:46:02 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥200 dependents
+    
+    Ignored these linknames which have not worked for a while:
+    
+    github.com/xtls/xray-core:
+            context.newCancelCtx removed in CL 463999 (Feb 2023)
+    
+    github.com/u-root/u-root:
+            funcPC removed in CL 513837 (Jul 2023)
+    
+    tinygo.org/x/drivers:
+            net.useNetdev never existed
+    
+    For #67401.
+    
+    Change-Id: I9293f4ef197bb5552b431de8939fa94988a060ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587576
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/badlinkname.go   |  1 -
+ src/crypto/tls/cipher_suites.go |  9 +++++
+ src/crypto/tls/common.go        | 10 ++++++
+ src/net/http/badlinkname.go     |  6 ----
+ src/net/http/clone.go           | 47 ++++++++++++++++++++++++
+ src/net/http/transport.go       | 11 ++++++
+ src/runtime/alg.go              | 16 +++++++++
+ src/runtime/badlinkname.go      |  1 -
+ src/runtime/iface.go            |  1 +
+ src/runtime/malloc.go           |  3 ++
+ src/runtime/map.go              | 28 ++++++++++++++-
+ src/runtime/map_fast32.go       |  1 +
+ src/runtime/map_fast64.go       |  2 ++
+ src/runtime/map_faststr.go      |  1 +
+ src/runtime/mbarrier.go         |  2 ++
+ src/runtime/mgc.go              |  1 +
+ src/runtime/proc.go             |  4 +++
+ src/runtime/proflabel.go        | 16 +++++++++
+ src/runtime/runtime1.go         | 19 ++++++++++
+ src/runtime/slice.go            |  1 +
+ src/runtime/string.go           | 10 ++++++
+ src/runtime/stubs.go            | 16 +++++++++
+ src/runtime/symtab.go           | 80 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/sys_darwin.go       |  9 +++++
+ src/runtime/time_nofake.go      |  8 +++++
+ src/runtime/timestub.go         | 10 ++++++
+ src/runtime/type.go             | 18 ++++++++++
+ src/time/badlinkname.go         |  2 --
+ src/time/format.go              | 11 ++++++
+ src/time/time.go                | 10 ++++++
+ 30 files changed, 342 insertions(+), 12 deletions(-)

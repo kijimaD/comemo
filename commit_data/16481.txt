@@ -1,0 +1,22 @@
+commit 2c0b00744f067c7d9f44a735f77aa0eb0e2e345e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 4 08:33:00 2013 +0200
+
+    cmd/6c, cmd/8c: avoid generating long multiplication when not necessary.
+    
+    On amd64
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkHashStringSpeed                91           74  -18.49%
+    BenchmarkHashInt32Speed                 54           45  -17.88%
+    BenchmarkHashInt64Speed                 76           58  -23.53%
+    BenchmarkHashStringArraySpeed          231          188  -18.61%
+    
+    Fixes #5367.
+    
+    R=golang-dev, iant, dave, daniel.morsing, ality, rsc
+    CC=golang-dev
+    https://golang.org/cl/9040043
+
+ src/cmd/6c/cgen.c | 5 +++--
+ src/cmd/8c/cgen.c | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

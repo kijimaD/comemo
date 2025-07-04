@@ -1,0 +1,19 @@
+commit 0bbb54a02d38d067b9a39d85cfc425f0ddc2962e
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed May 17 11:35:52 2023 +0200
+
+    cmd/link: add ReflectMethod flag to -dumpdep output
+    
+    Adds ReflectMethod flag to the output of -dumpdep.
+    
+    Fixes #60221
+    
+    Change-Id: I631d72ee21b819a3a629780317ff4d962cc121e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

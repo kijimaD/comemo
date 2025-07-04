@@ -1,0 +1,19 @@
+commit 805e56ef474a8abfc4ec4159bea0c1fb584e67ed
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 24 20:58:19 2015 -0700
+
+    runtime: short-circuit bytes.Compare if src and dst are the same slice
+    
+    Should only matter on ppc64 and ppc64le.
+    
+    Fixes #11336
+    
+    Change-Id: Id4b0ac28b573648e1aa98e87bf010f00d006b146
+    Reviewed-on: https://go-review.googlesource.com/13901
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/noasm.go | 4 ++++
+ 1 file changed, 4 insertions(+)

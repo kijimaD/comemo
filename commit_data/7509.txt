@@ -1,0 +1,13 @@
+commit 06a923ada04606943d07cb8bd0cb387eb696272c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Feb 19 05:46:20 2011 +1100
+
+    godoc: serve robots.txt raw
+    
+    R=gri, niemeyer, rsc, r2, r
+    CC=golang-dev
+    https://golang.org/cl/4188063
+
+ robots.txt             | 2 ++
+ src/cmd/godoc/godoc.go | 1 +
+ 2 files changed, 3 insertions(+)

@@ -1,0 +1,20 @@
+commit 816c972ff04c3975b29605a6cb9b16382460e47c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Jul 21 09:10:49 2011 +1000
+
+    html: handle character entities without semicolons
+    
+    Fix the TODO: unescape("&notit;") should be "¬it;"
+    
+    Also accept digits in entity names.
+    
+    R=nigeltao
+    CC=golang-dev, rsc
+    https://golang.org/cl/4781042
+
+ src/pkg/html/entity.go      |  3 +++
+ src/pkg/html/entity_test.go |  3 +++
+ src/pkg/html/escape.go      | 28 +++++++++++++++++++++-------
+ src/pkg/html/token.go       |  2 +-
+ src/pkg/html/token_test.go  | 10 ++++++++++
+ 5 files changed, 38 insertions(+), 8 deletions(-)

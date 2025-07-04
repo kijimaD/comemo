@@ -1,0 +1,33 @@
+commit 3d85c69a0bf67adec57b76511ccc5e5b0ba9cdf4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 22 14:54:23 2021 -0800
+
+    html/template: revert "avoid race when escaping updates template"
+    
+    This reverts CLs 274450 and 279492, except for the new tests.
+    The new race test is changed to skip, as it now fails.
+    We can try again for 1.17.
+    
+    Original CL descriptions:
+    
+        html/template: attach functions to namespace
+    
+        The text/template functions are stored in a data structure shared by
+        all related templates, so do the same with the original, unwrapped,
+        functions on the html/template side.
+    
+        html/template: avoid race when escaping updates template
+    
+    For #39807
+    Fixes #43855
+    
+    Change-Id: I2ce91321ada06ea496a982aefe170eb5af9ba847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285957
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/html/template/exec_test.go | 35 +++++++++++++++
+ src/html/template/template.go  | 96 ++++++------------------------------------
+ 2 files changed, 47 insertions(+), 84 deletions(-)

@@ -1,0 +1,13 @@
+commit f6580319e4045e19304eccd8c37cd36a7cfef73b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 13 12:59:56 2015 -0700
+
+    math/big: fix silly bug in Int64 accessor
+    
+    Change-Id: If335d45ea1ab6c8aeeb47515f97680e2c1d651f3
+    Reviewed-on: https://go-review.googlesource.com/7522
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 2 +-
+ src/math/big/float_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

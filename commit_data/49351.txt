@@ -1,0 +1,20 @@
+commit 52f68efa45a34e60e8fc5a2ad5fc124a865ac2a4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 17 12:28:28 2022 -0700
+
+    mime: ignore .js => text/plain in Windows registry
+    
+    This seems to be a common registry misconfiguration on Windows.
+    
+    Fixes #32350
+    
+    Change-Id: I68c617c42a6e72948e2acdf335ff8e7df569432d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406894
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/go1.19.html          | 16 ++++++++++++++++
+ src/mime/type_windows.go | 11 +++++++++++
+ 2 files changed, 27 insertions(+)

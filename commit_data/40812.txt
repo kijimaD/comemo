@@ -1,0 +1,46 @@
+commit 440f7d64048cd94cba669e16fe92137ce6b84073
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Fri Nov 15 19:49:30 2019 +0000
+
+    all: fix a bunch of misspellings
+    
+    Change-Id: I5b909df0fd048cd66c5a27fca1b06466d3bcaac7
+    GitHub-Last-Rev: 778c5d21311abee09a5fbda2e4005a5fd4cc3f9f
+    GitHub-Pull-Request: golang/go#35624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207421
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/trace/trace_viewer_full.html              | 2 +-
+ src/cmd/compile/internal/gc/bexport.go         | 2 +-
+ src/cmd/compile/internal/gc/plive.go           | 2 +-
+ src/cmd/compile/internal/gc/range.go           | 2 +-
+ src/cmd/compile/internal/ssa/block.go          | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  | 2 +-
+ src/cmd/link/internal/ld/dwarf.go              | 2 +-
+ src/cmd/link/internal/loadpe/ldpe.go           | 8 ++++----
+ src/crypto/dsa/dsa_test.go                     | 2 +-
+ src/crypto/elliptic/p256.go                    | 2 +-
+ src/crypto/tls/handshake_server.go             | 2 +-
+ src/crypto/tls/handshake_server_test.go        | 2 +-
+ src/debug/elf/file_test.go                     | 2 +-
+ src/debug/pe/file.go                           | 4 ++--
+ src/internal/bytealg/count_s390x.s             | 2 +-
+ src/math/big/nat.go                            | 2 +-
+ src/net/http/serve_test.go                     | 2 +-
+ src/net/http/transfer.go                       | 4 ++--
+ src/net/http/transport.go                      | 2 +-
+ src/net/http/transport_test.go                 | 2 +-
+ src/net/ipsock_posix.go                        | 2 +-
+ src/net/lookup_windows.go                      | 2 +-
+ src/runtime/defs_aix.go                        | 2 +-
+ src/runtime/error.go                           | 2 +-
+ src/runtime/mgcscavenge.go                     | 2 +-
+ src/runtime/mheap.go                           | 2 +-
+ src/runtime/pprof/pprof_test.go                | 2 +-
+ src/runtime/slice.go                           | 2 +-
+ src/runtime/stack.go                           | 2 +-
+ 31 files changed, 36 insertions(+), 36 deletions(-)

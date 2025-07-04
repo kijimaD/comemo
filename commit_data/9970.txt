@@ -1,0 +1,16 @@
+commit b82a8e7c22b1445fd063b8ddb55f9fb474b999ec
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 14 15:22:02 2011 +1100
+
+    html: fix some tokenizer bugs with attribute key/values.
+    
+    The relevant spec sections are 13.2.4.38-13.2.4.40.
+    http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#attribute-value-(double-quoted)-state
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5262044
+
+ src/pkg/html/token.go      | 176 ++++++++++++++++++++++-----------------------
+ src/pkg/html/token_test.go |  43 +++++++----
+ 2 files changed, 115 insertions(+), 104 deletions(-)

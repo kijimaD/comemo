@@ -1,0 +1,21 @@
+commit 0c6d8bb109adfa188190b2e6de59b88853ded378
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 14 16:25:43 2022 -0700
+
+    debug/pe: read string table in 10M chunks
+    
+    No separate test because this makes no difference for valid PE files.
+    
+    Fixes #52350
+    
+    Change-Id: I2aa011a4e8b34cb08052222e94c52627ebe99fbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400378
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/debug/pe/string.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

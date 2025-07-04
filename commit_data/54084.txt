@@ -1,0 +1,33 @@
+commit 925d2fb36c8e4c9c0e6e240a1621db36c34e5d31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 14:15:04 2023 -0700
+
+    cmd/compile: restore zero-copy string->[]byte optimization
+    
+    This CL implements the remainder of the zero-copy string->[]byte
+    conversion optimization initially attempted in go.dev/cl/520395, but
+    fixes the tracking of mutations due to ODEREF/ODOTPTR assignments, and
+    adds more comprehensive tests that I should have included originally.
+    
+    However, this CL also keeps it behind the -d=zerocopy flag. The next
+    CL will enable it by default (for easier rollback).
+    
+    Updates #2205.
+    
+    Change-Id: Ic330260099ead27fc00e2680a59c6ff23cb63c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520599
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/base/debug.go    |  2 +
+ src/cmd/compile/internal/escape/assign.go |  8 +++-
+ src/cmd/compile/internal/escape/escape.go | 74 +++++++++++++++--------------
+ src/cmd/compile/internal/ssagen/ssa.go    |  8 ++++
+ src/cmd/compile/internal/walk/order.go    | 10 +++-
+ src/cmd/compile/internal/walk/switch.go   |  1 +
+ test/escape_mutations.go                  | 77 +++++++++++++++++++++++++++++++
+ test/inline_big.go                        |  6 +--
+ 8 files changed, 145 insertions(+), 41 deletions(-)

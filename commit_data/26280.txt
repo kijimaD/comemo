@@ -1,0 +1,20 @@
+commit c45c51534845121da77ed5e0fbe4e0ecfff8c4bf
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 10 17:36:49 2016 +0100
+
+    fmt: handle %X like %x for byte type arrays and slices
+    
+    Treat the verb %X in the same special way as %q, %s and %x
+    are for arrays and slices with byte type elements.
+    
+    Modify input for tests so the result of %x and %X is distinct.
+    
+    Change-Id: I38d227755e98c7fad5e4adc2f603c6873aa910fd
+    Reviewed-on: https://go-review.googlesource.com/20516
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 33 +++++++++++++++++++--------------
+ src/fmt/print.go    | 10 ++++++----
+ 2 files changed, 25 insertions(+), 18 deletions(-)

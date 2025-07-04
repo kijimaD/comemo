@@ -1,0 +1,15 @@
+commit 94aa15543208c6f2e914539bfeddc3dd1e62a32b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 19 21:13:20 2019 -0400
+
+    crypto/x509: normalize and expand docs of Parse and Marshal functions
+    
+    Change-Id: I8f0e109053bbbd8bde4fa64059fd070d8f4acef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183117
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/pkcs1.go | 16 +++++++++++++---
+ src/crypto/x509/pkcs8.go | 19 ++++++++++++-------
+ src/crypto/x509/sec1.go  | 10 ++++++++--
+ src/crypto/x509/x509.go  | 17 ++++++++++-------
+ 4 files changed, 43 insertions(+), 19 deletions(-)

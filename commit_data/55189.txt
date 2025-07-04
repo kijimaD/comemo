@@ -1,0 +1,20 @@
+commit b94532d08d53d40b23ae3db366a29786270df594
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 19:11:58 2023 +0000
+
+    doc: add release notes for the new execution tracer
+    
+    For #60773.
+    For #62627.
+    For #63960.
+    
+    For #61422.
+    
+    Change-Id: I3c933f7522f65cd36d11d38a268556d92c8053f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546026
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

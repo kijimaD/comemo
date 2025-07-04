@@ -1,0 +1,15 @@
+commit f8cd243669397bcc608a467bd4d2176ad9d887ac
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 16 14:30:01 2014 -0800
+
+    time: break parse and formatting tests into a separate source file
+    No changes, just rearrangement. The tests were in need of a little
+    housekeeping.
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/53400043
+
+ src/pkg/time/format_test.go | 510 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go   | 502 +------------------------------------------
+ 2 files changed, 512 insertions(+), 500 deletions(-)

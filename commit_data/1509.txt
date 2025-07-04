@@ -1,0 +1,14 @@
+commit db1656f3e654d45e611fc4782d9aed9be8e11c5e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 13:29:43 2009 -0800
+
+    two more casifications in fmt
+    
+    R=rsc
+    DELTA=14  (0 added, 0 deleted, 14 changed)
+    OCL=22960
+    CL=22962
+
+ src/lib/fmt/format.go | 14 +++++++-------
+ src/lib/fmt/print.go  | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

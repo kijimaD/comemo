@@ -1,0 +1,12 @@
+commit 9107b530d82f5f8a7fb32442509668b22e464859
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 30 16:15:08 2011 +1000
+
+    goinstall: use bash to execute gomake
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/4551074
+
+ src/cmd/goinstall/make.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

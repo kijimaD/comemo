@@ -1,0 +1,19 @@
+commit af991a6d28949cd27a41a93b46abf42cbf07023d
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Aug 31 09:06:41 2022 +0800
+
+    cmd/compile: reorder rotate lowering rules in AMD64.rules
+    
+    These rules should belong to lowering rules not optimizations.
+    
+    Change-Id: I964d2c4b1d9bef0ede572978aff01cb11bf050ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426197
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,29 @@
+commit 5c0629b503ff9044906a785f360354a5e45cf9ce
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Nov 19 15:24:42 2015 -0400
+
+    net: prefer error for original name on lookups
+    
+    With certain names and search domain configurations the
+    returned error would be one encountered while querying a
+    generated name instead of the original name. This caused
+    confusion when a manual check of the same name produced
+    different results.
+    
+    Now prefer errors encountered for the original name.
+    
+    Also makes the low-level DNS connection plumbing swappable
+    in tests enabling tighter control over responses without
+    relying on the network.
+    
+    Fixes #12712
+    Updates #13295
+    
+    Change-Id: I780d628a762006bb11899caf20b5f97b462a717f
+    Reviewed-on: https://go-review.googlesource.com/16953
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dnsclient_unix.go      | 21 ++++++++---
+ src/net/dnsclient_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/hook.go                |  3 ++
+ 3 files changed, 98 insertions(+), 5 deletions(-)

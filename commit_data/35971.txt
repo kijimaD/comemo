@@ -1,0 +1,46 @@
+commit f22dd66b23ec1a703a3984cad1840bc8692cf1d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 12 18:47:31 2018 +0000
+
+    net/http: make Transport.CloseIdleConnections close non-bundled http2.Transport
+    
+    Previously Transport.CloseIdleConnections only closed the HTTP/2
+    Transport's idle connections if the HTTP/2 transport was configured
+    automatically via the bundled copy (in h2_bundle.go).
+    
+    This makes it also work if the user called http2.ConfigureTransport
+    themselves using golang.org/x/net/http2 instead of the bundled copy.
+    
+    No tests because we have no current way to run such cross-repo tests,
+    at least in any efficient or non-flaky way.
+    
+    Tested by hand that:
+    
+        package main
+    
+        import (
+            "net/http"
+    
+            "golang.org/x/net/http2"
+        )
+    
+        func main() {
+            tr := &http.Transport{}
+            http2.ConfigureTransport(tr)
+            tr.CloseIdleConnections()
+        }
+    
+    ... now works and calls the x/net/http2.Transport.CloseIdleConnections
+    code. (I threw in a print statement locally)
+    
+    Fixes #22891 once CL 123656 is also in.
+    
+    Change-Id: Id697fd3e7877c3a988bc3c3368b88940ba56cfd0
+    Reviewed-on: https://go-review.googlesource.com/123657
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/export_test.go |  2 +-
+ src/net/http/transport.go   | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 28 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit bab01a0b4b40c6c634fa5b3ab5e461838eb7efb4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 09:59:43 2015 +1000
+
+    cmd/compile: convert typecheckdefstack to []*Node
+    
+    This one of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
+    
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: Ie02d2cf35f1e8438c6e9dc1d5fba51e8adde1bc0
+    Reviewed-on: https://go-review.googlesource.com/14480
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

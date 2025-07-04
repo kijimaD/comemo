@@ -1,0 +1,22 @@
+commit 1c0d664128ed5f1d7c66afb69cb2d15064a1ba43
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 24 12:51:45 2020 -0500
+
+    doc/go1.14: remove draft notice
+    
+    Use consistent indentation for one of the paragraphs.
+    
+    Include issue number in the visible text, so it is easier to read.
+    
+    Fixes #36878
+    
+    Change-Id: Iab857b26b1d27b0137e981126207089db108d530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220646
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

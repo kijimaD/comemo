@@ -1,0 +1,14 @@
+commit 1493bf58f3afbd4f27926c442daad76abcafc93d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 07:19:25 2012 -0800
+
+    test: add test for receiver named _
+    
+    Was miscompiled by gccgo.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5622054
+
+ test/fixedbugs/bug405.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

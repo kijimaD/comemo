@@ -1,0 +1,15 @@
+commit 788f78ad08a4d8a66808eb4c197521223599b063
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Feb 14 00:40:21 2015 -0500
+
+    cmd/go: remove script and script.txt
+    
+    Fixes #9824.
+    
+    Change-Id: Id318c61b6884e4fd294f7b0946dcc306f746ee0a
+    Reviewed-on: https://go-review.googlesource.com/4891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/script     |  23 ----
+ src/cmd/go/script.txt | 352 --------------------------------------------------
+ 2 files changed, 375 deletions(-)

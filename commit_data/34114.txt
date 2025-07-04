@@ -1,0 +1,24 @@
+commit 5158aab7d662e274aed870ae6bf9cf8ae0786f5b
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jan 23 22:11:51 2018 -0800
+
+    all: use HTTPS for iana.org links
+    
+    iana.org, www.iana.org and data.iana.org all present a valid TLS
+    certificate, so let's use it when fetching data or linking to
+    resources to avoid errors in transit.
+    
+    Change-Id: Ib3ce7c19789c4e9d982a776b61d8380ddc63194d
+    Reviewed-on: https://go-review.googlesource.com/89416
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ lib/time/README                 | 2 +-
+ lib/time/update.bash            | 9 ++++-----
+ misc/nacl/testdata/mime.types   | 2 +-
+ src/crypto/tls/cipher_suites.go | 2 +-
+ src/crypto/tls/common.go        | 4 ++--
+ src/net/http/status.go          | 2 +-
+ src/net/lookup.go               | 2 +-
+ src/net/lookup_test.go          | 4 ++--
+ src/time/zoneinfo.go            | 2 +-
+ 9 files changed, 14 insertions(+), 15 deletions(-)

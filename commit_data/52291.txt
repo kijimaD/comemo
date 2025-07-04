@@ -1,0 +1,22 @@
+commit fbe313664664477616bb170903728be74a5f5963
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 14 22:15:21 2023 -0700
+
+    net: remove max timeout from TestDialTimeout
+    
+    Just rely on the testsuite timeout. If this hangs we will hopefully
+    get some real information.
+    
+    Fixes #57475
+    
+    Change-Id: I18dc5cae54ad5d2d8cc472056b8a3b4d5455c8b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476356
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/timeout_test.go | 57 ++++++++++++++++++++-----------------------------
+ 1 file changed, 23 insertions(+), 34 deletions(-)

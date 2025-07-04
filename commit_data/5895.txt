@@ -1,0 +1,13 @@
+commit 8b821696cc96ea3167c16138beff9ca1ecc5f1ed
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 27 15:06:08 2010 +1000
+
+    bytes, strings: mention the n < 0 case in Split/SplitAfter doc comment
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1669055
+
+ src/pkg/bytes/bytes.go     | 23 ++++++++++++++---------
+ src/pkg/strings/strings.go | 22 ++++++++++++++--------
+ 2 files changed, 28 insertions(+), 17 deletions(-)

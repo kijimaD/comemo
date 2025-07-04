@@ -1,0 +1,18 @@
+commit 2592e0999ea55ea04f03dde364336975357e9c9c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 30 10:59:29 2016 -0700
+
+    cmd/compile: s/typeX/typX/
+    
+    Apparently I’m having a hard time following my
+    own naming scheme.
+    
+    Change-Id: I99c801bef09fa65c1f0e8ecc2fba154a495e9c17
+    Reviewed-on: https://go-review.googlesource.com/21332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/parser.go    | 8 ++++----
+ src/cmd/compile/internal/gc/type.go      | 8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 4 ++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 7a974a4c602252ca7db5b35c1236b45ead4c1d54
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Aug 10 16:24:11 2016 +0200
+
+    encoding/json: add example for RawMessage marshalling
+    
+    Fixes #16648
+    
+    Change-Id: I3ab21ab33ca3f41219de9518ac6a39f49131e5e5
+    Reviewed-on: https://go-review.googlesource.com/26692
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/example_test.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

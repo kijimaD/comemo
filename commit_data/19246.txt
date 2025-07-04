@@ -1,0 +1,15 @@
+commit 1bf690c180f8885144e94b7a58660d6fb2fd2ae7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 28 06:59:27 2014 -0700
+
+    doc: fix link to Mercurial download
+    
+    Oddly, 404s with the trailing slash.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/90790045
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

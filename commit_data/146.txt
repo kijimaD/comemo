@@ -1,0 +1,14 @@
+commit e8010b38e41b45c41e3f0846c02c8c57742cc19f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 10:33:20 2008 -0700
+
+    add bug045: bad nil assigning into array
+    
+    update robfunc.go (BUG comment deleted)
+    
+    SVN=122143
+
+ test/bugs/bug045.go | 21 +++++++++++++++++++++
+ test/golden.out     | 10 ++++------
+ test/ken/robfunc.go | 22 ++++++++++------------
+ 3 files changed, 35 insertions(+), 18 deletions(-)

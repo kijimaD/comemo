@@ -1,0 +1,20 @@
+commit beeab6ac02754a3fc0272425ebcc0df42f60c868
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 7 22:01:42 2017 -0500
+
+    cmd/compile: fix go:uintptrescapes tag for unnamed parameters
+    
+    The tag was overwritten by the code for special handling unnamed
+    parameters.
+    
+    Fixes #23045.
+    
+    Change-Id: Ie2e1db3e902a07a2bbbc2a3424cea300f0a42cc3
+    Reviewed-on: https://go-review.googlesource.com/82775
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  7 +++++++
+ test/uintptrescapes2.go            | 20 ++++++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

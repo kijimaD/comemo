@@ -1,0 +1,20 @@
+commit d8b5d039cd1bec151cc325973ff32bd34ebb0456
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 27 17:56:32 2010 -0700
+
+    gc: implement append
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2757042
+
+ src/cmd/gc/builtin.c.boot |  2 ++
+ src/cmd/gc/go.h           |  3 ++
+ src/cmd/gc/lex.c          |  1 +
+ src/cmd/gc/print.c        |  2 ++
+ src/cmd/gc/runtime.go     |  4 +++
+ src/cmd/gc/subr.c         |  1 +
+ src/cmd/gc/typecheck.c    | 36 +++++++++++++++++++-
+ src/cmd/gc/walk.c         | 46 +++++++++++++++++++++++++
+ src/pkg/runtime/slice.c   | 86 +++++++++++++++++++++++++++++++++++++++++------
+ 9 files changed, 169 insertions(+), 12 deletions(-)

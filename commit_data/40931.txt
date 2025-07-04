@@ -1,0 +1,19 @@
+commit 9a8b497240b7e77a81b1914adfbccb15a76d2c33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 25 22:17:29 2019 -0800
+
+    cmd/link: when changing to Segrelrodata, reset datsize
+    
+    Otherwise we leave a gap at the start of Segrelrodata equal to the
+    size of the read-only non-relro data, which causes -buildmode=pie
+    executables to be noticeably larger than -buildmode=exe executables.
+    
+    Change-Id: I98956ef29d5b7a57ad8e633c823ac09d9ca36a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208897
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/elf_test.go         | 196 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go |  46 +++++----
+ 2 files changed, 223 insertions(+), 19 deletions(-)

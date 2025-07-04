@@ -1,0 +1,19 @@
+commit 15bc7ab957406f293f817885b1f3939632d0fad5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 1 02:55:38 2014 -0400
+
+    cmd/gc: fix spurious "bad negated constant" for complex constants.
+    Fixes #7648.
+    
+    LGTM=r, remyoudompheng
+    R=golang-codereviews, r, remyoudompheng, jscrockett01
+    CC=golang-codereviews
+    https://golang.org/cl/80560045
+
+ src/cmd/gc/go.y                   |    4 +
+ src/cmd/gc/y.tab.c                | 1280 ++++++++++---------------------------
+ src/cmd/gc/y.tab.h                |   46 +-
+ test/fixedbugs/issue7648.dir/a.go |   11 +
+ test/fixedbugs/issue7648.dir/b.go |   11 +
+ test/fixedbugs/issue7648.go       |    9 +
+ 6 files changed, 397 insertions(+), 964 deletions(-)

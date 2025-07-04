@@ -1,0 +1,24 @@
+commit 3d5cf72ca9beaedc5dcc8b094945de95fa35a670
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 17 13:29:19 2016 -0400
+
+    cmd/compile: CSE copied tuple selectors
+    
+    In CSE if a tuple generator is CSE'd to a different block, its
+    selectors are copied to the same block. In this case, also CES
+    the copied selectors.
+    
+    Test copied from Keith's CL 27202.
+    
+    Fixes #16741.
+    
+    Change-Id: I2fc8b9513d430f10d6104275cfff5fb75d3ef3d9
+    Reviewed-on: https://go-review.googlesource.com/27236
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/cse.go | 11 +++++++++++
+ test/fixedbugs/issue16741.go        | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+)

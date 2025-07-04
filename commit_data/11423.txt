@@ -1,0 +1,19 @@
+commit 408f0b1f7459ebcbc74ad5936950072796fe449a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 26 16:25:07 2012 -0500
+
+    gc, runtime: handle floating point map keys
+    
+    Fixes #2609.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5572069
+
+ src/cmd/gc/go.h           |   4 ++
+ src/cmd/gc/subr.c         |  43 +++++++++++--
+ src/pkg/runtime/alg.c     | 104 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.c |  28 ++++++++-
+ src/pkg/runtime/runtime.h |   4 ++
+ test/map.go               | 157 ++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 332 insertions(+), 8 deletions(-)

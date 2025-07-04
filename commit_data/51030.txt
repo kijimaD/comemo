@@ -1,0 +1,27 @@
+commit 6774ddfec758ecf2cc64d58392c438dd64660a00
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Oct 28 02:42:39 2022 -0500
+
+    internal/bytealg: fix bug in index function for ppc64le/power9
+    
+    The index function was not handling certain corner cases where there
+    were two more bytes to be examined in the tail end of the string to
+    complete the comparison. Fix code to ensure that when the string has
+    to be shifted two more times the correct bytes are examined.
+    Also hoisted vsplat to V10 so that all paths use the correct value.
+    Some comments had incorrect register names and corrected the same.
+    Added the strings that were failing to strings test for verification.
+    
+    Fixes #56457
+    
+    Change-Id: Idba7cbc802e3d73c8f4fe89309871cc8447792f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446135
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Archana Ravindar <ravindararchana@gmail.com>
+
+ src/internal/bytealg/index_ppc64x.s | 11 ++++++-----
+ src/strings/strings_test.go         |  5 +++++
+ 2 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit f323a7c6d28cb536e1924ccd2566617e4c0dec34
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 15:24:56 2016 -0400
+
+    cmd/link: remove never-set Windows variable
+    
+    Change-Id: I3d64549b85b71bb63bcc815ce2276af6ca2eb215
+    Reviewed-on: https://go-review.googlesource.com/29354
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/ld.go   | 3 ++-
+ src/cmd/link/internal/ld/link.go | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)

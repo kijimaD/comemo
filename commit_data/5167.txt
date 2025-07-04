@@ -1,0 +1,16 @@
+commit 3908c16ffe6eca9fce253323f5bb9aff3e1048fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 15:27:59 2010 -0700
+
+    gc: bug265
+    
+    Fixes #700.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/839041
+
+ src/cmd/gc/walk.c                  | 25 ++++++++++++++++++++-----
+ test/{bugs => fixedbugs}/bug265.go |  0
+ test/golden.out                    |  3 ---
+ 3 files changed, 20 insertions(+), 8 deletions(-)

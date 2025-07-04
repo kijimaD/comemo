@@ -1,0 +1,21 @@
+commit c29370c98ecfc7aa59f32c7a7897e50a0f6eb86b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 1 12:51:19 2018 -0700
+
+    cmd/cgo: don't give inconsistent typedef error for cgo-defined types
+    
+    The cgo tool predefines some C types such as C.uint. Don't give an
+    error if the type that cgo defines does not match the type in a header file.
+    
+    Fixes #26743
+    
+    Change-Id: I9ed3b4c482b558d8ffa8bf61eb3209415b7a9e3c
+    Reviewed-on: https://go-review.googlesource.com/127356
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/issue26743.go   | 10 ++++++++++
+ misc/cgo/test/issue26743/a.go | 11 +++++++++++
+ misc/cgo/test/issue26743/b.go |  9 +++++++++
+ src/cmd/cgo/main.go           |  4 ++++
+ 4 files changed, 34 insertions(+)

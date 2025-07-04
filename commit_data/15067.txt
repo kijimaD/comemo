@@ -1,0 +1,12 @@
+commit c0e805efd24753936b7367d40b25491af2d6441d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 14:37:47 2013 -0800
+
+    cmd/vet: add missing -all logic
+    
+    R=golang-dev, cookieo9, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7260043
+
+ src/cmd/vet/main.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

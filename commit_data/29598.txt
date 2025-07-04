@@ -1,0 +1,20 @@
+commit f42929ce9fcf8b32656900764881cfb84fdbe46b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 14:47:51 2016 -0800
+
+    go/internal/gccgoimporter: handle conversions in exported const values
+    
+    Also: handle version "v2" of export data format.
+    
+    Fixes #17981.
+    
+    Change-Id: I8042ce18c4a27c70cc1ede675daca019b047bcf3
+    Reviewed-on: https://go-review.googlesource.com/33412
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/importer.go          |  5 +--
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            | 40 ++++++++++++++++++----
+ .../internal/gccgoimporter/testdata/conversions.go |  5 +++
+ .../gccgoimporter/testdata/conversions.gox         |  6 ++++
+ 5 files changed, 48 insertions(+), 9 deletions(-)

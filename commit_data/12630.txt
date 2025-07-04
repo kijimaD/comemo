@@ -1,0 +1,12 @@
+commit d6ea81e0b9f078253151dbca0341f44ba7e9d466
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 14 08:24:11 2012 -0700
+
+    misc/dist: don't lose mode bits when setting tar permissions
+    
+    R=golang-dev, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/5822046
+
+ misc/dist/bindist.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

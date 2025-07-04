@@ -1,0 +1,18 @@
+commit fb2758167f99fbf373396e8f957d20a21b51e03a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 5 18:17:08 2010 +1000
+
+    programming_faq: added question on T vs *T method sets
+    
+    Adding this question on Russ' recommendation - not sure if
+    there is some detail here I'm missing.
+    
+    The associated discussion was:
+    http://groups.google.com/group/golang-nuts/t/ec6b27e332ed7f77
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/887042
+
+ doc/go_programming_faq.html | 38 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 45aeca47278d6188e72d8d633b27865108c27c4e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 21 13:48:31 2011 -0700
+
+    time: give a helpful message when we can't set the time zone for testing.
+    Fixes #1625.
+    
+    R=bradfitzgo, bradfitzwork, r2
+    CC=golang-dev
+    https://golang.org/cl/4295060
+
+ src/pkg/time/time_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

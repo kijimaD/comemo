@@ -1,0 +1,25 @@
+commit 6c7bea63096e471f5bc6d256f8beeb303e592c57
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 5 21:28:01 2017 -0400
+
+    runtime: replace sched.mcount int32 with sched.mnext int64
+    
+    Currently, since Ms never exit, the number of Ms, the number of Ms
+    ever created, and the ID of the next M are all the same and must be
+    small. That's about to change, so rename sched.mcount to sched.mnext
+    to make it clear it's the number of Ms ever created (and the ID of the
+    next M), change its type to int64, and use mcount() for the number of
+    Ms. In the next commit, mcount() will become slightly less trivial.
+    
+    For #20395.
+    
+    Change-Id: I9af34d36bd72416b5656555d16e8085076f1b196
+    Reviewed-on: https://go-review.googlesource.com/68750
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go              | 25 ++++++++++++++-----------
+ src/runtime/runtime2.go          |  4 ++--
+ src/runtime/signal_sighandler.go |  2 +-
+ 3 files changed, 17 insertions(+), 14 deletions(-)

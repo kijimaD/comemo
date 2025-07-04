@@ -1,0 +1,16 @@
+commit 2edd351b92ca22581ffc75c9ff47c99bc9d9ea06
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 20 11:06:21 2020 -0700
+
+    runtime: skip TestBigGOMAXPROCS if it runs out of memory
+    
+    Fixes #38541
+    
+    Change-Id: I0e9ea5865628d953c32f3a5d4b3ccf1c1d0b081e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

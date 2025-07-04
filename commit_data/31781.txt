@@ -1,0 +1,21 @@
+commit 3820191839a5b87acab5106b5fb43113d4f18b08
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Jun 9 18:45:46 2017 +0000
+
+    Revert "database/sql: Use Tx.ctx in Tx non-context methods"
+    
+    This reverts commit ef0f7fb92b9458d7d35ee3c10ae853e3dc3077eb.
+    
+    Reason for revert: Altered behavior of Queries prior to Tx commit. See #20631.
+    
+    Change-Id: I2548507c2935a7c60b92aae377dcc8e9aca66331
+    Reviewed-on: https://go-review.googlesource.com/45231
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Bulat Gaifullin <gaifullinbf@gmail.com>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 10 +++++-----
+ src/database/sql/sql_test.go | 29 -----------------------------
+ 2 files changed, 5 insertions(+), 34 deletions(-)

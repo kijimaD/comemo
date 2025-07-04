@@ -1,0 +1,13 @@
+commit 5556f733c7da81dbf61b246f2ea6375d8c6398fb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 25 17:03:25 2010 -0700
+
+    gotest: generate correct gofmt-formatted _testmain.go
+    Fixes #1225.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2729041
+
+ src/cmd/gotest/gotest | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

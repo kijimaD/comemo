@@ -1,0 +1,16 @@
+commit 80b393e8b2f708782887e311f598526c4e6700ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 14:33:16 2019 -0400
+
+    cmd/dist: say 'go test .' instead of 'go test' in a few places for cleaner output
+    
+    This just makes all.bash a bit less chatty.
+    
+    Change-Id: I7d2ecabf0c7d8df2065d7052718f611bb2907801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177418
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

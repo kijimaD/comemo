@@ -1,0 +1,14 @@
+commit 047cf3161e2c1801fd1ba7a67f3125d8136d7956
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 10 13:48:14 2011 -0500
+
+    json: correct Marshal documentation
+    
+    Fixes #1488.
+    
+    R=r, rsc, rog
+    CC=golang-dev
+    https://golang.org/cl/4168043
+
+ src/pkg/json/encode.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

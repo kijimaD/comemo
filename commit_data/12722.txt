@@ -1,0 +1,13 @@
+commit d12f1ff7ad6ce477819d2e3ba596390ca9aa568a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 22 12:48:41 2012 -0700
+
+    test: fix run.bash by spelling out the commands to use for bug424.go
+    
+    R=golang-dev, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/5882046
+
+ test/fixedbugs/bug424.go | 4 ++--
+ test/golden.out          | 3 ---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

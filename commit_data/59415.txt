@@ -1,0 +1,39 @@
+commit 92e23b683f01fe581a0e14b5658f0c59d9ce0d38
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 16 11:01:19 2025 -0700
+
+    os: avoid escape from Root via paths ending in ../
+    
+    The doInRoot function operates on a path split into components.
+    The final path component retained any trailing path separator
+    characters, to permit operations in a Root to retain the
+    trailing-separator behavior of non-Root operations. However,
+    doInRoot failed to take trailing separators into account
+    when checking for .. path components.
+    
+    This could permit opening the parent directory of the Root
+    with a path ending in "../".
+    
+    Change the split path to never include path separators in
+    components, and handle trailing separators independently
+    of the split path.
+    
+    Thanks to Dan Sebastian Thrane of SDU eScience Center for
+    reporting this issue.
+    
+    Fixes #73555
+    Fixes CVE-2025-22873
+    
+    Change-Id: I9a33a145c22f5eb1dd4e4cafae5fcc61a8d4f0d4
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/2160
+    Reviewed-by: Neal Patel <nealpatel@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670036
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/os/root.go        | 15 ++++++------
+ src/os/root_js.go     | 23 +++++++++++++++----
+ src/os/root_openat.go | 17 +++++++++++---
+ src/os/root_test.go   | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 103 insertions(+), 15 deletions(-)

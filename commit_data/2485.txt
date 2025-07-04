@@ -1,0 +1,13 @@
+commit 7f3eb2738f4e2e372fc43e72b28be0685381e7f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 14:00:53 2009 -0700
+
+    implement new spec language regarding conversions
+    
+    R=ken
+    OCL=30519
+    CL=30534
+
+ src/cmd/gc/subr.c | 23 +++++++++++++++++++++--
+ src/cmd/gc/walk.c | 41 ++++++++++++++++++++++++++---------------
+ 2 files changed, 47 insertions(+), 17 deletions(-)

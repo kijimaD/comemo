@@ -1,0 +1,43 @@
+commit 171850f16983a24bf2cf0340b0982838faa7f3c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 10:43:56 2023 -0700
+
+    cmd/compile: don't panic if unsafe.Sizeof/Offsetof is used with oversize types
+    
+    In the Sizes API, recognize an overflow (to a negative value) as a
+    consequence of an oversize value, and specify as such in the API.
+    
+    Adjust the various size computations to take overflow into account.
+    
+    Recognize a negative size or offset as an error and report it rather
+    than panicking.
+    
+    Use the same protocol for results provided by the default (StdSizes)
+    and external Sizes implementations.
+    
+    Add a new error code TypeTooLarge for the new errors.
+    
+    Fixes #59190.
+    Fixes #59207.
+    
+    Change-Id: I8c33a9e69932760275100112dde627289ac7695b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478919
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/sizes.go            |  35 +++++-
+ src/cmd/compile/internal/types2/builtins.go        |  14 ++-
+ src/cmd/compile/internal/types2/expr.go            |  12 +-
+ src/cmd/compile/internal/types2/sizes.go           | 135 ++++++++++++++-------
+ src/go/types/builtins.go                           |  14 ++-
+ src/go/types/expr.go                               |  12 +-
+ src/go/types/sizes.go                              | 135 ++++++++++++++-------
+ src/internal/types/errors/code_string.go           |   9 +-
+ src/internal/types/errors/codes.go                 |  21 ++++
+ .../types/testdata/fixedbugs/issue59190.go         |  36 ++++++
+ .../types/testdata/fixedbugs/issue59207.go         |  12 ++
+ test/fixedbugs/issue59190.go                       |  39 ++++++
+ 12 files changed, 367 insertions(+), 107 deletions(-)

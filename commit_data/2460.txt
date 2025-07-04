@@ -1,0 +1,15 @@
+commit 4c8fe766afee0a9f103904cd26aec7b912532f85
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 13:44:15 2009 -0700
+
+    - some fine-tuning of godoc templates per r's suggestion
+    - removed gratuitous newline in go/printer
+    
+    R=r
+    DELTA=15  (2 added, 13 deleted, 0 changed)
+    OCL=30358
+    CL=30358
+
+ lib/godoc/package.txt         | 12 ------------
+ src/pkg/go/printer/printer.go |  3 ++-
+ 2 files changed, 2 insertions(+), 13 deletions(-)

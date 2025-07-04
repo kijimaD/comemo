@@ -1,0 +1,74 @@
+commit ac7e950d385b871ca28e1ac723d6ad97ebe3a4d7
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Dec 4 09:35:34 2021 -0500
+
+    go/types: sort to reduce computational complexity of initOrder
+    
+    Our calculation of initOrder builds the dependency graph and then
+    removes function nodes approximately at random. While profiling, I
+    noticed that this latter step introduces a superlinear algorithm into
+    our type checking pass, which can dominate type checking for large
+    packages such as runtime.
+    
+    It is hard to analyze this rigorously, but to give an idea of how such a
+    non-linearity could arise, suppose the following assumptions hold:
+    - Every function makes D calls at random to other functions in the
+      package, for some fixed constant D.
+    - The number of functions is proportional to N, the size of the package.
+    
+    Under these simplified assumptions, the cost of removing an arbitrary
+    function F is P*D, where P is the expected number of functions calling
+    F. P has a Poisson distribution with mean D.
+    
+    Now consider the fact that when removing a function F in position i, we
+    recursively pay the cost of copying F's predecessors and successors for
+    each node in the remaining unremoved subgraph of functions containing F.
+    With our assumptions, the size of this subgraph is proportional to
+    (N-i), the number of remaining functions to remove.
+    
+    Therefore, the total cost of removing functions is proportional to
+    
+      P*D*Σᴺ(N-i)
+    
+    which is proportional to N².
+    
+    However, if we remove functions in ascending order of cost, we can
+    partition by the number of predecessors, and the total cost of removing
+    functions is proportional to
+    
+      N*D*Σ(PMF(X))
+    
+    where PMF is the probability mass function of P. In other words cost is
+    proportional to N.
+    
+    Assuming the above analysis is correct, it is still the case that the
+    initial assumptions are naive. Many large packages are more accurately
+    characterized as combinations of many smaller packages. Nevertheless, it
+    is intuitively clear that removing expensive nodes last should be
+    cheaper.
+    
+    Therefore, we sort by cost first before removing nodes in
+    dependencyGraph.
+    
+    We also move deletes to the outer loop, to avoid redundant deletes. By
+    inspection, this avoids a bug where n may not have been removed from its
+    successors if n had no predecessors.
+    
+    name                               old time/op  new time/op  delta
+    Check/runtime/funcbodies/noinfo-8   568ms ±25%    82ms ± 1%   -85.53%  (p=0.000 n=8+10)
+    
+    name                               old lines/s  new lines/s  delta
+    Check/runtime/funcbodies/noinfo-8   93.1k ±56%  705.1k ± 1%  +657.63%  (p=0.000 n=10+10)
+    
+    Updates #49856
+    
+    Change-Id: Id2e70d67401af19205e1e0b9947baa16dd6506f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369434
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/initorder.go | 62 +++++++++++++++++++++++++++++++----------------
+ src/go/types/self_test.go |  1 +
+ 2 files changed, 42 insertions(+), 21 deletions(-)

@@ -1,0 +1,12 @@
+commit 30aacd4ce2d3ecd802aa281d54267608ca35a34c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 14:23:12 2015 -0400
+
+    runtime: add Node128, Node130 benchmarks
+    
+    Change-Id: I815a7ceeea48cc652b3c8568967665af39b02834
+    Reviewed-on: https://go-review.googlesource.com/10045
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/gc_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

@@ -1,0 +1,19 @@
+commit a688eb6ee462e1b1d223426d76c404f6522502b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 19 09:36:50 2010 -0700
+
+    big: potential bug fix, cleanups
+    
+    - implemented setWord, use it where setUint64 is wrong
+    - divLarge: use fast mulWW, divWW; implemented mulWW, divWW
+    - better assembly code for addMulVVW
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1258042
+
+ src/pkg/big/arith.go      |  2 ++
+ src/pkg/big/arith_386.s   | 24 +++++++++++++++++++++---
+ src/pkg/big/arith_amd64.s | 24 +++++++++++++++++++++---
+ src/pkg/big/nat.go        | 30 +++++++++++++++++-------------
+ 4 files changed, 61 insertions(+), 19 deletions(-)

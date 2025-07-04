@@ -1,0 +1,27 @@
+commit 98bacdeafe089f917d98d2151694568e4a25a4c3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 9 08:50:41 2023 -0400
+
+    internal/coverage: separate out cmd defs to separate package
+    
+    Relocate the definitions in cmddefs.go (used by the compiler and
+    the cover tool) to a separate package "covcmd". No change
+    in functionality, this is a pure refactoring, in preparation
+    for a subsequent change that will require updating the
+    imports for the package.
+    
+    Change-Id: Ic1d277c94d9a574de0a11ec5ed77e892302b9a47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517696
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/flag.go         | 14 +++++++-------
+ src/cmd/cover/cfg_test.go                     |  4 ++--
+ src/cmd/cover/cover.go                        |  7 ++++---
+ src/cmd/dist/buildtool.go                     |  1 +
+ src/cmd/go/internal/work/exec.go              |  4 ++--
+ src/internal/coverage/{ => covcmd}/cmddefs.go | 16 +---------------
+ src/internal/coverage/defs.go                 | 14 ++++++++++++++
+ 7 files changed, 31 insertions(+), 29 deletions(-)

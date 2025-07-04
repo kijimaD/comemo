@@ -1,0 +1,16 @@
+commit 47e0e4233fe0df95ce2ee2291325bee7dea45a4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 09:12:18 2015 -0400
+
+    go/build: enable cgo on freebsd/arm
+    
+    Now that it works we need to turn it back on.
+    
+    Fixes #10119.
+    
+    Change-Id: I9c62d3026f7bb62c49a601ad73f33bf655372915
+    Reviewed-on: https://go-review.googlesource.com/13162
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

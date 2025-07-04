@@ -1,0 +1,64 @@
+commit 3e38b7f2465a6ab476cb0e184f2b2abee1a6e76f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 10 19:22:44 2013 -0700
+
+    net/http: simplify server, use bufio Reader.Reset and Writer.Reset
+    
+    Update #5100
+    Update #6086
+    
+    Remove switchReader, switchWriter, switchReaderPair,
+    switchWriterPair, etc.
+    
+    Now it only maintains pools of bufio Readers and Writers, but
+    uses Reset instead of working around all their
+    previously-associated state.
+    
+    Compared to before the bufio Reset change, it's the same number of
+    allocations, and also faster:
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkClientServer                          111218       109828   -1.25%
+    BenchmarkClientServerParallel4                  70580        70013   -0.80%
+    BenchmarkClientServerParallel64                 72636        68919   -5.12%
+    BenchmarkServer                                139858       137068   -1.99%
+    BenchmarkServerFakeConnNoKeepAlive              14619        14314   -2.09%
+    BenchmarkServerFakeConnWithKeepAlive            12390        11361   -8.31%
+    BenchmarkServerFakeConnWithKeepAliveLite         7630         7306   -4.25%
+    BenchmarkServerHandlerTypeLen                    9688         9342   -3.57%
+    BenchmarkServerHandlerNoLen                      8700         8470   -2.64%
+    BenchmarkServerHandlerNoType                     9255         8949   -3.31%
+    BenchmarkServerHandlerNoHeader                   7058         6806   -3.57%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkClientServer                              61           61    0.00%
+    BenchmarkClientServerParallel4                     61           61    0.00%
+    BenchmarkClientServerParallel64                    61           61    0.00%
+    BenchmarkServer                                    16           16    0.00%
+    BenchmarkServerFakeConnNoKeepAlive                 24           24    0.00%
+    BenchmarkServerFakeConnWithKeepAlive               19           19    0.00%
+    BenchmarkServerFakeConnWithKeepAliveLite            9            9    0.00%
+    BenchmarkServerHandlerTypeLen                      17           17    0.00%
+    BenchmarkServerHandlerNoLen                        14           14    0.00%
+    BenchmarkServerHandlerNoType                       15           15    0.00%
+    BenchmarkServerHandlerNoHeader                      9            9    0.00%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkClientServer                            6988         6985   -0.04%
+    BenchmarkClientServerParallel4                   6979         6985    0.09%
+    BenchmarkClientServerParallel64                  7002         7019    0.24%
+    BenchmarkServer                                  1846         1848    0.11%
+    BenchmarkServerFakeConnNoKeepAlive               2420         2412   -0.33%
+    BenchmarkServerFakeConnWithKeepAlive             2126         2129    0.14%
+    BenchmarkServerFakeConnWithKeepAliveLite          989          990    0.10%
+    BenchmarkServerHandlerTypeLen                    1818         1819    0.06%
+    BenchmarkServerHandlerNoLen                      1775         1777    0.11%
+    BenchmarkServerHandlerNoType                     1783         1785    0.11%
+    BenchmarkServerHandlerNoHeader                    989          990    0.10%
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12708046
+
+ src/pkg/net/http/server.go | 81 ++++++++++++++--------------------------------
+ 1 file changed, 24 insertions(+), 57 deletions(-)

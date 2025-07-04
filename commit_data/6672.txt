@@ -1,0 +1,12 @@
+commit 41ac2f8a42bc405de7ca88ff15ec06a96f5c143c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 31 15:08:45 2010 -0700
+
+    gob: update documentation about wire format for interfaces.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2814041
+
+ src/pkg/gob/doc.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

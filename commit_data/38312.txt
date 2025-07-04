@@ -1,0 +1,22 @@
+commit 361a01983f01790694d5c7773d56a560c01b96cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 16:52:48 2019 -0500
+
+    cmd/api: use 'go list' to locate transitive dependencies of std
+    
+    With standard-library modules and vendoring, the mapping from import
+    path to directory within the standard library is no longer entirely
+    trivial. Fortunately, 'go list' makes that mapping straightforward to
+    compute.
+    
+    Updates #30241
+    Updates #30228
+    
+    Change-Id: Iddd77c21a527b7acdb30c17bec8b4bbd43e23756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165497
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/api/goapi.go | 84 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 77 insertions(+), 7 deletions(-)

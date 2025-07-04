@@ -1,0 +1,26 @@
+commit 42e0cc604661f39baa28124247a9bac1d98fc0bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 28 15:29:23 2019 -0800
+
+    go/scanner: accept new Go2 number literals
+    
+    This CL introduces go/scanner support for the new binary and octal integer
+    literals, hexadecimal floats, and digit separators for all number literals.
+    The new code is closely mirroring the respective code for number literals in
+    cmd/compile/internal/syntax/scanner.go.
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: I5315c6aaa7cfc41a618296be20e3acd5114d6b3c
+    Reviewed-on: https://go-review.googlesource.com/c/159997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/scanner/scanner.go      | 239 ++++++++++++++++++++++++++++-------------
+ src/go/scanner/scanner_test.go | 206 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 367 insertions(+), 78 deletions(-)

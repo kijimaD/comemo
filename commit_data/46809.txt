@@ -1,0 +1,23 @@
+commit 6436f5c13d6a5ced6cd5f3873f83ebfae32cce36
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Oct 7 16:26:29 2021 -0400
+
+    runtime: handle end PC in textAddr
+    
+    As the func table contains the end marker of the text section, we
+    sometimes need to get that address from an offset. Currently
+    textAddr doesn't handle that address, as it is not within any
+    text section. Instead of letting the callers not call textAddr
+    with the end offset, just handle it more elegantly in textAddr.
+    
+    For #48837.
+    
+    Change-Id: I6e97e455f6cb66e9680a7aac6152ba6f4cda2e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354635
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/symtab.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

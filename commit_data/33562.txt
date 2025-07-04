@@ -1,0 +1,32 @@
+commit a265f2e90eb928ab773ecabf48aefb11b188296d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 29 21:04:01 2017 +0000
+
+    go/printer: indent lone comments in composite lits
+    
+    If a composite literal contains any comments on their own lines without
+    any elements, the printer would unindent the comments.
+    
+    The comments in this edge case are written when the closing '}' is
+    written. Indent and outdent first so that the indentation is
+    interspersed before the comment is written.
+    
+    Also note that the go/printer golden tests don't show the exact same
+    behaviour that gofmt does. Added a TODO to figure this out in a separate
+    CL.
+    
+    While at it, ensure that the tree conforms to gofmt. The changes are
+    unrelated to this indentation fix, however.
+    
+    Fixes #22355.
+    
+    Change-Id: I5ac25ac6de95a236f1e123479127cc4dd71e93fe
+    Reviewed-on: https://go-review.googlesource.com/74232
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/nodes.go                 |  4 +++-
+ src/go/printer/testdata/comments.golden | 28 ++++++++++++++++++++++++++++
+ src/go/printer/testdata/comments.input  | 28 ++++++++++++++++++++++++++++
+ src/math/big/int.go                     |  2 --
+ 4 files changed, 59 insertions(+), 3 deletions(-)

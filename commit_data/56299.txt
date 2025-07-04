@@ -1,0 +1,16 @@
+commit fd99157f9d9c22eb35ea9c70f32908f0980d47ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 25 09:21:14 2024 -0700
+
+    go/types, types2: refactor Checker.rangeStmt for clarity
+    
+    Change-Id: I0c2f921389416ab222b84f77699fd4b3246ef0e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581776
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 23 ++++++++++++++++++-----
+ src/go/types/stmt.go                    | 23 ++++++++++++++++++-----
+ 2 files changed, 36 insertions(+), 10 deletions(-)

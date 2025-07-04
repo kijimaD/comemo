@@ -1,0 +1,21 @@
+commit 8974fb9ba5a5338e20b8c8ccb8d1779ba4841762
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 11:04:06 2015 -0800
+
+    cmd/internal/obj: move the "unary destination" tables from asm to obj/*
+    
+    Have the implementations of each architecture declare the one-operand,
+    destination-writing instructions instead of splitting the information between
+    there and asm.
+    
+    Change-Id: I44899435011a4a7a398ed03c0801e9f81cc8c905
+    Reviewed-on: https://go-review.googlesource.com/6490
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 160 +++++++-------------------------------
+ src/cmd/asm/internal/asm/asm.go   |   2 +-
+ src/cmd/internal/obj/arm/obj5.go  |   6 ++
+ src/cmd/internal/obj/i386/obj8.go |  42 ++++++++++
+ src/cmd/internal/obj/link.go      |   1 +
+ src/cmd/internal/obj/x86/obj6.go  |  52 +++++++++++++
+ 6 files changed, 130 insertions(+), 133 deletions(-)

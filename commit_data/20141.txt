@@ -1,0 +1,13 @@
+commit 2511d92ffe52c55ad5d22e585d55aed47c2e24fb
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Aug 26 05:26:48 2014 -0700
+
+    doc/cmd.html: close a tag.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/130560043
+
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

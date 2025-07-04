@@ -1,0 +1,19 @@
+commit 5fb7e5b482eba62a78738866c536ef04f0696809
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 14:05:05 2011 -0800
+
+    go/printer, godoc: print comments in example code
+    
+    - go/printer: support for printing CommentedNodes
+    - go/doc: collect comments from examples
+    
+    Fixes #2429.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5482052
+
+ src/pkg/go/doc/example.go     |  9 +++--
+ src/pkg/go/printer/printer.go | 88 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/sort/example_test.go  |  2 +-
+ 3 files changed, 85 insertions(+), 14 deletions(-)

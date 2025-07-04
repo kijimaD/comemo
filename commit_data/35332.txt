@@ -1,0 +1,12 @@
+commit 9eface7077f31ccf9580df6713252bb0fdd867e4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Wed May 9 02:43:08 2018 +0800
+
+    cmd/trace: skip links for buckets with 0 count
+    
+    Change-Id: Ib1c2f7cc8e8f631ed9e74161699332f492d4cb0d
+    Reviewed-on: https://go-review.googlesource.com/112196
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/cmd/trace/annotations.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

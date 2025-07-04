@@ -1,0 +1,13 @@
+commit df29cdd33d63c7fe452a32aab193df7f0815f7ef
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 15 03:50:27 2013 +0800
+
+    doc/go_spec: fix typos
+    Fixes #5456.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9400044
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

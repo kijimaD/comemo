@@ -1,0 +1,26 @@
+commit bdb65da0490e695da0de6eba2b0d5da244e88293
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 13 15:55:43 2018 -0400
+
+    cmd/compile: don't compact liveness maps in place
+    
+    Currently Liveness.compact rewrites the Liveness.livevars slice in
+    place. However, we're about to add register maps, which we'll want to
+    track in livevars, but compact independently from the stack maps.
+    Hence, this CL modifies Liveness.compact to consume Liveness.livevars
+    and produce a new slice of deduplicated stack maps. This is somewhat
+    clearer anyway because it avoids potential confusion over how
+    Liveness.livevars is indexed.
+    
+    Passes toolstash -cmp.
+    
+    For #24543.
+    
+    Change-Id: I7093fbc71143f8a29e677aa30c96e501f953ca2b
+    Reviewed-on: https://go-review.googlesource.com/108498
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 56 +++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 30 deletions(-)

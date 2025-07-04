@@ -1,0 +1,14 @@
+commit 62f8494e1d6090b995379dc8f4dcedbc0ecfcba8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Aug 11 10:45:50 2017 +0900
+
+    cmd/cgo: remove unused code
+    
+    Change-Id: I8d295ea32bf56adc42171947133f3e16a88664c6
+    Reviewed-on: https://go-review.googlesource.com/54911
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,29 @@
+commit d33a5136e1a4513a3b1deacf1cc0677e070c7e8f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 21 12:02:30 2023 -0400
+
+    cmd/link: use uint32 as symbol index
+    
+    Currently, a symbol's global index, the Sym type, is defined as an
+    int, which is 64-bit on 64-bit machines. We're unlikely to have
+    more than 4 billion symbols in the near future. Even if we will,
+    we will probably hit some other limit (e.g. section size) before
+    the symbol number limit. Use a 32-bit type to reduce memory usage.
+    
+    E,g, linking cmd/compile in external linking mode (on macOS/amd64)
+    
+    Munmap_GC    43.2M ± 0%     35.5M ± 1%   -17.74%  (p=0.000 n=16+20)
+    
+    This brings the memory usage back before the previous CL, and even
+    lower.
+    
+    Change-Id: Ie185f1586638fe70d8121312bfa9410942d518c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487416
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/stackcheck.go | 2 +-
+ src/cmd/link/internal/loader/loader.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

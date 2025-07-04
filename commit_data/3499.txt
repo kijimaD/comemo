@@ -1,0 +1,27 @@
+commit e98412290efb90b3f7aae2e5c63bd9bae5d0bbaf
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 11 02:35:53 2009 -0700
+
+    interpreter checkpoint.
+      * generate different versions of binary operators
+        for each size of int and float, so that proper
+        truncating happens after each operation to
+        simulate the various sized ops.
+      * add slice expressions
+      * publish World.CompileStmtList, CompileDeclList, CompileExpr
+      * handle type-less expressions in CompileExpr
+    
+    R=austin
+    DELTA=1459  (1327 added, 11 deleted, 121 changed)
+    OCL=34382
+    CL=35581
+
+ usr/austin/eval/abort.go     |    8 +
+ usr/austin/eval/eval_test.go |   11 +-
+ usr/austin/eval/expr.go      |  171 +++++-
+ usr/austin/eval/expr1.go     | 1226 ++++++++++++++++++++++++++++++++++++++----
+ usr/austin/eval/gen.go       |   87 ++-
+ usr/austin/eval/main.go      |   55 ++
+ usr/austin/eval/stmt_test.go |    4 +-
+ usr/austin/eval/world.go     |   17 +-
+ 8 files changed, 1447 insertions(+), 132 deletions(-)

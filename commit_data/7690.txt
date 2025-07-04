@@ -1,0 +1,12 @@
+commit 2a36f9df1c2d11b681adb267fe7944eab94cf6e7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 8 15:41:36 2011 +1100
+
+    flag: replace fail with failf
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4254061
+
+ src/pkg/flag/flag.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

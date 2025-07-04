@@ -1,0 +1,13 @@
+commit 840e583ff340d22a6263a348922283e6d5cd2e31
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sun Jul 25 03:00:04 2021 +0900
+
+    runtime: correct variable name in comment
+    
+    Change-Id: Ic35ec2ed320c3c266afbeec8bdea1dedac4725e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Austin Clements <austin@google.com>
+
+ src/runtime/race.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

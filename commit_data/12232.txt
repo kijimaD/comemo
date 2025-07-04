@@ -1,0 +1,21 @@
+commit ab169c6e3f3acfdf9e9176968825d398820f40f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 11:18:00 2012 -0800
+
+    godoc: don't show directories w/o packages in flat dir mode
+    
+    The main change is simple: Both the Directory and DirEntry
+    struct have an extra field 'HasPkg' indicating whether the
+    directory contains any package files. The remaining changes
+    are more comments and adjustments to the template files.
+    
+    Fixes #3121.
+    
+    R=golang-dev, bradfitz, sameer
+    CC=golang-dev
+    https://golang.org/cl/5699072
+
+ lib/godoc/package.html    | 28 +++++++++++++++++-----------
+ lib/godoc/package.txt     |  4 ++--
+ src/cmd/godoc/dirtrees.go | 36 +++++++++++++++++++++++++-----------
+ 3 files changed, 44 insertions(+), 24 deletions(-)

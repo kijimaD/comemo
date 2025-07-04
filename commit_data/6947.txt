@@ -1,0 +1,12 @@
+commit 43f459ce51c5e43b7b358a6d976e940c4be9d4fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 14 11:33:17 2010 -0500
+
+    typo
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3582042
+
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

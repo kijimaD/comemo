@@ -1,0 +1,12 @@
+commit f832a97e454a5e2bed336321965fd2382b2af868
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Mar 14 14:03:30 2019 -0400
+
+    doc: document Go 1.12.1
+    
+    Change-Id: I6d3a615c5f72e9aa29d23e127af98d6e836da173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167699
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

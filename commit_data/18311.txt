@@ -1,0 +1,16 @@
+commit 5d3033c5907956fd982409dd4a543f6866dd675e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 21 14:52:44 2014 -0800
+
+    syscall: add Flock_t.Lock method
+    
+    Fixes #7059
+    
+    R=golang-codereviews, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/53470043
+
+ src/pkg/syscall/consistency_unix_test.go |  4 ++--
+ src/pkg/syscall/flock.go                 | 22 ++++++++++++++++++++++
+ src/pkg/syscall/flock_linux_32bit.go     | 13 +++++++++++++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

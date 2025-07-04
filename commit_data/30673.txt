@@ -1,0 +1,30 @@
+commit f2e87158f06902daa44d34b4846611f8520e4491
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 15 14:48:23 2017 -0400
+
+    runtime: make GOTRACEBACK=crash crash promptly in cgo binaries
+    
+    GOTRACEBACK=crash works by bouncing a SIGQUIT around the process
+    sched.mcount times. However, sched.mcount includes the extra Ms
+    allocated by oneNewExtraM for cgo callbacks. Hence, if there are any
+    extra Ms that don't have real OS threads, we'll try to send SIGQUIT
+    more times than there are threads to catch it. Since nothing will
+    catch these extra signals, we'll fall back to blocking for five
+    seconds before aborting the process.
+    
+    Avoid this five second delay by subtracting out the number of extra Ms
+    when sending SIGQUITs.
+    
+    Of course, in a cgo binary, it's still possible for the SIGQUIT to go
+    to a cgo thread and cause some other failure mode. This does not fix
+    that.
+    
+    Change-Id: I4fbf3c52dd721812796c4c1dcb2ab4cb7026d965
+    Reviewed-on: https://go-review.googlesource.com/38182
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go              | 4 ++++
+ src/runtime/signal_sighandler.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

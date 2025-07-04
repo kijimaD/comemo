@@ -1,0 +1,16 @@
+commit d1fee626f62cc3c5fa30b0f364bdebaf6249c2c9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:15:16 2014 -0400
+
+    crypto/rc4: disable assembly implementation for nacl/arm.
+    It uses an unsupported addressing mode.
+    
+    LGTM=iant, rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/106370043
+
+ src/pkg/crypto/rc4/rc4_arm.s  | 2 ++
+ src/pkg/crypto/rc4/rc4_asm.go | 2 +-
+ src/pkg/crypto/rc4/rc4_ref.go | 2 +-
+ 3 files changed, 4 insertions(+), 2 deletions(-)

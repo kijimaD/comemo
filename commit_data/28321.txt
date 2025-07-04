@@ -1,0 +1,52 @@
+commit 43bdfa9337c136f4e19122914c082f34045d9509
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Sep 12 12:13:34 2016 -0400
+
+    cmd/asm, cmd/internal/obj/s390x: add new s390x instructions for SSA
+    
+    This commit adds the following instructions to support the new SSA
+    backend for s390x:
+    
+    32-bit operations:
+    ADDW
+    SUBW
+    NEGW
+    FNEGS
+    
+    Conditional moves:
+    MOVDEQ
+    MOVDGE
+    MOVDGT
+    MOVDLE
+    MOVDLT
+    MOVDNE
+    
+    Unordered branches (for floating point comparisons):
+    BLEU
+    BLTU
+    
+    Modulo operations:
+    MODW
+    MODWU
+    MODD
+    MODDU
+    
+    The modulo operations might be removed in a future commit because
+    I'd like to change DIV to produce a tuple once the old backend is
+    removed.
+    
+    This commit also removes uses of REGZERO from the assembler. They
+    aren't necessary and R0 will be used as a GPR by SSA.
+    
+    Change-Id: I05756c1cbb74bf4a35fc492f8f0cd34b50763dc9
+    Reviewed-on: https://go-review.googlesource.com/29075
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  35 ++++++-
+ src/cmd/internal/obj/s390x/a.out.go       |  18 ++++
+ src/cmd/internal/obj/s390x/anames.go      |  16 +++
+ src/cmd/internal/obj/s390x/asmz.go        | 157 +++++++++++++++++++++---------
+ src/cmd/internal/obj/s390x/objz.go        |  25 ++---
+ 5 files changed, 188 insertions(+), 63 deletions(-)

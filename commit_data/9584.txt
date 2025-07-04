@@ -1,0 +1,21 @@
+commit cd6f319a7679e4664978af269001980e7bee4979
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 10:07:29 2011 -0700
+
+    godoc: minor tweaks for app-engine use
+    
+    - read search index files in groutine to avoid
+      start-up failure on app engine because reading
+      the files takes too long
+    - permit usage of search index files and indexer
+    - minor cosmetic cleanups
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4952050
+
+ src/cmd/godoc/appconfig.go |  8 +++---
+ src/cmd/godoc/appinit.go   |  4 +--
+ src/cmd/godoc/godoc.go     | 67 ++++++++++++++++++++++------------------------
+ src/cmd/godoc/main.go      |  8 +++---
+ 4 files changed, 42 insertions(+), 45 deletions(-)

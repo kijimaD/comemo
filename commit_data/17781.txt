@@ -1,0 +1,13 @@
+commit 7dba510c7b4110ddda93ce9829636e33411267e5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 10 22:43:34 2013 -0400
+
+    cmd/gc: re-word some error messages
+    Fixes #6557.
+    
+    R=golang-dev, rsc, tracey.brendan
+    CC=golang-dev
+    https://golang.org/cl/14432053
+
+ src/cmd/gc/dcl.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

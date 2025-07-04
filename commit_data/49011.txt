@@ -1,0 +1,38 @@
+commit 265b5fd2f1c6d3379893b58940dde48e156ce531
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 4 16:27:53 2022 +0000
+
+    Revert "cmd/compile: enable Asan check for global variables"
+    
+    This reverts CL 401775.
+    
+    Reason for revert: broke build.
+    
+    Change-Id: I4f6f2edff1e4afcf31cd90e26dacf303979eb10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403981
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ misc/cgo/testsanitizers/asan_test.go               |   8 -
+ misc/cgo/testsanitizers/cc_test.go                 |  25 +--
+ src/cmd/compile/internal/base/base.go              |   1 -
+ src/cmd/compile/internal/gc/obj.go                 |  17 +-
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/noder/object.go           |   2 +-
+ src/cmd/compile/internal/noder/reader.go           |   2 +-
+ src/cmd/compile/internal/pkginit/init.go           |  53 -----
+ .../compile/internal/pkginit/initAsanGlobals.go    | 241 ---------------------
+ src/cmd/go/alldocs.go                              |   2 -
+ src/cmd/go/internal/work/build.go                  |   2 -
+ src/cmd/go/internal/work/init.go                   | 100 ---------
+ ...o.txt => install_msan_and_race_require_cgo.txt} |   2 +-
+ src/runtime/asan.go                                |   4 -
+ src/runtime/asan/asan.go                           |  38 ----
+ src/runtime/asan0.go                               |   9 +-
+ src/runtime/asan_amd64.s                           |   8 -
+ src/runtime/asan_arm64.s                           |   8 -
+ 18 files changed, 15 insertions(+), 509 deletions(-)

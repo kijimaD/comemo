@@ -1,0 +1,13 @@
+commit 788b41751e1098b52f43b74dc26954ad97437e8f
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Mar 6 11:26:33 2010 -0800
+
+    PTAL
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/254043
+
+ src/pkg/fmt/format.go | 54 ++++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go  | 91 +++++++++++++++------------------------------------
+ 2 files changed, 80 insertions(+), 65 deletions(-)

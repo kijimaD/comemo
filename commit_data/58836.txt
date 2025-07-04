@@ -1,0 +1,22 @@
+commit fda918389947d32e854ddfc8c972b88bd31369c4
+Author: Albert Sundjaja <albertsundjaja@gmail.com>
+Date:   Sat Feb 22 23:02:57 2025 +0000
+
+    syscall: allow \x00-prefixed unix abstract socket to use full path length
+    
+    Fixes #70893
+    
+    Change-Id: Ia0aaa497dad335fe962d52d3f115d26e8046e36f
+    GitHub-Last-Rev: 7dd663678d8aecdfac94541a570dfbd1aa2577e7
+    GitHub-Pull-Request: golang/go#71851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/unixsock_linux_test.go   | 17 +++++++++++++++++
+ src/net/unixsock_windows_test.go | 22 ++++++++++++++++++++++
+ src/syscall/syscall_linux.go     | 26 ++++++++++++++++----------
+ src/syscall/syscall_windows.go   | 26 ++++++++++++++++----------
+ 4 files changed, 71 insertions(+), 20 deletions(-)

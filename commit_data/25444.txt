@@ -1,0 +1,17 @@
+commit a8f8d550e8d221e8bbe290e098e30b660c364ee7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 21 17:44:58 2015 +1100
+
+    internal/syscall/windows/registry: adjust TestGetMUIStringValue
+    
+    Do not check DaylightName if DynamicDaylightTimeDisabled is false.
+    
+    Fixes #13502
+    
+    Change-Id: I03e01ec0afdeb0037a5d3ee243674e5a6b559da5
+    Reviewed-on: https://go-review.googlesource.com/17998
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/syscall/windows/registry/registry_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

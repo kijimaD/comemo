@@ -1,0 +1,13 @@
+commit d0764a248113d3cd616c17723c090aead23daf7f
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 15:35:12 2018 -0400
+
+    doc: update go1.11.html removing TODO about TLS offsets
+    
+    Change-Id: Id06e5139f16cd7a85c59a3dcf2020cf647fcdea0
+    Reviewed-on: https://go-review.googlesource.com/124709
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

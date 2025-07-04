@@ -1,0 +1,19 @@
+commit dbd66fd3d07433a03da5dc6c6def8c53951ada77
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Wed May 16 12:56:54 2018 +0000
+
+    runtime: use debugSelect flag to toggle debug code
+    
+    This block of code once was commented by the original author, but commenting
+    code looks a little annoying. However, the debugSelect flag is just for the
+    situation that debug code will be compiled when debuging, when release this
+    code will be eliminated by the compiler.
+    
+    Change-Id: I7b94297e368b515116ef44a36058214ddddf9adb
+    Reviewed-on: https://go-review.googlesource.com/113395
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/select.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

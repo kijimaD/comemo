@@ -1,0 +1,15 @@
+commit ff25900bb660722d3496e7afafbdb9e3454271b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jan 19 14:49:25 2011 -0500
+
+    net: implement windows timeout
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/1731047
+
+ src/pkg/net/fd_windows.go               | 138 ++++++++++++++++++++++++++++----
+ src/pkg/net/timeout_test.go             |   5 --
+ src/pkg/syscall/syscall_windows.go      |   1 +
+ src/pkg/syscall/zsyscall_windows_386.go |  16 ++++
+ 4 files changed, 141 insertions(+), 19 deletions(-)

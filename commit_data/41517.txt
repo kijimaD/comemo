@@ -1,0 +1,14 @@
+commit c1abd5ab70e1e8ac59a2960d41fe6d83d68ea69b
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Feb 29 02:32:21 2020 -0800
+
+    runtime: don't invoke t.Fatal* in goroutine in TestLibraryCtrlHandler
+    
+    Change-Id: I8bb06c360cab3e5a74b0b0f98bb25cca4741d66d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221605
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_windows_test.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

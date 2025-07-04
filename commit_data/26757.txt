@@ -1,0 +1,17 @@
+commit cdc0ebbebe64d8fa601914945112db306c85c426
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Feb 3 23:41:55 2016 +0100
+
+    encoding/json: respect json.Marshaler when encoding byte kind slices
+    
+    Fixes #13783.
+    
+    Change-Id: I0122c1f0cf4075acabf5f58241bded1835699dc1
+    Reviewed-on: https://go-review.googlesource.com/19725
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go      |  4 ++-
+ src/encoding/json/encode_test.go | 55 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

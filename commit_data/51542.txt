@@ -1,0 +1,16 @@
+commit e76c87b1915cfbd0d4f22c6401987948af18e8c5
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 8 14:31:38 2022 -0500
+
+    doc: fix typo in 1.20 release notes
+    
+    Fix typo.
+    
+    Change-Id: Id3a78ac5d8ea429ba1685889cd1661aaca8572c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456238
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,34 @@
+commit 8a7cbadbbe9768ccd7480bb11e35454e39ef2bdd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 17:22:17 2009 -0800
+
+    convert strconv
+    
+    R=r
+    DELTA=568  (0 added, 9 deleted, 559 changed)
+    OCL=22898
+    CL=22901
+
+ src/lib/fmt/format.go           |  16 ++--
+ src/lib/http/server.go          |   2 +-
+ src/lib/json/generic.go         |   2 +-
+ src/lib/json/parse.go           |   6 +-
+ src/lib/net/net.go              |   2 +-
+ src/lib/reflect/tostring.go     |  12 +--
+ src/lib/strconv/atof.go         |  56 ++++++-------
+ src/lib/strconv/atof_test.go    | 134 +++++++++++++++----------------
+ src/lib/strconv/atoi.go         |  18 ++---
+ src/lib/strconv/atoi_test.go    | 166 ++++++++++++++++++--------------------
+ src/lib/strconv/decimal.go      | 172 ++++++++++++++++++++--------------------
+ src/lib/strconv/decimal_test.go |  84 ++++++++++----------
+ src/lib/strconv/fp_test.go      |  20 ++---
+ src/lib/strconv/ftoa.go         |  68 ++++++++--------
+ src/lib/strconv/ftoa_test.go    | 156 ++++++++++++++++++------------------
+ src/lib/strconv/itoa.go         |   7 +-
+ src/lib/strconv/itoa_test.go    |  68 ++++++++--------
+ src/lib/strconv/quote_test.go   |  96 +++++++++++-----------
+ test/chan/goroutines.go         |   2 +-
+ test/fixedbugs/bug120.go        |  10 +--
+ test/mallocrep1.go              |   2 +-
+ test/map.go                     |  14 ++--
+ 22 files changed, 552 insertions(+), 561 deletions(-)

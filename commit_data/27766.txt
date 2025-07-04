@@ -1,0 +1,22 @@
+commit 29f0984a3558ef6e3e58a621791473a71b510365
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 30 06:36:31 2016 -0400
+
+    cmd/compile: don't set line number to 0 when building SSA
+    
+    The frontend may emit node with line number missing. In this case,
+    use the parent line number. Instead of changing every call site of
+    pushLine, do it in pushLine itself.
+    
+    Fixes #16214.
+    
+    Change-Id: I80390550b56e4d690fc770b01ff725b892ffd6dc
+    Reviewed-on: https://go-review.googlesource.com/24641
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 35 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/ssa.go      |  8 ++++++++
+ 2 files changed, 43 insertions(+)

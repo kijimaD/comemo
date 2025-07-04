@@ -1,0 +1,13 @@
+commit 0399e76b6673080b88a540ad669cfcf638078d7a
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sat Mar 30 09:22:11 2013 -0700
+
+    os/exec, syscall: fix tests to pass when GOGCTRACE=1 is set
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8193043
+
+ src/pkg/os/exec/exec_test.go   | 2 +-
+ src/pkg/syscall/passfd_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

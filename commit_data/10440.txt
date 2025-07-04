@@ -1,0 +1,15 @@
+commit 4a2d30e13bf6f52e51c347d562871648bf5ef3bb
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Nov 17 22:09:28 2011 -0500
+
+    runtime: add nanotime for Plan 9
+    
+    R=paulzhol, rsc, dave, rminnich
+    CC=golang-dev
+    https://golang.org/cl/5327063
+
+ src/pkg/runtime/plan9/386/signal.c |  6 ------
+ src/pkg/runtime/plan9/386/sys.s    | 18 ++++++++---------
+ src/pkg/runtime/plan9/os.h         | 13 ++++++++++---
+ src/pkg/runtime/plan9/thread.c     | 40 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 19 deletions(-)

@@ -1,0 +1,12 @@
+commit 321ede78e3fc432ff2f2ad5fb4babc4b45d82ed9
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Tue Aug 6 16:48:19 2013 +1000
+
+    flag: document the zero value of FlagSet
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12403043
+
+ src/pkg/flag/flag.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

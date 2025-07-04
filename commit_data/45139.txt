@@ -1,0 +1,30 @@
+commit bcbde83c200a7abb2b23666b59992265f3cf3621
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 14 09:34:28 2021 -0400
+
+    go/ast: fix broken build with typeparams build constraint
+    
+    My rebase of https://golang.org/cl/300649 before submitting broke the
+    build (and tests) when using the typeparams build constraint. In a
+    subsequent CL I add test coverage back to cmd/dist.
+    
+    This time, I've tested by running:
+     - go test -tags=typeparams go/...
+     - go test -tags=typeparams cmd/gofmt
+    
+    All tests pass except for the new TestResolution/typeparams.go2, which I
+    will fix in a follow-up CL.
+    
+    For #44933
+    
+    Change-Id: I439d387841604cf43a90e2ce41dbe6bbbdb0306d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310070
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/walk.go            |  6 +++++-
+ src/go/ast/walk_typeparams.go | 10 ++++++++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)

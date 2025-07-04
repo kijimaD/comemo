@@ -1,0 +1,13 @@
+commit 08a206cc9e5998c195a8d3cc900984025732a79e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 29 14:56:15 2011 -0800
+
+    sync: a couple of documentation nits.
+    
+    R=golang-dev, agl1
+    CC=golang-dev
+    https://golang.org/cl/4079051
+
+ src/pkg/sync/mutex.go | 2 +-
+ src/pkg/sync/once.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

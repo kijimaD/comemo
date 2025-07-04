@@ -1,0 +1,21 @@
+commit ea3010d994c927907fda2d742799f5629cdf9265
+Author: dchaofei <dchaofei@gmail.com>
+Date:   Thu May 19 02:02:50 2022 +0000
+
+    crypto/x509: optimize the performance of checkSignature
+    
+    The loop should be terminated immediately when `algo` has been found
+    
+    Fixes #52955
+    
+    Change-Id: Ib3865c4616a0c1af9b72daea45f5a1750f84562f
+    GitHub-Last-Rev: 721322725fb2d3a3ea410d09fd8320dfef865d8d
+    GitHub-Pull-Request: golang/go#52987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509.go | 1 +
+ 1 file changed, 1 insertion(+)

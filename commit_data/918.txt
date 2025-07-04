@@ -1,0 +1,12 @@
+commit baac04b5184a89bd354388d3ddb78a21689ffb74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 17:13:02 2008 -0700
+
+    enable tests that verify that pretty-printed code can be compiled with 6g again
+    
+    R=r
+    OCL=17510
+    CL=17510
+
+ usr/gri/pretty/test.sh | 35 +++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 12 deletions(-)

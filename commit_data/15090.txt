@@ -1,0 +1,28 @@
+commit 8931306389c5b9a19b9b90cc7e263782edcaf579
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 23:10:02 2013 -0500
+
+    cmd/gc: reject non-Go constants
+    
+    Expressions involving nil, even if they can be evaluated
+    at compile time, do not count as Go constants and cannot
+    be used in const initializers.
+    
+    Fixes #4673.
+    Fixes #4680.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7278043
+
+ src/cmd/gc/const.c          | 134 ++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/go.h             |   1 +
+ src/cmd/gc/subr.c           |   1 +
+ src/cmd/gc/typecheck.c      |  11 ++--
+ test/const1.go              |   6 ++
+ test/const5.go              |   8 +--
+ test/fixedbugs/bug297.go    |   2 +-
+ test/fixedbugs/issue4097.go |   2 +-
+ test/fixedbugs/issue4654.go |   2 +-
+ test/run.go                 |  13 +++--
+ 10 files changed, 161 insertions(+), 19 deletions(-)

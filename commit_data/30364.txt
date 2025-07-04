@@ -1,0 +1,14 @@
+commit c804fd8927dabe1484b52e31f752136b7c0b32b7
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Feb 22 21:24:44 2017 +0200
+
+    net: update IP.MarshalText documentation regarding len(ip) == 0
+    
+    Describe the difference from String encoding when len(ip) is zero.
+    
+    Change-Id: Ia9b36b405d4fec3fee9a77498a839b6d90c2ec0d
+    Reviewed-on: https://go-review.googlesource.com/37379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit a439f6622812865898d1a07a3ee66dc0cfda1cc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 1 16:45:09 2009 -0700
+
+    add test, fix bug: structs that differ in their
+    first field were not being handled correctly
+    because the visited map did not include the type.
+    
+    R=r
+    OCL=31006
+    CL=31006
+
+ src/pkg/reflect/all_test.go  |  3 +++
+ src/pkg/reflect/deepequal.go | 42 +++++++++++++++++++++++++++++++++---------
+ src/pkg/reflect/value.go     |  2 +-
+ 3 files changed, 37 insertions(+), 10 deletions(-)

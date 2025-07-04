@@ -1,0 +1,18 @@
+commit 588ee7987d7f6be605166872ff8c478aa125bc58
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 4 11:14:53 2020 -0500
+
+    runtime: don't save/restore FP registers in softfloat mode on MIPS(64)
+    
+    Fixes #37653.
+    
+    Change-Id: I6188e44b4bc4aba7b56f29d9ce9de4618c70fd7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mkpreempt.go      | 24 +++++++++++++++++-------
+ src/runtime/preempt_mips64x.s |  4 ++++
+ src/runtime/preempt_mipsx.s   |  4 ++++
+ 3 files changed, 25 insertions(+), 7 deletions(-)

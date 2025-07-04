@@ -1,0 +1,15 @@
+commit 5bd88b028b73beec576657dff0d8bd486e46b893
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Thu May 10 19:08:46 2018 +0200
+
+    net/http/pprof: fix typo on new index page
+    
+    s/thread/thead/ as this is Table HEAD and not a thread as indicated by
+    the closing tag an context this apears in.
+    
+    Change-Id: I3aa0cc95b96c9a594cb5a49713efa22d67e4990c
+    Reviewed-on: https://go-review.googlesource.com/112675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

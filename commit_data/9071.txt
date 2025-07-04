@@ -1,0 +1,12 @@
+commit aec89c4c404d408c95ba309d65d7be78260f0045
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 13 20:04:12 2011 -0700
+
+    mime: fix build
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4695060
+
+ src/pkg/mime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

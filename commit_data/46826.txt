@@ -1,0 +1,20 @@
+commit 7fcf9a1e58c088eb63b7fc3db494016bf210966b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 8 14:12:33 2021 -0400
+
+    cmd/go: do not expect a specific timing in test_fuzz_minimize
+    
+    Empirically, it may take more than 3 seconds for minimization to begin.
+    If that is the case, the "elapsed:" message may start at 4s or higher.
+    
+    Fixes #48870
+    
+    Change-Id: I6bb4367b61377454b0af664d80232fdb46e7c245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354794
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

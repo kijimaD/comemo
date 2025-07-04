@@ -1,0 +1,23 @@
+commit 8a56c7742d96c8ef8e8dcecaf3d1c0e9f022f708
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 31 17:03:29 2022 -0400
+
+    cmd/go: set GIT_TRACE_CURL for tests on builders
+    
+    We have noticed a pattern of connection timeouts connecting to
+    github.com on the builders. Adding tracing may shed some light on the
+    underlying cause.
+    
+    For #52545.
+    
+    Change-Id: Ic73b494be9a3ea8ce3c7631ee8f62bd3d0d8e7bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409575
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go     | 8 ++++++++
+ src/cmd/go/script_test.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

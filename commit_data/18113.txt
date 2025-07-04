@@ -1,0 +1,28 @@
+commit 92b5e16147b26dcea216b48b380566b900b4916b
+Author: John Newlin <jnewlin@google.com>
+Date:   Thu Dec 26 11:52:14 2013 -0800
+
+    net/http: Release reference to chunkWriter's bufio.Writer on hijack
+    
+    When a connection is hijacked, release the reference to the bufio.Writer
+    that is used with the chunkWriter.  The chunkWriter is not used after
+    the connection is hijacked.
+    
+    Also add a test to check that double Hijack calls do something sensible.
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkServerHijack        24137        20629  -14.53%
+    
+    benchmark               old allocs   new allocs    delta
+    BenchmarkServerHijack           21           19   -9.52%
+    
+    benchmark                old bytes    new bytes    delta
+    BenchmarkServerHijack        11774         9667  -17.90%
+    
+    R=bradfitz, dave, chris.cahoon
+    CC=golang-codereviews
+    https://golang.org/cl/39440044
+
+ src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  9 ++++++++-
+ 2 files changed, 33 insertions(+), 1 deletion(-)

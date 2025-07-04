@@ -1,0 +1,38 @@
+commit a99f812cba4c5a5207fed9be5488312a44a5df34
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 2 17:19:25 2016 -0700
+
+    cmd/objdump: implement objdump of .o files
+    
+    Update goobj reader so it can provide all the information
+    necessary to disassemble .o (and .a) files.
+    
+    Grab architecture of .o files from header.
+    
+    .o files have relocations in them.  This CL also contains a simple
+    mechanism to disassemble relocations and add relocation info as an extra
+    column in the output.
+    
+    Fixes #13862
+    
+    Change-Id: I608fd253ff1522ea47f18be650b38d528dae9054
+    Reviewed-on: https://go-review.googlesource.com/24818
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/read.go           | 35 ++++++++++++----
+ src/cmd/internal/obj/link.go             |  8 ++--
+ src/cmd/internal/obj/reloctype_string.go | 17 ++++++++
+ src/cmd/internal/objfile/disasm.go       | 24 +++++++++--
+ src/cmd/internal/objfile/goobj.go        | 71 +++++++++++++++++++++++++++-----
+ src/cmd/internal/objfile/objfile.go      | 31 +++++++++++---
+ src/cmd/internal/sys/arch.go             | 13 ++++++
+ src/cmd/link/internal/arm/asm.go         |  4 +-
+ src/cmd/link/internal/ld/ldelf.go        |  2 +-
+ src/cmd/link/internal/ld/ldmacho.go      |  2 +-
+ src/cmd/link/internal/ld/link.go         |  3 +-
+ src/cmd/link/internal/ld/objfile.go      |  2 +-
+ src/cmd/pprof/pprof.go                   |  5 +--
+ src/debug/gosym/pclntab.go               | 10 +++--
+ 14 files changed, 186 insertions(+), 41 deletions(-)

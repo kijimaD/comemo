@@ -1,0 +1,15 @@
+commit 8c2b131cd11cde8b8d3008e22604b366694fb083
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 17 09:41:00 2012 +1100
+
+    net: return error from pollster rather than panicing
+    
+    Fixes #3590.
+    
+    R=bradfitz, mikioh.mikioh, iant, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/6684054
+
+ src/pkg/net/fd_unix.go      | 10 +++-----
+ src/pkg/net/fd_unix_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 7 deletions(-)

@@ -1,0 +1,50 @@
+commit ddbefae97ef0dd506da22eab811574d57a4f2a3b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 1 09:21:25 2014 -0700
+
+    misc: delete editor and shell support
+    
+    We are not the right people to support editor plugins, and the profusion
+    of editors in this CL demonstrates the unreality of pretending to do so.
+    People are free to create and advertise their own repos with support.
+    
+    For discussion: https://groups.google.com/forum/#!topic/golang-dev/SA7fD470FxU
+    
+    LGTM=rminnich, kamil.kisiel, gri, rsc, dave, josharian, ruiu
+    R=golang-codereviews, rminnich, kamil.kisiel, gri, rsc, dominik.honnef, dave, josharian, ruiu, ajstarks
+    CC=golang-codereviews
+    https://golang.org/cl/105470043
+
+ misc/IntelliJIDEA/Go.xml            |   99 ---
+ misc/bash/go                        |  237 -------
+ misc/bbedit/Go.plist                |  104 ---
+ misc/editors                        |    5 +
+ misc/emacs/go-mode-load.el          |   96 ---
+ misc/emacs/go-mode.el               | 1234 -----------------------------------
+ misc/fraise/go.plist                |   92 ---
+ misc/fraise/readme.txt              |   16 -
+ misc/kate/go.xml                    |  150 -----
+ misc/notepadplus/README             |   59 --
+ misc/notepadplus/functionList.xml   |   50 --
+ misc/notepadplus/go.xml             |  133 ----
+ misc/notepadplus/userDefineLang.xml |   64 --
+ misc/vim/autoload/go/complete.vim   |  103 ---
+ misc/vim/compiler/go.vim            |   30 -
+ misc/vim/ftdetect/gofiletype.vim    |   23 -
+ misc/vim/ftplugin/go.vim            |   19 -
+ misc/vim/ftplugin/go/fmt.vim        |   69 --
+ misc/vim/ftplugin/go/import.vim     |  250 -------
+ misc/vim/ftplugin/go/test.sh        |   78 ---
+ misc/vim/indent/go.vim              |   77 ---
+ misc/vim/plugin/godoc.vim           |  130 ----
+ misc/vim/readme.txt                 |  103 ---
+ misc/vim/syntax/go.vim              |  207 ------
+ misc/vim/syntax/godoc.vim           |   20 -
+ misc/xcode/3/README                 |    3 -
+ misc/xcode/3/go.pbfilespec          |   31 -
+ misc/xcode/3/go.xclangspec          |  293 ---------
+ misc/xcode/4/README                 |    2 -
+ misc/xcode/4/go.xclangspec          |  290 --------
+ misc/xcode/4/go4xcode.sh            |  112 ----
+ misc/zsh/go                         |  161 -----
+ 32 files changed, 5 insertions(+), 4335 deletions(-)

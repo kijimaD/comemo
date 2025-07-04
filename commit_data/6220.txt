@@ -1,0 +1,21 @@
+commit c30b570468973021b5d20f0baa28216ecf6be94c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 9 22:40:25 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    With the recursive descent parser that gccgo uses, I think
+    that it doesn't make sense to try to match a statement where a
+    statement is not expected.  If the construct is not a
+    statement, you will just get bizarre error messages.
+    
+    topexpr.go:9:1: error: expected declaration
+    topexpr.go:14:1: error: expected declaration
+    topexpr.go:19:1: error: expected declaration
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2175041
+
+ test/syntax/topexpr.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

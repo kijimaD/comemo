@@ -1,0 +1,13 @@
+commit c01945afc90e17b214ccbc7d49d477075ec8b463
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Sun Sep 8 13:21:03 2013 +1000
+
+    sort: fix up example expected output formatting
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13426046
+
+ src/pkg/sort/example_interface_test.go |  3 ++-
+ src/pkg/sort/example_multi_test.go     | 10 +++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

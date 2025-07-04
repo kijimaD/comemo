@@ -1,0 +1,32 @@
+commit ef7e1085658de69b6a2e365e71a955105b3a4feb
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Tue May 12 23:56:56 2015 -0400
+
+    net: redo resolv.conf recheck implementation
+    
+    The previous implementation spawned an extra goroutine to handle
+    rechecking resolv.conf for changes.
+    
+    This change eliminates the extra goroutine, and has rechecking
+    done as part of a lookup.  A side effect of this change is that the
+    first lookup after a resolv.conf change will now succeed, whereas
+    previously it would have failed.  It also fixes rechecking logic to
+    ignore resolv.conf parsing errors as it should.
+    
+    Fixes #8652
+    Fixes #10576
+    Fixes #10649
+    Fixes #10650
+    Fixes #10845
+    
+    Change-Id: I502b587c445fa8eca5207ca4f2c8ec8c339fec7f
+    Reviewed-on: https://go-review.googlesource.com/9991
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 117 ++++++++++++++++++++++-------------------
+ src/net/dnsclient_unix_test.go |  38 ++++---------
+ 2 files changed, 73 insertions(+), 82 deletions(-)

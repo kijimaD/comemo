@@ -1,0 +1,17 @@
+commit a949ade59218c2977c12b54c4a75332dbf7f7650
+Author: apocelipes <seve3r@outlook.com>
+Date:   Sat May 11 13:13:19 2024 +0000
+
+    image/gif: use internal/byteorder
+    
+    Change-Id: Ic00e63aa35bcea4c97a5885d61edb8fc37d84e22
+    GitHub-Last-Rev: 1ad3a5d0edebbd0f0b98ce68ad81ea4c36f5a63d
+    GitHub-Pull-Request: golang/go#67324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584997
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/image/gif/writer.go | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)

@@ -1,0 +1,18 @@
+commit 4a37a1d49fd472665b59b581fe6563a9e578fd71
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 6 12:24:59 2021 -0700
+
+    cmd/compile: add runtime.funcspdelta to intended inlining test
+    
+    Follow-up to CL 354133.
+    
+    Suggested-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I0d0895dfa8c2deae0dbda6e683fbe41469849145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354392
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/test/inl_test.go | 1 +
+ 1 file changed, 1 insertion(+)

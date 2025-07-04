@@ -1,0 +1,12 @@
+commit 9209d893c88054f35be9757eaad8449eb3a90105
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 2 16:42:40 2015 -0800
+
+    strconv: fix internal documentation (clarification, typos)
+    
+    Change-Id: I7514e643a6a81ca715adbf6f8d19d3b2dd43fe6c
+    Reviewed-on: https://go-review.googlesource.com/3810
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/strconv/decimal.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,37 @@
+commit 1170771074c0792f36fdfe94e50de1dcc8144946
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Mar 24 12:41:25 2022 -0400
+
+    go/types, types2: set an origin object for vars and funcs
+    
+    Historically, Objects in go/types were canonical, meaning each entity
+    was represented by exactly one variable and could thus be identified by
+    its address. With object instantiation this is no longer the case: Var
+    and Func objects must be copied to hold substituted type information,
+    and there may be more than one Var or Func variable representing the
+    same source-level entity.
+    
+    This CL adds Origin methods to *Var and *Func, so users can efficiently
+    navigate to the corresponding canonical object on the generic type.
+    
+    Fixes #51682
+    
+    Change-Id: Ia49e15bd6515e1db1eb3b09b88ba666659601316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395535
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/51682.txt                             |  2 +
+ src/cmd/compile/internal/types2/api_test.go    | 64 ++++++++++++++++++++------
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/object.go      | 34 +++++++++++++-
+ src/cmd/compile/internal/types2/sizeof_test.go |  4 +-
+ src/cmd/compile/internal/types2/subst.go       | 14 ++++--
+ src/go/types/api_test.go                       | 52 ++++++++++++++++++---
+ src/go/types/named.go                          |  2 +-
+ src/go/types/object.go                         | 34 +++++++++++++-
+ src/go/types/sizeof_test.go                    |  4 +-
+ src/go/types/subst.go                          | 14 ++++--
+ 11 files changed, 187 insertions(+), 39 deletions(-)

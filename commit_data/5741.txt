@@ -1,0 +1,20 @@
+commit a0117bafa0ddba85a063b958111b1989e39b1a43
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Jun 30 14:44:27 2010 -0700
+
+    math: amd64 versions of exp and fabs
+    
+    Benchmark of exp to 28 ns/op from 64 ns/op,
+    on 2.53GHz Intel Core 2 Duo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1594041
+
+ src/pkg/math/Makefile     |   3 ++
+ src/pkg/math/all_test.go  |  18 +++++---
+ src/pkg/math/exp.go       |   5 ---
+ src/pkg/math/exp2.go      |  10 +++++
+ src/pkg/math/exp_amd64.s  | 104 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/fabs_amd64.s |  12 ++++++
+ 6 files changed, 141 insertions(+), 11 deletions(-)

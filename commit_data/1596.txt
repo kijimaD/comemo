@@ -1,0 +1,17 @@
+commit 6dd93bbfbcee0844c176967c6a7926a3ee828c56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 15:31:04 2009 -0800
+
+    - changed pretty parser to parse and print new function type syntax
+    - added more test cases
+    - fixed a bug in test script which prevented errors to show up...
+    
+    R=r
+    OCL=23832
+    CL=23974
+
+ usr/gri/pretty/parser.go  | 30 ++++++++++++++----------
+ usr/gri/pretty/pretty.go  |  5 +++-
+ usr/gri/pretty/printer.go | 58 ++++++++++++++++++++++++++---------------------
+ usr/gri/pretty/test.sh    |  3 ++-
+ 4 files changed, 56 insertions(+), 40 deletions(-)

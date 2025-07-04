@@ -1,0 +1,18 @@
+commit ee566d53adb075c63dc036adb96ba643478a1e00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 7 18:40:40 2016 -0800
+
+    go/doc: don't drop "factory" functions with dot-imported result types
+    
+    Fixes #13742.
+    
+    Change-Id: I7c8b51b60e31402bf708bf8d70e07fd06295e8ce
+    Reviewed-on: https://go-review.googlesource.com/18393
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/doc/reader.go                    | 19 ++++++++++++-------
+ src/go/doc/testdata/issue13742.0.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.1.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.2.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.go       | 18 ++++++++++++++++++
+ 5 files changed, 105 insertions(+), 7 deletions(-)

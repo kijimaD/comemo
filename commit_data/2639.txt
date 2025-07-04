@@ -1,0 +1,19 @@
+commit 7c534e1bd237bb4245dad99a8411804955e78104
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 17:35:45 2009 -0700
+
+    the ld-supplied typestrings are now obsolete
+    
+    R=r
+    DELTA=167  (0 added, 167 deleted, 0 changed)
+    OCL=31304
+    CL=31316
+
+ src/cmd/5l/l.h   |   2 -
+ src/cmd/5l/obj.c |   2 -
+ src/cmd/6l/l.h   |   2 -
+ src/cmd/6l/obj.c |   2 -
+ src/cmd/8l/l.h   |   2 -
+ src/cmd/8l/obj.c |   2 -
+ src/cmd/ld/go.c  | 155 -------------------------------------------------------
+ 7 files changed, 167 deletions(-)

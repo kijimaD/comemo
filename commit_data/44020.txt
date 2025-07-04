@@ -1,0 +1,20 @@
+commit 412dc2f4d330a519fb7c26e6ecb0f2bbcb876bbb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 21:56:25 2020 -0800
+
+    test: adjust issue11371 to fit in required precision
+    
+    The language spec only requires that floating point values be
+    represented with 256 bits, which is about 1e75. The issue11371 test
+    was assuming that the compiler could represent 1e100. Adjusting the
+    test so that it only assumes 256 bits of precision still keeps the
+    test valid, and permits it to pass when using the gofrontend.
+    
+    Change-Id: I9d1006e9adc9438277f4b8002488c912e5d61cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278116
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue11371.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

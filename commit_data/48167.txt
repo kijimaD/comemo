@@ -1,0 +1,21 @@
+commit 76bd8ea9e133293d2a8253f01f66c1ca9add64e6
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Feb 14 16:33:39 2022 -0500
+
+    go/types, types2: add tests for literals in type parameter lists
+    
+    Add tests that verify consistent behavior of go/types and types2 with
+    respect to potentially ambiguous type parameter lists.
+    
+    For #49482
+    
+    Change-Id: I3386d4fa3eb91f2a8ea0987372ca40a6962de886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .../types2/testdata/fixedbugs/issue49482.go2       | 25 +++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue49482.go2     | 28 ++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

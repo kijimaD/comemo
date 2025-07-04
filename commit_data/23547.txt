@@ -1,0 +1,15 @@
+commit fac7b86a9bda829147da72ad61c7b66b58781ed8
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Mon Jun 29 13:09:06 2015 +0200
+
+    encoding/binary: update protobuf documentation link
+    
+    Updated the protobuf documentation URL (code.google.com deprecated)
+    to avoid a redirect.
+    
+    Change-Id: I134f6e4a2bf2bba699942883bf6347bc61700bcb
+    Reviewed-on: https://go-review.googlesource.com/11634
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/binary/binary.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

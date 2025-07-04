@@ -1,0 +1,30 @@
+commit 3549c613b9d354d9f5410afc54dc9f7e6393c8cf
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 16 14:18:04 2023 -0700
+
+    mime/multipart: avoid excessive copy buffer allocations in ReadForm
+    
+    When copying form data to disk with io.Copy,
+    allocate only one copy buffer and reuse it rather than
+    creating two buffers per file (one from io.multiReader.WriteTo,
+    and a second one from os.File.ReadFrom).
+    
+    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
+    
+    For CVE-2023-24536
+    For #59153
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802453
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Change-Id: I732bd2e1e7467918cac8ab9d65d089272ba4656f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482075
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/mime/multipart/formdata.go      | 15 +++++++++---
+ src/mime/multipart/formdata_test.go | 49 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

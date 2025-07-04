@@ -1,0 +1,14 @@
+commit a9422651f9600c38b3f31f08f1be5a96cb338306
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 26 11:27:55 2014 -0700
+
+    doc/go_faq.html: fix a couple of nits
+    Wrong article, one stylistic point that bothers someone (but not me).
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/156680043
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit ec713d68b8d63bd9318ee581ed0fb5942858d62d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 15:09:32 2011 -0500
+
+    build: run gotest in misc/cgo/test
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/4239079
+
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

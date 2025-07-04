@@ -1,0 +1,43 @@
+commit d5bd797ee55d36b07b388d0b8ca2393dc186bea1
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 16 18:23:39 2016 -0400
+
+    runtime: fix getArgInfo for deferred reflection calls
+    
+    getArgInfo for reflect.makeFuncStub and reflect.methodValueCall is
+    necessarily special. These have dynamically determined argument maps
+    that are stored in their context (that is, their *funcval). These
+    functions are written to store this context at 0(SP) when called, and
+    getArgInfo retrieves it from there.
+    
+    This technique works if getArgInfo is passed an active call frame for
+    one of these functions. However, getArgInfo is also used in
+    tracebackdefers, where the "call" is not a true call with an active
+    stack frame, but a deferred call. In this situation, getArgInfo
+    currently crashes because tracebackdefers passes a frame with sp set
+    to 0. However, the entire approach used by getArgInfo is flawed in
+    this situation because the wrapper has not actually executed, and
+    hence hasn't saved this metadata to any stack frame.
+    
+    In the defer case, we know the *funcval from the _defer itself, so we
+    can fix this by teaching getArgInfo to use the *funcval context
+    directly when its available, and otherwise get it from the active call
+    frame.
+    
+    While we're here, this commit simplifies getArgInfo a bit by making it
+    play more nicely with the type system. Rather than decoding the
+    *reflect.methodValue that is the wrapper's context as a *[2]uintptr,
+    just write out a copy of the reflect.methodValue type in the runtime.
+    
+    Fixes #16331. Fixes #17471.
+    
+    Change-Id: I81db4d985179b4a81c68c490cceeccbfc675456a
+    Reviewed-on: https://go-review.googlesource.com/31138
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/makefunc.go      |  2 ++
+ src/runtime/traceback.go     | 43 ++++++++++++++++++++++++++++++++-------
+ test/fixedbugs/issue16331.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+), 7 deletions(-)

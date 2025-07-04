@@ -1,0 +1,31 @@
+commit b302d68ebcc2500e6e013ff5fed9c70b0e1ff3a4
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Feb 26 13:48:32 2013 -0500
+
+    misc/emacs: Greatly improve go-mode for Emacs.
+    
+    The original go-mode is plagued with odd behaviour, lack of
+    behaviour typical to modes in Emacs and bugs.
+    
+    This change rewrites great parts of go-mode (basically only
+    keeping the gofmt and godoc functions).
+    
+    Additionally it adds new features such as manipulating package
+    imports.
+    
+    For more information please see
+    https://groups.google.com/group/golang-nuts/browse_frm/thread/3a9d6dae3369c0b5/1efe65e2f7afb190
+    
+    Fixes #3618.
+    Fixes #4240.
+    Fixes #4322.
+    Fixes #4671.
+    Fixes #4726.
+    
+    R=golang-dev, fullung, sameer, cw, arthur, proppy, adonovan, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7314113
+
+ misc/emacs/go-mode-load.el |   88 ++-
+ misc/emacs/go-mode.el      | 1293 +++++++++++++++++++-------------------------
+ 2 files changed, 626 insertions(+), 755 deletions(-)

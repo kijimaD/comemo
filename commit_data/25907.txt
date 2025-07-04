@@ -1,0 +1,20 @@
+commit a5b7a8d6dd143b5b0b9631b0281559938d542c78
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 18:17:31 2016 -0800
+
+    cmd/compile: simplify error sorting
+    
+    Errors have unique seq values (their index within the errors slice),
+    so errcmp never needs to fallback to sorting by message text.
+    Moreover, comparing by original index is exactly the purpose of using
+    a stable sort algorithm (and sort.Stable was added in Go 1.2), so we
+    really only need to compare by lineno.
+    
+    Change-Id: I7f534b72a05d899ae9788dc7ef0541dd92a8b578
+    Reviewed-on: https://go-review.googlesource.com/19929
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 24 ++++++------------------
+ 1 file changed, 6 insertions(+), 18 deletions(-)

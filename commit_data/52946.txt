@@ -1,0 +1,23 @@
+commit 607a04588886b3d605500942f20de9dbab02ed9d
+Author: IvoGoman <ivo.gosemann@gmail.com>
+Date:   Tue May 9 20:46:23 2023 +0000
+
+    encoding/csv: update doc comment of Read method
+    
+    This updates the doc comment to reflect the behavior of the method.
+    On error the method returns a partial result.
+    
+    Fixes #59991
+    
+    Change-Id: I71e9dfa37e0488c85abd3eeede2a1a34cb74239b
+    GitHub-Last-Rev: 389488e5364dc939f0cbd11f99eb56001b5237a2
+    GitHub-Pull-Request: golang/go#60084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494055
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/csv/reader.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

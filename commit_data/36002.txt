@@ -1,0 +1,12 @@
+commit f4b8a5194eccb6865c7dcadc79430d9af930c48a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 17:05:59 2018 +0000
+
+    doc: flesh out go1.11 notes
+    
+    Change-Id: I0152d3c1d980e271fbcdb9d5def094d3c837a4f4
+    Reviewed-on: https://go-review.googlesource.com/124055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 39 ++++++++++++++++++++++++++++-----------
+ 1 file changed, 28 insertions(+), 11 deletions(-)

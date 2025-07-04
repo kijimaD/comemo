@@ -1,0 +1,16 @@
+commit 4434212f1558c124e1823d3d7279ed63a71a31b8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 22 17:16:31 2013 -0800
+
+    cmd/vet: use types to test Error methods correctly.
+    We need go/types to discriminate the Error method from
+    the error interface and the Error method of the testing package.
+    Fixes #4753.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/7396054
+
+ src/cmd/vet/main.go  |  16 +++++--
+ src/cmd/vet/print.go | 124 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 133 insertions(+), 7 deletions(-)

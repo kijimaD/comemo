@@ -1,0 +1,16 @@
+commit 8aee193fb8b61d474a7e3e6d43625f4e746c5b65
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Sep 27 16:55:24 2018 -0500
+
+    all: remove unneeded parentheses from package consts and vars
+    
+    Change-Id: Ic7fce53c6264107c15b127d9c9ca0bec11a888ff
+    Reviewed-on: https://go-review.googlesource.com/c/138183
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ src/crypto/rand/rand_freebsd.go  | 2 +-
+ src/strconv/atoi.go              | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

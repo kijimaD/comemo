@@ -1,0 +1,16 @@
+commit 0377f061687771eddfe8de78d6c40e17d6b21a39
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 17 14:41:45 2019 -0500
+
+    doc/go1.14: document changes to -mod=readonly and go.mod file maintenance
+    
+    Fixes #36169
+    
+    Change-Id: Ib9a53fdb0112635b53be38d6818834dd1775e70c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211698
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.14.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

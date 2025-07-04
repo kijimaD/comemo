@@ -1,0 +1,12 @@
+commit 13721cf68860ef98358720ed10aef0e8be39e300
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 29 17:34:47 2013 +0200
+
+    net/http/httptest: fix incorrectly-named ResponseRecorder example
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/8545047
+
+ src/pkg/net/http/httptest/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

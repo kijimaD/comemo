@@ -1,0 +1,49 @@
+commit c730a93fb9845740b09b9b0cef917b30098286cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 23 16:35:56 2018 -0700
+
+    go/types: permit embedding of non-defined interfaces via alias type names
+    
+    Embedded interfaces in interfaces must take the form of a (possibly
+    qualified) type name. Before alias types, a type name always denoted
+    a defined (formerly "named") type. The introduction of alias types
+    enabled embedding of non-defined types via alias type names, as in:
+    
+    type T interface { E }
+    type E interface { m() }
+    
+    Both cmd/compile and gccgo accept this kind of code, and the spec does
+    not prohibit it. There may be code in the wild that makes use of this.
+    
+    go/types was written under the assumption that embedded interfaces
+    were always defined types; and that assumption was even reflected in
+    the go/types API.
+    
+    This change removes this restriction in the implementation (which
+    happens to make it simpler), and in the API (by adding additional
+    functions and deprecating the corresponding older versions).
+    
+    It also replaces uses of NewInterface and Embedded (old API) by
+    NewInterface2 and EmbeddedType (new API) in dependent packages
+    (importers).
+    
+    The old API remains in place for backward compatibility and is marked
+    as deprecated.
+    
+    Fixes #25301.
+    
+    Change-Id: I272acd498754179efaf0590ca49d3eb4eee4348e
+    Reviewed-on: https://go-review.googlesource.com/114317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gccgoimporter/parser.go           |  6 ++--
+ src/go/internal/gcimporter/bimport.go             |  6 ++--
+ src/go/internal/gcimporter/gcimporter_test.go     | 26 ++++++++++++--
+ src/go/internal/gcimporter/iimport.go             |  6 ++--
+ src/go/internal/gcimporter/testdata/issue25301.go | 17 +++++++++
+ src/go/types/testdata/issues.src                  | 22 ++++++++++++
+ src/go/types/type.go                              | 44 +++++++++++++++++++----
+ src/go/types/typestring_test.go                   |  8 ++---
+ src/go/types/typexpr.go                           | 24 +++++++------
+ src/go/types/universe.go                          |  2 +-
+ 10 files changed, 127 insertions(+), 34 deletions(-)

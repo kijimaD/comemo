@@ -1,0 +1,25 @@
+commit de58eb9091d24abd9d837b8a787ba90eadd1ab0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 16 13:17:12 2012 -0800
+
+    go/printer: leave indentation alone when printing nodes from different files
+    
+    ASTs may be created by various tools and built from nodes of
+    different files. An incorrectly constructed AST will likely
+    not print at all, but a (structurally) correct AST with bad
+    position information should still print structurally correct.
+    
+    One heuristic used was to reset indentation when the filename
+    in the position information of nodes changed. However, this
+    can lead to wrong indentation for structurally correct ASTs.
+    
+    Fix: Don't change the indentation in this case.
+    
+    Related to issue 4300.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6849066
+
+ src/pkg/go/printer/printer.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

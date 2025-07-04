@@ -1,0 +1,24 @@
+commit 1f29f39795e736238200840c368c4e0c6edbfbae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 27 14:58:58 2022 -0700
+
+    cmd/link: don't export all symbols for ELF external linking
+    
+    Since this may add a large number of --export-dynamic-symbol options,
+    use a response file if the command line gets large.
+    
+    Fixes #53579
+    
+    Change-Id: Ic226bf372bf1e177a3dae886d1c48f4ce3569c0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414654
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go        | 93 +++++++++++++++++++++++++++-------
+ src/cmd/link/internal/loader/loader.go |  8 +++
+ src/cmd/link/link_test.go              | 45 ++++++++++++++++
+ 3 files changed, 129 insertions(+), 17 deletions(-)

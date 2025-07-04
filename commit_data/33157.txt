@@ -1,0 +1,33 @@
+commit 77c041cc68bd6faca7aa86bc2f07acf7c8e48143
+Author: Tom Bergan <tombergan@google.com>
+Date:   Tue Oct 17 23:21:13 2017 -0700
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 1087133bc4a for:
+    
+      http2: reject DATA frame before HEADERS frame
+      https://golang.org/cl/56770
+    
+      http2: respect peer's SETTINGS_MAX_HEADER_LIST_SIZE in ClientConn
+      https://golang.org/cl/29243
+    
+      http2: reset client stream after processing response headers
+      https://golang.org/cl/70510
+    
+    Also updated TestRequestLimit_h2 as the behavior changed slightly due
+    to https://golang.org/cl/29243.
+    
+    Fixes #13959
+    Fixes #20521
+    Fixes #21466
+    
+    Change-Id: Iac659694f3a48b8bd485546a4f96a932e3056026
+    Reviewed-on: https://go-review.googlesource.com/71611
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go  | 204 +++++++++++++++++++++++++++++----------------
+ src/net/http/serve_test.go |  25 ++++--
+ 2 files changed, 153 insertions(+), 76 deletions(-)

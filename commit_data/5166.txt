@@ -1,0 +1,13 @@
+commit b880543ffaa1835babcd615f607db56ffedf877c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 15:26:07 2010 -0700
+
+    go/ast: generalized ast filtering
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/788041
+
+ src/pkg/go/ast/ast.go    |   2 +
+ src/pkg/go/ast/filter.go | 153 +++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 129 insertions(+), 26 deletions(-)

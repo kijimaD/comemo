@@ -1,0 +1,20 @@
+commit 6910e1085b191d6b202a93fafb019ff95dcc6f11
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 25 17:13:52 2017 -0400
+
+    cmd/internal/obj/ppc64: use MOVDU to update stack reg for leaf functions where possible
+    
+    When the stack register is decremented to acquire stack space at
+    the beginning of a function, a MOVDU should be used so it is done
+    atomically, unless the size of the stack frame is too large for
+    that instruction.  The code to determine whether to use MOVDU
+    or MOVD was checking if the function was a leaf and always generating MOVD
+    when it was.  The choice of MOVD vs. MOVDU should only depend on the stack
+    frame size.  This fixes that problem.
+    
+    Change-Id: I0e49c79036f1e8f7584179e1442b938fc6da085f
+    Reviewed-on: https://go-review.googlesource.com/41813
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

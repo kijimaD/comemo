@@ -1,0 +1,23 @@
+commit 4a1038fa52db57cee23a76fd2ea86247eff42f29
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 13:50:37 2024 +0000
+
+    Revert "net/url: consider an empty base Path as equivalent to / in JoinPath"
+    
+    This reverts commit a46285f8c2389b92952c1484daacfccf70a17047 (CL 469935).
+    
+    Reason for revert: This breaks a variety of code inside Google
+    that seem representative of possible external real-world usage.
+    
+    If we roll this forward again we should include a GODEBUG like
+    urljoinpathslash=0 to go back to the old behavior.
+    
+    Change-Id: I6cd8e9888a0c088669dc5634418372252289e074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/net/url/url.go      |   7 +-
+ src/net/url/url_test.go | 180 +++++++++++++++++++-----------------------------
+ 2 files changed, 73 insertions(+), 114 deletions(-)

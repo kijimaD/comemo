@@ -1,0 +1,15 @@
+commit 2404b7f16866b302efb19083dae155e0f4764144
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 18 19:00:52 2013 -0500
+
+    debug/goobj: expand package prefix correctly
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43480049
+
+ src/cmd/gc/subr.c                |  3 +-
+ src/cmd/ld/lib.c                 |  3 +-
+ src/pkg/debug/goobj/read.go      | 66 +++++++++++++++++++++++++++++++++++-----
+ src/pkg/debug/goobj/read_test.go | 28 +++++++++++++++++
+ 4 files changed, 90 insertions(+), 10 deletions(-)

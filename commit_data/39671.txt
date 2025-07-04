@@ -1,0 +1,25 @@
+commit 22355d6cd2421f13e560f90e77ca04ef816456da
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 7 05:20:32 2019 +0000
+
+    cmd/compile: optimize 386's math.bits.TrailingZeros16
+    
+    This CL optimizes math.bits.TrailingZeros16 on 386 with
+    a pair of BSFL and ORL instrcutions.
+    
+    The case TrailingZeros16-4 of the benchmark test in
+    math/bits shows big improvement.
+    name               old time/op  new time/op  delta
+    TrailingZeros16-4  1.55ns ± 1%  0.87ns ± 1%  -43.87%  (p=0.000 n=50+49)
+    
+    Change-Id: Ia899975b0e46f45dcd20223b713ed632bc32740b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189277
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewrite386.go | 18 ++++++++++++++++++
+ test/codegen/mathbits.go                   |  1 +
+ 4 files changed, 22 insertions(+), 1 deletion(-)

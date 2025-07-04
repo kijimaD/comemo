@@ -1,0 +1,18 @@
+commit 43e38d5defdeffd7ebfff4803bce120c13b55ff2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 29 13:49:14 2013 -0700
+
+    bytes: don't compact Buffer so aggressively
+    
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkBufferNotEmptyWriteRead       848416       819983   -3.35%
+    
+    Update #5154
+    
+    R=golang-dev, gri, robryk
+    CC=golang-dev
+    https://golang.org/cl/8173043
+
+ src/pkg/bytes/buffer.go      | 8 +++++---
+ src/pkg/bytes/buffer_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

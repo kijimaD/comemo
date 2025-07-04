@@ -1,0 +1,15 @@
+commit 316fd8cc4a7fab2e1bb45848bc30ea8b8a0b231a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 14 09:50:43 2020 -0800
+
+    cmd/compile: mark ... argument to checkptrArithmetic as not escaping
+    
+    Fixes #36516
+    
+    Change-Id: Ibf4f86fb3a25fa30e0cd54e2dd2e12c60ee75ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214679
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 14 ++++++++++----
+ test/fixedbugs/issue36516.go        | 27 +++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 4 deletions(-)

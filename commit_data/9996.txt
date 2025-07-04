@@ -1,0 +1,12 @@
+commit 1135fc397801c04ab68822978d88ee66de48d52c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Oct 16 10:49:24 2011 +0300
+
+    runtime: fix crash if user sets MemProfileRate=0
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5284044
+
+ src/pkg/runtime/malloc.goc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+commit 5cadc91b3ced9614b1055c448f7784a15907fff5
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Mar 16 21:33:03 2017 -0700
+
+    cmd/compile: intrinsics for math/bits.OnesCount
+    
+    Popcount instructions on amd64 are not guaranteed to be
+    present, so we must guard their call.  Rewrite rules can't
+    generate control flow at the moment, so the intrinsifier
+    needs to generate that code.
+    
+    name           old time/op  new time/op  delta
+    OnesCount-8    2.47ns ± 5%  1.04ns ± 2%  -57.70%  (p=0.000 n=10+10)
+    OnesCount16-8  1.05ns ± 1%  0.78ns ± 0%  -25.56%    (p=0.000 n=9+8)
+    OnesCount32-8  1.63ns ± 5%  1.04ns ± 2%  -35.96%  (p=0.000 n=10+10)
+    OnesCount64-8  2.45ns ± 0%  1.04ns ± 1%  -57.55%   (p=0.000 n=6+10)
+    
+    Update #18616
+    
+    Change-Id: I4aff2cc9aa93787898d7b22055fe272a7cf95673
+    Reviewed-on: https://go-review.googlesource.com/38320
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go          | 15 ++++++
+ src/cmd/compile/internal/gc/asm_test.go        | 28 +++++++++++
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  3 ++
+ src/cmd/compile/internal/gc/ssa.go             | 48 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 54 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
+ 10 files changed, 228 insertions(+)

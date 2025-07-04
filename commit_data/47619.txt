@@ -1,0 +1,16 @@
+commit 77038044ca7b11fce7eb11f3e6115ed753c2c2bd
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Nov 25 13:05:58 2021 +0100
+
+    doc/go1.18: document non-cooperative preemption on windows/arm{,64}
+    
+    For #47694.
+    Updates #49759.
+    
+    Change-Id: I7accd81b8ea6c31e4a2b5e155cf93fe9c447813b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367095
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.18.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

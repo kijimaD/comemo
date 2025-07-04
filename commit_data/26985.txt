@@ -1,0 +1,37 @@
+commit 95df0c6ab93f6a42bdc9fd45500fd4d56bfc9add
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 28 21:51:10 2016 -0400
+
+    cmd/compile, etc: use name offset in method tables
+    
+    Introduce and start using nameOff for two encoded names. This pair
+    of changes is best done together because the linker's method decoder
+    expects the method layouts to match.
+    
+    Precursor to converting all existing name and *string fields to
+    nameOff.
+    
+    linux/amd64:
+            cmd/go:  -45KB (0.5%)
+            jujud:  -389KB (0.6%)
+    
+    linux/amd64 PIE:
+            cmd/go: -170KB (1.4%)
+            jujud:  -1.5MB (1.8%)
+    
+    For #6853.
+    
+    Change-Id: Ia044423f010fb987ce070b94c46a16fc78666ff6
+    Reviewed-on: https://go-review.googlesource.com/21396
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 14 ++---
+ src/cmd/link/internal/ld/decodesym.go  | 18 +++----
+ src/cmd/link/internal/ld/symtab.go     |  2 +-
+ src/reflect/export_test.go             |  8 +--
+ src/reflect/type.go                    | 96 +++++++++++++++++++++-------------
+ src/reflect/value.go                   |  8 +--
+ src/runtime/iface.go                   | 17 +++---
+ src/runtime/runtime1.go                |  6 +++
+ src/runtime/type.go                    | 46 ++++++++++------
+ 9 files changed, 130 insertions(+), 85 deletions(-)

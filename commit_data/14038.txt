@@ -1,0 +1,15 @@
+commit 46fcfdaa7dc4c35cf593df2b883db28814e641fe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 00:30:29 2012 +0200
+
+    cmd/6g: fix out of registers when chaining integer divisions.
+    
+    Fixes #4201.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6622055
+
+ src/cmd/6g/cgen.c | 18 +++++++++++++++++-
+ test/torture.go   | 22 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

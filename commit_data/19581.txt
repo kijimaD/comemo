@@ -1,0 +1,21 @@
+commit 0d7236461640a78ec649c2184d10f195f38eb517
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 20 16:36:21 2014 -0700
+
+    runtime/race: update runtime to tip
+    This requires minimal changes to the runtime hooks. In particular,
+    synchronization events must be done only on valid addresses now,
+    so I've added the additional checks to race.c.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/101000046
+
+ src/pkg/runtime/proc.c                       |   8 +++++---
+ src/pkg/runtime/race.c                       |  19 ++++++++++++++++---
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 222964 -> 249744 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 243208 -> 267968 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 210859 -> 247609 bytes
+ 6 files changed, 22 insertions(+), 7 deletions(-)

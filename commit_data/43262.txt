@@ -1,0 +1,20 @@
+commit 3a34395363ffe1e95748fbabff2917c908f2670c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 12 15:37:21 2020 -0400
+
+    cmd/link: always mark runtime.buildVersion and runtime.modinfo reachable
+    
+    runtime.buildVersion and runtime.modinfo are referenced in the
+    .go.buildinfo section, therefore reachable. They should normally
+    be reachable from the runtime. Just make it explicit, in case.
+    
+    Change-Id: I60ff3132e0bbb690f4a3cba8bb18735921fbe951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261637
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

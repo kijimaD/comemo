@@ -1,0 +1,14 @@
+commit 07b0c57a75d4b8c94b16983c5a78026ba46377ac
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Mon May 3 13:17:04 2021 +0930
+
+    crypto/subtle: note that input length mismatch makes ConstantTimeCompare return immediately
+    
+    Change-Id: Id1ae6c8fbb8c2f31b251ba141dc2bbedae189006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316169
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/crypto/subtle/constant_time.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

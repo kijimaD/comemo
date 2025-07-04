@@ -1,0 +1,23 @@
+commit d9001ef012aabcd28c66a2d1f321078f45a2ffac
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 22 00:09:21 2013 -0500
+
+    exp/ssa: cross off a few remaining TODO issues.
+    
+    - append: nothing to do (nonsemantic change).
+    - delete: now performs correct conversion (+ test).
+    - emitCompare: nothing to do.
+    - emitArith (shifts): nothing to do (+ test).
+    - "banish untyped types": give up on that.
+    - real, imag: now do correct conversions.
+    - added comment to interp.go re zero-size values.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7391046
+
+ src/pkg/exp/ssa/builder.go                  | 50 ++++++++++++++++++-----------
+ src/pkg/exp/ssa/emit.go                     |  2 --
+ src/pkg/exp/ssa/interp/interp.go            |  4 +++
+ src/pkg/exp/ssa/interp/testdata/coverage.go | 28 ++++++++++++++++
+ 4 files changed, 63 insertions(+), 21 deletions(-)

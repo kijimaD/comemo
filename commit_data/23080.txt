@@ -1,0 +1,15 @@
+commit 366ba526e88f5b523298d3ad5014e04a495add82
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 16:54:59 2015 -0400
+
+    cmd/internal/gc: add missing write barrier in append(x, BigStructWithPointers)
+    
+    Fixes #10897.
+    
+    Change-Id: I5c2d1f9d26333e2b2a0613ebf496daa465e07c24
+    Reviewed-on: https://go-review.googlesource.com/10221
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/cgen.go | 31 ++++++++++++++++++++++---------
+ test/writebarrier.go        | 16 ++++++++++++++++
+ 2 files changed, 38 insertions(+), 9 deletions(-)

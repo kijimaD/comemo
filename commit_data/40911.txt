@@ -1,0 +1,19 @@
+commit 9174e2c03c423a47bf052b8a1aa844f3378eccd4
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Nov 27 18:31:36 2019 +0000
+
+    cmd/go/internal/modget: synchronize writes to modOnly map in runGet
+    
+    Adds an additional lock around an access to modOnly.
+    
+    Updates #35317
+    
+    Change-Id: Ia1e75f9a674ec2a2c0489b41283c1cd3e7924d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209237
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go             | 2 ++
+ src/cmd/go/testdata/script/mod_issue35317.txt | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit ed4db861182456a63b7d837780c146d4e58e63d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 16 12:27:07 2022 -0400
+
+    cmd/api: remove debug print
+    
+    Left over from CL 392414.
+    
+    Change-Id: I32ff1d660ba03d6c2005ad247e2129daf83aac04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393361
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/api/run.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 77720904a8e4ceb772ebe5e3029f4d7887f2ca37
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 14:59:08 2014 -0500
+
+    liblink: fix arm build
+    
+    The arm puts the text flags in a different place
+    than the other architectures. This needs to be
+    cleaned up.
+    
+    TBR=minux
+    CC=golang-codereviews
+    https://golang.org/cl/71260043
+
+ src/liblink/obj5.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

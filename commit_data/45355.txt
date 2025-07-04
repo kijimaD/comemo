@@ -1,0 +1,28 @@
+commit ca8e8317be5b288163c3623f936fb234723484cc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 26 17:56:10 2021 +1000
+
+    runtime: add missing import "C" in TestLibraryCtrlHandler
+    
+    CL 211139 added TestLibraryCtrlHandler. But the CL left out import "C"
+    line in the test file that is supposed to be build with Cgo.
+    
+    While debugging issue #45638, I discovered that the DLL built during
+    TestLibraryCtrlHandler does not have Dummy function. Adding import "C"
+    makes Dummy function appear in DLL function list.
+    
+    TestLibraryCtrlHandler does not actually calls Dummy function. So I
+    don't see how this change affects issue #45638, but still let's make
+    this code correct.
+    
+    Updates #45638
+    
+    Change-Id: Ibab8fed29ef2ae446d0815842cf0bd040a5fb943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313350
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/testdata/testwinlibsignal/dummy.go | 3 +++
+ 1 file changed, 3 insertions(+)

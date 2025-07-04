@@ -1,0 +1,16 @@
+commit 51fdfeb1ce89c61332e28ef97a3e72a1d327c2df
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:07:30 2022 +0800
+
+    runtime/race: use strings.Builder
+    
+    Change-Id: I644f696d00b5bce448e0a00835b3162f5203f346
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428278
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/race/sched_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 1a19cb8ec03f2a7fa145b0f7790abe46cbfee2e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 4 13:14:09 2008 -0800
+
+    Make run.bash run all the current tests.
+    
+    R=r,rsc
+    DELTA=8  (8 added, 0 deleted, 0 changed)
+    OCL=20468
+    CL=20473
+
+ src/lib/Makefile | 4 ++++
+ src/run.bash     | 4 ++++
+ 2 files changed, 8 insertions(+)

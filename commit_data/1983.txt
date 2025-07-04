@@ -1,0 +1,17 @@
+commit 4482801477bedbc0beb76c220e793450e0b01737
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 23:43:02 2009 -0700
+
+    move template into its own directory so it can have more files
+    
+    R=rsc
+    DELTA=1421  (736 added, 685 deleted, 0 changed)
+    OCL=27249
+    CL=27249
+
+ src/lib/Makefile                        |  9 +++---
+ src/lib/template/Makefile               | 55 +++++++++++++++++++++++++++++++++
+ src/lib/{ => template}/template.go      |  0
+ src/lib/{ => template}/template_test.go |  0
+ src/run.bash                            |  1 +
+ 5 files changed, 60 insertions(+), 5 deletions(-)

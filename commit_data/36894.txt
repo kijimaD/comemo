@@ -1,0 +1,28 @@
+commit 04dc1b2443f3cec9d3babff1046eb36f41236224
+Author: Igor Zhilianin <igor.zhilianin@gmail.com>
+Date:   Mon Oct 8 01:19:51 2018 +0000
+
+    all: fix a bunch of misspellings
+    
+    Change-Id: I94cebca86706e072fbe3be782d3edbe0e22b9432
+    GitHub-Last-Rev: 8e15a40545704fb21b41a8768079f2da19341ef3
+    GitHub-Pull-Request: golang/go#28067
+    Reviewed-on: https://go-review.googlesource.com/c/140437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/zip/writer.go                          | 2 +-
+ src/cmd/asm/internal/asm/testdata/386enc.s         | 2 +-
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 +-
+ src/cmd/compile/internal/gc/esc.go                 | 3 ++-
+ src/cmd/compile/internal/ppc64/ssa.go              | 2 +-
+ src/cmd/internal/obj/x86/evex.go                   | 2 +-
+ src/cmd/link/internal/ld/lib.go                    | 2 +-
+ src/cmd/vet/vet_test.go                            | 4 ++--
+ src/database/sql/sql_test.go                       | 2 +-
+ src/net/http/transfer.go                           | 2 +-
+ src/runtime/mheap.go                               | 2 +-
+ src/runtime/sys_linux_ppc64x.s                     | 2 +-
+ test/run.go                                        | 4 ++--
+ 13 files changed, 16 insertions(+), 15 deletions(-)

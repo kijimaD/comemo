@@ -1,0 +1,17 @@
+commit 41f58b2295c39611fcf13040e499167966321e72
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 8 19:05:11 2023 +0000
+
+    runtime: enable the exectracer2 experiment by default
+    
+    Fixes #60773.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
+    Change-Id: Ice3fd4577d58ce593611144242f2cba99c9d2ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540778
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

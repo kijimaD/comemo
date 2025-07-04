@@ -1,0 +1,14 @@
+commit 33c10450569df9d06a1b5ee8d9af516299d6596f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 27 15:21:32 2009 -0700
+
+    Fix bug where nothing could ever be added to a code buffer.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=32245
+    CL=32247
+
+ usr/austin/eval/func.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

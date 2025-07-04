@@ -1,0 +1,21 @@
+commit 45873a242d9dec1ae31bacf6872d9c01414370ae
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 18 14:07:55 2019 -0400
+
+    cmd/go: fix buglet in alternate gccgo debug_modinfo recipe
+    
+    Fix bug in previous CL 171768 -- with Go 1.13 the proper entry point
+    to call is runtime.setmodinfo, not runtime..z2fdebug.setmodinfo (this
+    changed when we moved from 1.12). [ Unclear why trybots and runs of
+    all.bash didn't catch this, but hand testing made it apparent. ]
+    
+    Updates #30344.
+    
+    Change-Id: I91f47bd0c279ad2d84875051be582818b13735b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196237
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

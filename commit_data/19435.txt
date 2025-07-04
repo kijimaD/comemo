@@ -1,0 +1,13 @@
+commit 52abddb71273cd439a5ea6670270a165f08aba8c
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Wed May 21 14:34:20 2014 -0700
+
+    doc: fix typo in sharemem codewalk
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98460045
+
+ doc/codewalk/sharemem.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

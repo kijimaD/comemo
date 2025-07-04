@@ -1,0 +1,17 @@
+commit 2a668e2467ddea57e8a1ab2859cfd49e6ab2dd40
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Tue Oct 17 13:50:26 2017 +0330
+
+    net/http: simplify ctx.Err() call in test
+    
+    See CL 40291. ctx.Err() is defined to only return non-nil exactly
+    when ctx.Done() returns a closed channel.
+    
+    Change-Id: I12f51d8c42228f759273319b3ccc28012cb9fc73
+    Reviewed-on: https://go-review.googlesource.com/71310
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

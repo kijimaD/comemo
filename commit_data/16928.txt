@@ -1,0 +1,14 @@
+commit 12a38d5b95db2221c68049fb6d2cc7abd5617304
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 30 13:35:14 2013 -0700
+
+    container/list: document complexity of Len
+    
+    Fixes #5972.
+    
+    R=golang-dev, adonovan
+    CC=golang-dev
+    https://golang.org/cl/12125043
+
+ src/pkg/container/list/list.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,32 @@
+commit edc2d17086a6d21039f45506459cf1b9f40eb95c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 15 16:19:21 2018 -0400
+
+    runtime: remove GODEBUG=gctrace=2 mode
+    
+    It turns out if you set GODEBUG=gctrace=2, it enables an obscure
+    debugging mode that, in addition to printing gctrace statistics, also
+    does a second STW GC following each regular GC. This debugging mode
+    has long since lost its value (you could maybe use it to analyze
+    floating garbage, except that we don't print the gctrace line on the
+    second GC), and it interferes substantially with the operation of the
+    GC by messing up the statistics used to schedule GCs.
+    
+    It's also a source of mark termination GC work when we're in
+    concurrent GC mode, so it's going to interfere with eliminating mark
+    2. And it's going to get in the way of unifying STW and concurrent GC.
+    
+    This CL removes this debugging mode.
+    
+    Updates #26903. This is preparation for eliminating mark 2 and
+    unifying STW GC and concurrent GC.
+    
+    Change-Id: Ib5bce05d8c4d5b6559c89a65165d49532165df07
+    Reviewed-on: https://go-review.googlesource.com/c/134316
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/extern.go |  3 +--
+ src/runtime/mgc.go    | 17 -----------------
+ 2 files changed, 1 insertion(+), 19 deletions(-)

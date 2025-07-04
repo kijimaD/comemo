@@ -1,0 +1,25 @@
+commit 4d02b1241738a5bd06201455a4f74a013f6c9437
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 4 13:38:38 2016 -0800
+
+    runtime: don't expose stack buffer in stringto{byte,rune}slice
+    
+    When using a stack-allocated buffer for the result, don't
+    expose the uninitialized portion of it by restricting its
+    capacity to its length.
+    
+    The other option is to zero the portion between len and cap.
+    That seems like more work, but might be worth it if the caller
+    then appends some stuff to the result.  But this close to 1.6,
+    I'm inclined to do the simplest fix possible.
+    
+    Fixes #14232
+    
+    Change-Id: I21c50d3cda02fd2df4d60ba5e2cfe2efe272f333
+    Reviewed-on: https://go-review.googlesource.com/19231
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/string.go      |  4 ++--
+ src/runtime/string_test.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

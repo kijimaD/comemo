@@ -1,0 +1,13 @@
+commit 971459e826e705fc7c0ce4cd65609a19876627b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 20 11:41:41 2011 -0400
+
+    net/textproto: fix build
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4815041
+
+ src/pkg/mime/multipart/multipart_test.go | 12 ++++++------
+ src/pkg/net/textproto/reader.go          | 15 ++++++++++++---
+ 2 files changed, 18 insertions(+), 9 deletions(-)

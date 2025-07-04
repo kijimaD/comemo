@@ -1,0 +1,20 @@
+commit 9f450041c54cb15a5757e54dcad5474fc4a0b871
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 12:59:36 2023 -0400
+
+    cmd/go: move CreateWorkFile from modload to workcmd
+    
+    In workcmd it can deal with automatic version switching.
+    
+    For #57001.
+    
+    Change-Id: I5027690cf744d6d73f87e837c76ea7083ed56aba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499979
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 26 --------------------------
+ src/cmd/go/internal/workcmd/init.go | 33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 27 deletions(-)

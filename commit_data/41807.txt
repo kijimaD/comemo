@@ -1,0 +1,43 @@
+commit 7b30a2d268ccb56221d0d8b149300548ce0308e1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Mar 29 01:19:50 2020 +0700
+
+    cmd/compile: make isSmallMakeSlice checks slice cap only
+    
+    If slice cap is not set, it will be equal to slice len. So
+    isSmallMakeSlice only needs to check whether slice cap is constant.
+    
+    While at it, also add test to make sure panicmakeslicecap is called
+    when make slice contains invalid non-constant len.
+    
+    For this benchmark:
+    
+    func BenchmarkMakeSliceNonConstantLen(b *testing.B) {
+            len := 1
+            for i := 0; i < b.N; i++ {
+                    s := make([]int, len, 2)
+                    _ = s
+    
+            }
+    }
+    
+    Result compare with parent:
+    
+    name                        old time/op  new time/op  delta
+    MakeSliceNonConstantLen-12  18.4ns ± 1%   0.2ns ± 2%  -98.66%  (p=0.008 n=5+5)
+    
+    Fixes #37975
+    
+    Change-Id: I4bc926361bc2ffeab4cfaa888ef0a30cbc3b80e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226278
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/walk.go            | 18 +++++++--
+ test/escape_slice.go                           | 22 +++++++----
+ test/fixedbugs/issue37975.go                   | 54 ++++++++++++++++++++++++++
+ 5 files changed, 86 insertions(+), 10 deletions(-)

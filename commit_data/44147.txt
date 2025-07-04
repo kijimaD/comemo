@@ -1,0 +1,17 @@
+commit be28e5abc5ddca0d6b2d8c91b7bb9c05717154e7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 20 09:45:03 2021 -0500
+
+    cmd/go: fix mod_get_fallback test
+    
+    Fixes #43795
+    
+    Change-Id: I3d791d0ac9ce0b523c78c649aaf5e339a7f63b76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284797
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_get_fallback.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

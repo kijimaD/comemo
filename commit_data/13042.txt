@@ -1,0 +1,12 @@
+commit dc6ec74f07e380f7414359acd8e2463fbbf7f0c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 7 10:14:50 2012 -0700
+
+    test/bench/shootout: fix gccgo binary-list-freelist test
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6202046
+
+ test/bench/shootout/timing.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

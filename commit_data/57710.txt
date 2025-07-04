@@ -1,0 +1,29 @@
+commit 971ab11ee2477cf81f7b7db520bb5c151440d298
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Oct 21 04:42:51 2024 +0000
+
+    database/sql: rewrite Null[T].Value method, update doc for Null[T]
+    
+    Update doc for Null[T] to clarify that T should be one of the types
+    accepted by driver.Value.
+    
+    Modify the Value() method of Null[T]:
+    1) recognize T implementing driver.Valuer interface and invoke it.
+    2) use the DefaultParameterConverter to convert native types that
+    are not directly supported as driver.Value types.
+    
+    Fixes #69728
+    Fixes #69837
+    
+    Change-Id: Iba782c878b2bde168125f5390abf319b88424149
+    GitHub-Last-Rev: 3df182d23dd57bd04828c3e9bd0c5222d8bef152
+    GitHub-Pull-Request: golang/go#69938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620858
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/sql.go      | 14 ++++++++++++-
+ src/database/sql/sql_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)

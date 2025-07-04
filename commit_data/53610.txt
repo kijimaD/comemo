@@ -1,0 +1,31 @@
+commit f8616b84849f089635a041d657da6f5cced790e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 22 11:04:45 2023 -0400
+
+    internal/platform,cmd/dist: export the list of supported platforms
+    
+    Also switch internal/platform to commit the generated code instead of
+    regenerating it in cmd/dist. Nothing in the generated code depends on
+    the target configuration, and committing the source file makes it
+    more amenable to searching and indexing (particularly on
+    https://cs.opensource.google/go/go).
+    
+    For #60939.
+    
+    Change-Id: I9133dfd5129b3c4d7457267589dfac5e7ecbef65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ .gitignore                            |   2 -
+ src/cmd/dist/build.go                 |   9 ++-
+ src/cmd/dist/buildruntime.go          |  23 -------
+ src/cmd/dist/buildtool.go             |   1 -
+ src/cmd/dist/main.go                  |  16 ++---
+ src/cmd/distpack/pack.go              |   1 -
+ src/internal/platform/supported.go    |  45 +++++++++++---
+ src/internal/platform/zosarch.go      | 114 ++++++++++++++++++++++++++++++++++
+ src/internal/platform/zosarch_test.go | 109 ++++++++++++++++++++++++++++++++
+ 9 files changed, 275 insertions(+), 45 deletions(-)

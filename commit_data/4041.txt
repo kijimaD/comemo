@@ -1,0 +1,14 @@
+commit bad9738be629123a8fed32fde71b9e3b59c286cc
+Author: Abhinav Gupta <abhinav.g90@gmail.com>
+Date:   Sat Nov 14 11:46:09 2009 -0800
+
+            xml: Fixed CDATA parsing.
+    
+        Fixes #128.
+    
+    R=r, rsc
+    https://golang.org/cl/154126
+
+ src/pkg/xml/xml.go      |  4 ++--
+ src/pkg/xml/xml_test.go | 10 +++++++---
+ 2 files changed, 9 insertions(+), 5 deletions(-)

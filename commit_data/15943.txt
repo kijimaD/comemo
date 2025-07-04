@@ -1,0 +1,12 @@
+commit d7434816c1a2407030f59837496a8dc86e6d1968
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Mar 26 17:39:46 2013 +1100
+
+    misc/vim: make Godoc command work with "log.Print".
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7757043
+
+ misc/vim/plugin/godoc.vim | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

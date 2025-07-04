@@ -1,0 +1,17 @@
+commit 086d7b0e9e34555f32248c9242b641273a32bc7e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 19 17:36:47 2016 +0900
+
+    net: deflake TestDialerDualStackFDLeak
+    
+    Fixes #14717.
+    Updates #15157.
+    
+    Change-Id: I7238b4fe39f3670c2dfe09b3a3df51a982f261ed
+    Reviewed-on: https://go-review.googlesource.com/23244
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

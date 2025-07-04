@@ -1,0 +1,18 @@
+commit 7a4211bc1f03672422ff0d761d3bf9d9f97b8997
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Fri Apr 1 00:54:13 2016 +0200
+
+    cmd/compile: constant fold ANDs.
+    
+    ANDQConst show up occassionally because of right shifting lowering.
+    ORs and XORs are already folded properly during generic.
+    
+    Change-Id: I2f9134679555029c641264ce5333d70e167c65f7
+    Reviewed-on: https://go-review.googlesource.com/21375
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 64 ++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

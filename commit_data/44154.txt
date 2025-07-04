@@ -1,0 +1,27 @@
+commit 46e2e2e9d99925bbf724b12693c6d3e27a95d6a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 09:41:54 2021 -0500
+
+    cmd/go: pass resolved CC, GCCGO to cgo
+    
+    This makes sure the go command and cgo agree about
+    exactly which compiler is being used.
+    
+    This issue was reported by RyotaK.
+    
+    Fixes CVE-2021-3115
+    Fixes #43783
+    
+    Change-Id: If171c5c8b2523efb5ea2d957e5ad1380a038149c
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/949416
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284780
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/go/internal/work/action.go |  3 +++
+ src/cmd/go/internal/work/exec.go   | 30 +++++++++++++++++++++++-------
+ 2 files changed, 26 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit 6602c86a38ff0d8889257e908489162de38ebbd8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 14 02:21:22 2021 +1000
+
+    cmd/internal/obj/riscv: improve instruction validation
+    
+    Ensure that rs2 is none for various instruction encodings. Fix a couple of cases
+    where it should have been but is not.
+    
+    Change-Id: I9f8211a0257e49643dbbc89e158e048050ebe6f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349649
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 5e8ca201d10f7cc5bd555a49aa5202cfc670b4a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 14:40:27 2013 -0800
+
+    net/http: make NewRequest pick a ContentLength from a *bytes.Reader too
+    
+    It already did so for its sibling, *strings.Reader, as well as *bytes.Buffer.
+    
+    R=edsrzf, dave, adg, kevlar, remyoudompheng, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7031045
+
+ src/pkg/net/http/request.go      |  6 ++++--
+ src/pkg/net/http/request_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

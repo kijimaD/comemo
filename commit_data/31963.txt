@@ -1,0 +1,16 @@
+commit 87c4a04b80a2f81a06ce3c0b67e50053166766d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 29 14:14:26 2017 -0700
+
+    cmd/vet/all: in case of vet panic, don't filter stacktrace
+    
+    Fixes #20839.
+    
+    Change-Id: I125460c5da09b7fa0cf470ff5be436f8d650cde7
+    Reviewed-on: https://go-review.googlesource.com/47253
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

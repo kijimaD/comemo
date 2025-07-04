@@ -1,0 +1,19 @@
+commit ac74e5debc884ea4545e23c3248385f0d683524a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 04:58:34 2016 -0700
+
+    cmd/compile: stop constructing sudog type
+    
+    The compiler doesn't care about the runtime's sudog type. Stop
+    constructing it.
+    
+    Change-Id: If1885fe30b2e215a08d17662eab5ea6d81fe58ab
+    Reviewed-on: https://go-review.googlesource.com/20797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/select.go | 18 ++----------------
+ src/runtime/runtime2.go               |  3 ---
+ 2 files changed, 2 insertions(+), 19 deletions(-)

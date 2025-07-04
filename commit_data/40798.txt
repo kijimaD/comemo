@@ -1,0 +1,25 @@
+commit 4de3c7d30b82deb1824d5caf3d1542d6b0cc990b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 14 16:17:47 2019 -0500
+
+    cmd/go: include module path and version in cache key with -trimpath
+    
+    When -trimpath is used, packages built from the module cache still
+    have debug into that contains the module path and version. Only the
+    module cache directory is stripped.
+    
+    With this CL, we now include the module path and version in the cache
+    key for build actions.
+    
+    Fixes #35412
+    
+    Change-Id: I1956592d0d86fcea2cca7c5fc8957e83543d6aa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207317
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                   |  4 ++++
+ .../go/testdata/mod/example.com_stack_v1.0.0.txt   | 18 +++++++++++++++
+ .../go/testdata/mod/example.com_stack_v1.0.1.txt   | 18 +++++++++++++++
+ .../go/testdata/script/build_cache_trimpath.txt    | 27 ++++++++++++++++++++++
+ 4 files changed, 67 insertions(+)

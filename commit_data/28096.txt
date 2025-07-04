@@ -1,0 +1,24 @@
+commit 6dd0b2d70292fc57e5664e2806f1d46cd621f531
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 08:56:06 2016 -0700
+
+    androidtest.bash: fix pkg dir
+    
+    CL 24930 altered the default InstallSuffix
+    for mobile platforms.
+    Update androidtest.bash to reflect this.
+    This reverts CL 16151.
+    
+    A subsequent CL will make this more robust,
+    but it will take more discussion and review.
+    In the meantime, this fixes the build.
+    
+    Change-Id: Ia19ca2c9bab7b79c9cf24beeca64ecddaa60289c
+    Reviewed-on: https://go-review.googlesource.com/27927
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/androidtest.bash | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

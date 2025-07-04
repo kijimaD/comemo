@@ -1,0 +1,14 @@
+commit 26f0c83eb8ebed8e00ad7bdb4cd23672a9c9e40e
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Mar 19 15:29:22 2010 -0700
+
+    math: add Gamma function
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/649041
+
+ src/pkg/math/Makefile    |   1 +
+ src/pkg/math/all_test.go |  46 ++++++++++++
+ src/pkg/math/gamma.go    | 188 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 235 insertions(+)

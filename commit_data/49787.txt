@@ -1,0 +1,29 @@
+commit a292b3905c0976ed2ab7aae24fa96d506cb7b0a7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 00:55:13 2022 +0700
+
+    internal/testenv: add and use OptimizationOff/SkipIfOptimizationOff
+    
+    So we don't have to duplicate the logic to detect noopt builder in
+    multiple places.
+    
+    Based on khr@'s suggestion in CL 422037.
+    
+    Change-Id: Idb338e8bc08cdf00460574bfc0d2f7018c79bbd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422038
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/test/issue53888_test.go      |  5 +----
+ src/crypto/ed25519/ed25519_test.go                    |  6 +++---
+ src/crypto/internal/edwards25519/edwards25519_test.go |  8 +++-----
+ src/crypto/internal/nistec/nistec_test.go             |  8 +++-----
+ src/internal/testenv/testenv.go                       | 13 +++++++++++++
+ src/math/big/int_test.go                              |  4 +---
+ src/net/netip/netip_test.go                           |  4 ++--
+ src/reflect/all_test.go                               |  2 +-
+ src/runtime/traceback_test.go                         |  3 +--
+ 9 files changed, 28 insertions(+), 25 deletions(-)

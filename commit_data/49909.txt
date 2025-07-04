@@ -1,0 +1,23 @@
+commit f80b12667c69c72e170862ef50f085ff9d35f354
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 16:26:23 2022 -0700
+
+    go/types, types2: check integer constant literal overflow
+    
+    Fixes #54280.
+    
+    Change-Id: I44a31daaace50bc90c96cd36387bd1a009d6a287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424055
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/expr.go               |  9 ++++++++-
+ .../internal/types2/testdata/fixedbugs/issue54280.go  |  7 +++++++
+ src/go/types/check_test.go                            |  2 +-
+ src/go/types/expr.go                                  |  8 +++++++-
+ src/go/types/testdata/fixedbugs/issue54280.go         |  7 +++++++
+ test/const7.go                                        | 19 +++++++++++--------
+ test/fixedbugs/issue54280.go                          | 11 +++++++++++
+ 7 files changed, 52 insertions(+), 11 deletions(-)

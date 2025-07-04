@@ -1,0 +1,56 @@
+commit 2c0c68d621415f0c2dffb71b20fdc0fdbbcfb5fe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 6 14:36:49 2018 -0800
+
+    cmd/compile: fix miscompilation of "defer delete(m, k)"
+    
+    Previously, for slow map key types (i.e., any type other than a 32-bit
+    or 64-bit plain memory type), we would rewrite
+    
+        defer delete(m, k)
+    
+    into
+    
+        ktmp := k
+        defer delete(m, &ktmp)
+    
+    However, if the defer statement was inside a loop, we would end up
+    reusing the same ktmp value for all of the deferred deletes.
+    
+    We already rewrite
+    
+        defer print(x, y, z)
+    
+    into
+    
+        defer func(a1, a2, a3) {
+            print(a1, a2, a3)
+        }(x, y, z)
+    
+    This CL generalizes this rewrite to also apply for slow map deletes.
+    
+    This could be extended to apply even more generally to other builtins,
+    but as discussed on #24259, there are cases where we must *not* do
+    this (e.g., "defer recover()"). However, if we elect to do this more
+    generally, this CL should still make that easier.
+    
+    Lastly, while here, fix a few isues in wrapCall (nee walkprintfunc):
+    
+    1) lookupN appends the generation number to the symbol anyway, so "%d"
+    was being literally included in the generated function names.
+    
+    2) walkstmt will be called when the function is compiled later anyway,
+    so no need to do it now.
+    
+    Fixes #24259.
+    
+    Change-Id: I70286867c64c69c18e9552f69e3f4154a0fc8b04
+    Reviewed-on: https://go-review.googlesource.com/99017
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 20 +-----------
+ src/cmd/compile/internal/gc/walk.go  | 60 ++++++++++++++++--------------------
+ src/runtime/map_test.go              | 21 +++++++++++++
+ 3 files changed, 48 insertions(+), 53 deletions(-)

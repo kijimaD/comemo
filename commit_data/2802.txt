@@ -1,0 +1,13 @@
+commit 08b5b4843b68125b47fb1d59ff332514e87e7df5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 28 12:57:33 2009 -0700
+
+    constants for integer limits
+    
+    R=rsc
+    DELTA=16  (16 added, 0 deleted, 0 changed)
+    OCL=32288
+    CL=32288
+
+ src/pkg/math/const.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,23 @@
+commit e201ff2b98981807c4d57ed15d42d308817e138a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue May 16 13:33:15 2023 -0400
+
+    go/ast: add Unparen(Expr) helper
+    
+    Fixes #60061
+    
+    Change-Id: If1bc03f9367620c9ea8702bfd4648020d5ab52ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495315
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/60061.txt                |  1 +
+ src/go/ast/ast.go                 | 11 +++++++++++
+ src/go/parser/parser.go           | 12 ++----------
+ src/go/parser/resolver.go         |  2 +-
+ src/go/printer/testdata/parser.go | 12 ++----------
+ src/go/types/builtins.go          | 11 +----------
+ 6 files changed, 18 insertions(+), 31 deletions(-)

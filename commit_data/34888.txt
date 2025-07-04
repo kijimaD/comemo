@@ -1,0 +1,23 @@
+commit 31700b83b5d9bdc2ddc474fd72b809a7b585d6da
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Dec 8 08:19:32 2017 +0000
+
+    cmd/internal/obj/arm64: add assembler support for load with register offset
+    
+    The patch adds support for LDR(register offset) instruction.
+    And add the test cases and negative tests.
+    
+    Change-Id: I5b32c6a5065afc4571116d4896f7ebec3c0416d3
+    Reviewed-on: https://go-review.googlesource.com/87955
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go             |  88 ++++++++++++----
+ src/cmd/asm/internal/asm/parse.go              |  50 ++++++----
+ src/cmd/asm/internal/asm/testdata/arm64.s      |   8 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  13 ++-
+ src/cmd/internal/obj/arm64/a.out.go            |   2 +
+ src/cmd/internal/obj/arm64/asm7.go             | 133 ++++++++++++++++++-------
+ src/cmd/internal/obj/arm64/doc.go              |  22 ++--
+ src/cmd/internal/obj/arm64/list7.go            |   3 +
+ src/cmd/internal/obj/util.go                   |  19 +++-
+ 9 files changed, 251 insertions(+), 87 deletions(-)

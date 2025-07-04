@@ -1,0 +1,19 @@
+commit 8cc2b73a7439e303d015e53176575e649ace68bf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 18:49:27 2019 -0500
+
+    cmd/go: convert TestPluginNonMain to script framework
+    
+    TestPluginNonMain was broken before this change! (It provided the
+    wrong directory for testdep/p2: testdata/testdep/p2 instead of
+    testdata/src/testdep/p2).
+    
+    Change-Id: Ib815f119bae1d758b500cd8ad82c016cb630d71e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212938
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                | 14 --------------
+ src/cmd/go/testdata/script/build_plugin_non_main.txt | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 14 deletions(-)

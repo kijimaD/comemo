@@ -1,0 +1,15 @@
+commit 2f4d35ffb9dfc84277a1c868d71d6f89bfd19f7f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 12 11:51:34 2008 -0800
+
+    converting uint bits back into floats
+    
+    R=rsc
+    DELTA=32  (32 added, 0 deleted, 0 changed)
+    OCL=19084
+    CL=19091
+
+ src/cmd/gc/sys.go      |  2 ++
+ src/cmd/gc/sysimport.c |  2 ++
+ src/runtime/runtime.c  | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+)

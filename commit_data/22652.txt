@@ -1,0 +1,26 @@
+commit 3f91a017f8f67cb9a744cf5d0a8b5db34a95808d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 12:47:11 2015 -0700
+
+    go/exact: future-proof API: permit setting precision limit
+    
+    Added a prec parameter to MakeFromLiteral (which currently must
+    always be 0). This will permit go/types to provide an upper limit
+    for the precision of constant values, eventually. Overflows can be
+    returned with a special Overflow value (very much like the current
+    Unknown values).
+    
+    This is a minimal change that should prevent the need for future
+    backward-incompatible API changes.
+    
+    Change-Id: I6c9390d7cc4810375e26c53ed3bde5a383392330
+    Reviewed-on: https://go-review.googlesource.com/9168
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/exact/exact.go                    | 25 +++++++++++++++----------
+ src/go/exact/exact_test.go               |  6 +++---
+ src/go/internal/gcimporter/gcimporter.go |  6 +++---
+ src/go/types/expr.go                     |  6 +++---
+ src/go/types/operand.go                  |  2 +-
+ 5 files changed, 25 insertions(+), 20 deletions(-)

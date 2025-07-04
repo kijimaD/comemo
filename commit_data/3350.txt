@@ -1,0 +1,15 @@
+commit fbb702974760e8c0b066b0e4a2f2f18aeef9204b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 23 13:02:14 2009 -0700
+
+    expand ticker interface to allow a client to shut down a ticker.
+    existing interface still works.
+    
+    R=rsc
+    DELTA=50  (32 added, 2 deleted, 16 changed)
+    OCL=34930
+    CL=34932
+
+ src/pkg/time/tick.go      | 53 +++++++++++++++++++++++++++++++++--------------
+ src/pkg/time/tick_test.go | 13 +++++++++---
+ 2 files changed, 48 insertions(+), 18 deletions(-)

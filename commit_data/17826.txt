@@ -1,0 +1,12 @@
+commit 72d40a4bd9fed9524f7a1ae25d6586e966c5fdcc
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Tue Oct 22 16:43:32 2013 +0400
+
+    go/build: document the go1.2 build tag
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/14930046
+
+ src/pkg/go/build/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 3b938f7db087ab7bcda905a84dd7fe10123d058d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 10:41:11 2011 +1000
+
+    dashboard: bug fix
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4535104
+
+ misc/dashboard/godashboard/gobuild.py | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

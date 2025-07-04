@@ -1,0 +1,32 @@
+commit 3d4c12d9d091fcbe3941534af5057d453758650e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 13:39:49 2014 -0800
+
+    go/printer: refine handling of one-line functions
+    
+    Functions that "fit" on one line and were on one
+    line in the original source are not broken up into
+    two lines anymore simply because they contain a comment.
+    
+    - Fine-tuned use of separating blanks after /*-style comments, so:
+    
+    ( /* extra blank after this comment */ )
+    (a int /* no extra blank after this comment*/)
+    
+    - Factored out comment state (from printer state) into commentInfo.
+    - No impact on $GOROOT/src, misc formatting.
+    
+    Fixes #5543.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/68630043
+
+ src/pkg/go/printer/nodes.go                     | 25 +++++---
+ src/pkg/go/printer/printer.go                   | 84 ++++++++++++++++++-------
+ src/pkg/go/printer/testdata/comments.golden     | 13 ++--
+ src/pkg/go/printer/testdata/comments.input      | 12 +++-
+ src/pkg/go/printer/testdata/declarations.golden |  3 +-
+ src/pkg/go/printer/testdata/declarations.input  |  3 +-
+ 6 files changed, 99 insertions(+), 41 deletions(-)

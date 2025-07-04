@@ -1,0 +1,14 @@
+commit fdb69cb0a32c6eb0a2ff8f4fdce170b982faf26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 29 16:52:40 2013 -0400
+
+    build: fix build
+    
+    As promised.
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12063043
+
+ src/run.bash | 2 --
+ 1 file changed, 2 deletions(-)

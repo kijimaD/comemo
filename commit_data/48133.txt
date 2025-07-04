@@ -1,0 +1,59 @@
+commit e4a173adf6ffbd5f46b2bcb3f9eedf661bf2e4d1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 8 00:52:11 2022 +0000
+
+    runtime: make piController much more defensive about overflow
+    
+    If something goes horribly wrong with the assumptions surrounding a
+    piController, its internal error state might accumulate in an unbounded
+    manner. In practice this means unexpected Inf and NaN values.
+    
+    Avoid this by identifying cases where the error overflows and resetting
+    controller state.
+    
+    In the scavenger, this case is much more likely. All that has to happen
+    is the proportional relationship between sleep time and estimated CPU
+    usage has to break down. Unfortunately because we're just measuring
+    monotonic time for all this, there are lots of ways it could happen,
+    especially in an oversubscribed system. In these cases, just fall back
+    on a conservative pace for scavenging and try to wait out the issue.
+    
+    In the pacer I'm pretty sure this is impossible. Because we wire the
+    output of the controller to the input, the response is very directly
+    correlated, so it's impossible for the controller's core assumption to
+    break down.
+    
+    While we're in the pacer, add more detail about why that controller is
+    even there, as well as its purpose.
+    
+    Finally, let's be proactive about other sources of overflow, namely
+    overflow from a very large input value. This change adds a check after
+    the first few operations to detect overflow issues from the input,
+    specifically the multiplication.
+    
+    No tests for the pacer because I was unable to actually break the
+    pacer's controller under a fuzzer, and no tests for the scavenger because
+    it is not really in a testable state.
+    
+    However:
+    * This change includes a fuzz test for the piController.
+    * I broke out the scavenger code locally and fuzz tested it, confirming
+      that the patch eliminates the original failure mode.
+    * I tested that on a local heap-spike test, the scavenger continues
+      operating as expected under normal conditions.
+    
+    Fixes #51061.
+    
+    Change-Id: I02a01d2dbf0eb9d2a8a8e7274d4165c2b6a3415a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383954
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go   | 18 +++++++++++
+ src/runtime/mgcpacer.go      | 72 +++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mgcpacer_test.go | 45 +++++++++++++++++++++++++++
+ src/runtime/mgcscavenge.go   | 58 +++++++++++++++++++++++++++++------
+ 4 files changed, 179 insertions(+), 14 deletions(-)

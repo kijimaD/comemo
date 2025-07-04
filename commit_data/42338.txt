@@ -1,0 +1,33 @@
+commit b9c9cbf9267cc9b19649e8bdbf679946d40d9a23
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Fri May 8 14:17:55 2020 +0000
+
+    net: only enable broadcast on sockets which support it
+    
+    Only enable broadcast on SOCK_DGRAM and SOCK_RAW sockets, SOCK_STREAM
+    and others don't support it.
+    
+    Don't enable SO_BROADCAST on UNIX domain sockets as they don't support it.
+    
+    This caused failures on WSL which strictly checks setsockopt calls
+    unlike other OSes which often silently ignore bad options.
+    
+    Also return error for setsockopt call for SO_BROADCAST on Windows
+    matching all other platforms but for IPv4 only as it's not supported
+    on IPv6 as per:
+    https://docs.microsoft.com/en-us/windows/win32/winsock/socket-options
+    
+    Fixes #38954
+    
+    Change-Id: I0503fd1ce96102b17121af548b66b3e9c2bb80d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232807
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/sockopt_aix.go     | 7 +++++--
+ src/net/sockopt_bsd.go     | 7 +++++--
+ src/net/sockopt_linux.go   | 7 +++++--
+ src/net/sockopt_solaris.go | 7 +++++--
+ src/net/sockopt_windows.go | 6 ++++--
+ 5 files changed, 24 insertions(+), 10 deletions(-)

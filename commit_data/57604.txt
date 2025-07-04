@@ -1,0 +1,19 @@
+commit 58e046b66c393ea2e17fff6958f8030e8948fb6f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Oct 3 15:56:15 2024 +0000
+
+    go/ast/internal/tests: add missing copyright header
+    
+    I have forgotten to add it in CL 616340
+    
+    Change-Id: Ia4753aa20b5e2d9978c129f2ab7d063b63a5b8e2
+    GitHub-Last-Rev: 2a301b12df2573b1f85eece69175c109b462ab95
+    GitHub-Pull-Request: golang/go#69766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617616
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/ast/internal/tests/sortimports_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

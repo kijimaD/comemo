@@ -1,0 +1,21 @@
+commit a41e37f56a4fc2523ac88a76bf54ba3e45dcf533
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 07:14:48 2022 -0400
+
+    cmd/internal/notsha256: fix ppc64 build
+    
+    The Go 1.8 toolchain on the builder does not support the
+    assembly in this directory for ppc64, so just delete it.
+    
+    Change-Id: I97caf9d176b7d72b4a265a008b84d91bb86ef70e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/internal/notsha256/sha256block_decl.go    |   4 +-
+ src/cmd/internal/notsha256/sha256block_generic.go |   4 +-
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 424 ----------------------
+ 3 files changed, 4 insertions(+), 428 deletions(-)

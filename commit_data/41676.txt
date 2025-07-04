@@ -1,0 +1,15 @@
+commit e39de05186af24cec8a5f98258086e9899153e29
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 18 08:34:36 2020 -0700
+
+    doc/go1.14: mention Windows change for Open permissions
+    
+    For #35033
+    
+    Change-Id: Ie15353322d5cfe7320199103ad9543fb89a842ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223957
+    Reviewed-by: Brendan Jackman <jackmanb@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

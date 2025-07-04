@@ -1,0 +1,16 @@
+commit 403ae5081a03bcbbc4304b2a5f76d11a3ddb6e4b
+Author: Jelte Fennema <github-tech@jeltef.nl>
+Date:   Mon Jul 31 13:07:35 2017 +0200
+
+    math: change oeis.org urls to https
+    
+    Regular HTTP is insecure, oeis.org supports HTTPS and it is actually
+    used in some other places in the codebase. This changes these final urls
+    to use HTTPS.
+    
+    Change-Id: Ia46410a9c7ce67238a10cb6bfffaceca46112f58
+    Reviewed-on: https://go-review.googlesource.com/52072
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/math/const.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

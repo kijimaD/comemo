@@ -1,0 +1,15 @@
+commit 2f4ce69ddd98788cc281626bac4accc66880f356
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:28:12 2017 -0700
+
+    cmd/compile: remove excessive whitespace in needkeyupdate
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5309125e0da65a5f240e53472b1c911252f0a472
+    Reviewed-on: https://go-review.googlesource.com/41403
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 23 +++--------------------
+ 1 file changed, 3 insertions(+), 20 deletions(-)

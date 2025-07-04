@@ -1,0 +1,21 @@
+commit 0da4b2dbc20e6d8a01bb44516257fda56e713523
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 5 18:16:56 2014 -0700
+
+    cmd/cgo: fix recursive type mapping
+    
+    Instead of immediately completing pointer type mappings, add them to
+    a queue to allow them to be completed later.  This fixes issues caused
+    by Type() returning arbitrary in-progress type mappings.
+    
+    Fixes #8368.
+    Fixes #8441.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122850043
+
+ misc/cgo/test/issue8441.go | 27 ++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 57 +++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 71 insertions(+), 13 deletions(-)

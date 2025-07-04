@@ -1,0 +1,21 @@
+commit 6aaef044698bf9da21e270188f281321de98a391
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 17:51:57 2010 -0700
+
+    misc cleanup: gofmt + &x -> x[0:] conversion
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1620042
+
+ src/pkg/debug/macho/file.go          |  18 +--
+ src/pkg/debug/proc/regs_linux_386.go |   4 +-
+ src/pkg/http/triv.go                 |  15 ++-
+ src/pkg/json/stream_test.go          |   2 +-
+ src/pkg/net/iprawsock.go             |   8 +-
+ src/pkg/net/tcpsock.go               |   4 +-
+ src/pkg/net/udpsock.go               |   8 +-
+ test/copy.go                         | 210 +++++++++++++++++------------------
+ test/fixedbugs/bug102.go             |  15 +--
+ test/ken/string.go                   |   6 +-
+ 10 files changed, 149 insertions(+), 141 deletions(-)

@@ -1,0 +1,18 @@
+commit d33e37a7e3fd3e1d6dc697d7ec594068ff26d383
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 14:03:57 2016 -0700
+
+    cmd/compile: further sinit.go cleanup
+    
+    Follow-up to CL 20674.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I065fd4cd80d996c1e6566773189401ca4630c1ca
+    Reviewed-on: https://go-review.googlesource.com/20692
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/sinit.go | 116 +++++++++++++++--------------------
+ 1 file changed, 51 insertions(+), 65 deletions(-)

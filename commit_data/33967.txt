@@ -1,0 +1,39 @@
+commit 28639df158a19b2bbceda43fb67ca7cb685d8e34
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 10:10:46 2018 -0500
+
+    cmd/link: apply -X options after loading symbols
+    
+    The linker has been applying -X options before loading symbols,
+    meaning that when it sees -X y=z it creates a symbol named y
+    and initializes its string data to z. The symbol named y is marked
+    "DUPOK" so that when the actual packages are loaded, no error is
+    emitted when the real y is seen. The predefined y's data is used
+    instead of whatever the real y says.
+    
+    If we define -X y=z and we never load y, then the predefined symbol
+    is dropped during dead code elimination, but not in shared library
+    builds. Shared library builds must include all symbols, so we have to
+    be more careful about not defining symbols that wouldn't have
+    appeared anyway.
+    
+    To be more careful, save the -X settings until after all the symbols
+    are loaded from the packages, and then apply the string changes
+    to whatever symbols are known (but ignore the ones that were not
+    loaded at all). This ends up being simpler anyway, since it doesn't
+    depend on DUPOK magic.
+    
+    Makes CL 86835 safe.
+    
+    Fixes #23273.
+    
+    Change-Id: Ib4c9b2d5eafa97c5a8114401dbec0134c76be54f
+    Reviewed-on: https://go-review.googlesource.com/86915
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 45 ++++++++++++++++++++++++++--------------
+ src/cmd/link/internal/ld/go.go   |  6 +++---
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 3 files changed, 34 insertions(+), 19 deletions(-)

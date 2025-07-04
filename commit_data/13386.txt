@@ -1,0 +1,26 @@
+commit 277e7e57cadc08a2e82885b423308627e9e5c786
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 11:27:54 2012 -0700
+
+    go/ast: minor comment maps API change
+    
+    This is a new, not yet committed API.
+    
+    - Changed NewCommentMap to be independent of
+      *File nodes and more symmetric with the
+      Filter and Comments methods.
+    
+    - Implemented Update method for use in
+      AST modifications.
+    
+    - Implemented String method for debugging
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6303086
+
+ src/cmd/godoc/godoc.go            |   2 +-
+ src/cmd/godoc/main.go             |   2 +-
+ src/pkg/go/ast/commentmap.go      | 102 +++++++++++++++++++++++++++++++-------
+ src/pkg/go/ast/commentmap_test.go |   2 +-
+ 4 files changed, 86 insertions(+), 22 deletions(-)

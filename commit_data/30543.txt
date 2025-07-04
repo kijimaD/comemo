@@ -1,0 +1,75 @@
+commit 4e428907c5d34b31e5d21c17917f70b0d1f0e4f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 3 16:15:35 2017 -0800
+
+    cmd/compile: avoid generating some dead blocks
+    
+    We generate a lot of pointless dead blocks
+    during the AST to SSA conversion.
+    There are a few commonly occurring kinds
+    of statements that contain neither variables
+    nor code and that switch to a new block themselves.
+    Stop making dead blocks for them.
+    
+    For the code in #19379, this reduces compilation
+    wall time by 36% and max rss by 28%.
+    
+    This also helps a little for regular code,
+    particularly code heavy on switch statements.
+    
+    name       old time/op      new time/op      delta
+    Template        231ms ± 3%       230ms ± 5%    ~     (p=0.402 n=17+16)
+    Unicode         101ms ± 4%       103ms ± 5%    ~     (p=0.221 n=19+18)
+    GoTypes         635ms ± 5%       625ms ± 4%    ~     (p=0.063 n=20+18)
+    Compiler        2.93s ± 2%       2.89s ± 2%  -1.22%  (p=0.003 n=20+19)
+    SSA             4.53s ± 3%       4.52s ± 3%    ~     (p=0.380 n=20+19)
+    Flate           132ms ± 4%       133ms ± 5%    ~     (p=0.647 n=20+19)
+    GoParser        161ms ± 3%       161ms ± 4%    ~     (p=0.749 n=20+19)
+    Reflect         403ms ± 4%       397ms ± 3%  -1.53%  (p=0.030 n=20+19)
+    Tar             121ms ± 2%       121ms ± 8%    ~     (p=0.544 n=19+19)
+    XML             225ms ± 3%       224ms ± 4%    ~     (p=0.396 n=20+19)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   302user-ms ± 1%  297user-ms ± 7%  -1.49%  (p=0.048 n=15+18)
+    Unicode    142user-ms ± 3%  143user-ms ± 5%    ~     (p=0.363 n=19+17)
+    GoTypes    852user-ms ± 5%  851user-ms ± 3%    ~     (p=0.851 n=20+18)
+    Compiler   4.11user-s ± 6%  3.98user-s ± 3%  -3.08%  (p=0.000 n=20+19)
+    SSA        6.91user-s ± 5%  6.82user-s ± 7%    ~     (p=0.113 n=20+19)
+    Flate      164user-ms ± 4%  168user-ms ± 4%  +2.42%  (p=0.001 n=18+19)
+    GoParser   207user-ms ± 4%  206user-ms ± 4%    ~     (p=0.176 n=20+18)
+    Reflect    509user-ms ± 4%  505user-ms ± 4%    ~     (p=0.113 n=20+19)
+    Tar        153user-ms ± 7%  151user-ms ± 9%    ~     (p=0.283 n=20+19)
+    XML        284user-ms ± 4%  282user-ms ± 4%    ~     (p=0.270 n=20+19)
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       42.6MB ± 0%      41.9MB ± 0%  -1.55%  (p=0.000 n=19+19)
+    Unicode        31.7MB ± 0%      31.7MB ± 0%    ~     (p=0.828 n=20+18)
+    GoTypes         124MB ± 0%       121MB ± 0%  -2.11%  (p=0.000 n=20+17)
+    Compiler        534MB ± 0%       523MB ± 0%  -2.06%  (p=0.000 n=20+19)
+    SSA             989MB ± 0%       977MB ± 0%  -1.28%  (p=0.000 n=20+19)
+    Flate          27.8MB ± 0%      27.5MB ± 0%  -0.98%  (p=0.000 n=20+19)
+    GoParser       34.3MB ± 0%      34.0MB ± 0%  -0.81%  (p=0.000 n=20+19)
+    Reflect        84.6MB ± 0%      82.9MB ± 0%  -2.00%  (p=0.000 n=17+18)
+    Tar            28.8MB ± 0%      28.3MB ± 0%  -1.52%  (p=0.000 n=16+18)
+    XML            47.2MB ± 0%      45.8MB ± 0%  -2.99%  (p=0.000 n=20+19)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         421k ± 1%        419k ± 1%  -0.41%  (p=0.001 n=20+19)
+    Unicode          338k ± 1%        338k ± 1%    ~     (p=0.478 n=20+19)
+    GoTypes         1.28M ± 0%       1.28M ± 0%  -0.36%  (p=0.000 n=20+18)
+    Compiler        5.06M ± 0%       5.03M ± 0%  -0.63%  (p=0.000 n=20+19)
+    SSA             9.14M ± 0%       9.11M ± 0%  -0.34%  (p=0.000 n=20+19)
+    Flate            267k ± 1%        266k ± 1%    ~     (p=0.149 n=20+19)
+    GoParser         347k ± 0%        347k ± 1%    ~     (p=0.103 n=19+19)
+    Reflect         1.07M ± 0%       1.07M ± 0%  -0.42%  (p=0.000 n=16+18)
+    Tar              274k ± 0%        273k ± 1%    ~     (p=0.116 n=19+19)
+    XML              449k ± 0%        446k ± 1%  -0.60%  (p=0.000 n=20+19)
+    
+    Updates #19379
+    
+    Change-Id: Ie798c347a0c081f5e349e1529880bebaae290967
+    Reviewed-on: https://go-review.googlesource.com/37760
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)

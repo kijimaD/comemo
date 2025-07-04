@@ -1,0 +1,15 @@
+commit a120beaa8db6b723c120c8d3bf3324dfa503cb2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 17:17:53 2016 +0000
+
+    Revert "net: ensure that malformed domain names report a consistent error"
+    
+    This reverts commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe.
+    
+    Change-Id: I9bc089e9f2296805ef055b98e8c86ba73af30226
+    Reviewed-on: https://go-review.googlesource.com/18439
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/ip_test.go | 45 ---------------------------------------------
+ src/net/lookup.go  | 21 ---------------------
+ 2 files changed, 66 deletions(-)

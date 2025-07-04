@@ -1,0 +1,20 @@
+commit 0abbb8c76b1a4c09001983197dad97444293a48d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 1 13:33:31 2008 -0700
+
+    more import/export stuff:
+    - no need to import/export predeclared types
+    - fix for receiver types
+    - cleanups
+    - added tests to Makefile
+    
+    R=r
+    OCL=13728
+    CL=13730
+
+ usr/gri/gosrc/export.go   | 25 +++++++++++--------------
+ usr/gri/gosrc/globals.go  |  8 +++-----
+ usr/gri/gosrc/import.go   | 36 +++++++++++++++---------------------
+ usr/gri/gosrc/parser.go   | 11 ++++++++---
+ usr/gri/gosrc/universe.go | 20 ++++++++++----------
+ 5 files changed, 47 insertions(+), 53 deletions(-)

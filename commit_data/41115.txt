@@ -1,0 +1,43 @@
+commit 71154e061f067a668e7b619d7b3701470b8561be
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 13 17:18:51 2020 +0000
+
+    runtime: better approximate total cost of scavenging
+    
+    Currently, the scavenger is paced according to how long it takes to
+    scavenge one runtime page's worth of memory. However, this pacing
+    doesn't take into account the additional cost of actually using a
+    scavenged page. This operation, "sysUsed," is a counterpart to the
+    scavenging operation "sysUnused." On most systems this operation is a
+    no-op, but on some systems like Darwin and Windows we actually make a
+    syscall. Even on systems where it's a no-op, the cost is implicit: a
+    more expensive page fault when re-using the page.
+    
+    On Darwin in particular the cost of "sysUnused" is fairly close to the
+    cost of "sysUsed", which skews the pacing to be too fast. A lot of
+    soon-to-be-allocated memory ends up scavenged, resulting in many more
+    expensive "sysUsed" operations, ultimately slowing down the application.
+    
+    The way to fix this problem is to include the future cost of "sysUsed"
+    on a page in the scavenging cost. However, measuring the "sysUsed" cost
+    directly (like we do with "sysUnused") on most systems is infeasible
+    because we would have to measure the cost of the first access.
+    
+    Instead, this change applies a multiplicative constant to the measured
+    scavenging time which is based on a per-system ratio of "sysUnused" to
+    "sysUsed" costs in the worst case (on systems where it's a no-op, we
+    measure the cost of the first access). This ultimately slows down the
+    scavenger to a more reasonable pace, limiting its impact on performance
+    but still retaining the memory footprint improvements from the previous
+    release.
+    
+    Fixes #36507.
+    
+    Change-Id: I050659cd8cdfa5a32f5cc0b56622716ea0fa5407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214517
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcscavenge.go | 27 +++++++++++++++++++++++----
+ 1 file changed, 23 insertions(+), 4 deletions(-)

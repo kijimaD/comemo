@@ -1,0 +1,25 @@
+commit 9e902f0f3a606e1a09369e0ce8a31e8cac49c605
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 20 10:00:07 2015 -0700
+
+    cmd/compile: generalize racewalk to instrument (naming change)
+    
+    This is mechanical change that is a step toward reusing the racewalk
+    pass for a more general instrumentation pass.  The first use will be to
+    add support for the memory sanitizer.
+    
+    Change-Id: I75b93b814ac60c1db1660e0b9a9a7d7977d86939
+    Reviewed-on: https://go-review.googlesource.com/16105
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/go.go       |   4 ++
+ src/cmd/compile/internal/gc/inl.go      |   8 +--
+ src/cmd/compile/internal/gc/lex.go      |   1 +
+ src/cmd/compile/internal/gc/order.go    |   6 +-
+ src/cmd/compile/internal/gc/pgen.go     |   4 +-
+ src/cmd/compile/internal/gc/racewalk.go | 116 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/range.go    |   2 +-
+ src/cmd/compile/internal/gc/subr.go     |   4 +-
+ src/cmd/compile/internal/gc/walk.go     |  20 +++---
+ 9 files changed, 86 insertions(+), 79 deletions(-)

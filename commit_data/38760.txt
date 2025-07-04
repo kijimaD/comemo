@@ -1,0 +1,17 @@
+commit a337cb2bf072e6215ecf6d2e9040f4383359e5dd
+Author: Ross Light <light@google.com>
+Date:   Fri Apr 12 14:29:59 2019 -0700
+
+    cmd/go/internal/modget: s/prerelease/pre-release/
+    
+    For prose consistency with other documentation.
+    
+    Change-Id: I1588fbe1feace2a97b02b20bba730ed730b84fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171772
+    Run-TryBot: Ross Light <light@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/modget/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

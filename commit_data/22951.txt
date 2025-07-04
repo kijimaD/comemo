@@ -1,0 +1,36 @@
+commit 6d8a147bef8ee28eb647db21ea91ecb823fa2480
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 28 00:28:47 2015 -0400
+
+    runtime: use 1-bit pointer bitmaps in type representation
+    
+    The type information in reflect.Type and the GC programs is now
+    1 bit per word, down from 2 bits.
+    
+    The in-memory unrolled type bitmap representation are now
+    1 bit per word, down from 4 bits.
+    
+    The conversion from the unrolled (now 1-bit) bitmap to the
+    heap bitmap (still 4-bit) is not optimized. A followup CL will
+    work on that, after the heap bitmap has been converted to 2-bit.
+    
+    The typeDead optimization, in which a special value denotes
+    that there are no more pointers anywhere in the object, is lost
+    in this CL. A followup CL will bring it back in the final form of
+    heapBitsSetType.
+    
+    Change-Id: If61e67950c16a293b0b516a6fd9a1c755b6d5549
+    Reviewed-on: https://go-review.googlesource.com/9702
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/reflect.go |  80 ++++++---------------
+ src/cmd/internal/ld/data.go    |  42 ++++-------
+ src/cmd/internal/obj/mgc0.go   |  10 ---
+ src/reflect/all_test.go        |  36 +++++-----
+ src/reflect/export_test.go     |   4 +-
+ src/reflect/type.go            |  72 ++++++++-----------
+ src/runtime/export_test.go     |   9 +--
+ src/runtime/gcinfo_test.go     |  14 ++--
+ src/runtime/mbarrier.go        |  86 +++++++++++++----------
+ src/runtime/mbitmap.go         | 154 ++++++++++++++++++-----------------------
+ 10 files changed, 205 insertions(+), 302 deletions(-)

@@ -1,0 +1,30 @@
+commit 8332112d0a84ec70c9c82402ea796b18b83eb8f4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jul 28 14:47:37 2014 -0700
+
+    encoding/asn1: only omit optional elements matching default value.
+    
+    ASN.1 elements can be optional, and can have a default value.
+    Traditionally, Go has omitted elements that are optional and that have
+    the zero value. I believe that's a bug (see [1]).
+    
+    This change causes an optional element with a default value to only be
+    omitted when it has that default value. The previous behaviour of
+    omitting optional, zero elements with no default is retained because
+    it's used quite a lot and will break things if changed.
+    
+    [1] https://groups.google.com/d/msg/Golang-nuts/9Ss6o9CW-Yo/KL_V7hFlyOAJ
+    
+    Fixes #7780.
+    
+    R=bradfitz
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews, r
+    https://golang.org/cl/86960045
+
+ src/pkg/encoding/asn1/asn1.go         | 18 ++++++++++++++----
+ src/pkg/encoding/asn1/marshal.go      | 18 ++++++++++++++++--
+ src/pkg/encoding/asn1/marshal_test.go |  7 +++++++
+ 3 files changed, 37 insertions(+), 6 deletions(-)

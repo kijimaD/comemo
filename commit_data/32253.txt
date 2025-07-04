@@ -1,0 +1,23 @@
+commit 67b39859ec19d1ac6d5ba64d22955b0456e590bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 14 09:56:51 2017 -0700
+
+    runtime: remove unused global variable emptystring
+    
+    Last runtime use was removed in https://golang.org/cl/133700043,
+    September 2014.
+    
+    Replace plan9 syscall uses with plan9-specific variable.
+    
+    Change-Id: Ifb910c021c1419a7c782959f90b054ed600d9e19
+    Reviewed-on: https://go-review.googlesource.com/55450
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime2.go       | 17 ++++++++---------
+ src/syscall/asm_plan9_386.s   |  6 +++---
+ src/syscall/asm_plan9_amd64.s |  6 +++---
+ src/syscall/asm_plan9_arm.s   |  2 +-
+ src/syscall/syscall_plan9.go  |  2 ++
+ 5 files changed, 17 insertions(+), 16 deletions(-)

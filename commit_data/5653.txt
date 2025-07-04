@@ -1,0 +1,12 @@
+commit 956259234299da69d3a7168fd17e96be3c7272e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 12 11:37:13 2010 -0700
+
+    spec: remove ... (keeping ...T)
+    
+    R=gri, iant, ken2, r, r2
+    CC=golang-dev
+    https://golang.org/cl/1632041
+
+ doc/go_spec.html | 81 +++++++++++++++-----------------------------------------
+ 1 file changed, 21 insertions(+), 60 deletions(-)

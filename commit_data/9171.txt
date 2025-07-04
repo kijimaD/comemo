@@ -1,0 +1,12 @@
+commit 99e5d48e59022f83a027e137421faaaf043b6309
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jul 22 13:52:21 2011 +1000
+
+    http: clarify use of w.conn.body in Write when sniffing.
+    
+    R=gri, r, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4794047
+
+ src/pkg/http/server.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

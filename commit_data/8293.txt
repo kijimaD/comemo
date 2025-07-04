@@ -1,0 +1,14 @@
+commit 6876ad37f303617fa9b2f7ff4feafd6bf2744efe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 13:35:28 2011 -0700
+
+    runtime: maybe fix Windows build broken by cgo setenv CL
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4428078
+
+ src/pkg/runtime/cgo/Makefile | 14 ++++++++------
+ src/pkg/runtime/cgo/setenv.c | 16 ++++++++++++++++
+ src/pkg/runtime/cgo/util.c   | 11 -----------
+ 3 files changed, 24 insertions(+), 17 deletions(-)

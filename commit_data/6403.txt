@@ -1,0 +1,12 @@
+commit 0e66a13d10856b2d7c8df1c82112d75746f10725
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 27 18:59:11 2010 -0700
+
+    go_spec: EOF may insert a semicolon
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/2266043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

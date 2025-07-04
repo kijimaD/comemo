@@ -1,0 +1,24 @@
+commit 13aff7831d32c80b98ede611f1ffb0476f16ec51
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Jan 26 13:51:39 2015 -0500
+
+    runtime: avoid redundant scans
+    
+    During a concurrent GC stacks are scanned in
+    an initial scan phase informing the GC of all
+    pointers on the stack. The GC only needs to rescan
+    the stack if it potentially changes which can only
+    happen if the goroutine runs.
+    This CL tracks whether the Goroutine has run
+    since it was last scanned and thus may have changed
+    its stack. If necessary the stack is rescanned.
+    
+    Change-Id: I5fb1c4338d42e3f61ab56c9beb63b7b2da25f4f1
+    Reviewed-on: https://go-review.googlesource.com/3275
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go   |  8 ++++++++
+ src/runtime/mgc.go      | 13 +++++++++++--
+ src/runtime/proc1.go    | 13 ++++++++++++-
+ src/runtime/runtime2.go |  1 +
+ 4 files changed, 32 insertions(+), 3 deletions(-)

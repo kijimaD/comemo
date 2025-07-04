@@ -1,0 +1,35 @@
+commit 698fb4f192b92cee97c397672d4041108b33cc82
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 12 00:17:44 2010 -0400
+
+    6g, 6l, 8g, 8l: move read-only data to text segment
+    
+    Changing 5g and 5l too, but it doesn't work yet.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2136047
+
+ src/cmd/6g/gsubr.c |  3 ++
+ src/cmd/6g/list.c  | 12 +++++---
+ src/cmd/6l/6.out.h |  1 +
+ src/cmd/6l/asm.c   | 67 +++++++++++++++++++++++++------------------
+ src/cmd/6l/l.h     |  1 +
+ src/cmd/6l/list.c  | 25 +++++-----------
+ src/cmd/6l/obj.c   | 18 ++++++------
+ src/cmd/6l/pass.c  | 21 ++++++--------
+ src/cmd/6l/span.c  | 22 +++++++++++++-
+ src/cmd/8g/gsubr.c |  3 ++
+ src/cmd/8g/list.c  | 12 +++++---
+ src/cmd/8l/8.out.h |  1 +
+ src/cmd/8l/asm.c   | 84 +++++++++++++++++++++++++++++++++---------------------
+ src/cmd/8l/l.h     |  3 +-
+ src/cmd/8l/list.c  | 41 +++++++++++++-------------
+ src/cmd/8l/obj.c   | 20 +++++++------
+ src/cmd/8l/pass.c  | 21 ++++++--------
+ src/cmd/8l/span.c  | 21 +++++++++++++-
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/subr.c  |  1 +
+ src/cmd/ld/lib.c   |  1 +
+ src/cmd/ld/macho.c |  2 +-
+ 22 files changed, 228 insertions(+), 153 deletions(-)

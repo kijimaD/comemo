@@ -1,0 +1,18 @@
+commit 3507805bcdcd6674c842e25fdb5f07f5ce47ba87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 13:39:56 2022 -0700
+
+    go/types, types2: better error message for invalid use of constraint type
+    
+    Fixes #42881.
+    
+    Change-Id: If800c5f90c0034d192bf8b6649e5cfda96df48cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410954
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../internal/types2/testdata/fixedbugs/issue42881.go     | 16 ++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go               |  4 ++--
+ src/go/types/testdata/fixedbugs/issue42881.go            | 16 ++++++++++++++++
+ src/go/types/typexpr.go                                  |  4 ++--
+ 4 files changed, 36 insertions(+), 4 deletions(-)

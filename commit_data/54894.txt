@@ -1,0 +1,19 @@
+commit 9d836d41d0d9df3acabf7f9607d3b09188a9bfc6
+Author: Christian Kruse <ctkruse99@gmail.com>
+Date:   Thu Nov 2 15:32:08 2023 -0700
+
+    boring: update documentation to include arm64
+    
+    Support for boring has been extended to include linux/arm64. This change
+    updates the docs to reflect that.
+    
+    Fixes #63920
+    
+    Change-Id: If8d6eca713e8245dcc222c3e38d140874d48725d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539298
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/boring/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,65 @@
+commit 4ba114ec05c6090708b51db5f7a196e95bce64e0
+Author: Volker dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Jun 10 11:54:58 2021 +0200
+
+    net/http/cookiejar: allow cookies with an IP address in the domain attribute
+    
+    A set domain attribute in a cookie in a Set-Cookie header is intended to
+    create a domain cookie, i.e. a cookie that is not only sent back to the
+    domain the Set-Cookie was received from, but to all subdomains thereof
+    too. Sometimes people set this domain attribute to an IP address. This
+    seems to be allowed by RFC 6265 albeit it's not really sensible as there
+    are no "subdomains" of an IP address.
+    Contemporary browsers allow such cookies, currently Jar forbids them.
+    
+    This CL allows to persist such cookies in the Jar and send them back
+    again in subsequent requests. Jar allows those cookies that all
+    contemporary browsers allow (not all browsers behave the same and none
+    seems to conform to RFC 6265 in regards to these cookies, see below).
+    
+    The following browsers in current version) were tested:
+      - Chrome (Mac and Windows)
+      - Firefox (Mac and Windows)
+      - Safari (Mac)
+      - Opera (Mac)
+      - Edge (Windows)
+      - Internet Explorer (Windows)
+      - curl (Mac, Linux)
+    
+    All of them allow a cookie to be set via the following HTTP header if
+    the request was made to e.g. http://35.206.97.83/ :
+    
+        Set-Cookie: a=1; domain=35.206.97.83
+    
+    They differ in handling a leading dot "." before the IP address as in
+    
+        Set-Cookie: a=1; domain=.35.206.97.83
+    
+    sets a=1 only in curl and in Internet Explorer, the other browsers just
+    reject such cookies.
+    
+    As far as these internals can be observed the browsers do not treat such
+    cookies as domain cookies but as host cookies. RFC 6265 would require to
+    treat them as domain cookies; this is a) nonsensical and b) doesn't make
+    an observable difference. As we do not expose Jar entries and their
+    HostOnly flag it probably is still okay to claim that Jar implements a
+    RFC 6265 cookie jar.
+    
+    RFC 6265 would allow cookies with dot-prefixed domains like
+    domain=.35.206.97.83 but it seems as if this feature of RFC 6265 is not
+    used in real life and not requested by users of package cookiejar (probably
+    because it doesn't work in browsers) so we refrain from documenting this
+    detail.
+    
+    Fixes #12610
+    
+    Change-Id: Ibd883d85bde6b958b732cbc3618a1238ac4fc84a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326689
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/cookiejar/jar.go      | 38 +++++++++++++++++++++++++++++++++-----
+ src/net/http/cookiejar/jar_test.go | 30 ++++++++++++++++++++++++++----
+ 2 files changed, 59 insertions(+), 9 deletions(-)

@@ -1,0 +1,15 @@
+commit 12bf9ff8dc7ba9d37234b5013e6541381d6cd005
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:29:14 2022 +0800
+
+    database: use bytes.Clone
+    
+    Change-Id: I66aad199884cffd51946f53f01580a3a353f5c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435280
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+
+ src/database/sql/convert.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

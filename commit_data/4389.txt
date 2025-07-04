@@ -1,0 +1,17 @@
+commit ddde7f6625318ce22b27ff729d8bdc527fcc16ff
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Fri Dec 11 12:48:55 2009 -0800
+
+    Add a Makefile in place of all.bash. Update docs to reflect
+    this change.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/171048
+
+ doc/code.html       |  4 ++--
+ doc/contribute.html |  4 ++--
+ doc/install.html    |  4 ++--
+ src/Makefile        | 11 +++++++++++
+ src/all.bash        |  9 ++-------
+ 5 files changed, 19 insertions(+), 13 deletions(-)

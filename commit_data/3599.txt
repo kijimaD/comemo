@@ -1,0 +1,12 @@
+commit d6b64f273fa579a74dc50f4dd736cde037bcc179
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 20 06:44:50 2009 -0700
+
+    forgot to include in 35898.
+    
+    R=ken
+    OCL=35917
+    CL=35917
+
+ test/interface/embed0.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

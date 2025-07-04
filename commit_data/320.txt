@@ -1,0 +1,14 @@
+commit 12c81a0ce88f6a66bceb06952700c65e5b9dde4c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 9 16:05:03 2008 -0700
+
+    enable autolib
+    handle archives with __.PKGDEF elements (although we can't create them yet)
+    introduce a pkg directory
+    search the pkg directory for packages during compilation
+    
+    SVN=126574
+
+ src/cmd/6l/obj.c |  1 +
+ src/cmd/gc/lex.c | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 84 insertions(+), 6 deletions(-)

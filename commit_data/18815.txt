@@ -1,0 +1,17 @@
+commit 9ab4d1d6b3d90cc4837edae0b5857dae33e79ebd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 11 06:57:46 2014 +1100
+
+    runtime: small Native Client fixes
+    
+    mem_nacl.c: add SysFault
+    env_posix.c: add nacl to build tag, from CL 15790043
+    
+    LGTM=remyoudompheng, iant
+    R=rsc, remyoudompheng, iant
+    CC=golang-codereviews
+    https://golang.org/cl/72780043
+
+ src/pkg/runtime/env_posix.c | 2 +-
+ src/pkg/runtime/mem_nacl.c  | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

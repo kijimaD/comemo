@@ -1,0 +1,12 @@
+commit eaf640dbc41ab96dbae5b55708b2e42eec22fd53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 09:14:00 2012 +1100
+
+    cmd/dist: do not use HEAP_GENERATE_EXCEPTIONS flag
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5650048
+
+ src/cmd/dist/windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

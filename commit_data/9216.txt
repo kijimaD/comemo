@@ -1,0 +1,12 @@
+commit c913cb8ba517bdcfc5fc5a46df70145e3a30338b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 27 13:44:57 2011 +1000
+
+    reflect: rename new TestVariadic to TestVariadicType.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4825050
+
+ src/pkg/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

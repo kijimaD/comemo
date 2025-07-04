@@ -1,0 +1,17 @@
+commit fc8ae9860a820e2d5179fc3b15b247e0545f2a28
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 14 16:15:30 2021 -0500
+
+    doc/go1.18: move debug/buildinfo to core library section
+    
+    It is a new package and seems a major change.
+    
+    Updates #47694.
+    
+    Change-Id: If854e494e28bcd1e79c99e59119755b9cb6793d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371816
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.18.html | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

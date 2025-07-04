@@ -1,0 +1,17 @@
+commit 3356624df3414a3ca0c8390ca433a0811e552872
+Author: Burcu Dogan <jbd@google.com>
+Date:   Thu Oct 29 00:02:02 2015 -0700
+
+    os/signal: don't expect to be notified for os.Kill
+    
+    os.Kill cannot be caught on Unix systems.
+    The example gives the false impression that it can.
+    
+    Fixes #13080.
+    
+    Change-Id: I3b9e6f38a38f437a463c5b869ae84a0d3fd23f72
+    Reviewed-on: https://go-review.googlesource.com/16467
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/os/signal/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

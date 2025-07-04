@@ -1,0 +1,13 @@
+commit bd6e0bc8badbcb74b975adaceb8260cf4c7cf9ba
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 20 15:22:32 2008 -0800
+
+    run tests in file order, not alphabetical
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=19723
+    CL=19727
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

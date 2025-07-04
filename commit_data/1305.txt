@@ -1,0 +1,15 @@
+commit 4ad804679de4bc07d45e5d0bbfcc304bc1f45f12
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 9 15:29:15 2008 -0800
+
+    - snapshot if current state
+    - fix pretty printer to work with new tabwriter interface
+    
+    R=r
+    OCL=20854
+    CL=20854
+
+ usr/gri/pretty/htmlwriter.go | 42 +++++++++++++++++++++++++++++++++--------
+ usr/gri/pretty/printer.go    | 45 ++++++++++++++++++++++++++------------------
+ usr/gri/pretty/untab.go      |  2 +-
+ 3 files changed, 62 insertions(+), 27 deletions(-)

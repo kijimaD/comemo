@@ -1,0 +1,14 @@
+commit 87229f54c38ffe6e966e35d5ee12ff2adb0aa34b
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Aug 26 13:32:50 2010 -0400
+
+    misc/emacs: make _ a word symbol
+    
+    Fixes #655.
+    
+    R=rsc, aclements
+    CC=golang-dev
+    https://golang.org/cl/1981041
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

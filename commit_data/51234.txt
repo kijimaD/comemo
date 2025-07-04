@@ -1,0 +1,22 @@
+commit c3aac6c010f9293319ae5dbe0592bc7706b6a161
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Nov 11 07:34:15 2022 +0000
+
+    net: handle correctly the _gateway and _outbound hostnames for nss myhostname
+    
+    Fixes #56387
+    
+    Change-Id: If412134344600caefec425699398522399986d4d
+    GitHub-Last-Rev: f33540ef8f90e9a8c09f3947aba8c01155516d39
+    GitHub-Pull-Request: golang/go#56388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf.go      | 10 ++++++++--
+ src/net/conf_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

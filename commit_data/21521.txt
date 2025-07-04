@@ -1,0 +1,19 @@
+commit 8f02df76f962e5ea2daf27108a0c8efed2c8d905
+Author: Brian Smith <ohohvi@gmail.com>
+Date:   Sat Feb 7 03:51:13 2015 +0000
+
+    encoding/xml: avoid an allocation for tags without attributes
+    
+    Before, an array of size 4 would always be allocated even if a tag
+    doesn't have any attributes. Now that array is allocated only if
+    needed.
+    
+    benchmark              old allocs     new allocs     delta
+    BenchmarkUnmarshal     191            176            -8.5%
+    
+    Change-Id: I4d214b228883d0a6e892c0d6eb00dfe2da84c116
+    Reviewed-on: https://go-review.googlesource.com/4160
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/xml.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

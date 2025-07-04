@@ -1,0 +1,25 @@
+commit 42ca44494c6ca94c6a1f433e61bc5d95d51b2222
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 12:10:02 2022 -0700
+
+    internal/pkgbits: add fingerprints to unified IR export format
+    
+    So far unified IR has been relying on the backwards-compat iexport
+    data to supply package fingerprints for imports. To be able to drop
+    the iexport data and natively use unified IR everywhere.
+    
+    This CL applies basically the same idea that iexport used: simply
+    hash all of the export data as it's being written out, and then tack
+    on an 8-byte hash at the end.
+    
+    Change-Id: Iaca5fbfd7443088bc7f422a1c58be3e762c29014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396196
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/go/build/deps_test.go       | 10 +++++-----
+ src/internal/pkgbits/decoder.go | 10 ++++++++--
+ src/internal/pkgbits/encoder.go | 12 +++++++++++-
+ 3 files changed, 24 insertions(+), 8 deletions(-)

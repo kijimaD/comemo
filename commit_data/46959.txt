@@ -1,0 +1,19 @@
+commit 2be5b846650aa4674a4eca7c11f303673b69a35a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 18 10:59:29 2021 -0700
+
+    cmd/compile: allow importing and exporting of ODYNAMICTYPE
+    
+    Change-Id: I2fca7a801c85ed93c002c23bfcb0cf9593f1bdf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356571
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 13 ++++++++++
+ src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++
+ test/typeparam/issue49027.dir/a.go            | 34 +++++++++++++++++++++++++++
+ test/typeparam/issue49027.dir/main.go         |  8 +++++++
+ 4 files changed, 63 insertions(+)

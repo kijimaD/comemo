@@ -1,0 +1,12 @@
+commit 0ba5f755132386604f811aaaf587cfc65a36bc38
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 12:11:12 2013 -0500
+
+    runtime: avoid closure in parfor test
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7395051
+
+ src/pkg/runtime/parfor_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

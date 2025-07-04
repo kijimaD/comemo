@@ -1,0 +1,16 @@
+commit 363ec80dec5908ed7feebba448dc8e5b2cf90740
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 30 11:16:55 2012 -0700
+
+    cmd/gc: string conversion for surrogates
+    This is required by the spec to produce the replacement char.
+    The fix lies in lib9's rune code.
+    
+    R=golang-dev, nigeltao, rsc
+    CC=golang-dev
+    https://golang.org/cl/6443109
+
+ src/lib9/utf/rune.c               | 18 +++++++++++++-----
+ src/pkg/unicode/utf8/utf8_test.go |  6 ++++--
+ test/string_lit.go                | 24 +++++++++++++++++++++++-
+ 3 files changed, 40 insertions(+), 8 deletions(-)

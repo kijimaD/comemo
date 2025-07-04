@@ -1,0 +1,12 @@
+commit f18e2a327126904170a7d6a20b8b957b185f3954
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 19 14:15:57 2013 +1100
+
+    runtime/pprof: skip tests that fail on windows-amd64-race builder
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/44180043
+
+ src/pkg/runtime/pprof/pprof_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

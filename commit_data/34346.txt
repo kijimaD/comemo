@@ -1,0 +1,18 @@
+commit 39852bf4cce6927e01d0136c7843f65a801738cb
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Feb 24 10:52:04 2018 +0530
+
+    archive/tar: remove loop label from reader
+    
+    CL 14624 introduced this label. At that time,
+    the switch-case had a break to label statement which made this necessary.
+    But now, the code no longer has a break statement and it directly returns.
+    
+    Hence, it is no longer necessary to have a label.
+    
+    Change-Id: Idde0fcc4d2db2d76424679f5acfe33ab8573bce4
+    Reviewed-on: https://go-review.googlesource.com/96935
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/tar/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

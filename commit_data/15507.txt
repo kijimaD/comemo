@@ -1,0 +1,12 @@
+commit 72b09bd7aefa1602a9c14c9006442d696d962def
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 1 00:41:45 2013 +0200
+
+    runtime: add matrix multiplication benchmark
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7431047
+
+ src/pkg/runtime/proc_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

@@ -1,0 +1,12 @@
+commit f2f374d125312cd6f9c91581e85a80ee1f143cc1
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Fri Sep 9 16:41:30 2016 +0200
+
+    reflect: update location of vet tool in comment
+    
+    Change-Id: Ic5160edbbca4a8ffc7c7e6246e34fae1978470fd
+    Reviewed-on: https://go-review.googlesource.com/28912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

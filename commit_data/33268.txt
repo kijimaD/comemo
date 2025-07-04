@@ -1,0 +1,18 @@
+commit 013ca842aa1414e3f6c6448d4269c22ce690087e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 9 09:54:35 2017 +0200
+
+    cmd/go: add a test to ensure upx works on go binaries
+    
+    On linux/amd64, for now.
+    
+    Updates #16706
+    
+    Change-Id: Ib8c89b6edc73fb88042c06873ff815d387491504
+    Reviewed-on: https://go-review.googlesource.com/69117
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

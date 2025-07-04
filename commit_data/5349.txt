@@ -1,0 +1,21 @@
+commit 2a591bdf8a35792d67346f7516ddead9af1f078d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 22:35:12 2010 -0700
+
+    godoc: add codewalk support
+    
+    R=adg, gri
+    CC=golang-dev, r
+    https://golang.org/cl/1008042
+
+ doc/codewalk/codewalk.css  | 234 +++++++++++++++++++++
+ doc/codewalk/codewalk.js   | 305 ++++++++++++++++++++++++++++
+ doc/codewalk/codewalk.xml  | 124 ++++++++++++
+ doc/codewalk/popout.png    | Bin 0 -> 213 bytes
+ doc/style.css              |   8 +-
+ lib/godoc/codewalk.html    |  58 ++++++
+ lib/godoc/codewalkdir.html |  15 ++
+ src/cmd/godoc/Makefile     |   1 +
+ src/cmd/godoc/codewalk.go  | 493 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/godoc.go     |   9 +-
+ 10 files changed, 1244 insertions(+), 3 deletions(-)

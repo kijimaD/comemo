@@ -1,0 +1,23 @@
+commit 1d6eb2e9fae957ccdc4ea83b965aa41313f7d4bb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 22:40:32 2013 +0100
+
+    cmd/gc: fix handling of struct padding in hash/eq.
+    
+    The test case of issue 4585 was not passing due to
+    miscalculation of memequal args, and the previous fix
+    does not handle padding at the end of a struct.
+    
+    Handling of padding at end of structs also fixes the case
+    of [n]T where T is such a padded struct.
+    
+    Fixes #4585.
+    (again)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7133059
+
+ src/cmd/gc/subr.c           | 34 +++++++++++++------------
+ test/fixedbugs/issue4585.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 16 deletions(-)

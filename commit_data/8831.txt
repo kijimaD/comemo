@@ -1,0 +1,153 @@
+commit c475c3071a615bd6c48918b1ac15a71b8fedb4e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 22 23:22:36 2011 -0400
+
+    5c: do not use R9 and R10
+    
+    This program used to use R9 and R10.
+    Now it fails to compile (out of registers).
+    I used to know a simpler test but can't remember it.
+    
+    Learned something new: Rietveld refuses change
+    list descriptions bigger than 10 kB.
+    
+    int sum(int x, int y, int z, int w) {
+            return
+            (((((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))%
+            (((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))))*
+            ((((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))%
+            (((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))))*
+            (((((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))%
+            (((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))))*
+            ((((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))%
+            (((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))))/
+            ((((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))|
+            (((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w))&
+            ((x*y+z*w|x*y+z*w)^
+            (x*y+z*w|x*y+z*w)))))))
+            ;
+    }
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4650053
+
+ src/cmd/5c/txt.c         | 28 +++++-----------------------
+ src/pkg/runtime/Makefile |  3 ---
+ 2 files changed, 5 insertions(+), 26 deletions(-)

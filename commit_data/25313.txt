@@ -1,0 +1,16 @@
+commit 37f2afa625204befc21837756d5e64fe0ffcd7d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 22:40:15 2015 -0500
+
+    cmd/go: disable use of -linkmode=external in tests when CGO_ENABLED=0
+    
+    If cgo is turned off, there may not be an external linker available.
+    
+    Fixes #13450.
+    
+    Change-Id: Idbf3f3f57b4bb3908b67264f96d276acc952102a
+    Reviewed-on: https://go-review.googlesource.com/17941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/note_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

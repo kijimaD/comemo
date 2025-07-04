@@ -1,0 +1,14 @@
+commit 3b089179c4779c09becd395634b0a31f376865f1
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Sep 9 08:48:06 2013 -0700
+
+    runtime: unbreak build on dragonfly
+    
+    Update dragonfly memory functions to work with new memory statistics.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13615043
+
+ src/pkg/runtime/mem_dragonfly.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

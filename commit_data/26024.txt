@@ -1,0 +1,26 @@
+commit c41608f4ac868047dcab0de73cb96e831db264be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 2 17:34:42 2016 -0800
+
+    cmd/compile: remove more superfluous int(lineno) conversions
+    
+    Change-Id: Ia3e5d62b9d38a6c356baec8eb88b2bdabff5820f
+    Reviewed-on: https://go-review.googlesource.com/20150
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  9 +++------
+ src/cmd/compile/internal/gc/closure.go   |  8 ++++----
+ src/cmd/compile/internal/gc/const.go     | 15 +++++++--------
+ src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/esc.go       |  8 ++++----
+ src/cmd/compile/internal/gc/gen.go       |  4 ++--
+ src/cmd/compile/internal/gc/order.go     |  8 ++++----
+ src/cmd/compile/internal/gc/range.go     |  6 +++---
+ src/cmd/compile/internal/gc/select.go    |  8 ++++----
+ src/cmd/compile/internal/gc/sinit.go     |  4 ++--
+ src/cmd/compile/internal/gc/swt.go       |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ 13 files changed, 58 insertions(+), 62 deletions(-)

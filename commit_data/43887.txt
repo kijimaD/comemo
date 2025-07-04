@@ -1,0 +1,20 @@
+commit 294c214ccac877be8d8ce16b0302434a15a2476b
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Fri Nov 20 08:32:06 2020 +0000
+
+    runtime: gofmt
+    
+    CL 268578 was not formatted properly.
+    
+    Change-Id: I08d2fc691e4f90a38d8165344c135b7b4f73b339
+    GitHub-Last-Rev: 6183bb063962ef4bf5a6050c1f5108976108ff42
+    GitHub-Pull-Request: golang/go#42736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271807
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/crash_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

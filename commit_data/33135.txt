@@ -1,0 +1,21 @@
+commit f75158c36530ba902a011a69243d1d51c1ba3a46
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sat Oct 14 12:33:13 2017 -0400
+
+    math/big: fix ModSqrt optimized path for x = z
+    
+    name                   old time/op  new time/op  delta
+    ModSqrt224_3Mod4-4      153µs ± 2%   154µs ± 1%   ~     (p=0.548 n=5+5)
+    ModSqrt5430_3Mod4-4     776ms ± 2%   791ms ± 2%   ~     (p=0.222 n=5+5)
+    
+    Fixes #22265
+    
+    Change-Id: If233542716e04341990a45a1c2b7118da6d233f7
+    Reviewed-on: https://go-review.googlesource.com/70832
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 7 +++----
+ src/math/big/int_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

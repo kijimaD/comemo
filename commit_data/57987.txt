@@ -1,0 +1,30 @@
+commit 956d4bb9cf47718cdb24f6e34990df47d73b1a69
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Aug 13 17:40:46 2024 +0000
+
+    cmd/go: add user provided auth mode for GOAUTH
+    
+    This CL adds support for a custom authenticator as a valid GOAUTH command.
+    This follows the specification in
+    https://go.dev/issue/26232#issuecomment-461525141
+    
+    For #26232
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Id1d4b309f11eb9c7ce14793021a9d8caf3b192ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605298
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                          |  78 +++++++++++-
+ src/cmd/go/internal/auth/auth.go               | 111 ++++++++--------
+ src/cmd/go/internal/auth/auth_test.go          |   6 +-
+ src/cmd/go/internal/auth/gitauth.go            |  28 ++--
+ src/cmd/go/internal/auth/userauth.go           | 136 ++++++++++++++++++++
+ src/cmd/go/internal/auth/userauth_test.go      | 169 +++++++++++++++++++++++++
+ src/cmd/go/internal/help/helpdoc.go            |  74 ++++++++++-
+ src/cmd/go/internal/web/http.go                |   4 +-
+ src/cmd/go/main.go                             |   1 +
+ src/cmd/go/testdata/script/goauth_userauth.txt |  79 ++++++++++++
+ 10 files changed, 603 insertions(+), 83 deletions(-)

@@ -1,0 +1,13 @@
+commit 3dc278d3e2678ad7c7953fac5ae8ad641fe4bd6e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Dec 12 19:45:40 2011 -0200
+
+    reflect: fix Slice cap
+    
+    R=golang-dev, dsymonds, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5483044
+
+ src/pkg/reflect/all_test.go | 22 +++++++++++++++++-----
+ src/pkg/reflect/value.go    |  2 +-
+ 2 files changed, 18 insertions(+), 6 deletions(-)

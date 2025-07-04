@@ -1,0 +1,18 @@
+commit 3efe36d4c46c609b036f3d6eb209788aa71ec57f
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 24 19:11:35 2015 -0500
+
+    runtime: fix nmspinning comparison
+    
+    nmspinning has a value range of [0, 2^31-1].  Update the comment to
+    indicate this and fix the comparison so it's not always false.
+    
+    Fixes #11280
+    
+    Change-Id: Iedaf0654dcba5e2c800645f26b26a1a781ea1991
+    Reviewed-on: https://go-review.googlesource.com/13877
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/proc1.go    | 2 +-
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit 019ad98b5337992625327ea07185ad06a9c19169
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 4 16:20:57 2021 -0700
+
+    cmd/cgo: update to handle ast.IndexListExpr
+    
+    Allows cgo to work with generics.
+    
+    Updates #47781.
+    
+    Change-Id: Id1a5d1a0a8193c5b157e3e671b1490d687d10384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353882
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/typeparam.go | 17 +++++++++++++++++
+ misc/go.mod                |  2 +-
+ src/cmd/cgo/ast.go         |  3 +--
+ src/cmd/cgo/ast_go1.go     | 17 +++++++++++++++++
+ src/cmd/cgo/ast_go118.go   | 25 +++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         |  2 +-
+ 6 files changed, 62 insertions(+), 4 deletions(-)

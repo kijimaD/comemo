@@ -1,0 +1,12 @@
+commit 2c35e548bb170421b1463b0a4bb5d6ab653e1d14
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jan 15 16:55:47 2011 -0800
+
+    arm reg bug MOVW into bool variable
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4034042
+
+ src/cmd/5g/reg.c | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

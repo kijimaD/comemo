@@ -1,0 +1,18 @@
+commit 38abb09a2e4c682d0dcbe2d592c32bf0f9c2d1c5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 20 12:55:50 2013 +1000
+
+    runtime: change PollDesc.fd from int32 to uintptr
+    
+    This is in preparation for netpoll windows version.
+    
+    R=golang-dev, bradfitz
+    CC=dvyukov, golang-dev, mikioh.mikioh
+    https://golang.org/cl/9569043
+
+ src/pkg/net/fd_poll_runtime.go   |  4 ++--
+ src/pkg/runtime/netpoll.goc      |  6 +++---
+ src/pkg/runtime/netpoll_epoll.c  |  8 ++++----
+ src/pkg/runtime/netpoll_kqueue.c | 10 +++++-----
+ src/pkg/runtime/runtime.h        |  4 ++--
+ 5 files changed, 16 insertions(+), 16 deletions(-)

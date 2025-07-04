@@ -1,0 +1,12 @@
+commit cee920225ddaec164c0026480e072e0ea568db40
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 6 14:00:23 2012 +1100
+
+    testing: capture panics, present them, and mark the test as a failure.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5633044
+
+ src/pkg/testing/testing.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

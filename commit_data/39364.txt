@@ -1,0 +1,25 @@
+commit f44404ebbfeff57f3e45ebf4b314a320bb89841f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 11 19:52:58 2019 -0700
+
+    cmd/compile: fix range analysis of small signed integers
+    
+    For int8, int16, and int32, comparing their unsigned value to MaxInt64
+    to determine non-negativity doesn't make sense, because they have
+    negative values whose unsigned representation is smaller than that.
+    Fix is simply to compare with the appropriate upper bound based on the
+    value type's size.
+    
+    Fixes #32560.
+    
+    Change-Id: Ie7afad7a56af92bd890ba5ff33c86d1df06cfd9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 18 +++++++++++--
+ test/fixedbugs/issue32560.go          | 51 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 2 deletions(-)

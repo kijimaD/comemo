@@ -1,0 +1,15 @@
+commit 92cfd07a6cfd917bcd3db41b15dbcd78d3f089af
+Author: romanyx <romanyx90@yandex.ru>
+Date:   Wed Aug 9 20:21:58 2017 +0300
+
+    math/bits: examples generator
+    
+    Change-Id: Icdd0566d3b7dbc034256e16f8a6b6f1af07069b3
+    Reviewed-on: https://go-review.googlesource.com/54350
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/example_test.go  |  66 ++++++++--------
+ src/math/bits/make_examples.go | 174 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 208 insertions(+), 32 deletions(-)

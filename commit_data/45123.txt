@@ -1,0 +1,26 @@
+commit 6d8ba77896d05720e1cb1728c27db60926e672b5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 13 16:31:56 2021 -0700
+
+    cmd/compile: fix importing of method expressions
+    
+    For OMETHEXPR, the Name in the Selection needs to be properly
+    linked up to the method declaration. Use the same code we
+    already have for ODOTMETH and OCALLPART to do that.
+    
+    Fixes #45503
+    
+    Change-Id: I7d6f886d606bae6faad8c104f50c177f871d41c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309831
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 11 ++---------
+ src/cmd/compile/internal/typecheck/iimport.go | 14 ++++----------
+ test/fixedbugs/issue45503.dir/a.go            | 15 +++++++++++++++
+ test/fixedbugs/issue45503.dir/b.go            | 12 ++++++++++++
+ test/fixedbugs/issue45503.go                  | 10 ++++++++++
+ 5 files changed, 43 insertions(+), 19 deletions(-)

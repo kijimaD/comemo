@@ -1,0 +1,24 @@
+commit 8da78625b1fe2a6141d331f54248913936dc49c7
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Thu May 21 15:33:39 2020 +0300
+
+    net/http: reject HTTP/1.1 Content-Length with sign in response
+    
+    Enforces section 14.13 of RFC 2616 so that Content-Length header
+    values with a sign such as "+5" will be rejected.
+    
+    Updates #39017
+    
+    Change-Id: Icce9f00d03c8475fe704b33f9bed9089ff8802f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234817
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/httptest/recorder.go      |  4 ++--
+ src/net/http/httptest/recorder_test.go | 36 ++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go               |  6 +++---
+ src/net/http/transfer_test.go          | 36 ++++++++++++++++++++++++++++++++++
+ src/net/http/transport_test.go         | 19 ++++++++++++++++++
+ 5 files changed, 96 insertions(+), 5 deletions(-)

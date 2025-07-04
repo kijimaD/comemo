@@ -1,0 +1,17 @@
+commit 27520cc4c5deaa14e46cb97a382150e0f313b099
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 8 15:03:56 2017 -0800
+
+    net: merge FreeBSD and DragonFly sendfile support
+    
+    The two files were identical except for comments.
+    
+    Change-Id: Ifc300026c8e4584afa50a7b669099eaff146ea5d
+    Reviewed-on: https://go-review.googlesource.com/36631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/{sendfile_dragonfly.go => sendfile_bsd.go} |  20 ++--
+ src/net/sendfile_freebsd.go                        | 106 ---------------------
+ 2 files changed, 12 insertions(+), 114 deletions(-)

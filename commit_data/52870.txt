@@ -1,0 +1,20 @@
+commit dcd1c3103295c9f3251ac1eb45e1c585127476fd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 3 11:22:53 2023 -0400
+
+    runtime: skip TestSegv/SegvInCgo earlier on ios
+    
+    It appears to sometimes hang instead of crashing,
+    which can cause subsequent tests to time out.
+    
+    For #59947.
+    
+    Change-Id: Id4ac3c0cd5f7f345334d3e0ed3f48e40b9ff191c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_cgo_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,29 @@
+commit 43469ddf7450a056edf536494f6a05272662ba94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 21 12:01:32 2018 -0700
+
+    go/types: remove explicit path parameter from most type-checker functions (cleanup)
+    
+    Now that most of the type-checker is using the object-coloring mechanism
+    to detect cycles, remove the explicit path parameter from the functions
+    that don't rely on it anymore.
+    
+    Some of the syntactic-based resolver code (for aliases, interfaces)
+    still use an explicit path; leaving those unchanged for now.
+    
+    The function cycle was moved from typexpr.go (where it is not used
+    anymore) to resolver.go (where it's still used). It has not changed.
+    
+    Fixes #25773.
+    
+    Change-Id: I2100adc8d66d5da9de9277dee94a1f08e5a88487
+    Reviewed-on: https://go-review.googlesource.com/130476
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go      |  5 ----
+ src/go/types/decl.go       | 20 +++++++--------
+ src/go/types/expr.go       |  6 ++---
+ src/go/types/interfaces.go |  2 +-
+ src/go/types/resolver.go   | 25 ++++++++++++++++---
+ src/go/types/typexpr.go    | 62 ++++++++++++++--------------------------------
+ 6 files changed, 54 insertions(+), 66 deletions(-)

@@ -1,0 +1,12 @@
+commit c765c090193c69d929a7151ce70beade47bcd26d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 6 22:48:05 2009 -0800
+
+    add an item about open source
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025013
+
+ doc/root.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

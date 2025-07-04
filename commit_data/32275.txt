@@ -1,0 +1,24 @@
+commit 6e8b10397b824b0064ff92977bd379b332a24da4
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 14 06:24:18 2017 +0000
+
+    cmd/internal/obj/arm64: fix assemble stxr/stxrw/stxrb/stxrh bug
+    
+    The stxr/stxrw/stxrb/stxrh instructions belong to STLXR-like instructions
+    set and they require special handling. The current code has no special
+    handling for those instructions.
+    
+    The fix adds the special handling for those instructions.
+    
+    Uncomment stxr/stxrw/stxrb/stxrh test cases.
+    
+    Fixes #21397
+    Change-Id: I31cee29dd6b30b1c25badd5c7574dda7a01bf016
+    Reviewed-on: https://go-review.googlesource.com/54951
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go           | 3 ++-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 8 ++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

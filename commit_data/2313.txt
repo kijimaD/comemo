@@ -1,0 +1,13 @@
+commit 5273868f6748bd5cba2eb01efc599994b7d068b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 17:13:39 2009 -0700
+
+    32-bit stack switching bug fix
+    
+    R=ken
+    OCL=29412
+    CL=29412
+
+ src/runtime/386/asm.s | 2 +-
+ src/runtime/proc.c    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

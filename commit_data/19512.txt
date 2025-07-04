@@ -1,0 +1,35 @@
+commit f20e4d5ecb87cae4846be07a68cb0e9132e6a8c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 11 14:21:06 2014 -0400
+
+    cmd/gc: fix &result escaping into result
+    
+    There is a hierarchy of location defined by loop depth:
+    
+            -1 = the heap
+            0 = function results
+            1 = local variables (and parameters)
+            2 = local variable declared inside a loop
+            3 = local variable declared inside a loop inside a loop
+            etc
+    
+    In general if an address from loopdepth n is assigned to
+    something in loop depth m < n, that indicates an extended
+    lifetime of some form that requires a heap allocation.
+    
+    Function results can be local variables too, though, and so
+    they don't actually fit into the hierarchy very well.
+    Treat the address of a function result as level 1 so that
+    if it is written back into a result, the address is treated
+    as escaping.
+    
+    Fixes #8185.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/108870044
+
+ src/cmd/gc/esc.c | 13 +++++++++++--
+ test/escape2.go  | 12 ++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

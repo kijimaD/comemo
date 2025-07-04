@@ -1,0 +1,36 @@
+commit 871a3a409ac55fdcaf329596023e56be279b1950
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 26 15:26:05 2022 -0500
+
+    cmd/compile: rework PPC64 Mul64uhilo lowering rules
+    
+    Remove OpPPC64LoweredMuluhilo as this operation can be done
+    more efficiently with MULHDU and MULLD directly. This has the
+    benefit of not needing to use tuple select operations, and giving
+    the scheduler more freedom to place these operations.
+    
+    The primary reason to avoid using tuples here is to to avoid
+    suboptimal scheduling when carry ops (e.x ADDC/ADDE) are used in
+    the same block as 64->128b multiples. CL 432275 modifies the
+    scheduling priorities which may cause non-flag/non-carry generating
+    tuple ops to interfere with carry opcodes. Thus resulting in excess
+    saving and restoring of the XER register.
+    
+    This allows CL 432275 to adjust the scheduling priorities without
+    having to workaround odd tuple scheduling behavior.
+    
+    Change-Id: Id04ef009ec4b86416e5436f2b44ae1474e73720e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434855
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 18 ------------------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 --
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 27 ++++++++++++++++++++++++---
+ 5 files changed, 26 insertions(+), 40 deletions(-)

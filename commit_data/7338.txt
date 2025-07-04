@@ -1,0 +1,14 @@
+commit 259a974292e7d85d50d0273a530e0c068f410689
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 18:53:03 2011 -0500
+
+    cgo: rename internal f to avoid conflict with possible C global named f
+    
+    Fixes #1452.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4023060
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit ecf6b52b7f4ba6e8c98f25adf9e83773fe908829
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 4 17:59:19 2021 -0800
+
+    test/ken/slicearray.go: correct type width in comment
+    
+    The type was changed in https://golang.org/cl/3991043 but the comment
+    wasn't updated.
+    
+    Change-Id: I7ba3f625c732e5e801675ffc5d4a28e1d310faa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369374
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ test/ken/slicearray.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

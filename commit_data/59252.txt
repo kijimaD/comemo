@@ -1,0 +1,23 @@
+commit 38a2a3c7ce156e01f8980cb97912b7067709aaa3
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 8 10:00:13 2025 +0000
+
+    runtime: use internal/byteorder
+    
+    To simplify the code.
+    
+    Change-Id: Ib1af5009cc25bb29fd26fdb7b29ff4579f0150aa
+    GitHub-Last-Rev: f698a8a771ac8c6ecb745ea4c27a7c677c1789d1
+    GitHub-Pull-Request: golang/go#73255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663735
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/alg.go                 | 10 +++++-----
+ src/runtime/debuglog.go            | 15 +++------------
+ src/runtime/hash_test.go           |  6 ++----
+ src/runtime/os_plan9.go            |  4 ++--
+ src/runtime/pprof/vminfo_darwin.go |  8 ++------
+ src/runtime/write_err_android.go   | 17 ++++++-----------
+ 6 files changed, 20 insertions(+), 40 deletions(-)

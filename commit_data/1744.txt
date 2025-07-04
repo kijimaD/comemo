@@ -1,0 +1,14 @@
+commit 98b34e5bbd6c67cbe20e589d1f74acda8364fb12
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 17:38:37 2009 -0800
+
+    reject invalid map key types at compile time
+    
+    R=ken
+    OCL=25720
+    CL=25720
+
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/go.y   | 16 ++++------------
+ src/cmd/gc/subr.c | 19 +++++++++++++++++++
+ 3 files changed, 24 insertions(+), 12 deletions(-)

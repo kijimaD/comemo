@@ -1,0 +1,12 @@
+commit 500f6b8e8450c5b7e685165ca146b37c2e0a5961
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 18 16:48:38 2009 -0700
+
+    fix typo
+    
+    TBR=rsc
+    OCL=29010
+    CL=29010
+
+ usr/gri/pretty/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

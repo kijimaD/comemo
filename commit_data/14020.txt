@@ -1,0 +1,18 @@
+commit 70ab57ea2dc9c4c5124204ca28dbbac41c94ecb0
+Author: Jeff Wendling <jeff@spacemonkey.com>
+Date:   Thu Oct 4 15:42:57 2012 -0400
+
+    crypto/x509: add DecryptBlock function for loading password protected keys
+    
+    Adds a DecryptBlock function which takes a password and a *pem.Block and
+    returns the decrypted DER bytes suitable for passing into other crypto/x509
+    functions.
+    
+    R=golang-dev, agl, leterip
+    CC=golang-dev
+    https://golang.org/cl/6555052
+
+ src/pkg/crypto/x509/pem_decrypt.go      | 133 ++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/pem_decrypt_test.go | 119 ++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go           |   5 +-
+ 3 files changed, 256 insertions(+), 1 deletion(-)

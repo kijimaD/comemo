@@ -1,0 +1,13 @@
+commit ecdd9f237624be7101e2fb4e22eca9949356a234
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 29 12:34:05 2012 +0900
+
+    net: minor fixes to test
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5707058
+
+ src/pkg/net/dial_test.go |  2 +-
+ src/pkg/net/udp_test.go  | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

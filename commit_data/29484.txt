@@ -1,0 +1,13 @@
+commit 66477ec8307e18f751996d92ac8741596a23615a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Nov 10 19:02:07 2016 -0500
+
+    reflect: rename, document TestUnaddressableField
+    
+    Change-Id: I94e0f3e4bccd44a67934ddb4d5fc7da57bb8ac9f
+    Reviewed-on: https://go-review.googlesource.com/33112
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/all_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

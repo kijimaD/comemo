@@ -1,0 +1,22 @@
+commit b53bb2cae512ce4abbc1587a903171a9da6201cf
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Apr 14 12:12:06 2014 -0700
+
+    crypto/x509: support SHA-512 by default.
+    
+    Comodo are now using a SHA-384 signed intermediate. The crypto/x509
+    package seeks to import hash functions needed for typical operation
+    without needing to import every hash function possible. Since a SHA-384
+    certificate is being used by Comodo, crypto/sha512 now appears to fall
+    into the scope of "typical operation".
+    
+    R=bradfitz
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87670045
+
+ src/pkg/crypto/x509/verify_test.go | 123 +++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509.go        |   1 +
+ 2 files changed, 124 insertions(+)

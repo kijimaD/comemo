@@ -1,0 +1,21 @@
+commit a70987676713a281c2f00215c0e32473b319f0c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 13:06:26 2010 -0700
+
+    runtime: more malloc statistics
+    expvar: default publishings for cmdline, memstats
+    godoc: import expvar
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/815041
+
+ src/cmd/godoc/main.go          |  3 ++-
+ src/pkg/expvar/expvar.go       | 42 ++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/extern.go      | 48 ++++++++++++++++++++++++++++++------------
+ src/pkg/runtime/malloc.cgo     | 11 +++++++++-
+ src/pkg/runtime/malloc.h       | 40 +++++++++++++++++++++++++++--------
+ src/pkg/runtime/mfixalloc.c    |  6 ++++++
+ src/pkg/runtime/mheap.c        | 12 +++++++++--
+ src/pkg/runtime/pprof/pprof.go | 16 ++++++++++----
+ 8 files changed, 145 insertions(+), 33 deletions(-)

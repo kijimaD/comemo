@@ -1,0 +1,21 @@
+commit 90b8a0ca2d0b565c7c7199ffcf77b15ea6b6db3a
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Nov 17 09:33:31 2016 -0800
+
+    database/sql: ensure all driver Stmt are closed once
+    
+    Previously  driver.Stmt could could be closed multiple times in
+    edge cases that drivers may not test for initially. Make their
+    job easier by ensuring the driver is only closed a single time.
+    
+    Fixes #16019
+    
+    Change-Id: I1e4777ef70697a849602e6ef9da73054a8feb4cd
+    Reviewed-on: https://go-review.googlesource.com/33352
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 163 +++++++++++++++++++++++--------------------
+ src/database/sql/sql_test.go |   2 +-
+ 2 files changed, 88 insertions(+), 77 deletions(-)

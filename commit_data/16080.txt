@@ -1,0 +1,14 @@
+commit 57af97f2f4056cbaa4bad6d3109b71cacbc395b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 08:06:29 2013 +1100
+
+    misc/dist: include race detector packages in binary distributions
+    
+    Fixes #4596.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8327045
+
+ misc/dist/bindist.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

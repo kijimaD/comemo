@@ -1,0 +1,12 @@
+commit 97197a6248e5239fc3491f8acbd1dccc5ec3d509
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 15:45:24 2011 -0500
+
+    time: fix windows build
+    
+    TBR=brainman
+    CC=golang-dev
+    https://golang.org/cl/5447057
+
+ src/pkg/time/zoneinfo_windows.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

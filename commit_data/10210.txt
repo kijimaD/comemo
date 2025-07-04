@@ -1,0 +1,21 @@
+commit 8089e578124227a322a77f9c5599d2244f9d0cfc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 11:46:04 2011 -0700
+
+    exp/sql: finish transactions, flesh out types, docs
+    
+    Fixes #2328 (float, bool)
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5294067
+
+ src/pkg/Makefile                     |   1 -
+ src/pkg/exp/sql/convert.go           |  71 ++++++----
+ src/pkg/exp/sql/convert_test.go      |  52 +++++++
+ src/pkg/exp/sql/driver/driver.go     |  14 +-
+ src/pkg/exp/sql/driver/types.go      |  62 ++++++++-
+ src/pkg/exp/sql/driver/types_test.go |  57 ++++++++
+ src/pkg/exp/sql/fakedb_test.go       |   2 +-
+ src/pkg/exp/sql/sql.go               | 258 ++++++++++++++++++++++++++++-------
+ 8 files changed, 433 insertions(+), 84 deletions(-)

@@ -1,0 +1,29 @@
+commit e5da18df52e3f81534d7cdb6920cf993b5f079d2
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Sun Nov 29 17:18:51 2020 -0800
+
+    os/exec: constrain thread usage in leaked descriptor test on illumos
+    
+    On illumos systems, libc can under some conditions make use of files
+    from /proc.  In the case of this test, the creation of new threads was
+    (in the target thread) causing libc to open and close
+    "/proc/self/lwp/5/lwpname" to set the thread name, which raced with the
+    leaking descriptor check (see detailed analysis in #42431).
+    
+    This change requests that the Go runtime use less threads in the child
+    process used to check for leaked descriptors, without just disabling the
+    test.  After a thousand repeated trials, the test no longer fails on
+    illumos.
+    
+    Fixes #42431.
+    
+    Change-Id: Iefda26134fc91f7cb205754676e9845d9b7205cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273966
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

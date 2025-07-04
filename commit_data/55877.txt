@@ -1,0 +1,19 @@
+commit c220fbabd517ed66cb77e148aa015a80964ddcc4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 8 09:37:29 2024 +0100
+
+    internal/syscall/windows: unexport Version
+    
+    windows.Version is just a thin wrapper around RtlGetNtVersionNumbers,
+    which is an undocumented Windows API.
+    
+    This CL unexports windows.Version so it is harder to use by accident.
+    
+    Change-Id: Ib782da04e4e8be66970111a75f5c2df27ef51643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/version_windows.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

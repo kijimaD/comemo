@@ -1,0 +1,20 @@
+commit fdade68379abdd9706881f4273e5f8cd9c0eb518
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 15 17:36:25 2014 -0700
+
+    os/exec: make TestPipeLookPathLeak more verbose when it fails
+    
+    Trying to understand the linux-386-387 failures:
+    http://build.golang.org/log/78a91da173c11e986b4e623527c2d0b746f4e814
+    
+    Also modernize the closeOnce code with a method value, while I
+    was looking.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews, iant
+    https://golang.org/cl/87950044
+
+ src/pkg/os/exec/exec.go      | 14 ++++++++------
+ src/pkg/os/exec/exec_test.go | 12 ++++++------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit dba96cf411bc06cc3d75be160d420fc457b4a598
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 30 09:45:51 2011 -0700
+
+    go/parser: fix scoping for local type declarations
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4332045
+
+ src/pkg/go/parser/parser.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

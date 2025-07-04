@@ -1,0 +1,20 @@
+commit ba1c52d7d77724de4407572bd02421c36df3d78a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 17 12:27:23 2021 -0700
+
+    text/template: initialize template before locking it
+    
+    For #39807
+    Fixes #48436
+    
+    Change-Id: I75f82fd8738dd2f11f0c69b1230e1be1abc36024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350730
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/text/template/multi_test.go | 10 ++++++++++
+ src/text/template/template.go   |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

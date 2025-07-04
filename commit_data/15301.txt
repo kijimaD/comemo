@@ -1,0 +1,12 @@
+commit d251fc39f2b3fc27a526a02dfc39cb750746ed7f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 19 19:20:44 2013 +0800
+
+    doc/gccgo_contribute: mention gofrontend-dev@googlegroups.com mailing list
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/7323064
+
+ doc/gccgo_contribute.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

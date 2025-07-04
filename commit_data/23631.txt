@@ -1,0 +1,30 @@
+commit b3a8b0574ad94c0b26cacb2e926848f18ecb29f3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Jul 11 12:59:00 2015 +0200
+
+    runtime: abort on fatal errors and panics in c-shared and c-archive modes
+    
+    The default behaviour for fatal errors and runtime panics is to dump
+    the goroutine stack traces and exit with code 2. However, when the process is
+    owned by foreign code, it is suprising and inappropriate to suddenly exit
+    the whole process, even on fatal errors. Instead, re-use the crash behaviour
+    from GOTRACEBACK=crash and abort.
+    
+    The motivating use case is issue #11382, where an Android crash reporter
+    is confused by an exiting process, but I believe the aborting behaviour
+    is appropriate for all cases where Go does not own the process.
+    
+    The change is simple and contained and will enable reliable crash reporting
+    for Android apps in Go 1.5, but I'll leave it to others to judge whether it
+    is too late for Go 1.5.
+    
+    Fixes #11382
+    
+    Change-Id: I477328e1092f483591c99da1fbb8bc4411911785
+    Reviewed-on: https://go-review.googlesource.com/12032
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime1.go | 5 +++++
+ 1 file changed, 5 insertions(+)

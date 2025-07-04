@@ -1,0 +1,24 @@
+commit cf75c86cdf16b3c100068e102235c94316e8b92e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 11 10:15:51 2011 +1100
+
+    syscall: change windows apis with bool return value to return errno instead
+    
+    This change is to make these apis similar to their unix counterparts.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4185042
+
+ src/pkg/crypto/rand/rand_windows.go     |   8 +-
+ src/pkg/exp/wingui/gui.go               |   5 +-
+ src/pkg/exp/wingui/winapi.go            |  10 +-
+ src/pkg/exp/wingui/zwinapi.go           |  29 ++---
+ src/pkg/net/fd_windows.go               |   4 +-
+ src/pkg/os/env_windows.go               |   4 +-
+ src/pkg/os/exec_windows.go              |   6 +-
+ src/pkg/os/file_windows.go              |   9 +-
+ src/pkg/syscall/exec_windows.go         |  13 +-
+ src/pkg/syscall/syscall_windows.go      | 128 +++++++++----------
+ src/pkg/syscall/zsyscall_windows_386.go | 210 ++++++++++++++------------------
+ 11 files changed, 192 insertions(+), 234 deletions(-)

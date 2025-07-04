@@ -1,0 +1,21 @@
+commit d7c0de98a96893e5608358f7578c85be7ba12b25
+Author: Scott Bell <scott@sctsm.com>
+Date:   Wed May 18 09:56:51 2016 -0700
+
+    database/sql: additional underlying types in DefaultValueConverter
+    
+    The previous documentation purported to convert underlying strings to
+    []byte, which it did not do. This adds support for underlying bool,
+    string, and []byte, which convert directly to their underlying type.
+    
+    Fixes #15174.
+    
+    Change-Id: I7fc4e2520577f097a48f39c9ff6c8160fdfb7be4
+    Reviewed-on: https://go-review.googlesource.com/27812
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/driver/types.go      | 16 +++++++++++++---
+ src/database/sql/driver/types_test.go | 16 ++++++++++++++++
+ 2 files changed, 29 insertions(+), 3 deletions(-)

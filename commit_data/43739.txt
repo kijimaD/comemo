@@ -1,0 +1,34 @@
+commit e8379ab5964a920e59dbcc5bc4eaa1bbf5a88e90
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 24 08:04:16 2020 -0700
+
+    crypto/x509: add support for CertPool to load certs lazily
+    
+    This will allow building CertPools that consume less memory. (Most
+    certs are never accessed. Different users/programs access different
+    ones, but not many.)
+    
+    This CL only adds the new internal mechanism (and uses it for the
+    old AddCert) but does not modify any existing root pool behavior.
+    (That is, the default Unix roots are still all slurped into memory as
+    of this CL)
+    
+    Change-Id: Ib3a42e4050627b5e34413c595d8ced839c7bfa14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229917
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/cert_pool.go             | 124 ++++++++++++++++++++++++-------
+ src/crypto/x509/name_constraints_test.go |  12 +--
+ src/crypto/x509/root_cgo_darwin.go       |   6 +-
+ src/crypto/x509/root_darwin_test.go      |  11 ++-
+ src/crypto/x509/root_unix.go             |   2 +-
+ src/crypto/x509/root_unix_test.go        |  15 ++--
+ src/crypto/x509/root_windows.go          |   6 +-
+ src/crypto/x509/verify.go                |  20 ++---
+ src/crypto/x509/x509_test.go             |  52 ++++++++++++-
+ 9 files changed, 192 insertions(+), 56 deletions(-)

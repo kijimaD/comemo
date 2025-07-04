@@ -1,0 +1,16 @@
+commit 2f352ae48abf1a714f7b3bfb097fab6451067599
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 22 20:18:12 2011 +1100
+
+    html: parse <select> tags.
+    
+    The additional test case in parse_test.go is:
+    <select><b><option><select><option></b></select>X
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5293051
+
+ src/pkg/html/parse.go      | 106 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/html/parse_test.go |   2 +-
+ 2 files changed, 105 insertions(+), 3 deletions(-)

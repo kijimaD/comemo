@@ -1,0 +1,14 @@
+commit 91484c6c4861b56c77702d0d9ccb9315192bb0e4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 28 15:36:06 2012 +0400
+
+    runtime: fix potential crash in sigqueue
+    Fixes #4383.
+    
+    R=golang-dev, minux.ma, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6996060
+
+ src/pkg/os/signal/signal_test.go |  41 +++++++++++++++
+ src/pkg/runtime/sigqueue.goc     | 104 +++++++++++++++++++++------------------
+ 2 files changed, 97 insertions(+), 48 deletions(-)

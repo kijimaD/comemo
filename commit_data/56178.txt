@@ -1,0 +1,23 @@
+commit 45703b50a6ae557ebe9bd7b1bea8e49d66fc97ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 8 11:30:12 2024 +0200
+
+    internal/syscall/unix: implement Eaccess on openbsd
+    
+    Like on other BSDs, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+    
+    Change-Id: I80f8d327dd152576165b9206e32dfb749b41d187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538836
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/syscall/unix/asm_openbsd.s        | 10 +++++++
+ src/internal/syscall/unix/at_sysnum_openbsd.go | 10 ++++---
+ src/internal/syscall/unix/eaccess_bsd.go       |  2 +-
+ src/internal/syscall/unix/eaccess_openbsd.go   | 36 ++++++++++++++++++++++++++
+ src/internal/syscall/unix/eaccess_other.go     |  2 +-
+ 5 files changed, 55 insertions(+), 5 deletions(-)

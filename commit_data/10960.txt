@@ -1,0 +1,15 @@
+commit 90d56e072f8125be85b77f085e3f576d6533c29d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 21 17:08:16 2011 -0800
+
+    exec: disable the ExtraFiles test on darwin
+    
+    Still a mystery. New issue 2603 filed.
+    
+    R=golang-dev, dsymonds, iant
+    CC=golang-dev
+    https://golang.org/cl/5503063
+
+ src/pkg/os/exec/exec.go      |  3 +++
+ src/pkg/os/exec/exec_test.go | 48 ++++++++++++++++++++++++++++++--------------
+ 2 files changed, 36 insertions(+), 15 deletions(-)

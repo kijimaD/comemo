@@ -1,0 +1,28 @@
+commit 81b2ea4d34a42bee14e1ed17d5166546be957849
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 17:17:26 2016 -0500
+
+    net/http: add Transport.MaxIdleConns limit
+    
+    The HTTP client had a limit for the maximum number of idle connections
+    per-host, but not a global limit.
+    
+    This CLs adds a global idle connection limit too,
+    Transport.MaxIdleConns.
+    
+    All idle conns are now also stored in a doubly-linked list. When there
+    are too many, the oldest one is closed.
+    
+    Fixes #15461
+    
+    Change-Id: I72abbc28d140c73cf50f278fa70088b45ae0deef
+    Reviewed-on: https://go-review.googlesource.com/22655
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go      |  2 +-
+ src/net/http/export_test.go    |  2 +
+ src/net/http/transport.go      | 86 ++++++++++++++++++++++++++++++++++++------
+ src/net/http/transport_test.go | 71 +++++++++++++++++++++++++++++-----
+ 4 files changed, 138 insertions(+), 23 deletions(-)

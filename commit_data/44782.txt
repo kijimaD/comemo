@@ -1,0 +1,50 @@
+commit 769d4b68ef72125de068a060220c3dbd9ba65c43
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 24 12:55:52 2021 -0500
+
+    cmd/compile: wrap/desugar defer calls for register abi
+    
+    Adds code to the compiler's "order" phase to rewrite go and defer
+    statements to always be argument-less. E.g.
+    
+     defer f(x,y)       =>     x1, y1 := x, y
+                               defer func() { f(x1, y1) }
+    
+    This transformation is not beneficial on its own, but it helps
+    simplify runtime defer handling for the new register ABI (when
+    invoking deferred functions on the panic path, the runtime doesn't
+    need to manage the complexity of determining which args to pass in
+    register vs memory).
+    
+    This feature is currently enabled by default if GOEXPERIMENT=regabi or
+    GOEXPERIMENT=regabidefer is in effect.
+    
+    Included in this CL are some workarounds in the runtime to insure that
+    "go" statement targets in the runtime are argument-less already (since
+    wrapping them can potentially introduce heap-allocated closures, which
+    are currently not allowed). The expectation is that these workarounds
+    will be temporary, and can go away once we either A) change the rules
+    about heap-allocated closures, or B) implement some other scheme for
+    handling go statements.
+    
+    Change-Id: I01060d79a6b140c6f0838d6e6813f807ccdca319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298669
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ir/expr.go      |  13 +-
+ src/cmd/compile/internal/walk/closure.go |   8 +
+ src/cmd/compile/internal/walk/order.go   | 248 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/stmt.go    |  26 +++-
+ src/cmd/internal/objabi/util.go          |   2 +-
+ src/runtime/export_test.go               |  20 ++-
+ src/runtime/mgc.go                       |  15 +-
+ src/runtime/mgcscavenge.go               |   4 +-
+ src/runtime/mgcsweep.go                  |   4 +-
+ src/runtime/race/output_test.go          |  32 ++--
+ test/live.go                             |   3 +-
+ test/run.go                              |  10 ++
+ 12 files changed, 344 insertions(+), 41 deletions(-)

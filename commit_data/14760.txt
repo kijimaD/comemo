@@ -1,0 +1,12 @@
+commit 0c6beb00fbe00b843030f7a1178dfbc23a8e63d6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Dec 30 10:33:33 2012 +1100
+
+    cmd/dist: use -pipe during bootstrap
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7025044
+
+ src/cmd/dist/build.c | 1 +
+ 1 file changed, 1 insertion(+)

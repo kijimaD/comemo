@@ -1,0 +1,20 @@
+commit 3a3837f422e2b37c730793bdbeadcc0530e11368
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat May 18 17:02:54 2024 +0000
+
+    internal/concurrent: make HashTrieMap iteration more idiomatic
+    
+    Currently a HashTrieMap has a method called Enumerate whose method
+    closure is an iter.Seq2, but the current convention is to name the
+    method All and return an iter.Seq2. This is an easy transformation, so
+    do it now.
+    
+    Change-Id: I323e505008b7df3a9e20fe8c223b281a8c290006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586995
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/concurrent/hashtriemap.go      | 16 +++++++++-------
+ src/internal/concurrent/hashtriemap_test.go | 12 ++++++------
+ src/unique/handle.go                        |  2 +-
+ 3 files changed, 16 insertions(+), 14 deletions(-)

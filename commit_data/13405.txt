@@ -1,0 +1,14 @@
+commit 596762e9a16a250ed5670b227639f9e66140b616
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 20:45:18 2012 -0400
+
+    syscall: fix build
+    
+    I missed the API change in the last FreeBSD CL, but the tool caught it.
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6331063
+
+ src/pkg/syscall/syscall_freebsd.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

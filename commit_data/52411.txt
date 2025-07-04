@@ -1,0 +1,20 @@
+commit 478b1d260a21a83a090ba120efb79753495545e1
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Nov 17 08:54:48 2022 +0000
+
+    net: call getSystemDNSConfig inside lookupWithFake to avoid nil dereference panic when running tests alone
+    
+    It happens with tests that only call lookupWithFake, and before them no-one calls resolverConf.tryUpdate. running alone one of these: TestIssue8434, TestIssueNoSuchHostExists cause a nil dereference panic.
+    
+    Change-Id: I3fccd96dff5b3c77b5420a7f73742acbafa80142
+    GitHub-Last-Rev: 7456fd16a7ff4845b4ca305d4107d29f1d6f7b3e
+    GitHub-Pull-Request: golang/go#56759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

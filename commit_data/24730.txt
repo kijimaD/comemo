@@ -1,0 +1,24 @@
+commit 384259628460f9975471332a0618d5bffa40507d
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 24 21:19:52 2015 -0400
+
+    runtime: move concurrent mark setup off system stack
+    
+    For historical reasons we currently do a lot of the concurrent mark
+    setup on the system stack. In fact, at this point the one and only
+    thing that needs to happen on the system stack is the start-the-world.
+    
+    Clean up this code by lifting everything other than the
+    start-the-world off the system stack.
+    
+    The diff for this change looks large, but the only code change is to
+    narrow the systemstack call. Everything else is re-indentation.
+    
+    Change-Id: I1e03b8afc759fad726f2397b05a17d183c2713ce
+    Reviewed-on: https://go-review.googlesource.com/16354
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 94 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 46 insertions(+), 48 deletions(-)

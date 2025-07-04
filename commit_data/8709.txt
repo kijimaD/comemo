@@ -1,0 +1,13 @@
+commit 6d42af71974e7655659af85356f6e3cba137fbb7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 14 16:42:52 2011 +1000
+
+    doc/gopher: add jpgs of the goggled gopher logo for App Engine.
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/4591077
+
+ doc/gopher/appenginegopher.jpg      | Bin 0 -> 135882 bytes
+ doc/gopher/appenginegophercolor.jpg | Bin 0 -> 162023 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

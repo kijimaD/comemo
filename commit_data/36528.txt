@@ -1,0 +1,21 @@
+commit 2975914a1a0b60132352cf0c34a39bea1197d789
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 17 14:38:34 2018 -0400
+
+    cmd/link: move Localentry field in sym.Symbol to cold section
+    
+    The sym.Symbol 'Localentry' field is used only with cgo and/or
+    external linking on MachoPPC. Relocate it to sym.AuxSymbol since it is
+    infrequently used, so as to shrink the main Symbol struct.
+    
+    Updates #26186
+    
+    Change-Id: I5872aa3f059270c2a091016d235a1a732695e411
+    Reviewed-on: https://go-review.googlesource.com/125477
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go   |  2 +-
+ src/cmd/link/internal/ppc64/asm.go       |  2 +-
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 19 ++++++++++++++++++-
+ 4 files changed, 21 insertions(+), 4 deletions(-)

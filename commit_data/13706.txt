@@ -1,0 +1,12 @@
+commit e61c047c3e5ac3ad253c9046d479d769d14f7808
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 30 20:32:32 2012 +0400
+
+    net/rpc: protect serviceMap with RWMutex
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/6494044
+
+ src/pkg/net/rpc/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

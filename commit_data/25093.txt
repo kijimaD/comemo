@@ -1,0 +1,32 @@
+commit a3f99dc4e9499c88a784e94ada3c2bd419438c51
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 30 20:28:19 2015 +0000
+
+    mime: don't accept single-quoted strings in media type parameter values
+    
+    Fix an old bug where media type parameter values could be escaped by
+    either double quotes (per the spec) or single quotes (due to my bug).
+    
+    The original bug was introduced by me in git rev 90e4ece3
+    (https://golang.org/cl/4430049) in April 2011 when adding more tests
+    from http://greenbytes.de/tech/tc2231/ and misinterpreting the
+    expected value of test "attwithfntokensq" and not apparently thinking
+    about it enough.
+    
+    No known spec or existing software produces or expects single quotes
+    around values. In fact, it would have be a parsing ambiguity if it
+    were allowed: the string `a=', b='` could parse as two keys "a" and
+    "b" both with value "'", or it could be parse as a single key "a" with
+    value "', b=".
+    
+    Fixes #11291
+    
+    Change-Id: I6de58009dd47dcabb120b017245d237cb7b1e89a
+    Reviewed-on: https://go-review.googlesource.com/17136
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/mediatype.go      | 13 ++++++-------
+ src/mime/mediatype_test.go |  3 ++-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

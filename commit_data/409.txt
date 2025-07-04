@@ -1,0 +1,11 @@
+commit f4dcf518463e331390a6c360364201c8844612e6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 22 17:53:53 2008 -0700
+
+    document initialization
+    
+    OCL=13369
+    CL=13369
+
+ doc/go_lang.txt | 36 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 33 insertions(+), 3 deletions(-)

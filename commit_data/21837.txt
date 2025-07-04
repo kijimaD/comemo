@@ -1,0 +1,13 @@
+commit 145b6fb9849d377e9c7c4077a9ff49e078b5639f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 12:41:23 2015 -0500
+
+    go/build: make interaction between file names and +build lines clearer
+    
+    Change-Id: I2cae17d3f0d208c7ed1089bc5cb8f81022fcd36e
+    Reviewed-on: https://go-review.googlesource.com/6470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/go/build/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

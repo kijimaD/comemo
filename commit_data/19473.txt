@@ -1,0 +1,16 @@
+commit e56dc9966504405ecdad49f54edb45859ab3fa91
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 31 09:35:54 2014 -0400
+
+    cmd/gc: fix handling of for post-condition in -race mode
+    
+    Fixes #8102.
+    
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/100870046
+
+ src/cmd/gc/racewalk.c             |  2 +-
+ src/pkg/runtime/race/race_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

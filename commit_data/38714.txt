@@ -1,0 +1,27 @@
+commit d13a9312f52a3e861e02aff8ccb3f237b45b0822
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Feb 9 00:13:37 2019 +0000
+
+    runtime: add tests for runtime mTreap
+    
+    This change exports the runtime mTreap in export_test.go and then adds a
+    series of tests which check that the invariants of the treap are
+    maintained under different operations. These tests also include tests
+    for the treap iterator type.
+    
+    Also, we note that the find() operation on the treap never actually was
+    best-fit, so the tests just ensure that it returns an appropriately
+    sized span.
+    
+    For #30333.
+    
+    Change-Id: If81f7c746dda6677ebca925cb0a940134701b894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164100
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 113 +++++++++++++++++++++++++
+ src/runtime/mgclarge.go    |  12 ++-
+ src/runtime/treap_test.go  | 207 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 329 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit 6eb251f244b8ba595613375ab5965e81531178d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 24 09:40:09 2010 -0700
+
+    runtime: malloc sampling, pprof interface
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/719041
+
+ src/pkg/Makefile               |   4 ++
+ src/pkg/http/pprof/Makefile    |  11 ++++
+ src/pkg/http/pprof/pprof.go    |  92 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/extern.go      | 121 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/malloc.cgo     |  26 +++++----
+ src/pkg/runtime/mprof.cgo      |  59 ++++++++++++++++++--
+ src/pkg/runtime/pprof/Makefile |  11 ++++
+ src/pkg/runtime/pprof/pprof.go |  73 +++++++++++++++++++++++++
+ src/pkg/runtime/proc.c         |   3 +
+ src/pkg/runtime/runtime.c      |  11 +++-
+ src/pkg/runtime/runtime.h      |  13 ++---
+ src/pkg/runtime/symtab.c       |   9 +++
+ test/mallocrep.go              |   3 +-
+ test/mallocrep1.go             |   1 +
+ 14 files changed, 396 insertions(+), 41 deletions(-)

@@ -1,0 +1,18 @@
+commit 2b079c3c04b747451d70861451186cda4b1f935a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 28 09:55:18 2017 -0700
+
+    cmd/compile: use keyed struct for asm tests
+    
+    Just to make it clearer which regexps are positive and which
+    regexps are negative.
+    
+    Change-Id: Ia190e89be28048fcae2491506f552afad90a5f85
+    Reviewed-on: https://go-review.googlesource.com/59490
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 1046 +++++++++++++------------------
+ 1 file changed, 423 insertions(+), 623 deletions(-)

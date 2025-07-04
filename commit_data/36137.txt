@@ -1,0 +1,19 @@
+commit 0cb6b55f43dabdfac8c5afab6d00c9cd65eaadb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 15:01:22 2018 -0400
+
+    cmd/go: add go list -m -f {{.GoMod}} to show path to go.mod file
+    
+    "go env GOMOD" gives this for the main module already
+    but it's useful to be able to query other modules.
+    Using {{.Dir}} does not work if the go.mod was auto-synthesized.
+    
+    Change-Id: If4844571e9e429b541de0d40c36ff4c5743b2031
+    Reviewed-on: https://go-review.googlesource.com/125656
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go           |  1 +
+ src/cmd/go/internal/modinfo/info.go        |  1 +
+ src/cmd/go/testdata/script/mod_enabled.txt |  4 ++++
+ src/cmd/go/testdata/script/mod_list.txt    | 18 +++++++++---------
+ 4 files changed, 15 insertions(+), 9 deletions(-)

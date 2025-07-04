@@ -1,0 +1,26 @@
+commit d1c3f255fda8b9bf86990b55353ca14fbfe5b257
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 16:07:25 2024 -0400
+
+    runtime: move getclosureptr to internal/runtime/sys
+    
+    Moving these intrinsics to a base package enables other internal/runtime
+    packages to use them.
+    
+    There is no immediate need for getclosureptr outside of runtime, but it
+    is moved for consistency with the other intrinsics.
+    
+    For #54766.
+    
+    Change-Id: Ia68b16a938c8cb84cb222469db28e3a83861be5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613262
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go       |  5 ++--
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 15 ++++++------
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 28 +++++++++++-----------
+ src/internal/runtime/sys/intrinsics.go             | 21 ++++++++++++++++
+ src/runtime/alg.go                                 |  3 ++-
+ src/runtime/stubs.go                               | 21 ----------------
+ 6 files changed, 47 insertions(+), 46 deletions(-)

@@ -1,0 +1,12 @@
+commit d4b19bdbed13f8261638ceafbeecb11d55778637
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 22 15:00:21 2011 +1100
+
+    ld: return > 0 exit code on unsafe import
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4273092
+
+ src/cmd/ld/go.c | 1 +
+ 1 file changed, 1 insertion(+)

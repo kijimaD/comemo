@@ -1,0 +1,23 @@
+commit d33e2192a71c33a604af247161ba1d2c1969e4c7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 9 17:23:04 2021 -0500
+
+    cmd/go: allow '+' in package import paths in module mode
+    
+    This change upgrades x/mod to pull in the fix from CL 300149.
+    
+    Fixes #44776.
+    
+    Change-Id: I273f41df2abfff76d91315b7f19fce851c8770d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300176
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../go/testdata/script/mod_invalid_path_plus.txt   | 32 ++++++++++++++++++
+ src/cmd/vendor/golang.org/x/mod/module/module.go   | 38 +++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 66 insertions(+), 12 deletions(-)

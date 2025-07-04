@@ -1,0 +1,18 @@
+commit d58f2e741c742aafe5d3247bd184e182da71408d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 16:50:41 2022 -0500
+
+    doc: document more cgo, go command changes
+    
+    Also document new cgo changes and reorder go command
+    section to put most important notes first.
+    
+    Change-Id: I45b0c785bd8bc82c3b174800fc995312ea057f14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452557
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ doc/go1.20.html | 128 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 94 insertions(+), 34 deletions(-)

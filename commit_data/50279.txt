@@ -1,0 +1,22 @@
+commit 0ee0bb1003aa96a8ed94728784bb7faa301702d9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 10 18:17:42 2022 +0700
+
+    cmd/compile: make runtime/internal/sys.NotInHeap intrinsic
+    
+    So next CL can get rid of go:notinheap pragma.
+    
+    Updates #46731
+    
+    Change-Id: Ib2e2f2d381767e11cec10f76261b516188ddaa6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422814
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/size.go | 12 ++++++++++++
+ src/cmd/compile/internal/types/type.go | 14 +-------------
+ src/runtime/internal/sys/nih.go        |  5 ++---
+ 3 files changed, 15 insertions(+), 16 deletions(-)

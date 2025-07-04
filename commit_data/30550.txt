@@ -1,0 +1,18 @@
+commit 7c84dc79fdd1e26fc117e170ada81444694e6bed
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 10:51:37 2017 -0800
+
+    cmd/internal/obj, cmd/link: bump magic string to go19ld
+    
+    golang.org/cl/37231 changed the object file format, but forgot to bump
+    the version string.
+    
+    Change-Id: I8351ec8ed55e65479006e7c0df20254d0e31015f
+    Reviewed-on: https://go-review.googlesource.com/37798
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/objfile.go     | 8 ++++----
+ src/cmd/link/internal/ld/objfile.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 090049130e751718ee8100d673c6add9f98289b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 10 18:30:06 2012 -0800
+
+    go/ast: predeclared objects have the Universe/Unsafe scope as Decl
+    
+    Makes it possible to easily detect if an Object was predeclared
+    (as opposed to unresolved).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5530072
+
+ src/pkg/exp/types/universe.go | 1 +
+ src/pkg/go/ast/scope.go       | 4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

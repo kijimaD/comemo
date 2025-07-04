@@ -1,0 +1,16 @@
+commit a4f9c2a29e175272fa1fb49c561733abe88ffe6b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 02:36:13 2019 +1000
+
+    cmd/link: add support for openbsd/arm64
+    
+    Updates #31656
+    
+    Change-Id: Iff0b2c2b2ca95f8c246436e35a22b70efb8e61d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174121
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/arm64/obj.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

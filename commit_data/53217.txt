@@ -1,0 +1,23 @@
+commit f96e193320d168a39b0f557f78cd3a9123ebff0b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Feb 17 11:14:49 2023 -0800
+
+    crypto/rsa: make DecryptPKCS1v15SessionKey warning more dire
+    
+    Updates the DecryptPKCS1v15SessionKey function comment to be less cut
+    and dry about its protections against Bleichenbacher attacks. In
+    particular note that the protocol using this method must be explicitly
+    designed with these mitigations in mind, and call out usages which
+    may cause the migiations to be useless.
+    
+    Change-Id: I06fd25157f12a3afb401bb08dff4faef7fb0a9b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469235
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/rsa/pkcs1v15.go | 47 ++++++++++++++++++++++++++++++----------------
+ 1 file changed, 31 insertions(+), 16 deletions(-)

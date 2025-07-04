@@ -1,0 +1,18 @@
+commit 4b068cafb5a5e094dd0b7ed37ff73e08309a39e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 13:54:10 2021 -0800
+
+    doc/go1.16: document go/build/constraint package
+    
+    For #40700
+    For #41184
+    Fixes #43957
+    
+    Change-Id: Ia346f4cf160431b721efeba7dc5f1fb8814efd95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287472
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

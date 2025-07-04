@@ -1,0 +1,18 @@
+commit e83911d6fc05c0ccb11bd95cf60694f8aec1698a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 2 18:16:51 2016 -0700
+
+    cmd/vet/all: add s390x support
+    
+    Some of these whitelist entries could be
+    eliminated, e.g. by the addition of Go
+    declarations, but this is a start.
+    
+    Change-Id: I2fb3234cf05ebc6b161aacac2d4c15d810d50527
+    Reviewed-on: https://go-review.googlesource.com/32671
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go             |  7 ++-----
+ src/cmd/vet/all/whitelist/s390x.txt | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 5 deletions(-)

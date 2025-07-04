@@ -1,0 +1,21 @@
+commit c0f27eb3d580c8b9efd73802678eba4c6c9461be
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 19 15:53:43 2022 +1100
+
+    cmd/compile/internal/ssa: wire up late lower block function
+    
+    Currently, the lowerBlock function is reused with lateLowerValue, meaning
+    that any block rewriting rules in the late lower pass are silently ignored.
+    Change the late lower pass to actually use the lateLowerBlock function with
+    the lateLowerValue function.
+    
+    Change-Id: Iaac1c2955bb27078378cac50cde3716e79a7d9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444335
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go | 10 +++++++---
+ src/cmd/compile/internal/ssa/lower.go  |  2 +-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

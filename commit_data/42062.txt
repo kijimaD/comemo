@@ -1,0 +1,25 @@
+commit 12579009b3f7eb6d137863d5ca87e295c9d88641
+Author: Colin <me@colinking.co>
+Date:   Wed Apr 22 15:53:52 2020 +0000
+
+    database/sql: count connections expired in foreground with MaxLifetimeClosed
+    
+    Previously the connection pool would only count connections
+    expired in the background connectionCleaner goroutine towards the
+    MaxLifetimeClosed stat.
+    
+    This change increments the stat correctly when checking for
+    expiry in when acquiring and releasing a connection.
+    
+    Fixes #38058
+    
+    Change-Id: Id707ddd40a42a4c38658d5f2931da131647d6c29
+    GitHub-Last-Rev: 0f205ede439efa355a628b6112450f2ca9ced005
+    GitHub-Pull-Request: golang/go#38263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227278
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

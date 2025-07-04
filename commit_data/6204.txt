@@ -1,0 +1,13 @@
+commit f4a5d733a589378e2a7ffa0ab2ba4175a7510cd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 8 23:48:01 2010 -0400
+
+    test new slices
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2128047
+
+ test/ken/slicearray.go | 20 ++++++++++++++++++++
+ test/ken/sliceslice.go | 20 ++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

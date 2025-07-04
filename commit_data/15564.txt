@@ -1,0 +1,12 @@
+commit bfbac2dc1c20aac00f22442aedf183962e8b2da2
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 3 09:12:36 2013 -0800
+
+    doc/go1.1.html: fix typo in URL
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7423050
+
+ doc/go1.1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

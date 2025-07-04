@@ -1,0 +1,32 @@
+commit 9ed736ac2a99aa2e7ef7d8bed3b01ca8b20a6f80
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Apr 29 16:07:25 2021 -0500
+
+    cmd/link/internal: fix use of DynlinkingGo with ppc64le trampolines
+    
+    When creating programs with large text sections on ppc64le,
+    trampolines are needed for calls that are too far; however
+    they are not created if the code is generated such that the TOC
+    register r2 is initialized and maintained in the code because
+    then the external linker can create the trampolines. Previously
+    the function DynlinkingGo was used to determine this but in the
+    case where plugins are used, this could return true even though
+    r2 is not valid.
+    
+    To fix this problem I've added a new function r2Valid which returns
+    true when the build options indicate that the r2 is
+    initialized and maintained. Because of the ways that
+    DynlinkingGo is used I wanted to maintain its previous
+    behavior.
+    
+    Fixes #45850
+    
+    Change-Id: I6d902eba6ad41757aa6474948b79acdbd479cb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315289
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

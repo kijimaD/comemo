@@ -1,0 +1,13 @@
+commit 42cf59a752e66194a725f7272289d381e6fd7157
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 17:08:22 2009 -0700
+
+    show remote addr instead of host in log lines
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29961
+    CL=29961
+
+ usr/gri/pretty/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

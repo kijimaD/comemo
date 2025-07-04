@@ -1,0 +1,12 @@
+commit 369454d7b2f3b03ee5bdfde1eae6092bace14951
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 19 21:49:28 2012 -0200
+
+    html/template: fix docs after API changes
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5528109
+
+ src/pkg/html/template/doc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

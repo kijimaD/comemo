@@ -1,0 +1,17 @@
+commit b3901dc1d8c64f7c46840fdda0b114fdc790e56c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 3 11:07:22 2010 -0700
+
+    Add _cgo_export.[ch] targets so that make knows how they are
+    built.  Note that they are only built if a //export comment
+    appears, so other targets should only use them if there is
+    such a comment.
+    
+    Fixes #723.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1073041
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

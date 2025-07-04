@@ -1,0 +1,17 @@
+commit dc8b55895166c808b02e93ef4a778c6648c10bf3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 3 14:15:12 2021 -0700
+
+    cmd/dist: pass -Wno-lto-type-mismatch in swig_callback_lto
+    
+    Fixes #46557
+    
+    Change-Id: I95200ddd60e2879db15dd7353c2152b515c89020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324909
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/dist/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

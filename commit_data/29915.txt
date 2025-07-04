@@ -1,0 +1,216 @@
+commit b902a63ade47cf69218c9b38c9a783fc8cfc3041
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 6 00:54:24 2017 -0500
+
+    runtime: fix corruption crash/race between select and stack growth
+    
+    To implement the blocking of a select, a goroutine builds a list of
+    offers to communicate (pseudo-g's, aka sudog), one for each case,
+    queues them on the corresponding channels, and waits for another
+    goroutine to complete one of those cases and wake it up. Obviously it
+    is not OK for two other goroutines to complete multiple cases and both
+    wake the goroutine blocked in select. To make sure that only one
+    branch of the select is chosen, all the sudogs contain a pointer to a
+    shared (single) 'done uint32', which is atomically cas'ed by any
+    interested goroutines. The goroutine that wins the cas race gets to
+    wake up the select. A complication is that 'done uint32' is stored on
+    the stack of the goroutine running the select, and that stack can move
+    during the select due to stack growth or stack shrinking.
+    
+    The relevant ordering to block and unblock in select is:
+    
+            1. Lock all channels.
+            2. Create list of sudogs and queue sudogs on all channels.
+            3. Switch to system stack, mark goroutine as asleep,
+               unlock all channels.
+            4. Sleep until woken.
+            5. Wake up on goroutine stack.
+            6. Lock all channels.
+            7. Dequeue sudogs from all channels.
+            8. Free list of sudogs.
+            9. Unlock all channels.
+    
+    There are two kinds of stack moves: stack growth and stack shrinking.
+    Stack growth happens while the original goroutine is running.
+    Stack shrinking happens asynchronously, during garbage collection.
+    
+    While a channel listing a sudog is locked by select in this process,
+    no other goroutine can attempt to complete communication on that
+    channel, because that other goroutine doesn't hold the lock and can't
+    find the sudog. If the stack moves while all the channel locks are
+    held or when the sudogs are not yet or no longer queued in the
+    channels, no problem, because no goroutine can get to the sudogs and
+    therefore to selectdone. We only need to worry about the stack (and
+    'done uint32') moving with the sudogs queued in unlocked channels.
+    
+    Stack shrinking can happen any time the goroutine is stopped.
+    That code already acquires all the channel locks before doing the
+    stack move, so it avoids this problem.
+    
+    Stack growth can happen essentially any time the original goroutine is
+    running on its own stack (not the system stack). In the first half of
+    the select, all the channels are locked before any sudogs are queued,
+    and the channels are not unlocked until the goroutine has stopped
+    executing on its own stack and is asleep, so that part is OK. In the
+    second half of the select, the goroutine wakes up on its own goroutine
+    stack and immediately locks all channels. But the actual call to lock
+    might grow the stack, before acquiring any locks. In that case, the
+    stack is moving with the sudogs queued in unlocked channels. Not good.
+    One goroutine has already won a cas on the old stack (that goroutine
+    woke up the selecting goroutine, moving it out of step 4), and the
+    fact that done = 1 now should prevent any other goroutines from
+    completing any other select cases. During the stack move, however,
+    sudog.selectdone is moved from pointing to the old done variable on
+    the old stack to a new memory location on the new stack. Another
+    goroutine might observe the moved pointer before the new memory
+    location has been initialized. If the new memory word happens to be
+    zero, that goroutine might win a cas on the new location, thinking it
+    can now complete the select (again). It will then complete a second
+    communication (reading from or writing to the goroutine stack
+    incorrectly) and then attempt to wake up the selecting goroutine,
+    which is already awake.
+    
+    The scribbling over the goroutine stack unexpectedly is already bad,
+    but likely to go unnoticed, at least immediately. As for the second
+    wakeup, there are a variety of ways it might play out.
+    
+    * The goroutine might not be asleep.
+    That will produce a runtime crash (throw) like in #17007:
+    
+            runtime: gp: gp=0xc0422dcb60, goid=2299, gp->atomicstatus=8
+            runtime:  g:  g=0xa5cfe0, goid=0,  g->atomicstatus=0
+            fatal error: bad g->status in ready
+    
+    Here, atomicstatus=8 is copystack; the second, incorrect wakeup is
+    observing that the selecting goroutine is in state "Gcopystack"
+    instead of "Gwaiting".
+    
+    * The goroutine might be sleeping in a send on a nil chan.
+    If it wakes up, it will crash with 'fatal error: unreachable'.
+    
+    * The goroutine might be sleeping in a send on a non-nil chan.
+    If it wakes up, it will crash with 'fatal error: chansend:
+    spurious wakeup'.
+    
+    * The goroutine might be sleeping in a receive on a nil chan.
+    If it wakes up, it will crash with 'fatal error: unreachable'.
+    
+    * The goroutine might be sleeping in a receive on a non-nil chan.
+    If it wakes up, it will silently (incorrectly!) continue as if it
+    received a zero value from a closed channel, leaving a sudog queued on
+    the channel pointing at that zero vaue on the goroutine's stack; that
+    space will be reused as the goroutine executes, and when some other
+    goroutine finally completes the receive, it will do a stray write into
+    the goroutine's stack memory, which may cause problems. Then it will
+    attempt the real wakeup of the goroutine, leading recursively to any
+    of the cases in this list.
+    
+    * The goroutine might have been running a select in a finalizer
+    (I hope not!) and might now be sleeping waiting for more things to
+    finalize. If it wakes up, as long as it goes back to sleep quickly
+    (before the real GC code tries to wake it), the spurious wakeup does
+    no harm (but the stack was still scribbled on).
+    
+    * The goroutine might be sleeping in gcParkAssist.
+    If it wakes up, that will let the goroutine continue executing a bit
+    earlier than we would have liked. Eventually the GC will attempt the
+    real wakeup of the goroutine, leading recursively to any of the cases
+    in this list.
+    
+    * The goroutine cannot be sleeping in bgsweep, because the background
+    sweepers never use select.
+    
+    * The goroutine might be sleeping in netpollblock.
+    If it wakes up, it will crash with 'fatal error: netpollblock:
+    corrupted state'.
+    
+    * The goroutine might be sleeping in main as another thread crashes.
+    If it wakes up, it will exit(0) instead of letting the other thread
+    crash with a non-zero exit status.
+    
+    * The goroutine cannot be sleeping in forcegchelper,
+    because forcegchelper never uses select.
+    
+    * The goroutine might be sleeping in an empty select - select {}.
+    If it wakes up, it will return to the next line in the program!
+    
+    * The goroutine might be sleeping in a non-empty select (again).
+    In this case, it will wake up spuriously, with gp.param == nil (no
+    reason for wakeup), but that was fortuitously overloaded for handling
+    wakeup due to a closing channel and the way it is handled is to rerun
+    the select, which (accidentally) handles the spurious wakeup
+    correctly:
+    
+            if cas == nil {
+                    // This can happen if we were woken up by a close().
+                    // TODO: figure that out explicitly so we don't need this loop.
+                    goto loop
+            }
+    
+    Before looping, it will dequeue all the sudogs on all the channels
+    involved, so that no other goroutine will attempt to wake it.
+    Since the goroutine was blocked in select before, being blocked in
+    select again when the spurious wakeup arrives may be quite likely.
+    In this case, the spurious wakeup does no harm (but the stack was
+    still scribbled on).
+    
+    * The goroutine might be sleeping in semacquire (mutex slow path).
+    If it wakes up, that is taken as a signal to try for the semaphore
+    again, not a signal that the semaphore is now held, but the next
+    iteration around the loop will queue the sudog a second time, causing
+    a cycle in the wakeup list for the given address. If that sudog is the
+    only one in the list, when it is eventually dequeued, it will
+    (due to the precise way the code is written) leave the sudog on the
+    queue inactive with the sudog broken. But the sudog will also be in
+    the free list, and that will eventually cause confusion.
+    
+    * The goroutine might be sleeping in notifyListWait, for sync.Cond.
+    If it wakes up, (*Cond).Wait returns. The docs say "Unlike in other
+    systems, Wait cannot return unless awoken by Broadcast or Signal,"
+    so the spurious wakeup is incorrect behavior, but most callers do not
+    depend on that fact. Eventually the condition will happen, attempting
+    the real wakeup of the goroutine and leading recursively to any of the
+    cases in this list.
+    
+    * The goroutine might be sleeping in timeSleep aka time.Sleep.
+    If it wakes up, it will continue running, leaving a timer ticking.
+    When that time bomb goes off, it will try to ready the goroutine
+    again, leading to any one of the cases in this list.
+    
+    * The goroutine cannot be sleeping in timerproc,
+    because timerproc never uses select.
+    
+    * The goroutine might be sleeping in ReadTrace.
+    If it wakes up, it will print 'runtime: spurious wakeup of trace
+    reader' and return nil. All future calls to ReadTrace will print
+    'runtime: ReadTrace called from multiple goroutines simultaneously'.
+    Eventually, when trace data is available, a true wakeup will be
+    attempted, leading to any one of the cases in this list.
+    
+    None of these fatal errors appear in any of the trybot or dashboard
+    logs. The 'bad g->status in ready' that happens if the goroutine is
+    running (the most likely scenario anyway) has happened once on the
+    dashboard and eight times in trybot logs. Of the eight, five were
+    atomicstatus=8 during net/http tests, so almost certainly this bug.
+    The other three were atomicstatus=2, all near code in select,
+    but in a draft CL by Dmitry that was rewriting select and may or may
+    not have had its own bugs.
+    
+    This bug has existed since Go 1.4. Until then the select code was
+    implemented in C, 'done uint32' was a C stack variable 'uint32 done',
+    and C stacks never moved. I believe it has become more common recently
+    because of Brad's work to run more and more tests in net/http in
+    parallel, which lengthens race windows.
+    
+    The fix is to run step 6 on the system stack,
+    avoiding possibility of stack growth.
+    
+    Fixes #17007 and possibly other mysterious failures.
+    
+    Change-Id: I9d6575a51ac96ae9d67ec24da670426a4a45a317
+    Reviewed-on: https://go-review.googlesource.com/34835
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/select.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 65 insertions(+), 4 deletions(-)

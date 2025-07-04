@@ -1,0 +1,18 @@
+commit 3a7a56cc704eb27b823b6c0dc7bf7b0e7c94d1d7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 9 23:33:40 2018 +0000
+
+    runtime: gofmt all improperly formatted code
+    
+    This change fixes incorrect formatting in mheap.go (the result of my
+    previous heap scavenging changes) and map_test.go.
+    
+    Change-Id: I2963687504abdc4f0cdf2f0c558174b3bc0ed2df
+    Reviewed-on: https://go-review.googlesource.com/c/148977
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/map_test.go | 10 +++++-----
+ src/runtime/mheap.go    |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)

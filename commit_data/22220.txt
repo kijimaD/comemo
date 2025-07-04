@@ -1,0 +1,16 @@
+commit ca98dd773a3cc759399897a343bfca27eda42fc1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Mar 28 16:14:18 2015 +0300
+
+    runtime/pprof: fix data race in test
+    
+    rp.Close happened concurrently with rp.Read. Order them.
+    
+    Fixes #10280
+    
+    Change-Id: I7b083bcc336d15396c4e42fc4654ba34fad4a4cc
+    Reviewed-on: https://go-review.googlesource.com/8211
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/pprof/trace_stack_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

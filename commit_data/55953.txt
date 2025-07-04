@@ -1,0 +1,30 @@
+commit 88480fadcc5874f880623ca50713d0c62cc5259b
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 17:49:32 2024 +0000
+
+    cmd/link: support -bindnow option and permit use of "-Wl,-z,now"
+    
+    This is a partial roll-forward of CL 473495, which was subsequently
+    reverted. The second half of CL 473495 will appear in a future CL.
+    
+    In this patch we introduce a new Go linker "-bindnow" command line
+    flag, and update the Go command to permit the use of the -Wl,-z,now
+    option, to allow users to produce binaries that have immediate
+    binding.
+    
+    Updates #45681.
+    
+    Change-Id: Idd61b0d6597bcd37b16c343714c55a4ef6dfb534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571416
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/security.go      |   3 +-
+ src/cmd/go/internal/work/security_test.go |   4 +
+ src/cmd/link/doc.go                       |   2 +
+ src/cmd/link/internal/ld/elf.go           |  12 ++-
+ src/cmd/link/internal/ld/elf_test.go      | 150 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/ld/main.go          |   1 +
+ src/internal/testenv/testenv.go           |   9 ++
+ 8 files changed, 182 insertions(+), 7 deletions(-)

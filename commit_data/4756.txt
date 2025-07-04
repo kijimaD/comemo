@@ -1,0 +1,12 @@
+commit 8d6054ae81ea27f650bcbb51ac44c0d80aed981e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 1 16:34:25 2010 -0800
+
+    Ignore the temporary files used for improved error messages.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/199047
+
+ .hgignore | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit 1c0c611fc2a7e1ce7eb39626ca7b120b62aac557
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Dec 21 02:48:01 2014 -0500
+
+    cmd/ld: put .bss from external objects into real .bss section
+    
+    Fixes #9359.
+    
+    Change-Id: Iba62935b5a14de23d914f433a09a40417d7e88ed
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1889
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/ld/ldelf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

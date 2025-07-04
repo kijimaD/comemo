@@ -1,0 +1,23 @@
+commit cb0393866a3da53e9455459b1daafcd278731afe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Nov 18 12:14:07 2015 +1300
+
+    cmd/internal/obj/x86: position independent access to global data on 386 when -shared
+    
+    This works by adding a call to __x86.get_pc_thunk.cx immediately before any
+    instruction that accesses global data and then assembling the instruction to
+    use the appropriate offset from CX instead of the absolute address. Some forms
+    cannot be assembled that way and are rewritten to load the address into CX
+    first.
+    
+    -buildmode=pie works now, but is not yet tested.
+    
+    Fixes #13201 (I think)
+    
+    Change-Id: I32a8561e7fc9dd4ca6ae3b0e57ad78a6c50bf1f5
+    Reviewed-on: https://go-review.googlesource.com/17014
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 40 +++++++++++++++++--------
+ src/cmd/internal/obj/x86/obj6.go | 65 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 12 deletions(-)

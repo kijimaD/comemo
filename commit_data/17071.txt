@@ -1,0 +1,18 @@
+commit 5e0278b7a06bbf904349570238fbbdd08c504693
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 7 11:05:19 2013 -0700
+
+    test: fix return.go to not use fallthrough in a type switch
+    
+    The gc compiler only gives an error about fallthrough in a
+    type switch if it has not given any errors in an earlier pass.
+    Remove all functions in this test that use fallthrough in a
+    type switch because they don't test anything useful and they
+    cause gccgo to give unexpected errors.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12614043
+
+ test/return.go | 84 ----------------------------------------------------------
+ 1 file changed, 84 deletions(-)

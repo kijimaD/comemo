@@ -1,0 +1,27 @@
+commit 0b5a4afec9df67157891732e5ca660eaf1efab34
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Sat Jun 10 12:44:21 2023 -0700
+
+    net: test net.FileConn and net.FileListener with UDP sockets on wasip1
+    
+    The WASI specification has file types for both stream and datagram
+    sockets. This change refactors the internal implementation of the
+    net.FileConn and net.FileListener functions to avoid returning a
+    misleading ENOTSOCK when calling net.FileConn with a file referencing
+    a datagram socket and instead properly construct net.UDPConn values
+    or return EOPNOTSUPP otherwise.
+    
+    Change-Id: I594f700847254895cd6ce172979fd89c4b851940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502316
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/net/fd_wasip1.go        | 16 +++-----
+ src/net/file_wasip1.go      | 84 ++++++++++++++++++++++++++++++-----------
+ src/net/file_wasip1_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+), 32 deletions(-)

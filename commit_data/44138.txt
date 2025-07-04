@@ -1,0 +1,39 @@
+commit dbab07983596c705d2ef12806e0f9d630063e571
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jan 15 13:01:37 2021 +0100
+
+    runtime: free Windows event handles after last lock is dropped
+    
+    Calls to lock may need to use global members of mOS that also need to be
+    cleaned up before the thread exits. Before this commit, these resources
+    would leak. Moving them to be cleaned up in unminit, however, would race
+    with gstack on unix. So this creates a new helper, mdestroy, to release
+    resources that must be destroyed only after locks are no longer
+    required. We also move highResTimer lifetime to the same semantics,
+    since it doesn't help to constantly acquire and release the timer object
+    during dropm.
+    
+    Updates #43720.
+    
+    Change-Id: Ib3f598f3fda1b2bbcb608099616fa4f85bc1c289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284137
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/os3_solaris.go  |  5 +++++
+ src/runtime/os_aix.go       |  5 +++++
+ src/runtime/os_darwin.go    |  5 +++++
+ src/runtime/os_dragonfly.go |  5 +++++
+ src/runtime/os_freebsd.go   |  5 +++++
+ src/runtime/os_js.go        |  5 +++++
+ src/runtime/os_linux.go     |  5 +++++
+ src/runtime/os_netbsd.go    |  5 +++++
+ src/runtime/os_openbsd.go   |  5 +++++
+ src/runtime/os_plan9.go     |  5 +++++
+ src/runtime/os_windows.go   | 38 ++++++++++++++++++++++++++------------
+ src/runtime/proc.go         |  4 ++++
+ 12 files changed, 80 insertions(+), 12 deletions(-)

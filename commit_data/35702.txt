@@ -1,0 +1,14 @@
+commit fc0e1d2b6fbcb9c27b1eed5892de62de6b1fbae6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 12 19:33:23 2018 +0000
+
+    archive/zip: warn about FileHeader.Name being unvalidated on read
+    
+    Updates #25849
+    
+    Change-Id: I09ee928b462ab538a9d38c4e317eaeb8856919f2
+    Reviewed-on: https://go-review.googlesource.com/118335
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/struct.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

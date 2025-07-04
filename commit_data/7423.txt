@@ -1,0 +1,17 @@
+commit 9fe490ee38d8b98275c11078e56590e5fd6cf86f
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 10 07:56:30 2011 -0500
+
+    crypto/openpgp/packet: four more packet types.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4156044
+
+ src/pkg/crypto/openpgp/packet/literal.go           |  53 ++++++
+ .../crypto/openpgp/packet/one_pass_signature.go    |  49 +++++
+ .../openpgp/packet/symmetric_key_encrypted.go      | 102 ++++++++++
+ .../openpgp/packet/symmetric_key_encrypted_test.go |  62 +++++++
+ .../openpgp/packet/symmetrically_encrypted.go      | 206 +++++++++++++++++++++
+ .../openpgp/packet/symmetrically_encrypted_test.go |  78 ++++++++
+ 6 files changed, 550 insertions(+)

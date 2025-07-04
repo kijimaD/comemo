@@ -1,0 +1,27 @@
+commit d528f72d4c391309b2cb938707837b0da386b67c
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Mar 27 09:27:43 2023 -0400
+
+    log/slog: require entire Attr to be empty to elide
+    
+    Specify that Handlers should ignore zero-valued Attrs.
+    
+    Implement that policy in the built-in handlers.
+    
+    Fixes #59282.
+    
+    Change-Id: I4430686b61f49bdac849ee300daaabfac9895849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484095
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/attr.go                       |  2 ++
+ src/log/slog/example_wrap_test.go          |  2 +-
+ src/log/slog/handler.go                    | 28 ++++++++++++----------------
+ src/log/slog/handler_test.go               | 12 ++++++++----
+ src/log/slog/internal/slogtest/slogtest.go |  2 +-
+ src/log/slog/text_handler.go               |  3 +++
+ src/log/slog/text_handler_test.go          |  2 +-
+ src/log/slog/value_test.go                 |  1 -
+ 8 files changed, 28 insertions(+), 24 deletions(-)

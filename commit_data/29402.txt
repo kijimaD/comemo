@@ -1,0 +1,18 @@
+commit 65269e7066c0e97532bf0fd082e95cf8444ee378
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:37:24 2016 -0700
+
+    cmd/go/internal/syntax: reintroduce reverted comments
+    
+    These comments were originally introduced together with the changes
+    for alias declarations, and then reverted when we backed out alias
+    support.
+    
+    Reintroduce them.
+    
+    Change-Id: I3ef2c4f4672d6af8a900f5d73df273edf28d1a14
+    Reviewed-on: https://go-review.googlesource.com/32826
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/nodes.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

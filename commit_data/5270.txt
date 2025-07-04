@@ -1,0 +1,13 @@
+commit ae729a433fd9c79844e7e5ab940f4569978c858e
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Apr 11 10:29:07 2010 -0700
+
+    archive/tar: update documentation to match current coding style
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/903044
+
+ src/pkg/archive/tar/reader.go |  6 +++---
+ src/pkg/archive/tar/writer.go | 10 +++++-----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

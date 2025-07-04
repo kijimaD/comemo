@@ -1,0 +1,25 @@
+commit 4893eee9dc307a234bff1aa441acf849111e1beb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 26 03:23:42 2020 +1000
+
+    runtime: switch openbsd/386 to pthreads
+    
+    This switches openbsd/386 to thread creation via pthreads, rather than doing
+    direct system calls.
+    
+    Update #36435
+    
+    Change-Id: I000a815fc0edd0272c3285954f3f007229bc60a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250577
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_386.s             |   4 +
+ src/runtime/defs_openbsd_386.go   |   9 ++
+ src/runtime/os_openbsd_libc.go    |   4 +-
+ src/runtime/os_openbsd_syscall.go |   4 +-
+ src/runtime/proc.go               |   2 +-
+ src/runtime/sys_libc.go           |   4 +-
+ src/runtime/sys_openbsd.go        |   4 +-
+ src/runtime/sys_openbsd_386.s     | 282 +++++++++++++++++++++-----------------
+ 8 files changed, 178 insertions(+), 135 deletions(-)

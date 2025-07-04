@@ -1,0 +1,19 @@
+commit c406380fa984d14a1f104fd2502d832565b45eb2
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 14:46:35 2021 -0400
+
+    go/types: better error messages for empty type sets
+    
+    This is a clean port of CL 358175 to go/types.
+    
+    Change-Id: If1b4e51d1579fd168e651d79d031335ff09ca128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360474
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go                    | 32 ++++++++++++++++++--------
+ src/go/types/testdata/check/typeinst2.go2      | 28 ++++++++++++++++++----
+ src/go/types/testdata/fixedbugs/issue47411.go2 |  2 +-
+ src/go/types/typeset.go                        |  2 +-
+ 4 files changed, 48 insertions(+), 16 deletions(-)

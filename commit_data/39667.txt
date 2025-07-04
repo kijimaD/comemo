@@ -1,0 +1,19 @@
+commit b91b3d9c31c14f55d7ddcbcbf8ffcb2539018f38
+Author: Keith Randall <khr@google.com>
+Date:   Tue Aug 27 15:06:07 2019 -0700
+
+    cmd/compile: remove auxSymInt32
+    
+    We never used it, might as well get rid of it.
+    
+    Change-Id: I5c23c93e90173bff9ac1fc1b8ae1e2025215d6eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191938
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/check.go       | 6 ------
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 4 ++--
+ src/cmd/compile/internal/ssa/op.go          | 2 --
+ src/cmd/compile/internal/ssa/value.go       | 2 +-
+ 4 files changed, 3 insertions(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit c1aee8c825c2179ad4959ebf533bf27c4b774d00
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 18:44:30 2015 -0500
+
+    net/http: remove always true comparison
+    
+    byte is unsigned so the comparison against zero is always true.
+    
+    Change-Id: I8fa60245972be362ae920507a291f92c0f9831ad
+    Reviewed-on: https://go-review.googlesource.com/13941
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/sniff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

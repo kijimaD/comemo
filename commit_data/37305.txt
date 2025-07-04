@@ -1,0 +1,26 @@
+commit be5f646dabf5de85e128f46f102e8c9acdd8fe90
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 7 21:23:47 2018 -0800
+
+    internal/syscall/unix: use libc calls on Darwin
+    
+    Add unexported unlinkat, openat, and fstatat calls, so that
+    the internal/syscall/unix package can use them.
+    
+    Change-Id: I1df81ecae6427211dd392ec68c9f020fe131a526
+    Reviewed-on: https://go-review.googlesource.com/c/148457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/unix/at.go        |  2 +-
+ src/internal/syscall/unix/at_darwin.go | 31 ++++++++++++++++++
+ src/runtime/sys_darwin_arm64.s         | 14 +++++---
+ src/syscall/syscall_darwin.go          |  3 ++
+ src/syscall/zsyscall_darwin_386.go     | 58 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_386.s      |  6 ++++
+ src/syscall/zsyscall_darwin_amd64.go   | 58 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_amd64.s    |  6 ++++
+ src/syscall/zsyscall_darwin_arm.go     | 58 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm.s      | 10 ++++--
+ src/syscall/zsyscall_darwin_arm64.go   | 58 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s    | 10 ++++--
+ 12 files changed, 305 insertions(+), 9 deletions(-)

@@ -1,0 +1,28 @@
+commit 3c3e68ba328cd5d9c798604fe5606b8c37a47a87
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Apr 9 14:37:33 2010 -0700
+
+    math: use ** for exponentiation in comments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/908041
+
+ src/pkg/math/acosh.go     |  6 +++---
+ src/pkg/math/asinh.go     | 14 +++++++-------
+ src/pkg/math/atanh.go     |  2 +-
+ src/pkg/math/const.go     |  8 ++++----
+ src/pkg/math/erf.go       | 20 ++++++++++----------
+ src/pkg/math/exp.go       |  8 ++++----
+ src/pkg/math/expm1.go     | 28 ++++++++++++++--------------
+ src/pkg/math/frexp.go     |  2 +-
+ src/pkg/math/j0.go        | 30 +++++++++++++++---------------
+ src/pkg/math/j1.go        | 22 +++++++++++-----------
+ src/pkg/math/jn.go        | 10 +++++-----
+ src/pkg/math/ldexp.go     |  2 +-
+ src/pkg/math/lgamma.go    |  2 +-
+ src/pkg/math/log.go       |  2 +-
+ src/pkg/math/log1p.go     | 14 +++++++-------
+ src/pkg/math/pow.go       |  8 ++++----
+ src/pkg/math/sqrt_port.go |  4 ++--
+ 17 files changed, 91 insertions(+), 91 deletions(-)

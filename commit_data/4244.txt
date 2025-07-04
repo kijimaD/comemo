@@ -1,0 +1,11 @@
+commit 229807c8c3698c225a3fbcf594a40054e01c7758
+Author: Jonathan Wills <runningwild@gmail.com>
+Date:   Mon Nov 30 12:03:55 2009 -0800
+
+    Added a method on UDPConn so they can actually send broadcast packets.
+    
+    R=rsc
+    https://golang.org/cl/162046
+
+ src/pkg/net/udpsock.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

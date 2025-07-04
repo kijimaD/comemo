@@ -1,0 +1,22 @@
+commit 952187af12485eb665ae122f6d0bdb36e4a11ed7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 31 14:29:13 2021 -0400
+
+    cmd/go: upgrade and vendor golang.org/x/mod
+    
+    To pull in CL 301089.
+    
+    For #40357
+    
+    Change-Id: I8aa9bc8d7a75f804adc7982adaaa1c926b43d0ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306333
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 51 ++++++++++++++++++++-----
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 4 files changed, 45 insertions(+), 14 deletions(-)

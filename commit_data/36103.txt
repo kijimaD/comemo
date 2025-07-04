@@ -1,0 +1,23 @@
+commit 59699aa166b724cb9b7d3a2d3ba21c87bc7c376a
+Author: Jack <jackxbritton@gmail.com>
+Date:   Thu Jul 19 12:24:44 2018 +0000
+
+    net/http/httptest: guarantee ResponseRecorder.Result returns a non-nil body
+    
+    The doc for ResponseRecorder.Result guarantees that the body of the returned
+    http.Response will be non-nil, but this only holds true if the caller's body is
+    non-nil. With this change, if the caller's body is nil then the returned
+    response's body will be an empty io.ReadCloser.
+    
+    Fixes #26442
+    
+    Change-Id: I3b2fe4a2541caf9997dbb8978bbaf1f58cd1f471
+    GitHub-Last-Rev: d802967d89e89c50077fb2d0d455163dcea0eb43
+    GitHub-Pull-Request: golang/go#26453
+    Reviewed-on: https://go-review.googlesource.com/124875
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/recorder.go      |  2 ++
+ src/net/http/httptest/recorder_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

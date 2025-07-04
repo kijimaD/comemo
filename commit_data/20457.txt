@@ -1,0 +1,11 @@
+commit 6c7b82e336a768b5b17b99a555feb14e6e405b21
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 14:50:49 2014 -0400
+
+    doc/go1.4.txt: add tinyallocs change
+    
+    CC=golang-codereviews
+    https://golang.org/cl/145050043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,27 @@
+commit bdc14698f8b79e9629a8321d4f904c3275f8ffed
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 26 10:43:09 2016 +0100
+
+    runtime: unwire g/m in dropg always
+    
+    Currently dropg does not unwire locked g/m.
+    This is unnecessary distiction between locked and non-locked g/m.
+    We always restart goroutines with execute which re-wires g/m.
+    
+    First, this produces false sense that this distinction is necessary.
+    Second, it can confuse some sanity and cross checks. For example,
+    if we check that g/m are unwired before we wire them in execute,
+    the check will fail for locked g/m. I've hit this while doing some
+    race detector changes, When we deschedule a goroutine and run
+    scheduler code, m.curg is generally nil, but not for locked ms.
+    
+    Remove the distinction.
+    
+    Change-Id: I3b87a28ff343baa1d564aab1f821b582a84dee07
+    Reviewed-on: https://go-review.googlesource.com/19950
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,38 @@
+commit f7cdadafbee0c7d78fcfd6c5281a82c6c7ac2a50
+Author: Andy Pan <i@andypan.me>
+Date:   Sat Aug 10 11:26:02 2024 +0800
+
+    internal,os: employ copy_file_range(2) for file-to-file copying on FreeBSD
+    
+    FreeBSD 13.0 introduced the Linux-compatible copy_file_range(2) system call,
+    we should make use of it.
+    
+    Ref:
+    https://www.gnu.org/software/gnulib/manual/html_node/copy_005ffile_005frange.html
+    https://reviews.freebsd.org/D20584?id=60021
+    https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)
+    
+    Change-Id: I75edb5629717289c8887be436613d3a8b3820bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604655
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/copy_file_range_freebsd.go       |  53 ++++++++
+ src/internal/poll/copy_file_range_linux.go         | 144 +++++++--------------
+ src/internal/poll/copy_file_range_unix.go          |  77 +++++++++++
+ ...file_range_linux.go => copy_file_range_unix.go} |   2 +
+ .../syscall/unix/kernel_version_freebsd.go         |  48 +++++++
+ .../syscall/unix/kernel_version_freebsd_test.go    |  23 ++++
+ src/internal/syscall/unix/kernel_version_linux.go  |   8 +-
+ src/internal/syscall/unix/kernel_version_other.go  |   2 +-
+ src/internal/syscall/unix/sysnum_freebsd.go        |   7 +
+ src/os/export_freebsd_test.go                      |   9 ++
+ src/os/readfrom_freebsd_test.go                    |  57 ++++++++
+ src/os/readfrom_unix_test.go                       |   2 +-
+ src/os/zero_copy_freebsd.go                        |  57 ++++++++
+ src/os/zero_copy_stub.go                           |   2 +-
+ 14 files changed, 389 insertions(+), 102 deletions(-)

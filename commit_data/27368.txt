@@ -1,0 +1,19 @@
+commit aff4889089f970fb739acf5e3a5bddd3491a908b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 11:28:36 2016 -0700
+
+    cmd/compile: clean up encoding of method expressions and add test
+    
+    Fixes #15646.
+    
+    Change-Id: Ic13d1adc0a358149209195cdb03811eeee506fb8
+    Reviewed-on: https://go-review.googlesource.com/23052
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 22 ++++++++++------------
+ src/cmd/compile/internal/gc/bimport.go | 11 +++--------
+ test/fixedbugs/issue15646.dir/a.go     | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue15646.dir/b.go     | 16 ++++++++++++++++
+ test/fixedbugs/issue15646.go           |  9 +++++++++
+ 5 files changed, 61 insertions(+), 20 deletions(-)

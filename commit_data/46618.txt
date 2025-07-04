@@ -1,0 +1,20 @@
+commit 315cec25bc7b5045f6081545a63cb27d44fcbde9
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 24 15:07:59 2021 -0700
+
+    cmd/compile: leave dictionary argument out of traceback argument list
+    
+    The dictionary argument is implicit; the user doesn't need to see it.
+    
+    Update #48578
+    
+    Change-Id: I367ba4b6622119d3e01aaded90463d16823915a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352119
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

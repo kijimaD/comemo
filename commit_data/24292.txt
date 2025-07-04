@@ -1,0 +1,12 @@
+commit 5512ac2786f505dc4e63235de1e593ab295a15be
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 10:55:25 2015 -0700
+
+    doc: go1.6.txt: add math/rand.Read
+    
+    Change-Id: I94af55bb894409b77bd87df36be9471dcc544fda
+    Reviewed-on: https://go-review.googlesource.com/14627
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit c668715334facdaf713615ab5a1e35e94c81da89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 13:32:42 2013 -0700
+
+    net/http: shorten and clean up TestTransportConcurrency
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7817044
+
+ src/pkg/net/http/transport_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

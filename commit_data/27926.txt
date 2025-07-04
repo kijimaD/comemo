@@ -1,0 +1,16 @@
+commit 244efebe7faa30c087a19a09eb2c72ef4c1824d9
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 17 22:22:32 2016 -0400
+
+    runtime: fix out of date comments
+    
+    The transition from mark 1 to mark 2 no longer enqueues new root
+    marking jobs, but some of the comments still refer to this. Fix these
+    comments.
+    
+    Change-Id: I3f98628dba32c5afe30495ab495da42b32291e9e
+    Reviewed-on: https://go-review.googlesource.com/24965
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

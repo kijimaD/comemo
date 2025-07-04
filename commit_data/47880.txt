@@ -1,0 +1,19 @@
+commit ed84a8357c0107dedc42c9658ae9b020777b1bb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 5 20:22:15 2022 -0800
+
+    test: add test of incorrect gofrontend error
+    
+    For #50439
+    
+    Change-Id: Ifad6e6f8de42121c695b5a4dc56e0f6606e2917e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375796
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ test/fixedbugs/issue50439.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

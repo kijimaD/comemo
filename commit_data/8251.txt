@@ -1,0 +1,27 @@
+commit 09092a78e64f3fc6c90640a84a446d9bd54d4f30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 23:21:03 2011 -0400
+
+    cgo: handle versioned ELF symbols
+    
+    Fixes #1397.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4444064
+
+ src/cmd/5l/l.h            |   1 +
+ src/cmd/6l/asm.c          |  39 +++++++++++-
+ src/cmd/6l/l.h            |   1 +
+ src/cmd/8l/asm.c          |  40 ++++++++++++-
+ src/cmd/8l/l.h            |   1 +
+ src/cmd/cc/dpchk.c        |  30 +++++++++-
+ src/cmd/cc/macbody        |   2 +-
+ src/cmd/cgo/main.go       |  16 +----
+ src/cmd/cgo/out.go        |  73 +++++++++++++++--------
+ src/cmd/ld/elf.c          | 135 +++++++++++++++++++++++++++++++++++------
+ src/cmd/ld/elf.h          |   9 +++
+ src/cmd/ld/go.c           |   6 +-
+ src/pkg/debug/elf/elf.go  |  65 ++++++++++++--------
+ src/pkg/debug/elf/file.go | 149 ++++++++++++++++++++++++++++++++++++++--------
+ 14 files changed, 451 insertions(+), 116 deletions(-)

@@ -1,0 +1,17 @@
+commit 26085fcea3a6afd1afb9c881c502c86fb86188a9
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 19:20:05 2018 +0200
+
+    cmd/compile: remove asmtest infrastructure
+    
+    Not used anymore, all tests have been migrated to
+    the top-level testsuite.
+    
+    Change-Id: I536e6c14f62153c01e4966ad41e1501b38494c7f
+    Reviewed-on: https://go-review.googlesource.com/107336
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 208 --------------------------------
+ 1 file changed, 208 deletions(-)

@@ -1,0 +1,14 @@
+commit b8dd218e2e3990de7645755ce3d182b01929b98f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 13:41:46 2009 -0700
+
+    bug117 is fixed in 6g; now an errchk
+    
+    R=r
+    DELTA=42  (20 added, 22 deleted, 0 changed)
+    OCL=28295
+    CL=28295
+
+ test/{bugs => fixedbugs}/bug117.go | 6 +++++-
+ test/golden.out                    | 6 ------
+ 2 files changed, 5 insertions(+), 7 deletions(-)

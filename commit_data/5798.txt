@@ -1,0 +1,13 @@
+commit 2e3dc2cc352fbf006af492f2d5a75d28194e7202
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 13 12:37:47 2010 -0700
+
+    crypto/rand: add missing Unlock
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1812043
+
+ src/pkg/crypto/rand/rand_unix.go    | 1 +
+ src/pkg/crypto/rand/rand_windows.go | 1 +
+ 2 files changed, 2 insertions(+)

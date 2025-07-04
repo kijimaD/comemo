@@ -1,0 +1,15 @@
+commit 6c08213dc050269cee3d4c2bc93d8dec907326e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 28 10:58:27 2015 -0700
+
+    cmd/dist: cleanup message about building go_bootstrap
+    
+    At this stage, dist is only building go_bootstrap as cmd/compile and
+    the rest of the Go toolchain has already been built.
+    
+    Change-Id: I6f99fa00ff1d3585e215f4ce84d49344c4fcb8a5
+    Reviewed-on: https://go-review.googlesource.com/12779
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

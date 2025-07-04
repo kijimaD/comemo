@@ -1,0 +1,12 @@
+commit 497e648e7ec0bb98e2c46e5facbe5ae3837b8312
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 18 19:59:56 2008 -0800
+
+    perm is [] instead of map
+    
+    R=r
+    OCL=19569
+    CL=19569
+
+ src/lib/rand.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

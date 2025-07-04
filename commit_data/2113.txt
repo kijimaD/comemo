@@ -1,0 +1,14 @@
+commit d2e42f3e487d3450e3b236bb4584f3c8ec8b8d35
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 29 18:53:01 2009 -0700
+
+    if the process stops with SIGTRAP (breakpoint),
+    don't relay the signal when restarting it.
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=28060
+    CL=28064
+
+ src/libmach_amd64/linux.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 654d5f4b5dfc30167bbffd0d7aeba3c1e29277c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 30 09:29:45 2021 -0800
+
+    spec: add section on type inference
+    
+    Change-Id: Ic338788d6410ed0d09ad129811377ee9ce5ed496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367954
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 385 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 382 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 612da6bf19d35755979db8b9fe08066eb31890f0
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Jun 1 11:47:23 2020 +0200
+
+    doc: document the new Cgo EGLConfig special case
+    
+    Change-Id: I7ae5eaa974b85eac421a0b1f79cb734a0fe44e72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235818
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

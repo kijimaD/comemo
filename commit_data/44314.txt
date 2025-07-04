@@ -1,0 +1,31 @@
+commit 02e5a8fdfcc8e237f5b55618ccbe9ad845014427
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 06:01:25 2021 -0500
+
+    runtime: ignore SPWRITE in syscall functions
+    
+    netbsd/amd64's Syscall9 changes SP using ADD and SUB,
+    which are treated as SPWRITEs (they are not accounted for
+    in the sp-adjust tracking, and there are too many functions that
+    would report mismatched stack adjustments at RET if they were).
+    A traceback starting in Syscall9 as saved by entersyscall complains
+    about the SPWRITE-ness unnecessarily, since the PC/SP are saved
+    at the start of the function. Ignore SPWRITE in that case.
+    
+    netbsd/arm's Syscall6 also changes SP (R13), using a direct write.
+    So even if we could handle the ADD/SUB in the amd64 case or
+    rewrote that assembly, we'd still be stuck with a more difficult
+    problem in this case. Ignoring the SPWRITE fixes it.
+    
+    Example crashes:
+    https://build.golang.org/log/160fc7b051a2cf90782b75a99984fff129329e66
+    https://build.golang.org/log/7879e2fecdb400eee616294285e1f952e5b17301
+    
+    Change-Id: I0c8e9696066e90dafed6d4a93d11697da23f0080
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294072
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/runtime/traceback.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

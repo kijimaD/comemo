@@ -1,0 +1,27 @@
+commit caf968616a3ee09d6c820428b4edebb68cfbde09
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed May 30 19:46:59 2018 +0300
+
+    test: eliminate use of Perl in fixedbugs/bug345.go
+    
+    To allow testing of fixedbugs/bug345.go in Go,
+    a new flag -n is introduced. This flag disables setting
+    of relative path for local imports and imports search path
+    to current dir, namely -D . -I . are not passed to the compiler.
+    Error regexps are fixed to allow running the test in temp directory.
+    
+    This change eliminates the last place where Perl
+    script "errchk" was used.
+    
+    Fixes #25586.
+    
+    Change-Id: If085f466e6955312d77315f96d3ef1cb68495aef
+    Reviewed-on: https://go-review.googlesource.com/115277
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/bug345.dir/main.go |  7 +++---
+ test/fixedbugs/bug345.go          | 45 +++------------------------------------
+ test/run.go                       | 21 +++++++++++++-----
+ 3 files changed, 23 insertions(+), 50 deletions(-)

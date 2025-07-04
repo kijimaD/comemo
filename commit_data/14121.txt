@@ -1,0 +1,13 @@
+commit a3d116cf78cc349fd4e0dd51c8cca64c27b2f4eb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 11:20:01 2012 +1100
+
+    A+C: add Jimmy Zelinskie (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6642068
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

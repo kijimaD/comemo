@@ -1,0 +1,21 @@
+commit 27d4cdd1a6280e906c4f6bd89b5882a51ad64099
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 27 13:21:52 2022 -0500
+
+    debug/elf: fix typo in R_PPC64_TPREL34 and R_PPC64_DTPREL34
+    
+    The suffix should be 34 not 28. I misread the name because the
+    reloc listed before these two in the ABI is named "R_PC64_PCREL28".
+    
+    Updates #54345
+    
+    Change-Id: Ie8238f55e441c787d70ead58e0a177c650f8b89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435415
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/54345.txt   | 8 ++++----
+ src/debug/elf/elf.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 59d186832b94349d683431e01e084d6ce460f476
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 8 17:50:03 2016 +0000
+
+    context: disable more flaky tests on openbsd
+    
+    Updates #15158
+    
+    Change-Id: Icb3788152a7a5a9b0d56ea38da46d770ffdce413
+    Reviewed-on: https://go-review.googlesource.com/21763
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/context/context_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

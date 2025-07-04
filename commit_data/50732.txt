@@ -1,0 +1,16 @@
+commit 1a6af5f7a041c13568286c2eb82352d26057acd6
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:52:42 2022 +0800
+
+    cmd/internal/obj: call delete directly without check exist
+    
+    Change-Id: I5350c6374cd39ce4512d29cd8a341c4996f3b601
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436703
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/obj/pcln.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

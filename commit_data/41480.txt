@@ -1,0 +1,17 @@
+commit c739bc487d94c0617b3e4454f29271d08d66613c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 3 17:12:32 2019 -0400
+
+    cmd/go/internal/modload: make PackageNotInModuleError reasonable for the Target module
+    
+    Updates #28459
+    Updates #32917
+    
+    Change-Id: Iced562cb7c2e0ac075d8345f1e4ad3b073842dcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185343
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/query.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

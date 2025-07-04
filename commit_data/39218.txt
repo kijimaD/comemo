@@ -1,0 +1,14 @@
+commit 24b43013a12ed8bab9adcce5b8265b1fb87ff506
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 16 09:45:56 2019 -0700
+
+    errors: remove mention of Wrapper interface
+    
+    The Wrapper type no longer exists.
+    
+    Change-Id: I21051f26c6722a957295819f2f385f2bbd0db355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177618
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/errors/wrap.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

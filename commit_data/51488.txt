@@ -1,0 +1,30 @@
+commit 0e8b6056c99daebcc3c571316a9551c9fab03a00
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 29 18:32:32 2022 -0500
+
+    cmd/dist: remove pkg/$GOOS_$GOARCH and pkg/obj at exit
+    
+    pkg/obj will be empty, so just remove it.
+    pkg/$GOOS_$GOARCH will be empty unless the user has specified
+    GODEBUG=installgoroot=all, so check if it's empty, and if so, delete
+    it.
+    
+    Also remove xreaddirfiles, which is unused.
+    
+    Also remove the copy of pkg/$GOOS_$GOARCH in the cmd/go test
+    TestNewReleaseRebuildsStalePackagesInGOPATH. The directory is empty so
+    copying it has no effect.
+    
+    For #47257
+    
+    Change-Id: Ief90b882d157bd16078cd5d2b83a915bfc831f9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453496
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go | 25 ++++++++++++++++++-------
+ src/cmd/dist/util.go  | 21 ---------------------
+ src/cmd/go/go_test.go |  1 -
+ 3 files changed, 18 insertions(+), 29 deletions(-)

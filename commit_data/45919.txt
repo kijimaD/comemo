@@ -1,0 +1,45 @@
+commit 2b00a54baf2b677b2aaddd93c25b11ea4642a86f
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Jul 12 04:40:28 2021 +0000
+
+    go/build, runtime/internal/sys: reserve GOARCH=loong64
+    
+    Per discussion at #46229 we are taking the "loong64" GOARCH value for
+    the upcoming LoongArch 64-bit port. It is not clear whether any 32-bit
+    non-bare-metal userland will exist for LoongArch, so only reserve
+    "loong64" for now.
+    
+    Change-Id: I97d262b4ab68ff61c22ccf83e26baf70eefd568d
+    GitHub-Last-Rev: ecdd8c53bdee57fec093ddba18ec8878b8ae7c74
+    GitHub-Pull-Request: golang/go#47129
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333909
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/go/build/syslist.go                         |  2 +-
+ src/runtime/internal/sys/zgoarch_386.go         |  1 +
+ src/runtime/internal/sys/zgoarch_amd64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_arm.go         |  1 +
+ src/runtime/internal/sys/zgoarch_arm64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_arm64be.go     |  1 +
+ src/runtime/internal/sys/zgoarch_armbe.go       |  1 +
+ src/runtime/internal/sys/zgoarch_loong64.go     | 33 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips.go        |  1 +
+ src/runtime/internal/sys/zgoarch_mips64.go      |  1 +
+ src/runtime/internal/sys/zgoarch_mips64le.go    |  1 +
+ src/runtime/internal/sys/zgoarch_mips64p32.go   |  1 +
+ src/runtime/internal/sys/zgoarch_mips64p32le.go |  1 +
+ src/runtime/internal/sys/zgoarch_mipsle.go      |  1 +
+ src/runtime/internal/sys/zgoarch_ppc.go         |  1 +
+ src/runtime/internal/sys/zgoarch_ppc64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_ppc64le.go     |  1 +
+ src/runtime/internal/sys/zgoarch_riscv.go       |  1 +
+ src/runtime/internal/sys/zgoarch_riscv64.go     |  1 +
+ src/runtime/internal/sys/zgoarch_s390.go        |  1 +
+ src/runtime/internal/sys/zgoarch_s390x.go       |  1 +
+ src/runtime/internal/sys/zgoarch_sparc.go       |  1 +
+ src/runtime/internal/sys/zgoarch_sparc64.go     |  1 +
+ src/runtime/internal/sys/zgoarch_wasm.go        |  1 +
+ 24 files changed, 56 insertions(+), 1 deletion(-)

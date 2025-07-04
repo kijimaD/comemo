@@ -1,0 +1,15 @@
+commit 2cb9042dc2d5fdf6013305a077d013dbbfbaac06
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 6 11:43:48 2021 -0500
+
+    doc/go1.18: cite CLs for more efficient scavenging
+    
+    For #47694.
+    
+    Change-Id: Ic6088b1811600670a57f28426f4158a7c7517c82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369616
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

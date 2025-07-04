@@ -1,0 +1,16 @@
+commit 91527eb1d7e3054e660692638a526340d19d14b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 01:42:53 2012 -0500
+
+    net/rpc: document that Register logs to standard error
+    Also fix spurious & in example.
+    
+    Fixes #4349.
+    Fixes #4489.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6905058
+
+ src/pkg/net/rpc/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

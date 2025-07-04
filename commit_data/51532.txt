@@ -1,0 +1,23 @@
+commit 9431237d772f4a3b670f8533868d6df0488688a9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Dec 7 15:20:25 2022 +0100
+
+    internal/safefilepath: fix TestFromFS on Plan 9
+    
+    CL 455716 added TestFromFS. This test was failing on Plan 9
+    because fromFS didn't return an empty string in case of error.
+    
+    This change fixes TestFromFS by returning an empty string
+    in case of error.
+    
+    Fixes #57142.
+    
+    Change-Id: Ie50dfba5e70154d641f762fa43f1c26c3d12b6f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/internal/safefilepath/path_other.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

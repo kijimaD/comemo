@@ -1,0 +1,24 @@
+commit 0907d57abf34e1d11debef2ea7bb4d7b2c11f51e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 25 16:06:53 2022 -0800
+
+    cmd/compile: emit types of constants which are instantiated generic types
+    
+    Normally types of constants are emitted when the type is defined (an
+    ODCLTYPE). However, the types of constants where the type is an
+    instantiated generic type made inside the constant declaration, do not
+    normally get emitted. But the DWARF processor in the linker wants
+    to see those types. So we emit them during stenciling.
+    
+    Fixes #51245
+    
+    Change-Id: I59f20f1d7b91501c9ac760cf839a354356331fc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388117
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/obj.go |  4 ++++
+ test/typeparam/issue51245.go       | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

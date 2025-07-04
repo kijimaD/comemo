@@ -1,0 +1,29 @@
+commit 2596a0c075aeddec571cd658f748ac7a712a2b69
+Author: Ivan Bertona <ivan.bertona@gmail.com>
+Date:   Tue Oct 31 13:16:38 2017 -0700
+
+    encoding/json: disallow unknown fields in Decoder
+    
+    Add a DisallowUnknownFields flag to Decoder.
+    
+    DisallowUnknownFields causes the Decoder to return an error when
+    the the decoding destination is a struct and the input contains
+    object keys which do not match any non-ignored, public field the
+    destination, including keys whose value is set to null.
+    
+    Note: this fix has already been worked on in 27231, which seems
+    to be abandoned. This version is a slightly simpler implementation
+    and is up to date with the master branch.
+    
+    Fixes #15314
+    
+    Change-Id: I987a5857c52018df334f4d1a2360649c44a7175d
+    Reviewed-on: https://go-review.googlesource.com/74830
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      | 12 ++++--
+ src/encoding/json/decode_test.go | 88 +++++++++++++++++++++++++++++++++++++---
+ src/encoding/json/stream.go      |  5 +++
+ 3 files changed, 95 insertions(+), 10 deletions(-)

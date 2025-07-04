@@ -1,0 +1,15 @@
+commit ec9967ff11851facad48bb0c11639e52a77f79b9
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Sep 13 10:25:35 2012 -0400
+
+    go/build: reject empty strings in Import
+    
+    Fixes #3889.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/6499102
+
+ src/pkg/go/build/build.go      |  3 +++
+ src/pkg/go/build/build_test.go | 13 +++++++++++++
+ 2 files changed, 16 insertions(+)

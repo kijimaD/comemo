@@ -1,0 +1,14 @@
+commit dd001b59318cfdc5507c505ae66243459683054e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 1 14:55:18 2012 +1100
+
+    text/template: add examples that use multiple templates
+    
+    Fixes #2742.
+    
+    R=golang-dev, peterthrun, adg
+    CC=golang-dev
+    https://golang.org/cl/5699083
+
+ src/pkg/text/template/examplefiles_test.go | 182 +++++++++++++++++++++++++++++
+ 1 file changed, 182 insertions(+)

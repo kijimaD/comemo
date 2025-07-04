@@ -1,0 +1,29 @@
+commit 9e76ce70701ceef8fbccfb953b33a2ae7fe0367c
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Sep 9 17:05:41 2017 -0700
+
+    crypto/x509: enforce all name constraints and support IP, email and URI constraints
+    
+    This change makes crypto/x509 enforce name constraints for all names in
+    a leaf certificate, not just the name being validated. Thus, after this
+    change, if a certificate validates then all the names in it can be
+    trusted – one doesn't have a validate again for each interesting name.
+    
+    Making extended key usage work in this fashion still remains to be done.
+    
+    Updates #15196
+    
+    Change-Id: I72ed5ff2f7284082d5bf3e1e86faf76cef62f9b5
+    Reviewed-on: https://go-review.googlesource.com/62693
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/x509/name_constraints_test.go | 1569 ++++++++++++++++++++++++++++++
+ src/crypto/x509/root_windows.go          |    4 +-
+ src/crypto/x509/verify.go                |  481 ++++++++-
+ src/crypto/x509/verify_test.go           |   35 +-
+ src/crypto/x509/x509.go                  |  349 +++++--
+ src/crypto/x509/x509_test.go             |  130 ++-
+ src/go/build/deps_test.go                |    2 +-
+ 7 files changed, 2443 insertions(+), 127 deletions(-)

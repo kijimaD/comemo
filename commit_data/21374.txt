@@ -1,0 +1,62 @@
+commit 22c16b4b92f10baf42a3db5de439a70f49101a89
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jan 16 23:30:35 2015 +0300
+
+    cmd/gc: ignore re-slicing in escape analysis
+    
+    Escape analysis treats everything assigned to OIND/ODOTPTR as escaping.
+    As the result b escapes in the following code:
+    
+            func (b *Buffer) Foo() {
+                    n, m := ...
+                    b.buf = b.buf[n:m]
+            }
+    
+    This change recognizes such assignments and ignores them.
+    
+    Update issue #9043.
+    Update issue #7921.
+    
+    There are two similar cases in std lib that benefit from this optimization.
+    First is in archive/zip:
+    
+    type readBuf []byte
+    func (b *readBuf) uint32() uint32 {
+            v := binary.LittleEndian.Uint32(*b)
+            *b = (*b)[4:]
+            return v
+    }
+    
+    Second is in time:
+    
+    type data struct {
+            p     []byte
+            error bool
+    }
+    
+    func (d *data) read(n int) []byte {
+            if len(d.p) < n {
+                    d.p = nil
+                    d.error = true
+                    return nil
+            }
+            p := d.p[0:n]
+            d.p = d.p[n:]
+            return p
+    }
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkCompressedZipGarbage     32431724      32217851      -0.66%
+    
+    benchmark                         old allocs     new allocs     delta
+    BenchmarkCompressedZipGarbage     153            143            -6.54%
+    
+    Change-Id: Ia6cd32744e02e36d6d8c19f402f8451101711626
+    Reviewed-on: https://go-review.googlesource.com/3162
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/esc.c | 30 ++++++++++++++++++++++++++++++
+ test/escape2.go  | 37 +++++++++++++++++++++++++++++++++++++
+ test/escape2n.go | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+)

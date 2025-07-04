@@ -1,0 +1,30 @@
+commit 42d975e5fe91fbe7719422248ad320c04dda5414
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Thu Nov 17 12:19:49 2022 +0000
+
+    time: avoid creating a parse error from the next chunk of the value
+    
+    When it reports a parse error, it uses the "value" variable as the
+    value element of the parse error. Previously, in some of the cases,
+    the "value" variable is always updated to the next chunk of the value
+    to be parsed (even if an earlier chunk is invalid). The reported
+    parse error is confusing in this case.
+    
+    This CL addresses this issue by holding the original value, and when
+    it fails to parse the time, use it to create the parse error.
+    
+    Fixes #56730.
+    
+    Change-Id: I445b1d8a1b910208d0608b2186881746adb550e0
+    GitHub-Last-Rev: 67b1102b5e9b345beb2ddcc529a8e608e5afc865
+    GitHub-Pull-Request: golang/go#56754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450936
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/time/format.go      |  9 +++++----
+ src/time/format_test.go | 22 ++++++++++++++--------
+ 2 files changed, 19 insertions(+), 12 deletions(-)

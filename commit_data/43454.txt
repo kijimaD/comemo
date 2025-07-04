@@ -1,0 +1,26 @@
+commit e223c6cf073fe1228c54050a43042b9c5721d4f8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 16 17:07:14 2020 -0400
+
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on PPC64
+    
+    This is a simple case of changing the operand size of the existing 8-bit
+    And/Or.
+    
+    I've also updated a few operand descriptions that were out-of-sync with
+    the implementation.
+    
+    Change-Id: I95ac4445d08f7958768aec9a233698a2d652a39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263150
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ppc64/ssa.go        | 22 +++++++++++++++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 16 +++++++---------
+ src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go |  6 ++++++
+ 6 files changed, 64 insertions(+), 18 deletions(-)

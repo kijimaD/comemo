@@ -1,0 +1,11 @@
+commit d9178fceb6c7c04fc9d3d3596538d19b60b7db34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:50:46 2008 -0700
+
+    - method forward decl. bug
+    
+    SVN=121563
+
+ test/bugs/bug044.go | 27 +++++++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 31 insertions(+)

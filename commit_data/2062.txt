@@ -1,0 +1,17 @@
+commit 8e4b65d0414dc3bc561a13ad036a0ca2881e9aec
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 20 18:13:14 2009 -0700
+
+    Move iterable package to usr/dsymonds/.
+    
+    R=r
+    APPROVED=r
+    DELTA=598  (330 added, 266 deleted, 2 changed)
+    OCL=27627
+    CL=27649
+
+ src/lib/container/Makefile                         |  9 +--
+ usr/dsymonds/iterable/Makefile                     | 68 ++++++++++++++++++++++
+ .../dsymonds/iterable}/iterable.go                 |  0
+ .../dsymonds/iterable}/iterable_test.go            |  2 +-
+ 4 files changed, 71 insertions(+), 8 deletions(-)

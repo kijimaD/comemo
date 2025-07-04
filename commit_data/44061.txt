@@ -1,0 +1,21 @@
+commit 30c99cbb7a7bd795a772bbc0f32a1266d86b29bb
+Author: markruler <csu0414@gmail.com>
+Date:   Tue Dec 22 17:22:17 2020 +0000
+
+    cmd/go: add the Retract field to 'go help mod edit' definition of the GoMod struct
+    
+    Fixes #43281
+    
+    Change-Id: Ife26ca174a8818b56aaea9547976d97978478a5f
+    GitHub-Last-Rev: 85a3d30001672b371a58d1c8a2092fc9b937af6f
+    GitHub-Pull-Request: golang/go#43315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279592
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go              | 1 +
+ src/cmd/go/internal/modcmd/edit.go | 1 +
+ 2 files changed, 2 insertions(+)

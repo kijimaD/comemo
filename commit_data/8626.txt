@@ -1,0 +1,14 @@
+commit a028a02395175fc04aa694b0b3849348fefaa4ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 14:30:48 2011 +1000
+
+    crypto/twofish: fix Reset index overflow bug.
+    
+    Fixes #1919.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4530110
+
+ src/pkg/crypto/twofish/twofish.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

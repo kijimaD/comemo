@@ -1,0 +1,19 @@
+commit b86e71f5aae4bd2cd2b1010e1c57909c068178cc
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Apr 28 09:07:51 2015 -0400
+
+    runtime: Reduce calls to shouldtriggergc
+    
+    shouldtriggergc is slightly expensive due to the call overhead
+    and the use of an atomic. This CL reduces the number of time
+    one checks if a GC should be done from one at each allocation
+    to once when a span is allocated. Since shouldtriggergc is an
+    important abstraction simply hand inlining it, along with its
+    atomic instruction would lose the abstraction.
+    
+    Change-Id: Ia3210655b4b3d433f77064a21ecb54e4d9d435f7
+    Reviewed-on: https://go-review.googlesource.com/9403
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

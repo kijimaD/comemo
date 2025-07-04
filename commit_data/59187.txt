@@ -1,0 +1,19 @@
+commit cfc784a152ebbc4fc0b8bf13c02e0f6eb9c980bd
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 27 16:22:38 2025 -0700
+
+    os: avoid panic in Root when symlink references the root
+    
+    We would panic when opening a symlink ending in ..,
+    where the symlink references the root itself.
+    
+    Fixes #73081
+    
+    Change-Id: I7dc3f041ca79df7942feec58c197fde6881ecae5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661416
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/root_openat.go |  3 +++
+ src/os/root_test.go   | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

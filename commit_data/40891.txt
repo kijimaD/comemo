@@ -1,0 +1,35 @@
+commit 9940c7768261f035b14657053ada8d0e88283241
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 19 12:41:51 2019 -0800
+
+    runtime: add go:nosplit to cgo_mmap.go:mmap() and sys_darwin.go:mmap()
+    
+    cgo_mmap.go:mmap() is called by mem_linux.go:sysAlloc(), a low-level memory
+    allocation function. mmap() should be nosplit, since it is called in a lot of
+    low-level parts of the runtime and callers often assume it won't acquire any
+    locks.
+    
+    As an example there is a potential deadlock involving two threads if mmap is not nosplit:
+    
+    trace.bufLock acquired, then stackpool[order].item.mu, then mheap_.lock
+      - can happen for traceEvents that are not invoked on the system stack and cause
+        a traceFlush, which causes a sysAlloc, which calls mmap(), which may cause a
+        stack split. mheap_.lock
+    mheap_.lock acquired, then trace.bufLock
+      - can happen when doing a trace in reclaimChunk (which holds the mheap_ lock)
+    
+    Also, sysAlloc() has a comment that it is nosplit because it may be invoked
+    without a valid G, in which case its callee mmap() should also be nosplit.
+    
+    Similarly, sys_darwin.go:mmap() is called by mem_darwin.go:sysAlloc(), and should
+    be nosplit for the same reasons.
+    
+    Extra gomote testing:  linux/arm64, darwin/amd64
+    
+    Change-Id: Ia4d10cec5cf1e186a0fe5aab2858c6e0e5b80fdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207844
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo_mmap.go   | 5 +++++
+ src/runtime/sys_darwin.go | 4 ++++
+ 2 files changed, 9 insertions(+)

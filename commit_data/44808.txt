@@ -1,0 +1,24 @@
+commit ddcdbb417b47e50fc7006c9438104c5b8b5f75e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:03:51 2021 -0700
+
+    cmd/compile/internal/types2: review of assignments.go
+    
+    The changes between (equivalent, and reviewed) go/types/assignments.go
+    and assignments.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences to go/types/assignments.go are:
+    - use of syntax instead of go/ast package
+    - no reporting of error codes (for now)
+    - different handling of nil values (we can't use Typ[UntypedNil]
+      to represent an untyped nil because types2 gives such nil values
+      context-dependent types)
+    
+    Change-Id: I5d8a58f43ca8ed2daa060c46842a6ebc11b3cb35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304051
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit bddfc337f9b053740b51e1fd8429f84dafa89205
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 27 13:10:49 2016 -0400
+
+    reflect: fix strings of SliceOf-created types
+    
+    The new type was inheriting the tflagExtraStar from its prototype.
+    
+    Fixes #15467
+    
+    Change-Id: Ic22c2a55cee7580cb59228d52b97e1c0a1e60220
+    Reviewed-on: https://go-review.googlesource.com/22501
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 3 +++
+ src/reflect/type.go     | 1 +
+ 2 files changed, 4 insertions(+)

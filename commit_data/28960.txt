@@ -1,0 +1,27 @@
+commit 584e3ea2581c858688803d41e207eeaa881a2a85
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 20 16:57:55 2016 +1100
+
+    image/color: tweak the formula for converting to gray.
+    
+    This makes grayModel and gray16Model in color.go use the exact same
+    formula as RGBToYCbCr in ycbcr.go. They were the same formula in theory,
+    but in practice the color.go versions used a divide by 1000 and the
+    ycbcr.go versions used a (presumably faster) shift by 16.
+    
+    This implies the nice property that converting an image.RGBA to an
+    image.YCbCr and then taking only the Y channel is equivalent to
+    converting an image.RGBA directly to an image.Gray.
+    
+    The difference between the two formulae is non-zero, but small:
+    https://play.golang.org/p/qG7oe-eqHI
+    
+    Updates #16251
+    
+    Change-Id: I288ecb957fd6eceb9626410bd1a8084d2e4f8198
+    Reviewed-on: https://go-review.googlesource.com/31538
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/color.go | 23 ++++++++++++++++++++---
+ src/image/color/ycbcr.go |  5 +++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit d39907e6491fe1bed48f89ef9717ccb2ad249102
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 20:35:34 2014 -0700
+
+    doc/go1.4.html: runtime and performance
+    
+    LGTM=adg, rsc
+    R=golang-codereviews, adg, bradfitz, dave, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/164090044
+
+ doc/go1.4.html | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 77 insertions(+), 4 deletions(-)

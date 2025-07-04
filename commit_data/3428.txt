@@ -1,0 +1,13 @@
+commit d4a4468204448843d0dd15d2d4b89c29607a4a7e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 3 09:38:47 2009 -0700
+
+    garbage collections, conversions, concurrency
+    
+    R=iant,rsc,gri
+    DELTA=106  (87 added, 8 deleted, 11 changed)
+    OCL=35298
+    CL=35302
+
+ doc/go_lang_faq.html | 115 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 97 insertions(+), 18 deletions(-)

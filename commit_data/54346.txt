@@ -1,0 +1,56 @@
+commit da7ee57f40069eda3488b2e51dfa878bdd5816af
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Aug 16 19:20:54 2023 -0700
+
+    syscall: add support to get pidfd from ForkExec on Linux
+    
+    Add PidFD support, so that if the PidFD pointer in SysProcAttr is not
+    nil, ForkExec (and thus all its users) obtains a pidfd from the kernel
+    during clone(), and writes the result (or -1, if the functionality
+    is not supported by the kernel) into *PidFD.
+    
+    The functionality to get pidfd is implemented for both clone3 and clone.
+    For the latter, an extra argument to rawVforkSyscall is needed, thus the
+    change in asm files.
+    
+    Add a trivial test case checking the obtained pidfd can be used to send
+    a signal to a process, using pidfd_send_signal. To test clone3 code path,
+    add a flag available to tests only.
+    
+    Updates #51246.
+    
+    Change-Id: I2212b69e1a657163c31b4a6245b076bc495777a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520266
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+
+ api/next/51246.txt                   |  6 ++++
+ src/syscall/asm_linux_386.s          | 14 ++++----
+ src/syscall/asm_linux_amd64.s        | 14 ++++----
+ src/syscall/asm_linux_arm.s          | 14 ++++----
+ src/syscall/asm_linux_arm64.s        | 14 ++++----
+ src/syscall/asm_linux_loong64.s      | 14 ++++----
+ src/syscall/asm_linux_mips64x.s      | 14 ++++----
+ src/syscall/asm_linux_mipsx.s        | 14 ++++----
+ src/syscall/asm_linux_ppc64x.s       | 14 ++++----
+ src/syscall/asm_linux_riscv64.s      | 14 ++++----
+ src/syscall/asm_linux_s390x.s        | 14 ++++----
+ src/syscall/exec_linux.go            | 35 +++++++++++++------
+ src/syscall/exec_linux_test.go       | 68 ++++++++++++++++++++++++++++++++++++
+ src/syscall/export_linux_test.go     | 10 ++++--
+ src/syscall/syscall_linux.go         |  2 +-
+ src/syscall/syscall_linux_386.go     |  7 ++--
+ src/syscall/syscall_linux_amd64.go   |  7 ++--
+ src/syscall/syscall_linux_arm.go     |  7 ++--
+ src/syscall/syscall_linux_arm64.go   |  7 ++--
+ src/syscall/syscall_linux_loong64.go |  7 ++--
+ src/syscall/syscall_linux_mips64x.go |  7 ++--
+ src/syscall/syscall_linux_mipsx.go   |  7 ++--
+ src/syscall/syscall_linux_ppc64x.go  |  7 ++--
+ src/syscall/syscall_linux_riscv64.go |  7 ++--
+ src/syscall/syscall_linux_s390x.go   |  7 ++--
+ 25 files changed, 218 insertions(+), 113 deletions(-)

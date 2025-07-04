@@ -1,0 +1,32 @@
+commit f1596d76f488e4d82d217418df4191f34b71d117
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jan 6 12:39:37 2022 -0800
+
+    cmd/compile: fix conv of slice of user-define byte type to string
+    
+    types2 allows the conversion of a slice of a user-defined byte type B
+    (not builtin uint8 or byte) to string. But runtime.slicebytetostring
+    requires a []byte argument, so add in a CONVNOP from []B to []byte if
+    needed. Same for the conversion of a slice of user-defined rune types to
+    string.
+    
+    I made the same change in the transformations of the old typechecker, so
+    as to keep tcConv() and transformConv() in sync. That fixes the bug for
+    -G=0 mode as well.
+    
+    Fixes #23536
+    
+    Change-Id: Ic79364427f27489187f3f8015bdfbf0769a70d69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376056
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/transform.go | 25 ++++++++++++++++++++++
+ src/cmd/compile/internal/typecheck/expr.go  | 21 +++++++++++++++++++
+ test/fixedbugs/issue23536.go                | 22 ++++++++++++++++++++
+ test/typeparam/issue23536.go                | 32 +++++++++++++++++++++++++++++
+ 4 files changed, 100 insertions(+)

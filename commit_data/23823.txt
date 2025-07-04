@@ -1,0 +1,13 @@
+commit 56a062400a8c4654eaca78c2926f2724a21cda61
+Author: Brian Gitonga Marete <marete@toshnix.com>
+Date:   Mon Jul 27 04:13:19 2015 +0300
+
+    A+C: Add another email address for Brian Gitonga Marete.
+    
+    Change-Id: I2c21b012534be20443157c6b77ef21bd585902b0
+    Reviewed-on: https://go-review.googlesource.com/12636
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

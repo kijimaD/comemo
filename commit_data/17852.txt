@@ -1,0 +1,13 @@
+commit e6c4fa58b5a0c77c9c95d227ed5f36937df0544d
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Tue Oct 29 16:03:13 2013 -0700
+
+    database/sql: Fix typos in doc
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/17590043
+
+ src/pkg/database/sql/driver/driver.go | 4 ++--
+ src/pkg/database/sql/sql.go           | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

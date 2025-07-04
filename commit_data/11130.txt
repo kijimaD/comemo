@@ -1,0 +1,14 @@
+commit c356fc74a12d32d7d0764de0160b291117e9dc79
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 11:06:09 2012 -0800
+
+    dashboard: add deployment comment to app.yaml
+    
+    Also update default app and version to be correct.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5541044
+
+ misc/dashboard/app/app.yaml | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

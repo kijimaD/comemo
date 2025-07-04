@@ -1,0 +1,18 @@
+commit 4c5c0f437fbd8c7857761caa36df9d06533f025b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 14:44:09 2009 -0700
+
+    update tests for CL 30586.
+    won't submit unless 30586 goes in.
+    
+    R=r
+    DELTA=94  (65 added, 16 deleted, 13 changed)
+    OCL=30592
+    CL=30755
+
+ test/fixedbugs/bug022.go |  4 +--
+ test/fixedbugs/bug119.go |  3 +--
+ test/fixedbugs/bug143.go |  7 ++---
+ test/indirect.go         | 30 +++++++--------------
+ test/indirect1.go        | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 83 insertions(+), 30 deletions(-)

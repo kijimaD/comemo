@@ -1,0 +1,23 @@
+commit 78906c38367d16b5c189163d6f6d60b2e99370f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 16:32:30 2009 -0800
+
+    io.Pipe
+    
+    assorted underscore cleanup
+    
+    R=r
+    DELTA=488  (410 added, 3 deleted, 75 changed)
+    OCL=25070
+    CL=25070
+
+ src/lib/Makefile        |   2 +-
+ src/lib/io/Makefile     |  14 +++-
+ src/lib/io/io.go        |  26 +++++--
+ src/lib/io/pipe.go      | 188 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/io/pipe_test.go | 203 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/time/Makefile   |   3 +-
+ src/lib/time/tick.go    |   3 +-
+ src/lib/time/time.go    | 103 ++++++++++++------------
+ src/run.bash            |   1 +
+ 9 files changed, 476 insertions(+), 67 deletions(-)

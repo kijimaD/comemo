@@ -1,0 +1,32 @@
+commit 5693bee0f1f245ffc58c58a41bfd9a431a416957
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 15:29:48 2016 -0700
+
+    cmd/compile/internal/big: re-vendor
+    
+    Pick up a bunch of changes and fixes.
+    
+    Change-Id: If4101f7185d433a4c89096bc786ee5de8eeabac0
+    Reviewed-on: https://go-review.googlesource.com/27123
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/big/arith_test.go        | 121 ++++++++------------
+ src/cmd/compile/internal/big/decimal_test.go      |   4 +-
+ src/cmd/compile/internal/big/doc.go               |  99 ++++++++++++++++
+ src/cmd/compile/internal/big/float.go             |   4 +-
+ src/cmd/compile/internal/big/floatconv_test.go    |   5 +
+ src/cmd/compile/internal/big/floatexample_test.go |   6 +-
+ src/cmd/compile/internal/big/floatmarsh.go        |  89 ++++++++++++++-
+ src/cmd/compile/internal/big/floatmarsh_test.go   |  82 +++++++++++++
+ src/cmd/compile/internal/big/ftoa.go              |   7 +-
+ src/cmd/compile/internal/big/gcd_test.go          |  16 ++-
+ src/cmd/compile/internal/big/int.go               |   4 +-
+ src/cmd/compile/internal/big/nat.go               |  29 ++++-
+ src/cmd/compile/internal/big/nat_test.go          |  27 ++---
+ src/cmd/compile/internal/big/natconv.go           |   4 +-
+ src/cmd/compile/internal/big/natconv_test.go      | 133 ++++++++--------------
+ src/cmd/compile/internal/big/ratconv.go           |   8 +-
+ src/cmd/compile/internal/big/ratconv_test.go      |   1 +
+ 17 files changed, 443 insertions(+), 196 deletions(-)

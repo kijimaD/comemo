@@ -1,0 +1,12 @@
+commit 7df45566db2c3d55f7e2e361bffff42f79fb6897
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 22:52:28 2009 -0800
+
+    gofmt-ify image
+    
+    R=rsc
+    http://go/go-review/1017044
+
+ src/pkg/image/png/reader_test.go |  8 ++++----
+ src/pkg/image/png/writer.go      | 24 ++++++++++++------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

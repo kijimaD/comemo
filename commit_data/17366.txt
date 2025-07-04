@@ -1,0 +1,28 @@
+commit 71dc91db0ff711c39fbf86ca9425c65442e40b57
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 01:18:04 2013 +1000
+
+    all: compiler/bootstrap for dragonfly/amd64
+    
+    Add dragonfly/amd64 support to the Go compiler, bootstrap and GOOS list.
+    
+    R=devon.odell, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12796050
+
+ src/cmd/6l/asm.c              |  4 +++
+ src/cmd/6l/obj.c              | 21 ++++++++-------
+ src/cmd/6l/pass.c             |  5 ++--
+ src/cmd/dist/build.c          |  1 +
+ src/cmd/dist/unix.c           |  2 ++
+ src/cmd/go/signal_unix.go     |  2 +-
+ src/cmd/ld/doc.go             |  2 ++
+ src/cmd/ld/elf.c              |  5 ++++
+ src/cmd/ld/elf.h              |  1 +
+ src/cmd/ld/lib.h              |  1 +
+ src/lib9/run_unix.c           |  2 +-
+ src/lib9/tempdir_unix.c       |  2 +-
+ src/libmach/dragonfly.c       | 62 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/go/build/syslist.go   |  2 +-
+ 15 files changed, 98 insertions(+), 16 deletions(-)

@@ -1,0 +1,15 @@
+commit 48f6b516e24d55e14d866a7e7140fb3b1d1ae218
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Mar 11 16:25:45 2009 -0700
+
+    bug 137
+    
+    R=r
+    OCL=26142
+    CL=26142
+
+ src/cmd/6g/gen.c                   | 150 +++++++++++++++++++------------------
+ src/cmd/6g/gg.h                    |   4 +-
+ test/{bugs => fixedbugs}/bug137.go |   0
+ test/golden.out                    |   5 --
+ 4 files changed, 81 insertions(+), 78 deletions(-)

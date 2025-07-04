@@ -1,0 +1,38 @@
+commit 39a5ee52b9b41b1e4f4cf821c78ef5b7be68d181
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 2 19:03:16 2020 +0000
+
+    runtime: decouple consistent stats from mcache and allow P-less update
+    
+    This change modifies the consistent stats implementation to keep the
+    per-P sequence counter on each P instead of each mcache. A valid mcache
+    is not available everywhere that we want to call e.g. allocSpan, as per
+    issue #42339. By decoupling these two, we can add a mechanism to allow
+    contexts without a P to update stats consistently.
+    
+    In this CL, we achieve that with a mutex. In practice, it will be very
+    rare for an M to update these stats without a P. Furthermore, the stats
+    reader also only needs to hold the mutex across the update to "gen"
+    since once that changes, writers are free to continue updating the new
+    stats generation. Contention could thus only arise between writers
+    without a P, and as mentioned earlier, those should be rare.
+    
+    A nice side-effect of this change is that the consistent stats acquire
+    and release API becomes simpler.
+    
+    Fixes #42339.
+    
+    Change-Id: Ied74ab256f69abd54b550394c8ad7c4c40a5fe34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267158
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mcache.go      | 16 +++-----
+ src/runtime/mgcscavenge.go |  8 +---
+ src/runtime/mgcsweep.go    | 10 ++---
+ src/runtime/mheap.go       | 27 +++----------
+ src/runtime/mstats.go      | 95 +++++++++++++++++++++++++++++-----------------
+ src/runtime/proc.go        |  4 ++
+ src/runtime/runtime2.go    |  8 +++-
+ 7 files changed, 88 insertions(+), 80 deletions(-)

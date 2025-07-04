@@ -1,0 +1,16 @@
+commit 093ac15a14137b4a9454442ae9fea282e5c09180
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 24 15:09:00 2016 +1000
+
+    debug/pe: better error messages
+    
+    Updates #15345
+    
+    Change-Id: Iae35d3e378cbc8157ba1ff91e4971ed4515a5e5c
+    Reviewed-on: https://go-review.googlesource.com/22394
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

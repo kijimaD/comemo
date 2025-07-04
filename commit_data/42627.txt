@@ -1,0 +1,17 @@
+commit 8696ae82c94f0a7707cbbbdf2cec44e93edf5b23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 24 15:13:43 2020 -0700
+
+    syscall: use correct file descriptor in dup2 fallback path
+    
+    This fixes a mistake in CL 220422. This changes code that is only
+    executed on Linux kernel versions earlier than 2.6.27.
+    
+    Change-Id: I01280184f4d7b75e06387c38f1891e8f0a81f793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244630
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

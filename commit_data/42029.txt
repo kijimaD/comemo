@@ -1,0 +1,12 @@
+commit 366460defbbfabf9db4471ac55c9819e25487ed9
+Author: Brad Fitzpatrick <bradfitz@tailscale.com>
+Date:   Wed Apr 15 14:44:27 2020 -0700
+
+    A: add Tailscale Inc. (Corporate CLA)
+    
+    Change-Id: Ic95f6f78fa56169998a6890beb873693852c5798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

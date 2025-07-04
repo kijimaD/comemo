@@ -1,0 +1,16 @@
+commit 4ca1caf407f6bbadbc9235bbcc08036f1eef907b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 18 00:29:48 2024 +0100
+
+    doc/go1.22: fix method name in net/netip changes
+    
+    Change-Id: Icbeb911aad8bd23399b5afb66b3babed018368e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.22.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

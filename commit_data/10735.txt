@@ -1,0 +1,15 @@
+commit 66113ac8188026cb57ae043670d1004860831e2d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 13 14:20:26 2011 +1100
+
+    html: update comments to match latest spec.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5482054
+
+ src/pkg/html/const.go  |  2 +-
+ src/pkg/html/node.go   |  2 +-
+ src/pkg/html/parse.go  | 70 ++++++++++++++++++++++++--------------------------
+ src/pkg/html/render.go |  2 +-
+ 4 files changed, 37 insertions(+), 39 deletions(-)

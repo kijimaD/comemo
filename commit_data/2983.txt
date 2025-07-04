@@ -1,0 +1,27 @@
+commit db3bf9c6746d9be4de35fa11af3401d19a0c5f35
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 14 11:53:27 2009 -0700
+
+    First cut at a more realistic multi-precision package:
+    - implemented low-level operations on word vectors
+    - implemented corresponding amd64 assembly routines for word vector operations
+    - implemented first set of operations on unsigned integers
+    - implemented first set of operations on signed integers
+    - implemented systematic test cases  for each data type
+    
+    R=rsc
+    DELTA=1330  (1330 added, 0 deleted, 0 changed)
+    OCL=33132
+    CL=33285
+
+ src/pkg/big/Makefile      |  18 +++
+ src/pkg/big/arith.go      | 239 +++++++++++++++++++++++++++++++++++
+ src/pkg/big/arith_amd64.s | 219 ++++++++++++++++++++++++++++++++
+ src/pkg/big/arith_test.go | 213 +++++++++++++++++++++++++++++++
+ src/pkg/big/big.go        |  28 +++++
+ src/pkg/big/bigN.go       | 315 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/bigN_test.go  |  77 ++++++++++++
+ src/pkg/big/bigZ.go       | 139 ++++++++++++++++++++
+ src/pkg/big/bigZ_test.go  |  63 ++++++++++
+ src/pkg/big/defs.go       |  19 +++
+ 10 files changed, 1330 insertions(+)

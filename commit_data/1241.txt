@@ -1,0 +1,12 @@
+commit 9a5c7eab16528cd6b83a7f12b7eb04188e93a857
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Nov 24 17:51:26 2008 -0800
+
+    better code for += -= ^= |= and &=
+    
+    R=r
+    OCL=19953
+    CL=19953
+
+ src/cmd/6g/gen.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

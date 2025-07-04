@@ -1,0 +1,21 @@
+commit efec14bc5af7f1f43b6e736a4fa2138ea5a328a2
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 13 18:16:23 2008 -0700
+
+    plan9 line numbers and line table
+    
+    SVN=122793
+
+ src/clean.bash      |   2 +-
+ src/cmd/6g/align.c  |   7 +++
+ src/cmd/6g/gg.h     |   3 ++
+ src/cmd/6g/list.c   |   8 ++--
+ src/cmd/6g/obj.c    |  68 ++++++++++++++++++++++++++++
+ src/cmd/clean.bash  |   2 +-
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/dcl.c    |   5 ++-
+ src/cmd/gc/export.c |   2 +-
+ src/cmd/gc/go.h     |  21 ++++++++-
+ src/cmd/gc/lex.c    |  52 +++++++++++++---------
+ src/cmd/gc/subr.c   | 124 ++++++++++++++++++++++++++++++++++++++++------------
+ 12 files changed, 238 insertions(+), 57 deletions(-)

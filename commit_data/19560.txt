@@ -1,0 +1,13 @@
+commit 933f272e71f1af3d0c5f851ec74dc6d805302e19
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Jun 17 15:52:29 2014 -0400
+
+    misc/emacs: add new function godoc-at-point
+    
+    LGTM=adonovan
+    R=adonovan, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/107160048
+
+ misc/emacs/go-mode.el | 56 ++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 44 insertions(+), 12 deletions(-)

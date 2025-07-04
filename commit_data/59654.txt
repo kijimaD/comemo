@@ -1,0 +1,24 @@
+commit d54703c94ae906a5e851ae95909b6eb2f0314e19
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 21 14:49:40 2025 -0400
+
+    runtime: use DontUpdate testprog for DontUpdate test
+    
+    This is a typo in CL 670497. The test is using the wrong testprog
+    function.
+    
+    The testprog also needs to assert that GOMAXPROCS doesn't change, not
+    that it is equal to NumCPU, for the GOMAXPROCS=4 case.
+    
+    For #73193.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: I6a6a636cab6936aa8519e3553b70ab6641ca8010
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675097
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/gomaxprocs_windows_test.go              | 2 +-
+ src/runtime/testdata/testprog/gomaxprocs_windows.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

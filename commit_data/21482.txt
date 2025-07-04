@@ -1,0 +1,17 @@
+commit 98376204e8aa8abb159fc8d5a752c2c07fb431a3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Feb 2 18:53:24 2015 -0500
+
+    cmd/ld: always set timestamp in PE header to 0
+    
+    Fixes #9756.
+    
+    Change-Id: If4ee6fe10f8f90294ff9c5e7480371494094b111
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/3740
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.5.txt   | 1 +
+ src/cmd/ld/pe.c | 4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 51f2932082ecfc7c92aad774be3ebea6436d662b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 9 14:18:32 2009 -0800
+
+    syscalls can return negative i/o counts. fix bugs in ReadAt and WriteAt not to include
+    negative counts in return values.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/170044
+
+ src/pkg/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

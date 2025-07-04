@@ -1,0 +1,23 @@
+commit 41fc05d02357b8681b7a5adfbaedf315328d309e
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 24 11:34:12 2014 -0700
+
+    cmd/go: add go generate
+    First cut.
+    
+    Works well enough to support yacc via
+            https://golang.org/cl/125620044.
+    
+    LGTM=alex.brainman, rsc
+    R=rsc, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/125580044
+
+ src/cmd/go/doc.go                     |  93 +++++++++-
+ src/cmd/go/generate.go                | 340 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go                    |   1 +
+ src/cmd/go/test.bash                  |  27 +++
+ src/cmd/go/testdata/generate/test1.go |  13 ++
+ src/cmd/go/testdata/generate/test2.go |  10 +
+ src/cmd/go/testdata/generate/test3.go |   9 +
+ 7 files changed, 491 insertions(+), 2 deletions(-)

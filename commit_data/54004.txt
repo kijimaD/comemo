@@ -1,0 +1,44 @@
+commit 33da4ce4579d4e04a1daa6122abbf669e51ee6ba
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 19 16:43:22 2022 +1100
+
+    cmd/compile: sign or zero extend for 32 bit equality on riscv64
+    
+    For 32 bit equality (Eq32), rather than always zero extending to 64 bits,
+    sign extend for signed types and zero extend for unsigned types. This makes
+    no difference to the equality test (via SUB), however it increases the
+    likelihood of avoiding unnecessary sign or zero extension simply for the
+    purpose of equality testing.
+    
+    While here, replace the Neq* rules with (Not (Eq*)) - this makes no
+    difference to the generated code (as the intermediates get expanded and
+    eliminated), however it means that changes to the equality rules also
+    reflect in the inequality rules.
+    
+    As an example, the following:
+    
+       lw      t0,956(t0)
+       slli    t0,t0,0x20
+       srli    t0,t0,0x20
+       li      t1,1
+       bne     t1,t0,278fc
+    
+    Becomes:
+    
+       lw      t0,1024(t0)
+       li      t1,1
+       bne     t1,t0,278b0
+    
+    Removes almost 1000 instructions from the Go binary on riscv64.
+    
+    Change-Id: Iac60635f494f6db87faa47752bd1cc16e6b5967f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516595
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  13 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 101 ++++++++++++++----------
+ 2 files changed, 67 insertions(+), 47 deletions(-)

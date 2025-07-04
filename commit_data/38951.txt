@@ -1,0 +1,18 @@
+commit d5014ec05b3cfe2589974b240863b5439e204417
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Apr 29 16:15:47 2019 +0200
+
+    runtime: make mmap return 0 instead of -1 on aix/ppc64
+    
+    Most of the platforms are returning 0 instead of -1 when mmap syscalls
+    is failing. This patch corrects it for AIX in order to fix
+    TestMmapErrorSign and to improve AIX compatibility.
+    
+    Change-Id: I1dad88d0e69163ad55c504b2b4a997892fd876cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174297
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os2_aix.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

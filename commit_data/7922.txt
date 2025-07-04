@@ -1,0 +1,12 @@
+commit 9225bbfc0c6559aa4002ea8f35696cd74475429d
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Mar 29 15:47:35 2011 -0400
+
+    crypto/cipher: bad CTR IV length now triggers panic
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4326042
+
+ src/pkg/crypto/cipher/ctr.go | 4 ++++
+ 1 file changed, 4 insertions(+)

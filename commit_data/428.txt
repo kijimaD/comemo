@@ -1,0 +1,16 @@
+commit 120827284e3753982e493af8b1c48577e223260c
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 26 14:21:21 2008 -0700
+
+    select/chan
+    
+    R=r
+    DELTA=517  (137 added, 98 deleted, 282 changed)
+    OCL=13495
+    CL=13495
+
+ src/cmd/gc/sys.go      |   2 +-
+ src/cmd/gc/sysimport.c | 335 +++++++++++++++++++++--------------------
+ src/cmd/gc/walk.c      |  15 +-
+ src/runtime/chan.c     | 401 ++++++++++++++++++++++++++-----------------------
+ 4 files changed, 396 insertions(+), 357 deletions(-)

@@ -1,0 +1,15 @@
+commit ca4ea81d86b0857c45a67e87004522beb060d9f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 8 07:36:35 2016 -0800
+
+    runtime: save callee-saved regs in darwin-amd64 library init
+    
+    We're only getting away with it today by luck.
+    
+    Change-Id: I24d1cceee4d20c5181ca64fceda152e875f6ad81
+    Reviewed-on: https://go-review.googlesource.com/18440
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/rt0_darwin_amd64.s | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

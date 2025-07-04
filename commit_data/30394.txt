@@ -1,0 +1,28 @@
+commit fb1f47a77c642f36fc7a80d468ad1cda8bb66361
+Author: Lorenzo Masini <rugginoso@develer.com>
+Date:   Mon Feb 20 17:17:28 2017 +0100
+
+    cmd/compile: speed up TestAssembly
+    
+    TestAssembly was very slow, leading to it being skipped by default.
+    This is not surprising, it separately invoked the compiler and
+    parsed the result many times.
+    
+    Now the test assembles one source file for arch/os combination,
+    containing the relevant functions.
+    
+    Tests for each arch/os run in parallel.
+    
+    Now the test runs approximately 10x faster on my Intel(R) Core(TM)
+    i5-6600 CPU @ 3.30GHz.
+    
+    Fixes #18966
+    
+    Change-Id: I45ab97630b627a32e17900c109f790eb4c0e90d9
+    Reviewed-on: https://go-review.googlesource.com/37270
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 997 ++++++++++++++++++--------------
+ 1 file changed, 559 insertions(+), 438 deletions(-)

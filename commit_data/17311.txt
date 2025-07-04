@@ -1,0 +1,13 @@
+commit 6fb9cc1f63dced4ad2022fb4eac9f722cd12c708
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 10:15:30 2013 +1000
+
+    testing: don't start timing a Parallel test until it's actually starting
+    Fixes #5285.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13045044
+
+ src/pkg/testing/testing.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

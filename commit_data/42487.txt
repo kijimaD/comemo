@@ -1,0 +1,15 @@
+commit 063ce0f2f774563ff2143bd8b974ce7f89caa365
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jun 5 12:48:26 2020 -0400
+
+    doc/go1.15: add release notes for crypto/x509
+    
+    Updates #37419
+    
+    Change-Id: Iedfd4b238980675be115c7e6e0a327d7745b5bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236737
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 46 insertions(+), 1 deletion(-)

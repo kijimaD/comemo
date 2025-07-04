@@ -1,0 +1,39 @@
+commit 5a9b6432ec8b9199ce9fce9387e94195138b313f
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon Oct 19 19:19:17 2020 +0200
+
+    os: make Chtimes accept empty time values to skip file time modification
+    
+    Empty time value time.Time{} leaves the corresponding time of the file
+    unchanged.
+    
+    Fixes #32558
+    
+    Change-Id: I1aff42f30668ff505ecec2e9509d8f2b8e4b1b6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219638
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/syscall/unix/at_aix.go              |   1 +
+ src/internal/syscall/unix/at_js.go               |  13 +++
+ src/internal/syscall/unix/at_solaris.go          |   2 +
+ src/internal/syscall/unix/at_sysnum_darwin.go    |   2 +
+ src/internal/syscall/unix/at_sysnum_dragonfly.go |   2 +
+ src/internal/syscall/unix/at_sysnum_freebsd.go   |   2 +
+ src/internal/syscall/unix/at_sysnum_linux.go     |   2 +
+ src/internal/syscall/unix/at_sysnum_netbsd.go    |   2 +
+ src/internal/syscall/unix/at_sysnum_openbsd.go   |   2 +
+ src/internal/syscall/unix/at_wasip1.go           |  13 +++
+ src/os/file_plan9.go                             |   7 ++
+ src/os/file_posix.go                             |  12 ++-
+ src/os/file_unix.go                              |   2 +
+ src/os/file_windows.go                           |   2 +
+ src/os/os_test.go                                | 122 +++++++++++++++++++++++
+ src/syscall/fs_js.go                             |  14 +++
+ src/syscall/fs_wasip1.go                         |  20 +++-
+ src/syscall/syscall_windows.go                   |  20 +++-
+ 18 files changed, 232 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit ca3364836f6cb3645b53832379f8f8b3f5b82ae8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 16 14:13:11 2018 +0200
+
+    cmd/internal/objfile, debug/macho: support disassembling arm64 Mach-O objects
+    
+    Fixes #25423
+    
+    Change-Id: I6bed0726b8f4c7d607a3df271b2ab1006e96fa75
+    Reviewed-on: https://go-review.googlesource.com/113356
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/macho.go | 2 ++
+ src/debug/macho/macho.go          | 2 ++
+ 2 files changed, 4 insertions(+)

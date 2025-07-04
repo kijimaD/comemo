@@ -1,0 +1,23 @@
+commit 83907206de003555c73a16b1b6d97662b5511cf7
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Sep 1 12:26:43 2022 +0800
+
+    cmd/compile: improve logical shift with MASKEQZ on loong64
+    
+    Using MASKEQZ instruction can save one instruction in calculation of
+    shift operations.
+    
+    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ic5349c6f5ebd7af608c7d75a9b3a862305758275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427396
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  80 +--
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 775 ++++++++++++------------
+ 2 files changed, 412 insertions(+), 443 deletions(-)

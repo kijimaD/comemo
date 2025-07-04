@@ -1,0 +1,20 @@
+commit 3af29fb8585f4dff0e845c00b0109d94d85ff6ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 15:51:39 2015 -0500
+
+    runtime: make asmcgocall work without a g
+    
+    Solaris needs to make system calls without a g,
+    and Solaris uses asmcgocall to make system calls.
+    I know, I know.
+    
+    I hope this makes CL 16915, fixing #12277, work on Solaris.
+    
+    Change-Id: If988dfd37f418b302da9c7096f598e5113ecea87
+    Reviewed-on: https://go-review.googlesource.com/17072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/runtime/asm_amd64.s | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

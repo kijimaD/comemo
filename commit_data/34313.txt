@@ -1,0 +1,19 @@
+commit e02d6bb621a6c452cbef37946467f94a0054f2b1
+Author: OneOfOne <oneofone@gmail.com>
+Date:   Wed Feb 21 19:58:33 2018 +0000
+
+    net/http: support multipart/mixed in Request.MultipartReader
+    
+    Fixes #23959
+    
+    GitHub-Last-Rev: 08ce026f52f9fd65b49d99745dffed46a3951585
+    GitHub-Pull-Request: golang/go#24012
+    Change-Id: I7e71c41330346dbc4dad6ba813cabfa8a54e2f66
+    Reviewed-on: https://go-review.googlesource.com/95975
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go      | 10 +++++-----
+ src/net/http/request_test.go | 10 ++++++++++
+ 2 files changed, 15 insertions(+), 5 deletions(-)

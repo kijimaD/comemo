@@ -1,0 +1,14 @@
+commit 8ba5c5593f1a95e850143c46108d830ecd228c09
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 22 20:45:36 2010 -0800
+
+    runtime: work around Linux kernel bug in futex
+    
+    Fixes #420.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/218065
+
+ src/pkg/runtime/linux/thread.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

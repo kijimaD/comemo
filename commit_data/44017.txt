@@ -1,0 +1,20 @@
+commit a508840c671f4ec4b923daa04c0ac17378ab52b4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 10:41:54 2020 +0100
+
+    doc/go1.16: fix path, path/filepath release notes
+    
+    The path package doesn't have a Glob function. Adjust the release notes
+    re. CL 264397 accordingly.
+    
+    Also add links to the documentation of all mentioned functions.
+    
+    For #40700.
+    
+    Change-Id: Ibf3e0530fa6fab36a3f6fbc664f0800869ce9ec7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278213
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

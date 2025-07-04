@@ -1,0 +1,27 @@
+commit 58d287e5e863cd8d3c3525e1a04e424e748cf242
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 2 15:21:35 2018 -0700
+
+    cmd/compile: ensure that loop condition is detected correctly
+    
+    We need to make sure that the terminating comparison has the right
+    sense given the increment direction. If the increment is positive,
+    the terminating comparsion must be < or <=. If the increment is
+    negative, the terminating comparison must be > or >=.
+    
+    Do a few cleanups,  like constant-folding entry==0, adding comments,
+    removing unused "exported" fields.
+    
+    Fixes #26116
+    
+    Change-Id: I14230ee8126054b750e2a1f2b18eb8f09873dbd5
+    Reviewed-on: https://go-review.googlesource.com/121940
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 65 +++++++++++++++++++--------------
+ test/fixedbugs/issue26116.go            | 18 +++++++++
+ test/loopbce.go                         | 22 ++++++++---
+ test/prove.go                           |  2 +-
+ 4 files changed, 72 insertions(+), 35 deletions(-)

@@ -1,0 +1,22 @@
+commit 6e83100ae578edbd4ac9fb074b0592c6317f5515
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 23 15:27:51 2010 +0100
+
+    godashboard: add Projects page
+    
+    R=rsc, r, gri
+    CC=golang-dev
+    https://golang.org/cl/1476041
+
+ misc/dashboard/godashboard/app.yaml           |   5 +-
+ misc/dashboard/godashboard/benchmark1.html    |   1 +
+ misc/dashboard/godashboard/benchmarks.html    |   1 +
+ misc/dashboard/godashboard/index.yaml         |  11 +++
+ misc/dashboard/godashboard/main.html          |   1 +
+ misc/dashboard/godashboard/package.html       |  15 ++-
+ misc/dashboard/godashboard/package.py         | 128 +++++++++++++++++++++++++-
+ misc/dashboard/godashboard/project-edit.html  |  45 +++++++++
+ misc/dashboard/godashboard/project-notify.txt |   9 ++
+ misc/dashboard/godashboard/project.html       |  86 +++++++++++++++++
+ misc/dashboard/godashboard/static/style.css   |  23 ++++-
+ 11 files changed, 319 insertions(+), 6 deletions(-)

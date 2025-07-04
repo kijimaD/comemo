@@ -1,0 +1,16 @@
+commit d54c4ecc329c22a8a79dd4d91a4df8bf41920bf4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 11:40:00 2011 +1100
+
+    time: make TestAfterQueuing retry 3 times before declaring failure.
+    
+    I'm in two minds as to whether this should be a function of gotest.
+    Tests that can flake out like this should be rare enough that we
+    needn't add more mechanism.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4335042
+
+ src/pkg/time/sleep_test.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

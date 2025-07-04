@@ -1,0 +1,16 @@
+commit 09d5e0d1193596bdce3fc9ef65eb0eeea940acf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 16:44:08 2020 -0400
+
+    api: update next.txt
+    
+    The output from all.bash has gotten big again.
+    
+    Change-Id: Ia2399d78c1fd443fd8de03c25655e2f84bd89886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266397
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next.txt | 127 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 121 insertions(+), 6 deletions(-)

@@ -1,0 +1,24 @@
+commit f23c601bf9f66ef4a0d9d2dcd003b95e78fb28f8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 21 13:40:28 2019 -0400
+
+    cmd/compile: copy volatile values before emitting write barrier call
+    
+    It is possible that a "volatile" value (one that can be clobbered
+    by preparing args of a call) to be used in multiple write barrier
+    calls. We used to copy the volatile value right before each call.
+    But this doesn't work if the value is used the second time, after
+    the first call where it is already clobbered. Copy it before
+    emitting any call.
+    
+    Fixes #30977.
+    
+    Change-Id: Iedcc91ad848d5ded547bf37a8359c125d32e994c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168677
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 78 +++++++++++++++++++---------
+ test/fixedbugs/issue30977.go                 | 52 +++++++++++++++++++
+ 2 files changed, 106 insertions(+), 24 deletions(-)

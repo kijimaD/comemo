@@ -1,0 +1,14 @@
+commit 06d639e07588ef290ed28ab384d5371e052240b1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 16:56:13 2016 -0500
+
+    runtime: fix SetCgoTraceback doc indentation
+    
+    It wasn't rendering as HTML nicely.
+    
+    Change-Id: I5408ec22932a05e85c210c0faa434bd19dce5650
+    Reviewed-on: https://go-review.googlesource.com/22532
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/traceback.go | 68 ++++++++++++++++++++++++------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

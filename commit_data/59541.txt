@@ -1,0 +1,20 @@
+commit 972639fc4cf257f04f9690e63bea7cd729b3edd2
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 14 15:22:36 2025 -0400
+
+    go/token: add FileSet.AddExistingFiles
+    
+    + test, doc, relnote
+    
+    Fixes #73205
+    
+    Change-Id: Id3a4cc6290c55ffa518ad174a02ccca85e8636f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ api/next/73205.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/go/token/73205.md |  4 ++
+ src/go/token/position.go                     | 66 ++++++++++++++++++++++++++++
+ src/go/token/position_test.go                | 42 ++++++++++++++++++
+ 4 files changed, 113 insertions(+)

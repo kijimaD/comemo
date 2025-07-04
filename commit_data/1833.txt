@@ -1,0 +1,14 @@
+commit dea4394a674c9b7868eb06b2325fc17a909c3064
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 16 17:36:52 2009 -0700
+
+    instead of unlabeled statements, have a single labeled statement
+    - no syntactic or semantic change
+    
+    R=r
+    DELTA=45  (24 added, 18 deleted, 3 changed)
+    OCL=26349
+    CL=26368
+
+ doc/go_spec.html | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

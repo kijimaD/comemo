@@ -1,0 +1,22 @@
+commit a08b1d13eaff45b0506369269ee9c597f3355646
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Wed Aug 7 11:58:59 2013 -0700
+
+    net/http: Various fixes to Basic authentication
+    
+    There were some issues with the code sometimes using base64.StdEncoding,
+    and sometimes base64.URLEncoding.
+    Encoding basic authentication is now always done by the same code.
+    
+    Fixes #5970.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12397043
+
+ src/pkg/net/http/client.go      | 25 +++++++++++++------------
+ src/pkg/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/request.go     |  4 +---
+ src/pkg/net/http/transport.go   |  5 +++--
+ src/pkg/net/url/url.go          |  4 ++--
+ 5 files changed, 53 insertions(+), 19 deletions(-)

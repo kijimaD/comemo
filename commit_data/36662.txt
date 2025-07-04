@@ -1,0 +1,19 @@
+commit 16687a3bbfa27280d16eaa89e72833b7d7579a79
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Sep 13 13:16:46 2018 +0100
+
+    cmd/compile: skip float32 constant folding test on 387 builder
+    
+    The 387 unit always quietens float64 and float32 signaling NaNs,
+    even when just loading and storing them. This makes it difficult
+    to propagate such values in the compiler. This is a hard problem
+    to fix and it is also very obscure.
+    
+    Updates #27516.
+    
+    Change-Id: I03d88e31f14c86fa682fcea4b6d1fba18968aee8
+    Reviewed-on: https://go-review.googlesource.com/135195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/float_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

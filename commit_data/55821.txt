@@ -1,0 +1,19 @@
+commit f27a57ffb8e558c74e36b952e8050025b1c7c6a0
+Author: Dave Russell <forfuncsake@gmail.com>
+Date:   Tue Oct 17 08:22:46 2023 +0000
+
+    net/http: adjust wording on ServeMux godoc
+    
+    When reading through the docs, I found that the sentence flows better with
+    the `to` present.
+    
+    Change-Id: I51c21fa33c7a13748c0814dd87c76b9a8d64e2ec
+    GitHub-Last-Rev: 0642bd7185343ba562c7057071d4689ead7a378e
+    GitHub-Pull-Request: golang/go#63587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535935
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

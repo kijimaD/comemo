@@ -1,0 +1,16 @@
+commit dec16794cf9136f8887e08391c01f1265b876ddb
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Aug 28 16:07:39 2019 -0400
+
+    doc/1.13: remove draft note and make various fixes
+    
+    Fixes #33954
+    
+    Change-Id: Idfe71bf825adcd7cbf70cd139b3e779963394ff6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192105
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.13.html | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

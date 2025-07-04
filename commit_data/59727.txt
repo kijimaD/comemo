@@ -1,0 +1,22 @@
+commit f8c51b1a6c3d6ebfdbeab3c81d4157aefe0e8b71
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 21 11:21:31 2025 -0400
+
+    go/doc: NewFromFiles: fix panic on Files with SkipObjectResolution
+    
+    This CL fixes a panic in NewFromFiles when it is provided files
+    produced by the parser in SkipObjectResolution mode, which skips
+    the step of connecting ast.Idents to (deprecated) ast.Objects.
+    Instead of calling ast.NewPackage, which performs a number of
+    unnecessary steps, we just construct the ast.Package directly.
+    
+    Fixes #66290
+    
+    Change-Id: Id55bd30d8afb9d396c3901070e7607c5a22030d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675036
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/doc/doc.go          | 44 +++++++++++++++++---------------------------
+ src/go/doc/example_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 28 deletions(-)

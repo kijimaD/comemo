@@ -1,0 +1,18 @@
+commit 550149fb0490cf77abe676f74b49b7199cb7323d
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Feb 16 02:28:39 2015 +1100
+
+    syscall: add support for openbsd/arm
+    
+    Change-Id: I9fe15781f52e0d16707a9c021cf800319721a606
+    Reviewed-on: https://go-review.googlesource.com/4913
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/asm_openbsd_arm.s       |  132 +++
+ src/syscall/mkall.sh                |   12 +-
+ src/syscall/syscall_openbsd_arm.go  |   42 +
+ src/syscall/zerrors_openbsd_arm.go  | 1582 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.go | 1291 ++++++++++++++++++++++++++++
+ src/syscall/zsysnum_openbsd_arm.go  |  211 +++++
+ src/syscall/ztypes_openbsd_arm.go   |  432 ++++++++++
+ 7 files changed, 3700 insertions(+), 2 deletions(-)

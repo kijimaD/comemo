@@ -1,0 +1,22 @@
+commit 0aeaa6a495b7273f7a2190bc9857710190808e54
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 20 20:51:11 2025 +0200
+
+    crypto/x509: use truncated SHA-256 for SubjectKeyId
+    
+    Fixes #71746
+    
+    Change-Id: I6a6a46568b092933d8ac2039df99ee9f0edf6e56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674477
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/godebug.md                                  |  3 +++
+ doc/next/6-stdlib/99-minor/crypto/x509/71746.md |  2 ++
+ src/crypto/x509/x509.go                         | 25 +++++++++++++++++++------
+ src/internal/godebugs/table.go                  |  1 +
+ src/runtime/metrics/doc.go                      |  4 ++++
+ 5 files changed, 29 insertions(+), 6 deletions(-)

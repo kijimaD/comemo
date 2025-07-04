@@ -1,0 +1,21 @@
+commit e73e25b624c37a936bb42f50a11f56297a4cd637
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Oct 25 10:29:01 2023 +0000
+
+    internal/cpu: add comments to copied functions
+    
+    Just as same as other copied functions,
+    like stringsTrimSuffix in "os/executable_procfs.go"
+    
+    Change-Id: I9c9fbd75b009a5ae0e869cf1fddc77c0e08d9a67
+    GitHub-Last-Rev: 4c18865e15ede0f53121b6845a1879cdd70d1a38
+    GitHub-Pull-Request: golang/go#63704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537056
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu.go | 2 ++
+ 1 file changed, 2 insertions(+)

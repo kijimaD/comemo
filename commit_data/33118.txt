@@ -1,0 +1,32 @@
+commit 270a789c527bc6b43ed241f193d2d108b63fefa3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Oct 11 10:14:31 2017 +0100
+
+    cmd/compile: simplify some declarations
+    
+    Reduce the scope of some. Also remove vars that were simply the index or
+    the value in a range statement. While at it, remove a var that was
+    exactly the length of a slice.
+    
+    Also replaced 'bad' with a more clear 'errored' of type bool, and
+    renamed a single-char name with a comment to a name that is
+    self-explanatory.
+    
+    And removed a few unnecessary Index calls within loops.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I26eee5f04e8f7e5418e43e25dca34f89cca5c80a
+    Reviewed-on: https://go-review.googlesource.com/70930
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go       |  4 +--
+ src/cmd/compile/internal/gc/noder.go     |  2 +-
+ src/cmd/compile/internal/gc/order.go     | 47 ++++++++++++--------------------
+ src/cmd/compile/internal/gc/reflect.go   | 16 +++++------
+ src/cmd/compile/internal/gc/sinit.go     | 12 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  7 ++---
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 20 ++++++--------
+ 8 files changed, 49 insertions(+), 71 deletions(-)

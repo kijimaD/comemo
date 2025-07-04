@@ -1,0 +1,17 @@
+commit 9232a612fed58d2629073056f827db3fae0cd5f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 12:38:11 2017 -0500
+
+    encoding/binary: make new example a bit more idiomatic
+    
+    Mainly get rid of the weird zero-value struct literal,
+    but while we're here also group and order things a bit better:
+    first the reader, then the data, then the call (which takes reader then data).
+    
+    Change-Id: I901b0661d85d8eaa0807e4482aac66500ca996c7
+    Reviewed-on: https://go-review.googlesource.com/78118
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/encoding/binary/example_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

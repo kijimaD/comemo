@@ -1,0 +1,21 @@
+commit b45f5b5e16c8176c909b441ebfa731cd6ff0cd63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 1 10:09:02 2019 -0500
+
+    cmd/go: quote expanded shell variables used within regular expressions
+    
+    We mostly use shell variables for paths, and we don't want file paths
+    like "C:\work\go1.4" to turn into regular expressions.
+    
+    Updates #30228
+    Updates #30241
+    
+    Change-Id: If18b775b2f8b2821eaf197c4be4a322066af839f
+    Reviewed-on: https://go-review.googlesource.com/c/164626
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/script_test.go | 166 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 111 insertions(+), 55 deletions(-)

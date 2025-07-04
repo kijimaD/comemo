@@ -1,0 +1,22 @@
+commit 6582d1cf8b345b774785b7bae46b4b0c5f5a75f5
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Mar 7 16:16:48 2015 +1300
+
+    cmd/internal/gc, etc: remove canemitecode of Naddr
+    
+    The argument is never consulted apart from passing it to recursive
+    calls.  So delete it.
+    
+    Change-Id: Ia15eefb6385b3c99ea4def88f564f4e5a94c68ab
+    Reviewed-on: https://go-review.googlesource.com/7032
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/5g/ggen.go           |  2 +-
+ src/cmd/5g/gsubr.go          | 12 ++++++------
+ src/cmd/6g/gsubr.go          | 10 +++++-----
+ src/cmd/8g/gsubr.go          |  4 ++--
+ src/cmd/9g/ggen.go           |  2 +-
+ src/cmd/9g/gsubr.go          |  4 ++--
+ src/cmd/internal/gc/gsubr.go | 14 +++++++-------
+ src/cmd/internal/gc/plive.go |  4 ++--
+ 8 files changed, 26 insertions(+), 26 deletions(-)

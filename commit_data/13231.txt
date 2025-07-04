@@ -1,0 +1,12 @@
+commit 023a7e881c07c1f1b9d836afa245ec09e7bd056b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 31 14:09:24 2012 +1000
+
+    misc/dashboard/app: fix tests
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6244069
+
+ misc/dashboard/app/build/test.go | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)

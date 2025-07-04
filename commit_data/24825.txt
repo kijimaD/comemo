@@ -1,0 +1,31 @@
+commit 4f19cb7011ade4a647b6429ecc33f96ec4603e61
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 08:48:19 2015 -0400
+
+    syscall: added support for linux/mips64{,le}
+    
+    Syscall getdents64 is relatively new in linux/mips64, only since kernel
+    version 3.10. To support older kernel, syscall getdents is used for
+    mips64.
+    
+    Change-Id: I892b05dff7d93e7ddb0d700abd6a5e6d4084ab4c
+    Reviewed-on: https://go-review.googlesource.com/14449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/asm_linux_mips64x.s       | 104 +++++++++++++++++
+ src/syscall/syscall_linux.go          |   2 +-
+ src/syscall/syscall_linux_386.go      |   5 +-
+ src/syscall/syscall_linux_amd64.go    |   5 +-
+ src/syscall/syscall_linux_arm.go      |   5 +-
+ src/syscall/syscall_linux_arm64.go    |   5 +-
+ src/syscall/syscall_linux_mips64x.go  | 210 ++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_linux_ppc64x.go   |   5 +-
+ src/syscall/types_linux.go            |   2 +
+ src/syscall/zsyscall_linux_386.go     |   2 +-
+ src/syscall/zsyscall_linux_amd64.go   |   2 +-
+ src/syscall/zsyscall_linux_arm.go     |   2 +-
+ src/syscall/zsyscall_linux_arm64.go   |   2 +-
+ src/syscall/zsyscall_linux_ppc64.go   |   2 +-
+ src/syscall/zsyscall_linux_ppc64le.go |   2 +-
+ 15 files changed, 343 insertions(+), 12 deletions(-)

@@ -1,0 +1,16 @@
+commit 5e9ab665fb34c1072eec48e4c9d246e235a07038
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 23 09:13:32 2015 +1000
+
+    image/jpeg: have the LargeImageWithShortData test only allocate 64 MiB, not 604
+    MiB.
+    
+    Fixes #10531
+    
+    Change-Id: I9eece86837c3df2b1f7df315d5ec94bd3ede3eec
+    Reviewed-on: https://go-review.googlesource.com/9238
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/image/jpeg/reader_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

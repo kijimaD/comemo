@@ -1,0 +1,14 @@
+commit fd0af9b56c56d293f4ca9396184dd452615933ee
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 09:33:38 2013 -0700
+
+    cmd/8l: add support for dragonfly/386
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13328045
+
+ src/cmd/8l/asm.c  | 1 +
+ src/cmd/8l/obj.c  | 4 ++++
+ src/cmd/ld/doc.go | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

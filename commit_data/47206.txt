@@ -1,0 +1,18 @@
+commit 2b81b863a258decaaca26ab4c01bfd070cc01ebe
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:36:36 2021 -0400
+
+    go/types: fix indexing of generic types
+    
+    This is a clean port of CL 360603 to go/types.
+    
+    Change-Id: Iadb312f07e509ff83339d5525765b7b7987bf233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360936
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/index.go                      | 87 +++++++++++++++---------------
+ src/go/types/testdata/check/typeparams.go2 |  8 +++
+ 2 files changed, 53 insertions(+), 42 deletions(-)

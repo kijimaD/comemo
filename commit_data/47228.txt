@@ -1,0 +1,16 @@
+commit a419f2f5c364031e2f65a9f031e8bb52e9c22fc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 3 14:58:59 2021 -0700
+
+    cmd/compile/internal/syntax: better error message when type parameters are not permitted
+    
+    Fixes #48382.
+    
+    Change-Id: I215896a4429839c41c9136b6922b1b748ed47734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361259
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go          | 45 ++++++++++++++--------
+ .../internal/syntax/testdata/issue48382.go2        | 15 ++++++++
+ 2 files changed, 43 insertions(+), 17 deletions(-)

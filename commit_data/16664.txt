@@ -1,0 +1,16 @@
+commit 4eb17ecd1f1c5d130a0fe5c6bbd03714d315c41a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 28 00:49:53 2013 +0400
+
+    runtime: fix goroutine status corruption
+    runtime.entersyscall() sets g->status = Gsyscall,
+    then calls runtime.lock() which causes stack split.
+    runtime.newstack() resets g->status to Grunning.
+    This will lead to crash during GC (world is not stopped) or GC will scan stack incorrectly.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10696043
+
+ src/pkg/runtime/stack.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit aada49038c683d048fd0a146366d7ce52dc17e97
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 12:30:30 2017 +1100
+
+    cmd/link: write dwarf relocations
+    
+    For #10776.
+    
+    Change-Id: I11dd441d8e5d6316889ffa8418df8b58c57c677d
+    Reviewed-on: https://go-review.googlesource.com/36982
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go |  3 +++
+ src/cmd/link/internal/ld/data.go   |  9 ++++++++-
+ src/cmd/link/internal/ld/pe.go     | 23 ++++++++++++++++++-----
+ src/cmd/link/internal/x86/asm.go   |  3 +++
+ 4 files changed, 32 insertions(+), 6 deletions(-)

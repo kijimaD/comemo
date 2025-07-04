@@ -1,0 +1,12 @@
+commit 283a3ddab8f93ef3a54139541e354c8673bee83c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 17 11:34:28 2012 +1000
+
+    runtime: disable gc test on non-amd64 systems
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6210062
+
+ src/pkg/runtime/gc_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

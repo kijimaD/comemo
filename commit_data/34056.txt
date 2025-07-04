@@ -1,0 +1,47 @@
+commit ff6d7c2b27697e9f2bf35c97c230afbae11f3f9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 11 15:30:39 2017 -0800
+
+    go/types: delay type-checking of function literals
+    
+    R=go1.11
+    
+    Functions (at the package level) were collected and their bodies
+    type-checked after all other package-level objects were checked.
+    But function literals where type-checked right away when they were
+    encountered so that they could see the correct, partially populated
+    surrounding scope, and also to mark variables of the surrounding
+    function as used.
+    
+    This approach, while simple, breaks down in esoteric cases where
+    a function literal appears inside the declaration of an object
+    that its body depends on: If the body is type-checked before the
+    object is completely set up, the literal may use incomplete data
+    structures, possibly leading to spurious errors.
+    
+    This change postpones type-checking of function literals to later;
+    after the current expression or statement, but before any changes
+    to the enclosing scope (so that the delayed type-checking sees the
+    correct scope contents).
+    
+    The new mechanism is general and now is also used for other
+    (non-function) delayed checks.
+    
+    Fixes #22992.
+    
+    Change-Id: Ic95f709560858b4bdf8c645be70abe4449f6184d
+    Reviewed-on: https://go-review.googlesource.com/83397
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go               | 31 +++++++------------------------
+ src/go/types/decl.go                | 14 +++++++++++++-
+ src/go/types/expr.go                | 18 ++++++++----------
+ src/go/types/resolver.go            | 11 +++++++----
+ src/go/types/stmt.go                | 17 ++++++++---------
+ src/go/types/testdata/constdecl.src | 13 +++++++++++++
+ src/go/types/testdata/cycles.src    | 11 +++++++++++
+ src/go/types/testdata/cycles5.src   |  4 +++-
+ src/go/types/testdata/init0.src     |  2 +-
+ src/go/types/testdata/vardecl.src   | 15 ++++++++++++++-
+ src/go/types/typexpr.go             |  6 +++---
+ 11 files changed, 88 insertions(+), 54 deletions(-)

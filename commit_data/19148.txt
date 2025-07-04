@@ -1,0 +1,13 @@
+commit b9f5dce4fc05ab89fcf695f2236dfdbef697cde2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 16 00:48:21 2014 +0200
+
+    net/http: skip TestTransportClosesBodyOnError on Plan 9
+    
+    LGTM=rsc
+    R=bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87800044
+
+ src/pkg/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

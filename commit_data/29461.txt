@@ -1,0 +1,17 @@
+commit d54463f4fc9e6137b31f660afa5a785ba65e1879
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 18:00:10 2016 +0000
+
+    lib/time: update tzdata to 2016i
+    
+    Fixes #17678
+    
+    Change-Id: I01d12a827e6106efed1ec024f736c640b86906b4
+    Reviewed-on: https://go-review.googlesource.com/33029
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 363948 -> 364943 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

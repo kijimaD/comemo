@@ -1,0 +1,20 @@
+commit cc8e4fb4854a218b2bc51db8bda370a0154a18a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 10:53:14 2009 -0700
+
+    - introduce explicit Token type
+    - convert some functions into methods
+    - corresponding changes in pretty
+    
+    R=r
+    DELTA=57  (3 added, 0 deleted, 54 changed)
+    OCL=26764
+    CL=26777
+
+ src/lib/go/scanner.go      | 14 +++++++-------
+ src/lib/go/scanner_test.go | 16 ++++++++--------
+ src/lib/go/token.go        | 25 ++++++++++++++-----------
+ usr/gri/pretty/ast.go      | 16 ++++++++--------
+ usr/gri/pretty/parser.go   | 20 ++++++++++----------
+ usr/gri/pretty/printer.go  | 12 ++++++------
+ 6 files changed, 53 insertions(+), 50 deletions(-)

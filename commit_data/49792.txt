@@ -1,0 +1,18 @@
+commit 662a729ded9cd9ae70c079a0b1c3ca0a81f94c32
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 9 09:03:50 2022 -0400
+
+    runtime: disable gdb testpoints on alpine pending builder fix
+    
+    Disable the TestGdb* testpoints until we can figure out why they are
+    failing and reconfigure the machine properly.
+    
+    Updates #54352.
+    
+    Change-Id: Id9c76a0ba6e23b5deff24f521a1c8e0aafb6481a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422294
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

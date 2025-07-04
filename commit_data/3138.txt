@@ -1,0 +1,15 @@
+commit 792eba220edcabd08f4b1d2172f7e3711d1a715b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Aug 29 21:13:32 2009 -0700
+
+    Fix .alternates execution: it was skipping every second token.
+    
+    R=r
+    APPROVED=r
+    DELTA=13  (11 added, 0 deleted, 2 changed)
+    OCL=34081
+    CL=34081
+
+ src/pkg/template/template.go      |  4 ++--
+ src/pkg/template/template_test.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

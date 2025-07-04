@@ -1,0 +1,19 @@
+commit cd0f799e65619c30e984c03b905507ff0216e825
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 18:17:03 2011 -0800
+
+    exp/eval, go/printer: fix build
+    
+    There are some minor irregularities in the printer
+    output (some paren's are present that should be
+    removed), but these are unrelated issues.
+    Will review in a 2nd step.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4188068
+
+ src/pkg/exp/eval/stmt_test.go                 | 12 ++++++------
+ src/pkg/go/printer/testdata/statements.golden | 20 ++++----------------
+ src/pkg/go/printer/testdata/statements.input  | 22 ++++++++--------------
+ 3 files changed, 18 insertions(+), 36 deletions(-)

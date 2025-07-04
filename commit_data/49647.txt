@@ -1,0 +1,23 @@
+commit 967a3d985d9252368b236411d2f0658fd636b1d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 17:03:30 2022 +0000
+
+    cmd/compile: revert "remove -installsuffix flag"
+    
+    This reverts CL 415236 (commit 558785a0a9df5fbb7e9617c05059cf2892884620).
+    
+    Reason for revert: Google's internal build system uses -installsuffix.
+    Restoring -installsuffix for Go 1.19, and will try again for Go 1.20.
+    
+    Change-Id: Id6571f34f99f01bcf55e8e949e6fe7b6c1896134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/doc.go                   | 3 +++
+ src/cmd/compile/internal/base/flag.go    | 1 +
+ src/cmd/compile/internal/noder/import.go | 4 +++-
+ src/cmd/go/internal/work/gc.go           | 3 +++
+ 4 files changed, 10 insertions(+), 1 deletion(-)

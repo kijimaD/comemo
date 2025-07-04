@@ -1,0 +1,15 @@
+commit 2e9388e32124bcc946d18388a2a18eb17a999148
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 13 13:50:05 2011 +1000
+
+    exp/template: add Set.AddSet and Set.Union.
+    Document and test that Set.Parse can be called multiple times.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4703044
+
+ src/pkg/exp/template/doc.go      |  4 ++++
+ src/pkg/exp/template/set.go      | 31 +++++++++++++++++++++++++++++--
+ src/pkg/exp/template/set_test.go | 11 +++++++++--
+ 3 files changed, 42 insertions(+), 4 deletions(-)

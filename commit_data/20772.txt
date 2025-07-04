@@ -1,0 +1,13 @@
+commit ecd1cc173aed7360ce1c9e7454e5b0b548728c18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 22 10:51:30 2014 -0400
+
+    CONTRIBUTORS: add Austin Clements's google.com email (Google CLA)
+    
+    LGTM=bradfitz, austin
+    R=austin
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/158330045
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

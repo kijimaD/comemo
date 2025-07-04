@@ -1,0 +1,16 @@
+commit 6424c40c2251fdf55e3696933d0e0494a347edd9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Jun 21 18:35:38 2017 +0900
+
+    cmd/link: don't emit default entry symbol in some situations
+    
+    Also, fix comment.
+    
+    Change-Id: Ieb7ba21f34730dc51ab45a652d225e4145d4b861
+    Reviewed-on: https://go-review.googlesource.com/54870
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

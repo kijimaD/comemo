@@ -1,0 +1,23 @@
+commit 7596ad0b24436dcde6a370139fbac34a95f15923
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 24 15:31:24 2019 -0700
+
+    unicode/utf8: remove some bounds checks from DecodeRune
+    
+    The compiler couldn't quite see that reading p[2] and p[3] was safe.
+    This change provides a few hints to help it.
+    First, make sz an int throughout, rather than just when checking the input length.
+    Second, use <= instead of == in later comparisons.
+    
+    name                  old time/op  new time/op  delta
+    DecodeASCIIRune-8     2.62ns ± 3%  2.60ns ± 5%     ~     (p=0.126 n=18+19)
+    DecodeJapaneseRune-8  4.46ns ±10%  4.01ns ± 5%  -10.00%  (p=0.000 n=19+20)
+    
+    Change-Id: I2f78a17e38156fbf8b0f5dd6c07c20d6a47e9209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173662
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/utf8/utf8.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,25 @@
+commit 3e45eb3ce1f28ccb6e4150b6c2c09ca8568874e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 7 15:59:14 2021 -0500
+
+    runtime: do not inherit labels on system goroutines
+    
+    GC background mark worker goroutines are created when the first GC is
+    triggered (or next GC after GOMAXPROCS increases). Since the GC can be
+    triggered from a user goroutine, those workers will inherit any pprof
+    labels from the user goroutine.
+    
+    That isn't meaningful, so avoid it by excluding system goroutines from
+    inheriting labels.
+    
+    Fixes #50032
+    
+    Change-Id: Ib425ae561a3466007ff5deec86b9c51829ab5507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369983
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

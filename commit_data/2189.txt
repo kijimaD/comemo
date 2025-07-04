@@ -1,0 +1,14 @@
+commit a8f6e38bce5d5b83474a6903c40473dc5855037b
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 12 14:57:44 2009 -0700
+
+    implement IsNil() bool for those types that can be nil.  most of them, anyway.
+    
+    R=rsc
+    DELTA=97  (96 added, 0 deleted, 1 changed)
+    OCL=28596
+    CL=28702
+
+ src/lib/reflect/all_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/reflect/value.go    | 36 +++++++++++++++++++++++++-
+ 2 files changed, 97 insertions(+), 1 deletion(-)

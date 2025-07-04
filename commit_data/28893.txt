@@ -1,0 +1,23 @@
+commit 736443c13a718f0a9c30327ebbf09f58ccbe6d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 17:20:48 2016 -0400
+
+    os/exec: allow simultaneous cmd.Wait and Write of cmd.StdinPipe
+    
+    cmd.StdinPipe returns an io.WriteCloser.
+    It's reasonable to expect the caller not to call Write and Close simultaneously,
+    but there is an implicit Close in cmd.Wait that's not obvious.
+    We already synchronize the implicit Close in cmd.Wait against
+    any explicit Close from the caller. Also synchronize that implicit
+    Close against any explicit Write from the caller.
+    
+    Fixes #9307.
+    
+    Change-Id: I8561e9369d6e5ac88dfbca1175549f6dfa04b8ac
+    Reviewed-on: https://go-review.googlesource.com/31148
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go      | 49 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/os/exec/exec_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

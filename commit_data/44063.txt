@@ -1,0 +1,17 @@
+commit fb96f07e1a45b9ec41158732a34aee8c2ccc2eaf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Dec 23 17:12:44 2020 +0000
+
+    runtime: fix nStackRoots comment about stack roots
+    
+    A comment in mgcmark.go indicates that we scan stacks a second time but
+    we don't, at least not since changing to the hybrid write barrier.
+    
+    Change-Id: I9376adbb6d8b6dd9dc3cee62e077b5dfb8a3fdde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279797
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

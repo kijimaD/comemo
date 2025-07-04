@@ -1,0 +1,20 @@
+commit c091767d87b7a6ef6016286bc0fae8add59b92de
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 15 13:52:05 2021 -0700
+
+    cmd/asm: report an error when trying to do spectre on 386
+    
+    The compiler refuses to do spectre mitigation on 386, but the
+    assembler doesn't. Fix that.
+    
+    Fixes #49006
+    
+    Change-Id: I887b6f7ed7523a47f463706f06ca4c2c6e828b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356190
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 5 +++++
+ 1 file changed, 5 insertions(+)

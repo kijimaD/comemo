@@ -1,0 +1,37 @@
+commit 3c4d3bdd3b454ef45ce00559d705fe5dc6f57cad
+Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
+Date:   Mon May 28 02:47:21 2018 +0100
+
+    net: add ListenConfig, Dialer.Control to permit socket opts before listen/dial
+    
+    Existing implementation does not provide a way to set options such as
+    SO_REUSEPORT, that has to be set prior the socket being bound.
+    
+    New exposed API:
+    pkg net, method (*ListenConfig) Listen(context.Context, string, string) (Listener, error)
+    pkg net, method (*ListenConfig) ListenPacket(context.Context, string, string) (PacketConn, error)
+    pkg net, type ListenConfig struct
+    pkg net, type ListenConfig struct, Control func(string, string, syscall.RawConn) error
+    pkg net, type Dialer struct, Control func(string, string, syscall.RawConn) error
+    
+    Fixes #9661
+    
+    Change-Id: If4d275711f823df72d3ac5cc3858651a6a57cccb
+    Reviewed-on: https://go-review.googlesource.com/72810
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go                 | 123 ++++++++++++++++++++++++++++------------
+ src/net/dial_test.go            |  51 +++++++++++++++++
+ src/net/iprawsock_posix.go      |   4 +-
+ src/net/ipsock_posix.go         |   4 +-
+ src/net/listen_test.go          |  54 ++++++++++++++++++
+ src/net/rawconn_stub_test.go    |   4 ++
+ src/net/rawconn_unix_test.go    |  38 ++++++++++++-
+ src/net/rawconn_windows_test.go |  30 ++++++++++
+ src/net/sock_posix.go           |  94 +++++++++++++++++++++++-------
+ src/net/tcpsock_posix.go        |   6 +-
+ src/net/udpsock_posix.go        |   6 +-
+ src/net/unixsock_posix.go       |  10 ++--
+ 12 files changed, 350 insertions(+), 74 deletions(-)

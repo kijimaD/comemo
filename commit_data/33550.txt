@@ -1,0 +1,26 @@
+commit 8cdd999bf54f5fae0acbf4a6d5a3911e4692ca28
+Author: Tw <tw19881113@gmail.com>
+Date:   Sat Jun 24 14:23:17 2017 +0800
+
+    net/http: don't set Content-Type with empty body automatically
+    
+    We set Content-Type to "text/plain; charset=utf-8" even with blank body
+    before. Let's strip this unnecessary header though it's harmless in most
+    cases.
+    
+    Fixes #20784
+    
+    Signed-off-by: Tw <tw19881113@gmail.com>
+    
+    Change-Id: Ic58a410dcbc89f457c6ddd92961d9cbf545b2f4f
+    Reviewed-on: https://go-review.googlesource.com/46631
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs_test.go    | 11 ++++-------
+ src/net/http/h2_bundle.go  |  2 +-
+ src/net/http/serve_test.go |  3 ---
+ src/net/http/server.go     |  2 +-
+ src/net/http/sniff_test.go |  1 -
+ 5 files changed, 6 insertions(+), 13 deletions(-)

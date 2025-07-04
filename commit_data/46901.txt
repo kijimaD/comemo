@@ -1,0 +1,25 @@
+commit 8dab959a8e3c631e3166eb08ba450bfdbbf56e03
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 14 17:30:42 2021 -0700
+
+    reflect: rename Mapiter.SetKey to Value.SetIterKey
+    
+    Same for Value.
+    
+    Add a bigger test. Include some shouldPanic checks.
+    
+    Fix a bug in assignment conversion.
+    
+    Fixes #48294
+    
+    Change-Id: Id863ee5122a5787a7b35574b18586fd24d118788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356049
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/reflect/all_test.go | 90 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/reflect/value.go    | 48 +++++++++++++-------------
+ 2 files changed, 108 insertions(+), 30 deletions(-)

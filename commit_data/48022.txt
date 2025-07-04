@@ -1,0 +1,32 @@
+commit a991d9dc27bda23018e23488806c8f8d027e4f7b
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jan 26 17:58:08 2022 -0800
+
+    cmd/compile: add missing shape check in (*Tsubster).tinter
+    
+    Add a missing shape check in (*Tsubster).tinter when substituting on a
+    generic type which is an empty interface, analogous to same check in
+    (*Tsubster).tstruct. Empty structs/interfaces that have rparams (i.e.
+    are a generic type or a shape type) need to get a new type of their
+    rparams - they will be different even though they don't have any
+    fields/methods. Without this shape check, we were not correctly
+    completing the Token[int] type during substitution in the example in the
+    issue. This issue only happens for a generic type which is an empty
+    interface (i.e. doesn't actually use the type param, hence quite unusual).
+    
+    Added the test case already created by Keith.
+    
+    Fixes #50841
+    
+    Change-Id: Ia985b9f52c0e87ed0647b46373e44c51cb748ba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381175
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/subr.go | 14 +++++++-------
+ test/typeparam/issue50841.dir/a.go         | 22 ++++++++++++++++++++++
+ test/typeparam/issue50841.dir/b.go         | 11 +++++++++++
+ test/typeparam/issue50841.go               |  7 +++++++
+ 4 files changed, 47 insertions(+), 7 deletions(-)

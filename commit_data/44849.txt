@@ -1,0 +1,19 @@
+commit 9fbd0f64d86d616d9ce1a2636afac43001b22b7c
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Mon Mar 29 18:22:15 2021 +0000
+
+    runtime: fix some typos
+    
+    Change-Id: I31f2081eb7c30a9583f479f9194e636fe721b9b3
+    GitHub-Last-Rev: d09f5fbdc5785dc3963b22ad75309740e0de258e
+    GitHub-Pull-Request: golang/go#45278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305231
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mgcwork.go        | 2 +-
+ src/runtime/proc.go           | 2 +-
+ src/runtime/sys_windows_arm.s | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

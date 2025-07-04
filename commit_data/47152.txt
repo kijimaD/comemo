@@ -1,0 +1,25 @@
+commit 02e5913406b2ac354695471690b79d8d4242ad8d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 15:00:16 2021 -0700
+
+    go/types, types2: remove confusing debugging output in inference error message
+    
+    When type inference cannot infer type arguments it prints the list of
+    inferred type arguments (often empty) at the end of the error message.
+    This was meant as debugging support only. Removed for now.
+    
+    Eventually we should provide a better error message.
+    
+    Fixes #49272.
+    
+    Change-Id: I68d43a6ace91081009cab0f2fbad7bfbddf5e76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360554
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/go/types/infer.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

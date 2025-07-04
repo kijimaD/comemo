@@ -1,0 +1,62 @@
+commit ea4631cc0cf301c824bd665a7980c13289ab5c9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 12:36:31 2022 -0500
+
+    internal/godebug: define more efficient API
+    
+    We have been expanding our use of GODEBUG for compatibility,
+    and the current implementation forces a tradeoff between
+    freshness and efficiency. It parses the environment variable
+    in full each time it is called, which is expensive. But if clients
+    cache the result, they won't respond to run-time GODEBUG
+    changes, as happened with x509sha1 (#56436).
+    
+    This CL changes the GODEBUG API to provide efficient,
+    up-to-date results. Instead of a single Get function,
+    New returns a *godebug.Setting that itself has a Get method.
+    Clients can save the result of New, which is no more expensive
+    than errors.New, in a global variable, and then call that
+    variable's Get method to get the value. Get costs only two
+    atomic loads in the case where the variable hasn't changed
+    since the last call.
+    
+    Unfortunately, these changes do require importing sync
+    from godebug, which will mean that sync itself will never
+    be able to use a GODEBUG setting. That doesn't seem like
+    such a hardship. If it was really necessary, the runtime could
+    pass a setting to package sync itself at startup, with the
+    caveat that that setting, like the ones used by runtime itself,
+    would not respond to run-time GODEBUG changes.
+    
+    Change-Id: I99a3acfa24fb2a692610af26a5d14bbc62c966ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449504
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                |  12 +--
+ src/cmd/go/internal/fsys/fsys.go     |  20 +++--
+ src/cmd/go/internal/modindex/read.go |   6 +-
+ src/crypto/x509/x509.go              |   4 +-
+ src/go/build/build.go                |   4 +-
+ src/go/build/deps_test.go            |   6 +-
+ src/internal/cpu/cpu_test.go         |   2 +-
+ src/internal/cpu/cpu_x86_test.go     |   2 +-
+ src/internal/fuzz/fuzz.go            |   9 +-
+ src/internal/godebug/export_test.go  |   7 --
+ src/internal/godebug/godebug.go      | 169 ++++++++++++++++++++++++++++++-----
+ src/internal/godebug/godebug_test.go |  32 +++----
+ src/internal/intern/intern.go        |   4 +-
+ src/math/rand/rand.go                |   4 +-
+ src/net/conf.go                      |   4 +-
+ src/net/http/server.go               |   4 +-
+ src/net/http/transport.go            |   4 +-
+ src/os/exec/exec.go                  |   7 +-
+ src/os/exec/lp_plan9.go              |   3 +-
+ src/os/exec/lp_unix.go               |   3 +-
+ src/os/exec/lp_windows.go            |   5 +-
+ src/runtime/runtime.go               |  30 +++++--
+ src/runtime/runtime1.go              |   2 +-
+ 23 files changed, 245 insertions(+), 98 deletions(-)

@@ -1,0 +1,26 @@
+commit 600a2a4ffb9a273a3a1635b60120ffc768741aa9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 23 23:29:10 2021 -0400
+
+    cmd/go: don't try to add replaced versions that won't be selected
+    
+    In Go 1.12, we added a heuristic to 'go mod tidy' to resolve packages
+    by adding replaced-but-not-required modules before falling back to
+    searching for modules from the network. Unfortunately, that heuristic
+    fails when the replaced version is already lower than the selected
+    version: adding such a module to the build list doesn't change the
+    selected version of that module, and so it doesn't make progress
+    toward resolving the missing package.
+    
+    Fixes #46659
+    
+    Change-Id: I75e2387d5290e769f6b0fa1231dcc4605db68597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330432
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go              |  9 ++++++
+ .../go/testdata/script/mod_tidy_replace_old.txt    | 34 ++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

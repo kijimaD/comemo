@@ -1,0 +1,15 @@
+commit 439318dd50415e8d6883a9c90663757910a11e33
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:30:37 2015 -0400
+
+    crypto/x509: skip arm64 tests limited by iOS
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ib0438021bfe9eb105222b93e5bb375c282cc7b8c
+    Reviewed-on: https://go-review.googlesource.com/8822
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/x509/root_darwin_test.go | 5 +++--
+ src/crypto/x509/x509_test.go        | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

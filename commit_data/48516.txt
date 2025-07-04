@@ -1,0 +1,20 @@
+commit cccfb8ffdb97224aed5cc718d4bac3f3df9e55ed
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 23 18:57:16 2022 -0400
+
+    cmd/link: do not add label symbols for DWARF on Windows/ARM64
+    
+    Label symbols are only useful for relocations from text. No need
+    to do it for DWARF. And the PE symbol table doesn't like them.
+    
+    May fix #51903.
+    
+    Change-Id: Ibe6ea880d8533ba1dcc017030072c7dffee0e9e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395215
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

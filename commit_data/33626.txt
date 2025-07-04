@@ -1,0 +1,19 @@
+commit aad928957184e0d632ef6f7b83d69d3e3c2e0868
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Nov 18 11:43:43 2017 +0100
+
+    cmd/dist: skip SWIG tests on Android
+    
+    They were added in CL 78175 but doesn't run on Android (yet). Skip
+    them for now.
+    
+    For the Android builders.
+    
+    Change-Id: I3b4bfe1f0d820ab98cf50aaab1ee2fad1a44a851
+    Reviewed-on: https://go-review.googlesource.com/78615
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 32f2f72c4716debf658eaec1c400a35b2de7d51d
+Author: Michael Matloob <matloob@google.com>
+Date:   Mon Dec 29 16:59:55 2014 -0800
+
+    cmd/compile: provide better error when method called without receiver
+    
+    When a method is called using the Type.Method(receiver, args...) syntax
+    without the receiver, or enough arguments, provide the more helpful
+    error message "not enough arguments in call to method expression
+    Type.Method" instead of the old message "not enough arguments in call
+    to Type.Method".
+    
+    Fixes #8385
+    
+    Change-Id: Id5037eb1ee5fa93687d4a6557b4a8233b29e9df2
+    Reviewed-on: https://go-review.googlesource.com/2193
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  9 ++++++-
+ test/fixedbugs/issue8385.go              | 42 ++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

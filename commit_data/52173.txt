@@ -1,0 +1,33 @@
+commit 3f8f929d60a90c4e4e2b07c8d1972166c1a783b1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 1 16:11:07 2023 +0000
+
+    cmd/link/internal/ld: move more of mustLinkExternal into internal/platform
+    
+    internal/platform.MustLinkExternal is used in various places to
+    determine whether external linking is required. It should always
+    match what the linker actually requires, but today does not match
+    because the linker imposes additional constraints.
+    
+    Updates #31544.
+    
+    Change-Id: I0cc6ad587e95c607329dea5d60d29a5fb2a9e722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472515
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/build.go                  | 33 +++++++++++++++++++++++++--
+ src/cmd/dist/build_test.go             | 10 +++++----
+ src/cmd/go/internal/work/gc.go         |  2 +-
+ src/cmd/link/internal/ld/config.go     | 28 +++--------------------
+ src/cmd/link/internal/ld/dwarf_test.go |  6 ++---
+ src/cmd/link/internal/ld/ld_test.go    |  2 +-
+ src/cmd/link/link_test.go              | 18 +++------------
+ src/cmd/nm/nm_cgo_test.go              | 41 +++++-----------------------------
+ src/internal/platform/supported.go     | 41 +++++++++++++++++++++++++++++-----
+ src/internal/testenv/testenv.go        | 11 +++++----
+ src/os/exec/exec_test.go               |  2 +-
+ src/runtime/crash_test.go              | 14 ++++++------
+ src/runtime/time_test.go               |  2 +-
+ 13 files changed, 105 insertions(+), 105 deletions(-)

@@ -1,0 +1,12 @@
+commit a69932051266a817d950996c79927541ebdd26bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 29 09:54:16 2015 -0800
+
+    net/http: update docs on Request.Proto, ProtoMajor, ProtoMinor
+    
+    Change-Id: I4a6928b4674b6aaab3611cad7526347923a0015f
+    Reviewed-on: https://go-review.googlesource.com/18153
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

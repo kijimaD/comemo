@@ -1,0 +1,22 @@
+commit b219a68ad957462470695bcd0333e24ea9bdf08c
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Mon Jun 4 15:12:45 2018 -0400
+
+    strconv: check for empty string in UnquoteChar
+    
+    The existing implementation panics on malformed input of an empty
+    string. strconv.Unquote validates the length of the inputs, but calling
+    UnquoteChar directly with an empty string leads to a panic, so add a
+    check for length. Also, add a test to go/constant to ensure that
+    MakeFromLiteral does not panic on malformed input such as
+    "const x = ''".
+    
+    Change-Id: I4217e38db48a09a21ec414bbfb3087709da62904
+    Reviewed-on: https://go-review.googlesource.com/116215
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/constant/value_test.go | 1 +
+ src/strconv/quote.go          | 4 ++++
+ 2 files changed, 5 insertions(+)

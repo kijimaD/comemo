@@ -1,0 +1,19 @@
+commit d23669db7de13aec74296ae9bed8bb707f83b773
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 08:32:13 2023 -0400
+
+    all: fix buildall.bash
+    
+    Disable the android and ios builds since cross-compiling fails there.
+    Also make runtime/internal/wasitest not build on systems that don't
+    have syscall.Mkfifo for it to use (including, ironically, wasm itself).
+    
+    Change-Id: I28eb1f216f9952f81a107056e97ee38e350f9287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498255
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/buildall.bash                              | 3 ++-
+ src/runtime/internal/wasitest/nonblock_test.go | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 68a1c9c4004c77ad12ecdc8dd54b11f280797e0a
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Mar 14 22:22:31 2018 -0400
+
+    internal/trace: compute span stats as computing goroutine stats
+    
+    Move part of UserSpan event processing from cmd/trace.analyzeAnnotations
+    to internal/trace.GoroutineStats that returns analyzed per-goroutine
+    execution information. Now the execution information includes list of
+    spans and their execution information.
+    
+    cmd/trace.analyzeAnnotations utilizes the span execution information
+    from internal/trace.GoroutineStats and connects them with task
+    information.
+    
+    Change-Id: Ib7f79a3ba652a4ae55cd81ea17565bcc7e241c5c
+    Reviewed-on: https://go-review.googlesource.com/101917
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/cmd/trace/annotations.go      | 161 ++++++++++----------------------
+ src/cmd/trace/annotations_test.go |   9 +-
+ src/cmd/trace/trace.go            |  22 ++---
+ src/internal/trace/goroutines.go  | 188 +++++++++++++++++++++++++++++++++-----
+ 4 files changed, 227 insertions(+), 153 deletions(-)

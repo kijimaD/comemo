@@ -1,0 +1,13 @@
+commit 6bf220803255f6193366bb5c3e7eba48affa610b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jul 11 17:31:29 2017 +0900
+
+    runtime/cgo: update comments
+    
+    Change-Id: Ib5356181c3204c8f9922eeb4da1c06bfdb18f443
+    Reviewed-on: https://go-review.googlesource.com/54812
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_darwin_386.c   | 4 ++--
+ src/runtime/cgo/gcc_darwin_amd64.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

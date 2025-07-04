@@ -1,0 +1,18 @@
+commit 1e4a358454987ef5104e45081c8e2ecdc9f32513
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri Nov 1 15:46:47 2019 +0100
+
+    net/http: deflake TestCancelRequestWithChannelBeforeDo_Cancel
+    
+    Goroutines clean up takes longer when using deprecated CloseNotifier.
+    
+    Fixes #35122
+    
+    Change-Id: Id820a3012b5c781ddfb294b38ee3b009624e398c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204661
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/main_test.go      | 2 +-
+ src/net/http/transport_test.go | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

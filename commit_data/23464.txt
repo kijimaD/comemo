@@ -1,0 +1,15 @@
+commit c8aea7b18f81b97653f1861ee3acf10b1c074747
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Jun 22 08:31:38 2015 -0500
+
+    net/http: Remove unused code
+    
+    This appears to be some legacy which is no longer used.
+    
+    Change-Id: I469beb59a90853e8de910158f179b32f1aa14c7d
+    Reviewed-on: https://go-review.googlesource.com/11304
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/transport.go | 12 ------------
+ 1 file changed, 12 deletions(-)

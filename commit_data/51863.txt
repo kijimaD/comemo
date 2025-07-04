@@ -1,0 +1,38 @@
+commit 5f00ce86334aa7e80ab825882db1a080f1b56404
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 20 16:25:33 2023 -0500
+
+    cmd/go: use Join functions instead of adding path separators to strings
+    
+    Adding a file path separator is incorrect for a file path that may be
+    the root directory on a Unix platform (such as in a container or
+    chroot).
+    
+    Adding a path separator is incorrect for a package path prefix that
+    may be the empty string (as in the "std" module in GOROOT/src).
+    
+    And in both cases, a Join function is arguably clearer and simpler
+    anyway.
+    
+    Fixes #51506 (maybe).
+    
+    Change-Id: Id816930811ad5e4d1fbd206cddf219ecd4ad39a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463178
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go        | 16 ++++++++++------
+ src/cmd/go/internal/load/pkg.go       |  9 +++++----
+ src/cmd/go/internal/modindex/build.go |  7 ++-----
+ src/cmd/go/internal/modload/load.go   | 20 ++++++++++----------
+ src/cmd/go/internal/modload/search.go | 23 +++++++++++------------
+ src/cmd/go/internal/script/cmds.go    | 18 +++++++++++++++---
+ src/cmd/go/internal/script/state.go   |  6 +++++-
+ src/cmd/go/internal/search/search.go  |  2 +-
+ src/cmd/go/internal/str/path.go       |  9 +++++++++
+ src/cmd/go/internal/work/action.go    |  3 ++-
+ src/cmd/go/testdata/addmod.go         |  3 +--
+ src/cmd/go/testdata/savedir.go        |  3 +--
+ 12 files changed, 72 insertions(+), 47 deletions(-)

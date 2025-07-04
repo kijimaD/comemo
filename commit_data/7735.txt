@@ -1,0 +1,15 @@
+commit 08ceb870f2eef31fb75059e2553c1e9ae2fa2708
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 11 18:04:18 2011 +1100
+
+    .hgtags: s/release/weekly/
+    .hgtags, release.html: tag current weekly as release.r56
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4281041
+
+ .hgtags                | 114 +++++++++++++++++++++++++------------------------
+ doc/devel/release.html |   2 +-
+ src/version.bash       |   5 ++-
+ 3 files changed, 63 insertions(+), 58 deletions(-)

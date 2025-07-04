@@ -1,0 +1,19 @@
+commit 62f18d07ba8a7ee8e480cb723fb9b969ca17f822
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Oct 20 09:51:23 2020 +0700
+
+    doc/go1.16: document net TCP listener's backlog size update
+    
+    Updates #41470
+    
+    Change-Id: Iebd3a339504aa7f8834853d6a740557fb3bce3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262938
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.16.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

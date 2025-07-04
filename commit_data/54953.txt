@@ -1,0 +1,18 @@
+commit 3b303fa9815f0869a9ba429af537fd75d1dda85d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 7 18:35:37 2023 +0000
+
+    internal/trace: implement goroutine analysis for v2 traces
+    
+    For #63960.
+    
+    Change-Id: I1efe35435e32623aba894a915114e394570ebc56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540259
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/goroutinesv2.go                 | 555 +++++++++++++++++++++
+ src/internal/trace/goroutinesv2_test.go            | 229 +++++++++
+ .../trace/v2/testdata/testprog/annotations.go      |   4 +
+ .../trace/v2/testdata/tests/go122-annotations.test | 297 +++++++++++
+ 4 files changed, 1085 insertions(+)

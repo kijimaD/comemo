@@ -1,0 +1,16 @@
+commit 63ef5a41737bce17c99734ba3355c57c36f0438e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 6 09:52:37 2009 -0700
+
+    change tabwidth to 8 for tests
+    
+    R=rsc
+    DELTA=39  (0 added, 0 deleted, 39 changed)
+    OCL=35360
+    CL=35376
+
+ src/pkg/go/printer/printer_test.go              |  2 +-
+ src/pkg/go/printer/testdata/comments.x          |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 66 ++++++++++++-------------
+ src/pkg/go/printer/testdata/expressions.golden  |  8 +--
+ 4 files changed, 39 insertions(+), 39 deletions(-)

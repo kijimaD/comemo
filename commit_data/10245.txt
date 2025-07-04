@@ -1,0 +1,12 @@
+commit 1a4402a1feab4a8592986a3b3675a3261667e19c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 4 17:46:52 2011 +1100
+
+    bytes: add Contains function
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5349041
+
+ src/pkg/bytes/bytes.go | 5 +++++
+ 1 file changed, 5 insertions(+)

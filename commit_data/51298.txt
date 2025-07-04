@@ -1,0 +1,32 @@
+commit 8477562ce54868958f0f84f30815a220128aacf7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 11 15:30:10 2022 -0800
+
+    cmd/compile: be more careful about pointer incrementing in range loops
+    
+    For range loops, we use a pointer to the backing store that gets
+    incremented on each iteration of the loop.
+    
+    The problem with this scheme is that at the end of the last iteration,
+    we may briefly have a pointer that points past the end of the backing store
+    of the slice that is being iterated over. We cannot let the garbage collector
+    see that pointer.
+    
+    To fix this problem, have the incremented pointer live briefly as
+    a uintptr instead of a normal pointer, so it doesn't keep anything
+    alive. Convert back to a normal pointer just after the loop condition
+    is checked, but before anything that requires a real pointer representation
+    (in practice, any call, which is what could cause a GC scan or stack copy).
+    
+    Fixes #56699
+    
+    Change-Id: Ia928d23f85a211565357603668bea4e5c534f989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449995
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/walk/range.go | 80 +++++++++++++++++++++++++++++-----
+ 1 file changed, 69 insertions(+), 11 deletions(-)

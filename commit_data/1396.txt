@@ -1,0 +1,12 @@
+commit b90b4157d145876649929157381213fd251bdd1a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 23 09:34:38 2008 -0800
+
+    put array test in table, with TODO to fix when arrays work in interfaces.
+    
+    TBR=rsc
+    OCL=21766
+    CL=21766
+
+ src/lib/fmt/fmt_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

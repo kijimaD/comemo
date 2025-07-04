@@ -1,0 +1,12 @@
+commit 2a1ca145cf0489160ca284e08eeca4673563c007
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 14:22:28 2013 -0700
+
+    cmd/ld: when linking externally, only generate dwarf info for ELF
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9025047
+
+ src/cmd/ld/dwarf.c | 3 +++
+ 1 file changed, 3 insertions(+)

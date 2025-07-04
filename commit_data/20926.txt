@@ -1,0 +1,32 @@
+commit dcb2ec3b654eb42d8e6bb6e66801ddf2f7f21c7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 16:24:20 2014 -0500
+
+    runtime: generate windows callback list with go generate
+    
+    This is the last system-dependent file written by cmd/dist.
+    They are all now written by go generate.
+    
+    cmd/dist is not needed to start building package runtime
+    for a different system anymore.
+    
+    Now all the generated files can be assumed generated, so
+    delete the clumsy hacks in cmd/api.
+    
+    Re-enable api check in run.bash.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/185040044
+
+ src/cmd/api/goapi.go            |  152 +--
+ src/cmd/dist/build.c            |   19 +-
+ src/cmd/dist/buildruntime.c     |   41 -
+ src/cmd/go/build.go             |    3 +-
+ src/run.bash                    |    3 +-
+ src/run.bat                     |    6 +-
+ src/runtime/runtime.go          |    2 +
+ src/runtime/wincallback.go      |   43 +
+ src/runtime/zcallback_windows.s | 2010 +++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 2073 insertions(+), 206 deletions(-)

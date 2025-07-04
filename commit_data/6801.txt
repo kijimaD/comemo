@@ -1,0 +1,13 @@
+commit b3896462435fde33f20b36131e4a94f61a9fe803
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 30 10:37:57 2010 -0800
+
+    sort: avoid overflow in pivot calculation.
+    thanks to snilsson@nada.kth.se for the original CL.
+    
+    R=gri
+    CC=golang-dev, snilsson
+    https://golang.org/cl/3280044
+
+ src/pkg/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit dd4988fd995e54a19781f7caeb49e020602697f6
+Author: Laurent Voisin <lpvoisin@gmail.com>
+Date:   Sun Oct 8 18:01:18 2017 +0200
+
+    encoding/gob: fix a typo in the package documentation
+    
+    Change-Id: I6aee75a6ae1470dfc658d72a5b6508fb93503057
+    Reviewed-on: https://go-review.googlesource.com/69115
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

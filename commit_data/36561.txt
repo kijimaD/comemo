@@ -1,0 +1,14 @@
+commit 4d01f9243c6dfcd82993483063421fc8aceeb353
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Fri Aug 31 10:11:22 2018 -0700
+
+    fmt: add example for Fscanf
+    
+    Change-Id: Ia3dcb3a82e452fdcf0d087e8cd01ac01ca831c84
+    Reviewed-on: https://go-review.googlesource.com/132597
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/fmt/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

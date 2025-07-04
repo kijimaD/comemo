@@ -1,0 +1,26 @@
+commit f4c7a12c2c4b0aef99b4957a778736a4da9ae4ec
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 21:19:59 2016 -0400
+
+    runtime: make module typemaps visible to the GC
+    
+    The map[typeOff]*_type object is created at run time and stored in
+    the moduledata. The moduledata object is marked by the linker as
+    SNOPTRDATA, so the reference is ignored by the GC. Running
+    misc/cgo/testplugin/test.bash with GOGC=1 will eventually collect
+    the typemap and crash.
+    
+    This bug probably comes up in -linkshared binaries in Go 1.7.
+    I don't know why we haven't seen a report about this yet.
+    
+    Fixes #17680
+    
+    Change-Id: I0e9b5c006010e8edd51d9471651620ba665248d3
+    Reviewed-on: https://go-review.googlesource.com/32430
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/symtab.go | 9 +++++++++
+ src/runtime/type.go   | 4 +++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

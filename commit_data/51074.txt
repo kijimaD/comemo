@@ -1,0 +1,18 @@
+commit 07a70bcabb3c81a2f97e894a6910d95b19d6b074
+Author: ishwargowda <ishwargowda100@gmail.com>
+Date:   Wed Nov 2 14:19:36 2022 +0000
+
+    go/parser: add missing parenthesis in a comment
+    
+    Change-Id: I30783aa6a13ad8348fa24b27672d542a868f96de
+    GitHub-Last-Rev: c4584ad9dab9736275c2f2554affb6af214f82dd
+    GitHub-Pull-Request: golang/go#56526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447217
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

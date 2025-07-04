@@ -1,0 +1,13 @@
+commit d021d982daa3f12701722bcb5420675fd2295d6a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 19 10:04:34 2014 +1000
+
+    C: add Burcu Dogan (Google CLA)
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94610043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,32 @@
+commit 31e1c30f55165785dd12e7c67babedeb950a721d
+Author: David Chase <drchase@google.com>
+Date:   Fri May 25 16:08:13 2018 -0400
+
+    cmd/compile: do not allow regalloc to LoadReg G register
+    
+    On architectures where G is stored in a register, it is
+    possible for a variable to allocated to it, and subsequently
+    that variable may be spilled and reloaded, for example
+    because of an intervening call.  If such an allocation
+    reaches a join point and it is the primary predecessor,
+    it becomes the target of a reload, which is only usually
+    right.
+    
+    Fix: guard all the LoadReg ops, and spill value in the G
+    register (if any) before merges (in the same way that 387
+    FP registers are freed between blocks).
+    
+    Includes test.
+    
+    Fixes #25504.
+    
+    Change-Id: I0482a53e20970c7315bf09c0e407ae5bba2fe05d
+    Reviewed-on: https://go-review.googlesource.com/114695
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/export_test.go   |  1 +
+ src/cmd/compile/internal/ssa/regalloc.go      | 17 ++++++++++
+ src/cmd/compile/internal/ssa/regalloc_test.go | 49 +++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

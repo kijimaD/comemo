@@ -1,0 +1,14 @@
+commit 707a4d3fed2e3de3bb08508b31279161bedb8df8
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Nov 14 21:32:00 2017 -0400
+
+    encoding/pem: add Encode example
+    
+    Change-Id: Ib9ec3524b712e016a9dd2fbee5555362c1a0cb59
+    Reviewed-on: https://go-review.googlesource.com/77770
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/pem/example_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

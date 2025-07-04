@@ -1,0 +1,15 @@
+commit 4c952153aa547b1c265b1ae8d2566c3fcdaf17de
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Sep 15 16:12:47 2009 -0700
+
+    use register intermediate
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=21  (7 added, 5 deleted, 9 changed)
+    OCL=34607
+    CL=34663
+
+ src/cmd/5g/cgen.c  |  9 ++++++++-
+ src/cmd/5g/gsubr.c | 21 ++++++++-------------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

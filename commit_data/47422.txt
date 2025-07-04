@@ -1,0 +1,31 @@
+commit 10d3b1355184320f6d9623cb35e848e5af7c29ed
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 11 08:45:02 2021 -0800
+
+    cmd/compile: ensure stenciled function bodies are nonempty
+    
+    Our compiler gets confused between functions that were declared
+    with no body, and those which have a body but it is empty.
+    
+    Ensure that when stenciling, we generate a nonempty body.
+    
+    The particular test that causes this problem is in
+    cmd/compile/internal/gc/main.go:enqueueFunc. It thinks that if
+    a function has no body, then we need to generate ABI wrappers for
+    it, but not compile it.
+    
+    Fixes #49524
+    
+    Change-Id: Id962666a2098f60a2421484b6a776eafdc4f4a63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363395
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  6 ++++++
+ test/typeparam/issue49524.dir/a.go        |  8 ++++++++
+ test/typeparam/issue49524.dir/main.go     | 11 +++++++++++
+ test/typeparam/issue49524.go              |  7 +++++++
+ 4 files changed, 32 insertions(+)

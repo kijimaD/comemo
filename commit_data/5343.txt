@@ -1,0 +1,13 @@
+commit 9f69ab39f0fa3ed2b35c7c23aff060e91f2682ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 10:01:33 2010 -0700
+
+    xml: fix innerxml handling of & escapes
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1009041
+
+ src/pkg/xml/read_test.go | 6 +++---
+ src/pkg/xml/xml.go       | 5 +++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

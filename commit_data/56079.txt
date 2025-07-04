@@ -1,0 +1,19 @@
+commit 8f618c1f5329bd81912f8f776cb8bf028c750687
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 28 08:47:52 2024 -0700
+
+    cmd/compile: put constants before variables in initialization order
+    
+    Fixes #66575
+    
+    Change-Id: I03f4d4577b88ad0a92b260b2efd0cb9fe5082b2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575075
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/initorder.go |  8 +++++++
+ src/go/types/initorder.go                    |  8 +++++++
+ test/fixedbugs/issue66575.go                 | 31 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue66575.out                |  2 ++
+ 4 files changed, 49 insertions(+)

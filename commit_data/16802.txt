@@ -1,0 +1,16 @@
+commit 39100543ff629ef82bb814a03c6582f7158204a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 18 13:03:26 2013 +1000
+
+    io: let SectionReader seek past the end; document Seeker semantics more
+    
+    Be consistent with os.File, strings.Reader, bytes.Reader, etc,
+    which all allow seeks past the end.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11403043
+
+ src/pkg/io/io.go      | 12 ++++++++----
+ src/pkg/io/io_test.go | 42 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 43 insertions(+), 11 deletions(-)

@@ -1,0 +1,30 @@
+commit 8b0b994c08c540702fbfe84a50ed72b93892d7c5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 18 22:33:59 2014 -0800
+
+    reflect: improve documentation of IsNil
+    IsNil isn't quite the same as == nil, as this snippet shows:
+    
+    // http://play.golang.org/p/huomslDZgw
+    package main
+    
+    import "fmt"
+    import "reflect"
+    
+    func main() {
+            var i interface{}
+            v := reflect.ValueOf(i)
+            fmt.Println(v.IsValid(), i == nil)
+            fmt.Println(v.IsNil())
+    }
+    
+    The fact that IsNil panics if you call it with an untyped nil
+    was not apparent. Verbiage added for clarity.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/65480043
+
+ src/pkg/reflect/value.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

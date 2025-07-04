@@ -1,0 +1,18 @@
+commit 597213c87c70166e86753350b203622326728138
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Nov 21 15:53:47 2017 -0500
+
+    time: rename TestLoadLocationFromTzinfo to TestLoadLocationFromTZData
+    
+    Tzinfo was replaced with TZData during the review of CL 68890, but this
+    instance was forgotten. Update it for consistency.
+    
+    Follows CL 68890.
+    Updates #20629.
+    
+    Change-Id: Id6d3c4f5f7572b01065f2db556db605452d1b570
+    Reviewed-on: https://go-review.googlesource.com/79176
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

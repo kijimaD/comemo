@@ -1,0 +1,18 @@
+commit 5805efc78e11e54c2c887ae10f277b09bbf81cf4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 12 12:12:56 2021 -0400
+
+    doc/go1.17: remove draft notice
+    
+    Fixes #44513.
+    
+    Change-Id: I82c44a681b1fa67df123af86ee02a980b13acdc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341673
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/go1.17.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

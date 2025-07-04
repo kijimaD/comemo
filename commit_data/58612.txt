@@ -1,0 +1,24 @@
+commit 721f5ca4edc8073b777bd71df6801b237d72c332
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 4 17:04:26 2025 +0100
+
+    runtime: adjust comments for auxv getAuxv
+    
+    github.com/cilium/ebpf no longer accesses getAuxv using linkname but now
+    uses the golang.org/x/sys/unix.Auxv wrapper introduced in
+    go.dev/cl/644295.
+    
+    Also adjust the list of users to include x/sys/unix.
+    
+    Updates #67839
+    Updates #67401
+    
+    Change-Id: Ieee266360b22cc0bc4be8f740e0302afd7dbd14f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646535
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/runtime.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

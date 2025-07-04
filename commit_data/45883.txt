@@ -1,0 +1,15 @@
+commit e294b8a49e5ff157041b4ac6c3c3413dafd13673
+Author: Levi（リーバイ） <19405788+lescoggi@users.noreply.github.com>
+Date:   Tue Jun 29 12:45:52 2021 +0000
+
+    doc/go1.17: fix typo "MacOS" -> "macOS"
+    
+    Change-Id: Ie2ada2bf875a93b1cc9e86a81c8a25de39ce4752
+    GitHub-Last-Rev: 462753db015949eb88c6c4e64b6aae1a49ac89b4
+    GitHub-Pull-Request: golang/go#46962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331589
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

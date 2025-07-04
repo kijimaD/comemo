@@ -1,0 +1,15 @@
+commit 5342aedeed54606fa1dcad2f039744fabfcc7544
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 17 12:33:36 2011 +1000
+
+    filepath: make EvalSymlinks work on Windows
+    
+    Fixes #1830.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4526060
+
+ src/pkg/path/filepath/path.go      |  9 ++++++
+ src/pkg/path/filepath/path_test.go | 56 ++++++++++++++++++++++++--------------
+ 2 files changed, 45 insertions(+), 20 deletions(-)

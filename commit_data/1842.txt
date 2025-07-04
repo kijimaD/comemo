@@ -1,0 +1,13 @@
+commit bcb464d221d677e62e365caad34ccb0a268f0754
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 17 20:55:42 2009 -0700
+
+    add test for type switches
+    
+    R=rsc
+    DELTA=169  (169 added, 0 deleted, 0 changed)
+    OCL=26433
+    CL=26437
+
+ test/typeswitch.go | 173 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 173 insertions(+)

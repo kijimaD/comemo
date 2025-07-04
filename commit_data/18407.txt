@@ -1,0 +1,23 @@
+commit 9ed5995cfe4c217c1291ced9c4a70334383df226
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Feb 3 14:49:57 2014 -0800
+
+    liblink, cmd/5l: restore flag_shared
+    
+    CL 56120043 fixed and cleaned up TLS on ARM after introducing liblink, but
+    left flag_shared broken. This CL restores the (unsupported) flag_shared
+    behaviour by simply rewriting access to $runtime.tlsgm(SB) with
+    runtime.tlsgm(SB), to compensate for the extra indirection when going from
+    the R_ARM_TLS_LE32 relocation to the R_ARM_TLS_IE32 relocation.
+    
+    Also, remove unnecessary symbol lookup left after 56120043.
+    
+    LGTM=iant
+    R=iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/57000043
+
+ src/cmd/5l/5.out.h |  2 +-
+ src/liblink/asm5.c |  3 +--
+ src/liblink/obj5.c | 18 +++++++++++++++---
+ 3 files changed, 17 insertions(+), 6 deletions(-)

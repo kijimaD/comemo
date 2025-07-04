@@ -1,0 +1,23 @@
+commit 40df9cc6062492cd323f2251dd1583d200d1207e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 27 20:43:29 2019 -0500
+
+    cmd/compile: make KeepAlive work on stack object
+    
+    Currently, runtime.KeepAlive applied on a stack object doesn't
+    actually keeps the stack object alive, and the heap object
+    referenced from it could be collected. This is because the
+    address of the stack object is rematerializeable, and we just
+    ignored KeepAlive on rematerializeable values. This CL fixes it.
+    
+    Fixes #30476.
+    
+    Change-Id: Ic1f75ee54ed94ea79bd46a8ddcd9e81d01556d1d
+    Reviewed-on: https://go-review.googlesource.com/c/164537
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go |  7 +++++++
+ test/fixedbugs/issue30476.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

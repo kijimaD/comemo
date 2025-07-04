@@ -1,0 +1,36 @@
+commit a43669843b155ddb575d95acdb72dc62a1434efd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 20 13:51:39 2014 -0700
+
+    spec: clarify section on package initialization
+    
+    - split description of package initialization and
+      program execution
+    - better grouping of concerns in section on package
+      initialization
+    - more explicit definition of what constitues a
+      dependency
+    - removed language about constant dependencies -
+      they are computed at compile-time and not
+      initialized at run-time
+    - clarified that independent variables are initialized
+      in declaration order (rather than reference order)
+    
+    Note that the last clarification is what distinguishes
+    gc and gccgo at the moment: gc uses reference order
+    (i.e., order in which variables are referenced in
+    initialization expressions), while gccgo uses declaration
+    order for independent variables.
+    
+    Not a language change. But adopting this CL will
+    clarify what constitutes a dependency.
+    
+    Fixes #6703.
+    
+    LGTM=adonovan, r, iant, rsc
+    R=r, rsc, iant, ken, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/99020043
+
+ doc/go_spec.html | 162 ++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 108 insertions(+), 54 deletions(-)

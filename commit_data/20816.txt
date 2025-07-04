@@ -1,0 +1,16 @@
+commit 6b54cc93d015e4cab1b12c8c78edf1d4a0a7cd0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 23:22:46 2014 -0400
+
+    cmd/gc: fix internal compiler error in struct compare
+    
+    Fixes #9006.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/167800043
+
+ src/cmd/gc/walk.c           | 17 ++++++++++++-----
+ test/fixedbugs/issue9006.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 201a2e9c2f82dd2c57c8e79bbe2c028d7c13b8ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 2 15:49:27 2022 -0800
+
+    compress/gzip: add example of compressing reader
+    
+    For #51092
+    
+    Change-Id: If0a233651ac75f113569ddfffd056084f6092564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389514
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/compress/gzip/example_test.go | 87 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

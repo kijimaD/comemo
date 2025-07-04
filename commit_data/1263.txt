@@ -1,0 +1,23 @@
+commit cb67a8324bbdffcb5e8a8a6caa8dbb400d0dc7a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 2 16:49:44 2008 -0800
+
+    - fine-tuning of white space
+    - by default consider extra newlines in src for better formatting
+    - additional flags for control (-newlines, -maxnewlines, -optsemicolons)
+    - don't print ()'s around single anonymous result types
+    
+    Status: Comparing the output of pretty with the input for larger files
+    shows mostly whitespace/formatting differences, which is what is desired.
+    
+    TODO:
+    - Handling of overlong lines
+    - some esoteric cases which look funny
+    
+    R=r
+    OCL=20293
+    CL=20293
+
+ usr/gri/pretty/printer.go   | 136 ++++++++++++++++++++++++++++----------------
+ usr/gri/pretty/selftest2.go |  30 +++++++++-
+ 2 files changed, 115 insertions(+), 51 deletions(-)

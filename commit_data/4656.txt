@@ -1,0 +1,15 @@
+commit ce7f345cd18f6cddcfa2a28434510e1dc8dadb96
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 16:58:33 2010 -0800
+
+    gc: do not build builtin.c automatically; use golden copy instead.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/190104
+
+ src/cmd/gc/Makefile   |  5 ++---
+ src/cmd/gc/mkbuiltin  | 21 +++++++--------------
+ src/cmd/gc/runtime.go |  4 ++++
+ src/cmd/gc/unsafe.go  |  4 ++++
+ 4 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,18 @@
+commit 65dcddeb4e80b9a23ec6fc0157ecab388ba2f34f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 25 13:57:25 2023 -0400
+
+    doc/go1.21: document PGO GA and devirtualization
+    
+    For #59959.
+    For #58645.
+    
+    Change-Id: I574153ef2fd61a5e90ec281fca065c42fce22cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498263
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

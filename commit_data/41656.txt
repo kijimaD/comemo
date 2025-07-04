@@ -1,0 +1,16 @@
+commit 7b2f0ba5b91b4b2b659fb46638ff56f51be9b2b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 3 03:43:02 2020 +1100
+
+    cmd/compile: use NOT pseudo-instruction on riscv64
+    
+    Change-Id: I24a72c3fb8d72a47cfded4b523c5d7aa2d40419d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221690
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go        |  3 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 14 ++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 60 ++++----------------------
+ 5 files changed, 29 insertions(+), 57 deletions(-)

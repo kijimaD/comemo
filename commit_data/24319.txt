@@ -1,0 +1,29 @@
+commit 13be616e560411f6f252f728deed3c0b3e145fed
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 14:14:44 2015 -0700
+
+    bufio: allow Scanner to accept a user-provided buffer
+    
+    Add Scanner.Buffer, which lets the user give a buffer to
+    the scanner and set the maximum token size.
+    
+    We call it Buffer not SetBuffer for consistency with Split, which
+    perhaps should have been called SetSplit; too late regardless.
+    
+    Both Buffer and Split panic if they are called after Scan. The
+    panic in Split is new, but the comment on the method already
+    said it needed to be called first, so we might as well add the
+    verification while we're doing it for Buffer.
+    
+    This method allows precise user control of storage.
+    
+    Fixes #11702.
+    
+    Change-Id: I80e3d0e3830562fdabd4f7b08f322e1378248c39
+    Reviewed-on: https://go-review.googlesource.com/14599
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+
+ src/bufio/scan.go      | 45 ++++++++++++++++++++++++++++++++++++++++-----
+ src/bufio/scan_test.go | 16 ++++++++++++++++
+ 2 files changed, 56 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 869af57260ec0ebb8580edfc38dc1c4872f2454c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu May 18 14:38:54 2023 -0400
+
+    doc: release notes for my humble contributions to go1.21
+    
+    Updates #58645
+    
+    Change-Id: Ieb4e6062613e26826ba8373cb4c2fd9198d0c692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496116
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit d60312c4c095004e0369f8aca03b2535f7db3758
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 15 17:41:11 2010 -0700
+
+    fmt.Scan: fix %c in the case where the input does not implement ReadRune itself.
+    While we're at it, clean up and test the code to guarantee we see every byte when
+    the text is erroneous UTF-8.
+    
+    Fixes #866.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1712042
+
+ src/pkg/fmt/scan.go      | 53 +++++++++++++++++++++++----------
+ src/pkg/fmt/scan_test.go | 76 +++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 100 insertions(+), 29 deletions(-)

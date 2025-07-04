@@ -1,0 +1,18 @@
+commit 6e6fc674257ee7dfd5380f386e5f0861ba2f2031
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 23:41:25 2010 -0400
+
+    math: make portable Tan(Pi/2) return NaN
+    
+    The panic NaN was a translation error.
+    The earliest version said panic "return sys.NaN()",
+    and when sys.NaN came along, it changed
+    to "panic sys.NaN()" instead of "return sys.NaN()".
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2106049
+
+ src/pkg/math/all_test.go | 11 +++++++++++
+ src/pkg/math/tan.go      |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

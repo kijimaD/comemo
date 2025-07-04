@@ -1,0 +1,13 @@
+commit 4002014cf8b321ade383a3b2c8223cae7dc8d3ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 17:34:22 2011 -0400
+
+    http/pprof: fix POST reading bug
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4430075
+
+ src/cmd/prof/gopprof        |  9 +++++----
+ src/pkg/http/pprof/pprof.go | 14 ++++++++++++--
+ 2 files changed, 17 insertions(+), 6 deletions(-)

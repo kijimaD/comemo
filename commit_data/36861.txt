@@ -1,0 +1,16 @@
+commit 47e71f3b6917113660a65a180e66c91fc6318458
+Author: Plekhanov Maxim <kishtatix@gmail.com>
+Date:   Sat Dec 23 02:25:35 2017 +0300
+
+    math: use Abs in Pow rather than if x < 0 { x = -x }
+    
+    name     old time/op  new time/op  delta
+    PowInt   55.7ns ± 1%  53.4ns ± 2%  -4.15%  (p=0.000 n=9+9)
+    PowFrac   133ns ± 1%   133ns ± 2%    ~     (p=0.587 n=8+9)
+    
+    Change-Id: Ica0f4c2cbd554f2195c6d1762ed26742ff8e3924
+    Reviewed-on: https://go-review.googlesource.com/c/85375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/pow.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit ec4595267085d132b63050e2cfac085a981f3cee
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Dec 8 19:20:38 2012 +1100
+
+    math/rand: fix typo in example comment.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6901056
+
+ src/pkg/math/rand/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

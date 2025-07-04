@@ -1,0 +1,25 @@
+commit 7403a6a122a28f715448d4a9b360efe2df15423d
+Author: Jayanth Krishnamurthy jayanth.krishnamurthy@ibm.com <jayanth.krishnamurthy@ibm.com>
+Date:   Tue Oct 29 16:11:37 2024 -0500
+
+    cmd/internal/obj/ppc64: support for decimal floating point instructions
+    
+    1. Support for decimal arithmetic quad instructions of powerpc: DADDQ, DSUBQ, DMULQ
+    and DDIVQ.
+    2. Support for decimal compare ordered, unordered,  quad instructions of powerpc:
+    DCMPU, DCMPO, DCMPUQ, and DCMPOQ.
+    Change-Id: I32a15a7f0a127b022b1f43d376e0ab0f7e9dd108
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623036
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/ppc64.go        |  2 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 26 ++++++++++++++++++-----
+ src/cmd/internal/obj/ppc64/a.out.go       |  8 ++++++++
+ src/cmd/internal/obj/ppc64/anames.go      |  8 ++++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 34 +++++++++++++++++++++++++++++++
+ 5 files changed, 72 insertions(+), 6 deletions(-)

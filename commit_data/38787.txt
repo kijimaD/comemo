@@ -1,0 +1,32 @@
+commit 644543dd6447b39800825f66411df06066baa84e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 16 20:32:31 2019 +0700
+
+    cmd/compile: fix const declaration group broken with closure
+    
+    In typecheckclosure, a xfunc node will be put to xtop. But that node can
+    be shared between multiple closures, like in a const declaration group:
+    
+    const (
+            x = unsafe.Sizeof(func() {})
+            y
+    )
+    
+    It makes a xfunc node appears multiple times in xtop, causing duplicate
+    initLSym run.
+    
+    To fix this issue, we only do typecheck for xfunc one time, and setup
+    closure node earlier in typecheckclosure process.
+    
+    Fixes #30709
+    
+    Change-Id: Ic924a157ee9f3e5d776214bef5390849ddc8aab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172298
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 14 ++++++++++----
+ test/fixedbugs/issue30709.go           | 33 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30709.out          |  4 ++++
+ 3 files changed, 47 insertions(+), 4 deletions(-)

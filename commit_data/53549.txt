@@ -1,0 +1,18 @@
+commit e712759914afa063076bcf5207a93cafd003f7bc
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jun 7 14:42:51 2023 -0500
+
+    doc/go1.21: document GOPPC64=power10 changes
+    
+    For #44549
+    
+    Change-Id: I1af1d4bbd01a4571a32815bfea16bc395524551a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

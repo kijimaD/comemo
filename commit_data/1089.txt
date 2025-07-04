@@ -1,0 +1,14 @@
+commit dc78c64f239ef5969ecbb9ca4c3b7a6928143e98
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Nov 7 14:20:32 2008 -0800
+
+    byte multiply
+    
+    R=r
+    OCL=18807
+    CL=18807
+
+ src/cmd/6g/cgen.c |  5 ++++-
+ src/cmd/6g/gen.c  | 29 +++++++++++++++++++++++++++++
+ src/cmd/6g/gg.h   |  1 +
+ 3 files changed, 34 insertions(+), 1 deletion(-)

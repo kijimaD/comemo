@@ -1,0 +1,14 @@
+commit 96db724cfc3b2d3e187cc06b9c81175ca225eaa1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 10:05:20 2010 -0500
+
+    gc: emit reflect correct reflect types
+    
+    Fixes #1169.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3595043
+
+ src/cmd/gc/reflect.c | 41 ++++++++++++++++-------------------------
+ 1 file changed, 16 insertions(+), 25 deletions(-)

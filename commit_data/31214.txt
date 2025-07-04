@@ -1,0 +1,24 @@
+commit 22000f54073985958457168e8e19afa19e97821d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 14 14:44:22 2017 -0400
+
+    runtime: record swept and reclaimed bytes in sweep trace
+    
+    This extends the GCSweepDone event with counts of swept and reclaimed
+    bytes. These are useful for understanding the duration and
+    effectiveness of sweep events.
+    
+    Change-Id: I3c97a4f0f3aad3adbd188adb264859775f54e2df
+    Reviewed-on: https://go-review.googlesource.com/40811
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/internal/trace/parser.go                       |  21 +++++++++++++--------
+ src/internal/trace/testdata/http_1_9_good          | Bin 2368 -> 2187 bytes
+ src/internal/trace/testdata/stress_1_9_good        | Bin 594085 -> 365129 bytes
+ .../trace/testdata/stress_start_stop_1_9_good      | Bin 5615 -> 6271 bytes
+ src/runtime/mgcsweep.go                            |   5 ++++-
+ src/runtime/runtime2.go                            |   9 ++++++---
+ src/runtime/trace.go                               |  17 +++++++++++------
+ 7 files changed, 34 insertions(+), 18 deletions(-)

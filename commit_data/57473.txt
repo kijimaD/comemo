@@ -1,0 +1,18 @@
+commit 2927aa10ab1a184f02f7b7eb3c4a490906238e7a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 16 23:58:40 2024 +0700
+
+    unique: handle zero-size types
+    
+    Fixes #69458
+    
+    Change-Id: Ic7fda7f556522780b2819138dfc1277137398692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613397
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/unique/handle.go      |  7 ++++++-
+ src/unique/handle_test.go | 10 ++++++++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

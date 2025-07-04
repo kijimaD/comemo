@@ -1,0 +1,38 @@
+commit cdd7e02583325b05024cc1366a59eaafc09e1dc3
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 13 12:38:45 2012 -0500
+
+    crypto/...: more fixes for bug 2841
+    
+    1) Remove the Reset() member in crypto/aes and crypto/des (and
+       document the change).
+    2) Turn several empty error structures into vars. Any remaining error
+       structures are either non-empty, or will probably become so in the
+       future.
+    3) Implement SetWriteDeadline for TLS sockets. At the moment, the TLS
+       status cannot be reused after a Write error, which is probably fine
+       for most uses.
+    4) Make crypto/aes and crypto/des return a cipher.Block.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5625045
+
+ doc/go1.html                          | 221 +++++++++-------------------------
+ doc/go1.tmpl                          | 221 +++++++++-------------------------
+ src/pkg/crypto/aes/cipher.go          |  42 ++-----
+ src/pkg/crypto/cipher/cbc_aes_test.go |   7 +-
+ src/pkg/crypto/cipher/cfb_test.go     |   7 +-
+ src/pkg/crypto/cipher/common_test.go  |   2 +-
+ src/pkg/crypto/cipher/ctr_aes_test.go |   7 +-
+ src/pkg/crypto/cipher/ofb_test.go     |   7 +-
+ src/pkg/crypto/des/block.go           |   2 +-
+ src/pkg/crypto/des/cipher.go          |  69 ++++-------
+ src/pkg/crypto/des/des_test.go        |  16 ++-
+ src/pkg/crypto/dsa/dsa.go             |   8 +-
+ src/pkg/crypto/rand/rand_unix.go      |   3 +-
+ src/pkg/crypto/rsa/pkcs1v15.go        |  14 +--
+ src/pkg/crypto/rsa/rsa.go             |  30 ++---
+ src/pkg/crypto/tls/conn.go            |  31 +++--
+ src/pkg/crypto/x509/x509.go           |  20 ++-
+ 17 files changed, 226 insertions(+), 481 deletions(-)

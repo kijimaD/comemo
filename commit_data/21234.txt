@@ -1,0 +1,18 @@
+commit a6cb053026e468ddb06a03455df0cdfbe615ad18
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 8 21:49:28 2015 -0500
+
+    syscall: fix nacl builds
+    
+    Please see golang.org/cl/2588 for reasons behind the name change.
+    We also need NO_LOCAL_POINTERS for assembly function with non-zero
+    local frame size.
+    
+    Change-Id: Iac60aa7e76f4c2ece3726e28878fd539bfebf7a4
+    Reviewed-on: https://go-review.googlesource.com/2589
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_nacl_386.s      | 3 ++-
+ src/syscall/asm_nacl_amd64p32.s | 2 +-
+ src/syscall/asm_nacl_arm.s      | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

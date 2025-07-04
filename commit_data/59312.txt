@@ -1,0 +1,21 @@
+commit 5413abc44025f281f2a7ea37b3e0043591dbed3e
+Author: Weidi Deng <weidi_deng@icloud.com>
+Date:   Wed Nov 2 01:19:16 2022 +0000
+
+    net/http: set Request.TLS when net.Conn implements ConnectionState
+    
+    Fixes #56104
+    
+    Change-Id: I8fbbb00379e51323e2782144070cbcad650eb6f1
+    GitHub-Last-Rev: 62d7a8064e4f2173f0d8e02ed91a7e8de7f13fca
+    GitHub-Pull-Request: golang/go#56110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440795
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 12 ++++++++++++
+ 2 files changed, 59 insertions(+)

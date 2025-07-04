@@ -1,0 +1,19 @@
+commit ea3054aecc3d66409fcf1b404b58bc4767599dfa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 28 10:20:25 2022 +0700
+
+    cmd/compile: factor out code to generate equal func
+    
+    So next CL can use it for generating equal func during walk compare.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I76545c1d471eb496be352908db1b05feae83fc33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/alg.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

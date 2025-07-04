@@ -1,0 +1,22 @@
+commit 05cc83bf4e2e59fa4b6c1bcd117bd85f8e4f559d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 13:00:13 2010 -0400
+
+    various: appease the ubuntu gcc monster
+    
+    Silence warnings about not checking
+    return values from read and write system calls.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2258045
+
+ src/cmd/5l/asm.c         | 6 +++---
+ src/cmd/6l/asm.c         | 8 ++++----
+ src/cmd/8l/asm.c         | 6 +++---
+ src/cmd/ld/elf.c         | 2 +-
+ src/cmd/ld/lib.c         | 9 +++++++++
+ src/cmd/ld/lib.h         | 1 +
+ src/cmd/ld/macho.c       | 4 ++--
+ src/libmach/executable.c | 6 ++++--
+ 8 files changed, 27 insertions(+), 15 deletions(-)

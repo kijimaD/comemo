@@ -1,0 +1,20 @@
+commit 9dcbc43f4f299b8ea6546a464d9fdeb5839b5ae9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 25 10:55:22 2016 -0700
+
+    test: add test for issue 15084
+    
+    The underlying issues have been fixed.
+    All the individual fixes have their own tests,
+    but it's still useful to have a plain source test.
+    
+    Fixes #15084
+    
+    Change-Id: I06c485a7d0716201bd57d1f3be53668dddd7ec14
+    Reviewed-on: https://go-review.googlesource.com/22426
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue15084.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

@@ -1,0 +1,21 @@
+commit 84e7cb0611d439dc181a279c8650b700dd1735ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 13:57:24 2009 -0800
+
+    Tweak test to work with both 6g and gccgo.
+    
+    Pull the struct into a single line, since 6g reports the error
+    on the last line of the struct definition and gccgo reports it
+    on the first line.
+    
+    6g:
+    bug215.go:12: invalid recursive type A
+    
+    gccgo:
+    bug215.go:12:6: error: invalid recursive type ‘A’
+    
+    R=rsc
+    https://golang.org/cl/180044
+
+ test/fixedbugs/bug215.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

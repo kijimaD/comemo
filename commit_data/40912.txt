@@ -1,0 +1,29 @@
+commit 8a5af7910a9b157c02736c3e0998a587bb8511c1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 22 21:06:15 2019 +0000
+
+    runtime: ready scavenger without next
+    
+    This change makes it so that waking up the scavenger readies its
+    goroutine without "next" set, so that it doesn't interfere with the
+    application's use of the runnext feature in the scheduler which helps
+    fairness.
+    
+    As of CL 201763 the scavenger began waking up much more often, and in
+    TestPingPongHog this meant that it would sometimes supercede either a
+    hog or light goroutine in runnext, leading to a skew in the results and
+    ultimately a test flake.
+    
+    This change thus re-enables the TestPingPongHog test on the builders.
+    
+    Fixes #35271.
+    
+    Change-Id: Iace08576912e8940554dd7de6447e458ad0d201d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208380
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcscavenge.go | 10 ++++++++--
+ src/runtime/proc_test.go   |  2 --
+ 2 files changed, 8 insertions(+), 4 deletions(-)

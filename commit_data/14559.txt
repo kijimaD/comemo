@@ -1,0 +1,12 @@
+commit 4855c1c14589de01140087f93ecbd9153c9b1a8b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 5 15:26:18 2012 +1100
+
+    net: change windows netFD finalizer to behave similar to unix
+    
+    R=dave, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6873046
+
+ src/pkg/net/fd_windows.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

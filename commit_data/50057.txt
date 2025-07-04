@@ -1,0 +1,18 @@
+commit ae303ff282feed715de0374890737ccdaee1e053
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 21 22:52:36 2022 +0700
+
+    cmd/compile: fix missing typecheck when rewriting abi.FuncPCABIxxx
+    
+    Discover when running "go test -run=TestNewOSProc0 -gcflags=-d=checkptr"
+    
+    Change-Id: I988da56fd3122a21673e86d7dd327ed05914ab72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425040
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/walk/expr.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

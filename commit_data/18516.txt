@@ -1,0 +1,19 @@
+commit 7addda685d9f624479cd2248a86a16b5a810f225
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 22:30:35 2014 -0500
+
+    cmd/5g, cmd/8g: fix build
+    
+    The test added in CL 63630043 fails on 5g and 8g because they
+    were not emitting the VARDEF instruction when clearing a fat
+    value by clearing the components. 6g had the call in the right place.
+    
+    Hooray tests.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63660043
+
+ src/cmd/5g/ggen.c | 3 +--
+ src/cmd/8g/ggen.c | 4 ++--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

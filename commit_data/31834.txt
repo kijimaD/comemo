@@ -1,0 +1,19 @@
+commit e1c9a371bb741f8b2d602c1dddab5c5c52d97931
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 23:53:20 2017 +0000
+
+    doc: flesh out tools section in Go 1.9 release notes
+    
+    I thought I was almost done, but had forgot the tools section, hidden
+    in comments.
+    
+    Move the comments to a <pre> block, so it's visible in the HTML.
+    
+    Updates #20587
+    
+    Change-Id: I1dc22c63d9ee297e44bbb742f03b4a722247dbe8
+    Reviewed-on: https://go-review.googlesource.com/45811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 64 ++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 53 insertions(+), 11 deletions(-)

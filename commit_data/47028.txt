@@ -1,0 +1,21 @@
+commit b36b001ff13768fd1f9664b34c6d2b7948f66d4d
+Author: Gusted <williamzijl7@hotmail.com>
+Date:   Tue Oct 26 01:45:44 2021 +0200
+
+    container/list: remove unnecessary code
+    
+    Remove a unnecessary statement in the test function, the variables
+    aren't checked afterwards. Also remove return statements in helper
+    functions and remove the declaration that a the helper function return a
+    value. The return value isn't used in the current state of code
+    
+    Change-Id: I5bc384104c1002c4138e0894938778ae9710ce4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358714
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/container/list/list.go      | 13 +++++--------
+ src/container/list/list_test.go |  1 -
+ 2 files changed, 5 insertions(+), 9 deletions(-)

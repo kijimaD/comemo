@@ -1,0 +1,19 @@
+commit 62f401bf18d786b01fcef933610b43dd284e5095
+Author: marwan-at-work <marwan.sameer@gmail.com>
+Date:   Sun Jul 22 20:23:29 2018 +0000
+
+    cmd/go/internal/modfetch: do not panic when zip is incorrect
+    
+    Fixes #26536
+    
+    Change-Id: I75d284bd39af0a06e31d18c7f7745c5a8ecbe6ac
+    GitHub-Last-Rev: 88040a9edb0cb547a498cb8c8b662eb8729eb8bf
+    GitHub-Pull-Request: golang/go#26537
+    Reviewed-on: https://go-review.googlesource.com/125436
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go | 1 -
+ 1 file changed, 1 deletion(-)

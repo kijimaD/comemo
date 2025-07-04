@@ -1,0 +1,18 @@
+commit 01dfae914bb4658d096c3ab8f5210bcf3f665171
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 5 13:40:45 2023 -0800
+
+    doc: add release notes for changes to encoding packages
+    
+    For #53693.
+    
+    Change-Id: I360f5cb9caf5fa77267a100eebcc282955677abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547755
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

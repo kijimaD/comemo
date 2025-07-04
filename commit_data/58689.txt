@@ -1,0 +1,18 @@
+commit 450f3f608d409e2b3d76af071ec726efacbdd17b
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 19 23:28:54 2024 +0100
+
+    net/http/httptest: match net/http ContentLength behavior for http.NoBody
+    
+    Fixes #68476
+    
+    Change-Id: I05122e5ec5e6b290eec93f3db444fcf1de19c030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+
+ src/net/http/httptest/httptest.go      |  9 ++++++---
+ src/net/http/httptest/httptest_test.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit 59db1f7bb1a3a835ed5614497d7b223fa8033bcd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 16:31:49 2009 -0700
+
+    template:
+      * do full lookup for {.section},
+            so that it is always allowed to replace
+            {Foo} with {.section Foo}{@}{.end}
+      * treat False as empty so that .section can
+            be used to test bools
+    
+    R=r
+    DELTA=29  (21 added, 0 deleted, 8 changed)
+    OCL=34215
+    CL=34219
+
+ src/pkg/template/template.go      | 16 +++++++++-------
+ src/pkg/template/template_test.go | 19 +++++++++++++++++++
+ 2 files changed, 28 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit 87061054e709f5408db4bc1b9ac8e5685883d9fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 23:26:07 2016 -0700
+
+    cmd/compile: use printer in stmtfmt, hconv
+    
+    Change-Id: If11d328101a82de5ead04159d3085e3d59869283
+    Reviewed-on: https://go-review.googlesource.com/27919
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 104 ++++++++++++++++++-------------------
+ 1 file changed, 52 insertions(+), 52 deletions(-)

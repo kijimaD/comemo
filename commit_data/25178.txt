@@ -1,0 +1,14 @@
+commit c5a94ba24fd0392bab2c5b2404a820dbf6bc7346
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 23:16:50 2015 -0500
+
+    runtime: document that NumCPU does not change
+    
+    Fixes #11609.
+    
+    Change-Id: I3cf64164fde28ebf739706728b84d8ef5b6dc90e
+    Reviewed-on: https://go-review.googlesource.com/17456
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/debug.go | 4 ++++
+ 1 file changed, 4 insertions(+)

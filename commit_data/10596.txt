@@ -1,0 +1,12 @@
+commit 951ba56adb90214796e39582e9134c52d3dee663
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 2 10:30:35 2011 -0800
+
+    goinstall: fix typo in comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5449068
+
+ src/cmd/goinstall/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

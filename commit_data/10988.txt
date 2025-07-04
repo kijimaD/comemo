@@ -1,0 +1,21 @@
+commit 4a8ea4ae94c5db39f38cd1c8b7d0c8df6dc82f7b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Dec 23 11:07:11 2011 +1100
+
+    html: Don't ignore whitespace in "after after frameset" mode.
+    
+    Pass tests6.dat, test 46:
+    <html><frameset></frameset></html>
+    
+    | <html>
+    |   <head>
+    |   <frameset>
+    |   " "
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5505065
+
+ src/pkg/html/parse.go      | 13 +++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

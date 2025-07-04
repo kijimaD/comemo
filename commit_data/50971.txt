@@ -1,0 +1,17 @@
+commit decdad3537dd4797fde8c7db3005da674b50015c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Oct 11 08:24:39 2022 +0200
+
+    doc/go1.20: go version supports non-executable Go binaries
+    
+    Closes #48187
+    
+    Change-Id: Ibb808654bab3b6602b8901423fd297ad1f6e6386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.20.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

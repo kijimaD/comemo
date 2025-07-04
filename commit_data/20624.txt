@@ -1,0 +1,28 @@
+commit 3ffd29fb2cfeee77c7f58fcae3496665695eb938
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 3 12:44:20 2014 -0400
+
+    cmd/cc, runtime: disallow structs without tags
+    
+    Structs without tags have no unique name to use in the
+    Go definitions generated from the C types.
+    This caused issue 8812, fixed by CL 149260043.
+    Avoid future problems by requiring struct tags.
+    
+    Update runtime as needed.
+    (There is no other C code in the tree.)
+    
+    LGTM=bradfitz, iant
+    R=golang-codereviews, bradfitz, dave, iant
+    CC=golang-codereviews, khr, r
+    https://golang.org/cl/150360043
+
+ src/cmd/cc/cc.y                |    1 +
+ src/cmd/cc/y.tab.c             | 1147 ++++++++++++++++------------------------
+ src/cmd/cc/y.tab.h             |   68 +--
+ src/runtime/malloc.h           |    6 +-
+ src/runtime/os_plan9.h         |    2 +-
+ src/runtime/proc.c             |    2 +-
+ src/runtime/runtime.h          |    4 +-
+ src/runtime/vdso_linux_amd64.c |   20 +-
+ 8 files changed, 495 insertions(+), 755 deletions(-)

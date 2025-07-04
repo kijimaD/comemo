@@ -1,0 +1,12 @@
+commit b5c0470c8d819e0f8a3accbb5a614d47b8ce0c7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 03:33:44 2016 +0000
+
+    net/http: fix type name in comment
+    
+    Change-Id: Ia03f993287d2929f35b4c92d00fe25c7243bd8b3
+    Reviewed-on: https://go-review.googlesource.com/32685
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

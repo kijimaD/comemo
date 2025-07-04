@@ -1,0 +1,38 @@
+commit fb5230af8a0d416fa69049f71eb1271c053e7b8c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 31 14:29:02 2015 -0400
+
+    runtime: assist the GC during GC startup and shutdown
+    
+    Currently there are two sensitive periods during which a mutator can
+    allocate past the heap goal but mutator assists can't be enabled: 1)
+    at the beginning of GC between when the heap first passes the heap
+    trigger and sweep termination and 2) at the end of GC between mark
+    termination and when the background GC goroutine parks. During these
+    periods there's no back-pressure or safety net, so a rapidly
+    allocating mutator can allocate past the heap goal. This is
+    exacerbated if there are many goroutines because the GC coordinator is
+    scheduled as any other goroutine, so if it gets preempted during one
+    of these periods, it may stay preempted for a long period (10s or 100s
+    of milliseconds).
+    
+    Normally the mutator does scan work to create back-pressure against
+    allocation, but there is no scan work during these periods. Hence, as
+    a fall back, if a mutator would assist but can't yet, simply yield the
+    CPU. This delays the mutator somewhat, but more importantly gives more
+    CPU time to the GC coordinator for it to complete the transition.
+    
+    This is obviously a workaround. Issue #11970 suggests a far better but
+    far more invasive way to fix this.
+    
+    Updates #11911. (This very nearly fixes the issue, but about once
+    every 15 minutes I get a GC cycle where the assists are enabled but
+    don't do enough work.)
+    
+    Change-Id: I9768b79e3778abd3e06d306596c3bd77f65bf3f1
+    Reviewed-on: https://go-review.googlesource.com/13026
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

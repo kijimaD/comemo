@@ -1,0 +1,21 @@
+commit e4820bcfed75cdc4cab2181e0f0ab21c282cec65
+Author: Chris McGee <sirnewton_01@yahoo.ca>
+Date:   Wed Sep 28 21:31:52 2016 -0400
+
+    net: add multicast UDP support for plan9
+    
+    The new implementation adds listening support on a multicast
+    address with plan9 network interfaces.
+    
+    Fixes #17218
+    
+    Change-Id: I2c75515e72e120acb71610cd077fddfbf9cf4e29
+    Reviewed-on: https://go-review.googlesource.com/29964
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/udpsock.go            |  2 +-
+ src/net/udpsock_plan9.go      | 38 +++++++++++++++++++++++-
+ src/net/udpsock_plan9_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 107 insertions(+), 2 deletions(-)

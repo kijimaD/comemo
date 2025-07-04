@@ -1,0 +1,13 @@
+commit 6e0767bb04345bfdb963d9bda98608eebe0ea4ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 22:06:32 2009 -0800
+
+    reflect fixes
+    
+    R=r
+    https://golang.org/cl/156104
+
+ src/pkg/reflect/type.go     | 2 ++
+ src/pkg/reflect/value.go    | 5 ++++-
+ src/pkg/runtime/reflect.cgo | 6 ++++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)

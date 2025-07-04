@@ -1,0 +1,28 @@
+commit e4389c008a223213fc3f506756f38d695cf60d40
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 19 01:33:03 2012 +0900
+
+    undo CL 6395055 / 2518eee18c4f
+    
+    Broke TCP selfConnect
+    
+    ««« original CL description
+    net: avoid nil pointer dereference when RemoteAddr.String method chain is called
+    
+    Fixes #3721.
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6395055
+    »»»
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6533043
+
+ src/pkg/net/fd_unix.go    |  3 ++-
+ src/pkg/net/file_unix.go  |  4 +++-
+ src/pkg/net/ipraw_test.go | 49 -----------------------------------------------
+ src/pkg/net/sock_posix.go | 43 +++++------------------------------------
+ src/pkg/net/udp_test.go   | 27 --------------------------
+ 5 files changed, 10 insertions(+), 116 deletions(-)

@@ -1,0 +1,22 @@
+commit 3be158d6ab73090a74df6bc3b7cfa062d896483a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Sat Jan 10 14:00:21 2015 +0000
+
+    encoding/xml: encoding name spaces correctly
+    
+    The current XML printer does not understand the xmlns
+    attribute. This change changes it so that it interprets the
+    xmlns attributes in the tokens being printed, and uses
+    appropriate prefixes.
+    
+    Fixes #7535.
+    
+    Change-Id: I20fae291d20602d37deb41ed42fab4c9a50ec85d
+    Reviewed-on: https://go-review.googlesource.com/2660
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/encoding/xml/marshal.go      | 318 +++++++++++++++++++++++++++++++--------
+ src/encoding/xml/marshal_test.go |  44 +++---
+ src/encoding/xml/read_test.go    |  32 +++-
+ src/encoding/xml/xml.go          |  37 ++++-
+ 4 files changed, 344 insertions(+), 87 deletions(-)

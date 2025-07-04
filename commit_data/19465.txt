@@ -1,0 +1,47 @@
+commit 89d46fed2c30b729b9100c1139a1793e10ad8b57
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 29 13:47:31 2014 -0400
+
+    cmd/gc: fix x=x crash
+    
+    [Same as CL 102820043 except applied changes to 6g/gsubr.c
+    also to 5g/gsubr.c and 8g/gsubr.c. The problem I had last night
+    trying to do that was that 8g's copy of nodarg has different
+    (but equivalent) control flow and I was pasting the new code
+    into the wrong place.]
+    
+    Description from CL 102820043:
+    
+    The 'nodarg' function is used to obtain a Node*
+    representing a function argument or result.
+    It returned a brand new Node*, but that violates
+    the guarantee in most places in the compiler that
+    two Node*s refer to the same variable if and only if
+    they are the same Node* pointer. Reestablish that
+    invariant by making nodarg return a preexisting
+    named variable if present.
+    
+    Having fixed that, avoid any copy during x=x in
+    componentgen, because the VARDEF we emit
+    before the copy marks the lhs x as dead incorrectly.
+    
+    The change in walk.c avoids modifying the result
+    of nodarg. This was the only place in the compiler
+    that did so.
+    
+    Fixes #8097.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/103750043
+
+ src/cmd/5g/cgen.c  |  8 ++++++++
+ src/cmd/5g/gsubr.c |  9 +++++++++
+ src/cmd/6g/cgen.c  |  7 +++++++
+ src/cmd/6g/gsubr.c |  9 +++++++++
+ src/cmd/8g/cgen.c  |  7 +++++++
+ src/cmd/8g/gsubr.c |  9 +++++++++
+ src/cmd/gc/walk.c  |  3 ++-
+ test/live.go       | 26 ++++++++++++++++++++++++++
+ 8 files changed, 77 insertions(+), 1 deletion(-)

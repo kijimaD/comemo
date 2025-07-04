@@ -1,0 +1,42 @@
+commit 6605686e3b503a1d82a526e3970ce4c93f7e2106
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Tue Aug 30 21:48:17 2022 +0000
+
+    cmd/compile: new inline heuristic for struct compares
+    
+    This CL changes the heuristic used to determine whether we can inline a
+    struct equality check or if we must generate a function and call that
+    function for equality.
+    
+    The old method was to count struct fields, but this can lead to poor
+    in lining decisions. We should really be determining the cost of the
+    equality check and use that to determine if we should inline or generate
+    a function.
+    
+    The new benchmark provided in this CL returns the following when compared
+    against tip:
+    
+    ```
+    name         old time/op  new time/op  delta
+    EqStruct-32  2.46ns ± 4%  0.25ns ±10%  -89.72%  (p=0.000 n=39+39)
+    ```
+    
+    Fixes #38494
+    
+    Change-Id: Ie06b80a2b2a03a3fd0978bcaf7715f9afb66e0ab
+    GitHub-Last-Rev: e9a18d93893cc6493794683bf75b9848478a4de6
+    GitHub-Pull-Request: golang/go#53326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411674
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/compare/compare.go      |  98 +++++++++++--
+ src/cmd/compile/internal/compare/compare_test.go | 178 +++++++++++++++++++++++
+ src/cmd/compile/internal/reflectdata/alg_test.go |  19 +++
+ src/cmd/compile/internal/walk/compare.go         |   2 +-
+ test/codegen/comparisons.go                      |  45 ++++++
+ 5 files changed, 332 insertions(+), 10 deletions(-)

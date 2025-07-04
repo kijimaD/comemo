@@ -1,0 +1,31 @@
+commit c2de2912cb7805e859f98651fb7e8ed219661352
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 8 12:34:44 2024 -0500
+
+    cmd: update golang.org/x/telemetry and its dependencies
+    
+    This change was produced with
+            go get golang.org/x/telemetry@latest
+            go mod tidy
+            go mod vendor
+    
+    For golang/go#65586,golang/go#58894
+    
+    Change-Id: I631a424ebb726fb0999d4b5d1e6e7a288b475344
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-386,gotip-windows-amd64-longtest,gotip-solaris-amd64,gotip-openbsd-amd64,gotip-wasip1-wasm_wazero,gotip-js-wasm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562715
+    TryBot-Bypass: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Commit-Queue: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/telemetry/counter/counter.go      |  2 +-
+ .../{counter_go118.go => counter_disabled.go}      | 10 +--
+ .../x/telemetry/internal/counter/file.go           | 15 ++--
+ .../x/telemetry/internal/counter/parse.go          | 35 +--------
+ .../x/telemetry/internal/counter/stackcounter.go   | 91 +++++++++++++++-------
+ .../x/telemetry/internal/telemetry/mode.go         | 15 ++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 9 files changed, 91 insertions(+), 85 deletions(-)

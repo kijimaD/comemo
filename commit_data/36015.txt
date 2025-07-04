@@ -1,0 +1,12 @@
+commit c4f30481b3ee94746f6ae0fcb19cbe9adb3a937b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 17 07:22:41 2018 +1000
+
+    doc: rewrite run-on sentence in garbage collection discussion
+    
+    Change-Id: I60cb7010448757ca4c7a2973bee2277b3d5fc439
+    Reviewed-on: https://go-review.googlesource.com/124175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

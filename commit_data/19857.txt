@@ -1,0 +1,15 @@
+commit 53304558f95660233be1259b817fb1ca4693279d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 13:07:16 2014 -0700
+
+    runtime: fix 32 bit build.
+    
+    int(maxMem) is negative on 32 bits.  Need to use
+    unsigned arithmetic.
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/121000045
+
+ src/pkg/runtime/slice.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

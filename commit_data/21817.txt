@@ -1,0 +1,29 @@
+commit f0bd95b8b98dc3155c873724b6f9eff7bf83529e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Mar 1 17:30:47 2015 +0100
+
+    syscall: fix mount working directory on Plan 9
+    
+    In CL 6350, Brad fixed the following system calls
+    to use the program-wide workding directory:
+    
+    - bind
+    - chdir
+    - create
+    - open
+    - remove
+    - stat
+    - umount
+    - wstat
+    
+    However, Russ Cox pointed out that the mount
+    system call should be fixed as well.
+    
+    Change-Id: I6139ed11ba449f18c46e95269f4d0e51be7cec48
+    Reviewed-on: https://go-review.googlesource.com/6385
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_plan9.go        |  7 +++++-
+ src/syscall/zsyscall_plan9_386.go   | 44 ++++++++++++++++++-------------------
+ src/syscall/zsyscall_plan9_amd64.go | 44 ++++++++++++++++++-------------------
+ 3 files changed, 50 insertions(+), 45 deletions(-)

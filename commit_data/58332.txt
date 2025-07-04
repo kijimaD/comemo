@@ -1,0 +1,28 @@
+commit 61232096579d8801cb3513c84a97c141d50ad242
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Dec 3 15:09:41 2024 -0500
+
+    cmd/go/internal/cache: always check error from stat in markUsed
+    
+    markUsed was not checking that the error from os.Stat was nil before
+    trying to access the FileInfo entry returned by it. Instead, always
+    check the error and return false if it's non-nil (usually because the
+    file does not exist). This can happen if an index entry exists in the
+    cache, but the output entry it points to does not. markUsed is called at
+    different points for the index entry and for the output entry, so it's
+    possible for the index entry to be marked used, and then for another go
+    process to trim the cache, deleting the output entry.  I'm not sure how
+    likely that is, or if this is what has been triggering the user observed
+    instances of #70600, but it's enough for a test case.
+    
+    Fixes #70600
+    
+    Change-Id: Ia6be14b4a56736d06488ccf93c3596fff8159f22
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633037
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/cache.go              | 14 ++++----
+ src/cmd/go/testdata/script/list_issue_70600.txt | 43 +++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 6 deletions(-)

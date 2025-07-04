@@ -1,0 +1,12 @@
+commit bbf762582fd7f45ac5e145021d3f5bed2ea481b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 17:14:05 2013 -0800
+
+    test: adjust issue4618 for gccgo allocation behaviour
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/41550044
+
+ test/fixedbugs/issue4618.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 441da9af0d6b2e2f07f67e7a9d45c3a84535409b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 21:39:10 2009 -0700
+
+    fix build (moved decl to go.h earlier
+    and changed vlong to int64).
+    
+    R=ken
+    OCL=26934
+    CL=26934
+
+ src/cmd/6g/gg.h | 1 -
+ 1 file changed, 1 deletion(-)

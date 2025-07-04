@@ -1,0 +1,18 @@
+commit 79cdecc8522e37d2eac5592c12459cd95ff92171
+Author: Roland Illig <roland.illig@gmx.de>
+Date:   Wed Jan 4 06:59:03 2023 +0000
+
+    cmd/gofmt: fix a typo in a comment
+    
+    Change-Id: I34b2b9f9b70e39c872d5edbbda4de0fe330211f5
+    GitHub-Last-Rev: 723e36e11ee011c54d3ffc8125d0477c8eed25a0
+    GitHub-Pull-Request: golang/go#57566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460457
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/gofmt/rewrite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

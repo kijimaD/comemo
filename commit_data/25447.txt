@@ -1,0 +1,72 @@
+commit bb91a7e2fd11a071dc32a6a65c185fbe0151145a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 12:29:10 2016 -0500
+
+    test/bench/shootout: delete
+    
+    We don't use these for benchmarking anymore.
+    Now we have the go1 dir and the benchmarks subrepo.
+    Some have problematic copyright notices, so move out of main repo.
+    
+    Preserved in golang.org/x/exp/shootout.
+    
+    Fixes #12688.
+    Fixes #13584.
+    
+    Change-Id: Ic0b71191ca1a286d33d7813aca94bab1617a1c82
+    Reviewed-on: https://go-review.googlesource.com/18320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go                          |   28 +-
+ test/bench/shootout/binary-tree-freelist.go   |  129 ---
+ test/bench/shootout/binary-tree-freelist.txt  |    8 -
+ test/bench/shootout/binary-tree.c             |  164 ----
+ test/bench/shootout/binary-tree.go            |   92 --
+ test/bench/shootout/binary-tree.txt           |    8 -
+ test/bench/shootout/chameneosredux.c          |  330 -------
+ test/bench/shootout/chameneosredux.go         |  180 ----
+ test/bench/shootout/chameneosredux.txt        |   29 -
+ test/bench/shootout/fannkuch-parallel.go      |  224 -----
+ test/bench/shootout/fannkuch-parallel.txt     |   31 -
+ test/bench/shootout/fannkuch.c                |  134 ---
+ test/bench/shootout/fannkuch.go               |  122 ---
+ test/bench/shootout/fannkuch.txt              |   31 -
+ test/bench/shootout/fasta-1000.txt            |  171 ----
+ test/bench/shootout/fasta.c                   |  219 -----
+ test/bench/shootout/fasta.go                  |  205 ----
+ test/bench/shootout/fasta.txt                 |  171 ----
+ test/bench/shootout/k-nucleotide-parallel.go  |  157 ----
+ test/bench/shootout/k-nucleotide-parallel.txt |   27 -
+ test/bench/shootout/k-nucleotide.c            |  228 -----
+ test/bench/shootout/k-nucleotide.go           |  140 ---
+ test/bench/shootout/k-nucleotide.txt          |   27 -
+ test/bench/shootout/mandelbrot.c              |   91 --
+ test/bench/shootout/mandelbrot.go             |   95 --
+ test/bench/shootout/mandelbrot.txt            |  Bin 5011 -> 0 bytes
+ test/bench/shootout/meteor-contest.c          |  626 ------------
+ test/bench/shootout/meteor-contest.go         |  656 -------------
+ test/bench/shootout/meteor-contest.txt        |   24 -
+ test/bench/shootout/nbody.c                   |  170 ----
+ test/bench/shootout/nbody.go                  |  177 ----
+ test/bench/shootout/nbody.txt                 |    2 -
+ test/bench/shootout/pidigits.c                |  123 ---
+ test/bench/shootout/pidigits.go               |  135 ---
+ test/bench/shootout/pidigits.txt              |    3 -
+ test/bench/shootout/regex-dna-parallel.go     |  124 ---
+ test/bench/shootout/regex-dna-parallel.txt    |   13 -
+ test/bench/shootout/regex-dna.c               |  154 ---
+ test/bench/shootout/regex-dna.go              |  106 ---
+ test/bench/shootout/regex-dna.txt             |   13 -
+ test/bench/shootout/reverse-complement.c      |  100 --
+ test/bench/shootout/reverse-complement.go     |  105 ---
+ test/bench/shootout/reverse-complement.txt    |  171 ----
+ test/bench/shootout/spectral-norm-parallel.go |  111 ---
+ test/bench/shootout/spectral-norm.c           |   82 --
+ test/bench/shootout/spectral-norm.go          |   93 --
+ test/bench/shootout/spectral-norm.txt         |    1 -
+ test/bench/shootout/threadring.c              |  113 ---
+ test/bench/shootout/threadring.go             |   71 --
+ test/bench/shootout/threadring.txt            |    1 -
+ test/bench/shootout/timing.log                | 1254 -------------------------
+ test/bench/shootout/timing.sh                 |  252 -----
+ 52 files changed, 1 insertion(+), 7720 deletions(-)

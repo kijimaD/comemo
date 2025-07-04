@@ -1,0 +1,30 @@
+commit e48fc2665e2e95eddea612fa315403d50c7beb2b
+Author: Aleks Rudzitis <arudzitis@stripe.com>
+Date:   Thu Jul 21 11:19:42 2022 -0700
+
+    crypto: allow hash.Hash for OAEP and MGF1 to be specified independently
+    
+    crypto/rsa assumes RSA OAEP uses the same hash to be used for both the label
+    and the mask generation function. However, implementations in other languages,
+    such as Java and Python, allow these parameters to be specified independently.
+    
+    This change allows the MGF hash to be specified independently for decrypt
+    operations in order to allow decrypting ciphertexts generated in other
+    environments.
+    
+    Fixes: #19974
+    Change-Id: If453d628f0da354ceb3b52863f30087471670f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418874
+    Auto-Submit: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+
+ api/next/19974.txt                      |  1 +
+ src/crypto/internal/boring/notboring.go |  4 ++--
+ src/crypto/internal/boring/rsa.go       | 29 ++++++++++++++++++-----------
+ src/crypto/rsa/rsa.go                   | 23 ++++++++++++++++++-----
+ src/crypto/rsa/rsa_test.go              | 28 ++++++++++++++++++++++++++--
+ 5 files changed, 65 insertions(+), 20 deletions(-)

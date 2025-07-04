@@ -1,0 +1,18 @@
+commit 42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Feb 21 12:22:13 2021 +0900
+
+    context: fix XTestInterlockedCancels
+    
+    The test does not use Done channel, so fix that.
+    
+    Change-Id: I795feab2e95de815b8b6ee7a7fd90f19f7af7db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294749
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Trust: Sameer Ajmani <sameer@golang.org>
+    Trust: Cody Oss <codyoss@google.com>
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/context/context_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

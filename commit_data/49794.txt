@@ -1,0 +1,19 @@
+commit c7942f87a2587ee989f6e282d887b4652119133a
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Mon Aug 8 14:47:45 2022 -0700
+
+    log: change isDiscard type to atomic.Bool
+    
+    Change-Id: Iff881cc6cc2ec34c7cf8bbd5dd1b0a05a19e1c23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422175
+    Run-TryBot: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/log/log.go | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)

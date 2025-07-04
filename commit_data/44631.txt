@@ -1,0 +1,43 @@
+commit 7240a18adbfcff5cfe750a1fa4af0fd42ade4381
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 5 14:24:41 2021 -0500
+
+    cmd/compile: test register ABI for method, interface, closure calls
+    
+    This is enabled with a ridiculous magic name for method,
+    or for last input type passed, that needs to be changed
+    to something inutterable before actual release.
+    
+    Ridiculous method name: MagicMethodNameForTestingRegisterABI
+    Ridiculous last (input) type name: MagicLastTypeNameForTestingRegisterABI
+    
+    RLTN is tested with strings.Contains, so you can have
+    MagicLastTypeNameForTestingRegisterABI1
+    and
+    MagicLastTypeNameForTestingRegisterABI2
+    if that is helpful
+    
+    Includes test test/abi/fibish2.go
+    
+    Updates #44816.
+    
+    Change-Id: I592a6edc71ca9bebdd1d00e24edee1ceebb3e43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299410
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go   | 54 ++++++++++-------------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  8 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 27 ++++++++++--
+ src/cmd/compile/internal/ssa/op.go             | 47 +++++++++++++++++---
+ src/cmd/compile/internal/ssa/opGen.go          |  8 ++--
+ src/cmd/compile/internal/ssagen/ssa.go         | 61 +++++++++++++++++++++++---
+ test/abi/fibish2.go                            | 40 +++++++++++++++++
+ test/abi/fibish2.out                           |  1 +
+ test/abi/fibish_closure.go                     | 34 ++++++++++++++
+ test/abi/fibish_closure.out                    |  1 +
+ test/abi/methods.go                            | 51 +++++++++++++++++++++
+ test/abi/methods.out                           |  2 +
+ 12 files changed, 279 insertions(+), 55 deletions(-)

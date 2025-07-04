@@ -1,0 +1,19 @@
+commit ba43be30c4786c52c12a290fe397b83bdc558cfc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 21:36:11 2011 -0700
+
+    adler32: speed up ~40% by avoiding bounds checks
+    
+    before & after:
+    adler32.BenchmarkGolden   100000             14747 ns/op
+    adler32.BenchmarkGolden   200000              8761 ns/op
+    
+    Found by profiling PNG encoding.
+    
+    R=rsc, bradfitzwork, eds
+    CC=golang-dev
+    https://golang.org/cl/4441073
+
+ src/pkg/hash/adler32/adler32.go      |  4 ++--
+ src/pkg/hash/adler32/adler32_test.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

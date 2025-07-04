@@ -1,0 +1,12 @@
+commit be99859dbedb9353d02b866aa0fe6344acbc1372
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Fri May 6 16:11:07 2011 -0400
+
+    doc: remove left and right padding in H2 headings.
+    
+    R=adg, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4491041
+
+ doc/all.css | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

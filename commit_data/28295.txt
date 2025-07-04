@@ -1,0 +1,16 @@
+commit 4cf95fda64d76ca044319fd0a292ad3a77c1da0b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 14:05:51 2016 -0700
+
+    encoding/hex: fix example function name
+    
+    Found by vet.
+    
+    Change-Id: I556d87f853a734002f779b04ba5a3588a3117106
+    Reviewed-on: https://go-review.googlesource.com/28958
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/hex/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

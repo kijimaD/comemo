@@ -1,0 +1,16 @@
+commit 9575c580648d20ded1b538d6e05a3032fff2aaed
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 28 05:57:55 2016 +0900
+
+    net: use IPv4 reserved address blocks for documentation
+    
+    Updates #15228.
+    
+    Change-Id: Iefdffa146703ee1c04afc2b71d9de1f0a0811f86
+    Reviewed-on: https://go-review.googlesource.com/32146
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

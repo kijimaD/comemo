@@ -1,0 +1,16 @@
+commit b7ec659b54951f2461381ec0a5d4e71cb0460a03
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 15:42:02 2012 -0800
+
+    fmt: fix Malloc test
+    We need to avoid allocating an extra word for the interface value
+    passing the floating-point value as an interface{}. It's easy.
+    
+    Fixes #2722.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5553044
+
+ src/pkg/fmt/fmt_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

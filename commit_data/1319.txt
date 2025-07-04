@@ -1,0 +1,20 @@
+commit d0e30cdaa9a230798d7d36a06d6671ab3be5ab09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 10 15:55:59 2008 -0800
+
+    assorted cleanup and fixes
+    
+    R=r
+    DELTA=209  (109 added, 79 deleted, 21 changed)
+    OCL=20930
+    CL=20934
+
+ src/lib/bufio.go              |   4 +-
+ src/lib/fmt/print.go          |   2 +-
+ src/lib/http/url.go           |  16 ++++--
+ src/lib/net/net.go            | 120 ++++++++++++------------------------------
+ src/lib/reflect/all_test.go   |  33 ++++++++++++
+ src/lib/reflect/value.go      |  47 +++++++++++++++--
+ src/lib/strconv/quote.go      |   3 ++
+ src/lib/strconv/quote_test.go |   1 +
+ 8 files changed, 128 insertions(+), 98 deletions(-)

@@ -1,0 +1,19 @@
+commit d7c99cdf9fa5548db179758ac9dd267f5f1c9e88
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jul 25 09:42:05 2013 -0400
+
+    cmd/gc: avoid passing unevaluated constant expressions to backends.
+    
+    Backends do not exactly expect receiving binary operators with
+    constant operands or use workarounds to move them to
+    register/stack in order to handle them.
+    
+    Fixes #5841.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/11107044
+
+ src/cmd/gc/walk.c           |  7 +++++++
+ test/fixedbugs/issue5841.go | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+)

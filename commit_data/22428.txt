@@ -1,0 +1,12 @@
+commit 2539ccb8db1c0efffa45e7de7430b333ffce2cb4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 10 19:32:10 2015 -0700
+
+    doc/go1.5.txt: log: LUTC flag
+    
+    Change-Id: Ieadbd2b1ad442ba3eb2ad5f552d96c93ba3e5a2e
+    Reviewed-on: https://go-review.googlesource.com/8790
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

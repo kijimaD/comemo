@@ -1,0 +1,33 @@
+commit 260a9b0a079935744df6a17d0e1d185a9d50631d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 26 14:34:56 2023 -0700
+
+    all: update vendored dependencies
+    
+    Generated with x/build/cmd/updatestd.
+    
+    Updates #36905.
+    
+    Change-Id: Iecd76e820c5f40a0f5e013684f7e7bef4c3fd482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498598
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  10 +-
+ src/cmd/go.sum                                     |  20 +--
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  48 +++++++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  46 +++++++
+ .../golang.org/x/sys/windows/syscall_windows.go    |  13 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   8 +-
+ src/cmd/vendor/modules.txt                         |  12 +-
+ src/go.mod                                         |   6 +-
+ src/go.sum                                         |  12 +-
+ src/net/http/h2_bundle.go                          | 142 ++++++++++++++++++++-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |   8 ++
+ .../golang.org/x/net/dns/dnsmessage/message.go     |  29 ++++-
+ src/vendor/golang.org/x/sys/cpu/endian_little.go   |   4 +-
+ src/vendor/modules.txt                             |   6 +-
+ 14 files changed, 308 insertions(+), 56 deletions(-)

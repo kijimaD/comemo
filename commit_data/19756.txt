@@ -1,0 +1,18 @@
+commit 90870e61b7311a0c2b4d3059368cf75006157a50
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jul 17 09:55:12 2014 -0700
+
+    strings: remove byteBitmap
+    
+    Previously we had a bitmap to check whether or not a byte
+    appears in a string should be replaced. But we don't actually
+    need a separate bitmap for that purpose. Removing the bitmap
+    makes the code simpler.
+    
+    LGTM=dave, iant, nigeltao
+    R=golang-codereviews, dave, gobot, nigeltao, iant, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110100043
+
+ src/pkg/strings/replace.go | 100 ++++++++++++++++-----------------------------
+ 1 file changed, 35 insertions(+), 65 deletions(-)

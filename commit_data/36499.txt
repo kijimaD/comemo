@@ -1,0 +1,26 @@
+commit a700ae98630b4e4dd03a0ead627941d6bb1d55bf
+Author: Tobias Klauser <tobias.klauser@gmail.com>
+Date:   Sun Aug 26 18:50:33 2018 +0000
+
+    Revert "syscall, os: use pipe2 syscall on DragonflyBSD instead of pipe"
+    
+    This reverts commit e6c15945dee0661dee6111183d4951853c4c2d98.
+    
+    Reason for revert: breaks the Dragonfly builders.
+    
+    Fixes #27245
+    
+    Change-Id: I2c147a5726aec28647f6ef5eb8f9db5efa3a9fd0
+    Reviewed-on: https://go-review.googlesource.com/131497
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/pipe2_bsd.go                     |  2 +-
+ src/os/pipe_bsd.go                      |  2 +-
+ src/syscall/forkpipe.go                 |  2 +-
+ src/syscall/forkpipe2.go                |  2 +-
+ src/syscall/syscall_dragonfly.go        | 10 +++-------
+ src/syscall/zsyscall_dragonfly_amd64.go |  4 ++--
+ src/syscall/zsysnum_dragonfly_amd64.go  |  1 -
+ 7 files changed, 9 insertions(+), 14 deletions(-)

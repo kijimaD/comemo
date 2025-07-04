@@ -1,0 +1,18 @@
+commit 022504b3ab62a4d35aad13c58382bd0a7168805b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 4 13:52:45 2013 -0800
+
+    net/http: fix when server deadlines get extended
+    
+    Deadlines should be extended at the beginning of
+    a request, not at the beginning of a connection.
+    
+    Fixes #4676
+    
+    R=golang-dev, fullung, patrick.allen.higgins, adg
+    CC=golang-dev
+    https://golang.org/cl/7220076
+
+ src/pkg/net/http/serve_test.go | 44 ++++++++++++++++++++++++------------------
+ src/pkg/net/http/server.go     | 22 +++++++++++++++------
+ 2 files changed, 41 insertions(+), 25 deletions(-)

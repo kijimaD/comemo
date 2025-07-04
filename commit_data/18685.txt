@@ -1,0 +1,20 @@
+commit 8d2465ab501eb186ffe869019f3d69b125954993
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 28 11:09:26 2014 +1100
+
+    go/misc/makerelease: pin go-tour repo to a specific revision
+    
+    We're about to commit some wide-sweeping changes to the go-tour and I
+    would rather not include them in Go 1.2.1, which is due in the next
+    week or so.
+    
+    Also fix the makerelease tool; it has been broken since it was
+    renamed from bindist.
+    
+    LGTM=campoy
+    R=campoy
+    CC=golang-codereviews
+    https://golang.org/cl/68780043
+
+ misc/makerelease/makerelease.go | 73 +++++++++++++++++++++++++----------------
+ 1 file changed, 44 insertions(+), 29 deletions(-)

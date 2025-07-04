@@ -1,0 +1,37 @@
+commit dd323fe205b04da837e12aabf0bebfbe171aa7c2
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 13 20:22:53 2022 -0700
+
+    cmd/compile,runtime: redo growslice calling convention
+    
+    Instead of passing the original length and the new length, pass
+    the new length and the length increment. Also use the new length
+    in all the post-growslice calculations so that the original length
+    is dead and does not need to be spilled/restored around the growslice.
+    
+    old: growslice(typ, oldPtr, oldLen, oldCap, newLen) (newPtr, newLen, newCap)
+    new: growslice(oldPtr, newLen, oldCap, inc, typ) (newPtr, newLen, newCap)
+    
+    where inc = # of elements added = newLen-oldLen
+    
+    Also move the element type to the end of the call. This makes register
+    allocation more efficient, as oldPtr and newPtr can often be in the
+    same register (e.g. AX on amd64) and thus the phi takes no instructions.
+    
+    Makes the go binary 0.3% smaller.
+    
+    Change-Id: I7295a60227dbbeecec2bf039eeef2950a72df760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418554
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go             | 114 ++++++++--------
+ src/cmd/compile/internal/typecheck/builtin.go      |   2 +-
+ .../compile/internal/typecheck/builtin/runtime.go  |   2 +-
+ src/cmd/compile/internal/walk/assign.go            | 149 ++++++++++++---------
+ src/cmd/compile/internal/walk/builtin.go           |  73 ++++++----
+ src/runtime/slice.go                               |  92 ++++++++-----
+ 6 files changed, 247 insertions(+), 185 deletions(-)

@@ -1,0 +1,19 @@
+commit 4b1b18d1060b82d4df273e23d81033dfacf4d5bb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 7 17:14:51 2020 +1100
+
+    runtime: use FP offsets for pipe/pipe2 on freebsd/arm64 and linux/arm64
+    
+    This is more readable and less error-prone than using RSP offsets.
+    
+    Suggested during review of CL 212765.
+    
+    Change-Id: I070190abeeac8eae5dbd414407602619d9d57422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213577
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_freebsd_arm64.s | 4 ++--
+ src/runtime/sys_linux_arm64.s   | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

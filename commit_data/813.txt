@@ -1,0 +1,12 @@
+commit 1b257b2bb3359c7bfd3c396e9ec16c067a3a1635
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 13:52:23 2008 -0700
+
+    silence gcc warning - initialize two variables
+    
+    R=ken
+    OCL=16550
+    CL=16550
+
+ src/cmd/gc/const.c | 3 +++
+ 1 file changed, 3 insertions(+)

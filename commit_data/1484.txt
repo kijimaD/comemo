@@ -1,0 +1,14 @@
+commit 1d74892178931de5835da7ea09ed07f7dfe452c2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 16:03:27 2009 -0800
+
+    more casifying fixups
+    
+    R=rsc
+    DELTA=213  (0 added, 0 deleted, 213 changed)
+    OCL=22878
+    CL=22882
+
+ src/lib/flag.go         | 142 ++++++++++++++--------------
+ src/lib/fmt/fmt_test.go | 244 ++++++++++++++++++++++++------------------------
+ 2 files changed, 193 insertions(+), 193 deletions(-)

@@ -1,0 +1,18 @@
+commit f172a28f24664d95611b5943f78c6a2c1cc6efbd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 15 12:03:47 2015 +1100
+
+    net: include both ipv4 and ipv6 netsh output in TestInterfacesWithNetsh
+    
+    Also include test for interface state (up or down).
+    
+    Updates #13606
+    
+    Change-Id: I03538d65525ddd9c2d0254761861c2df7fc5bd5a
+    Reviewed-on: https://go-review.googlesource.com/17850
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/net/net_windows_test.go | 86 +++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 76 insertions(+), 10 deletions(-)

@@ -1,0 +1,13 @@
+commit 642a1cc7563953bf2be39eca461325bfa9735cde
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 28 11:07:16 2017 +1000
+
+    compress/lzw: fix hi code overflow.
+    
+    Change-Id: I2d3c3c715d857305944cd96c45554a16cb7967e9
+    Reviewed-on: https://go-review.googlesource.com/42032
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/compress/lzw/reader.go      | 12 +++++++++++-
+ src/compress/lzw/reader_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

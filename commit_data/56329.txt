@@ -1,0 +1,21 @@
+commit d95fa7aca75f498c0e7e3d65bb5ab8363e46e179
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:35:18 2024 +0200
+
+    os: use filepathlite.IsAbs
+    
+    It is better to have a single implementation of IsAbs, which is quite
+    tricky to get right on Windows.
+    
+    Change-Id: I45933b0ceff2920d9eddb61e62aacb2602c3dc8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582498
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_windows.go  |  3 ++-
+ src/os/path_windows.go  | 15 ++-------------
+ src/os/types_windows.go |  3 ++-
+ 3 files changed, 6 insertions(+), 15 deletions(-)

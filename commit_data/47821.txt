@@ -1,0 +1,26 @@
+commit b1a53ece68d46e4fb59c74d2bc529060861f5dbf
+Author: Andre Marianiello <andremarianiello@users.noreply.github.com>
+Date:   Tue Dec 14 22:50:28 2021 +0000
+
+    cmd/go/internal/vcs: prevent Git signatures from breaking commit time parsing
+    
+    When a user has showSignature=true set in their Git config and the
+    commit in question has a signature, the git-show command will output
+    information about that signature. When this happens, the logic that
+    tries to parsing a timestamp from the git-show output chokes on this
+    signature information and the build stamping fails. This change prevents
+    commit signature information from being displayed even if
+    showSignature=true, preventing this issue.
+    
+    Change-Id: I98d0a6fdd1e90dd1b91e0394713b6eb286a69d1a
+    GitHub-Last-Rev: 610706e23e33a037b9abede2ba0a926c0f336814
+    GitHub-Pull-Request: golang/go#49790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367034
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go                     |   2 +-
+ .../testdata/script/version_buildvcs_git_gpg.txt   | 105 +++++++++++++++++++++
+ 2 files changed, 106 insertions(+), 1 deletion(-)

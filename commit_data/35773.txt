@@ -1,0 +1,16 @@
+commit 1507502ff2a9d18c90a293728773015804992752
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 21 12:01:54 2018 -0700
+
+    cmd/go: re-enable a couple of tests of gccgo
+    
+    Updates #22472
+    
+    Change-Id: I526d131f2ef8e0200f7a5634c75b31e0ee083f93
+    Reviewed-on: https://go-review.googlesource.com/120375
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 2 --
+ 1 file changed, 2 deletions(-)

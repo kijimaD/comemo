@@ -1,0 +1,16 @@
+commit d608b15db7f1e55e612f23cb9039379087a1f287
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Mon Jun 11 13:12:28 2012 -0400
+
+    misc/emacs: Fix the automatic gofmt when creating a new file.
+    
+    Patching the buffer with the output from gofmt -d only works if
+    the file already exists. If it doesn't, replace the content with
+    the output of gofmt.
+    
+    R=sameer
+    CC=golang-dev
+    https://golang.org/cl/6302063
+
+ misc/emacs/go-mode.el | 64 ++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 40 insertions(+), 24 deletions(-)

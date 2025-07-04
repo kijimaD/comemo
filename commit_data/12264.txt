@@ -1,0 +1,14 @@
+commit b69fa69a8bf53fb4714d96b4daf80fd6de597111
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 28 16:49:57 2012 -0800
+
+    doc: update Go For C++ Programmers
+    
+    Minor cleanups to look more like current Go.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5707053
+
+ doc/go_for_cpp_programmers.html | 205 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 151 insertions(+), 54 deletions(-)

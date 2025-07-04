@@ -1,0 +1,23 @@
+commit 4847c47cb8a93b56e1df8c249700e25f527d4ba3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 17:13:32 2021 -0700
+
+    cmd/compile/internal/types2: eliminate Named.instPos
+    
+    This is a clean port of CL 349411 from go/types to types2.
+    
+    Change-Id: Id5fa04c53f286dad263d7ba7911cb49eebf47b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350030
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/environment.go |  7 -------
+ src/cmd/compile/internal/types2/errors.go      |  2 +-
+ src/cmd/compile/internal/types2/errors_test.go |  1 -
+ src/cmd/compile/internal/types2/instantiate.go |  5 +++--
+ src/cmd/compile/internal/types2/named.go       |  8 +++-----
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/typestring.go  | 10 ----------
+ 7 files changed, 8 insertions(+), 27 deletions(-)

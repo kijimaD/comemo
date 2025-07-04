@@ -1,0 +1,14 @@
+commit e2bde5cf9b1b4e56f1d2c8469006fb11f8a99739
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 12 23:26:54 2010 -0700
+
+    runtime: fix another stack split bug
+    
+    Makes godoc --http=:1234 not crash on linux/amd64.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1975044
+
+ src/pkg/runtime/proc.c | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,14 @@
+commit 61a8eb07f80b1db11a527060c9d861a20ab86d52
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 25 12:46:16 2012 -0700
+
+    net/http: ignore paths on CONNECT requests in ServeMux
+    
+    Fixes #3538
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/6117058
+
+ src/pkg/net/http/server.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

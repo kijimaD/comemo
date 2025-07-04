@@ -1,0 +1,19 @@
+commit f7e7719f653b91cf84ed80c03dd4a17e0558b5eb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 19 18:14:53 2015 -0700
+
+    cmd/go: rewrite TestNoteReading to use test harness
+    
+    On my laptop reduces time required for test from 22 seconds to 0.14
+    seconds.
+    
+    Update #11779.
+    
+    Change-Id: I715d85bd9c6f7683c6915eedd2539813aa5efc58
+    Reviewed-on: https://go-review.googlesource.com/12363
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/note_test.go | 33 +++++++--------------------------
+ src/cmd/go/pkg.go       |  6 +++---
+ 2 files changed, 10 insertions(+), 29 deletions(-)

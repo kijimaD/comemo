@@ -1,0 +1,13 @@
+commit 364a8520273830c2aa24f703a302741bbb259cb4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 14:46:31 2009 -0800
+
+    - lowercase non-exported functions in bignum
+    
+    R=r
+    DELTA=117  (1 added, 0 deleted, 116 changed)
+    OCL=22764
+    CL=22863
+
+ src/lib/bignum.go | 193 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 97 insertions(+), 96 deletions(-)

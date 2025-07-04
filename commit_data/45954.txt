@@ -1,0 +1,17 @@
+commit b8ca6e59eda969c1d3aed9b0c5bd9e99cf0e7dfe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 30 11:04:36 2021 -0700
+
+    all: gofmt
+    
+    Change-Id: Icfafcfb62a389d9fd2e7a4d17809486ed91f15c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338629
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go | 1 +
+ src/runtime/export_debug_regabiargs_off_test.go            | 3 +--
+ src/runtime/export_debug_regabiargs_on_test.go             | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

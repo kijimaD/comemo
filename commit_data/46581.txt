@@ -1,0 +1,17 @@
+commit aa878ee49b6954a818cc00c26754c84b86a4215b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 20:50:48 2021 -0700
+
+    cmd/compile/internal/syntax: assume generic code for std lib
+    
+    Also: improve some error message prints in testSyntaxErrors.
+    Change-Id: Iaa1d642398fa82975fefb4bde54f476dd5229eb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351791
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/error_test.go  | 4 ++--
+ src/cmd/compile/internal/syntax/parser_test.go | 7 ++-----
+ 2 files changed, 4 insertions(+), 7 deletions(-)

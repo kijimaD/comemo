@@ -1,0 +1,13 @@
+commit 8b04ceff629a19d44326738c4f086fcfb3f961d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 23:38:30 2009 -0800
+
+    copy help section to install doc,
+    since most people won't get to the second one.
+    
+    R=r
+    http://go/go-review/1024031
+
+ doc/contribute.html |  2 +-
+ doc/install.html    | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

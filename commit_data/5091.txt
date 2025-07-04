@@ -1,0 +1,15 @@
+commit 7190fdd3bff430f3be6ad2a25e10bac519bb8d77
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Mar 20 11:42:57 2010 +1100
+
+    website: add Go Blog widget to frontpage,
+    add Blog and Wiki links to sideba
+    
+    R=r, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/611042
+
+ doc/root.html        | 22 ++++++++++++++++++++++
+ doc/style.css        | 11 ++++++++++-
+ lib/godoc/godoc.html |  8 ++++++--
+ 3 files changed, 38 insertions(+), 3 deletions(-)

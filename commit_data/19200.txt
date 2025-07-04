@@ -1,0 +1,14 @@
+commit c7d864c4d004799ad8c59da311913966c93ac98c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 17 23:16:11 2014 -0400
+
+    cmd/go: support -ccflags in 'go test'
+    Fixes #7810.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89050043
+
+ src/cmd/go/testflag.go | 1 +
+ 1 file changed, 1 insertion(+)

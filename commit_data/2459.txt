@@ -1,0 +1,20 @@
+commit 536c2aa6aebc7b89b9c57e09b41985875aa1aa01
+Author: Jacob Baskin <jbaskin@google.com>
+Date:   Tue Jun 16 13:23:42 2009 -0700
+
+    URL should have an empty Scheme if there is an invalid character (i.e.
+    not [a-zA-Z0-9+-.]) before there is a ":".
+    
+    This is particularly helpful in the erroneous-but-relatively-common
+    case of relative URLs containing an unescaped colon in the query
+    string--see the added test for an example.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=15  (15 added, 0 deleted, 0 changed)
+    OCL=30354
+    CL=30356
+
+ src/pkg/http/url.go      |  4 ++++
+ src/pkg/http/url_test.go | 11 +++++++++++
+ 2 files changed, 15 insertions(+)

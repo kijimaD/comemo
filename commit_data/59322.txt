@@ -1,0 +1,35 @@
+commit 8a8efafa8835b646955dd46f4f466d3126e56200
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Apr 17 07:49:35 2025 +0000
+
+    cmd/compile: use the builtin clear
+    
+    To simplify the code a bit.
+    
+    Change-Id: Ia72f576de59ff161ec389a4992bb635f89783540
+    GitHub-Last-Rev: eaec8216be964418a085649fcca53a042f28ce1a
+    GitHub-Pull-Request: golang/go#73411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666117
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/bitvec/bv.go           |  4 +---
+ src/cmd/compile/internal/liveness/plive.go      |  4 +---
+ src/cmd/compile/internal/objw/prog.go           |  5 +----
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 +---
+ src/cmd/compile/internal/ssa/_gen/allocators.go |  4 ++--
+ src/cmd/compile/internal/ssa/allocators.go      |  8 ++------
+ src/cmd/compile/internal/ssa/block.go           |  5 +----
+ src/cmd/compile/internal/ssa/cache.go           | 19 ++++---------------
+ src/cmd/compile/internal/ssa/deadcode.go        | 10 ++--------
+ src/cmd/compile/internal/ssa/debug.go           | 24 +++++-------------------
+ src/cmd/compile/internal/ssa/poset.go           |  4 +---
+ src/cmd/compile/internal/ssa/regalloc.go        |  4 +---
+ src/cmd/compile/internal/ssa/stackalloc.go      | 12 +++---------
+ src/cmd/compile/internal/ssa/tighten.go         |  4 +---
+ src/cmd/compile/internal/ssa/trim.go            |  5 +----
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 +---
+ 16 files changed, 28 insertions(+), 92 deletions(-)

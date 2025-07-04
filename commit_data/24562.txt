@@ -1,0 +1,25 @@
+commit 26fe24cbe2ce13fba899e46055132226cf88c6d9
+Author: Thorben Krueger <thorben.krueger@gmail.com>
+Date:   Wed Oct 14 19:18:59 2015 +0000
+
+    fmt: Add support for capital '%X' format verb for scanning
+    
+    For printing, the format verb '%X' results in a capitalized
+    hex-representation of the formatted value. Conversely, using
+    '%X' in a Scanf function should scan a hex-representation
+    into the given interface{}. The existing implementation
+    however only supports '%X' for scanning hex values into
+    integers; strings or byte slices remain empty. On the other
+    hand, lower-case '%x' supports strings and byte slices just
+    fine. This is merely an oversight, which this commit fixes.
+    (Additional tests also included.)
+    
+        Fixes #12940
+    
+    Change-Id: I178a7f615bae950dfc014ca8c0a038448cf0452a
+    Reviewed-on: https://go-review.googlesource.com/15689
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/fmt/scan.go      | 4 ++--
+ src/fmt/scan_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit c239fbb893b202e2fce141449215f802eefb6b9f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 06:09:15 2017 -0700
+
+    cmd/compile: remove stray blank assignment
+    
+    Left over from CL 39855.
+    
+    Change-Id: I9df8b5c631d5afbdbf2fb306876648d8541931d3
+    Reviewed-on: https://go-review.googlesource.com/40941
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go | 1 -
+ 1 file changed, 1 deletion(-)

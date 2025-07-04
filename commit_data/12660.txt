@@ -1,0 +1,15 @@
+commit 7694da1f3bd5cd62cf656bbe0b4b7123e29bbc08
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Mar 15 16:38:27 2012 -0700
+
+    cmd/gofmt: show ascii in usage.
+    windows cmd.exe can't show utf-8 correctly basically.
+    chcp 65001 may make it show, but most people don't have fonts which can
+    show it.
+    
+    R=golang-dev, rsc, adg, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5820060
+
+ src/cmd/gofmt/gofmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

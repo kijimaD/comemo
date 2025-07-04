@@ -1,0 +1,18 @@
+commit 52b0f77bf9e9d9b0c836f2d855da2a83e8b02fb2
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat May 16 13:29:08 2009 -0700
+
+    static initialization
+    structure set up - no change yet
+    
+    R=r
+    OCL=28966
+    CL=28966
+
+ src/cmd/6g/cgen.c | 6 +++++-
+ src/cmd/6g/gen.c  | 6 ++++++
+ src/cmd/6g/gg.h   | 1 +
+ src/cmd/6g/obj.c  | 3 ++-
+ src/cmd/gc/dcl.c  | 2 ++
+ src/cmd/gc/go.h   | 2 +-
+ 6 files changed, 17 insertions(+), 3 deletions(-)

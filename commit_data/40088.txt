@@ -1,0 +1,28 @@
+commit 5e514b76e2e55efbca917c686c93b2299d57386c
+Author: John Papandriopoulos <jpap.code@gmail.com>
+Date:   Sun Sep 29 16:59:56 2019 -0700
+
+    cmd/link: load symbols from .syso in external link mode
+    
+    Fix linking with a package having a .syso file in external link mode,
+    that would otherwise cause an error before executing the external
+    linker because it can't find symbols that are exported in the said
+    .syso file.
+    
+    Fixes #33139
+    
+    Change-Id: Id3ee737fba1c6f1e37910593dfedf9c84486d398
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../go/testdata/script/link_syso_issue33139.txt    | 29 ++++++++++++++++++++++
+ src/cmd/link/internal/arm/asm.go                   |  2 +-
+ src/cmd/link/internal/ld/data.go                   | 13 +++++++++-
+ src/cmd/link/internal/ld/go.go                     | 18 ++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    |  2 +-
+ src/cmd/link/internal/ld/macho.go                  |  4 +--
+ src/cmd/link/internal/ld/pe.go                     |  2 +-
+ src/cmd/link/internal/ld/symtab.go                 |  2 +-
+ src/cmd/link/internal/sym/symkind.go               |  1 +
+ src/cmd/link/internal/sym/symkind_string.go        | 19 +++++++-------
+ 10 files changed, 76 insertions(+), 16 deletions(-)

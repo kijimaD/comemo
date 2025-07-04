@@ -1,0 +1,17 @@
+commit f493e557232e223e313b4641d12e502c69bfe632
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 24 12:26:58 2018 -0700
+
+    cmd/compile: document regalloc fields
+    
+    Document what the fields of regalloc mean.
+    Hopefully will help people understand how the register allocator works.
+    
+    Change-Id: Ic322ed2019cc839b812740afe8cd2cf0b61da046
+    Reviewed-on: https://go-review.googlesource.com/137016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go |  9 +++++++--
+ src/cmd/compile/internal/ssa/op.go       | 12 ++++++++++--
+ src/cmd/compile/internal/ssa/regalloc.go |  2 ++
+ 3 files changed, 19 insertions(+), 4 deletions(-)

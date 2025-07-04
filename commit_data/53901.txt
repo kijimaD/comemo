@@ -1,0 +1,21 @@
+commit a04f5adc3c748a4bb33d83363b08648d5ba6d79f
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Aug 4 03:15:12 2023 +0000
+
+    encoding/xml, image/jpeg, image/png: use the builtin min function
+    
+    Change-Id: I9bafc7aa4e20e7cd994b75e7576156ca68f4fc8b
+    GitHub-Last-Rev: e037f689bddd0ef03a6ad38982fe98b4c26aaede
+    GitHub-Pull-Request: golang/go#61746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515855
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/xml/typeinfo.go | 7 -------
+ src/image/jpeg/writer.go     | 8 --------
+ src/image/png/reader.go      | 7 -------
+ 3 files changed, 22 deletions(-)

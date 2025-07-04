@@ -1,0 +1,17 @@
+commit 2559a98a3cda46084cbdd3ea49217fdc8074ce7a
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Nov 8 12:13:01 2021 -0500
+
+    testing: remove package from fuzz crasher message
+    
+    Fixes #48149
+    
+    Change-Id: Iaf91d2c54fda809c7da90cdfb6d1d075f474c69b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362116
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+
+ src/testing/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 271f139f17c8ec5895bde52dac4056f99768e258
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Nov 10 11:15:26 2022 -0500
+
+    internal/types: fix the iota value in error code declarations
+    
+    The new "InvalidSyntaxTree" node in the error code declaration
+    inadvertently incremented the value of iota by 1. Fix this by moving it
+    to its own declaration.
+    
+    Change-Id: I34b33a8caddbbb9e41f431321ec0e5863dc15055
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449475
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/types/errors/codes.go | 2 ++
+ 1 file changed, 2 insertions(+)

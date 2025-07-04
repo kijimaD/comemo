@@ -1,0 +1,18 @@
+commit 9271c6402efe858304a362600231b53d5bd2ca16
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 12:47:51 2009 -0700
+
+    introduce typecheck pass before walkexpr.
+    not complete but compiler still works.
+    
+    R=ken
+    OCL=32424
+    CL=32426
+
+ src/cmd/gc/align.c |  80 +++++++++--
+ src/cmd/gc/const.c |   8 +-
+ src/cmd/gc/go.h    |  24 +++-
+ src/cmd/gc/subr.c  |   4 +-
+ src/cmd/gc/walk.c  | 386 +++++++++++++++++++++++++++++++++++++++++------------
+ test/golden.out    |   1 +
+ 6 files changed, 394 insertions(+), 109 deletions(-)

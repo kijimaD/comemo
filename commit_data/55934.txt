@@ -1,0 +1,23 @@
+commit 1304d9843e446f2a16a513a6faa071538c17f7b9
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Thu Mar 14 16:06:41 2024 +0000
+
+    Revert "cmd/go/internal/test: add 'tests' vet check to 'go test' suite"
+    
+    This reverts commit f1d60500bcc48f06c8d322dac1e48dd4c22f5863.
+    
+    Reason for revert: Broke the longtest builders.
+    
+    Change-Id: I5f3510c8ffc24fae5e71fac0a2dbda01ecfe5d5c
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571695
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md                             | 9 ---------
+ src/cmd/go/alldocs.go                           | 2 +-
+ src/cmd/go/internal/test/test.go                | 4 ++--
+ src/cmd/go/testdata/script/test_bad_example.txt | 5 ++---
+ 4 files changed, 5 insertions(+), 15 deletions(-)

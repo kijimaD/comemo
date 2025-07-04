@@ -1,0 +1,14 @@
+commit 4208fcdcd40f0359e117d850dc180bda7fea3f92
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:57:45 2017 -0800
+
+    runtime: use standard linux/mipsx clone variable names
+    
+    Change-Id: I62118e197190af1d11a89921d5769101ce6d2257
+    Reviewed-on: https://go-review.googlesource.com/37306
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_mipsx.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

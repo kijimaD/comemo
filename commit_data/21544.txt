@@ -1,0 +1,18 @@
+commit d34ee29a52ac4c99cb2b88873b239cd2c8407c3b
+Author: Rajat Goel <rajat.goel2010@gmail.com>
+Date:   Mon Feb 9 17:12:12 2015 -0800
+
+    net/http: fix test to check that requests to 'localhost' are not proxied
+    
+    I think the test was meant to test requests to 'localhost:80' instead
+    of 'localhost:80:80'. It passes even with 'localhost:80:80' because
+    net.SplitHostPort fails inside useProxy. Please comment if you want to
+    leave old 'localhost:80' is the list too to check old code path.
+    
+    Change-Id: Ic4cd21901563449e3d4e2f4c8caf723f4ca15bac
+    u
+    Reviewed-on: https://go-review.googlesource.com/4293
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/proxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

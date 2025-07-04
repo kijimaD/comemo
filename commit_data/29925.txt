@@ -1,0 +1,14 @@
+commit 3156736189dbc4e4a4a955c78334590819c9a914
+Author: gulyasm <mgulyas86@gmail.com>
+Date:   Sat Jan 7 23:37:57 2017 +0100
+
+    go/types: fix typo
+    
+    Fixes #18562
+    
+    Change-Id: Ic195a8606f09876e2667e4ef720b84a07d316f4a
+    Reviewed-on: https://go-review.googlesource.com/34939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

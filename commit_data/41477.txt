@@ -1,0 +1,34 @@
+commit 42f8199290f27a65f2aba9f1f6b9bdfd2406612e
+Author: Ziheng Liu <lzhfromustc@gmail.com>
+Date:   Thu Feb 13 16:20:30 2020 -0500
+
+    all: fix incorrect channel and API usage in some unit tests
+    
+    This CL changes some unit test functions, making sure that these tests (and goroutines spawned during test) won't block.
+    Since they are just test functions, I use one CL to fix them all. I hope this won't cause trouble to reviewers and can save time for us.
+    There are three main categories of incorrect logic fixed by this CL:
+    1. Use testing.Fatal()/Fatalf() in spawned goroutines, which is forbidden by Go's document.
+    2. Channels are used in such a way that, when errors or timeout happen, the test will be blocked and never return.
+    3. Channels are used in such a way that, when errors or timeout happen, the test can return but some spawned goroutines will be leaked, occupying resource until all other tests return and the process is killed.
+    
+    Change-Id: I3df931ec380794a0cf1404e632c1dd57c65d63e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219380
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex_test.go            |  2 +-
+ .../compile/internal/gc/testdata/dupLoad_test.go   | 20 ++++++++-----
+ src/crypto/tls/handshake_client_test.go            |  2 +-
+ src/crypto/tls/handshake_server_test.go            |  5 ++--
+ src/crypto/tls/tls_test.go                         | 29 ++++++++++++++++--
+ src/encoding/base64/base64_test.go                 |  2 +-
+ src/expvar/expvar_test.go                          |  8 +++--
+ src/go/printer/printer_test.go                     |  2 +-
+ src/internal/poll/fd_mutex_test.go                 | 12 +++++---
+ src/log/syslog/syslog_test.go                      |  2 +-
+ src/net/http/serve_test.go                         | 10 +++++--
+ src/net/http/transport_test.go                     | 35 +++++++++++++++++-----
+ src/os/os_test.go                                  | 17 +++++++++--
+ src/sync/atomic/value_test.go                      |  8 +++--
+ 14 files changed, 116 insertions(+), 38 deletions(-)

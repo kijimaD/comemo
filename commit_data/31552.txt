@@ -1,0 +1,16 @@
+commit 8f36668178d07e6f1b979252c1c68ebe788d14be
+Author: Tom Bergan <tombergan@google.com>
+Date:   Thu May 11 10:13:10 2017 -0700
+
+    net/http: for http2, use the priority write scheduler by default
+    
+    Updates #18318
+    
+    Change-Id: Ibd4ebc7708abf87eded8da9661378b5777b8a400
+    Reviewed-on: https://go-review.googlesource.com/43231
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 070c1fcbc505f9c4b4fc759c6fafc60cff28edcb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 16 15:47:08 2023 +0700
+
+    cmd/compile: move ssagen.dvarint to objw.Uvarint
+    
+    Follow up discussion in CL 535077.
+    
+    Change-Id: I102c90839e39c463e878ff925872376303724e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535636
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/objw/objw.go  |  9 +++++++++
+ src/cmd/compile/internal/ssagen/ssa.go | 18 ++----------------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

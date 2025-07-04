@@ -1,0 +1,14 @@
+commit 61028773b1333166ca3ae7161ca6291a94213d95
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 08:54:26 2009 -0700
+
+    update tutorial
+    
+    R=rsc
+    DELTA=30  (5 added, 0 deleted, 25 changed)
+    OCL=33138
+    CL=33170
+
+ doc/go_tutorial.txt | 39 ++++++++++++++++++++++-----------------
+ doc/progs/sieve1.go | 12 ++++++------
+ 2 files changed, 28 insertions(+), 23 deletions(-)

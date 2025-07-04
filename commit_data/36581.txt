@@ -1,0 +1,19 @@
+commit f7a633aa790c413fc460cdc0901c9ae429cf1175
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 24 12:37:25 2018 -0700
+
+    cmd/compile: use "N variables but M values" error for OAS
+    
+    Makes the error message more consistent between OAS and OAS2.
+    
+    Fixes #26616.
+    
+    Change-Id: I07ab46c5ef8a37efb2cb557632697f5d1bf789f7
+    Reviewed-on: https://go-review.googlesource.com/131280
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 11 +++++++++--
+ test/fixedbugs/issue26616.go             | 20 ++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

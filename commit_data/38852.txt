@@ -1,0 +1,17 @@
+commit ef2806e4abca28e01320e08102915dc130417ada
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 22 15:39:57 2019 -0700
+
+    cmd/compile: change visitBottomUp from post-order traversal to pre-order
+    
+    No meaningful change, but allows the followup CL to pass
+    toolstash-check.
+    
+    Change-Id: I1d852c97838be3f84cf795bc9daec9b15c705956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173320
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/scc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

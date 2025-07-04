@@ -1,0 +1,21 @@
+commit 97b04152bc3d9df1155bc97d9e6095f69b6882c7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 18 21:42:09 2016 +0000
+
+    net/http: update test to check Content-Length 0 Body more reliably
+    
+    The way to send an explicitly-zero Content-Length is to set a nil Body.
+    
+    Fix this test to do that, rather than relying on type sniffing.
+    
+    Updates #17480
+    Updates #17071
+    
+    Change-Id: I6a38e20f17013c88ec4ea69d73c507e4ed886947
+    Reviewed-on: https://go-review.googlesource.com/31434
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/net/http/clientserver_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

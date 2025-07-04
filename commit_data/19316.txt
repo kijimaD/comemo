@@ -1,0 +1,13 @@
+commit d6a1fb0b0c7f148773e02f40f1ef61852e4e6e16
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat May 10 13:41:05 2014 -0400
+
+    cmd/go: remove merge markers
+    
+    LGTM=minux.ma
+    R=cespare, rsc, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/96210043
+
+ src/cmd/go/test.bash | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

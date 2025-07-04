@@ -1,0 +1,19 @@
+commit 7adafc985aa6bf5f66de1b6e9ff9d553d8dd183b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Nov 25 19:23:44 2019 +0100
+
+    cmd/go: prefix calls to Windows rmdir with cmd.exe
+    
+    rmdir is a built-in of cmd.exe. It's also an alias in powershell.exe. We
+    want always the cmd.exe on, so specify it explicitly.
+    
+    Fixes #35813
+    
+    Change-Id: I89723e993ee26a20b42d03b8a725ff10ccf30505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208639
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_cache_rw.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

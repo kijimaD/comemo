@@ -1,0 +1,19 @@
+commit b6149224499108d4ea6e562fd9fd7eac35f50a6d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 11:04:03 2022 +0200
+
+    hash/crc32: remove single-use {castagnoli,ieee}ArchImpl bools
+    
+    These are only used once right after being set in castagnoliInit and
+    ieeeInit, respectively.
+    
+    Change-Id: Ifc5df1fe3040b97b1d252cc6d6d28d8fbc132fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423854
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/hash/crc32/crc32.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

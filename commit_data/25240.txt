@@ -1,0 +1,12 @@
+commit 62226fa9e4f6e60384e72c4c51491096bd9ecba7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 11:52:57 2015 -0500
+
+    doc: many updates to go1.6.txt
+    
+    Change-Id: I97d2315a1f978fbc4fd9e7f5f860f8e29ae43470
+    Reviewed-on: https://go-review.googlesource.com/17743
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.txt | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 57 insertions(+), 4 deletions(-)

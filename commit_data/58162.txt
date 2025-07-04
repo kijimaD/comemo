@@ -1,0 +1,21 @@
+commit 0d397d85ea75cd84e5f834a62ff219ecc12891f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 07:19:55 2024 -0500
+
+    lib/fips140: add directory and test
+    
+    This directory will hold the fips140 snapshots.
+    Add a README, helpful Makefile, and a test that
+    the checksums are correct (once we have zip files).
+    
+    Change-Id: I735540ad1ce7da9a24c3a0b57b054c8340708da1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629955
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ lib/fips140/Makefile                  |  46 +++++++++++++++
+ lib/fips140/README.md                 |   9 +++
+ lib/fips140/fips140.sum               |  11 ++++
+ src/cmd/go/internal/fips/fips_test.go | 102 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 168 insertions(+)

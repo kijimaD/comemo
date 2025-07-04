@@ -1,0 +1,25 @@
+commit 1b9049b554025142408cdf8aad294fb7041c847a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Mar 4 10:28:18 2015 +1300
+
+    cmd/internal/ld: make ELF constants explicit
+    
+    c2go produced accurate but complex constant definitions like
+    "ElfSymBindLocal  = 0 + iota - 67" which break when any constants
+    are added above them in the list. Change them to explicit values
+    in separate blocks by class. I wrote a little program (using awk)
+    to dump the values of the constants:
+    
+        https://gist.github.com/mwhudson/82f82008279a38ce584e
+    
+    and confirmed that its output before and after this change is the
+    same.
+    
+    Change-Id: Ib4aea4a0d688a16cdcb76af4715d1a97ec0f013c
+    Reviewed-on: https://go-review.googlesource.com/6581
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/ld/ldelf.go | 190 +++++++++++++++++++++++++------------------
+ 1 file changed, 110 insertions(+), 80 deletions(-)

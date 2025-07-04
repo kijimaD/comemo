@@ -1,0 +1,30 @@
+commit a6abc1cd70bf561d1e4c10d53499733c502c30b5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 15:01:03 2015 -0700
+
+    cmd/compile: don't generate algs for map buckets
+    
+    Note that this is only safe because
+    the compiler generates multiple distinct
+    gc.Types. If we switch to having canonical
+    gc.Types, then this will need to be updated
+    to handle the case in which the user uses both
+    map[T]S and also map[[8]T]S. In that case,
+    the runtime needs algs for [8]T, but this could
+    mark the sole [8]T type as Noalg. This is a general
+    problem with having a single bool to represent
+    whether alg generation is needed for a type.
+    
+    Cuts 5k off cmd/go and 22k off golang.org/x/tools/cmd/godoc,
+    approx 0.04% and 0.12% respectively.
+    
+    For #6853 and #9930
+    
+    Change-Id: I30a15ec72ecb62e2aa053260a7f0f75015fc0ade
+    Reviewed-on: https://go-review.googlesource.com/19769
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

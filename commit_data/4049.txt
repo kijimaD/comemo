@@ -1,0 +1,11 @@
+commit 8e5854ae171770f8d0306007f9adf4b92371c2cc
+Author: Kai Backman <kaib@golang.org>
+Date:   Sat Nov 14 20:08:22 2009 -0800
+
+    make arm pass match what's working on real hardware
+    
+    R=rsc
+    https://golang.org/cl/154097
+
+ test/arm-pass.txt | 45 ++++-----------------------------------------
+ 1 file changed, 4 insertions(+), 41 deletions(-)

@@ -1,0 +1,28 @@
+commit 214b208e248d30a3b6c35a5ebf344cc2de3b9e3f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Apr 25 19:43:16 2025 -0400
+
+    cmd/go, cmd/internal/objabi: detect "devel" version by substring
+    
+    These were the remaining instances in the main Go repo I found where a
+    Go version like "devel go1.25-9ce47e66e8 Wed Mar 26 03:48:50 2025 -0700"
+    is considered to be a development version rather than a release version,
+    but the version "go1.25-devel_9ce47e66e8 Wed Mar 26 03:48:50 2025 -0700"
+    is not.
+    
+    Update this in preparation of the move of "devel" from front to middle.
+    
+    For #73372.
+    For #73369.
+    
+    Change-Id: If5442ecb0751c08b3a1b4d1148193e501700b956
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668355
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/work/buildid.go | 4 ++--
+ src/cmd/internal/objabi/flag.go     | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

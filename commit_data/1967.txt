@@ -1,0 +1,12 @@
+commit d50c70d2611f51f8894bc76c4b3f28537ad3b703
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 6 22:17:46 2009 -0700
+
+    set line number for errors produced during walkstate.
+    
+    R=ken
+    OCL=27145
+    CL=27145
+
+ src/cmd/gc/walk.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,37 @@
+commit 6faacd2244ca3bc11686f76e95f528b8b3806e85
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 19:38:30 2009 -0700
+
+    apply gofmt to auto-generated syscall files
+    
+    R=gri
+    DELTA=4023  (104 added, 27 deleted, 3892 changed)
+    OCL=35416
+    CL=35418
+
+ src/pkg/syscall/PORT.sh                  |   8 +-
+ src/pkg/syscall/zerrors_darwin_386.go    | 277 +++++++------
+ src/pkg/syscall/zerrors_darwin_amd64.go  | 277 +++++++------
+ src/pkg/syscall/zerrors_linux_386.go     | 337 ++++++++--------
+ src/pkg/syscall/zerrors_linux_amd64.go   | 337 ++++++++--------
+ src/pkg/syscall/zerrors_linux_arm.go     | 337 ++++++++--------
+ src/pkg/syscall/zerrors_nacl_386.go      | 242 ++++++------
+ src/pkg/syscall/zsyscall_darwin_386.go   |  47 ++-
+ src/pkg/syscall/zsyscall_darwin_amd64.go |  37 +-
+ src/pkg/syscall/zsyscall_linux_386.go    |  63 +--
+ src/pkg/syscall/zsyscall_linux_amd64.go  |  51 ++-
+ src/pkg/syscall/zsyscall_linux_arm.go    |  63 +--
+ src/pkg/syscall/zsyscall_nacl_386.go     |  17 +-
+ src/pkg/syscall/zsysnum_darwin_386.go    | 646 +++++++++++++++---------------
+ src/pkg/syscall/zsysnum_darwin_amd64.go  | 646 +++++++++++++++---------------
+ src/pkg/syscall/zsysnum_linux_386.go     | 623 +++++++++++++++--------------
+ src/pkg/syscall/zsysnum_linux_amd64.go   | 577 ++++++++++++++-------------
+ src/pkg/syscall/zsysnum_linux_arm.go     | 659 +++++++++++++++----------------
+ src/pkg/syscall/zsysnum_nacl_386.go      | 111 +++---
+ src/pkg/syscall/ztypes_darwin_386.go     | 372 ++++++++---------
+ src/pkg/syscall/ztypes_darwin_amd64.go   | 376 +++++++++---------
+ src/pkg/syscall/ztypes_linux_386.go      | 552 +++++++++++++-------------
+ src/pkg/syscall/ztypes_linux_amd64.go    | 568 +++++++++++++-------------
+ src/pkg/syscall/ztypes_linux_arm.go      | 552 +++++++++++++-------------
+ src/pkg/syscall/ztypes_nacl_386.go       | 134 +++----
+ 25 files changed, 3993 insertions(+), 3916 deletions(-)

@@ -1,0 +1,16 @@
+commit 8f52a821693c93d071edabb1e9239a7f7c3a2d1c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 18:19:49 2009 -0700
+
+    - make printer interface easily extensible w/o breaking clients (in the future)
+    - replacement for p4 CL 35999 (abandoned)
+    
+    R=rsc
+    http://go/go-review/1012010
+
+ src/cmd/cgo/out.go                 |   8 +--
+ src/cmd/godoc/godoc.go             |   2 +-
+ src/cmd/gofmt/gofmt.go             |   2 +-
+ src/pkg/go/printer/printer.go      | 129 ++++++++++++++++++++-----------------
+ src/pkg/go/printer/printer_test.go |   8 +--
+ 5 files changed, 79 insertions(+), 70 deletions(-)

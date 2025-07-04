@@ -1,0 +1,19 @@
+commit 7b7b83ba1b45a29b214d5f540ceaf358fbe6b833
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 13 10:26:58 2009 -0700
+
+    ebnflint command
+    - basic verification of EBNF grammars
+    - tested with (and has testcase for) go_spec.html
+    
+    R=rsc
+    DELTA=150  (148 added, 0 deleted, 2 changed)
+    OCL=31481
+    CL=31517
+
+ src/cmd/clean.bash           |   2 +-
+ src/cmd/ebnflint/Makefile    |  24 +++++++++
+ src/cmd/ebnflint/ebnflint.go | 120 +++++++++++++++++++++++++++++++++++++++++++
+ src/make.bash                |   2 +-
+ src/run.bash                 |   6 +++
+ 5 files changed, 152 insertions(+), 2 deletions(-)

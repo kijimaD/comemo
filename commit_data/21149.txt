@@ -1,0 +1,12 @@
+commit a1053ed6107a8301a62be9d1f2da8fa387bfefea
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 5 15:29:10 2015 +0900
+
+    crypto/x509: add missing copyright
+    
+    Change-Id: Ida3b431a06527f6cd604ab4af5ce517959c8619b
+    Reviewed-on: https://go-review.googlesource.com/2306
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/crypto/x509/root_darwin_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

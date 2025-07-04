@@ -1,0 +1,20 @@
+commit f9027d61ab48154e4cb29c50e356a3f462840e01
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 25 19:19:39 2016 -0700
+
+    all: freeze net/rpc and reword the 'frozen' message in other frozen packages
+    
+    Make the messages grammatically korrect and consistent.
+    
+    Fixes #16844
+    
+    Change-Id: I7c137b4dc25c0c875ed07b0c64c67ae984c39cbc
+    Reviewed-on: https://go-review.googlesource.com/32112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/log/syslog/doc.go           | 2 +-
+ src/net/rpc/server.go           | 2 ++
+ src/net/smtp/smtp.go            | 2 +-
+ src/testing/quick/quick.go      | 2 +-
+ src/text/tabwriter/tabwriter.go | 2 +-
+ 5 files changed, 6 insertions(+), 4 deletions(-)

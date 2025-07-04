@@ -1,0 +1,13 @@
+commit e642503d6fed2d64c87e3f77283f9497f81f22ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 29 15:10:14 2010 -0400
+
+    6l, 8l: fix -K implementation
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2313041
+
+ src/cmd/6l/pass.c | 33 +++++----------------------------
+ src/cmd/8l/pass.c | 12 ++++--------
+ 2 files changed, 9 insertions(+), 36 deletions(-)

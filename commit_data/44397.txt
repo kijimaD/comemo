@@ -1,0 +1,22 @@
+commit 27684ea195641ead8a8f08cb345925da889a12ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 14 14:38:55 2021 -0800
+
+    testing: print late arriving log line in panic
+    
+    When you log after a test has completed,
+    the testing package panics.
+    
+    Print the logged line as part of that panic,
+    to aid in debugging.
+    
+    Change-Id: I3d6689d1eed57c03e300afe37db0c15b2f4acda4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283972
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/sub_test.go | 2 +-
+ src/testing/testing.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

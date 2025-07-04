@@ -1,0 +1,28 @@
+commit 078ddecc327a20cec4751e66911197409e01f6d9
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jan 25 09:50:03 2022 -0800
+
+    test: add a new test absdiff3.go which uses function callback
+    
+    We have disallowed having a typeparam on the right-hand-side of a type
+    declaration. So, we disabled much of the test absdiff.go. I recently
+    wrote a new test absdiff2.go to use a structure containing the type
+    param type, so I could attach a method properly and run the full test.
+    
+    As a contrast, I thought I would create absdiff3.go, where the Abs
+    functionality is passed in as a function callback (but derived from a
+    generic function). This is simpler, and more inline with some of the
+    guidelines that Ian has been proposing (use passed-in functions rather
+    than requiring methods, when possible, for greater ease-of-use).
+    
+    Only adds a new test absdiff3.go. (And fixes a comment in absdiff2.go.)
+    
+    Change-Id: I6dd185b50a3baeec31f689a892319963468a7201
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380774
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ test/typeparam/absdiff2.go          |  5 ++-
+ test/typeparam/absdiff3.go          | 82 +++++++++++++++++++++++++++++++++++++
+ test/typeparam/absdiffimp2.dir/a.go |  2 +-
+ 3 files changed, 87 insertions(+), 2 deletions(-)

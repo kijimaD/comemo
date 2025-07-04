@@ -1,0 +1,23 @@
+commit 9eebdca8a94d3d47f4973371abf1bc10c626892d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 9 20:02:30 2024 +0000
+
+    runtime: add workaround to "throw" pending resolution of issue #67274
+    
+    Temporarily mark the function runtime.throw as "go:noinline" for the
+    time being to work around problems introduced by CL 581215. We do not
+    ordinarily inline runtime.throw unless the build is beind done with an
+    elevated inline budget (e.g. "-gcflags=-l=4"), so this change should
+    only have an effect for those special builds.
+    
+    Updates #67274.
+    
+    Change-Id: I3811913b8d441e0ddb1d4c7d7297ef23555582a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584616
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/runtime/panic.go | 4 ++++
+ 1 file changed, 4 insertions(+)

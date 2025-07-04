@@ -1,0 +1,12 @@
+commit 36f223dace5dcdb7afc381c51e0484ff473e2e88
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 9 15:27:45 2013 -0700
+
+    runtime: Better test tracebackability of jmpdefer when running a nil defer.
+    
+    R=bradfitz, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12536046
+
+ test/fixedbugs/issue6055.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

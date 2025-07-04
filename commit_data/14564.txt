@@ -1,0 +1,15 @@
+commit 4fb78c3a16580329c1c465fbc67c12456b8297dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 5 19:25:43 2012 -0800
+
+    net/http: implement CloseNotifier
+    
+    Fixes #2510
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6867050
+
+ src/pkg/net/http/serve_test.go |  36 ++++++++++
+ src/pkg/net/http/server.go     | 155 ++++++++++++++++++++++++++++++++---------
+ 2 files changed, 158 insertions(+), 33 deletions(-)

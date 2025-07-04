@@ -1,0 +1,14 @@
+commit 48def43fd65388717c3edbdbbc3b3465ff9176ab
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue May 2 01:34:37 2017 -0400
+
+    net/http: bgErr is unused; remove it
+    
+    Fixes #20196.
+    
+    Change-Id: Ib87f6e9e27a38f21f860b7150c818d77be653dd3
+    Reviewed-on: https://go-review.googlesource.com/42370
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 6 ------
+ 1 file changed, 6 deletions(-)

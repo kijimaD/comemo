@@ -1,0 +1,15 @@
+commit 7ef28cbd12d1777748affe9dccf20679665c06f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 25 07:01:45 2020 -0700
+
+    testing: give short package variable a longer name
+    
+    (Update to CL 229837)
+    
+    Change-Id: Ieab46bd384f76f678ef0d6a38dc043bc4b0c458a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

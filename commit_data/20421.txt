@@ -1,0 +1,21 @@
+commit 8d47b0825549b9ec55882e0d2c135048d88734b5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 15 18:24:16 2014 +0200
+
+    cmd/gc: generate type alg after calling dowidth.
+    
+    Previously it might happen before calling dowidth and
+    result in a compiler crash.
+    
+    Fixes #8060.
+    
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110980044
+
+ src/cmd/gc/reflect.c              |  2 +-
+ test/fixedbugs/issue8060.dir/a.go |  7 +++++++
+ test/fixedbugs/issue8060.dir/b.go | 13 +++++++++++++
+ test/fixedbugs/issue8060.go       |  9 +++++++++
+ 4 files changed, 30 insertions(+), 1 deletion(-)

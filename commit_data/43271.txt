@@ -1,0 +1,24 @@
+commit ec095f1df0ff1b2937205e17b3c011f31d3737ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 22:24:52 2020 -0400
+
+    path: avoid import of strings
+    
+    Pushing path lower in the hierarchy, to allow path < io/fs < os
+    in the io/fs prototype. But this change is worth doing even if io/fs
+    is not accepted.
+    
+    Change-Id: Id51b3a638167ca005dadfb9b730287e518ec12a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243904
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go |  7 ++++++-
+ src/path/match.go         |  4 ++--
+ src/path/match_test.go    |  7 +++++--
+ src/path/path.go          | 36 ++++++++++++++++++++++++++----------
+ src/path/path_test.go     |  3 ++-
+ 5 files changed, 41 insertions(+), 16 deletions(-)

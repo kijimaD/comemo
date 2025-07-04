@@ -1,0 +1,26 @@
+commit 0709f1bb00287371da61a1fc94f6e2a086aa0f29
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 19 20:18:50 2023 -0800
+
+    cmd/compile/internal/ir: add CallExpr.GoDefer
+    
+    The devirtualizer and inliner both want to recognize call expressions
+    that are part of a go or defer statement. This CL refactors them to
+    use a single CallExpr.GoDefer flag, which gets set during
+    normalization of go/defer statements during typecheck.
+    
+    While here, drop some OCALLMETH assertions. Typecheck has been
+    responsible for desugaring them into OCALLFUNC for a while now, and
+    ssagen will check this again for us later anyway.
+    
+    Change-Id: I3fc370f4417431aae97239313da6fe523f512a2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543657
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ .../compile/internal/devirtualize/devirtualize.go  | 30 +++++++++---------
+ src/cmd/compile/internal/inline/inl.go             | 16 +---------
+ src/cmd/compile/internal/ir/expr.go                |  3 +-
+ src/cmd/compile/internal/typecheck/stmt.go         | 36 ++++++++++++----------
+ 4 files changed, 38 insertions(+), 47 deletions(-)

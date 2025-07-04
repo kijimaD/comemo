@@ -1,0 +1,68 @@
+commit e8f0340fa483c6deb0bf7bba9788a2dd0f2f8a59
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Aug 9 23:53:37 2022 +0800
+
+    cmd/compile: intrinsify RotateLeft{32,64} on loong64
+    
+    Benchmark on crypto/sha256 (provided by Xiaodong Liu):
+    name               old time/op    new time/op    delta
+    Hash8Bytes/New       1.19µs ± 0%    0.97µs ± 0%  -18.75%  (p=0.000 n=9+9)
+    Hash8Bytes/Sum224    1.21µs ± 0%    0.97µs ± 0%  -20.04%  (p=0.000 n=9+10)
+    Hash8Bytes/Sum256    1.21µs ± 0%    0.98µs ± 0%  -19.16%  (p=0.000 n=10+7)
+    Hash1K/New           15.9µs ± 0%    12.4µs ± 0%  -22.10%  (p=0.000 n=10+10)
+    Hash1K/Sum224        15.9µs ± 0%    12.4µs ± 0%  -22.18%  (p=0.000 n=8+10)
+    Hash1K/Sum256        15.9µs ± 0%    12.4µs ± 0%  -22.15%  (p=0.000 n=10+9)
+    Hash8K/New            119µs ± 0%      92µs ± 0%  -22.40%  (p=0.000 n=10+9)
+    Hash8K/Sum224         119µs ± 0%      92µs ± 0%  -22.41%  (p=0.000 n=9+10)
+    Hash8K/Sum256         119µs ± 0%      92µs ± 0%  -22.40%  (p=0.000 n=9+9)
+    
+    name               old speed      new speed      delta
+    Hash8Bytes/New     6.70MB/s ± 0%  8.25MB/s ± 0%  +23.13%  (p=0.000 n=10+10)
+    Hash8Bytes/Sum224  6.60MB/s ± 0%  8.26MB/s ± 0%  +25.06%  (p=0.000 n=10+10)
+    Hash8Bytes/Sum256  6.59MB/s ± 0%  8.15MB/s ± 0%  +23.67%  (p=0.000 n=10+7)
+    Hash1K/New         64.3MB/s ± 0%  82.5MB/s ± 0%  +28.36%  (p=0.000 n=10+10)
+    Hash1K/Sum224      64.3MB/s ± 0%  82.6MB/s ± 0%  +28.51%  (p=0.000 n=10+10)
+    Hash1K/Sum256      64.3MB/s ± 0%  82.6MB/s ± 0%  +28.46%  (p=0.000 n=9+9)
+    Hash8K/New         69.0MB/s ± 0%  89.0MB/s ± 0%  +28.87%  (p=0.000 n=10+8)
+    Hash8K/Sum224      69.0MB/s ± 0%  89.0MB/s ± 0%  +28.88%  (p=0.000 n=9+10)
+    Hash8K/Sum256      69.0MB/s ± 0%  88.9MB/s ± 0%  +28.87%  (p=0.000 n=8+9)
+    
+    Benchmark on crypto/sha512 (provided by Xiaodong Liu):
+    name               old time/op    new time/op     delta
+    Hash8Bytes/New       1.55µs ± 0%     1.31µs ± 0%  -15.67%  (p=0.000 n=10+10)
+    Hash8Bytes/Sum384    1.59µs ± 0%     1.35µs ± 0%  -14.97%  (p=0.000 n=10+10)
+    Hash8Bytes/Sum512    1.62µs ± 0%     1.39µs ± 0%  -14.02%  (p=0.000 n=10+10)
+    Hash1K/New           10.7µs ± 0%      8.6µs ± 0%  -19.60%  (p=0.000 n=8+8)
+    Hash1K/Sum384        10.8µs ± 0%      8.7µs ± 0%  -19.40%  (p=0.000 n=9+9)
+    Hash1K/Sum512        10.8µs ± 0%      8.7µs ± 0%  -19.35%  (p=0.000 n=9+10)
+    Hash8K/New           74.6µs ± 0%     59.6µs ± 0%  -20.08%  (p=0.000 n=10+9)
+    Hash8K/Sum384        74.7µs ± 0%     59.7µs ± 0%  -20.04%  (p=0.000 n=9+8)
+    Hash8K/Sum512        74.7µs ± 0%     59.7µs ± 0%  -20.01%  (p=0.000 n=10+10)
+    
+    name               old speed      new speed       delta
+    Hash8Bytes/New     5.16MB/s ± 0%   6.12MB/s ± 0%  +18.60%  (p=0.000 n=10+8)
+    Hash8Bytes/Sum384  5.02MB/s ± 0%   5.90MB/s ± 0%  +17.56%  (p=0.000 n=10+10)
+    Hash8Bytes/Sum512  4.94MB/s ± 0%   5.74MB/s ± 0%  +16.29%  (p=0.000 n=10+9)
+    Hash1K/New         95.4MB/s ± 0%  118.6MB/s ± 0%  +24.38%  (p=0.000 n=10+10)
+    Hash1K/Sum384      95.0MB/s ± 0%  117.9MB/s ± 0%  +24.06%  (p=0.000 n=8+9)
+    Hash1K/Sum512      94.8MB/s ± 0%  117.5MB/s ± 0%  +23.99%  (p=0.000 n=8+9)
+    Hash8K/New          110MB/s ± 0%    137MB/s ± 0%  +25.11%  (p=0.000 n=9+6)
+    Hash8K/Sum384       110MB/s ± 0%    137MB/s ± 0%  +25.07%  (p=0.000 n=9+8)
+    Hash8K/Sum512       110MB/s ± 0%    137MB/s ± 0%  +25.01%  (p=0.000 n=10+10)
+    
+    Change-Id: I28ccfce634659305a336c8e0a3f8589f7361d661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422317
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go        |  4 ++
+ src/cmd/compile/internal/ssa/gen/LOONG64.rules |  6 +-
+ src/cmd/compile/internal/ssa/gen/LOONG64Ops.go | 16 +++--
+ src/cmd/compile/internal/ssa/opGen.go          | 60 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go        |  2 +-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go | 92 +++++++++++++++-----------
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 +-
+ test/codegen/rotate.go                         | 12 ++++
+ 8 files changed, 147 insertions(+), 49 deletions(-)

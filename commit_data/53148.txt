@@ -1,0 +1,17 @@
+commit 09e0f50d034ca1e2bb6508b419314cc66e313e54
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat May 20 00:39:50 2023 +0800
+
+    maps: delete unused var
+    
+    Change-Id: I3d0c196e2ec139d224d057a954c631251b80e921
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496077
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/maps/maps_test.go | 2 --
+ 1 file changed, 2 deletions(-)

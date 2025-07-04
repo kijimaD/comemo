@@ -1,0 +1,13 @@
+commit 92bb676290cd129969e9c8b9ce2033cd49894214
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 9 16:09:48 2008 -0700
+
+    build packages automatically
+    
+    SVN=126577
+
+ src/clean.bash     |  2 +-
+ src/lib/clean.bash |  7 +++++++
+ src/lib/make.bash  | 10 ++++++++++
+ src/make.bash      |  2 +-
+ 4 files changed, 19 insertions(+), 2 deletions(-)

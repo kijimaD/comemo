@@ -1,0 +1,17 @@
+commit a14ed2a82a1563ba89e1f22ab517bf3c9abe416f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 9 15:06:20 2019 +0000
+
+    net/http/httputil: run the ReverseProxy.ModifyResponse hook for upgrades
+    
+    Fixes #29627
+    
+    Change-Id: I08a5b45151a11b5a4f3b5a2d984c0322cf904697
+    Reviewed-on: https://go-review.googlesource.com/c/157098
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 25 +++++++++++++++++++------
+ src/net/http/httputil/reverseproxy_test.go |  8 ++++++++
+ 2 files changed, 27 insertions(+), 6 deletions(-)

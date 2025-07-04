@@ -1,0 +1,32 @@
+commit 969ab34e4629bdda410c8468d4f45a08e4fec9f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 15:10:46 2023 -0700
+
+    go/types, types2: don't panic for invalid assignments of comma-ok expressions
+    
+    The relevant code was broken with CL 478218. Before that CL,
+    Checker.assignVar used to return the assigned type, or nil,
+    in case of failure. Checker.recordCommaOkTypes used to take
+    two types (not two operands), and if one of those types was
+    nil, it would simply not record. CL 478218, lost that (nil)
+    signal.
+    
+    This change consistently reports an assignment check failure
+    by setting x.mode to invalid for initVar and assignVar and
+    then tests if x.mode != invalid before recording a comma-ok
+    expression.
+    
+    Fixes #59371.
+    
+    Change-Id: I193815ff3e4b43e3e510fe25bd0e72e0a6a816c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486135
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/assignments.go     | 21 +++++++++++++++------
+ src/go/types/assignments.go                        | 22 ++++++++++++++++------
+ .../types/testdata/fixedbugs/issue59371.go         | 20 ++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 12 deletions(-)

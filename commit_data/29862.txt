@@ -1,0 +1,25 @@
+commit 985a574991207a74ab45ce76ecf54228734ddffe
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 20 22:33:06 2016 +0100
+
+    net: fix LookupCNAME on Plan 9
+    
+    In CL 34650, LookupCNAME was changed so it always returns
+    the canonical DNS host, even when there is no CNAME record.
+    
+    Consequently, TestLookupCNAME was failing on Plan 9,
+    because www.google.com doesn't have a CNAME record.
+    
+    We changed the implementation of lookupCNAME on Plan 9, so it
+    returns the canonical DNS host after a CNAME lookup failure.
+    
+    Fixes #18391.
+    
+    Change-Id: I59f361bfb2c9de3953e998e8ac58c054979210bd
+    Reviewed-on: https://go-review.googlesource.com/34633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

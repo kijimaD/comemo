@@ -1,0 +1,21 @@
+commit 0d4d582c68081733ec1c277d9748ec8c1ef3e177
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 9 01:23:45 2015 -0500
+
+    cmd/5a, cmd/6a, cmd/8a, cmd/9a: check nerrors before exit
+    
+    Also fix one unaligned stack size for nacl that is caught
+    by this change.
+    
+    Fixes #9539.
+    
+    Change-Id: Ib696a573d3f1f9bac7724f3a719aab65a11e04d3
+    Reviewed-on: https://go-review.googlesource.com/2600
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/5a/lex.c           | 2 ++
+ src/cmd/6a/lex.c           | 2 ++
+ src/cmd/8a/lex.c           | 2 ++
+ src/cmd/9a/lex.c           | 2 ++
+ src/runtime/asm_amd64p32.s | 2 +-
+ 5 files changed, 9 insertions(+), 1 deletion(-)

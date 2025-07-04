@@ -1,0 +1,19 @@
+commit 70d558be8ff98c4d4eaa1ee78bf6ce6ad813ea5b
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Dec 4 00:41:44 2015 +0530
+
+    misc/cgo/testsanitizers: check linux major/minor versions
+    
+    Fix a typo in de5b386; using `$ver` to determine linux major/minor
+    versions would produce those for clang, use `$linuxver` instead.
+    
+    Updates #12898.
+    
+    Change-Id: I2c8e84ad02749fceaa958afd65e558bb0b08dddb
+    Reviewed-on: https://go-review.googlesource.com/17323
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

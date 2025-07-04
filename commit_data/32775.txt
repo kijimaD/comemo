@@ -1,0 +1,21 @@
+commit 977578816ea7d0c2b5e00e612e222a8378abf11e
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Wed Sep 20 11:10:26 2017 +0200
+
+    bytes: improve test readability
+    
+    This CL improves the readability of the tests in the bytes package by
+    naming the `data` test variable `testString`, using the same convention
+    as its counterpart, `testBytes`.
+    
+    It additionally removes some type casting which was unnecessary.
+    
+    Change-Id: If38b5606ce8bda0306bae24498f21cb8dbbb6377
+    Reviewed-on: https://go-review.googlesource.com/64931
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/buffer_test.go | 54 ++++++++++++++++++++++++------------------------
+ src/bytes/reader_test.go |  4 ++--
+ 2 files changed, 29 insertions(+), 29 deletions(-)

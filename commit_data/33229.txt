@@ -1,0 +1,19 @@
+commit 321597bad395fcd885a327c832dff8c63463b68b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 09:32:51 2017 -0400
+
+    cmd/go: explain fmt, fix, vet a bit more in go help
+    
+    Fixes #20918.
+    
+    Change-Id: I84306242084631bbe7a9adc839f92e72ac1a3e75
+    Reviewed-on: https://go-review.googlesource.com/73331
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go             | 12 ++++++------
+ src/cmd/go/internal/fix/fix.go    |  2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go |  2 +-
+ src/cmd/go/internal/vet/vet.go    |  2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)

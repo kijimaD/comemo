@@ -1,0 +1,16 @@
+commit 4228e622591deb90ae381a99f587effc58171a80
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Oct 24 23:07:52 2010 +0200
+
+    6l/8l: global and local variables and type info.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2201044
+
+ src/cmd/ld/dwarf.c      | 1092 +++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/ld/dwarf.h      |   14 +-
+ src/cmd/ld/dwarf_defs.h |   16 +-
+ src/cmd/ld/elf.h        |    3 +-
+ src/pkg/runtime/type.go |    1 +
+ 5 files changed, 1040 insertions(+), 86 deletions(-)

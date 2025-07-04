@@ -1,0 +1,17 @@
+commit c82ee79247e8e82a0699963e5b07ca7db8de5d51
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Sep 25 14:54:37 2017 +0200
+
+    strings: improve readability of IndexAny and LastIndexAny functions.
+    
+    This change removes the check of len(chars) > 0 inside the Index and
+    IndexAny functions which was redundant.
+    
+    Change-Id: Iffbc0f2b3332c6e31c7514b5f644b6fe7bdcfe0d
+    Reviewed-on: https://go-review.googlesource.com/65910
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/strings/strings.go | 52 +++++++++++++++++++++++---------------------------
+ 1 file changed, 24 insertions(+), 28 deletions(-)

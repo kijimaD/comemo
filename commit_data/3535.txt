@@ -1,0 +1,18 @@
+commit 17dfa682aeb58dbce6978b98343ef2097543b3fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 16:55:05 2009 -0700
+
+    move datafmt into exp
+    
+    R=gri
+    DELTA=3006  (1503 added, 1503 deleted, 0 changed)
+    OCL=35730
+    CL=35735
+
+ src/pkg/Make.deps                         | 2 +-
+ src/pkg/Makefile                          | 2 +-
+ src/pkg/{ => exp}/datafmt/Makefile        | 0
+ src/pkg/{ => exp}/datafmt/datafmt.go      | 0
+ src/pkg/{ => exp}/datafmt/datafmt_test.go | 0
+ src/pkg/{ => exp}/datafmt/parser.go       | 0
+ 6 files changed, 2 insertions(+), 2 deletions(-)

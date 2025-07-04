@@ -1,0 +1,16 @@
+commit a662d3d9a757c0556f27d650a9dfe3bf0f2db1bf
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 13 09:28:37 2012 +1000
+
+    fmt: fix crash of %b on huge negative int64
+    The buffer had 64 bytes but needs one more for the sign.
+    
+    Fixes #3510.
+    
+    R=golang-dev, dave, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6011057
+
+ src/pkg/fmt/fmt_test.go | 3 +++
+ src/pkg/fmt/format.go   | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

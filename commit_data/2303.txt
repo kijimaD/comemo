@@ -1,0 +1,14 @@
+commit ce5bcbe37ff766b9fc6102a8e71925461af746ee
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 25 14:38:38 2009 -0700
+
+    Add os.Getpid and os.Getppid.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=11  (11 added, 0 deleted, 0 changed)
+    OCL=29352
+    CL=29357
+
+ src/lib/os/exec.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

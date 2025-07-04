@@ -1,0 +1,20 @@
+commit c2317db2f9bf9f097f0bc297004a8f581b944206
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 14:27:50 2015 -0800
+
+    crypto/x509: don't reject certs with critical policy extensions.
+    
+    There was a missing continue that caused certificates with critical
+    certificate-policy extensions to be rejected. Additionally, that code
+    structure in general was prone to exactly that bug so I changed it
+    around to hopefully be more robust in the future.
+    
+    Fixes #9964.
+    
+    Change-Id: I58fc6ef3a84c1bd292a35b8b700f44ef312ec1c1
+    Reviewed-on: https://go-review.googlesource.com/5670
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/crypto/x509/x509.go      | 75 +++++++++++++++++++++-----------------------
+ src/crypto/x509/x509_test.go | 46 +++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 40 deletions(-)

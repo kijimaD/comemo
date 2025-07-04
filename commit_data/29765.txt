@@ -1,0 +1,12 @@
+commit f28eea89e0bf129ebbeede1e3a85ce552d1c2277
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 7 21:41:48 2016 +0000
+
+    doc: misc go1.8.html fixes
+    
+    Change-Id: I929f66b713525f5273cf0fe09579835603279b58
+    Reviewed-on: https://go-review.googlesource.com/34023
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

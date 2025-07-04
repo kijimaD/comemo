@@ -1,0 +1,16 @@
+commit 339177aa3119c5de653aff7773fd05553e68719c
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Dec 19 09:44:43 2023 -0500
+
+    doc: typo fix for net/http.ServeMux
+    
+    Updates #61422
+    
+    Change-Id: I2d86863db70792122b5168935e76d9ca38f761b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit aee1434193fc5650170b053d2d169b2a11161384
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Feb 10 00:06:41 2010 -0800
+
+    math: add Exp2; 386 FPU versions of Exp2 and Log1p
+    
+    Added tests and benchmarks for Exp2 (special cases same
+    as Exp). Log1p also enhances speed of inverse hyperbolics.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206058
+
+ src/pkg/math/Makefile      |  2 ++
+ src/pkg/math/all_test.go   | 31 +++++++++++++++++++++++++++++++
+ src/pkg/math/exp.go        |  5 +++++
+ src/pkg/math/exp2_386.s    | 38 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/exp2_decl.go  |  7 +++++++
+ src/pkg/math/log1p_386.s   | 25 +++++++++++++++++++++++++
+ src/pkg/math/log1p_decl.go |  7 +++++++
+ 7 files changed, 115 insertions(+)

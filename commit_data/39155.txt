@@ -1,0 +1,16 @@
+commit 02d24fc2528578065b506f07bc6214adcac3be4b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 22 20:16:24 2019 +0000
+
+    cmd/dist: make GOROOT unwritable on builders
+    
+    Updates #30316
+    
+    Change-Id: I57e489f6bbe4a3b39c907dabe5ac41fb9939cdb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163477
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

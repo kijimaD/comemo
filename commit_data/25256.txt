@@ -1,0 +1,28 @@
+commit 0cbf8d13a791ab5212c53dbcd58d0fdd622023b1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 14:30:25 2015 -0500
+
+    runtime: recycle large stack spans
+    
+    To prevent races with the garbage collector, stack spans cannot be
+    reused as heap spans during a GC. We deal with this by caching stack
+    spans during GC and releasing them at the end of mark termination.
+    However, while our cache lets us reuse small stack spans, currently
+    large stack spans are *not* reused. This can cause significant memory
+    growth in programs that allocate large stacks rapidly, but grow the
+    heap slowly (such as in issue #13552).
+    
+    Fix this by adding logic to reuse large stack spans for other stacks.
+    
+    Fixes #11466.
+    
+    Fixes #13552. Without this change, the program in this issue creeps to
+    over 1GB of memory over the course of a few hours. With this change,
+    it stays rock solid at around 30MB.
+    
+    Change-Id: If8b2d85464aa80c96230a1990715e39aa803904f
+    Reviewed-on: https://go-review.googlesource.com/17814
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stack.go | 78 +++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 56 insertions(+), 22 deletions(-)

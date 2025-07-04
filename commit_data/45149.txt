@@ -1,0 +1,21 @@
+commit c3931ab1b7bceddc56479d7ddbd7517d244bfe17
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Sat Apr 10 15:41:13 2021 +0800
+
+    net/http/httptest: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+    
+    This change conforms Recorder with net/http servers, to panic
+    when a handler writes a non-3 digit XXX status code.
+    
+    Fixes #45353
+    
+    Change-Id: Id5ed4af652e8c150ae86bf50402b800d935e2203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308950
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/httptest/recorder.go      | 19 +++++++++++++++++++
+ src/net/http/httptest/recorder_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

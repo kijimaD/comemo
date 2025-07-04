@@ -1,0 +1,20 @@
+commit e2cac315082a9267135e96249b537d0bd0703175
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 4 00:20:57 2019 -0500
+
+    crypto/tls: add correct names for CHACHA20_POLY1305 cipher suite constants
+    
+    The cipher suites were apparently renamed late in the standardization
+    process, and we picked up the legacy name. We can't remove the old
+    constants, but add correctly named ones.
+    
+    Fixes #32061
+    
+    Change-Id: I65ee25c12c10934391af88b76b18565da67453fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205068
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/cipher_suites.go | 51 ++++++++++++++++++++++-------------------
+ 1 file changed, 28 insertions(+), 23 deletions(-)

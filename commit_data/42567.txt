@@ -1,0 +1,18 @@
+commit d1015f3e58e50c3e6f958391a9174fc15e030e83
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 26 11:57:08 2020 -0400
+
+    runtime: don't preempt if preemption is disabled
+    
+    If asyncpreemptoff is set, don't preempt upon receiving a SIGURG.
+    
+    Fixes #38531.
+    
+    Change-Id: I6d9a828b45c199d3e479cbdfe17a896a40d540f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240121
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/signal_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

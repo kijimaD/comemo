@@ -1,0 +1,13 @@
+commit 9449e3b02cb18931cd8cb4c0b9407dc1e0f8f80e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 30 19:21:32 2009 -0700
+
+    list untested packages instead of tested
+    
+    R=r
+    DELTA=68  (12 added, 55 deleted, 1 changed)
+    OCL=34095
+    CL=34102
+
+ src/pkg/Makefile | 64 ++++++++++++--------------------------------------------
+ 1 file changed, 13 insertions(+), 51 deletions(-)

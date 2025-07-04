@@ -1,0 +1,22 @@
+commit c02fa75086dbc6db0d90f477e7b4c839140fdeb2
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 5 10:19:44 2023 -0700
+
+    Revert "net/http: FileServer method check + minimal OPTIONS implementation"
+    
+    This reverts https://go.dev/cl/413554
+    
+    Reason for revert: Backwards-incompatible change in behavior.
+    
+    For #53501
+    For #59375
+    
+    Change-Id: Ic3f63b378f9c819599b32e5e6e410f6163849317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482635
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/fs.go      | 20 +++++---------------
+ src/net/http/fs_test.go | 41 -----------------------------------------
+ 2 files changed, 5 insertions(+), 56 deletions(-)

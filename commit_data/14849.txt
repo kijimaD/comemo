@@ -1,0 +1,14 @@
+commit 6e981c181ce1b8dd54ad83107cfddc954eea668f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 11 00:59:44 2013 +0100
+
+    runtime: work around 5c bug in GC code.
+    
+    5c miscompiles *p++ = struct_literal.
+    
+    R=dave, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7065069
+
+ src/pkg/runtime/mgc0.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 8caf21da47d09124ba4163b66a99eb08ea72c7c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 15:51:05 2017 -0700
+
+    cmd/compile: use newnamel in ssa.go
+    
+    For concurrency safety.
+    
+    Passes toolstash-check.
+    
+    Updates #15756.
+    
+    Change-Id: I1caca231a962781ff8f4f589b2e0454d2820ffb6
+    Reviewed-on: https://go-review.googlesource.com/39192
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit fd788a86b6427ef7ec1f25d4d4f0412bc883ccaf
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Apr 22 18:21:37 2019 -0700
+
+    cmd/compile: always mark atColumn1 results as statements
+    
+    In 31618, we end up comparing the is-stmt-ness of positions
+    to repurpose real instructions as inline marks. If the is-stmt-ness
+    doesn't match, we end up not being able to remove the inline mark.
+    
+    Always use statement-full positions to do the matching, so we
+    always find a match if there is one.
+    
+    Also always use positions that are statements for inline marks.
+    
+    Fixes #31618
+    
+    Change-Id: Idaf39bdb32fa45238d5cd52973cadf4504f947d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173324
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/inl.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go |  1 +
+ src/cmd/internal/src/pos.go        |  2 +-
+ test/codegen/issue31618.go         | 22 ++++++++++++++++++++++
+ 4 files changed, 25 insertions(+), 2 deletions(-)

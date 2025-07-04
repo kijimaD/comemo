@@ -1,0 +1,16 @@
+commit f85d0e32e5cd462c4617d0189ad858d5a775424c
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Tue Apr 16 20:45:41 2019 -0400
+
+    test: add escape regress for empty variadic function
+    
+    Fixes #30898
+    
+    Change-Id: I903dd8ed2b10c49b2291ad0858774f3ca2f5b223
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172422
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue30898.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

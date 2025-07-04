@@ -1,0 +1,17 @@
+commit 1368977a0869c408c8b001bc4142e5b73267f8c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 15:15:49 2017 -0700
+
+    cmd/compile/internal/types: remove Sym.Link field
+    
+    The dclstack is now a proper stack and thus we can implement it
+    using a slice rather than a linked list.
+    
+    Change-Id: I200e85621ff76c111bdeb7eb382fd82da438f3ba
+    Reviewed-on: https://go-review.googlesource.com/41135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/types/scope.go       | 50 ++++++++-------------------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/sym.go         |  1 -
+ 3 files changed, 16 insertions(+), 37 deletions(-)

@@ -1,0 +1,13 @@
+commit 80ca2afd08b61180fe7a58e0a93b05be4ab69a4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 8 11:49:29 2009 -0700
+
+    issue http redirect when needed
+    
+    R=rsc
+    DELTA=31  (6 added, 8 deleted, 17 changed)
+    OCL=30046
+    CL=30051
+
+ usr/gri/pretty/godoc.go | 42 ++++++++++++++++++++----------------------
+ 1 file changed, 20 insertions(+), 22 deletions(-)

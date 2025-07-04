@@ -1,0 +1,12 @@
+commit b43ad96ed63241d768b77c6f5987ff07e8204641
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 3 15:16:51 2008 -0700
+
+    - filed a bug w/ constant evaluation
+    
+    SVN=125966
+
+ test/bugs/bug063.go    |   8 +
+ test/golden.out        |  14 ++
+ usr/gri/src/scanner.go | 404 ++++++++++++++++++++++++++++---------------------
+ 3 files changed, 251 insertions(+), 175 deletions(-)

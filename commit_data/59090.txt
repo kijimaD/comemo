@@ -1,0 +1,16 @@
+commit c7ea87132f4e6f3c81e525c396a64471c9af0091
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 18:18:48 2025 +0000
+
+    log/slog: document Logger ignores Handler.Handle errors
+    
+    Fixes #66579
+    
+    Change-Id: Ie75378b087763c3e88303df3b3f8d7565003a92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658515
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/log/slog/handler.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,13 @@
+commit c20c09251c37c60356e8457a3c7cb632c30b69b1
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jan 3 12:30:18 2012 +1100
+
+    encoding/json: don't marshal special float values
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5500084
+
+ src/pkg/encoding/json/encode.go      | 16 +++++++++++++++-
+ src/pkg/encoding/json/encode_test.go | 19 +++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

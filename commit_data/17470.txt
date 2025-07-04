@@ -1,0 +1,20 @@
+commit 780f5b714dfe9ede57e85cbb804d015981878df4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 5 21:37:07 2013 +0200
+
+    reflect: do not cache trivial values in DeepEqual.
+    
+    DeepEqual caches addresses of compared values
+    each time it visits addressable values. This is
+    more expensive than actually comparing them in
+    the common case of large slices of bytes or integers.
+    
+    Also add a fast path for slices with identical
+    underlying array.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13000044
+
+ src/pkg/reflect/deepequal.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

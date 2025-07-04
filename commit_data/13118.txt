@@ -1,0 +1,19 @@
+commit 7b9a6d8ddafea4c72f507f7254c3526fdcbbd543
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 10:03:53 2012 -0700
+
+    go/scanner: strip carriage returns from commments
+    
+    Also:
+    - cleaned up and simplified TestScan
+    - added tests for comments containing carriage returns
+    
+    Fixes #3647.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6225047
+
+ src/pkg/go/scanner/scanner.go      | 16 +++++++-
+ src/pkg/go/scanner/scanner_test.go | 84 ++++++++++++++++++++++++--------------
+ 2 files changed, 68 insertions(+), 32 deletions(-)

@@ -1,0 +1,18 @@
+commit 9e094ea01e586a44c6fff43c9dd241cc582d930a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 17:34:52 2019 -0700
+
+    runtime: record stub netpoll initialization, add lock around note
+    
+    This fixes the Plan 9 support for the new timer code.
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: Ia498c399b8924910b97fcde07545fae3588aad47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204045
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/netpoll_stub.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

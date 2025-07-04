@@ -1,0 +1,15 @@
+commit 3a7df4dde0aaab2e93072a75213c528d91529e5e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 23:33:31 2009 -0700
+
+    add support for variable formatters
+    
+    R=rsc
+    DELTA=134  (75 added, 41 deleted, 18 changed)
+    OCL=27245
+    CL=27247
+
+ src/lib/reflect/value.go | 14 ++++++++++
+ src/lib/template.go      | 69 +++++++++++++++++++++++++++++-------------------
+ src/lib/template_test.go | 65 ++++++++++++++++++++++++---------------------
+ 3 files changed, 91 insertions(+), 57 deletions(-)

@@ -1,0 +1,35 @@
+commit 2959128dc57618d7d5773411403ef0a255a9f72f
+Author: Milan Knezevic <milan.knezevic@mips.com>
+Date:   Thu Apr 26 15:37:27 2018 +0200
+
+    cmd/compile: add softfloat support to mips64{,le}
+    
+    mips64 softfloat support is based on mips implementation and introduces
+    new enviroment variable GOMIPS64.
+    
+    GOMIPS64 is a GOARCH=mips64{,le} specific option, for a choice between
+    hard-float and soft-float. Valid values are 'hardfloat' (default) and
+    'softfloat'. It is passed to the assembler as
+    'GOMIPS64_{hardfloat,softfloat}'.
+    
+    Change-Id: I7f73078627f7cb37c588a38fb5c997fe09c56134
+    Reviewed-on: https://go-review.googlesource.com/108475
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/asm.html                              |  6 ++++++
+ src/cmd/compile/internal/mips64/galign.go |  2 +-
+ src/cmd/dist/build.go                     | 16 ++++++++++++++++
+ src/cmd/dist/buildruntime.go              |  2 ++
+ src/cmd/go/alldocs.go                     |  3 +++
+ src/cmd/go/internal/cfg/cfg.go            |  7 ++++---
+ src/cmd/go/internal/envcmd/env.go         |  2 ++
+ src/cmd/go/internal/help/helpdoc.go       |  3 +++
+ src/cmd/go/internal/work/gc.go            |  5 +++++
+ src/cmd/internal/objabi/util.go           | 24 +++++++++++++++++-------
+ src/runtime/cgo/asm_mips64x.s             | 11 ++++++++++-
+ src/runtime/cgo/gcc_mips64x.S             | 13 ++++++++++++-
+ test/codegen/math.go                      |  3 ++-
+ test/run.go                               |  2 +-
+ 14 files changed, 84 insertions(+), 15 deletions(-)

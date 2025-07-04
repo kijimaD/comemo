@@ -1,0 +1,13 @@
+commit c1767dbdda38e801b878a0b78eb9fc3404df6b0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 30 12:50:02 2009 -0800
+
+    Typo in comment.
+    Fixes #358.
+    
+    R=rsc
+    CC=r
+    https://golang.org/cl/164043
+
+ src/pkg/strings/strings.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit e29d276d55bc0743a0fb66ea4a4967f937153567
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 19 00:59:26 2019 +1000
+
+    cmd/internal/obj/riscv: implement RV64I integer computational instructions
+    
+    Add support for assembling RV64I integer computational instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Integer Computational Instructions (RV64I)
+    
+    Change-Id: I1a082b3901c997da309d737d081f57ea2821bc62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196838
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 11 +++++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

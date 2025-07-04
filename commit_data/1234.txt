@@ -1,0 +1,12 @@
+commit 46f89d53c66ddef8dab0d28365c770c04b476ef9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 24 14:15:53 2008 -0800
+
+    restore helpful error rules
+    
+    R=rsc
+    OCL=19928
+    CL=19928
+
+ src/cmd/gc/go.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

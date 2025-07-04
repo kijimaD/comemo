@@ -1,0 +1,19 @@
+commit 13bc6d4223515ac05afadc13728fb12d7c80f015
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 29 01:59:09 2020 -0400
+
+    cmd/link: flush file mapping before unmapping
+    
+    Call FlushViewOfFile before unmapping the output file, for extra
+    safety. The documentation says the function does not wait for
+    the data to be written to disk, so it should be cheap.
+    
+    Fixes #38440.
+    
+    Change-Id: I05352f15d9305e6e7086a002f61802f74036b710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235639
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/ld/outbuf_windows.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

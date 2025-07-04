@@ -1,0 +1,29 @@
+commit 39de58bad70b2aca9f7c874b64a8180307503ee4
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Nov 2 20:17:59 2017 +0300
+
+    cmd/internal/obj/x86: add most missing AVX1/2 insts
+    
+    This change applies x86avxgen output.
+    https://go-review.googlesource.com/c/arch/+/66972
+    As an effect, many new AVX instructions are now available.
+    
+    One of the side-effects of this patch is
+    sorted AXXX (A-enum) constants.
+    
+    Some AVX1/2 instructions still not added due to:
+    1. x86.csv V0.2 does not list them;
+    2. partially because of (1), test suite does not contain tests for
+       these instructions.
+    
+    Change-Id: I90430d773974ca5c995d6950d90e2c62ec88ef47
+    Reviewed-on: https://go-review.googlesource.com/75490
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 8410 +++++++++++++-------------
+ src/cmd/internal/obj/x86/aenum.go            | 1297 ++--
+ src/cmd/internal/obj/x86/anames.go           | 1271 ++--
+ src/cmd/internal/obj/x86/vex_optabs.go       |  435 +-
+ 4 files changed, 6167 insertions(+), 5246 deletions(-)

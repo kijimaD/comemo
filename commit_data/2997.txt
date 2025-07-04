@@ -1,0 +1,13 @@
+commit 83c9d97abf6e941311007aa0e4dd67155bb34958
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 17 14:16:25 2009 -0700
+
+    fix a couple of scripts
+    
+    R=rsc
+    DELTA=6  (4 added, 2 deleted, 0 changed)
+    OCL=33400
+    CL=33400
+
+ test/run | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

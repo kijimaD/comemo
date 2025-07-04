@@ -1,0 +1,20 @@
+commit adf9b30e55943feb44669ebf773964fd32d4ee94
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 28 09:33:51 2015 +0200
+
+    reflect: adjust access to unexported embedded structs
+    
+    This CL changes reflect to allow access to exported fields and
+    methods in unexported embedded structs for gccgo and after gc
+    has been adjusted to disallow access to embedded unexported structs.
+    
+    Adresses #12367, #7363, #11007, and #7247.
+    
+    Change-Id: If80536eab35abcd25300d8ddc2d27d5c42d7e78e
+    Reviewed-on: https://go-review.googlesource.com/14010
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/export_test.go |  4 ++--
+ src/reflect/type.go        |  2 +-
+ src/reflect/value.go       | 27 +++++++++++++++++----------
+ 3 files changed, 20 insertions(+), 13 deletions(-)

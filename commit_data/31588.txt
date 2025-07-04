@@ -1,0 +1,23 @@
+commit c20e54533ea49ca68640d9a59c9ed935b27da8e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 16 18:02:56 2017 -0700
+
+    cmd/go: don't fail on missing runtime/internal/sys/zversion.go
+    
+    The generated file runtime/internal/sys/zversion.go is deleted by
+    `go tool cmd dist clean` as part of running clean.bash. Don't treat
+    a missing file as a reason to stop running the go tool; just treat
+    is as meaning that runtime/internal/sys is stale.
+    
+    No test because I don't particularly want to clobber $GOROOT.
+    
+    Fixes #20385.
+    
+    Change-Id: I5251a99542cc93c33f627f133d7118df56e18af1
+    Reviewed-on: https://go-review.googlesource.com/43559
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

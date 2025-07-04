@@ -1,0 +1,20 @@
+commit c723230e4a1ddb30b4822de8f795c16fd9aa90ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 15:00:51 2015 -0700
+
+    net/http: fix scheduling race resulting in flaky test
+    
+    The test was measuring something, assuming other goroutines had
+    already scheduled.
+    
+    Fixes #10427
+    
+    Change-Id: I2a4d3906f9d4b5ea44b57d972e303bbe2b0b1cde
+    Reviewed-on: https://go-review.googlesource.com/9561
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go    | 14 ++++++++++++++
+ src/net/http/transport.go      | 19 +++++++++++++++++++
+ src/net/http/transport_test.go | 23 ++++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 1 deletion(-)

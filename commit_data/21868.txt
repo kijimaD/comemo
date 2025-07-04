@@ -1,0 +1,28 @@
+commit 4bbd7ae8e04eb874f4866b198a287bb06eb5d5a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 15:22:19 2015 -0500
+
+    cmd/internal/gc: change proginfo to return ProgInfo instead of writing to param
+    
+    This avoids the argument appearing to escape
+    (due to the fact that proginfo is always called
+    via a function pointer).
+    
+    Change-Id: Ib9351ba18c80fd89e6a1d4f19dea386d4c657337
+    Reviewed-on: https://go-review.googlesource.com/6518
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/5g/peep.go           |  2 +-
+ src/cmd/5g/prog.go           |  6 ++++--
+ src/cmd/6g/peep.go           |  8 ++++----
+ src/cmd/6g/prog.go           |  6 ++++--
+ src/cmd/8g/peep.go           |  6 +++---
+ src/cmd/8g/prog.go           |  6 ++++--
+ src/cmd/9g/peep.go           |  2 +-
+ src/cmd/9g/prog.go           |  8 +++++---
+ src/cmd/internal/gc/go.go    |  2 +-
+ src/cmd/internal/gc/lex.go   |  5 ++++-
+ src/cmd/internal/gc/plive.go |  2 +-
+ src/cmd/internal/gc/popt.go  | 20 +++++++++++---------
+ src/cmd/internal/gc/reg.go   |  2 +-
+ 13 files changed, 44 insertions(+), 31 deletions(-)

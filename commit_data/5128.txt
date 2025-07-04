@@ -1,0 +1,12 @@
+commit a00917ca1c69a7e9a44344c20c3d32b764d7002f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 24 19:52:07 2010 -0700
+
+    test/mallocfin: relax test to 80% from 90%.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/725042
+
+ test/mallocfin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

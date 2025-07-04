@@ -1,0 +1,22 @@
+commit 2f1f607b21af8c30e80fb4fc062a8f447cffd48b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Oct 31 16:49:27 2017 -0500
+
+    cmd/compile: intrinsify math.RoundToEven on amd64
+    
+    We already do this for floor/ceil, but RoundToEven was added later.
+    Intrinsify it also.
+    
+    name           old time/op  new time/op  delta
+    RoundToEven-8  3.00ns ± 1%  0.68ns ± 2%  -77.34%  (p=0.000 n=10+10)
+    
+    Change-Id: Ib158cbceb436c6725b2d9353a526c5c4be19bcad
+    Reviewed-on: https://go-review.googlesource.com/74852
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go           |  3 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 ++++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 14 ++++++++++++++
+ 4 files changed, 23 insertions(+), 5 deletions(-)

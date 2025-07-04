@@ -1,0 +1,12 @@
+commit ef96d724e54a3f98d08f4ff2b731df8dbcb614db
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 9 17:00:31 2012 +1000
+
+    misc/cgo/life: explicitly specify library for assert function (fixes windows/amd64 build)
+    
+    R=golang-dev, dave
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6461065
+
+ misc/cgo/life/life.go | 1 +
+ 1 file changed, 1 insertion(+)

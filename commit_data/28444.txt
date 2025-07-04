@@ -1,0 +1,19 @@
+commit 5c0fbf052b8ab98c0a1dd74365912d33572be4f3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 15:08:17 2016 -0400
+
+    plugin: cast dlerror return value for android
+    
+    Until a few weeks ago, bionic, the Andoid libc, incorrectly
+    returned const char* (instead of char*) from dlerror(3).
+    
+    https://android.googlesource.com/platform/bionic/+/5e071a18ce88d93fcffaebb9e0f62524ae504908
+    
+    Change-Id: I30d33240c63a9f35b6c20ca7e3928ad33bc5e33f
+    Reviewed-on: https://go-review.googlesource.com/29352
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin_dlopen.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

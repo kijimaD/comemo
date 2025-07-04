@@ -1,0 +1,12 @@
+commit 3c5dbb036b31c5f5a2d0a80c166c72d8ffbd6ac9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 17:53:39 2009 -0800
+
+    bug218.go: testcase for issue 238
+    
+    R=rsc
+    https://golang.org/cl/154172
+
+ test/bugs/bug218.go | 23 +++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 27 insertions(+)

@@ -1,0 +1,13 @@
+commit e7c8e788791884572cc24d80f52f92f586cfb673
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 10 14:50:23 2008 -0700
+
+    - removed extra package clause
+    
+    R=rsc
+    DELTA=2  (0 added, 2 deleted, 0 changed)
+    OCL=16927
+    CL=16927
+
+ test/interface1.go | 2 --
+ 1 file changed, 2 deletions(-)

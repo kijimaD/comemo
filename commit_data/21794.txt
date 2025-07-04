@@ -1,0 +1,18 @@
+commit 2adc3bd6ef84aa8b3d730f5d0d96a30427f2ecc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 28 02:34:08 2015 +0000
+
+    Revert "os: set TMPDIR on darwin/arm"
+    
+    This reverts commit 87a0d395c3d454c6efa560c406b5b3d8ad71c8f6.
+    
+    Looks like introducing file_darwin_arm.go is confusing something in the API checker (probably go/types) into ignoring file.go, so the O_SYNC symbol is being lost.
+    
+    No actual bug in this CL AFAIK, but I'll fix the other bug later and then roll this forward.
+    
+    Change-Id: Ic132fb101e4b5f2716f7a0d15872bf35bdf42139
+    Reviewed-on: https://go-review.googlesource.com/6331
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/os/file_darwin_arm.go | 38 --------------------------------------
+ 1 file changed, 38 deletions(-)

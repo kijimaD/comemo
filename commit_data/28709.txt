@@ -1,0 +1,19 @@
+commit 95a6572b2b84e8cbfd821c4e5f774f20d37c007e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 15:01:15 2016 -0700
+
+    math/big: Rat.SetString to report error if input is not consumed entirely
+    
+    Also, document behavior explicitly for all SetString implementations.
+    
+    Fixes #17001.
+    
+    Change-Id: Iccc882b4bc7f8b61b6092f330e405c146a80dc98
+    Reviewed-on: https://go-review.googlesource.com/30472
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/math/big/floatconv.go    |  5 ++++-
+ src/math/big/int.go          | 10 +++++-----
+ src/math/big/ratconv.go      | 13 +++++++++----
+ src/math/big/ratconv_test.go |  5 +++++
+ 4 files changed, 23 insertions(+), 10 deletions(-)

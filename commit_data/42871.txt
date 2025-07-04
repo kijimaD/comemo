@@ -1,0 +1,18 @@
+commit a58a8d2e97d605f9f115a0e77ba09cd36bb82ba6
+Author: zdjones <zachj1@gmail.com>
+Date:   Thu Jul 16 12:33:25 2020 +0100
+
+    test: document specifying individual test files as operands
+    
+    The current command will run this entire set of tests, which takes a
+    noticeable amount of time. Contributors may wish to run only a subset of
+    these tests to save time/compute (e.g. when iterating on a CL that
+    failed tests in that subset). Listing file(s) as operands to the command
+    will run only those tests.
+    
+    Change-Id: I1874c43681a594190bc40b61cee0b8d321be73f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242997
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ test/README.md | 4 ++++
+ 1 file changed, 4 insertions(+)

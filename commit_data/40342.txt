@@ -1,0 +1,17 @@
+commit a59808ed01b52119025c49c7ab71ceffbf56c080
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 21 15:29:41 2019 -0700
+
+    go/parser: better error (recovery) for Allman/BSD-style func decls
+    
+    This matches the behavior and error of cmd/compile.
+    
+    Fixes #34946.
+    
+    Change-Id: I329ef358deea63d8425f76f1d54c95749b96c365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202484
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/parser/parser.go               | 12 +++++++++++-
+ src/go/parser/testdata/issue34946.src | 22 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

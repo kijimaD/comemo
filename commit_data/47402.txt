@@ -1,0 +1,23 @@
+commit 99fa49e4b7f74fb21cc811270fe42c9b7fa99668
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 9 16:17:50 2021 -0800
+
+    lib/time, time/tzdata: update to 2021e
+    
+    Doing this a little early in the release cycle as there have been some
+    changes in the handling of old timezones. They should continue to
+    work as expected, but more testing time may be useful.
+    
+    For #22487
+    
+    Change-Id: I3686fed79a052c46112445055044cff5842f2a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 424214 -> 425837 bytes
+ src/time/tzdata/zipdata.go | 13753 ++++++++++++++++++++++---------------------
+ 3 files changed, 6892 insertions(+), 6865 deletions(-)

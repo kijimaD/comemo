@@ -1,0 +1,15 @@
+commit 98257750f483238f2895d6077bf42e7c91cd8f3d
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Mon Feb 6 12:10:49 2012 -0500
+
+    misc/goplay: use go tool "run"
+    
+    Fixes #2872
+    
+    R=andybalholm, rsc
+    CC=golang-dev
+    https://golang.org/cl/5608056
+
+ misc/goplay/doc.go    |  6 ++----
+ misc/goplay/goplay.go | 56 ++++++++++++---------------------------------------
+ 2 files changed, 15 insertions(+), 47 deletions(-)

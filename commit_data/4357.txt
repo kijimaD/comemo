@@ -1,0 +1,21 @@
+commit 3ca1b1d27f6bd72dac74ba9e696c002998e54ec5
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Dec 9 11:56:45 2009 -0800
+
+    Continuation of issue 221 fix. When 8g or 6g or 5g are called with a
+    UTF-8 string, Yconv() converts it into an octal sequence. If the
+    string converted to more than 30 bytes, the str buffer would
+    overflow. For example, 4 Greek runes became 32 bytes, 3 Hiragana
+    runes became 36 bytes, and 2 Gothic runes became 32 bytes. In
+    8l, 6l and 5l the function is Sconv(). For some reason, only 5l uses
+    the constant STRINGSZ (defined as 200) for the buffer size.
+    
+    R=rsc
+    https://golang.org/cl/168045
+
+ src/cmd/5g/list.c | 2 +-
+ src/cmd/6c/list.c | 2 +-
+ src/cmd/6g/list.c | 2 +-
+ src/cmd/8c/list.c | 2 +-
+ src/cmd/8g/list.c | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

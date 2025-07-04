@@ -1,0 +1,16 @@
+commit f335fcf0fc297b9d1318fb21fa608a7ebc751b3e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:18:26 2015 -0500
+
+    syscall: add Getexecname on Solaris for os.Executable
+    
+    Change-Id: Icd77ccbfe6a31117a11effb949b5826950df75a9
+    Reviewed-on: https://go-review.googlesource.com/16550
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_solaris.go        | 15 +++++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 14 +++++++++++++-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

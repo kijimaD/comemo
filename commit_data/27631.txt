@@ -1,0 +1,16 @@
+commit 5799973c3e25545ac0e7d20f32a1453531c69399
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 3 11:33:37 2016 +1000
+
+    cmd/go: fix staleness test for releases, also deflake it
+    
+    Fixes #15933
+    
+    Change-Id: I2cd6365e6d0ca1cafdc812fbfaaa55aa64b2b289
+    Reviewed-on: https://go-review.googlesource.com/23731
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

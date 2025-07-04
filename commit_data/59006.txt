@@ -1,0 +1,18 @@
+commit 598df45fceb6e10d643ed0c07a3df80cffd507f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 10 11:45:10 2025 -0700
+
+    net: unblock UDP Reads upon Close on plan9, add test
+    
+    Fixes #72770
+    
+    Change-Id: I42be7c7349961188f4b5d73287a3550aba323893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/fd_plan9.go |  5 +++++
+ src/net/net_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

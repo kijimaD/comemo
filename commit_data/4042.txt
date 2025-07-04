@@ -1,0 +1,18 @@
+commit 0263103a052b7964aaa283c81550f639da436d52
+Author: Rob Pike <r@golang.org>
+Date:   Sat Nov 14 12:23:24 2009 -0800
+
+    move evaluation of null-matching instructions one iteration earlier.
+    performance hit of about 20% but more intuitive results for submatches.
+    we need a good regexp package at some point.
+    
+    Fixes #110.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152131
+
+ src/pkg/regexp/all_test.go | 16 ++++------
+ src/pkg/regexp/regexp.go   | 78 ++++++++++++++++++++++++++++------------------
+ test/bench/timing.log      |  8 +++++
+ 3 files changed, 61 insertions(+), 41 deletions(-)

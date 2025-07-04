@@ -1,0 +1,18 @@
+commit 01aad9ea939fed313d5c51778485349435302ead
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Fri Jun 5 03:53:53 2020 +0000
+
+    cmd/compile: Optimize ARM64's code with EON
+    
+    This patch fuses pattern '(MVN (XOR x y))' into '(EON x y)'.
+    
+    Change-Id: I269c98ce198d51a4945ce8bd0e1024acbd1b7609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239638
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++++++++
+ test/codegen/bits.go                         | 13 +++++++++++--
+ 3 files changed, 24 insertions(+), 2 deletions(-)

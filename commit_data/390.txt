@@ -1,0 +1,11 @@
+commit f87a960adf8a8ed71163055fe194af0e7bbb41a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 18 14:18:07 2008 -0700
+
+    add doug's power series package
+    
+    SVN=128063
+
+ test/chan/powser1.go | 748 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out      |   2 +
+ 2 files changed, 750 insertions(+)

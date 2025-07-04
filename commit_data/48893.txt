@@ -1,0 +1,19 @@
+commit 94f25ec94920beee5fb2dd4c0cbf4cbff28f14e6
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 25 11:22:10 2022 -0400
+
+    debug/pe: fix off by one error in valid symbol index test
+    
+    Fix an off-by-one error in COFFSymbolReadSectionDefAux, specifically
+    the code that tests whether a symbol index is valid.
+    
+    Fixes #52525.
+    
+    Change-Id: I1b6e5dacfd99249c694bef5ae606e90fdb2ef521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402156
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/pe/symbol.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 629c0b3a6e3e2ff11c9c989a8dcd1a538cdd76f4
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Sep 15 15:14:52 2022 +0800
+
+    cmd/compile: make encoding/binary appends cheaper to inline
+    
+    Go 1.19 introduce new append-like APIs in package encoding/binary, this
+    change teaches the inliner to treat calls to these methods as cheap, so
+    that code using them will be more inlineable.
+    
+    Updates #42958
+    
+    Change-Id: Ie3dd4906e285430f435bdedbf8a11fdffce9302d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431015
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/inline/inl.go |  4 +++-
+ test/inline_endian.go                  | 16 ++++++++++++++--
+ 2 files changed, 17 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit e49bc465a3acb2dd72e9afa5d40e541205c7d460
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Tue Nov 7 10:19:10 2017 -0800
+
+    net: implement ReadMsg/WriteMsg on windows
+    
+    This means {Read,Write}Msg{UDP,IP} now work on windows.
+    
+    Fixes #9252
+    
+    Change-Id: Ifb105f9ad18d61289b22d7358a95faabe73d2d02
+    Reviewed-on: https://go-review.googlesource.com/76393
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/go/build/deps_test.go                       |   2 +-
+ src/internal/poll/fd_windows.go                 |  92 +++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go | 105 +++++++++++++++++++++++-
+ src/net/fd_windows.go                           |  20 +++--
+ src/net/iprawsock.go                            |   2 +-
+ src/net/platform_test.go                        |  20 +++--
+ src/net/protoconn_test.go                       |  10 +--
+ src/net/udpsock.go                              |   2 +-
+ src/net/udpsock_test.go                         |   4 +-
+ 9 files changed, 231 insertions(+), 26 deletions(-)

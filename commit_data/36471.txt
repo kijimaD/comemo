@@ -1,0 +1,33 @@
+commit 60f83621fc357f9e838bee9811230339b9da493a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Aug 24 17:07:20 2018 +0200
+
+    internal/cpu: add a CacheLinePadSize constant
+    
+    The new constant CacheLinePadSize can be used to compute best effort
+    alignment of structs to cache lines.
+    
+    e.g. the runtime can use this in the locktab definition:
+    var locktab [57]struct {
+            l   spinlock
+            pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
+    }
+    
+    Change-Id: I86f6fbfc5ee7436f742776a7d4a99a1d54ffccc8
+    Reviewed-on: https://go-review.googlesource.com/131237
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/cpu/cpu.go          | 7 ++++++-
+ src/internal/cpu/cpu_arm.go      | 2 +-
+ src/internal/cpu/cpu_arm64.go    | 2 +-
+ src/internal/cpu/cpu_mips.go     | 2 +-
+ src/internal/cpu/cpu_mips64.go   | 2 +-
+ src/internal/cpu/cpu_mips64le.go | 2 +-
+ src/internal/cpu/cpu_mipsle.go   | 2 +-
+ src/internal/cpu/cpu_ppc64x.go   | 2 +-
+ src/internal/cpu/cpu_s390x.go    | 2 +-
+ src/internal/cpu/cpu_wasm.go     | 2 +-
+ src/internal/cpu/cpu_x86.go      | 2 +-
+ 11 files changed, 16 insertions(+), 11 deletions(-)

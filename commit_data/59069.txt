@@ -1,0 +1,27 @@
+commit 3c3b8dd4f0590881f7010014985d05cce1c9e943
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Mar 14 09:36:06 2025 -0700
+
+    internal/runtime/atomic: add Xchg8 for s390x and wasm
+    
+    This makes the single-byte atomic.Xchg8 operation available on all
+    GOARCHes, including those without direct / single-instruction support.
+    
+    Fixes #69735
+    
+    Change-Id: Icb6aff8f907257db81ea440dc4d29f96b3cff6c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657936
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/runtime/atomic/atomic_arm.go   | 18 ----------------
+ src/internal/runtime/atomic/atomic_s390x.go |  5 +++++
+ src/internal/runtime/atomic/atomic_wasm.go  |  5 +++++
+ src/internal/runtime/atomic/xchg8.go        | 32 +++++++++++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go   |  2 --
+ 5 files changed, 42 insertions(+), 20 deletions(-)

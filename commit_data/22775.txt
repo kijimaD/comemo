@@ -1,0 +1,15 @@
+commit 3eed422fd13b56b978c610a0b9e69cf4a2c21b24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 29 12:01:55 2015 -0700
+
+    src: add buildall.bash
+    
+    For new compile-only builder.
+    
+    Change-Id: Ic374c582fcada761386fc852fdbdba814b4ac9e2
+    Reviewed-on: https://go-review.googlesource.com/9438
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/buildall.bash | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

@@ -1,0 +1,14 @@
+commit 9ff00398489d9eb1822b3de028cd6ccf5674ebb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 15:00:57 2022 -0800
+
+    go/types, types2: delete _TypeSet.includes - not used (cleanup)
+    
+    Change-Id: Ia324c6185e36efd4ea7dc92d7c2233fec8f5a55f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381494
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typeset.go | 5 -----
+ src/go/types/typeset.go                    | 5 -----
+ 2 files changed, 10 deletions(-)

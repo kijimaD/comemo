@@ -1,0 +1,23 @@
+commit f611ae1c75b7696da141e55bf91a0acdcc853bf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 1 17:25:10 2014 -0400
+
+    runtime: include os_*.h in the generated Go structs
+    
+    Adding the #include to defs.c makes it get processed
+    by cmd/dist, which writes out Go equivalent for all the
+    C data structures defined in defs.c.
+    
+    This in turn makes it necessary to define the Plink type,
+    used in os_plan9.h, in os_plan9.go. Rename it to _Plink
+    to avoid being exported.
+    
+    LGTM=0intro, iant
+    R=golang-codereviews, iant, 0intro
+    CC=golang-codereviews, r
+    https://golang.org/cl/132490043
+
+ src/pkg/runtime/defs.c      |  1 +
+ src/pkg/runtime/os_plan9.go |  2 ++
+ src/pkg/runtime/os_plan9.h  | 10 +++++-----
+ 3 files changed, 8 insertions(+), 5 deletions(-)

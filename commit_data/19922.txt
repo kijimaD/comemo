@@ -1,0 +1,15 @@
+commit 161ba662b19ca0ed367883c6d9233fc00c10654f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Aug 6 17:02:55 2014 -0400
+
+    test/mapnan.go: add regression test for non-empty interfaces.
+    
+    LGTM=rsc, khr
+    R=rsc, khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/126720043
+
+ test/map.go       |   2 +-
+ test/maplinear.go | 143 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/mapnan.go    |  56 ---------------------
+ 3 files changed, 144 insertions(+), 57 deletions(-)

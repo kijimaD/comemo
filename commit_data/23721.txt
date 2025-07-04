@@ -1,0 +1,14 @@
+commit b0834b5ea2cc17468c928c2e611dc2b9c0a4595e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 14:30:15 2015 +1000
+
+    flag: add comment stating that Set is called in sequence across the command line
+    
+    No code changes.
+    
+    Change-Id: I3b78b1048318a4b80747fde8cab919282fc444a8
+    Reviewed-on: https://go-review.googlesource.com/12285
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/flag/flag.go | 2 ++
+ 1 file changed, 2 insertions(+)

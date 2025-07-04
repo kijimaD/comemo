@@ -1,0 +1,17 @@
+commit 1e65616e1a03bfb71478a8dc43a4cd6e8c013107
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 19 17:31:16 2014 -0800
+
+    testing: style change: omit unnecessary new
+    
+    This was brought to my attention because a user thought that because
+    the file was named "example.go" it served as an example of good coding
+    practice.  It's not an example, of course, but may as well use a more
+    idiomatic style anyhow.
+    
+    Change-Id: I7aa720f603f09f7d597fb7536dbf46ef09144e28
+    Reviewed-on: https://go-review.googlesource.com/1902
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/testing/example.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

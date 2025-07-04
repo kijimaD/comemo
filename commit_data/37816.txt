@@ -1,0 +1,27 @@
+commit ae68cf4c53f585f3c4519f9415499e2f465a55f8
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 2 16:52:49 2019 -0500
+
+    cmd/compile: Update ssa/debug_test reference files for delve and gdb
+    
+    Recent changes to compiler backtraces perturbed the line
+    number assignment, some better, some worse, probably net
+    worse.  For purposes of passing the long tests, update the
+    reference files (delve's file was also stale).
+    
+    TODO: Figure out a less delicate way to locate statement
+    boundaries for 1.13.
+    
+    Fixes #29511.
+    
+    Change-Id: If0e488341d848ba6012045b126c86b1250408d65
+    Reviewed-on: https://go-review.googlesource.com/c/156021
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts   | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts   |  4 ++++
+ src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts |  2 +-
+ src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts |  1 +
+ 4 files changed, 20 insertions(+), 1 deletion(-)

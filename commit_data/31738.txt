@@ -1,0 +1,19 @@
+commit 7579f96676eb2ea932cfa02e805bbae02c0d310c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 7 18:13:38 2017 +0000
+
+    net/http: don't crash in Request.WithContext if Request.URL is nil
+    
+    Fixes #20601
+    
+    Change-Id: I296d50dc5210a735a2a65d64bfef05d14c93057b
+    Reviewed-on: https://go-review.googlesource.com/45073
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request.go      | 8 +++++---
+ src/net/http/request_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

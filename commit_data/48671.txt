@@ -1,0 +1,28 @@
+commit 5bfd51147e460bad6615b5baaf68609a413eda1a
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 14:57:00 2021 +0800
+
+    copyright: add Loongson into AUTHORS
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I23fb430f1f6e8a587f13e2f020721cbd3a45d4ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342303
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

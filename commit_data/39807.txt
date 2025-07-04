@@ -1,0 +1,20 @@
+commit 1406ece4461cc042c9340efbe331e2d7f6db2f8e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 11:15:59 2019 +0700
+
+    cmd/compile: preserve loop depth when evaluating block
+    
+    Add block method to preserve loop depth when evaluating statements in a
+    block, so escape analysis can handle looping label more precisely.
+    
+    Updates #22438
+    
+    Change-Id: I39b306544a6c0ee3fcbebbe0d0ee735cb71773e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/escape.go | 22 +++++++++++-------
+ test/escape_goto.go                   | 44 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 8 deletions(-)

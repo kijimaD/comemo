@@ -1,0 +1,30 @@
+commit 5a2161ce9ec130271ec67566ecb5a842497e8742
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 18:13:51 2023 +0000
+
+    runtime: emit the correct P status from a safepoint in the v2 tracer
+    
+    The GoSyscallBegin event is a signal for both the P and the G to enter a
+    syscall state for the trace parser. (Ps can't have their own event
+    because it's too hard to model. As soon as the P enters _Psyscall it can
+    get stolen out of it.) But there's a window in time between when that
+    event is emitted and when the P enters _Psyscall where the P's status
+    can get emitted. In this window the tracer will emit the wrong status:
+    Running instead of Syscall. Really any call into the tracer could emit a
+    status event for the P, but in this particular case it's when running a
+    safepoint function that explicitly emits an event for the P's status.
+    
+    The fix is straightforward. The source-of-truth on syscall status is the
+    G's status, so the function that emits the P's status just needs to
+    check the status of any G attached to it. If it's in _Gsyscall, then the
+    tracer should emit a Syscall status for the P if it's in _Prunning.
+    
+    Fixes #64318.
+    
+    Change-Id: I3b0fb0d41ff578e62810b04fa5a3ef73e2929b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546025
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace2status.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

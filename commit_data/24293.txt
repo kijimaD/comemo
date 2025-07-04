@@ -1,0 +1,17 @@
+commit 5b3f29a2e791c2489e6de16d44f3a626ce81a0ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 14 16:30:37 2015 -0700
+
+    go/parser: comma is not permitted at the end of a struct field list
+    
+    Fixes #11611.
+    
+    Change-Id: I63d35cf15c3be759c899e3e561e631330dcc0bbb
+    Reviewed-on: https://go-review.googlesource.com/14565
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/go/parser/parser.go     | 71 ++++++++++++++++++++++-----------------------
+ src/go/parser/short_test.go | 27 ++++++++++++-----
+ 2 files changed, 54 insertions(+), 44 deletions(-)

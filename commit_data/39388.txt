@@ -1,0 +1,19 @@
+commit 263db9b6801ed9b05250da6f05ce93038e37c59c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 21:25:04 2019 +1000
+
+    html/template, text/template: document glob semantics
+    
+    This change updates the doc comments of the various ParseGlob functions
+    and methods to state that they use the semantics of filepath.Match when
+    matching the file name pattern.
+    
+    Fixes #30608
+    
+    Change-Id: Iee4bdc0a2a2f8647d1f9a910e4d72a5de9204d11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179739
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/html/template/template.go | 15 ++++++++-------
+ src/text/template/helper.go   | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

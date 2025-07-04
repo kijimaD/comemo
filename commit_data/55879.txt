@@ -1,0 +1,49 @@
+commit 3c39b2ed116fa9edba6fde3be566310c7b76114c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 16:52:58 2024 -0500
+
+    runtime: avoid pp.timers.lock in updateTimerPMask
+    
+    The comment in updateTimerPMask is wrong. It says:
+    
+            // Looks like there are no timers, however another P
+            // may be adding one at this very moment.
+            // Take the lock to synchronize.
+    
+    This was my incorrect simplification of the original comment
+    from CL 264477 when I was renaming all the things it mentioned:
+    
+            // Looks like there are no timers, however another P may transiently
+            // decrement numTimers when handling a timerModified timer in
+            // checkTimers. We must take timersLock to serialize with these changes.
+    
+    updateTimerPMask is being called by pidleput, so the P in question
+    is not in use. And other P's cannot add to this P.
+    As the original comment more precisely noted, the problem was
+    that other P's might be calling timers.check, which updates ts.len
+    occasionally while ts is locked, and one of those updates might
+    "leak" an ephemeral len==0 even when the heap is not going to
+    be empty when the P is finally unlocked. The lock/unlock in
+    updateTimerPMask synchronizes to avoid that. But this defeats
+    most of the purpose of using ts.len in the first place.
+    
+    Instead of requiring that synchronization, we can arrange that
+    ts.len only ever shows a "publishable" length, meaning the len(ts.heap)
+    we leave behind during ts.unlock.
+    
+    Having done that, updateTimerPMask can be inlined into pidleput.
+    
+    The big comment on updateTimerPMask explaining how timerpMask
+    works is better placed as the doc comment for timerpMask itself,
+    so move it there.
+    
+    Change-Id: I5442c9bb7f1473b5fd37c43165429d087012e73f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568336
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go     |  4 +++-
+ src/runtime/runtime2.go | 31 +++++++++++++++++++++++++++++
+ src/runtime/time.go     | 52 +++++++++----------------------------------------
+ 3 files changed, 43 insertions(+), 44 deletions(-)

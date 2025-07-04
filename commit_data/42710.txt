@@ -1,0 +1,22 @@
+commit 023d4973851a25e2a47b1ebaf96833c9209efd7c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 18:05:16 2020 -0400
+
+    cmd/go: add trace events for each action
+    
+    This change adds a trace event for each action and also
+    annotates each of the action execution goroutines with trace.Goroutine
+    so that the actions eaxecuted by each goroutine appear on different threads in
+    the chrome trace viewer.
+    
+    Updates #38714
+    
+    Change-Id: I2e58dc5606b2e3f7f87076a61e1cc6a2014255c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248320
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/trace/trace.go |  4 ++--
+ src/cmd/go/internal/work/exec.go   | 13 +++++++++++--
+ 2 files changed, 13 insertions(+), 4 deletions(-)

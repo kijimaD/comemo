@@ -1,0 +1,26 @@
+commit b7a66be69c5857105c4b357d87bb76da87b1dbed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 30 17:00:07 2023 -0700
+
+    cmd/compile/internal/syntax: set up dummy name and type if func name is missing
+    
+    We do the same elsewhere (e.g. in parser.name when a name is missing).
+    This ensures functions have a (dummy) name and a non-nil type.
+    Avoids a crash in the type-checker (verified manually).
+    A test was added here (rather than the type checker) because type-
+    checker tests are shared between types2 and go/types and error
+    recovery in this case is different.
+    
+    Fixes #63835.
+    
+    Change-Id: I1460fc88d23d80b8d8c181c774d6b0a56ca06317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538059
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              | 3 +++
+ src/cmd/compile/internal/syntax/testdata/issue63835.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

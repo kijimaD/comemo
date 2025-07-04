@@ -1,0 +1,16 @@
+commit c34c124f4007e79978674ba519b9421665060186
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 23 10:28:58 2024 -0400
+
+    cmd/go/internal/telemetrystats: handle cases where there's no patch
+    
+    If there's no second dot assume the version is just a major.minor.
+    
+    Change-Id: I765d6e8d7c1e63c695a0a3b0c047d86b989f95d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587796
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/telemetrystats/version_unix.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 6a2a11fc2836f2b4f5be1f035822ad18856f848a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Sep 19 20:24:14 2022 +0000
+
+    misc/cgo/test: add asan and msan arena tests
+    
+    While we're here, replace a couple uses of os.Environ with cmd.Environ.
+    
+    For #51317.
+    
+    Change-Id: Ic5cf4a887a7975a8281223eec0f94df230b6f095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testsanitizers/asan_test.go           |  4 +++-
+ misc/cgo/testsanitizers/cc_test.go             | 25 +++++++++++++++++++++++-
+ misc/cgo/testsanitizers/msan_test.go           | 12 +++++++++---
+ misc/cgo/testsanitizers/testdata/arena_fail.go | 27 ++++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 5 deletions(-)

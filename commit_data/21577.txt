@@ -1,0 +1,16 @@
+commit aed88be021762c590f50ab80f8cc155e2c55c39f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Feb 4 11:26:22 2015 +0300
+
+    cmd/gc: restore stack frame debugging
+    
+    Dump frames of functions.
+    Add function name and var width to output.
+    
+    Change-Id: Ida06b8def96178fa550ca90836eb4a2509b9e13f
+    Reviewed-on: https://go-review.googlesource.com/3870
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/pgen.c |  2 +-
+ src/cmd/gc/subr.c | 29 ++++++++++++-----------------
+ 2 files changed, 13 insertions(+), 18 deletions(-)

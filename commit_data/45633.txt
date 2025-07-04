@@ -1,0 +1,26 @@
+commit 92c189f2117415ff7a4bd9652422ba9af1745cb9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 16:36:32 2021 -0400
+
+    cmd/link: resolve ABI alias for runtime.unreachableMethod
+    
+    We redirect references to unreachable methods to
+    runtime.unreachableMethod. We choose to use ABIInternal symbol
+    for this, because runtime.unreachableMethod is a defined Go
+    function.
+    
+    When linking against shared libraries, and ABI wrappers are not
+    enabled, the imported function symbols are all ABI0 and aliased
+    to ABIInternal. We need to resolve ABI alias in this case.
+    
+    Change-Id: Idd64ef46ce0b5f54882ea0069ce0d59dc9b7a599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319891
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 2 ++
+ 1 file changed, 2 insertions(+)

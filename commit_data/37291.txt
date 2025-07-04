@@ -1,0 +1,14 @@
+commit ac277d9234a89070a80dcbd03ef580566480fe42
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Nov 7 10:28:38 2018 +0100
+
+    internal/traceparser: skip test on iOS
+    
+    Change-Id: Ifc9581ba82a13f507c288282b517ebf8a5f93b4e
+    Reviewed-on: https://go-review.googlesource.com/c/148058
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/internal/traceparser/gc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

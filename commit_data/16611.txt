@@ -1,0 +1,12 @@
+commit 279c48444aaf0f49a3c2be539fc6f3ca888e9deb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 21 14:19:08 2013 -0700
+
+    testing: include cover mode in cover profile
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/10392049
+
+ src/pkg/testing/cover.go | 1 +
+ 1 file changed, 1 insertion(+)

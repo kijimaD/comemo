@@ -1,0 +1,16 @@
+commit 5abf00e4f0039aebac17b15203b09c4a8962aac0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 00:53:03 2023 -0700
+
+    cmd/internal/objabi: add support for bisect.Matcher debug flags
+    
+    Makes it more convenient to add new bisection targets.
+    
+    Change-Id: I7ac14018bac1e25751234a2267f8747a281b6088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/objabi/flag.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

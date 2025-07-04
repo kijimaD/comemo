@@ -1,0 +1,27 @@
+commit e82cb14255cc63099e5c728676506cb4d0d97378
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 12 15:40:11 2023 -0400
+
+    runtime: add support for range-over-func
+    
+    Add runtime support for range over functions, specifically
+    for defer in the loop body. The defer is running in one
+    function but needs to append to the deferred function list
+    for a parent function. This CL implements the runtime
+    support for that, in the form of two new functions:
+    deferrangefunc, which obtains a token representing the
+    current frame, and deferprocat, which is like deferproc
+    but adds to the list for frame denoted by the token.
+    
+    Preparation for proposal #61405. The actual logic in the
+    compiler will be guarded by a GOEXPERIMENT; this code
+    will only run if the compiler emits calls to deferprocat.
+    
+    Change-Id: I08adf359100856d21d7ff4b493afa229c9471e70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510540
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/panic.go | 159 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 159 insertions(+)

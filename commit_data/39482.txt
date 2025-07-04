@@ -1,0 +1,23 @@
+commit 1c1e517005786daeca0e77f2be6769e9b8e1f5a5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 2 15:36:59 2019 -0400
+
+    test: add a test for gccgo bug #32901
+    
+    This CL adds a test for gccgo bug #32901: not all the type
+    descriptors are registered and thus deduplicated with types
+    created by reflection. It needs a few levels of indirect imports
+    to trigger this bug.
+    
+    Updates #32901.
+    
+    Change-Id: Idbd89bedd63fea746769f2687f3f31c9767e5ec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184718
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue32901.dir/a.go    | 15 +++++++++++++++
+ test/fixedbugs/issue32901.dir/b.go    | 15 +++++++++++++++
+ test/fixedbugs/issue32901.dir/c.go    | 17 +++++++++++++++++
+ test/fixedbugs/issue32901.dir/main.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue32901.go          |  9 +++++++++
+ 5 files changed, 74 insertions(+)

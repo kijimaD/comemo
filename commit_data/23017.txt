@@ -1,0 +1,17 @@
+commit 92bdbb8a3c8a5a6535d1eb3b2021824662ccaf33
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 13 12:59:33 2015 -0700
+
+    text/template: need to validate type when an argument is a function call
+    
+    Missed a case; just need to call validateType.
+    
+    Fixes #10800.
+    
+    Change-Id: I81997ca7a9feb1be31c8b47e631b32712d7ffb86
+    Reviewed-on: https://go-review.googlesource.com/10031
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

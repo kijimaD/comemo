@@ -1,0 +1,22 @@
+commit d2c68bb65f7093235bd9a43629c41d4403950e27
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 18:20:53 2018 +0300
+
+    cmd/internal/obj/x86: fix VPERMQ and VPERMPD ytab
+    
+    Fixes invalid encoding of VPERMQ and VPERMPD that use
+    negative immediate argument.
+    
+    Fixes #25418
+    Updates #25420
+    
+    Change-Id: Idd8180c4c632a76b76f3a68efd5f930d94431994
+    Reviewed-on: https://go-review.googlesource.com/113615
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 5 ++++-
+ src/cmd/internal/obj/x86/asm6.go                   | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

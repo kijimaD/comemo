@@ -1,0 +1,32 @@
+commit ab541a0560408999ac65d12bec2a3057994eda38
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sat Oct 17 15:19:53 2020 +0000
+
+    compress/flate: fix corrupted output
+    
+    The fastest compression mode can pick up a false match for every 2GB
+    of input data resulting in incorrectly decompressed data.
+    
+    Since matches are allowed to be up to and including at maxMatchOffset
+    we must offset the buffer by an additional element to prevent the first
+    4 bytes to match after an out-of-reach value after shiftOffsets has
+    been called.
+    
+    We offset by `maxMatchOffset + 1` so offset 0 in the table will now
+    fail the `if offset > maxMatchOffset` in all cases.
+    
+    Fixes #41420
+    
+    Change-Id: If1fbe01728e132b8a207e3f3f439edd832dcc710
+    GitHub-Last-Rev: 50fabab0da874c37543b139459a810e12e83cee2
+    GitHub-Pull-Request: golang/go#41477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255879
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/compress/flate/deflate_test.go | 57 ++++++++++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 11 ++++++--
+ 2 files changed, 65 insertions(+), 3 deletions(-)

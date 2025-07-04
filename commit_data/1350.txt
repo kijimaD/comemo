@@ -1,0 +1,15 @@
+commit 30a1a8c92251941dd850d66ec434231cc1140fb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 11:38:56 2008 -0800
+
+    language for range clause
+    (I have deliberately left away the forms w/ := or = and
+    the forms with :)
+    
+    R=r
+    DELTA=106  (44 added, 13 deleted, 49 changed)
+    OCL=21192
+    CL=21283
+
+ doc/go_spec.txt | 137 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 84 insertions(+), 53 deletions(-)

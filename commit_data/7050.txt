@@ -1,0 +1,16 @@
+commit 02327a72d7ae27c16ab4ed702138ca6a818e6123
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 15:15:31 2011 -0500
+
+    cgo: disallow use of C.errno
+    
+    It's incorrect, and it causes cryptic linker errors.
+    
+    Fixes #1360.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3880041
+
+ src/cmd/cgo/ast.go | 4 ++++
+ 1 file changed, 4 insertions(+)

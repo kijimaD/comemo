@@ -1,0 +1,25 @@
+commit f3f5239d1e3e1acb299ef8a6a907df12713b9626
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 16:19:36 2012 -0800
+
+    all packages: fix various typos
+    
+    Detected semi-automatically. There are probably more.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5620046
+
+ src/cmd/api/goapi.go             | 2 +-
+ src/cmd/fix/fix.go               | 2 +-
+ src/cmd/fix/reflect.go           | 2 +-
+ src/cmd/yacc/yacc.go             | 2 +-
+ src/pkg/crypto/elliptic/p224.go  | 4 ++--
+ src/pkg/encoding/gob/doc.go      | 2 +-
+ src/pkg/encoding/xml/typeinfo.go | 2 +-
+ src/pkg/exp/ebnflint/doc.go      | 2 +-
+ src/pkg/exp/norm/forminfo.go     | 2 +-
+ src/pkg/go/doc/comment.go        | 2 +-
+ src/pkg/html/template/js.go      | 2 +-
+ src/pkg/net/interface_bsd.go     | 2 +-
+ 12 files changed, 13 insertions(+), 13 deletions(-)

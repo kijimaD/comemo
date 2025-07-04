@@ -1,0 +1,15 @@
+commit 812a33dc7df6a4f7b8b0bd2e6ea6500f312b3fed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 6 13:42:17 2021 -0700
+
+    test: skip endian inlining test on noopt builder
+    
+    Change-Id: I73b1ac23f322bcaff36eff7a5829654f299c1fdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354353
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/inline_endian.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

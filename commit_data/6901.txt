@@ -1,0 +1,16 @@
+commit 8e609cddef80ee828f16497f84fdaf674207d3d8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 9 12:37:18 2010 -0500
+
+    govet: a new static checker for Go programs.
+    At the moment, and for the forseeable future, it only checks arguments to print calls.
+    
+    R=rsc, gri, niemeyer, iant2, rog, lstoakes, jacek.masiulaniec, cw
+    CC=golang-dev
+    https://golang.org/cl/3522041
+
+ src/cmd/govet/Makefile |  11 ++
+ src/cmd/govet/doc.go   |  37 +++++++
+ src/cmd/govet/govet.go | 281 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/Makefile       |   2 +
+ 4 files changed, 331 insertions(+)

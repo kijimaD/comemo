@@ -1,0 +1,26 @@
+commit 6bcf1768291efaa1e6f72ff6159dced8746dc44e
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Sep 30 00:53:11 2023 +0000
+
+    runtime/internal/atomic: add ppc64x operators for And/Or
+    
+    These primitives will be used by the new And/Or sync/atomic apis.
+    
+    For #61395
+    
+    Change-Id: I9ad92634add0357092e49b5a4a40c177e242a0b6
+    GitHub-Last-Rev: cf3fb0dce6a462b5d63fe8fe974573ab86df0b66
+    GitHub-Pull-Request: golang/go#63294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531716
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+
+ src/runtime/internal/atomic/atomic_andor_test.go |  7 +--
+ src/runtime/internal/atomic/atomic_ppc64x.go     | 18 +++++++
+ src/runtime/internal/atomic/atomic_ppc64x.s      | 60 ++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 3 deletions(-)

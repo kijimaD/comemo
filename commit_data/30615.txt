@@ -1,0 +1,15 @@
+commit 678f35b676de075375066ade2935296dfb8050ec
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 8 12:48:04 2017 -0800
+
+    cmd/compile: fix SSA type for first runtime call arg/result
+    
+    CLs 37254 and 37869 contained similar fixes.
+    
+    Change-Id: I0cbf01c691b54d82acef398489df6e9c89ebb83f
+    Reviewed-on: https://go-review.googlesource.com/38000
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

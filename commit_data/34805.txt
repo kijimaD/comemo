@@ -1,0 +1,15 @@
+commit fac7d5dd9566712b21486e50f9fcf554c06773a9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 2 16:15:25 2018 -0700
+
+    cmd/compile: simplify exportsym debug message
+    
+    No need to disambiguate if we're exporting or reexporting, because
+    it's obvious from the output.
+    
+    Change-Id: I59053d34dc6f8b29e20749c7b03c3cb4f4d641ff
+    Reviewed-on: https://go-review.googlesource.com/104236
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

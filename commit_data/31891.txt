@@ -1,0 +1,15 @@
+commit ac7f7ecaeb1261262963992496c2562c839fc272
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:29:26 2017 +0900
+
+    net: update documentation on JoinHostPort and SplitHostPort
+    
+    This change adds a reference to the Dial to clarify the parameters and
+    return values.
+    
+    Change-Id: I611b9a79f4033ef035acd7098aea5965905d9a4c
+    Reviewed-on: https://go-review.googlesource.com/34880
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ipsock.go | 5 +++++
+ 1 file changed, 5 insertions(+)

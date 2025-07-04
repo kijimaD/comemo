@@ -1,0 +1,19 @@
+commit 2bafbe11b1389c3a589314b74ab24f936816befb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 16:48:53 2016 -0400
+
+    net/mail: allow empty quoted string name in address again
+    
+    CL 12905 disallowed "Bob" <""@example.com> but inadvertently
+    also disallowed "" <bob@example.com>. Move the empty string
+    check to apply only in the addr-spec.
+    
+    Fixes #14866.
+    
+    Change-Id: Ia0b7a1a32810aa78157ae77bd0130b78154c460d
+    Reviewed-on: https://go-review.googlesource.com/32176
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go      |  6 +++---
+ src/net/mail/message_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

@@ -1,0 +1,26 @@
+commit fcee1e3739c8b6a0199ed0e0ff4e2b9b8d28d5bc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jun 5 10:20:00 2017 +0200
+
+    time: vendor tzdata-2017b and update test
+    
+    This change updates the vendored tzdata database to version 2017b
+    (released 2017-03-20).
+    
+    The TestFirstZone test (which always uses the vendored database) is
+    updated to make it work with the new timezones database. (The Tokelau
+    abbreviation was changed from 'TKT' to the numeric abbreviation in
+    tzdata-2017a)
+    
+    Fixes #19376
+    
+    Change-Id: I0dea93e8703992de5c92c7840b8bacad9d02c50d
+    Reviewed-on: https://go-review.googlesource.com/44832
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ lib/time/update.bash      |   4 ++--
+ lib/time/zoneinfo.zip     | Bin 366113 -> 366776 bytes
+ src/time/zoneinfo_test.go |   4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

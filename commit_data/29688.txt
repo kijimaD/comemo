@@ -1,0 +1,37 @@
+commit 5d1b53a944a415205a945f4ddd89a0af8e9f114f
+Author: David Lazar <lazard@golang.org>
+Date:   Mon Nov 28 17:39:31 2016 -0500
+
+    cmd/compile: generate code that type checks when inlining variadic functions
+    
+    This fixes a bug in -l=3 or higher.
+    
+    To inline a variadic function, the compiler generates code that constructs
+    a slice of arguments for the variadic parameter. Consider the function
+    
+      func Foo(xs ...string)
+    
+    and the call Foo("hello", "world"). To inline the call to Foo, the
+    compiler used to generate
+    
+      xs := [2]string{"hello", "world"}[:]
+    
+    which doesn't type check:
+    
+      invalid operation [2]string literal[:] (slice of unaddressable value).
+    
+    Now, the compiler generates
+    
+      xs := []string{"hello", "world"}
+    
+    which does type check.
+    
+    Fixes #18116.
+    
+    Change-Id: I0ee531ef2e6cc276db6fb12602b25a46d6d5db21
+    Reviewed-on: https://go-review.googlesource.com/33671
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go |  5 ++---
+ test/inline_variadic.go            | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

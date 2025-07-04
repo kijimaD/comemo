@@ -1,0 +1,70 @@
+commit 56c4422770c076b86c6c66d8d96bed31b66aaa28
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Thu Mar 23 12:35:39 2023 -0500
+
+    runtime: improve index on ppc64x/power10
+    
+    Rewrite index asm function to use the new power10 instruction lxvl,
+    stxvl or the load, store vector with length which can specify the
+    number of bytes to be stored in a register. This avoids the need to
+    create a separator mask and extra AND instructions. It also allows
+    us to process the tail end of the string using a lot fewer instructions
+    as we can load bytes of separator length directly rather than loading
+    16 bytes and masking out bytes that are greater than separator length
+    On power9 and power8 the code remains unchanged.
+    The performance for smaller sizes improve the most, on larger sizes
+    we see minimal improvement.
+    
+    name          old time/op    new time/op     delta
+    Index/10          10.6ns ± 3%     9.8ns ± 2%   -7.20%
+    Index/11          11.2ns ± 4%    10.6ns ± 0%   -5.99%
+    Index/12          12.7ns ± 3%    11.3ns ± 0%  -11.21%
+    Index/13          13.5ns ± 2%    11.7ns ± 0%  -13.11%
+    Index/14          14.1ns ± 1%    12.0ns ± 0%  -14.43%
+    Index/15          14.3ns ± 2%    12.4ns ± 0%  -13.39%
+    Index/16          14.5ns ± 1%    12.7ns ± 0%  -12.57%
+    Index/17          26.7ns ± 0%    25.9ns ± 0%   -2.99%
+    Index/18          27.3ns ± 0%    26.4ns ± 1%   -3.35%
+    Index/19          35.7ns ±16%    26.1ns ± 1%  -26.87%
+    Index/20          29.4ns ± 0%    27.3ns ± 1%   -7.06%
+    Index/21          29.3ns ± 0%    26.9ns ± 1%   -8.37%
+    Index/22          30.0ns ± 0%    27.4ns ± 0%   -8.68%
+    Index/23          29.9ns ± 0%    27.7ns ± 0%   -7.15%
+    Index/24          31.0ns ± 0%    28.0ns ± 0%   -9.92%
+    Index/25          31.7ns ± 0%    28.4ns ± 0%  -10.54%
+    Index/26          30.6ns ± 0%    28.9ns ± 1%   -5.67%
+    Index/27          31.4ns ± 0%    29.3ns ± 0%   -6.71%
+    Index/28          32.7ns ± 0%    29.6ns ± 1%   -9.36%
+    Index/29          33.3ns ± 0%    30.1ns ± 1%   -9.70%
+    Index/30          32.4ns ± 0%    30.7ns ± 0%   -5.23%
+    Index/31          33.2ns ± 0%    30.6ns ± 1%   -7.83%
+    Index/32          34.3ns ± 0%    30.9ns ± 0%   -9.94%
+    Index/64          46.8ns ± 0%    44.2ns ± 0%   -5.66%
+    Index/128         71.2ns ± 0%    67.3ns ± 0%   -5.43%
+    Index/256          129ns ± 0%     127ns ± 0%   -1.67%
+    Index/2K           838ns ± 0%     804ns ± 0%   -4.03%
+    Index/4K          1.65µs ± 0%    1.58µs ± 0%   -4.25%
+    Index/2M           829µs ± 0%     793µs ± 0%   -4.42%
+    Index/4M          1.65ms ± 0%    1.59ms ± 0%   -4.19%
+    Index/64M         26.5ms ± 0%    25.4ms ± 0%   -4.18%
+    IndexHard2         412µs ± 0%     396µs ± 0%   -3.76%
+    IndexEasy/10      10.0ns ± 0%     9.3ns ± 1%   -7.20%
+    IndexEasy/11      10.8ns ± 1%    11.0ns ± 1%   +2.22%
+    IndexEasy/12      12.3ns ± 2%    11.5ns ± 1%   -6.37%
+    IndexEasy/13      13.1ns ± 0%    11.7ns ± 2%  -10.83%
+    IndexEasy/14      13.8ns ± 2%    11.9ns ± 1%  -13.52%
+    IndexEasy/15      14.0ns ± 2%    12.4ns ± 2%  -11.46%
+    IndexEasy/16      14.3ns ± 1%    12.5ns ± 0%  -12.40%
+    CountHard2         415µs ± 0%     396µs ± 0%   -4.48%
+    
+    Change-Id: Id3efa5ed9c662a29f58125c7f866a09f29a59b6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478918
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/internal/bytealg/index_ppc64x.s | 63 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 51 insertions(+), 12 deletions(-)

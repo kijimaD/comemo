@@ -1,0 +1,26 @@
+commit af678a593da3e2bc942aa3bf41e66bd50e0b3bab
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 18:26:12 2009 -0800
+
+    new approach for generating sysimport.c
+    (renamed to avoid any conflict with old p4 copies).
+    
+    this approach doesn't require auto-generating
+    files also kept in p4, so it should be easier on
+    go users who don't sync very often.
+    
+    this approach will be more work for go developers:
+    builtin.c needs to be copied to builtin.c.boot in p4
+    as new functions are added.  mkbuiltin does this
+    for certain $USERs to help us remember.
+    
+    R=r
+    DELTA=343  (176 added, 162 deleted, 5 changed)
+    OCL=25803
+    CL=25805
+
+ src/cmd/gc/Makefile                        | 24 +++++------------------
+ src/cmd/gc/{sysimport.c => builtin.c.boot} |  0
+ src/cmd/gc/mkbuiltin                       | 31 ++++++++++++++++++++++++++++++
+ src/cmd/gc/{mksys.c => mkbuiltin1.c}       |  6 +++---
+ 4 files changed, 39 insertions(+), 22 deletions(-)

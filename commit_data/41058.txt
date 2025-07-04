@@ -1,0 +1,22 @@
+commit 9d3d4461a5bca9f3df76873473eeccf5bc66fe4c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 6 15:32:43 2020 +0000
+
+    Revert "cmd/link: skip symbol references when looking for missing symbols"
+    
+    This reverts commit 8adc1e00aa1a92a85b9d6f3526419d49dd7859dd.
+    
+    Reason for revert: The test added in this commit fails on several
+    builders.
+    
+    Fixes #36389. Re-opens #33979.
+    
+    Change-Id: I31191098c36af00f7688749b3376686673b3ac68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213417
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/link/internal/ld/link.go |  2 +-
+ src/cmd/link/link_test.go        | 79 ----------------------------------------
+ 2 files changed, 1 insertion(+), 80 deletions(-)

@@ -1,0 +1,22 @@
+commit ec87dbf91330b8f12851b50675c812e4e3aee203
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 09:53:48 2015 -0700
+
+    os: eradicate smallpox after test
+    
+    Otherwise:
+    
+    $ go test  -short -cpu=1,1,2,2
+    --- FAIL: TestLookupEnv (0.00s)
+            env_test.go:102: SMALLPOX="virus"
+    --- FAIL: TestLookupEnv-2 (0.00s)
+            env_test.go:102: SMALLPOX="virus"
+    --- FAIL: TestLookupEnv-2 (0.00s)
+            env_test.go:102: SMALLPOX="virus"
+    
+    Change-Id: Ic1f6dd1bae3c79c4f7da02bc8c30b5e599627a82
+    Reviewed-on: https://go-review.googlesource.com/9794
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/env_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,17 @@
+commit 0a9d6a31b1e8799e11cb055687fbbe4536590994
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 11 11:48:47 2022 -0500
+
+    runtime: update TestGdbBacktrace skips for known GDB bugs
+    
+    Fixes #50838
+    
+    Change-Id: Ib7e7563cd63d85a508984e4162eda38232b250d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385175
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

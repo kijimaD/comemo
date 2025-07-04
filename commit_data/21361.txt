@@ -1,0 +1,17 @@
+commit 4aa63d49acfe93e26891fcf91a24358e60f8bf0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 27 14:53:14 2015 -0500
+
+    liblink: do not print pointers in debug output
+    
+    Pointers change from run to run, making it hard to use
+    the debug output to identify the reason for a changed
+    object file.
+    
+    Change-Id: I0c954da0943092c48686afc99ecf75eba516de6a
+    Reviewed-on: https://go-review.googlesource.com/3352
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/liblink/objfile.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

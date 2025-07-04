@@ -1,0 +1,24 @@
+commit e6dfdbd11d5dcc9f918150552f50ca6cd524b89b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Apr 22 03:30:42 2022 +1000
+
+    os: use a lower file count for TestOpenFileLimit on openbsd
+    
+    OpenBSD has a default soft limit of 512 and hard limit of 1024 - as such,
+    attempting to open 1200 files is always going to fail unless the defaults
+    have been changed. On this platform use 768 instead such that it passes
+    without requiring customisation.
+    
+    Fixes #51713
+    
+    Change-Id: I7679c8fd73d4b263145129e9308afdb29d67bb54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401594
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: 谢致邦 <xiezhibang@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/os/rlimit_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

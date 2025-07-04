@@ -1,0 +1,36 @@
+commit 4b7f7eef3fc09f7a595378179ed867f52daea55f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 26 15:39:04 2023 -0800
+
+    go/types, types2: replace unifier type parameter list with a map
+    
+    Further simplify the unifier by using a mapping from type parameter
+    to type (argument) handle, where a handle is just an indirection to
+    the actual type associated with the type parameter.
+    
+    If multiple type parameters are "joined", i.e., share the same type
+    (argument), then they use the same handle. Thus, if one of the type
+    parameters gets a type, all type parameters sharing the same handle
+    get the same type.
+    
+    The handles mapping replaces the indices list (mapping from type
+    parameter index to types index). Because each handle holds any
+    associated type directly, we also don't need a types list anymore.
+    
+    We still keep the incoming type parameter list to maintain the same
+    order for printing and reporting inferred types. We may be able to
+    eliminate this list as well in future CLs.
+    
+    Change-Id: I389527dbb325b828c91050e59902ae546c3d0347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463228
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go |  10 +-
+ src/cmd/compile/internal/types2/unify.go | 209 +++++++++++++++----------------
+ src/go/types/infer.go                    |  10 +-
+ src/go/types/unify.go                    | 209 +++++++++++++++----------------
+ 4 files changed, 210 insertions(+), 228 deletions(-)

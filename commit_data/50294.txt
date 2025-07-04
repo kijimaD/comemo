@@ -1,0 +1,16 @@
+commit b226cc5ca025635175031d3ffb9596614b66bdaf
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Sep 2 22:26:05 2022 +0800
+
+    cmd/internal/obj/riscv: fix comment typo
+    
+    Change-Id: Ica74977898f0af8c9abf42a003d8f02dbdc03d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427994
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

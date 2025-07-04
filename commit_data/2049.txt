@@ -1,0 +1,18 @@
+commit 34b6f642dee3cd7a675e3233086f2bea8e68cdce
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Apr 18 13:58:04 2009 -0700
+
+    mixed old/new declaration
+    exact spec:
+    a) must be a multi-assignment w :=
+    b) a proper subset of the lhs
+       can be declared in same block
+       with the same type with no
+       "redeclaration" error
+    
+    R=r
+    OCL=27610
+    CL=27610
+
+ src/cmd/gc/walk.c | 99 +++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 89 insertions(+), 10 deletions(-)

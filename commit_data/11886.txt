@@ -1,0 +1,21 @@
+commit 7959960148c991cb50ee6893b78e9c7aa7b24054
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 14 14:44:59 2012 +0900
+
+    syscall: regenerate z-files for openbsd
+    
+    This CL provides regenerated z-files for OpenBSD 5.0 stable.
+    Also fixes OpenBSD build.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5656052
+
+ src/pkg/syscall/zerrors_openbsd_386.go    | 124 ++++++---
+ src/pkg/syscall/zerrors_openbsd_amd64.go  | 124 ++++++---
+ src/pkg/syscall/zsyscall_openbsd_386.go   |   2 +-
+ src/pkg/syscall/zsyscall_openbsd_amd64.go |   2 +-
+ src/pkg/syscall/zsysnum_openbsd_386.go    | 400 +++++++++++++++---------------
+ src/pkg/syscall/zsysnum_openbsd_amd64.go  | 400 +++++++++++++++---------------
+ src/pkg/syscall/ztypes_openbsd_386.go     |  47 ++--
+ 7 files changed, 607 insertions(+), 492 deletions(-)

@@ -1,0 +1,55 @@
+commit 8ce8adbe7a194cba2819b533b603d92df40fe799
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 6 07:51:37 2013 +1000
+
+    runtime: tune append crossover on amd64 and 386
+    
+    Fixes #4963.
+    
+    Sets the append crossover to 0 on intel platforms.
+    
+    Results for linux/amd64 Core i5 SNB
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkAppend                     102          104   +1.96%
+    BenchmarkAppend1Byte                 10           11   +0.92%
+    BenchmarkAppend4Bytes                15           11  -28.10%
+    BenchmarkAppend7Bytes                17           12  -32.58%
+    BenchmarkAppend8Bytes                18           12  -36.17%
+    BenchmarkAppend15Bytes               24           11  -55.02%
+    BenchmarkAppend16Bytes               25           11  -56.03%
+    BenchmarkAppend32Bytes               11           12   +4.31%
+    BenchmarkAppendStr1Byte               8            9  +13.99%
+    BenchmarkAppendStr4Bytes             11            9  -17.52%
+    BenchmarkAppendStr8Bytes             14            9  -35.70%
+    BenchmarkAppendStr16Bytes            21            9  -55.19%
+    BenchmarkAppendStr32Bytes            10           10   -5.66%
+    BenchmarkAppendSpecialCase           49           52   +7.96%
+    
+    Results for linux/386 Atom(TM) CPU 330 @ 1.60GHz
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkAppend                     219          218   -0.46%
+    BenchmarkAppend1Byte                 75           72   -3.44%
+    BenchmarkAppend4Bytes                92           73  -19.87%
+    BenchmarkAppend7Bytes               108           74  -31.20%
+    BenchmarkAppend8Bytes               116           74  -35.95%
+    BenchmarkAppend15Bytes              162           77  -52.22%
+    BenchmarkAppend16Bytes              169           77  -54.20%
+    BenchmarkAppend32Bytes               88           86   -2.38%
+    BenchmarkAppendStr1Byte              57           59   +3.32%
+    BenchmarkAppendStr4Bytes             72           59  -17.40%
+    BenchmarkAppendStr8Bytes             92           60  -34.70%
+    BenchmarkAppendStr16Bytes           141           63  -54.89%
+    BenchmarkAppendStr32Bytes            75           73   -2.64%
+    BenchmarkAppendSpecialCase          270          270   +0.00%
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12440044
+
+ src/pkg/runtime/append_test.go | 8 ++++++++
+ src/pkg/runtime/arch_386.h     | 2 +-
+ src/pkg/runtime/arch_amd64.h   | 2 +-
+ src/pkg/runtime/slice.c        | 4 ++--
+ 4 files changed, 12 insertions(+), 4 deletions(-)

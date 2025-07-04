@@ -1,0 +1,20 @@
+commit 5750b7118f388b131c56367e261470b4783185d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 18:07:19 2015 -0700
+
+    cmd/internal/gc: move fix and flt functions into respective files (cleanups)
+    
+    Also:
+    - introduce Mpprec (remove old constants)
+    - no semantic changes
+    
+    Change-Id: Ie0e77e8e09bd68e09bcf8747a3d875270e736081
+    Reviewed-on: https://go-review.googlesource.com/8171
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/const.go    |   2 -
+ src/cmd/internal/gc/go.go       |   6 +-
+ src/cmd/internal/gc/mparith1.go | 172 ----------------------------------------
+ src/cmd/internal/gc/mparith2.go | 158 +++++++++++++++++++++++++++++++-----
+ src/cmd/internal/gc/mparith3.go |  90 ++++++++++++++++++++-
+ 5 files changed, 231 insertions(+), 197 deletions(-)

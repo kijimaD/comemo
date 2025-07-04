@@ -1,0 +1,17 @@
+commit 5d5312c5dd979f8ae37482f0fc938587aeb5a245
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 15 12:58:28 2014 +1000
+
+    runtime: fix parameter checking in syscall.NewCallback
+    
+    I have made mistake while converting it to Go (CL 132820043).
+    Added test as penance for my sin.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/136560043
+
+ src/runtime/syscall_windows.go      |  2 +-
+ src/runtime/syscall_windows_test.go | 39 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

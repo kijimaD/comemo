@@ -1,0 +1,22 @@
+commit 1e984cb913ac8f9a16a5df383ab9287fe0660e5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 30 13:17:14 2009 -0700
+
+    improved comment formatting:
+    - print comments line by line, strip common prefix but do not
+      modify comment contents otherwise
+    - align comments with subsequent keyword if indicated (e.g. case labels)
+    - terminate "column section" after multi-line expressions for better alignment
+    
+    R=rsc
+    http://go/go-review/1017002
+
+ src/pkg/go/printer/printer.go                  | 521 +++++++++++++++++--------
+ src/pkg/go/printer/testdata/comments.go        |  89 ++++-
+ src/pkg/go/printer/testdata/comments.golden    |  89 ++++-
+ src/pkg/go/printer/testdata/expressions.go     |  18 +-
+ src/pkg/go/printer/testdata/expressions.golden |  18 +-
+ src/pkg/go/printer/testdata/expressions.raw    |  18 +-
+ src/pkg/go/printer/testdata/statements.go      |  26 ++
+ src/pkg/go/printer/testdata/statements.golden  |  26 ++
+ 8 files changed, 637 insertions(+), 168 deletions(-)

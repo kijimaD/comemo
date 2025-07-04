@@ -1,0 +1,20 @@
+commit 0bc98b3e9b3b6b55489bb9ffed54377e678eba28
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 5 17:09:22 2021 +0100
+
+    syscall: fix mkall.sh for openbsd/386
+    
+    CL 287654 converted the syscall package on openbsd/386 to use libc.
+    However, the mksyscall.pl invocation wasn't adjusted. Do so now to use
+    syscall_openbsd_libc.go like the other libc-based openbsd ports.
+    
+    Change-Id: I48a7bd6ce4c25eca5222f560ed584e412b466111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361481
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/mkall.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit db4675f2de3a09d198cbc9bbf5120eec4fb54338
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 7 09:38:18 2018 +0200
+
+    encoding/asn1: gofmt
+    
+    CL 113837 introduced some changes which were not properly gofmt'ed, fix them.
+    
+    Change-Id: I89329063f9c468238051e45380d752e66efdb939
+    Reviewed-on: https://go-review.googlesource.com/116895
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/asn1/marshal_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

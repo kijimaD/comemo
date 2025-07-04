@@ -1,0 +1,25 @@
+commit a6642e67e16b9d769a0c08e486ba08408064df19
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 6 13:54:22 2022 -0700
+
+    net/textproto: reject invalid header keys/values in ReadMIMEHeader
+    
+    Return an error when parsing a MIME header containing bytes in the
+    key or value outside the set allowed by RFC 7230.
+    
+    For historical compatibility, accept spaces in keys (but do not
+    canonicalize the key in this case).
+    
+    For #53188.
+    
+    Change-Id: I195319362a2fc69c4e506644f78c5026db070379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410714
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go       |   2 +-
+ src/net/textproto/reader.go      | 177 +++++++++++++++++++--------------------
+ src/net/textproto/reader_test.go |  52 +++++++++++-
+ 3 files changed, 135 insertions(+), 96 deletions(-)

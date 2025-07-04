@@ -1,0 +1,12 @@
+commit b4e35629ed7df3e4d0d10be60198b9c365ea7a34
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:45:37 2011 -0400
+
+    http: avoid name error in test
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5316070
+
+ src/pkg/http/request_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit e34295e64782d61725377e8d0979114bd790b47f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 23 02:14:32 2016 -0800
+
+    cmd/compile: use path.Join in importfile
+    
+    Change-Id: Ib413b0cb16405965455d7764a8c4a22bf431389b
+    Reviewed-on: https://go-review.googlesource.com/19850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

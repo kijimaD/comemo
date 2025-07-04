@@ -1,0 +1,19 @@
+commit e671a552fe9ba75a04b65fe689d004dc64b87975
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 14:54:10 2017 -0500
+
+    io: document and test MultiWriter error behavior
+    
+    MultiWriter(w1, w2) only writes to w2 if w1.Write succeeds.
+    I did not know this, and it was not documented.
+    Document and test.
+    
+    Change-Id: Idec2e8444d5a7aca0b95d07814a28daa454eb1d3
+    Reviewed-on: https://go-review.googlesource.com/78123
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/multi.go      |  4 ++++
+ src/io/multi_test.go | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+)

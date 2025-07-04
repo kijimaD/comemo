@@ -1,0 +1,21 @@
+commit 4f122e82fecb135e6b56dbaf907b132401cf1f9f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 26 07:53:06 2017 -0700
+
+    cmd/internal/obj: move fields from obj.Link to x86.AsmBuf
+    
+    These fields are used to encode a single instruction.
+    Add them to AsmBuf, which is also per-instruction,
+    and which is not global.
+    
+    Updates #15756
+    
+    Change-Id: I0e5ea22ffa641b07291e27de6e2ff23b6dc534bd
+    Reviewed-on: https://go-review.googlesource.com/38668
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go     |  5 ---
+ src/cmd/internal/obj/x86/asm6.go | 92 +++++++++++++++++++++-------------------
+ 2 files changed, 49 insertions(+), 48 deletions(-)

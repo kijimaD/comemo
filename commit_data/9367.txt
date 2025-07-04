@@ -1,0 +1,18 @@
+commit 91fadbca17ac7e79bc60684c9f4d64c3892398e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 15:15:54 2011 -0700
+
+    godoc: fix escaping in templates
+    
+    - HTML-escape URL paths
+    - URL-escape URL parameters
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4890041
+
+ lib/godoc/codewalkdir.html |  7 ++++---
+ lib/godoc/dirlist.html     |  3 ++-
+ lib/godoc/search.html      | 25 +++++++++++++------------
+ src/cmd/godoc/godoc.go     |  2 +-
+ 4 files changed, 20 insertions(+), 17 deletions(-)

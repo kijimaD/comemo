@@ -1,0 +1,26 @@
+commit ca3c0df1f8e07337ba4048b191bf905118ebe251
+Author: Ignacio Hagopian <jsign.uy@gmail.com>
+Date:   Thu Oct 8 20:32:50 2020 +0000
+
+    net/http/httputil: flush ReverseProxy immediately if Content-Length is -1
+    
+    Finish up a prior TODO by making ReverseProxy flush immediately
+    if Content-Length is -1, which is a case that can occur if for
+    example we have a streamed response, or chunked encoding, or when
+    the body's length wasn't known.
+    
+    Fixes #41642
+    
+    Change-Id: I30babaaf3e14837b99e3ecdc562a0a0e50c579bf
+    GitHub-Last-Rev: efc019a9fe361082d40bee77317018c3b80451a3
+    GitHub-Pull-Request: golang/go#41858
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260637
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/httputil/reverseproxy.go      | 16 ++++++++++------
+ src/net/http/httputil/reverseproxy_test.go | 19 +++++++++++++++++--
+ 2 files changed, 27 insertions(+), 8 deletions(-)

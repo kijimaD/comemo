@@ -1,0 +1,23 @@
+commit 31b8c23c5702f129aca9241bbb2132c90b1929cc
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 29 13:22:59 2022 -0700
+
+    cmd/compile: fix prove pass when upper condition is <= maxint
+    
+    When the terminating condition is <= X, we need to make sure that
+    X+step doesn't overflow.
+    
+    Fixes #53600
+    
+    Change-Id: I36e5384d05b4d7168e48db6094200fcae409bfe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415219
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/loopbce.go |  7 ++++++
+ test/fixedbugs/issue53600.go            | 42 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue53600.out           |  8 +++++++
+ 3 files changed, 57 insertions(+)

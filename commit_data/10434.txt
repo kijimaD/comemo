@@ -1,0 +1,14 @@
+commit ea2c0cd88f830a1f8af9ee5f9a9cfb643f3cbd30
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 18 01:53:07 2011 +1100
+
+    os: re-enable hostname test on openbsd
+    
+    Now that Sysctl() works, re-enable the hostname test.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5408042
+
+ src/pkg/os/os_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

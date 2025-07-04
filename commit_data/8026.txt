@@ -1,0 +1,25 @@
+commit 877c1892bb2e6501c8946c3645f685171ccb6c7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 8 12:27:08 2011 -0400
+
+    gofix: add -diff, various fixes and helpers
+    
+      * add -diff command line option
+      * use scoping information in refersTo, isPkgDot, isPtrPkgDot.
+      * add new scoping-based helpers countUses, rewriteUses, assignsTo, isTopName.
+      * rename rewrite to walk, add walkBeforeAfter.
+      * add toy typechecker, a placeholder for go/types
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4285053
+
+ src/cmd/gofix/fix.go        | 392 +++++++++++++++++++-----------
+ src/cmd/gofix/httpserver.go |   2 +-
+ src/cmd/gofix/main.go       | 101 +++++++-
+ src/cmd/gofix/main_test.go  |  55 ++---
+ src/cmd/gofix/netdial.go    |   6 +-
+ src/cmd/gofix/osopen.go     |   2 +-
+ src/cmd/gofix/procattr.go   |   2 +-
+ src/cmd/gofix/typecheck.go  | 579 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 946 insertions(+), 193 deletions(-)

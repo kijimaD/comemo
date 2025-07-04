@@ -1,0 +1,15 @@
+commit f878b67b0f9f3e66ec96f7c48f40e8a02fbd3ac0
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Mar 12 14:29:25 2013 -0700
+
+    misc/bbedit, misc/notepadplus: remove executable bits from files.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/7765043
+
+ misc/bbedit/Go.plist                | 0
+ misc/notepadplus/README             | 0
+ misc/notepadplus/go.xml             | 0
+ misc/notepadplus/userDefineLang.xml | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)

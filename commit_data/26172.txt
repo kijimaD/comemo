@@ -1,0 +1,19 @@
+commit e0032df81e64ea90d3a68295c4b6e3323df8857f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 28 15:56:21 2016 -0800
+
+    cmd/compile: make alg gen prologue/epilogue match
+    
+    With this, the start and end of geneq and genhash
+    are parallel. This removes a few rare nilchecks
+    from generated hash functions, but nothing
+    to write home about.
+    
+    Change-Id: I3b4836111d04daa6f6834a579bbec374a3f42c70
+    Reviewed-on: https://go-review.googlesource.com/20456
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go | 3 +++
+ 1 file changed, 3 insertions(+)

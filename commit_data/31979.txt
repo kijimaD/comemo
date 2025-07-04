@@ -1,0 +1,19 @@
+commit 79e1505e3b328e3623bd2e0c563fac65ac771612
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Jun 21 00:35:18 2017 -0600
+
+    reflect: match MakeMapWithSize docs about initial capacity with spec
+    
+    Following the spec clarification in CL 40393, copy that text
+    to reflect docs to state that the initial capacity of MakeMapWithSize
+    is a hint/approximate.
+    
+    Fixes #19903
+    
+    Change-Id: I6b3315b8183cafaa61fbb2839a4e42b76fd71544
+    Reviewed-on: https://go-review.googlesource.com/46270
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/value.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit fc12bb263683e43c0b93eb00071f894f5cfcc772
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 30 14:55:01 2016 -0400
+
+    context: cancel the context in ExampleWithTimeout, with explanation
+    
+    Fixes #16230
+    
+    Change-Id: Ibb10234a6c3ab8bd0cfd93c2ebe8cfa66f80f6b0
+    Reviewed-on: https://go-review.googlesource.com/24682
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/withtimeout_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

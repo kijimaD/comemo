@@ -1,0 +1,25 @@
+commit 361b334cbd68e23427d68580c09e7ff80cd3c82e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 28 14:31:57 2016 -0700
+
+    cmd/compile: encapsulate Type.Argwid
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I72fb271052e449a83adfa9bd3b923d40781d6341
+    Reviewed-on: https://go-review.googlesource.com/21243
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go  | 2 +-
+ src/cmd/compile/internal/arm/ggen.go    | 2 +-
+ src/cmd/compile/internal/arm64/ggen.go  | 2 +-
+ src/cmd/compile/internal/gc/pgen.go     | 2 +-
+ src/cmd/compile/internal/gc/plive.go    | 2 +-
+ src/cmd/compile/internal/gc/ssa.go      | 2 +-
+ src/cmd/compile/internal/gc/subr.go     | 2 +-
+ src/cmd/compile/internal/gc/type.go     | 7 +++++++
+ src/cmd/compile/internal/mips64/ggen.go | 2 +-
+ src/cmd/compile/internal/ppc64/ggen.go  | 2 +-
+ src/cmd/compile/internal/x86/ggen.go    | 2 +-
+ 11 files changed, 17 insertions(+), 10 deletions(-)

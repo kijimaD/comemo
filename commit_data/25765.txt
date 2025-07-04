@@ -1,0 +1,26 @@
+commit 5bbb98df0960f57dca73cb7640456608d4cc0917
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 8 17:20:59 2016 -0800
+
+    cmd/go, cmd/link: make builds deterministic
+    
+    Add the following flags when supported by the compiler:
+      -gno-record-gcc-switches
+      -fdebug-prefix-map=$WORK=/tmp/go-build
+    
+    Add an empty NAME symbol to the ELF .symtab. GNU ld will add a NAME
+    symbol when one is not present; including one of our own prevents it
+    from adding a reference to the link tempdir.
+    
+    Fixes #13247 for compilers that support -fdebug-prefix-map. (gcc, clang
+    in the near future.)
+    
+    Change-Id: I221c71fc59cd23ee8c99bcc038793ff4623c9ffc
+    Reviewed-on: https://go-review.googlesource.com/19363
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/cmd/go/build.go                | 40 ++++++++++++++++++++++++++------------
+ src/cmd/go/go_test.go              | 27 +++++++++++++++++++++++++
+ src/cmd/link/internal/ld/symtab.go |  5 +++++
+ 3 files changed, 60 insertions(+), 12 deletions(-)

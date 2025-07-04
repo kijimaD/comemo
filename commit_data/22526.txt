@@ -1,0 +1,19 @@
+commit 4fd9a3fdbb4a3466000ea63d28fa09043272ed2e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 21:28:09 2015 -0400
+
+    cmd/internal/obj, cmd/internal/ld, cmd/7l: external linking for darwin/arm64
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f02
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8781
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/7l/asm.go            | 148 +++++++++++++++++++++++++++++++++++++++----
+ src/cmd/7l/obj.go            |  21 +++++-
+ src/cmd/internal/ld/data.go  |  12 +++-
+ src/cmd/internal/ld/lib.go   |   3 +-
+ src/cmd/internal/ld/macho.go |  40 ++++++++++--
+ src/cmd/internal/ld/sym.go   |   9 ++-
+ src/cmd/internal/obj/sym.go  |   9 ++-
+ 7 files changed, 213 insertions(+), 29 deletions(-)

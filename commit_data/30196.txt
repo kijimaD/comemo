@@ -1,0 +1,20 @@
+commit a335c344fac8501ecdf49a0654d1701fb48efe61
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Feb 8 21:38:51 2017 -0800
+
+    database/sql: ensure driverConns are closed if not returned to pool
+    
+    Previously if a connection was requested but timed out during the
+    request and when acquiring the db.Lock the connection request
+    is fulfilled and the request is unable to be returned to the
+    connection pool, then then driver connection would not be closed.
+    
+    No tests were added or modified because I was unable to determine
+    how to trigger this situation without something invasive.
+    
+    Change-Id: I9d4dc680e3fdcf63d79d212174a5b8b313f363f1
+    Reviewed-on: https://go-review.googlesource.com/36641
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit d90a81c39f06351ce6524a1ae15499d2d60253c8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 00:44:57 2013 +0400
+
+    net: fix windows build
+    Windows builders say:
+    pkg\net\dnsclient_unix_test.go:24: undefined: dnsConfig
+    pkg\net\dnsclient_unix_test.go:25: undefined: exchange
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12889043
+
+ src/pkg/net/dnsclient_unix_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit fdea8e21708e9ed04498a7f7b68cbee43005d58d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Mon Oct 3 17:49:08 2022 +0800
+
+    os/exec: document ProcessState available after a call to Wait or Run
+    
+    Wait or Run will populate its ProcessState when the command completes.
+    
+    Fixes #56002.
+    
+    Change-Id: I21547431f5d2d3e0fc0734fd1705421a0ac4209c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437996
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

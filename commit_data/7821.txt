@@ -1,0 +1,12 @@
+commit 2187f43e63a4a9b02a3ede7ba88312cb11d38dac
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 21 11:25:00 2011 -0300
+
+    exec: document dir option for Run
+    
+    R=golang-dev, bradfitzwork, rsc1, peterGo
+    CC=golang-dev
+    https://golang.org/cl/4271056
+
+ src/pkg/exec/exec.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

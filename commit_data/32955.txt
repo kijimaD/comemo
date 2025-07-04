@@ -1,0 +1,27 @@
+commit 56462d0f10f4d88f30e0b9a6763835c85c3cd632
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 26 19:42:26 2017 -0400
+
+    runtime: normalize (*sigctxt).fault() type
+    
+    (*sigctxt).fault() currently returns either uintptr, uint32, or uint64
+    depending on the platform. Make them all return uintptr.
+    
+    For #10958 (but a nice change on its own).
+    
+    Change-Id: I7813e779d0edcba112dd47fda776f4ce6e50e227
+    Reviewed-on: https://go-review.googlesource.com/68015
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/signal_darwin_arm.go   | 2 +-
+ src/runtime/signal_darwin_arm64.go | 2 +-
+ src/runtime/signal_freebsd_arm.go  | 2 +-
+ src/runtime/signal_linux_arm.go    | 2 +-
+ src/runtime/signal_linux_arm64.go  | 2 +-
+ src/runtime/signal_linux_ppc64x.go | 2 +-
+ src/runtime/signal_nacl_arm.go     | 2 +-
+ src/runtime/signal_netbsd_arm.go   | 2 +-
+ src/runtime/signal_openbsd_arm.go  | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

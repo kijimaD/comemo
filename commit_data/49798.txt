@@ -1,0 +1,18 @@
+commit b911771f129c599c4f5a6f9b866d300c4fa42159
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 15:47:09 2022 -0700
+
+    cmd/compile/internal/ir: better dump for OLINKSYMOFFSET
+    
+    When debugging IR that uses OLINKSYMOFFSET, you really need to know
+    what linksym it actually refers to.
+    
+    Change-Id: I7f4775d040b50e36262f9f8b52d0fb112b7ed350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422194
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ir/fmt.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

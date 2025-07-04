@@ -1,0 +1,24 @@
+commit 939b561a6e36d9b3854d860a80c24dc80f01f6be
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:08 2021 -0600
+
+    cmd/internal/obj: reorg ppc64 MOV* optab entries and remove unused classes
+    
+    C_LECON and C_SECON classifications are not generated on ppc64, however
+    there are many optab entries which match against them. Remove them to
+    resolve their related TODOs.
+    
+    Likewise, reorder the optab entries for better readability.
+    
+    Change-Id: I894a209a148014e5aa438b7303e7fbdda4727c4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307429
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/internal/obj/ppc64/a.out.go   |  6 +--
+ src/cmd/internal/obj/ppc64/anames9.go |  2 -
+ src/cmd/internal/obj/ppc64/asm9.go    | 97 +++++++++++++++++------------------
+ 3 files changed, 48 insertions(+), 57 deletions(-)

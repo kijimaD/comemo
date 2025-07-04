@@ -1,0 +1,23 @@
+commit d79ec708bdaf27933058551b2d24a1a8e569c0d1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 13 20:14:26 2023 -0400
+
+    cmd/dist: skip testing packages without tests in short test mode
+    
+    For short all.bash, we can keep the small speedup of 2-10 seconds by
+    skipping 'go test' on packages without tests. This is viable without
+    coverage loss since the Go release process is guaranteed to run long
+    tests for all first class ports.
+    
+    For golang/go#60463.
+    
+    Change-Id: Ib5a6bd357d757141bc8f1c1dec148a6565726587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503115
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

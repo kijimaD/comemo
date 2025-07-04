@@ -1,0 +1,12 @@
+commit ea0251f2d21daa4baa0a2871450603661521078c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 1 09:18:35 2013 -0700
+
+    C: add Brad Garcia (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/19990045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit e69b9ddd4219b8d9d4d1b26cdd31875bdac9c0c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 16 16:24:17 2011 -0400
+
+    ld: do not emit reference to dynamic library named ""
+    
+    Fixes #1778.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4550047
+
+ src/cmd/5l/asm.c | 3 +++
+ src/cmd/6l/asm.c | 3 +++
+ src/cmd/8l/asm.c | 3 +++
+ 3 files changed, 9 insertions(+)

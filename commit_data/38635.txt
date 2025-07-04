@@ -1,0 +1,16 @@
+commit 556b3f5bdf935d80d83b26520838852fd840ef70
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 23:23:24 2019 -0700
+
+    test: add regress tests for unsafe.Pointer rules
+    
+    Updates #23109.
+    
+    Change-Id: I55f7860c868acc948a6397ab6a9295e177724a56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170450
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/escape_unsafe.go | 69 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

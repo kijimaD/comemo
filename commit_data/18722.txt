@@ -1,0 +1,22 @@
+commit 1a936ebcfa4fadc0662feade965ea99d96aede77
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 3 20:43:23 2014 -0500
+
+    math/rand: speed up Float32, Float64
+    
+    Actually, speed up Int31n and Int63n by avoiding retry loop.
+    
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkFloat32           32           26  -19.45%
+    BenchmarkFloat64           46           23  -49.47%
+    
+    Fixes #7267.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/69980047
+
+ src/pkg/math/rand/rand.go      | 6 ++++++
+ src/pkg/math/rand/rand_test.go | 7 +++++++
+ 2 files changed, 13 insertions(+)

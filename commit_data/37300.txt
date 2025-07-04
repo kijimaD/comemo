@@ -1,0 +1,33 @@
+commit c9762b8a7ec852d96ea040c28c5f65b1104ec844
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 7 15:27:16 2018 -0800
+
+    syscall: move uses of Syscall to libSystem on darwin
+    
+    Miscellaneous additional conversions from raw syscalls
+    to using their libc equivalent.
+    
+    Update #17490
+    
+    Change-Id: If9ab22cc1d676c1f20fb161ebf02b0c28f71585d
+    Reviewed-on: https://go-review.googlesource.com/c/148257
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/bpf_bsd.go               |   2 +-
+ src/syscall/bpf_darwin.go            | 185 +++++++++++++++++++++++++++++++++++
+ src/syscall/exec_unix.go             |   8 +-
+ src/syscall/flock.go                 |   2 +-
+ src/syscall/flock_darwin.go          |  13 +++
+ src/syscall/mkasm_darwin.go          |   9 +-
+ src/syscall/mksyscall.pl             |  22 +++--
+ src/syscall/syscall_darwin.go        |   8 +-
+ src/syscall/zsyscall_darwin_386.go   |  49 +++++++---
+ src/syscall/zsyscall_darwin_386.s    |   4 +-
+ src/syscall/zsyscall_darwin_amd64.go |  49 +++++++---
+ src/syscall/zsyscall_darwin_amd64.s  |   4 +-
+ src/syscall/zsyscall_darwin_arm.go   |  49 +++++++---
+ src/syscall/zsyscall_darwin_arm64.go |  49 +++++++---
+ 14 files changed, 378 insertions(+), 75 deletions(-)

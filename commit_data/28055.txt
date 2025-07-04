@@ -1,0 +1,31 @@
+commit aa9b3d70142afb75a510c2c92b8c387fce10b2c9
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Fri Jun 17 21:02:59 2016 +0430
+
+    net/http: send Content-Range if no byte range overlaps
+    
+    RFC 7233, section 4.4 says:
+    >>>
+    For byte ranges, failing to overlap the current extent means that the
+    first-byte-pos of all of the byte-range-spec values were greater than the
+    current length of the selected representation.  When this status code is
+    generated in response to a byte-range request, the sender SHOULD generate a
+    Content-Range header field specifying the current length of the selected
+    representation
+    <<<
+    
+    Thus, we should send the Content-Range only if none of the ranges
+    overlap.
+    
+    Fixes #15798.
+    
+    Change-Id: Ic9a3e1b3a8730398b4bdff877a8f2fd2e30149e3
+    Reviewed-on: https://go-review.googlesource.com/24212
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go         | 21 ++++++++++++++++++++-
+ src/net/http/fs_test.go    | 33 +++++++++++++++++++++++++--------
+ src/net/http/range_test.go |  2 +-
+ 3 files changed, 46 insertions(+), 10 deletions(-)

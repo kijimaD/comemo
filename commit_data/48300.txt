@@ -1,0 +1,19 @@
+commit ac3ba9790762113bbc4ce1e8068654ce9579d3d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 03:35:14 2022 -0800
+
+    cmd/compile: add itabs to unified IR dictionaries
+    
+    This CL changes unified IR to include itabs in its serialized
+    dictionary format.
+    
+    Change-Id: I334c972dc1bc19293f955bb23cfb66844da7adec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390355
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go | 68 ++++++++++++++++++++------------
+ src/cmd/compile/internal/noder/writer.go | 55 +++++++++++++++++++++++---
+ 2 files changed, 93 insertions(+), 30 deletions(-)

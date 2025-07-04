@@ -1,0 +1,18 @@
+commit c9d0c812142be1c8f224012f24d111ba46ccdc10
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 4 11:24:23 2014 -0500
+
+    cmd/pprof/internal/commands: add command to open browser on windows
+    
+    While we're at there, also add a message to prompt the user to install
+    Graphviz if "dot" command is not found.
+    
+    Fixes #9178.
+    
+    LGTM=adg, alex.brainman, cookieo9, rsc
+    R=rsc, adg, bradfitz, alex.brainman, cookieo9, smyrman
+    CC=golang-codereviews
+    https://golang.org/cl/180380043
+
+ src/cmd/pprof/internal/commands/commands.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

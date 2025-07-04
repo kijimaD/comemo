@@ -1,0 +1,23 @@
+commit d9bb5f6f109a4342c52958f30acfc3f3d633ee4f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 3 18:18:18 2021 +0000
+
+    syscall: fix and document uses of RegEnumKeyEx
+    
+    RegEnumKeyEx has an undocumented requirement that subsequent calls need
+    to be made from the same thread. This change documents that requirement
+    and fixes uses of it in std.
+    
+    Fixes #49320.
+    
+    Change-Id: I6d182227e22dd437996a878b3a978943f01b2d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361154
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/windows/registry/key.go | 11 +++++++++-
+ src/syscall/syscall_windows.go               | 30 +++++++++++++++++++++++++++-
+ src/syscall/zsyscall_windows.go              |  2 +-
+ 3 files changed, 40 insertions(+), 3 deletions(-)

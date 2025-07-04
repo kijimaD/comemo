@@ -1,0 +1,29 @@
+commit f371b30f326b66e4c5c13c7ea51358a42c431752
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 11 23:51:09 2021 -0700
+
+    unicode/utf8: add AppendRune
+    
+    AppendRune appends the UTF-8 encoding of a rune to a []byte.
+    It is a generally more user friendly than EncodeRune.
+    
+        EncodeASCIIRune-4     2.35ns ± 2%
+        EncodeJapaneseRune-4  4.60ns ± 2%
+        AppendASCIIRune-4     0.30ns ± 3%
+        AppendJapaneseRune-4  4.70ns ± 2%
+    
+    The ASCII case is written to be inlineable.
+    
+    Fixes #47609
+    
+    Change-Id: If4f71eedffd2bd4ef0d7f960cb55b41c637eec54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345571
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/test/inl_test.go |  1 +
+ src/unicode/utf8/utf8.go                  | 26 ++++++++++++++++++++++++++
+ src/unicode/utf8/utf8_test.go             | 25 +++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+)

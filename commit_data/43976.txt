@@ -1,0 +1,45 @@
+commit f1980efb92c011eab71aa61b68ccf58d845d1de7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 14:46:29 2020 -0400
+
+    all: update to use os.ReadDir where appropriate
+    
+    os.ReadDir is a replacement for ioutil.ReadDir that returns
+    a slice of fs.DirEntry instead of fs.FileInfo, meaning it is the
+    more efficient form.
+    
+    This CL updates call sites throughout the Go source tree
+    wherever possible. As usual, code built using the Go 1.4
+    bootstrap toolchain is not included. There is also a use in
+    go/build that appears in the public API and can't be changed,
+    at least not without additional changes.
+    
+    Fixes #42026.
+    
+    Change-Id: Icfc9dd52c6045020f6830e22c72128499462d561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266366
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/clean/clean.go              |  3 +-
+ src/cmd/go/internal/imports/scan_test.go        |  3 +-
+ src/cmd/go/internal/load/pkg.go                 |  7 ++---
+ src/cmd/go/internal/modcmd/vendor.go            | 11 +++----
+ src/cmd/go/internal/modfetch/cache.go           |  3 +-
+ src/cmd/go/internal/modload/init.go             | 17 +++++-----
+ src/cmd/go/internal/test/test.go                | 12 +++++---
+ src/cmd/go/proxy_test.go                        |  7 ++---
+ src/crypto/x509/root_unix.go                    | 21 ++++++-------
+ src/go/build/deps_test.go                       |  3 +-
+ src/go/internal/gcimporter/gcimporter_test.go   |  5 ++-
+ src/go/internal/srcimporter/srcimporter_test.go |  3 +-
+ src/go/parser/error_test.go                     | 10 +++---
+ src/go/parser/interface.go                      | 41 +++++++++++++++----------
+ src/go/types/check_test.go                      | 11 +++----
+ src/go/types/stdlib_test.go                     | 11 +++----
+ src/internal/trace/parser_test.go               |  7 ++---
+ src/os/exec/exec_test.go                        |  3 +-
+ src/testing/testing_test.go                     |  7 ++---
+ 19 files changed, 91 insertions(+), 94 deletions(-)

@@ -1,0 +1,13 @@
+commit abae84713462d517315ac5ee3aa522e7922da52b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 09:19:18 2011 +1000
+
+    exp/template: add functions print and println.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4687041
+
+ src/pkg/exp/template/exec_test.go |  6 ++++--
+ src/pkg/exp/template/funcs.go     | 26 ++++++++++++++++++--------
+ 2 files changed, 22 insertions(+), 10 deletions(-)

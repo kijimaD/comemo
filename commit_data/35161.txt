@@ -1,0 +1,26 @@
+commit a6b183fabd671fcca4b52e61bfa8843be24f2d03
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 6 21:41:06 2018 +0100
+
+    cmd/link/internal/ld: simple cleanups
+    
+    Simplify some C-style loops with range statements, and move some
+    declarations closer to their uses.
+    
+    While at it, ensure that all the SymbolType consts are typed.
+    
+    Change-Id: I04b06afb2c1fb249ef8093a0c5cca0a597d1e05c
+    Reviewed-on: https://go-review.googlesource.com/105217
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go     | 10 ++++------
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/dwarf.go    | 26 +++++++++-----------------
+ src/cmd/link/internal/ld/elf.go      |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 32 ++++++++++++++------------------
+ src/cmd/link/internal/ld/macho.go    | 14 +++++++-------
+ src/cmd/link/internal/ld/pcln.go     |  9 +++------
+ src/cmd/link/internal/ld/pe.go       | 20 ++++++++------------
+ 8 files changed, 47 insertions(+), 68 deletions(-)

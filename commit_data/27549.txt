@@ -1,0 +1,16 @@
+commit cedc7c8f2091129514276c3c2f5f046f523a4684
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 10:58:00 2016 -0400
+
+    doc/go1.7.html: incorporate Rob's comments from CL 23379
+    
+    For #15810.
+    
+    Change-Id: Ib529808f664392feb9b36770f3d3d875fcb54528
+    Reviewed-on: https://go-review.googlesource.com/23488
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.7.html | 58 +++++++++++++++++++++++++---------------------------------
+ 1 file changed, 25 insertions(+), 33 deletions(-)

@@ -1,0 +1,20 @@
+commit 30b1b9a36a2d871e9c1cd6db8b6cc7dab47ba862
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 16 23:32:30 2009 -0800
+
+    Rework gobs to fix bad bug related to sharing of id's between encoder and decoder side.
+    Fix is to move all decoder state into the decoder object.
+    
+    Fixes #215.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/155077
+
+ src/pkg/gob/codec_test.go   | 102 +++++++++++++++++++++-----------------
+ src/pkg/gob/decode.go       |  80 +++++++++++++++---------------
+ src/pkg/gob/decoder.go      |  31 ++++++++----
+ src/pkg/gob/encoder.go      |  29 +++++------
+ src/pkg/gob/encoder_test.go | 116 +-------------------------------------------
+ src/pkg/gob/type.go         |   5 ++
+ 6 files changed, 138 insertions(+), 225 deletions(-)

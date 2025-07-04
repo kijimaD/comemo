@@ -1,0 +1,14 @@
+commit 8ca3372d7b63c8c61ea68daa9e3fc63213eb7965
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 6 21:33:19 2014 +0400
+
+    runtime: fix bad g status after copystack
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/69870054
+
+ src/pkg/runtime/proc.c  | 6 ++++++
+ src/pkg/runtime/stack.c | 1 +
+ 2 files changed, 7 insertions(+)

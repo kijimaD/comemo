@@ -1,0 +1,27 @@
+commit cb51fdc00756ca2960769eca0da57e0c6e244a1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 25 17:54:14 2011 -0400
+
+    strconv: put decimal on stack
+    
+    This makes decimal a good test
+    case for the escape analysis.
+    
+    With escape analysis:
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkAtof64Decimal         1954          243  -87.56%
+    BenchmarkAtof64Float           2008          293  -85.41%
+    BenchmarkAtof64FloatExp       10106         8814  -12.78%
+    BenchmarkAtof64Big             5113         3486  -31.82%
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4861042
+
+ src/pkg/strconv/atof.go         | 58 ++++++++++++++++++++---------------------
+ src/pkg/strconv/atof_test.go    |  1 +
+ src/pkg/strconv/decimal.go      | 11 ++++----
+ src/pkg/strconv/decimal_test.go |  8 ++++--
+ src/pkg/strconv/ftoa.go         |  9 ++++---
+ 5 files changed, 47 insertions(+), 40 deletions(-)

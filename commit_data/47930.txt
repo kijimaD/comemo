@@ -1,0 +1,37 @@
+commit 68b3d36ff4e71d68f25d36caff8b4ba2b3b9c980
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 15:36:38 2022 -0800
+
+    go/types, types2: make function type inference argument-order independent
+    
+    If we have more than 2 arguments, we may have arguments with named and
+    unnamed types. If that is the case, permutate params and args such that
+    the arguments with named types are first in the list. This doesn't affect
+    type inference if all types are taken as is. But when we have inexact
+    unification enabled (as is the case for function type inference), when
+    a named type is unified with an unnamed type, unification proceeds with
+    the underlying type of the named type because otherwise unification would
+    fail right away. This leads to an asymmetry in type inference: in cases
+    where arguments of named and unnamed types are passed to parameters with
+    identical type, different types (named vs underlying) may be inferred
+    depending on the order of the arguments.
+    By ensuring that named types are seen first, order dependence is avoided
+    and unification succeeds where it can.
+    
+    This CL implements the respectice code but keeps it disabled for now,
+    pending decision whether we want to address this issue in the first
+    place.
+    
+    For #43056.
+    
+    Change-Id: Ibe3b08ec2afe90a24a8c30cd1875d504bcc2ef39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377894
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go           | 50 +++++++++++++++++++++-
+ .../types2/testdata/fixedbugs/issue43056.go2       | 31 ++++++++++++++
+ src/go/types/infer.go                              | 50 +++++++++++++++++++++-
+ src/go/types/testdata/fixedbugs/issue43056.go2     | 31 ++++++++++++++
+ 4 files changed, 160 insertions(+), 2 deletions(-)

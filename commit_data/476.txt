@@ -1,0 +1,13 @@
+commit 695f83a9e0a596a6330cff5ef485939d92d65ef8
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 4 13:18:59 2008 -0700
+
+    export external functions
+    
+    R=r
+    DELTA=16  (10 added, 4 deleted, 2 changed)
+    OCL=13815
+    CL=13815
+
+ src/cmd/gc/go.y | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

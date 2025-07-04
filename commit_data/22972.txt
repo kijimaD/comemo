@@ -1,0 +1,14 @@
+commit 754e98cb821f6a48d21bfb8473ad3063c2021061
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri May 8 12:33:30 2015 -0700
+
+    cmd/dist: de-dup iOS detection
+    
+    Change-Id: I89778988baec1cf4a35d9342c7dbe8c4c08ff3cd
+    Reviewed-on: https://go-review.googlesource.com/9893
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/dist/test.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit b444d438c061fa934130fed17d34c23e77174851
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:09:07 2016 -0400
+
+    plugin: darwin support
+    
+    Change-Id: I76981d1d83da401178226634d076371a04f5ccb7
+    Reviewed-on: https://go-review.googlesource.com/29392
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin_dlopen.go | 17 +++++++++++++----
+ src/plugin/plugin_stubs.go  |  2 +-
+ 2 files changed, 14 insertions(+), 5 deletions(-)

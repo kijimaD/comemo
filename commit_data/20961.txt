@@ -1,0 +1,13 @@
+commit 107eea518b9c9fa4f406bbaeff4ea169e4aa0363
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 09:16:41 2014 +1100
+
+    doc: document go1.4
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/189810043
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

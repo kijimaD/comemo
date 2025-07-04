@@ -1,0 +1,21 @@
+commit a73c6cf762560b458eb938e4461cd8debc479fd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 17:31:23 2021 -0700
+
+    cmd/compile/internal/types2: ensure named types are expanded after type-checking
+    
+    This is a clean port of CL 356490 from go/types to types2.
+    
+    Fixes #48703.
+    Fixes #48974.
+    
+    Change-Id: I08c0db0b92250cbb043325541b21a577726b40ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356515
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go           | 28 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/named.go           | 23 +++++++-----------
+ .../types2/testdata/fixedbugs/issue48703.go2       | 27 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue48974.go2       | 22 +++++++++++++++++
+ 4 files changed, 85 insertions(+), 15 deletions(-)

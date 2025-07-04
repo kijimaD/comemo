@@ -1,0 +1,19 @@
+commit 584d646559eb6c5942410f2ba2d2806f2627c2a2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 28 12:41:02 2023 +0000
+
+    encoding/gob: fix typo in comment for decAlloc
+    
+    Change-Id: I89c607ee40358d6d650ba0ea1f05ce7d1df698bd
+    GitHub-Last-Rev: e78a37118009dbd9468a0f656ad66b989f7c5ada
+    GitHub-Pull-Request: golang/go#62319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523376
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

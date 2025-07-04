@@ -1,0 +1,24 @@
+commit fd752d5ede482cdf52a920c75486677cbcb441b0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jan 6 18:19:35 2019 +0100
+
+    cmd/vendor: update to golang.org/x/tools@3ef68632
+    
+    Mainly to pull in the bug fix in the structtag pass, where filenames
+    could sometimes be wrong. The bug wasn't present in 1.11, so it was a
+    regression and needs fixing before 1.12 is out.
+    
+    Fixes #29130.
+    
+    Change-Id: Ie9d9bff84873f34d748ebd8f056b6bc2ac822a55
+    Reviewed-on: https://go-review.googlesource.com/c/156378
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ .../vendor/golang.org/x/tools/go/analysis/doc.go    |  4 ----
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go   |  4 ++--
+ .../x/tools/go/analysis/passes/bools/bools.go       |  2 +-
+ .../tools/go/analysis/passes/structtag/structtag.go | 21 +++++++++++++++++----
+ .../x/tools/go/analysis/unitchecker/unitchecker.go  |  2 +-
+ 5 files changed, 21 insertions(+), 12 deletions(-)

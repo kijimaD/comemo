@@ -1,0 +1,15 @@
+commit b4501ac4a59d78f59b92f00cc4ba1e364298a44d
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:17 2015 -0400
+
+    cmd/cgo: added support for GOARCH=mips64{,le}
+    
+    The actual cgo is not supported for now. This is just the cgo command.
+    
+    Change-Id: I25625100ee552971f47e681b7d613cba16a2132f
+    Reviewed-on: https://go-review.googlesource.com/14446
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/cgo/main.go | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

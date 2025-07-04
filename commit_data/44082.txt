@@ -1,0 +1,36 @@
+commit 3e1e13ce6d1271f49f3d8ee359689145a6995bad
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Dec 21 18:06:35 2020 -0500
+
+    cmd/go: set cfg.BuildMod to "readonly" by default with no module root
+    
+    modload.Init now sets the default value for -mod if it wasn't set
+    explicitly. This happens before go.mod is loaded, so
+    modload.LoadModFile sets the default value again in order to enable
+    automatic vendoring.
+    
+    Previously, cfg.BuildMod wasn't set at all if LoadModFile wasn't
+    called, as is the case for commands that run outside of a module
+    root. This problem only affected 'go install pkg@version' since other
+    commands are either forbidden in module mode or run with -mod=mod
+    (like 'go get' and 'go mod' subcommands).
+    
+    This change also suppresses "missing sum" errors when -mod=readonly is
+    enabled and there is no module root.
+    
+    Fixes #43278
+    Related #40278
+    
+    Change-Id: I6071cc42bc5e24d0d7e84556e5bfd8e368e0019d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279490
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import.go                  |  6 +++---
+ src/cmd/go/internal/modload/import_test.go             | 13 +++++++++----
+ src/cmd/go/internal/modload/init.go                    | 16 ++++++++--------
+ src/cmd/go/internal/modload/modfile.go                 |  2 +-
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt |  5 +++++
+ 5 files changed, 26 insertions(+), 16 deletions(-)

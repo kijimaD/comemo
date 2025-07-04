@@ -1,0 +1,12 @@
+commit 904adfdc46507b3ddfe0f8b742b8414df31052d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 27 10:44:31 2010 -0700
+
+    go spec: clarify return type of append, argument type for ...T parameters
+    
+    R=iant, ken2, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2774041
+
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

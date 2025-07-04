@@ -1,0 +1,15 @@
+commit 0eb647e71c4b67db53181b1aff7755adafda0838
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 30 20:17:34 2012 -0800
+
+    test: attempt at making a test more robust
+    
+    A current theory is that this test is too fast for the
+    time resolution on the VMs where our builders run.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5581056
+
+ test/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

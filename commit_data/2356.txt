@@ -1,0 +1,15 @@
+commit 278b1ab0537afd72832e5f6d8aa463ced75f1840
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 1 22:14:25 2009 -0700
+
+    make godefs work better for generating Go.
+    
+    R=r
+    DELTA=121  (92 added, 4 deleted, 25 changed)
+    OCL=29706
+    CL=29721
+
+ src/cmd/godefs/a.h     |   1 +
+ src/cmd/godefs/main.c  | 123 ++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/godefs/stabs.c |  20 +++++++-
+ 3 files changed, 116 insertions(+), 28 deletions(-)

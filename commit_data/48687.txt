@@ -1,0 +1,20 @@
+commit a5f801f39d8c9d4df2edfd6ffd9171b9216445d1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Mar 27 03:07:30 2022 +0200
+
+    crypto/elliptic: delete outdated fuzz test
+    
+    It had not been doing anything since CL 233939, because the Params
+    method was getting upgraded to the assembly one. We could make it use
+    genericParamsForCurve, but really we need lower-level, targeted Go 1.18
+    fuzz targets in nistec now.
+    
+    Change-Id: I5b198a309aa90ecef9c04aaa6c107d5c0a41a44b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396254
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/elliptic/fuzz_test.go | 53 ----------------------------------------
+ 1 file changed, 53 deletions(-)

@@ -1,0 +1,14 @@
+commit a8fd3741874bb3c4a2bda6760d95239e63af8b94
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 7 16:06:36 2011 -0400
+
+    net: fix bug in net.Interfaces: handle elastic sdl_data size correctly
+    
+    Fixes #1921.
+    
+    R=golang-dev, jeff
+    CC=golang-dev
+    https://golang.org/cl/4535120
+
+ src/pkg/net/interface_bsd.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

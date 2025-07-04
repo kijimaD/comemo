@@ -1,0 +1,12 @@
+commit fd880f8d26ac76e77e56e989b2c0bf2913b5dfb7
+Author: Jongmin Kim <atomaths@gmail.com>
+Date:   Mon Jan 19 21:13:13 2015 +0900
+
+    net/http: remove unused test type
+    
+    Change-Id: Ia8d4459a39425583027f00410fe17b9686b768db
+    Reviewed-on: https://go-review.googlesource.com/3026
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request_test.go | 2 --
+ 1 file changed, 2 deletions(-)

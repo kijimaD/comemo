@@ -1,0 +1,14 @@
+commit b08746ee5e0bb7d0291221c85e1fdead9924b858
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 2 12:09:31 2011 +1100
+
+    release.2011-02-01.1
+    
+    Re-issue to include go/ast fixes for godoc.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3989058
+
+ .hgtags | 1 -
+ 1 file changed, 1 deletion(-)

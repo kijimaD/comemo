@@ -1,0 +1,19 @@
+commit bbcb91a3a71542154ffb926ef9cfcd23b74ba6f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 15:46:50 2009 -0700
+
+    convert 386 to use %gs instead of %fs for extern register.
+    required for nacl and may be nicer for ffi,
+    because %gs is the standard register for thread-local storage.
+    
+    R=ken
+    OCL=34861
+    CL=34866
+
+ src/cmd/8c/txt.c                 |  2 +-
+ src/cmd/8l/pass.c                |  3 ++-
+ src/pkg/runtime/386/asm.s        |  6 ++---
+ src/pkg/runtime/darwin/386/sys.s |  2 +-
+ src/pkg/runtime/linux/386/sys.s  | 49 ++++++++++++++++------------------------
+ src/pkg/runtime/mkasmh.sh        |  4 ++--
+ 6 files changed, 29 insertions(+), 37 deletions(-)

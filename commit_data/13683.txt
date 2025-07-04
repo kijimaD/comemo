@@ -1,0 +1,16 @@
+commit c61a185f35fd58a200df7eebc2138af1b52a0c5e
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 24 15:56:07 2012 +0200
+
+    exp/locale/collate: add code to ignore tests with (unpaired) surrogates.
+    In the regtest data, surrogates are assigned primary weights based on
+    the surrogate code point value.  Go now converts surrogates to FFFD, however,
+    meaning that the primary weight is based on this code point instead.
+    This change drops tests with surrogates and lets the tests pass.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6461100
+
+ src/pkg/exp/locale/collate/regtest.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

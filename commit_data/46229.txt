@@ -1,0 +1,18 @@
+commit 605d1aaea26ef775369a3d1da6cf53f2a7b1e640
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 30 18:07:54 2021 -0700
+
+    go/types, types2: union terms must be instantiated
+    
+    Fixes #48083.
+    
+    Change-Id: I77899d3e6edc806dee770403b3c3c4e2974d0e50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346293
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../compile/internal/types2/testdata/fixedbugs/issue48083.go2    | 9 +++++++++
+ src/cmd/compile/internal/types2/union.go                         | 2 +-
+ src/go/types/testdata/fixedbugs/issue48083.go2                   | 9 +++++++++
+ src/go/types/union.go                                            | 2 +-
+ 4 files changed, 20 insertions(+), 2 deletions(-)

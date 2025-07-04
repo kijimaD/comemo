@@ -1,0 +1,18 @@
+commit 760b778458fc0cb6710ef60279824a57745e0786
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 18 18:42:47 2009 -0700
+
+    Create dependencies automatically for top-level lib directory.
+    
+    It caught a few missing dependencies (bufio/fmt -> utf8, fmt -> os, http -> strconv, etc.).
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=126  (79 added, 45 deleted, 2 changed)
+    OCL=28983
+    CL=29014
+
+ src/lib/Make.deps | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/Makefile  | 48 +++++-------------------------------------------
+ src/lib/deps.bash | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 43 deletions(-)

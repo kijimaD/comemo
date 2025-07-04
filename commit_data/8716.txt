@@ -1,0 +1,13 @@
+commit b100a29bc49a4c6033e7b0f49ecadb3d611f82fc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 14 11:28:36 2011 -0400
+
+    syscall: update BPF support for BSD variants
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/4589044
+
+ src/pkg/syscall/Makefile   |   2 +
+ src/pkg/syscall/bpf_bsd.go | 167 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+)

@@ -1,0 +1,13 @@
+commit 6c5fc055c804c4b2327e23f1a03f5ffec5ddbf91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 18 09:39:34 2008 -0800
+
+    import syntax incorrect
+    
+    R=r
+    OCL=19457
+    CL=19457
+
+ test/bugs/bug125.go | 15 +++++++++++++++
+ test/golden.out     |  7 +++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 415545e539c65cbb6ec7dcf7ef032a2e75f891e1
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Dec 6 14:10:10 2010 -0500
+
+    bytes: add Buffer.UnreadRune, Buffer.UnreadByte
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3421041
+
+ src/pkg/bytes/buffer.go      | 61 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/buffer_test.go | 23 ++++++++++++++---
+ 2 files changed, 80 insertions(+), 4 deletions(-)

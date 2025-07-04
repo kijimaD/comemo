@@ -1,0 +1,15 @@
+commit 9dba695692c68b16555f113329606a56ff99b829
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 17:39:01 2009 -0800
+
+    net: disable dns error test
+    
+    some dns resolvers (opendns, for example)
+    are willing to make up results for any name.
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/152049
+
+ src/pkg/net/net_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

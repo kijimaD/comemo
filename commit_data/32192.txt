@@ -1,0 +1,22 @@
+commit 51ba2bb81923298f08b8ec6d50d0c579b4b63ef3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jul 11 18:57:54 2017 +0900
+
+    runtime/cgo: make code robust
+    
+    According to http://pubs.opengroup.org/onlinepubs/009695399/functions/pthread_key_create.html,
+    pthread_key_create return an error number which is greater than or equal
+    to 0. I don't know the scenario that pthread_setspecific would fail, but
+    also don't know the future. Add some error handlings just in case.
+    
+    Change-Id: I0774b79ef658d67e300f4a9aab1f2e3879acc7ee
+    Reviewed-on: https://go-review.googlesource.com/54811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_android_386.c   | 7 +++++--
+ src/runtime/cgo/gcc_android_amd64.c | 7 +++++--
+ src/runtime/cgo/gcc_darwin_386.c    | 7 +++++--
+ src/runtime/cgo/gcc_darwin_amd64.c  | 7 +++++--
+ 4 files changed, 20 insertions(+), 8 deletions(-)

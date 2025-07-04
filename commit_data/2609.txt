@@ -1,0 +1,24 @@
+commit 2acbc37166ea86fc87b7020527042a6fbb8f5d70
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 22:31:20 2009 -0700
+
+    various 6g cleanup:
+    
+    * give genwrapper and genembedtramp the same signature.
+    * move duint8, duint16, duint32, duint64, duintptr into gc.
+    * tidy genwrapper.
+    * bug involving struct field symbols in signature list.
+      (hash-order dependent so hard to trigger)
+    * new Type print format %#-T like %#T but omits
+      names on function arguments.
+    
+    R=ken
+    OCL=31237
+    CL=31237
+
+ src/cmd/6g/gobj.c | 64 +++++++++++++----------------------
+ src/cmd/8g/gobj.c | 99 ++++++++++++++++++++++++++-----------------------------
+ src/cmd/gc/go.h   | 16 ++++++---
+ src/cmd/gc/obj.c  | 34 +++++++++++++++++--
+ src/cmd/gc/subr.c | 52 +++++++++++++++++------------
+ 5 files changed, 142 insertions(+), 123 deletions(-)

@@ -1,0 +1,15 @@
+commit 6a0af8e1188c2adfd45f9e31bc044763fd014406
+Author: Mark Zavislak <zavislak@google.com>
+Date:   Tue Feb 23 12:01:09 2010 -0800
+
+    crypto package documentation fix
+    
+    Replaces stale references to modes.go.
+    
+    R=golang-dev, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/218071
+
+ src/pkg/crypto/aes/cipher.go  | 6 +++---
+ src/pkg/crypto/xtea/cipher.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

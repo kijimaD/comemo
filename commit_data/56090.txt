@@ -1,0 +1,21 @@
+commit dcf046f02150900550c02e2ad0c77a0ee88bb6f7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 5 15:52:28 2024 +0000
+
+    cmd/compile/internal: refactor coverage ir.Name flags
+    
+    Minor refactoring to eliminate one of the ir.Name flag values used
+    when building in coverage mode (no changes to functionality). This is
+    intended to free up a bit in the uint16 flags field to be used in a
+    subsequent patch.
+    
+    Change-Id: I4aedb9a55fde24c808ff3f7b077ee0552aa979af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572055
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/coverage/cover.go |  2 +-
+ src/cmd/compile/internal/gc/obj.go         | 12 +++++++++---
+ src/cmd/compile/internal/inline/inl.go     |  5 ++++-
+ src/cmd/compile/internal/ir/name.go        |  5 +----
+ 4 files changed, 15 insertions(+), 9 deletions(-)

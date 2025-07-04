@@ -1,0 +1,23 @@
+commit 423b0cc25ad8f75825db70a370ea9b696a17074d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 7 02:12:12 2015 -0800
+
+    cmd/compile: base mapaccess optimizations on algtype
+    
+    algtype already controls the behavior of the normal map access code
+    paths, so it makes sense to base the decision on which optimized paths
+    are applicable on it too.
+    
+    Enables use of optimized paths for key types like [8]byte and struct{s
+    string}.
+    
+    Fixes #13271.
+    
+    Change-Id: I48c52d97abaa7259ad5aba9641ea996a967cd359
+    Reviewed-on: https://go-review.googlesource.com/17464
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

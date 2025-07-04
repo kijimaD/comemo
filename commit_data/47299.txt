@@ -1,0 +1,19 @@
+commit 58ec92527041f88d427390a92619cd9a927b6aba
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Aug 29 14:01:03 2021 +0930
+
+    debug/plan9obj: export ErrNoSymbols
+    
+    This allows callers of *File.Symbols to distinguish absence of symbols
+    from other errors as can already by done in debug/elf.
+    
+    Fixes #48052
+    
+    Change-Id: I5ba15d8473911e516c016a69c1f1c710f7fc4cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350229
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/plan9obj/file.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

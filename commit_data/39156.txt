@@ -1,0 +1,20 @@
+commit 1e3ffb0c902fc282469e7748ce066ee9ea7a6580
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 14 10:22:04 2019 -0700
+
+    spec: clarify that slice a expression shares underlying array with operand
+    
+    The spec was not very precise as to what happens with respect to sharing
+    if a sliced operand is (a pointer to) an array. Added a small clarification
+    and a supporting example.
+    
+    Fixes #31689.
+    
+    Change-Id: Ic49351bec2033abd3f5428154ec3e9a7c2c9eaa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177139
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go_spec.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

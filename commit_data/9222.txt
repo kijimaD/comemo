@@ -1,0 +1,19 @@
+commit 112267d55e8a6c3733dd55889d26485008cd81d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 17:39:30 2011 -0400
+
+    gc: diagnose (x) := 0
+    
+    Fixes #1756.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4810057
+
+ src/cmd/gc/dcl.c         |  6 ++++--
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/go.y          | 12 ++++++++++++
+ src/cmd/gc/print.c       |  5 +++++
+ src/cmd/gc/typecheck.c   |  7 +++++++
+ test/fixedbugs/bug351.go | 11 +++++++++++
+ 6 files changed, 40 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 214c1784934ec6584a5039a757f1c892d0faded6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 17:53:01 2013 -0400
+
+    runtime: fix netbsd again after reorg
+    
+    This time for sure.
+    That C file sure looked like a header file to me. :-)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7830043
+
+ src/pkg/runtime/os_netbsd.c | 1 -
+ src/pkg/runtime/os_netbsd.h | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

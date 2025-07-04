@@ -1,0 +1,15 @@
+commit f35a3df80c9df2c5bf2651746b2df047d356c8a4
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Mon Jun 6 12:59:58 2011 -0700
+
+    big: Rat always outputs the requested precision from FloatString
+    
+    Fixes #1922.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4551098
+
+ src/pkg/big/rat.go      | 6 +++++-
+ src/pkg/big/rat_test.go | 5 +++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

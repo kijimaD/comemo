@@ -1,0 +1,17 @@
+commit 32efa16c3d63dd630e2190a8c0f30c0a941f6fd7
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 1 14:51:29 2016 -0400
+
+    cmd/compile: added stats printing to stackalloc
+    
+    This is controlled by the "regalloc" stats flag, since regalloc
+    calls stackalloc.  The plan is for this to allow comparison
+    of cheaper stack allocation algorithms with what we have now.
+    
+    Change-Id: Ibf64a780344c69babfcbb328fd6d053ea2e02cfc
+    Reviewed-on: https://go-review.googlesource.com/21393
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/stackalloc.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

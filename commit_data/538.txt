@@ -1,0 +1,14 @@
+commit a9af1841318d807e04a2e0b6494ef3821811957d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 20 15:43:12 2008 -0700
+
+    bugs related to constat types
+    
+    R=r
+    DELTA=10  (6 added, 4 deleted, 0 changed)
+    OCL=14348
+    CL=14348
+
+ test/bugs/bug090.go | 6 ++++++
+ test/const.go       | 4 ----
+ 2 files changed, 6 insertions(+), 4 deletions(-)

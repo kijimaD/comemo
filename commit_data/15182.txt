@@ -1,0 +1,12 @@
+commit 66000925279db375f8ff713dc51d4b918282fafa
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 9 13:43:15 2013 -0500
+
+    testing: be explicit about use of b.N
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7314071
+
+ src/pkg/testing/testing.go | 1 +
+ 1 file changed, 1 insertion(+)

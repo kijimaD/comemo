@@ -1,0 +1,31 @@
+commit 3a067f71e9737fc8ae1e49348155d92d52e66718
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Aug 29 23:07:43 2019 -0700
+
+    net: handle >=2GiB files with sendfile on Windows
+    
+    CL 187037 applied a fix to handle the case where
+    files larger than 2GiB were not being sendfile-d,
+    in one shot, rejecting any files whose size was
+    larger than the 2GiB.
+    
+    This CL allows files that are larger than limit
+    by SendFile-ing in chunks of upto 2GiB per chunk.
+    
+    The test has been excluded as testing with 3GB
+    requires creating a local file, flushing it
+    and then doing sendfile which takes a while
+    and could cause flakes on computers without capacity,
+    but the test can be retroactively accessed at:
+    https://go-review.googlesource.com/c/go/+/192518/8/src/net/sendfile_windows_test.go
+    
+    Fixes #33193.
+    
+    Change-Id: If57c25bc289aec82b748890ac1ac4f55798d6a5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192518
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/sendfile_windows.go | 51 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 38 insertions(+), 13 deletions(-)

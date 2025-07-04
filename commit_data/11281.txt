@@ -1,0 +1,21 @@
+commit 6454a3eb150218e13e71cecd48638e673dc6c304
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 19 15:45:18 2012 -0800
+
+    os: use FileMode instead of uint32 in various functions
+    
+    Fixes #2733
+    
+    R=chickencha, ality, rsc
+    CC=golang-dev
+    https://golang.org/cl/5553064
+
+ src/cmd/go/build.go         |  4 ++--
+ src/cmd/hgpatch/main.go     |  4 ++--
+ src/pkg/io/ioutil/ioutil.go |  2 +-
+ src/pkg/os/file.go          |  4 ++--
+ src/pkg/os/file_posix.go    | 24 ++++++++++++++++++++----
+ src/pkg/os/file_unix.go     |  4 ++--
+ src/pkg/os/file_windows.go  |  6 +++---
+ src/pkg/os/path.go          |  2 +-
+ 8 files changed, 33 insertions(+), 17 deletions(-)

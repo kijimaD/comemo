@@ -1,0 +1,26 @@
+commit cb7a091d729eab75ccfdaeba5a0605f05addf422
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 11 10:08:48 2023 -0400
+
+    os/exec: ignore context.Canceled errors in TestConcurrentExec
+    
+    We cancel the Context to unblock the test as soon as all of the "exit"
+    processes have completed. If that happens to occur before all of the
+    "hang" processes have started, the Start calls may fail with
+    context.Canceled.
+    
+    Since those errors are possible in normal operation of the test,
+    ignore them.
+    
+    Fixes #61277.
+    Updates #61080.
+    
+    Change-Id: I20db083ec89ca88eb085ceb2892b9f87f83705ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

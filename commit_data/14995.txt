@@ -1,0 +1,12 @@
+commit 2cd5b014544fd46a015acf3a37aea916bba19811
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 09:37:10 2013 -0800
+
+    net: fix windows build
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7229050
+
+ src/pkg/net/sock_windows.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

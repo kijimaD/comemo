@@ -1,0 +1,12 @@
+commit d820d5f3ab49bec0fb5f8a177ed48b99502a0be1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 16:05:52 2015 -0400
+
+    runtime: make mapzero not crash on arm
+    
+    Change-Id: I40e8a4a2e62253233b66f6a2e61e222437292c31
+    Reviewed-on: https://go-review.googlesource.com/10151
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/hashmap.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

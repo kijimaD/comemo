@@ -1,0 +1,14 @@
+commit 3bab4ef68da5334a1aac558ec7bee53f6bf15cfc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 17:48:49 2015 -0400
+
+    cmd/pprof: fix race between viewer and web command
+    
+    Fixes #11729.
+    
+    Change-Id: I6e5e23169ac1368afcbd016ed544a710aa045326
+    Reviewed-on: https://go-review.googlesource.com/12553
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/pprof/internal/commands/commands.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

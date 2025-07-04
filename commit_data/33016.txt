@@ -1,0 +1,21 @@
+commit 0174858c71789365dc3550916916d43490a900fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 9 14:37:11 2017 -0400
+
+    cmd/go: add undocumented -debug-actiongraph flag to dump action graph
+    
+    This will be useful for debugging but is intentionally
+    undocumented and not guaranteed to persist in any
+    particular form.
+    
+    Change-Id: I60710a1e94cfc2ce31fe91fc268c51985060f8df
+    Reviewed-on: https://go-review.googlesource.com/69330
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go    |  2 +
+ src/cmd/go/internal/run/run.go    |  2 +-
+ src/cmd/go/internal/test/test.go  | 14 ++++--
+ src/cmd/go/internal/work/build.go | 97 ++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 102 insertions(+), 13 deletions(-)

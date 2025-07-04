@@ -1,0 +1,28 @@
+commit 68d4b1265ec7915dccfccf6c0e32f9ab2d9c3a86
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 20 11:09:34 2019 -0700
+
+    cmd/compile: reduce bits.Div64(0, lo, y) to 64 bit division
+    
+    With this change, these two functions generate identical code:
+    
+    func f(x uint64) (uint64, uint64) {
+            return bits.Div64(0, x, 5)
+    }
+    
+    func g(x uint64) (uint64, uint64) {
+            return x / 5, x % 5
+    }
+    
+    Updates #31582
+    
+    Change-Id: Ia96c2e67f8af5dd985823afee5f155608c04a4b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173197
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 54 ++++++++++++++++++++++++++
+ test/codegen/mathbits.go                       |  5 +++
+ 3 files changed, 61 insertions(+)

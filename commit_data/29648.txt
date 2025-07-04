@@ -1,0 +1,22 @@
+commit f7c351bdf6c8a70c90aac132194a9df390d002e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 28 12:18:29 2016 -0800
+
+    internal/pprof: don't discard allocations called by reflect.Call
+    
+    The pprof code discards all heap allocations made by runtime
+    routines. This caused it to discard heap allocations made by functions
+    called by reflect.Call, as the calls are made via the functions
+    `runtime.call32`, `runtime.call64`, etc. Fix the profiler to retain
+    these heap allocations.
+    
+    Fixes #18077.
+    
+    Change-Id: I8962d552f1d0b70fc7e6f7b2dbae8d5bdefb0735
+    Reviewed-on: https://go-review.googlesource.com/33635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/pprof/profile/legacy_profile.go |  2 ++
+ src/runtime/pprof/mprof_test.go              | 29 ++++++++++++++++++++++------
+ 2 files changed, 25 insertions(+), 6 deletions(-)

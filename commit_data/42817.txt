@@ -1,0 +1,16 @@
+commit 27136419d4784d3f81af3ec1faf0962a60c69b7e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 10:02:44 2020 -0700
+
+    encoding/binary: replace constant literals with named constant (cleanup)
+    
+    Follow-up on https://golang.org/cl/247120.
+    
+    Brought to my attention by Luke McCoy.
+    
+    Change-Id: I4530c96fb164d23b0ce5311f2cecb1964f2dea74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249837
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/encoding/binary/varint.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

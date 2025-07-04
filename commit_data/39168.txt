@@ -1,0 +1,25 @@
+commit 54260c570f1202b992b7b6ee8f837dd717927d24
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 21:29:24 2019 -0400
+
+    cmd/go: add more information to -debug-actiongraph
+    
+    Add information about action and build IDs,
+    commands run, time spent in commands,
+    and overall time to -debug-actiongraph output.
+    
+    Also avoid a terrible outcome in:
+    
+            go build -debug-actiongraph x.go
+    
+    Change-Id: I7a3a638f4848d75f2bdc997517f4ab23656da4f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177138
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/action.go  | 84 +++++++++++++++++++++++--------------
+ src/cmd/go/internal/work/buildid.go | 15 +++++++
+ src/cmd/go/internal/work/exec.go    | 63 +++++++++++++++++++++-------
+ src/cmd/go/internal/work/gc.go      |  2 +-
+ src/cmd/go/internal/work/gccgo.go   |  2 +-
+ 5 files changed, 116 insertions(+), 50 deletions(-)

@@ -1,0 +1,14 @@
+commit 91e7ca588d07b8e04e9608c4436d2d701f6c59d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 10:47:15 2015 -0500
+
+    cmd/internal/ld: fix darwin/386
+    
+    grind's goto inliner moved a continue and changed its meaning. Oops.
+    
+    Change-Id: Ifa2d3e1427036a606a069f356cd9b586ef22ec84
+    Reviewed-on: https://go-review.googlesource.com/6610
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/ld/ldmacho.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

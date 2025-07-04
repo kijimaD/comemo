@@ -1,0 +1,20 @@
+commit 149d9de4b1e50d9f671c79264075f72fa01343e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 28 16:33:49 2019 -0800
+
+    cmd/gofmt: test that Go 2 number literals can be formatted
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: Icd25aa7f6e18ed671ea6cf2b1b292899daf4b1a5
+    Reviewed-on: https://go-review.googlesource.com/c/160018
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gofmt/testdata/go2numbers.golden | 156 +++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/go2numbers.input  | 156 +++++++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+)

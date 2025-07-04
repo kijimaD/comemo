@@ -1,0 +1,21 @@
+commit 9363f356bd5a4fb7a45861ceac79033473f4c068
+Author: Alok Menghrajani <441307+alokmenghrajani@users.noreply.github.com>
+Date:   Sat Sep 3 21:16:49 2022 +0000
+
+    math/big: replace dead link in a comment with link to an archive.org copy
+    
+    Happy to use another service if web.archive.org isn't suitable.
+    
+    Note: the original page redirects and then links to some nsfw content.
+    
+    Change-Id: Ie93ca0c6aad871881f35b7e5609b96da5c14cfc0
+    GitHub-Last-Rev: ced5a97eb5c1d954a04d4bb61d36d955ca45a6ab
+    GitHub-Pull-Request: golang/go#54857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428236
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/math/big/prime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

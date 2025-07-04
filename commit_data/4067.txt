@@ -1,0 +1,19 @@
+commit ef46a9ddacb25bc9155c1dcb74e61995b2e3dc39
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 17:24:14 2009 -0800
+
+    gc: fix up floating point NaN comparisons
+    
+    Fixes #167.
+    
+    R=ken2
+    https://golang.org/cl/155062
+
+ src/cmd/5g/cgen.c  | 13 +++++++-
+ src/cmd/6g/cgen.c  | 55 +++++++++++++++++++++++++---------
+ src/cmd/6g/gsubr.c |  4 ---
+ src/cmd/8g/cgen.c  | 47 ++++++++++++++++++++++-------
+ src/cmd/8g/gsubr.c |  4 ---
+ test/float_lit.go  |  8 ++---
+ test/floatcmp.go   | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 181 insertions(+), 38 deletions(-)

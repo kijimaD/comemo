@@ -1,0 +1,24 @@
+commit 1f20ab1116ab6cb0b77e22ffba3de9919e9def50
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Mon Dec 16 12:48:35 2013 -0800
+
+    database/sql: Check errors in QueryRow.Scan
+    
+    The previous coding did not correctly check for errors from the driver's
+    Next() or Close(), which could mask genuine errors from the database, as
+    witnessed in issue #6651.
+    
+    Even after this change errors from Close() will be ignored if the query
+    returned no rows (as Rows.Next will have closed the handle already), but it
+    is a lot easier for the drivers to guard against that.
+    
+    Fixes #6651.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/41590043
+
+ src/pkg/database/sql/fakedb_test.go |  6 ++++++
+ src/pkg/database/sql/sql.go         | 17 +++++++++++++----
+ src/pkg/database/sql/sql_test.go    | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 4 deletions(-)

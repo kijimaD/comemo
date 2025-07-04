@@ -1,0 +1,13 @@
+commit c5f4867ffaffc29f9f99c913916ffc9991750d42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:23:11 2008 -0800
+
+    stop flag reading before lone - arg.
+    
+    R=r
+    DELTA=5  (3 added, 0 deleted, 2 changed)
+    OCL=19520
+    CL=19529
+
+ src/lib/flag.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

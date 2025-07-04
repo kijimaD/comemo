@@ -1,0 +1,19 @@
+commit a650e399dfc2435eb18efc430a70cba9d87cec73
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Sep 27 12:06:43 2021 +0200
+
+    testing: fix error message when a parallel Cleanup calls runtime.Goexit
+    
+    Fixes #48502
+    
+    Change-Id: I6054b043ebd2237e19897fdf1234b311d19facc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352350
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/testing/panic_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go    |  6 ++++--
+ 2 files changed, 44 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit fcb45e7ceff09548eb0308909256296086eedf9c
+Author: Terrel Shumway <gopher@shumway.us>
+Date:   Tue Aug 30 07:58:52 2016 -0600
+
+    doc: clarify FAQ wording for float sizes
+    
+    I was confused by the current wording. This wording
+    answers the question more clearly.
+    
+    Thanks to Robert Griesemer for suggestions.
+    
+    Fixes #16916
+    
+    Change-Id: I50187c8df2db661b9581f4b3c5d5c279d2f9af41
+    Reviewed-on: https://go-review.googlesource.com/28052
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_faq.html | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

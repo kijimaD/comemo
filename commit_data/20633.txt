@@ -1,0 +1,12 @@
+commit 0a6f8b042d168986cc2c07a62c05c769310a6c3e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Oct 4 12:02:04 2014 +0400
+
+    doc/go1.4: document memory consumption reduction
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/149370043
+
+ doc/go1.4.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

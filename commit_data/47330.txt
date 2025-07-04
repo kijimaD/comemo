@@ -1,0 +1,15 @@
+commit 9e6ad46bccfa7a63e768236bcd1fd54dab38e4d1
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Fri Oct 8 09:59:15 2021 +0800
+
+    net/http: fix spelling in documentation
+    
+    Change-Id: I8b0924300eafe27de98975512a78a6527a92e446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354729
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/dump.go | 2 +-
+ src/net/http/serve_test.go    | 2 +-
+ src/net/http/transfer.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

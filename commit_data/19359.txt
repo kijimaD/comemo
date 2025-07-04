@@ -1,0 +1,15 @@
+commit fcfc17f1b8b0d14f1ce350ed6001e82565aadd88
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 15 15:54:42 2014 +1000
+
+    misc/pprof: always use go tool objdump on windows
+    
+    Fixes #7406.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/97440043
+
+ misc/pprof | 1 +
+ 1 file changed, 1 insertion(+)

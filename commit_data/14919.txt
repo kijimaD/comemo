@@ -1,0 +1,17 @@
+commit d127ed53784bf8a6e376904af163b58a78179dd2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 22:36:43 2013 +0100
+
+    cmd/gc, cmd/6g: fix error on large stacks.
+    
+    Fixes #4666.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/7141047
+
+ src/cmd/6g/cgen.c           | 2 +-
+ src/cmd/gc/go.h             | 6 +++---
+ test/fixedbugs/bug385_64.go | 8 +++++++-
+ test/fixedbugs/issue4348.go | 5 ++++-
+ 4 files changed, 15 insertions(+), 6 deletions(-)

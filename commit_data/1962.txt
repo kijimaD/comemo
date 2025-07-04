@@ -1,0 +1,19 @@
+commit 7b7785127552e1f9fd1a5b2b20f3de1ff1860f66
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Apr 5 22:40:40 2009 -0700
+
+    Add an Iterable package with handy functions like All, Any and Map.
+    
+    Add a Data method to vector.Vector.
+    
+    R=r,rsc
+    APPROVED=rsc
+    DELTA=173  (170 added, 0 deleted, 3 changed)
+    OCL=26980
+    CL=27098
+
+ src/lib/container/Makefile         | 10 +++--
+ src/lib/container/iterable.go      | 80 ++++++++++++++++++++++++++++++++++++++
+ src/lib/container/iterable_test.go | 78 +++++++++++++++++++++++++++++++++++++
+ src/lib/container/vector.go        | 10 +++++
+ 4 files changed, 175 insertions(+), 3 deletions(-)

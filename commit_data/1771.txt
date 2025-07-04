@@ -1,0 +1,13 @@
+commit 5b4fa1ad22f8a09d8606275ab9e35dee3ab56d0d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 03:36:50 2009 -0800
+
+    document once
+    
+    R=rsc
+    DELTA=14  (7 added, 5 deleted, 2 changed)
+    OCL=25818
+    CL=25834
+
+ src/lib/once.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

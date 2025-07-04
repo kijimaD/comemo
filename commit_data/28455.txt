@@ -1,0 +1,18 @@
+commit 31ba855014c62ed8ea2a19208d43318d99948e5b
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 18 16:51:02 2016 -0700
+
+    crypto/md5, crypto/sha1, crypto/sha256: add examples for checksumming a file
+    
+    Updates #16360.
+    
+    Change-Id: I75714d2b5f095fe39fd81edfa6dd9e44d7c44da1
+    Reviewed-on: https://go-review.googlesource.com/29375
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/md5/example_test.go    | 17 +++++++++++++++++
+ src/crypto/sha1/example_test.go   | 17 +++++++++++++++++
+ src/crypto/sha256/example_test.go | 18 ++++++++++++++++++
+ 3 files changed, 52 insertions(+)

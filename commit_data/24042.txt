@@ -1,0 +1,19 @@
+commit d9e3d16796927ae2c5721cdff855ddb07a903d78
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Thu Jul 30 13:32:55 2015 -0700
+
+    runtime, syscall: remove unused bits from Solaris implementation
+    
+    CL 9184 changed the runtime and syscall packages to link Solaris binaries
+    directly instead of using dlopen/dlsym but did not remove the unused (and
+    now broken) references to dlopen, dlclose, and dlsym.
+    
+    Fixes #11923
+    
+    Change-Id: I36345ce5e7b371bd601b7d48af000f4ccacd62c0
+    Reviewed-on: https://go-review.googlesource.com/13410
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/syscall2_solaris.go | 6 ------
+ src/syscall/asm_solaris_amd64.s | 9 ---------
+ 2 files changed, 15 deletions(-)

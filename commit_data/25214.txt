@@ -1,0 +1,14 @@
+commit 7e1791b97f53bd42808ef2d2e783134b9c3de257
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 14:55:10 2015 +0000
+
+    math/big: fix typo
+    
+    Found by github user asukakenji.
+    
+    Change-Id: I4c76316b69e8a243fb6bf280283f3722e728d853
+    Reviewed-on: https://go-review.googlesource.com/17641
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

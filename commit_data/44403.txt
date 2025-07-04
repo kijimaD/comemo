@@ -1,0 +1,32 @@
+commit bf48163e8f2b604f3b9e83951e331cd11edd8495
+Author: Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
+Date:   Wed Dec 30 18:41:36 2020 +0100
+
+    cmd/compile: add rule to coalesce writes
+    
+    The code generated when storing eight bytes loaded from memory created a
+    series of small writes instead of a single, large one. The specific
+    pattern of instructions generated stored 1 byte, then 2 bytes, then 4
+    bytes, and finally 1 byte.
+    
+    The new rules match this specific pattern both for amd64 and for s390x,
+    and convert it into a single instruction to store the 8 bytes. arm64 and
+    ppc64le already generated the right code, but the new codegen test
+    covers also those architectures.
+    
+    Fixes #41663
+    
+    Change-Id: Ifb9b464be2d59c2ed5034acf7b9c3e473f344030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280456
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 ++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 10 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 48 ++++++++++++++++++++++++++++
+ test/codegen/memcombine.go                   |  9 ++++++
+ 5 files changed, 125 insertions(+)

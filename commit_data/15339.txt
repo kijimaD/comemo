@@ -1,0 +1,33 @@
+commit 6c976393aea607e67f4d31e3a2ae7b3c0dc15ade
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 20 17:48:23 2013 -0500
+
+    runtime: allow cgo callbacks on non-Go threads
+    
+    Fixes #4435.
+    
+    R=golang-dev, iant, alex.brainman, minux.ma, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7304104
+
+ misc/cgo/test/cgo_test.go           |   1 +
+ misc/cgo/test/cthread.go            |  44 +++++++
+ misc/cgo/test/cthread_unix.c        |  34 ++++++
+ misc/cgo/test/cthread_windows.c     |  37 ++++++
+ src/pkg/runtime/asm_386.s           |  66 +++++++++--
+ src/pkg/runtime/asm_amd64.s         |  65 ++++++++--
+ src/pkg/runtime/asm_arm.s           |  44 ++++++-
+ src/pkg/runtime/cgocall.c           |   5 +
+ src/pkg/runtime/os_windows.h        |   1 +
+ src/pkg/runtime/proc.c              | 229 ++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/runtime.h           |   6 +-
+ src/pkg/runtime/sys_windows_386.s   |  12 ++
+ src/pkg/runtime/sys_windows_amd64.s |   3 +
+ src/pkg/runtime/thread_darwin.c     |   7 ++
+ src/pkg/runtime/thread_freebsd.c    |   7 ++
+ src/pkg/runtime/thread_linux.c      |   7 ++
+ src/pkg/runtime/thread_netbsd.c     |   7 ++
+ src/pkg/runtime/thread_openbsd.c    |   7 ++
+ src/pkg/runtime/thread_plan9.c      |   8 ++
+ src/pkg/runtime/thread_windows.c    |   8 ++
+ 20 files changed, 564 insertions(+), 34 deletions(-)

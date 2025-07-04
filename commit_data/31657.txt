@@ -1,0 +1,37 @@
+commit a5083bbf0784a4664e49207b6a3677986ca69b49
+Author: Michael Darakananda <pongad@google.com>
+Date:   Tue Nov 8 17:54:30 2016 +1100
+
+    strings: simplify indexFunc
+    
+    A for-range loop is simpler and also generally faster nowadays:
+    
+    TrimASCII/1:1-4      69.2ns ± 1%  72.3ns ± 4%  +4.55%  (p=0.001 n=8+8)
+    TrimASCII/1:2-4       114ns ± 4%   104ns ± 3%  -8.71%  (p=0.000 n=9+8)
+    TrimASCII/1:4-4       112ns ± 1%   109ns ± 2%  -2.57%  (p=0.000 n=8+9)
+    TrimASCII/1:8-4       120ns ± 2%   118ns ± 4%    ~     (p=0.097 n=9+9)
+    TrimASCII/1:16-4      137ns ± 3%   132ns ± 3%  -3.82%  (p=0.001 n=9+9)
+    TrimASCII/16:1-4      129ns ± 1%   125ns ± 2%  -3.38%  (p=0.000 n=8+9)
+    TrimASCII/16:2-4      167ns ± 3%   159ns ± 1%  -4.99%  (p=0.000 n=9+8)
+    TrimASCII/16:4-4      165ns ± 2%   162ns ± 1%  -1.91%  (p=0.005 n=8+9)
+    TrimASCII/16:8-4      173ns ± 2%   170ns ± 1%  -1.29%  (p=0.018 n=9+9)
+    TrimASCII/16:16-4     188ns ± 2%   186ns ± 2%  -1.13%  (p=0.022 n=8+9)
+    TrimASCII/256:1-4    1.06µs ± 1%  0.98µs ± 2%  -7.64%  (p=0.000 n=8+9)
+    TrimASCII/256:2-4    1.08µs ± 1%  1.06µs ± 2%  -1.95%  (p=0.006 n=9+9)
+    TrimASCII/256:4-4    1.09µs ± 1%  1.07µs ± 3%    ~     (p=0.059 n=9+9)
+    TrimASCII/256:8-4    1.10µs ± 1%  1.07µs ± 2%  -2.63%  (p=0.000 n=9+8)
+    TrimASCII/256:16-4   1.10µs ± 1%  1.08µs ± 1%  -1.90%  (p=0.000 n=8+9)
+    TrimASCII/4096:1-4   15.8µs ± 1%  14.5µs ± 1%  -8.59%  (p=0.000 n=9+9)
+    TrimASCII/4096:2-4   15.6µs ± 1%  15.4µs ± 2%  -1.27%  (p=0.021 n=8+8)
+    TrimASCII/4096:4-4   15.6µs ± 1%  15.4µs ± 2%    ~     (p=0.094 n=9+9)
+    TrimASCII/4096:8-4   15.7µs ± 1%  15.8µs ± 6%    ~     (p=0.555 n=8+8)
+    TrimASCII/4096:16-4  15.7µs ± 2%  15.3µs ± 1%  -2.64%  (p=0.000 n=8+9)
+    
+    Change-Id: I9b06689b67c0cf2c7ff446fc63a8c44cc5d6a246
+    Reviewed-on: https://go-review.googlesource.com/32891
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

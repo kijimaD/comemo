@@ -1,0 +1,22 @@
+commit 54c0237346adfc2cac7bbebba80d652227ab6ea5
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Oct 11 10:23:45 2020 +0200
+
+    misc/wasm: improve error message if javascript polyfills are required
+    
+    wasm_exec.js expects that either "require" is available or that the
+    globals "crypto", "TextEncoder" and "TextDecoder" are already defined.
+    Report a better error message if this is not the case, suggesting the
+    use of a polyfill.
+    
+    Updates #41482
+    
+    Change-Id: I5473cae15c98ae42e39f5928245b7762e7a5a8bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261357
+    Trust: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

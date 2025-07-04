@@ -1,0 +1,23 @@
+commit 6192f4615514a7673fb2318ce3491e162d74d438
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Sep 15 12:17:15 2023 -0400
+
+    net/http: handle MethodNotAllowed
+    
+    If no pattern matches a request, but a pattern would have
+    matched if the request had a different method, then
+    serve a 405 (Method Not Allowed), and populate the
+    "Allow" header with the methods that would have succeeded.
+    
+    Updates #61640.
+    
+    Change-Id: I0ae9eb95e62c71ff7766a03043525a97099ac1bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528401
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/request_test.go      | 55 ++++++++++++++++++++++++++++++++++--
+ src/net/http/routing_tree.go      | 27 ++++++++++++++++++
+ src/net/http/routing_tree_test.go | 59 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            | 42 +++++++++++++++++++++++++---
+ 4 files changed, 177 insertions(+), 6 deletions(-)

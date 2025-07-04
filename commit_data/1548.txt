@@ -1,0 +1,12 @@
+commit d8819569eb4f1148d959d747db55f8fe2d7aa05c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 23 15:57:52 2009 -0800
+
+    fix typo in comment. s/put/Put/
+    
+    R=ken
+    OCL=23419
+    CL=23419
+
+ src/lib/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

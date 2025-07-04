@@ -1,0 +1,49 @@
+commit e6ec82067a9068c93db6e7041017060a1c863452
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 9 10:00:12 2016 +0100
+
+    runtime: use entire address space on 32 bit
+    
+    In issue #13992, Russ mentioned that the heap bitmap footprint was
+    halved but that the bitmap size calculation hadn't been updated. This
+    presents the opportunity to either halve the bitmap size or double
+    the addressable virtual space. This CL doubles the addressable virtual
+    space. On 32 bit this can be tweaked further to allow the bitmap to
+    cover the entire 4GB virtual address space, removing a failure mode
+    if the kernel hands out memory with a too low address.
+    
+    First, fix the calculation and double _MaxArena32 to cover 4GB virtual
+    memory space with the same bitmap size (256 MB).
+    
+    Then, allow the fallback mode for the initial memory reservation
+    on 32 bit (or 64 bit with too little available virtual memory) to not
+    include space for the arena. mheap.sysAlloc will automatically reserve
+    additional space when the existing arena is full.
+    
+    Finally, set arena_start to 0 in 32 bit mode, so that any address is
+    acceptable for subsequent (additional) reservations.
+    
+    Before, the bitmap was always located just before arena_start, so
+    fix the two places relying on that assumption: Point the otherwise unused
+    mheap.bitmap to one byte after the end of the bitmap, and use it for
+    bitmap addressing instead of arena_start.
+    
+    With arena_start set to 0 on 32 bit, the cgoInRange check is no longer a
+    sufficient check for Go pointers. Introduce and call inHeapOrStack to
+    check whether a pointer is to the Go heap or stack.
+    
+    While we're here, remove sysReserveHigh which seems to be unused.
+    
+    Fixes #13992
+    
+    Change-Id: I592b513148a50b9d3967b5c5d94b86b3ec39acc2
+    Reviewed-on: https://go-review.googlesource.com/20471
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgocall.go |  2 +-
+ src/runtime/malloc.go  | 76 +++++++++++++++++---------------------------------
+ src/runtime/mbitmap.go |  4 +--
+ src/runtime/mheap.go   | 24 +++++++++++++++-
+ 4 files changed, 52 insertions(+), 54 deletions(-)

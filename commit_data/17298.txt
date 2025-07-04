@@ -1,0 +1,12 @@
+commit 18f5ce856191062224d4bb08c7c2623296aeeaa2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 16 21:54:04 2013 +0400
+
+    runtime/race: add output tests for different GORACE params
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13065043
+
+ src/pkg/runtime/race/output_test.go | 66 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 58 insertions(+), 8 deletions(-)

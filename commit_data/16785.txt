@@ -1,0 +1,24 @@
+commit 7b3c8b7ac8d16239ca7768b2b846ce4492232b4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 16 16:25:10 2013 -0400
+
+    cmd/5g, cmd/6g, cmd/8g: insert arg size annotations on runtime calls
+    
+    If calling a function in package runtime, emit argument size
+    information around the call in case the call is to a variadic C function.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11371043
+
+ src/cmd/5g/gg.h    |  1 +
+ src/cmd/5g/ggen.c  | 22 +++++++++++++++++-----
+ src/cmd/5g/gsubr.c | 11 +++++++++++
+ src/cmd/5g/peep.c  |  1 +
+ src/cmd/6g/gg.h    |  1 +
+ src/cmd/6g/ggen.c  | 22 +++++++++++++++++-----
+ src/cmd/6g/gsubr.c | 11 +++++++++++
+ src/cmd/8g/gg.h    |  2 +-
+ src/cmd/8g/ggen.c  | 22 +++++++++++++++++-----
+ src/cmd/8g/gsubr.c | 11 +++++++++++
+ 10 files changed, 88 insertions(+), 16 deletions(-)

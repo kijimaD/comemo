@@ -1,0 +1,27 @@
+commit fbfed49134bca038184dbc1a427e82647fc1f12e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 9 23:11:48 2011 +0300
+
+    cgo: fix g0 stack guard
+    Fixes crash when cgo consumes more than 8K
+    of stack and makes a callback.
+    
+    Fixes #1328.
+    
+    R=golang-dev, rogpeppe, rsc
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5371042
+
+ misc/cgo/test/callback_c.c          |  5 +++++
+ src/pkg/runtime/386/asm.s           | 12 ++++++++++--
+ src/pkg/runtime/amd64/asm.s         |  6 ++++++
+ src/pkg/runtime/cgo/darwin_386.c    | 12 ++++++++++--
+ src/pkg/runtime/cgo/darwin_amd64.c  | 12 ++++++++++--
+ src/pkg/runtime/cgo/freebsd_386.c   | 11 +++++++++--
+ src/pkg/runtime/cgo/freebsd_amd64.c | 11 +++++++++--
+ src/pkg/runtime/cgo/linux_386.c     | 11 +++++++++--
+ src/pkg/runtime/cgo/linux_amd64.c   | 12 ++++++++++--
+ src/pkg/runtime/cgo/linux_arm.c     |  5 +++--
+ src/pkg/runtime/cgo/windows_386.c   |  6 ++++--
+ src/pkg/runtime/cgo/windows_amd64.c |  6 ++++--
+ 12 files changed, 89 insertions(+), 20 deletions(-)

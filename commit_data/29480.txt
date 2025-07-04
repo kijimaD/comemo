@@ -1,0 +1,27 @@
+commit dc4a815d100b82643656ec88fd9fa8e7c705ebba
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Oct 31 21:36:38 2016 -0700
+
+    go/build: implement default GOPATH
+    
+    Whenever GOPATH is not defined in the environment, use $HOME/go
+    as its default value. For Windows systems use %USERPROFILE%/go
+    and $home/go for plan9.
+    
+    The choice of these environment variables is based on what Docker
+    currently does. The os/user package is not used to avoid having
+    a cgo dependency.
+    
+    Updates #17262. Documentation changes forthcoming.
+    
+    Change-Id: I6368fbfbc5afda99d6e64c35c1980076fcf45344
+    Reviewed-on: https://go-review.googlesource.com/32019
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/env.go     |   2 +-
+ src/cmd/go/get.go     |  12 +++++
+ src/cmd/go/go_test.go | 145 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/main.go    |   2 +-
+ src/go/build/build.go |  15 +++++-
+ 5 files changed, 168 insertions(+), 8 deletions(-)

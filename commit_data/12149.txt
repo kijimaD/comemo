@@ -1,0 +1,12 @@
+commit 37decab5a31f6418ae52d4548d06b2022d99c72f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 16:29:05 2012 -0500
+
+    cmd/dist: fix install cmd/5g on non-arm system
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5689072
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit fa8efc13478ec2c39704e9662a06869e22b5f87c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Jan 12 12:01:26 2022 +0000
+
+    cmd/compile: pre init shapeMap
+    
+    Change-Id: I4fea927b9d34e7bf382ddf148a787c1558176f2f
+    GitHub-Last-Rev: ff1fa78a3601243092f84a69e7332ec2ba9ec05a
+    GitHub-Pull-Request: golang/go#50568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377994
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

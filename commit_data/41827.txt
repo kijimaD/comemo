@@ -1,0 +1,12 @@
+commit 2bed279721d684de828d0027db43a9d6283938a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 2 09:04:24 2020 -0700
+
+    net: update ParseIP doc to say IPv4-mapped-IPv6 is supported
+    
+    Change-Id: I49a79c07081cd8f12a3ffef21fd02a9a622a7eb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226979
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

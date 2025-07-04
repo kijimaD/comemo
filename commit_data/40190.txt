@@ -1,0 +1,47 @@
+commit 38c4a7370670e6b73cbae192c7d3079c90203832
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Aug 15 21:53:37 2019 +0100
+
+    cmd/asm: add s390x branch-on-count instructions
+    
+    The branch-on-count instructions on s390x decrement the input
+    register and then compare its value to 0. If not equal the branch
+    is taken.
+    
+    These instructions are useful for implementing loops with a set
+    number of iterations (which might be in a register).
+    
+    For example, this for loop:
+    
+            for i := 0; i < n; i++ {
+                    ... // i is not used or modified in the loop
+            }
+    
+    Could be implemented using this assembly:
+    
+            MOVD  Rn, Ri
+    loop:
+            ...
+            BRCTG Ri, loop
+    
+    Note that i will count down from n in the assembly whereas in the
+    original for loop it counted up to n which is why we can't use i
+    in the loop.
+    
+    These instructions will only be used in hand-written codegen and
+    assembly for now since SSA blocks cannot currently modify values.
+    We could look into this in the future though.
+    
+    Change-Id: Iaab93b8aa2699513b825439b8ea20d8fe2ea1ee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199977
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/s390x.go        |  2 ++
+ src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
+ src/cmd/compile/internal/s390x/ggen.go    | 12 ++++--------
+ src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
+ src/cmd/internal/obj/s390x/anames.go      |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 19 +++++++++++++++++++
+ 6 files changed, 34 insertions(+), 8 deletions(-)

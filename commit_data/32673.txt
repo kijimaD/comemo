@@ -1,0 +1,14 @@
+commit e27a81221f5cdb529db1ba5481597526e05cb77c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 10 15:26:19 2017 +1000
+
+    misc/cgo/testcshared: run tests in parallel
+    
+    Change-Id: Id1b5939cfcd210a0cb5f61915ce2d077c7fcec11
+    Reviewed-on: https://go-review.googlesource.com/62592
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 58 ++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 33 deletions(-)

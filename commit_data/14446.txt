@@ -1,0 +1,14 @@
+commit d28133dc9f452150c116793f3dd086bbe20db3d0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 21 15:04:22 2012 +1100
+
+    net: remove another unguarded sysfile == nil check
+    
+    Putting aside the unguarded access to fd.sysfile, the condition will never be true as fd.incref above handles the closed condition.
+    
+    R=mikioh.mikioh, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6845062
+
+ src/pkg/net/fd_unix.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 1de0dcfc7b50a2e74e572374d3bbbf3d12d7ff4f
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Jun 10 12:27:47 2018 +0300
+
+    cmd/compile: fix wording in README
+    
+    "Syntax analysis" sounds more familiar and fits the
+    item before, which says "lexical analysis".
+    If there was specific intention to the original wording,
+    I, as a reader, would like to see it instead of this
+    confusing wording.
+    
+    Change-Id: Id32dbf75300a86b21cb9f35e54526184fe5df6cb
+    Reviewed-on: https://go-review.googlesource.com/117696
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit eaf8295f3d587fcd615dbaa310954e9e6e5cdad5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:59:58 2012 -0800
+
+    fix windows build: always use / in filenames of go/doc test output
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5554055
+
+ src/pkg/go/doc/doc_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

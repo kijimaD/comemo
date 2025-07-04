@@ -1,0 +1,17 @@
+commit abf5700a157c63f435806da4bfab00b814f5b616
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 15:51:51 2013 -0800
+
+    syscall: add MSG_FASTOPEN to Linux
+    
+    Update #4842
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7369060
+
+ src/pkg/syscall/mkerrors.sh            | 4 ++++
+ src/pkg/syscall/zerrors_linux_386.go   | 1 +
+ src/pkg/syscall/zerrors_linux_amd64.go | 1 +
+ src/pkg/syscall/zerrors_linux_arm.go   | 1 +
+ 4 files changed, 7 insertions(+)

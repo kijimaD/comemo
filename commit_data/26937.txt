@@ -1,0 +1,18 @@
+commit 096c900f9edbe7138e1683c8740e5e94b97d6b83
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 14 12:41:54 2016 -0700
+
+    crypto/aes: fix vet warnings in gcm_amd64.s
+    
+    Notably, this fixes two incorrect argument sizes.
+    
+    Update #11041
+    
+    Change-Id: Ie4a3b1a59cd6a6707f6d2f4d3be978fc70322b46
+    Reviewed-on: https://go-review.googlesource.com/22091
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/gcm_amd64.s | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

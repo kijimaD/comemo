@@ -1,0 +1,12 @@
+commit 715d017b3424f87a1681fe33e19d49e9a04f77f8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 23 12:17:20 2015 -0800
+
+    doc: add cmd/trace to go1.5.txt
+    
+    Change-Id: I4d35a96ace71b68a91561c08fd7331859d9dd19d
+    Reviewed-on: https://go-review.googlesource.com/5593
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

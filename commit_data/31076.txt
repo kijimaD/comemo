@@ -1,0 +1,18 @@
+commit 2a8d99e427ab19cb4f00680244f31818b53aa238
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 10 22:16:43 2017 -0700
+
+    cmd/compile/internal/ssa: remove unused Typ fields
+    
+    These are never accessed.
+    
+    Change-Id: I45975972d19d1f263f6545c9ed648511501094c6
+    Reviewed-on: https://go-review.googlesource.com/40315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           | 8 ++++----
+ src/cmd/compile/internal/ssa/value.go        | 2 --
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)

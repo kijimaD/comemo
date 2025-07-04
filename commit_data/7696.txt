@@ -1,0 +1,12 @@
+commit 1ddc27888bfc0b02c4adfc6da642c22483694767
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 8 12:23:06 2011 -0500
+
+    codereview.py: do not suggest hg change -d if current user is not CL author
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4253064
+
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

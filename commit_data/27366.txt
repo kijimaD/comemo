@@ -1,0 +1,24 @@
+commit 2ffb3e5d905b5622204d199128dec06cefd57790
+Author: Marc-Antoine Ruel <maruel@chromium.org>
+Date:   Thu Apr 7 14:24:24 2016 -0400
+
+    os: fix Remove for file with read only attribute on Windows
+    
+    Include integration test. Confirmed that without the fix, the test case
+    TestDeleteReadOnly fails.
+    
+    This permits to revert "cmd/go: reset read-only flag during TestIssue10952"
+    This reverts commit 3b7841b3aff9204f054ffabbe4dd39d3e3dd3e91.
+    
+    Fixes #9606
+    
+    Change-Id: Ib55c151a8cf1a1da02ab18c34a9b58f615c34254
+    Reviewed-on: https://go-review.googlesource.com/18235
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go     | 28 ----------------------------
+ src/os/file_windows.go    |  6 ++++++
+ src/os/os_windows_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 28 deletions(-)

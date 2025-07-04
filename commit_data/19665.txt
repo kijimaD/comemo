@@ -1,0 +1,13 @@
+commit 822b2cbb33c5e15c429598840310cfd8c14a4f5f
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Thu Jul 3 17:42:23 2014 -0400
+
+    doc/contribute: reorder documented steps to match normal workflow.
+    
+    LGTM=adg
+    R=golang-codereviews, bradfitz, adg
+    CC=golang-codereviews
+    https://golang.org/cl/109970043
+
+ doc/contribute.html | 168 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 84 insertions(+), 84 deletions(-)

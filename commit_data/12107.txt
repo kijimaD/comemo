@@ -1,0 +1,12 @@
+commit 7507f3f2578241b2f8f9be59cd7acb5cea3151fb
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Tue Feb 21 13:23:33 2012 -0500
+
+    cmd/go: 'go help test' remove documentation for incomplete -file flag
+    
+    R=golang-dev, rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/5673093
+
+ src/cmd/go/test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

@@ -1,0 +1,31 @@
+commit e0ff4e6dc013ac18728743a43b6faa812737bdb2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Dec 31 19:48:21 2018 +0100
+
+    encoding/pem: skip whitespace work on most inputs
+    
+    encoding/base64 already skips \r and \n when decoding, so this package
+    must only deal with spaces and tabs. Those aren't nearly as common, so
+    we can add a fast path with bytes.ContainsAny to skip the costly alloc
+    and filtering code.
+    
+    name      old time/op    new time/op    delta
+    Decode-8     279µs ± 0%     259µs ± 1%   -7.07%  (p=0.002 n=6+6)
+    
+    name      old speed      new speed      delta
+    Decode-8   319MB/s ± 0%   343MB/s ± 1%   +7.61%  (p=0.002 n=6+6)
+    
+    name      old alloc/op   new alloc/op   delta
+    Decode-8     164kB ± 0%      74kB ± 0%  -54.90%  (p=0.002 n=6+6)
+    
+    name      old allocs/op  new allocs/op  delta
+    Decode-8      12.0 ± 0%      11.0 ± 0%   -8.33%  (p=0.002 n=6+6)
+    
+    Change-Id: Idfca8700c52f46eb70a4a7e0d2db3bf0124e4699
+    Reviewed-on: https://go-review.googlesource.com/c/155964
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/pem.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

@@ -1,0 +1,23 @@
+commit 19b6f0116181c4dfbb21b82f7527383337666069
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Mar 20 09:12:17 2025 +0100
+
+    go/parser: add *ast.BlockStmt depth test
+    
+    At first glance i have thought that we do not handle such case properly,
+    because parseBlockStmt and parseStmtList do not call call the
+    incNestLev. Fortunately parseStmt does, so it is detected properly.
+    
+    As we don't have a test case directly for blockstmts only, i think it is
+    worth adding one.
+    
+    Change-Id: If149b86fd90a7ee4a33c861070d1bafdd40e98ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659455
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/parser/parser_test.go | 1 +
+ 1 file changed, 1 insertion(+)

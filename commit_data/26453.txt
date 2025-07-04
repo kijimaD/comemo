@@ -1,0 +1,96 @@
+commit 34699bc7a81668f3a3d7b0f862e0a9f173926c66
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 20 08:03:31 2016 -0700
+
+    cmd/compile: reduce use of **Node parameters
+    
+    Escape analysis has a hard time with tree-like
+    structures (see #13493 and #14858).
+    This is unlikely to change.
+    As a result, when invoking a function that accepts
+    a **Node parameter, we usually allocate a *Node
+    on the heap. This happens a whole lot.
+    
+    This CL changes functions from taking a **Node
+    to acting more like append: It both modifies
+    the input and returns a replacement for it.
+    
+    Because of the cascading nature of escape analysis,
+    in order to get the benefits, I had to modify
+    almost all such functions. The remaining functions
+    are in racewalk and the backend. I would be happy
+    to update them as well in a separate CL.
+    
+    This CL was created by manually updating the
+    function signatures and the directly impacted
+    bits of code. The callsites were then automatically
+    updated using a bespoke script:
+    https://gist.github.com/josharian/046b1be7aceae244de39
+    
+    For ease of reviewing and future understanding,
+    this CL is also broken down into four CLs,
+    mailed separately, which show the manual
+    and the automated changes separately.
+    They are CLs 20990, 20991, 20992, and 20993.
+    
+    Passes toolstash -cmp.
+    
+    name       old time/op     new time/op     delta
+    Template       335ms ± 5%      324ms ± 5%   -3.35%        (p=0.000 n=23+24)
+    Unicode        176ms ± 9%      165ms ± 6%   -6.12%        (p=0.000 n=23+24)
+    GoTypes        1.10s ± 4%      1.07s ± 2%   -2.77%        (p=0.000 n=24+24)
+    Compiler       5.31s ± 3%      5.15s ± 3%   -2.95%        (p=0.000 n=24+24)
+    MakeBash       41.6s ± 1%      41.7s ± 2%     ~           (p=0.586 n=23+23)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      63.3MB ± 0%     62.4MB ± 0%   -1.36%        (p=0.000 n=25+23)
+    Unicode       42.4MB ± 0%     41.6MB ± 0%   -1.99%        (p=0.000 n=24+25)
+    GoTypes        220MB ± 0%      217MB ± 0%   -1.11%        (p=0.000 n=25+25)
+    Compiler       994MB ± 0%      973MB ± 0%   -2.08%        (p=0.000 n=24+25)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        681k ± 0%       574k ± 0%  -15.71%        (p=0.000 n=24+25)
+    Unicode         518k ± 0%       413k ± 0%  -20.34%        (p=0.000 n=25+24)
+    GoTypes        2.08M ± 0%      1.78M ± 0%  -14.62%        (p=0.000 n=25+25)
+    Compiler       9.26M ± 0%      7.64M ± 0%  -17.48%        (p=0.000 n=25+25)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       578k ± 0%       578k ± 0%     ~     (all samples are equal)
+    CmdGoSize      6.46M ± 0%      6.46M ± 0%     ~     (all samples are equal)
+    
+    name       old data-bytes  new data-bytes  delta
+    HelloSize       128k ± 0%       128k ± 0%     ~     (all samples are equal)
+    CmdGoSize       281k ± 0%       281k ± 0%     ~     (all samples are equal)
+    
+    name       old exe-bytes   new exe-bytes   delta
+    HelloSize       921k ± 0%       921k ± 0%     ~     (all samples are equal)
+    CmdGoSize      9.86M ± 0%      9.86M ± 0%     ~     (all samples are equal)
+    
+    Change-Id: I277d95bd56d51c166ef7f560647aeaa092f3f475
+    Reviewed-on: https://go-review.googlesource.com/20959
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  16 +-
+ src/cmd/compile/internal/gc/bexport.go   |   4 +-
+ src/cmd/compile/internal/gc/cgen.go      |   8 +-
+ src/cmd/compile/internal/gc/closure.go   |  16 +-
+ src/cmd/compile/internal/gc/const.go     | 137 +++----
+ src/cmd/compile/internal/gc/dcl.go       |   4 +-
+ src/cmd/compile/internal/gc/esc.go       |   2 +-
+ src/cmd/compile/internal/gc/export.go    |   6 +-
+ src/cmd/compile/internal/gc/init.go      |   2 +-
+ src/cmd/compile/internal/gc/inl.go       |  91 +++--
+ src/cmd/compile/internal/gc/main.go      |   6 +-
+ src/cmd/compile/internal/gc/order.go     | 194 +++++-----
+ src/cmd/compile/internal/gc/pgen.go      |   2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  10 +-
+ src/cmd/compile/internal/gc/range.go     |  22 +-
+ src/cmd/compile/internal/gc/select.go    |  25 +-
+ src/cmd/compile/internal/gc/sinit.go     |  98 ++---
+ src/cmd/compile/internal/gc/subr.go      |  44 ++-
+ src/cmd/compile/internal/gc/swt.go       |  44 +--
+ src/cmd/compile/internal/gc/typecheck.go | 639 ++++++++++++++++---------------
+ src/cmd/compile/internal/gc/unsafe.go    |   8 +-
+ src/cmd/compile/internal/gc/walk.go      | 535 +++++++++++++-------------
+ 22 files changed, 971 insertions(+), 942 deletions(-)

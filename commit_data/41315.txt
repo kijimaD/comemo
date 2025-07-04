@@ -1,0 +1,19 @@
+commit f4f7db414dc0ea27df38dbd46c2731819e08dfc2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:14:23 2020 -0500
+
+    cmd/go: convert TestBuildDryRunWithCgo to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I2d14c07c590cc618c66f27fdc3a2bb8120c6d646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214427
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                           | 21 ---------------------
+ src/cmd/go/testdata/script/build_dash_n_cgo.txt | 18 ++++++++++++++++++
+ 2 files changed, 18 insertions(+), 21 deletions(-)

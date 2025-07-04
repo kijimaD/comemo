@@ -1,0 +1,23 @@
+commit ba97d0d84d4272c4b8497fa6af2eab1580b62d44
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 19 23:31:52 2019 +0700
+
+    cmd/compile: remove overflow pointer padding for nacl
+    
+    CL 200077 removed nacl bits in the toolchain, but it misses the code to
+    add pointer overflow padding, which is specific for nacl.
+    
+    This CL removes that part.
+    
+    Passes toolstash-check.
+    
+    Updates #30439
+    
+    Change-Id: I1e77cade9f31690e16cd13d3445a98b500671252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202159
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 23 +----------------------
+ 1 file changed, 1 insertion(+), 22 deletions(-)

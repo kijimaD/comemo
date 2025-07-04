@@ -1,0 +1,13 @@
+commit 43ebc6b5c64ca580b4a10430b2b620f4f5e6a84d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 30 12:02:14 2012 +1100
+
+    gobuilder: use go tool to build and test sub-repositories
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5576047
+
+ misc/dashboard/builder/http.go |  5 +--
+ misc/dashboard/builder/main.go | 70 +++++++++++++++++++++++++++++-------------
+ 2 files changed, 51 insertions(+), 24 deletions(-)

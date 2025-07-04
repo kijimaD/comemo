@@ -1,0 +1,20 @@
+commit 60736733ec988864c7cd91115e2761d6f6635df2
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Feb 7 03:38:21 2019 -0500
+
+    cmd/compile: return assignment mismatch error in var declarations
+    
+    Some var declarations return "extra expression" or "missing expression"
+    errors when they should return “assignment mismatch” instead. Change
+    the returned error messages to exhibit the desired behavior.
+    
+    Fixes #30085.
+    
+    Change-Id: I7189355fbb0f976d70100779db4f81a9ae64fb11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161558
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go |  5 +++--
+ test/fixedbugs/issue30085.go       | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

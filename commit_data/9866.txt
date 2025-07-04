@@ -1,0 +1,16 @@
+commit 305f167b017f83a243754f800cbf37cbc37558f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 5 12:27:23 2011 -0400
+
+    misc/emacs: fix indent bug
+    
+    Must use case-sensitive search to identify keywords.
+    
+    Fixes #2287.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5182043
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

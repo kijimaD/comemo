@@ -1,0 +1,23 @@
+commit 259f78f001c7f6e43063f06f25c9199f74c8c1d1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Aug 15 23:49:12 2017 +0200
+
+    cmd/go: make go tool suggest 'go doc cmd/<command>'
+    
+    $ gotip tool -h says:
+    
+      For more about each tool command, see 'go tool command -h'.
+    
+    But it's better to suggest
+    
+      go doc cmd/<command>
+    
+    Fixes #18313
+    
+    Change-Id: I0a36d585906a5e1879e5b7927d1b6173e97cb500
+    Reviewed-on: https://go-review.googlesource.com/55990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go            | 2 +-
+ src/cmd/go/internal/tool/tool.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

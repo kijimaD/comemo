@@ -1,0 +1,35 @@
+commit ca8b6270724026fb7697e9f9510d1e6865ed7045
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 16 09:35:32 2016 -0700
+
+    net/http: add Response.Uncompressed bool
+    
+    The Transport's automatic gzip uncompression lost information in the
+    process (the compressed Content-Length, if known). Normally that's
+    okay, but it's not okay for reverse proxies which have to be able to
+    generate a valid HTTP response from the Transport's provided
+    *Response.
+    
+    Reverse proxies should normally be disabling compression anyway and
+    just piping the compressed pipes though and not wasting CPU cycles
+    decompressing them. So also document that on the new Uncompressed
+    field.
+    
+    Then, using the new field, fix Response.Write to not inject a bogus
+    "Connection: close" header when it doesn't see a transfer encoding or
+    content-length.
+    
+    Updates #15366 (the http2 side remains, once this is submitted)
+    
+    Change-Id: I476f40aa14cfa7aa7b3bf99021bebba4639f9640
+    Reviewed-on: https://go-review.googlesource.com/22671
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 57 ++++++++++++++++++++++++++++++++++++---
+ src/net/http/httputil/dump.go     | 13 ++++-----
+ src/net/http/response.go          | 11 +++++++-
+ src/net/http/response_test.go     | 26 ++++++++++++++++++
+ src/net/http/transport.go         |  1 +
+ 5 files changed, 97 insertions(+), 11 deletions(-)

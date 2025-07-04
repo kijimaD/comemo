@@ -1,0 +1,19 @@
+commit 748c0d87e23eaae0ba133d2f613b82c009ac8cb4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 13 20:44:04 2020 -0400
+
+    cmd/dist: only build ios_exec wrapper for ios
+    
+    Not for darwin/arm64.
+    
+    Updates #38485.
+    
+    Change-Id: I08a5f00fd77f20c9c483755a36755a63cf10aa1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262558
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

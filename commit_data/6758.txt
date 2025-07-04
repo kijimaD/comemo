@@ -1,0 +1,13 @@
+commit f0d174b776fd0312c6e92193e6a27c516a0b2da6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 12 12:46:46 2010 -0800
+
+    gc: fix arm build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3074041
+
+ src/cmd/gc/builtin.c.boot | 2 ++
+ src/cmd/gc/runtime.go     | 2 ++
+ 2 files changed, 4 insertions(+)

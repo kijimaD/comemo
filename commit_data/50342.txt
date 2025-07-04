@@ -1,0 +1,19 @@
+commit e1e88d636badf57a66a573dd9f8c990df3573950
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 5 15:38:57 2022 +0200
+
+    net: mark withTCPConnPair as test helper
+    
+    Noticed while analyzing test failures on go.dev/cl/427714 that were
+    pointing to withTCPConnPair instead of the failing tests.
+    
+    Change-Id: Ie2366962c2253e0c2a6546d3b7f43a96390bc7bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428456
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/net_test.go | 1 +
+ 1 file changed, 1 insertion(+)

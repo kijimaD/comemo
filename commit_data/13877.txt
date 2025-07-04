@@ -1,0 +1,22 @@
+commit adcf0a2aa06ec1424b4d51d2b7ce043a60d29361
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Sep 20 08:11:07 2012 +1000
+
+    misc/vim: fix Drop for imports after the first group.
+    
+    Previously, an import block such as
+            import (
+                    "net"
+    
+                    "stack"
+            )
+    would not permit ":Drop stack" to work because we were aborting
+    the scan early, which is only correct when Import is in operation.
+    
+    R=golang-dev, franciscossouza
+    CC=golang-dev
+    https://golang.org/cl/6532053
+
+ misc/vim/ftplugin/go/import.vim |  2 +-
+ misc/vim/ftplugin/go/test.sh    | 43 ++++++++++++++++++++++++++++-------------
+ 2 files changed, 31 insertions(+), 14 deletions(-)

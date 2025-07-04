@@ -1,0 +1,13 @@
+commit 15fa1e403337cb85d9a1c66c2c07a9821d066514
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 31 09:59:29 2008 -0700
+
+    add mention of tag string to grammar comment
+    
+    R=rsc
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=18232
+    CL=18232
+
+ src/lib/reflect/type.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

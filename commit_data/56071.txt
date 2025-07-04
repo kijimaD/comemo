@@ -1,0 +1,19 @@
+commit 2e1003e2f7e42efc5771812b9ee6ed264803796c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 26 22:59:41 2024 +0200
+
+    cmd/go: replace reflect.DeepEqual with slices.Equal and maps.Equal
+    
+    All of these maps and slices are made up of comparable types,
+    so we can avoid the overhead of reflection entirely.
+    
+    Change-Id: If77dbe648a336ba729c171e84c9ff3f7e160297d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574597
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/modload/buildlist.go |  6 +++---
+ src/cmd/go/internal/modload/load.go      | 11 ++++++-----
+ src/cmd/go/internal/mvs/mvs.go           |  4 ++--
+ 3 files changed, 11 insertions(+), 10 deletions(-)

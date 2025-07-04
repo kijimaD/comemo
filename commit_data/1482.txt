@@ -1,0 +1,15 @@
+commit 8559e3ad542b96ab9de267912e194fee8df04206
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 15:21:12 2009 -0800
+
+    diagnose missing symbols instead of
+    silently miscompiling.
+    
+    R=rsc
+    OCL=22872
+    CL=22872
+
+ src/cmd/6l/asm.c | 2 ++
+ src/cmd/6l/go.c  | 2 +-
+ src/cmd/6l/l.h   | 1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)

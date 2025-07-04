@@ -1,0 +1,37 @@
+commit ea8f03799692c5b6a3e0ef36aa95cf290db39b4c
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Dec 15 16:39:07 2022 +0800
+
+    cmd/compile: enhance tighten pass for memory values
+    
+    This CL enhances the tighten pass. Previously if a value has memory arg,
+    then the tighten pass won't move it, actually if the memory state is
+    consistent among definition and use block, we can move the value. This
+    CL optimizes this case. This is useful for the following situation:
+    b1:
+      x = load(...mem)
+      if(...) goto b2 else b3
+    b2:
+      use(x)
+    b3:
+      some_op_not_use_x
+    
+    For the micro-benchmark mentioned in #56620, the performance improvement
+    is about 15%.
+    There's no noticeable performance change in the go1 benchmark.
+    
+    Fixes #56620
+    
+    Change-Id: I9b152754f27231f583a6995fc7cd8472aa7d390c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go |   7 ++-
+ src/cmd/compile/internal/ssa/tighten.go  | 105 +++++++++++++++++++++++++++++--
+ test/tighten.go                          |  22 +++++++
+ 3 files changed, 127 insertions(+), 7 deletions(-)

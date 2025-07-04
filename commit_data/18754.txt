@@ -1,0 +1,17 @@
+commit 22705d0995ab0e7ba5533b2c145bc41a0751ead5
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Wed Mar 5 14:28:11 2014 -0500
+
+    cmd/go: add support for coverage in CgoFiles
+    
+    Add CgoFiles to the covered files when building
+    with cover support.
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, r, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/34680044
+
+ src/cmd/go/build.go | 49 ++++++++++++++++++++++++++++++-------------------
+ src/cmd/go/test.go  | 10 ++++++++--
+ 2 files changed, 38 insertions(+), 21 deletions(-)

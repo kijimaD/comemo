@@ -1,0 +1,24 @@
+commit 2286e452bd2038a1c894d84b350bc646d12de4de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 29 09:51:04 2015 -0700
+
+    cmd/internal/obj: shrink Prog, remove two unused fields
+    
+    Printed and Width were unused.
+    
+    Despite only removing two bytes, due to alignment, 8 bytes are saved
+    on 64-bit:
+    
+    Before: unsafe.Sizeof(obj.Prog{}) == 304
+     After: unsafe.Sizeof(obj.Prog{}) == 296
+    
+    The next size class below 320 (304=>19(320)) is 288. Still 8 bytes
+    away from that.
+    
+    Change-Id: I8d1632dd40d387f7036c03c65ea4d64e9b6218c3
+    Reviewed-on: https://go-review.googlesource.com/10511
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/obj/link.go | 2 --
+ 1 file changed, 2 deletions(-)

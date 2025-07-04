@@ -1,0 +1,21 @@
+commit 913fb18e7e16b95ef4f3c491c3079c4f80e4c562
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Oct 16 13:57:54 2017 +0200
+
+    runtime/cgo: declare crosscall2 frame using TEXT for amd64 and 386
+    
+    Use TEXT pseudo-instruction to adjust SP instead of a SUB instruction
+    so that the assembler knows how to fill in the pcsp table and the frame
+    description entry correctly.
+    
+    Updates #21569
+    
+    Change-Id: I436c840b2af99bbb3042ecd38a7d7c1ab4d7372a
+    Reviewed-on: https://go-review.googlesource.com/70937
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/asm_386.s   | 33 +++++++++++++++------------------
+ src/runtime/cgo/asm_amd64.s | 12 ++----------
+ 2 files changed, 17 insertions(+), 28 deletions(-)

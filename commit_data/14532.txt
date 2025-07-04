@@ -1,0 +1,13 @@
+commit 279199ebccb87eb97f97bb8e8e41095400d90181
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 1 00:42:50 2012 +0800
+
+    cmd/godoc: fix `godoc net/http` on windows
+    `godoc net/http` used to complain "/target contains more than one package: http, main"
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6852100
+
+ src/cmd/godoc/godoc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

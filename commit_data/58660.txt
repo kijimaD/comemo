@@ -1,0 +1,19 @@
+commit 74c3b3784ea09e75f8c94ef5bf306c55c2e463a7
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Feb 8 13:51:31 2025 +0000
+
+    cmd/internal/bio: remove unused MustWriter
+    
+    Change-Id: I70435781fbaeca2b6927a74afd79a3ff123b527b
+    GitHub-Last-Rev: cae569f4c4bf73a9a6cd8d26fb080962f94bf1b1
+    GitHub-Pull-Request: golang/go#71622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647916
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/internal/bio/must.go | 43 -------------------------------------------
+ 1 file changed, 43 deletions(-)

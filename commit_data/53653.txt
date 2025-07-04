@@ -1,0 +1,19 @@
+commit 36ea4f9680f8296f1c7d0cf7dbb1b3a9d572754a
+Author: Merrick Clay <merrick.e.clay@gmail.com>
+Date:   Wed Jul 5 15:06:39 2023 -0600
+
+    log/slog: fix faulty test
+    
+    Adds an optional close quote in the expected log message regex for TestConnections to prevent failing when the source filepath is surrounded in quotes due to it containing one or more spaces.
+    
+    Fixes #61161
+    
+    Change-Id: I0dd71fb4389bff963bbfdc668ef4e4dfe787eafc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508055
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/logger_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

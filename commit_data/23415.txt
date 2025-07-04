@@ -1,0 +1,14 @@
+commit d1e7980d1b25b5446bee9a9fc0b53eddd899718a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 18 10:46:01 2015 -0700
+
+    log: fix flaky test
+    
+    Fixes #11272.
+    
+    Change-Id: I78d666c20f4f7cb7116d37fd66b5f8b7d66c53c4
+    Reviewed-on: https://go-review.googlesource.com/11234
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/log/log_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

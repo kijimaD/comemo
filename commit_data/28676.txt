@@ -1,0 +1,20 @@
+commit f54c0db859867f415a0702c8ceaa30c1a8976b0b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Feb 21 02:28:37 2016 -0800
+
+    cmd/compile, cmd/cgo: align complex{64,128} like GCC
+    
+    complex64 and complex128 are treated like [2]float32 and [2]float64,
+    so it makes sense to align them the same way.
+    
+    Change-Id: Ic614bcdcc91b080aeb1ad1fed6fc15ba5a2971f8
+    Reviewed-on: https://go-review.googlesource.com/19800
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/complex.go             | 24 ++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go                   |  2 +-
+ src/cmd/cgo/out.go                   |  4 ++--
+ src/cmd/compile/internal/gc/align.go |  6 +++++-
+ 4 files changed, 32 insertions(+), 4 deletions(-)

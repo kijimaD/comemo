@@ -1,0 +1,18 @@
+commit 77f21eea597f374e025497c167caccfd72864e13
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 4 23:31:23 2013 +0400
+
+    net: fix concurrent Accept on windows
+    Runtime netpoll supports at most one read waiter
+    and at most one write waiter. It's responsibility
+    of net package to ensure that. Currently windows
+    implementation allows more than one waiter in Accept.
+    It leads to "fatal error: netpollblock: double wait".
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12400045
+
+ src/pkg/net/fd_windows.go |  2 ++
+ src/pkg/net/tcp_test.go   | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

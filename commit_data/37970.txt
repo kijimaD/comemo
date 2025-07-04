@@ -1,0 +1,25 @@
+commit e2d87f2ca5affab517baef8008cb80559d03e15a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 20:16:59 2019 -0500
+
+    strconv: format hex floats
+    
+    This CL updates FormatFloat to format
+    standard hexadecimal floating-point constants,
+    using the 'x' and 'X' verbs.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #29008.
+    
+    Change-Id: I540b8f71d492cfdb7c58af533d357a564591f28b
+    Reviewed-on: https://go-review.googlesource.com/c/160242
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/floatconv_test.go |  6 +--
+ src/strconv/ftoa.go            | 98 +++++++++++++++++++++++++++++++++++++++---
+ src/strconv/ftoa_test.go       | 27 +++++++++++-
+ src/strconv/quote.go           |  5 ++-
+ 4 files changed, 126 insertions(+), 10 deletions(-)

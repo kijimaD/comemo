@@ -1,0 +1,15 @@
+commit 1cf3f501ad522a874cffefc9db234d57fbec4396
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 20 10:53:50 2013 -0500
+
+    codereview: switch defaultcc to golang-codereviews
+    
+    See this thread for background:
+    https://groups.google.com/forum/#!topic/golang-dev/xG7vPi21r8g
+    
+    R=golang-codereviews, gobot, golang-dev, dsymonds
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/44450043
+
+ lib/codereview/codereview.cfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

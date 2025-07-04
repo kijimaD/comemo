@@ -1,0 +1,24 @@
+commit c9a10d48a8f0e8479f5b9d98c5bd81b64a90d23d
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 21 16:47:39 2022 -0800
+
+    crypto/x509: return typed verification errors on macOS
+    
+    On macOS return the error code from SecTrustEvaluateWithError, and use
+    it to create typed errors that can be returned from Verify.
+    
+    Fixes #56891
+    
+    Change-Id: Ib597ce202abb60702f730e75da583894422e4c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452620
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/x509/internal/macos/corefoundation.go |  7 +++++++
+ src/crypto/x509/internal/macos/corefoundation.s  |  2 ++
+ src/crypto/x509/internal/macos/security.go       | 19 ++++++++++++++-----
+ src/crypto/x509/root_darwin.go                   | 14 ++++++++++++--
+ src/crypto/x509/root_darwin_test.go              | 10 +++++-----
+ 5 files changed, 40 insertions(+), 12 deletions(-)

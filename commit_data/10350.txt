@@ -1,0 +1,20 @@
+commit 5fc3771b3a052ad8b724d6c5f6d491aa5a4b88b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 16:48:25 2011 -0500
+
+    gc: remove m[k] = x, false
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5376076
+
+ src/cmd/gc/esc.c          |  1 -
+ src/cmd/gc/fmt.c          |  2 --
+ src/cmd/gc/go.h           |  2 +-
+ src/cmd/gc/typecheck.c    | 13 ++-----------
+ src/cmd/gc/walk.c         | 12 ------------
+ src/pkg/runtime/hashmap.c | 28 ----------------------------
+ test/fixedbugs/bug220.go  | 14 --------------
+ test/fixedbugs/bug242.go  |  3 ++-
+ test/named1.go            |  1 -
+ 9 files changed, 5 insertions(+), 71 deletions(-)

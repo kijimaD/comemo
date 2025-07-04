@@ -1,0 +1,18 @@
+commit 380903588cc68dbdcf35c839a9fd4b1ec2cc2158
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 18 15:07:37 2024 +0100
+
+    crypto/internal/fips/aes/gcm: add GCMForSSH
+    
+    For #69536
+    
+    Change-Id: Ia368f515893a95e176149e23239a8e253fc5272f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/cipher/gcm_test.go                  | 73 ++++++++++++++++++++++++++
+ src/crypto/internal/fips/aes/gcm/gcm_nonces.go | 54 +++++++++++++++++++
+ 2 files changed, 127 insertions(+)

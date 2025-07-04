@@ -1,0 +1,16 @@
+commit 9c3a9b71c8338ceaf3c8409550b6599356fea083
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 24 12:59:09 2009 -0700
+
+    - fixed a couple of potential end-less loops
+      (no progress in presence of syntax errors)
+    - end parsing early if source doesn't start
+      proper package clause
+    
+    R=iant
+    DELTA=18  (7 added, 6 deleted, 5 changed)
+    OCL=27840
+    CL=27842
+
+ src/lib/go/parser.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

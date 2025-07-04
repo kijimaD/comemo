@@ -1,0 +1,21 @@
+commit ec654e2251f0104ee63eff57fba2749da2f177e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 19 22:04:45 2017 -0800
+
+    misc/cgo/test: fix test when using GCC 7
+    
+    With GCC 7 (not yet released), cgo fails with errors like
+    
+    ./sigaltstack.go:65:8: call of non-function C.restoreSignalStack
+    
+    I do not know precisely why. Explicitly declaring that there are no
+    arguments to the static function is a simple fix for the debug info.
+    
+    Change-Id: Id96e1cb1e55ee37a9f1f5ad243d7ee33e71584ac
+    Reviewed-on: https://go-review.googlesource.com/35480
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/sigaltstack.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

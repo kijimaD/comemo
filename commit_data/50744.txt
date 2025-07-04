@@ -1,0 +1,48 @@
+commit 902da52f7b5826c2083effc20b209f39d58d2919
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 30 14:36:58 2022 +0000
+
+    Revert "cmd/cgo, cmd/compile, cmd/link: remove old style build tags"
+    
+    This reverts commit 66165739828b8326b625463beb51ae510b2ab8dd, corresponding to CL 436915.
+    
+    Reason for revert: this is causing some bootstrap build problems with older versions of Go 1.17, as I understand it. Still under investigation.
+    
+    Change-Id: Idb6e17ff7b47004cbf87f967af6d84f214d8abb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435471
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/cgo/ast_go1.go                                | 1 +
+ src/cmd/cgo/ast_go118.go                              | 1 +
+ src/cmd/compile/internal/base/bootstrap_false.go      | 1 +
+ src/cmd/compile/internal/base/bootstrap_true.go       | 1 +
+ src/cmd/compile/internal/base/mapfile_mmap.go         | 1 +
+ src/cmd/compile/internal/base/mapfile_read.go         | 7 +++++++
+ src/cmd/compile/internal/ir/mknode.go                 | 1 +
+ src/cmd/compile/internal/ssa/flags_test.go            | 1 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go            | 1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go          | 1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go          | 1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go            | 1 +
+ src/cmd/compile/internal/ssa/gen/LOONG64Ops.go        | 1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go         | 1 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go           | 1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go          | 1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go        | 1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go          | 1 +
+ src/cmd/compile/internal/ssa/gen/WasmOps.go           | 1 +
+ src/cmd/compile/internal/ssa/gen/dec64Ops.go          | 1 +
+ src/cmd/compile/internal/ssa/gen/decOps.go            | 1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go        | 1 +
+ src/cmd/compile/internal/ssa/gen/main.go              | 1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go           | 1 +
+ src/cmd/compile/internal/typecheck/builtin/runtime.go | 1 +
+ src/cmd/compile/internal/typecheck/mkbuiltin.go       | 1 +
+ src/cmd/compile/internal/types2/example_test.go       | 1 +
+ src/cmd/internal/bio/buf_mmap.go                      | 1 +
+ src/cmd/internal/bio/buf_nommap.go                    | 7 +++++++
+ src/cmd/link/elf_test.go                              | 1 +
+ src/cmd/link/internal/ld/outbuf_mmap.go               | 1 +
+ src/cmd/link/internal/ld/outbuf_nofallocate.go        | 1 +
+ src/cmd/link/internal/ld/outbuf_nommap.go             | 9 +++++++++
+ 33 files changed, 53 insertions(+)

@@ -1,0 +1,13 @@
+commit f47346c5fce2eafc57bd0b6da14d531a49237345
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 15 12:52:18 2012 -0400
+
+    8l,5l: 2% faster
+    
+    R=golang-dev, for.go.yong
+    CC=golang-dev
+    https://golang.org/cl/6197080
+
+ src/cmd/5l/obj.c | 20 ++++++++++----------
+ src/cmd/8l/obj.c | 18 +++++++++---------
+ 2 files changed, 19 insertions(+), 19 deletions(-)

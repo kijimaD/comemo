@@ -1,0 +1,38 @@
+commit e301b2f11c905672eccd418fd581c0432a07ac04
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 23 11:37:52 2021 -0400
+
+    io: update ByteScanner and RuneScanner docs to match long-standing implementations
+    
+    Do not require the byte or rune unread by the call to match the last
+    return from ReadByte or ReadRune, since in practice the
+    implementations of these methods (especially ReadByte) may also unread
+    bytes from other Read-style methods without reporting an error.
+    
+    Explicitly allow the Seek-like behavior implemented by bytes.Reader
+    and bufio.Reader, which can “unread” bytes that were never actually
+    read.
+    
+    Explicitly allow ReadByte or ReadRune to return an error after a call
+    to a non-ReadByte or non-ReadRune operation respectively.
+    (In practice, implementations today allow very liberal calls to
+    ReadByte and tend to be more strict about ReadRune, but it seems
+    simpler to keep the two definitions completely parallel.)
+    
+    Like CL 349054, this is techincally a breaking change, but given the
+    long-standing behavior of the implementations in the Go standard
+    library (such as strings.Reader, bytes.Buffer, and bufio.Reader),
+    I believe it falls under the “specification errors” exception to the
+    Go 1 compatibility policy.
+    
+    Fixes #48449
+    
+    Change-Id: I61696a59770fe83c667377ba25a072762d3f6f19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351809
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/io.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

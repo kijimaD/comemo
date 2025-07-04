@@ -1,0 +1,16 @@
+commit 9c060b8d60f14d930e5eadd7c9968ee2ba4f4131
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 6 10:06:22 2012 -0800
+
+    database/sql: permit scanning into interface{}
+    
+    See thread http://goo.gl/7zzzU for background.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5624051
+
+ src/pkg/database/sql/convert.go      |  8 ++++++++
+ src/pkg/database/sql/convert_test.go | 38 ++++++++++++++++++++++++++++--------
+ src/pkg/database/sql/sql.go          |  4 ++++
+ 3 files changed, 42 insertions(+), 8 deletions(-)

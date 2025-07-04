@@ -1,0 +1,15 @@
+commit fc32bfa9cc4bec0eeed7193f96ea5ffc2c32ca49
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 30 09:42:53 2013 +1000
+
+    doc/codewalk: test source code
+    
+    Fixes #2648.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11331043
+
+ doc/codewalk/run | 21 +++++++++++++++++++++
+ src/run.bash     |  5 +----
+ 2 files changed, 22 insertions(+), 4 deletions(-)

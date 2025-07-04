@@ -1,0 +1,21 @@
+commit acabf87127fab93513df46811d5f473ef72905b1
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Aug 14 16:45:33 2022 +0800
+
+    reflect: add Value.{Comparable,Equal}
+    
+    For #46746
+    
+    Change-Id: I879124974cdb55932cd9d07d3b384d49d5059857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423794
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/46746.txt      |   2 +
+ src/reflect/all_test.go | 363 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  86 ++++++++++++
+ 3 files changed, 451 insertions(+)

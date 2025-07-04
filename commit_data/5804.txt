@@ -1,0 +1,13 @@
+commit a3855235cd493af6d67e232136b8f5e3f86de183
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 14 10:11:12 2010 -0700
+
+    fix build: reverting exp/eval Makefile to old form
+    (gofmt doesn't exist when this is built)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1838041
+
+ src/pkg/exp/eval/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

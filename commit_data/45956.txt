@@ -1,0 +1,25 @@
+commit 6e738868a7a943d7d4fd6bb1963e7f6d78111726
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Aug 3 19:38:37 2021 -0700
+
+    net/http: speed up and deflake TestCancelRequestWhenSharingConnection
+    
+    This test made many requests over the same connection for 10
+    seconds, trusting that this will exercise the request cancelation
+    race from #41600.
+    
+    Change the test to exhibit the specific race in a targeted fashion
+    with only two requests.
+    
+    Updates #41600.
+    Updates #47016.
+    
+    Change-Id: If99c9b9331ff645f6bb67fe9fb79b8aab8784710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339594
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/net/http/transport_test.go | 77 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 26 deletions(-)

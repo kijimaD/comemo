@@ -1,0 +1,13 @@
+commit 617a6a519f2fa8f930d4552865d1e828dc883b8e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 23 13:47:58 2009 +1100
+
+    fix documentation bug in example
+    Fixes #452.
+    
+    R=gri
+    CC=golang-dev, dougfelt
+    https://golang.org/cl/181043
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 3457359b90c1b4ef0c9143d2d2e9575b3e72cf4b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:24:06 2020 -0500
+
+    cmd/go: convert TestRelativeGOBINFail to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I1cb3e2e28700b05b08933f4e24cd996268c1f163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214428
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                      | 10 ----------
+ src/cmd/go/testdata/script/install_relative_gobin_fail.txt |  8 ++++++++
+ 2 files changed, 8 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit fc6befba3c2a076f34fd4225cf76a7e8639ac100
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 26 21:52:29 2014 -0400
+
+    runtime: initialize complete Hiter during mapiterinit
+    
+    The garbage collector will scan these pointers,
+    so make sure they are initialized.
+    
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/80960047
+
+ src/pkg/runtime/hashmap.goc | 8 ++++++++
+ 1 file changed, 8 insertions(+)

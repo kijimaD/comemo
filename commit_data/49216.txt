@@ -1,0 +1,33 @@
+commit 568590b0856d457f38404505f96d21032c35f844
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 13 16:06:53 2022 -0700
+
+    runtime: mark panicshift and panicdivide as //go:yeswritebarrierrec
+    
+    When compiling package runtime, cmd/compile logically has two copies
+    of package runtime: the actual source files being compiled, and the
+    internal description used for emitting compiler-generated calls.
+    
+    Notably, CL 393715 will cause the compiler's write barrier validation
+    to start recognizing that compiler-generated calls are actually calls
+    to the corresponding functions from the source package. And today,
+    there are some code paths in nowritebarrierrec code paths that
+    actually end up generating code to call panicshift or panicdivide.
+    
+    In preparation, this CL marks those functions as
+    //go:yeswritebarrierrec. We probably want to actually cleanup those
+    code paths to avoid these calls actually (e.g., explicitly convert
+    shift count expressions to an unsigned integer type). But for now,
+    this at least unblocks CL 393715 while preserving the status quo.
+    
+    Updates #51734.
+    
+    Change-Id: I01f89adb72466c0260a9cd363e3e09246e39cff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406316
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/panic.go | 2 ++
+ 1 file changed, 2 insertions(+)

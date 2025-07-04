@@ -1,0 +1,18 @@
+commit ddf78189d47ff97afb76d3b4e47edbf3eb0ee11c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:47:46 2022 -0500
+
+    cmd/pprof: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Iabd114dd23b85da524e7ea8415f2bbf2c54b380f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450709
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/pprof/pprof_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

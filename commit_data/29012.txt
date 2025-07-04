@@ -1,0 +1,20 @@
+commit 452bbfc179d6739a404aacc819ec66acc71fc55c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 00:01:31 2016 -0400
+
+    path/filepath: fix match of \\?\c:\* on Windows
+    
+    \\?\c:\ is a "root directory" that is not subject to further matching,
+    but the ? makes it look like a pattern, which was causing an
+    infinite recursion. Make sure the code understands the ? is not a pattern.
+    
+    Fixes #15879.
+    
+    Change-Id: I3a4310bbc398bcae764b9f8859c875317345e757
+    Reviewed-on: https://go-review.googlesource.com/31460
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/path/filepath/match.go             | 18 +++++++++++-------
+ src/path/filepath/path_windows.go      |  2 +-
+ src/path/filepath/path_windows_test.go |  8 ++++++++
+ 3 files changed, 20 insertions(+), 8 deletions(-)

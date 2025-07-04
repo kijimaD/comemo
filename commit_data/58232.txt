@@ -1,0 +1,18 @@
+commit 154fb4e1d45e503658542dee5296243a6146e7ca
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Thu Nov 21 07:36:25 2024 +0000
+
+    testing: Update testing.B.Loop to save benchmark results.
+    
+    This is fixing some the missing logic of CL 627755.
+    
+    Change-Id: I35acffef7299331fce21da4a80a26185b2e909f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630455
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/benchmark.go      | 51 +++++++++++++++++++++++--------------------
+ src/testing/benchmark_test.go | 17 +++++++++------
+ src/testing/testing_test.go   |  5 +++++
+ 3 files changed, 42 insertions(+), 31 deletions(-)

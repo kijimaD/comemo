@@ -1,0 +1,24 @@
+commit 0afd7e85e5d7154161770f06a17d09bf1ffa3e94
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 13:11:02 2024 -0500
+
+    cmd/go: document GOCACHEPROG in go help environment
+    
+    This adds GOCACHEPROG to the list of environment variables in "go help
+    environment" and points to the cacheprog package documentation for
+    details of the protocol.
+    
+    Fixes #71032
+    Updates #59719
+    
+    Change-Id: Ib8f5804926a8fa59237661076d129c2852665ac3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638997
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go               | 4 ++++
+ src/cmd/go/internal/help/helpdoc.go | 4 ++++
+ 2 files changed, 8 insertions(+)

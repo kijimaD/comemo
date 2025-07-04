@@ -1,0 +1,20 @@
+commit 6abeffb18ea263b14cbe5936e8bdbbf08546e4b8
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Mon Feb 5 14:15:26 2024 +0000
+
+    Revert "runtime: make netpollBreak entries identifiable on Windows"
+    
+    This reverts commit 29746b4814bb76a3d5a36fc86967b358f11bbb93.
+    
+    Reason for revert: Windows builders are flaky since this CL. Needs investigation. See https://build.golang.org/log/70d5d039b57b505870c9cc4e61de320df06a6f3a.
+    
+    Change-Id: I8a5874bb057785497d03b9450819578de7faeb47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561276
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/fd_windows_test.go | 22 ++++++---
+ src/runtime/netpoll_windows.go       | 86 +++++++-----------------------------
+ 2 files changed, 33 insertions(+), 75 deletions(-)

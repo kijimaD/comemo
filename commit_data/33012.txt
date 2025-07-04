@@ -1,0 +1,20 @@
+commit 6f5ede8bd5faf92053be30eca9999fa16833b2b9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 9 10:54:22 2017 +0100
+
+    runtime: remove a few unused params and results
+    
+    These have never had a use - not even going back to when they were added
+    in C.
+    
+    Change-Id: I143b6902b3bacb1fa83c56c9070a8adb9f61a844
+    Reviewed-on: https://go-review.googlesource.com/69119
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mcache.go   |  3 +--
+ src/runtime/mgclarge.go |  4 +---
+ src/runtime/proc.go     | 12 +++++-------
+ 3 files changed, 7 insertions(+), 12 deletions(-)

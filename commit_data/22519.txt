@@ -1,0 +1,23 @@
+commit 57bc7a043405c7e7215360f5fd1b80df6f56bb43
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 10 17:24:43 2015 +0900
+
+    net: fix TestDialGoogle with -ipv6 when CGO_ENABLED=0
+    
+    Under some dial tests that require external network connectivity, we
+    must prevent application traffic but must not interfere with control
+    plane traffic such as DNS message exchange. But test helper function
+    disableSocketConnect prevents both application and control plane traffic
+    unconditionally and makes some dial tests with -ipv6 fail when
+    CGO_ENABLED=0.
+    
+    This change makes disableSocketConnect take a look at not only address
+    family but socket type for fixing some dial tests with -ipv6 when
+    CGO_ENBALED=0.
+    
+    Change-Id: I32241d9592d31483424bb5e69cb4d56f3fc20312
+    Reviewed-on: https://go-review.googlesource.com/8743
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/main_posix_test.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 457721cd52008146561c80d686ce1bb18285fe99
+Author: korzhao <korzhao95@gmail.com>
+Date:   Thu Jun 29 20:09:40 2023 +0800
+
+    encoding/json: replace dead link in appendString
+    
+    Change-Id: I534698008b46b23352d9f1fed891fd96dc0947b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507115
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

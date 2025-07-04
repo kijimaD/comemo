@@ -1,0 +1,15 @@
+commit 815a1b84c7724fa4ccb4ece1e92ff41c9dc533ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 23 10:54:19 2011 -0400
+
+    gc: fix return variable named _
+    
+    Fixes #1712.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4445055
+
+ src/cmd/gc/dcl.c         |  7 +++++++
+ test/fixedbugs/bug331.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

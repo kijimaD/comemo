@@ -1,0 +1,13 @@
+commit 3467068ef42ddc477569a89f3789a80e8b00a887
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Apr 1 14:21:15 2013 -0700
+
+    cmd/cc/cc.h: Add a #pragma for %S used (only) in cmd/cc/sub.c.
+    Eliminates a format consistency warning.
+    
+    R=gloang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8217043
+
+ src/cmd/cc/cc.h | 1 +
+ 1 file changed, 1 insertion(+)

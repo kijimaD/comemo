@@ -1,0 +1,23 @@
+commit 6661cf6dfd91dc3dd5d233e8bdb9f2d60829c68e
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Jul 10 15:28:27 2017 -0300
+
+    runtime, internal/cpu: CPU capabilities detection for ppc64x
+    
+    This change replaces the current runtime capabilities check for ppc64x with the
+    new internal/cpu package. It also adds support for the new POWER9 ISA and
+    capabilities.
+    
+    Updates #15403
+    
+    Change-Id: I5b64a79e782f8da3603e5529600434f602986292
+    Reviewed-on: https://go-review.googlesource.com/53830
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/cpu/cpu.go         | 25 +++++++++++++++++++
+ src/internal/cpu/cpu_ppc64.go   |  7 ------
+ src/internal/cpu/cpu_ppc64le.go |  7 ------
+ src/internal/cpu/cpu_ppc64x.go  | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_test.go    | 23 ++++++++++++++++++
+ src/runtime/os_linux_ppc64x.go  | 53 ++++++++--------------------------------
+ 6 files changed, 112 insertions(+), 57 deletions(-)

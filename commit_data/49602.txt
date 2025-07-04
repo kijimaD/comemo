@@ -1,0 +1,19 @@
+commit 14abe8aa7324bdf0e09e1dfebfb3519cc30f4918
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 1 16:33:54 2022 +0700
+
+    cmd/compile: don't convert to interface{} for un-comparable types in generic switch
+    
+    Fixes #53635
+    
+    Change-Id: I41f383be8870432fc0d29fa83687911ddd8217f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415634
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/fixedbugs/issue53635.go              | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

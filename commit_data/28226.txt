@@ -1,0 +1,21 @@
+commit 9a243303b86a0c5aaf25875a7d07dabd629b0662
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 16:59:46 2016 -0700
+
+    cmd/compile: omit some temp panicdivide calls
+    
+    When the divisor is known to be a constant
+    non-zero, don't insert panicdivide calls
+    that will just be eliminated later.
+    
+    The main benefit here is readability of the SSA
+    form for compiler developers.
+    
+    Change-Id: Icb7d07fc996941fbaff84524ac3e4b53d8e75fda
+    Reviewed-on: https://go-review.googlesource.com/28530
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

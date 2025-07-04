@@ -1,0 +1,14 @@
+commit 38c561cb2caa8019e44059e2be71c909ceef30a6
+Author: Igor Vashyst <ivashyst@gmail.com>
+Date:   Sat Dec 30 23:13:28 2017 +0200
+
+    encoding/xml: remove duplicate test of element presence
+    
+    Change-Id: If0d9ff107fc6bbdf0231cd48abc23a44816bfe77
+    Reviewed-on: https://go-review.googlesource.com/85755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/marshal_test.go | 10 ----------
+ 1 file changed, 10 deletions(-)

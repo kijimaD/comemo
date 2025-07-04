@@ -1,0 +1,12 @@
+commit ee95c95ebd32c7d2c75d81d4d5ede98098669d2a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 28 10:06:38 2013 -0800
+
+    C: add googler Matt Brown mdbrown@google.com
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7444045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

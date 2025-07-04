@@ -1,0 +1,31 @@
+commit 307d7c67477ee7ccb8544ac802e965b5d18a069e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Dec 9 09:09:52 2021 -0500
+
+    net/http: update bundled golang.org/x/net/http2
+    
+    Pull in security fix
+    
+        2d13015 http2: cap the size of the server's canonical header cache
+    
+    and
+    
+        0a0e4e1 http2: Fix handling of expect continue
+        04296fa http2: prioritize RST_STREAM frames in random write scheduler
+    
+    Fixes #50058
+    Fixes CVE-2021-44716
+    
+    Change-Id: Ia40a2e52fa240e54a83b5ec7d8116cb6639ecbb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370579
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +--
+ src/net/http/h2_bundle.go                          | 32 ++++++++++++++--------
+ .../golang.org/x/net/dns/dnsmessage/message.go     | 22 +++++++--------
+ src/vendor/modules.txt                             |  2 +-
+ 5 files changed, 36 insertions(+), 26 deletions(-)

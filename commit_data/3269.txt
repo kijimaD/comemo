@@ -1,0 +1,70 @@
+commit 1a3198907bf18ac961762024cf2a27581e6be6c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 21:03:53 2009 -0700
+
+    fix "declared and not used" in tests;
+    also template/template.go, missed last time.
+    
+    R=r
+    DELTA=116  (61 added, 10 deleted, 45 changed)
+    OCL=34620
+    CL=34622
+
+ src/pkg/template/template.go      | 16 +++++++-------
+ test/235.go                       |  1 -
+ test/bigalg.go                    |  2 +-
+ test/bugs/bug196.go               |  2 ++
+ test/complit.go                   |  2 +-
+ test/decl.go                      |  2 ++
+ test/fixedbugs/bug008.go          |  6 ++---
+ test/fixedbugs/bug009.go          |  2 +-
+ test/fixedbugs/bug011.go          |  1 +
+ test/fixedbugs/bug012.go          |  1 +
+ test/fixedbugs/bug013.go          |  1 +
+ test/fixedbugs/bug017.go          |  1 +
+ test/fixedbugs/bug023.go          |  1 +
+ test/fixedbugs/bug024.go          |  1 +
+ test/fixedbugs/bug031.go          |  1 +
+ test/fixedbugs/bug053.go          |  1 +
+ test/fixedbugs/bug055.go          |  1 +
+ test/fixedbugs/bug057.go          |  1 +
+ test/fixedbugs/bug061.go          |  1 +
+ test/fixedbugs/bug069.go          |  4 +++-
+ test/fixedbugs/bug070.go          |  2 +-
+ test/fixedbugs/bug071.go          |  1 +
+ test/fixedbugs/bug075.go          |  1 +
+ test/fixedbugs/bug077.go          |  1 +
+ test/fixedbugs/bug084.go          |  1 +
+ test/fixedbugs/bug087.go          |  1 +
+ test/fixedbugs/bug088.dir/bug1.go |  1 +
+ test/fixedbugs/bug092.go          |  1 +
+ test/fixedbugs/bug094.go          |  3 ++-
+ test/fixedbugs/bug096.go          |  1 +
+ test/fixedbugs/bug098.go          |  1 +
+ test/fixedbugs/bug129.go          |  3 ++-
+ test/fixedbugs/bug135.go          |  1 +
+ test/fixedbugs/bug143.go          |  3 ++-
+ test/fixedbugs/bug144.go          |  1 +
+ test/fixedbugs/bug145.go          |  3 ++-
+ test/fixedbugs/bug154.go          |  1 +
+ test/fixedbugs/bug179.go          |  1 +
+ test/fixedbugs/bug187.go          |  1 -
+ test/fixedbugs/bug202.go          |  4 ++--
+ test/gc.go                        |  1 +
+ test/gc1.go                       |  1 +
+ test/hashmap.go                   |  1 +
+ test/if.go                        | 27 +++++++++++++----------
+ test/interface/convert.go         |  3 +--
+ test/interface/fail.go            |  1 +
+ test/interface/pointer.go         |  1 -
+ test/interface/receiver1.go       |  6 +++++
+ test/ken/rob2.go                  |  4 +---
+ test/ken/robif.go                 | 25 +++++++++++----------
+ test/ken/simpvar.go               |  1 +
+ test/literal.go                   |  2 ++
+ test/method.go                    |  1 -
+ test/nil.go                       |  2 ++
+ test/stringrange.go               |  1 -
+ test/switch.go                    | 46 +++++++++++++++++++--------------------
+ test/test0.go                     |  2 ++
+ 57 files changed, 128 insertions(+), 77 deletions(-)

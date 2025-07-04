@@ -1,0 +1,13 @@
+commit 6a0e6cc7f41d49590c12c7affa9d145371a88cad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 15:50:44 2012 -0800
+
+    A+C: add Yoshiyuki Kanno (Individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5534066
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

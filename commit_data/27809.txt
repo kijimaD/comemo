@@ -1,0 +1,21 @@
+commit df9eeb192227257e8399c629372cd8cc79513406
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 7 09:25:15 2016 -0700
+
+    go/types: remove struct Sizeof cache
+    
+    It was not responsive to the sizes param.
+    Remove it, and unwind the extra layers.
+    
+    Fixes #16316
+    
+    Change-Id: I940a57184a1601f52348d4bff8638f3f7462f5cd
+    Reviewed-on: https://go-review.googlesource.com/26995
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/sizes.go      | 38 +++++++++--------------------
+ src/go/types/sizes_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/type.go       | 11 +++------
+ 3 files changed, 74 insertions(+), 35 deletions(-)

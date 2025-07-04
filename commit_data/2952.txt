@@ -1,0 +1,13 @@
+commit ff5618e2e3087199d35ad78c799751f95b046767
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 14:40:29 2009 -0700
+
+    avoid unnecessary installs
+    
+    R=r
+    DELTA=6  (4 added, 0 deleted, 2 changed)
+    OCL=33107
+    CL=33110
+
+ src/Make.pkg | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 918ed88e475d39e40baf9cd6539b618e05d12e5e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 13 16:14:19 2018 -0400
+
+    runtime: remove gcStart's mode argument
+    
+    This argument is always gcBackgroundMode since only
+    debug.gcstoptheworld can trigger a STW GC at this point. Remove the
+    unnecessary argument.
+    
+    Updates #26903. This is preparation for unifying STW GC and concurrent
+    GC.
+    
+    Change-Id: Icb4ba8f10f80c2b69cf51a21e04fa2c761b71c94
+    Reviewed-on: https://go-review.googlesource.com/c/134775
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 21 ++++++++++-----------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

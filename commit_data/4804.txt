@@ -1,0 +1,13 @@
+commit 4fdab8517827a676a4711e586221a4cefd307fb4
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Feb 5 18:32:02 2010 -0800
+
+    http: sort header keys when writing Response or Request to wire
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/203050
+
+ src/pkg/http/request.go  | 11 +++--------
+ src/pkg/http/response.go | 24 +++++++++++++++++++++---
+ 2 files changed, 24 insertions(+), 11 deletions(-)

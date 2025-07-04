@@ -1,0 +1,26 @@
+commit 7fff741016c8157e107cce8013ee3ca621725384
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Nov 5 16:01:45 2024 +0100
+
+    syscall: mark SyscallN as noescape
+    
+    syscall.SyscallN is implemented by runtime.syscall_syscalln, which makes
+    sure that the variadic argument doesn't escape.
+    
+    There is no need to worry about the lifetime of the elements of the
+    variadic argument, as the compiler will keep them live until the
+    function returns.
+    
+    Fixes #70197.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race
+    Change-Id: I12991f0be12062eea68f2b103fa0a794c1b527eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625297
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/dll_windows.go          |  1 +
+ src/syscall/syscall_windows_test.go | 47 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

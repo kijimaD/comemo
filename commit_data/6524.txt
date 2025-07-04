@@ -1,0 +1,13 @@
+commit b6cd8f869d997d0c13defdbad688d1c663ff5f78
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 14 12:50:36 2010 -0700
+
+    log: delete deprecated functionality
+    Fixes #1195.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2504043
+
+ src/pkg/log/log.go | 41 +----------------------------------------
+ 1 file changed, 1 insertion(+), 40 deletions(-)

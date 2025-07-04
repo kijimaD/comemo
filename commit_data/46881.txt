@@ -1,0 +1,23 @@
+commit 9e4dc6f37f75840d1193accae697a0e9283f5384
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 13 12:46:33 2021 -0700
+
+    cmd/link/internal/ld: don't use linkname before 1.12
+    
+    Before the 1.12 release the use of linkname did not prevent a compiler
+    error for an empty function body (see #23311). Add some build tags so
+    that cmd/link will build with earlier releases.
+    
+    It's true that we currently require Go 1.16 as the bootstrap compiler (#44505).
+    But for this simple case keep things working with older compilers for now.
+    
+    Change-Id: I67fe021406096c64c01d6e2c9adbcc4388988a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355690
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/outbuf_darwin.go      | 3 +++
+ src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 ++--
+ src/cmd/link/internal/ld/outbuf_notdarwin.go   | 4 ++--
+ 3 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 4f30ec7fcb793a4037ffa951db2b11b092c56a51
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 10:59:25 2009 -0700
+
+    fix 386 log test
+    
+    R=r
+    DELTA=13  (0 added, 1 deleted, 12 changed)
+    OCL=29928
+    CL=29943
+
+ src/lib/runtime/runtime.go  |  2 +-
+ src/runtime/386/traceback.c | 23 +++++++++++------------
+ 2 files changed, 12 insertions(+), 13 deletions(-)

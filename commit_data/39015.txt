@@ -1,0 +1,16 @@
+commit bf35b7c8b15f000e5d816bdb3fa105b0d1df0be5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 2 21:22:05 2019 +0000
+
+    net/http: skip flaky TestTransportMaxConnsPerHost for now
+    
+    Updates #31784
+    
+    Change-Id: Iee056c850c03939606b227a12715c76b0339d268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175097
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

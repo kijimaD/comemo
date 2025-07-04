@@ -1,0 +1,22 @@
+commit c61cf5e6b7920be423ba02bc13f716969265756d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 15 21:16:49 2017 -0800
+
+    cmd/compile/internal/gc: remove Node.IsStatic field
+    
+    We can immediately emit static assignment data rather than queueing
+    them up to be processed during SSA building.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8bcea4b72eafb0cc0b849cd93e9cde9d84f30d5e
+    Reviewed-on: https://go-review.googlesource.com/37024
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/fmt.go    |   4 --
+ src/cmd/compile/internal/gc/sinit.go  | 104 +++++++++-------------------------
+ src/cmd/compile/internal/gc/ssa.go    |   9 ---
+ src/cmd/compile/internal/gc/syntax.go |   1 -
+ src/cmd/compile/internal/gc/walk.go   |   5 --
+ 5 files changed, 26 insertions(+), 97 deletions(-)

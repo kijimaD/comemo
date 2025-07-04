@@ -1,0 +1,14 @@
+commit 785afb08476692bee6eb1a96712749a930e48e07
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 29 13:16:22 2008 -0700
+
+    make bugs not fail
+    
+    R=r
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=16110
+    CL=16114
+
+ test/bugs/bug099.go | 2 +-
+ test/bugs/bug107.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

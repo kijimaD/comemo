@@ -1,0 +1,15 @@
+commit 658ca49898b024753603f8f0a9194312469d466e
+Author: Tom Szymanski <tgs@google.com>
+Date:   Wed Mar 18 14:57:55 2009 -0700
+
+    Make adler32 cleaner.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=22  (9 added, 6 deleted, 7 changed)
+    OCL=26498
+    CL=26500
+
+ src/lib/hash/adler32.go      | 28 +++++++++++++++-------------
+ src/lib/hash/adler32_test.go |  1 +
+ 2 files changed, 16 insertions(+), 13 deletions(-)

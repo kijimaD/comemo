@@ -1,0 +1,12 @@
+commit fe57dd8522b19f3a3ebae94acc64a0d197909b02
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 27 11:27:52 2010 +1100
+
+    builder: pass GOHOSTOS and GOHOSTARCH to build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2759041
+
+ misc/dashboard/builder/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

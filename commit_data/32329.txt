@@ -1,0 +1,20 @@
+commit f52ce42274573d39386f3bacc77ab2ef969d5a0d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 09:16:32 2017 +0900
+
+    debug/macho: add comments for ambiguious LoadCommand
+    
+    While LoadCmdDylib represents LC_LOAD_DYLIB,
+    LoadCmdDylinker represents LC_ID_DYLINKER.
+    This is confusing because there is another command called LC_LOAD_DYLINKER.
+    LC_ID_DYLINKER is not included in normal binary, it is only used for
+    /usr/lib/dyld as far as I know. So, perhaps this is a mistake.
+    
+    Change-Id: I6ea61664a26998962742914af5688e094a233541
+    Reviewed-on: https://go-review.googlesource.com/56330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/macho.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 6a718175a6b5532bb49160047731181a4ecec2a1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 4 23:27:18 2020 -0400
+
+    cmd/go/internal/mvs: export a NewBuildListError function
+    
+    Also factor out BuildListError to a separate file.
+    
+    For #36460
+    
+    Change-Id: Ibd1143893b09a2bbef659bea1e8c5dd35184a7ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247764
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/errors.go | 96 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/mvs/mvs.go    | 77 +++++--------------------------
+ 2 files changed, 108 insertions(+), 65 deletions(-)

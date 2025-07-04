@@ -1,0 +1,14 @@
+commit d16bc7a9f2143c74f72f96f0769504cf237c9c70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 16:59:23 2009 -0800
+
+    runtime: return zero value in x, ok = <-c when ok == false
+    
+    Fixes #401.
+    
+    R=ken2
+    https://golang.org/cl/180053
+
+ src/pkg/runtime/chan.c   |  2 ++
+ test/fixedbugs/bug234.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

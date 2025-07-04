@@ -1,0 +1,15 @@
+commit 9b3f43774a4f39ebb4d97bc4e76fc67a4388ae33
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 19:14:09 2009 -0700
+
+    fix error return in Remove
+    change canexec to canExec.
+    
+    R=r
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=27393
+    CL=27398
+
+ src/lib/exec.go    | 6 +++---
+ src/lib/os/file.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

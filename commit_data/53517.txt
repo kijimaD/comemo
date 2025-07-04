@@ -1,0 +1,21 @@
+commit 6801c27837b44b40aef0878a8a611413ef46e3eb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 7 21:36:19 2023 +0200
+
+    crypto/tls: make SessionState.Extra a slice of byte slices
+    
+    Fixes #60539
+    Updates #60105
+    
+    Change-Id: I7b567cc1d0901891ed97d29591db935cd487cc71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501675
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/go1.21.txt                            |  2 +-
+ src/crypto/tls/handshake_messages_test.go |  4 +++-
+ src/crypto/tls/ticket.go                  | 31 +++++++++++++++++++++++--------
+ 3 files changed, 27 insertions(+), 10 deletions(-)

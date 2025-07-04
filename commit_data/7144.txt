@@ -1,0 +1,13 @@
+commit 9b6d8b3c4fcba1a47fb43b79e5812f82b1d7fccc
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 18 18:16:06 2011 -0500
+
+    crypto/cipher: add OFB mode
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3994042
+
+ src/pkg/crypto/cipher/ofb.go      |  44 +++++++++++++++++
+ src/pkg/crypto/cipher/ofb_test.go | 101 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

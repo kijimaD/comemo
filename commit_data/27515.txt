@@ -1,0 +1,24 @@
+commit d2aa5f95cce5055d71a77166a60b574cd3f8ecd5
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 11:19:17 2016 +0200
+
+    compress/flate: simplify using subtests and sub-benchmarks
+    
+    This causes the large files to be loaded only once per benchmark.
+    
+    This CL also serves as an example use case of sub(tests|-benchmarks).
+    
+    This CL ensures that names are identical to the original
+    except for an added slashes. Things could be
+    simplified further if this restriction were dropped.
+    
+    Change-Id: I45e303e158e3152e33d0d751adfef784713bf997
+    Reviewed-on: https://go-review.googlesource.com/23420
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/reader_test.go | 133 ++++++++++++++++++--------------------
+ src/compress/flate/writer_test.go |  94 +++++++++------------------
+ 2 files changed, 94 insertions(+), 133 deletions(-)

@@ -1,0 +1,19 @@
+commit cfb8404e76f94b8bf97188a4470541e9d1ddafa4
+Author: Ibrahim AshShohail <ibra.sho@gmail.com>
+Date:   Wed Jun 28 20:09:15 2017 +0300
+
+    os: fix passing long paths to Chmod on Windows
+    
+    os.Chmod returns an error when passed a long path (>=260) characters on
+    Windows. CL 32451 fixed most file functions in os. This change applies the
+    same fix to os.Chmod.
+    
+    Fixes #20829
+    
+    Change-Id: I3270db8317ce6e06e6d77070a32a5df6ab2491e0
+    Reviewed-on: https://go-review.googlesource.com/47010
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_posix.go | 2 +-
+ src/os/os_test.go    | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

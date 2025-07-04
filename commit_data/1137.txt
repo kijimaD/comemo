@@ -1,0 +1,17 @@
+commit b1e8b5f5b715c9a4727bbfb1d32c852c7c8e9122
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 17 12:19:02 2008 -0800
+
+    The scope rules have been clarified to indicate that a
+    variable may only be named after the complete declaration,
+    including the initialization statements.
+    
+    R=gri
+    DELTA=61  (16 added, 45 deleted, 0 changed)
+    OCL=19343
+    CL=19376
+
+ test/bugs/bug095.go | 43 -------------------------------------------
+ test/golden.out     |  6 ------
+ test/varinit.go     | 20 ++++++++++++++++++++
+ 3 files changed, 20 insertions(+), 49 deletions(-)

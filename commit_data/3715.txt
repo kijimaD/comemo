@@ -1,0 +1,13 @@
+commit 102357f028c35c44a85ded1a281b11d95839f7c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 10:12:40 2009 -0800
+
+    Recognize gccgo error message.
+    
+    runtime.go:19:10: error: reference to undefined identifier ‘runtime.printbool’
+    
+    R=rsc
+    http://go/go-review/1018018
+
+ test/runtime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

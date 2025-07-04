@@ -1,0 +1,20 @@
+commit 19f3794c00252db3363eb649bc73bad66a2c583a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 7 20:25:10 2018 +1000
+
+    cmd/cover: add test for HTML output
+    
+    This adds a case for what was fixed in 4fe688c to prevent regression;
+    a follow-on change will address #25767.
+    
+    Change-Id: Iced8cc10e2993ef7caf7e9c59ffbc7147d78ddd7
+    Reviewed-on: https://go-review.googlesource.com/116975
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover_test.go              | 59 ++++++++++++++++++++++++++++++++
+ src/cmd/cover/testdata/html/html.go      | 18 ++++++++++
+ src/cmd/cover/testdata/html/html.golden  | 10 ++++++
+ src/cmd/cover/testdata/html/html_test.go |  7 ++++
+ 4 files changed, 94 insertions(+)

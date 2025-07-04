@@ -1,0 +1,17 @@
+commit 94d9cc7741a13206e139efeab84fcc589dc390e5
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sat Aug 20 19:29:01 2016 +0800
+
+    index/suffixarray: add Lookup example
+    
+    Updates #16360
+    
+    Change-Id: Idd8523b5a9a496ebd9c6e3b89c30df539842a139
+    Reviewed-on: https://go-review.googlesource.com/27433
+    Reviewed-by: C Cirello <uldericofilho@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/index/suffixarray/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

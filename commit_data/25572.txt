@@ -1,0 +1,14 @@
+commit aba6250250d0cdcd1b7a19ca9c6112639eccbb5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 19:36:51 2016 +0000
+
+    net/http: clarify ConnState StateActive docs for HTTP/2
+    
+    Update #13925
+    
+    Change-Id: I7cd0625fad841eb0e3f364629f9bc225aa2fdce9
+    Reviewed-on: https://go-review.googlesource.com/18575
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 5 +++++
+ 1 file changed, 5 insertions(+)

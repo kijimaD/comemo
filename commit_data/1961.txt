@@ -1,0 +1,18 @@
+commit 907cb4f1e604d5c21df32583470c33bec14fec5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 3 23:20:51 2009 -0700
+
+    fix both of anton's bugs:
+    * make([100]int) was being compiled to
+            make([]int), kind of.
+    * []this = [100]that was working for any this, that.
+    
+    turned up a typo in pipe_test.go
+    
+    R=ken
+    OCL=27081
+    CL=27081
+
+ src/cmd/gc/walk.c       | 22 ++++++++++------------
+ src/lib/io/pipe_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 13 deletions(-)

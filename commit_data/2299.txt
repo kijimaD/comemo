@@ -1,0 +1,27 @@
+commit 4238b1834482f54f67b714c85a126b306b524a8c
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat May 23 15:34:29 2009 -0700
+
+    1. check for dups in complex literals
+       structtype{a:1, a:2}
+       maptypetype{"xx":1, "xx":2}
+       arraytypetype{5:1, 5:2}
+    2. bug in registerization concerning
+       alias of a struct and one of its elements
+    3. code optimization of struct.field
+       (which exposed bug in 2)
+    
+    R=r
+    OCL=29315
+    CL=29315
+
+ src/cmd/6g/cgen.c  |   5 +-
+ src/cmd/6g/gg.h    |   1 +
+ src/cmd/6g/ggen.c  |   2 +-
+ src/cmd/6g/gsubr.c |  17 ++++-
+ src/cmd/6g/reg.c   |  24 ++++---
+ src/cmd/gc/go.h    |   1 +
+ src/cmd/gc/sinit.c |  13 +---
+ src/cmd/gc/subr.c  |   5 +-
+ src/cmd/gc/walk.c  | 202 +++++++++++++++++++++++++++++++++++++++++------------
+ 9 files changed, 197 insertions(+), 73 deletions(-)

@@ -1,0 +1,19 @@
+commit ccb70bd19c44b90ef4030c6399c884f82a12bc68
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Thu Aug 23 00:02:24 2018 +0200
+
+    context: don't talk about tools that don't exist
+    
+    This comment has been the source of much confusion and broken dreams. We
+    can add it back if a tool ever gets released.
+    
+    Updates #16742
+    
+    Change-Id: I4b9c179b7c60274e6ff1bcb607b82029dd9a893f
+    Reviewed-on: https://go-review.googlesource.com/130876
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

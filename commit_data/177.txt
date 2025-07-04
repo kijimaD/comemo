@@ -1,0 +1,10 @@
+commit daebf91d2c0e719a7b59ba1c26ccc8def83e39bc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 16 12:02:27 2008 -0700
+
+    fix up grammar for optional elements in if and switch conditions
+    
+    SVN=122915
+
+ doc/go_lang.txt | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

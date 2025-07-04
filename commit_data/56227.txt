@@ -1,0 +1,36 @@
+commit 334ce510046ad30b1be466634cf313aad3040892
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 4 11:01:28 2024 -0700
+
+    net/http: don't cancel Dials when requests are canceled
+    
+    Currently, when a Transport creates a new connection for a request,
+    it uses the request's Context to make the Dial. If a request
+    times out or is canceled before a Dial completes, the Dial is
+    canceled.
+    
+    Change this so that the lifetime of a Dial call is not bound
+    by the request that originated it.
+    
+    This change avoids a scenario where a Transport can start and
+    then cancel many Dial calls in rapid succession:
+    
+      - Request starts a Dial.
+      - A previous request completes, making its connection available.
+      - The new request uses the now-idle connection, and completes.
+      - The request Context is canceled, and the Dial is aborted.
+    
+    Fixes #59017
+    
+    Change-Id: I996ffabc56d3b1b43129cbfd9b3e9ea7d53d263c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/client_test.go         |  28 +++--
+ src/net/http/export_test.go         |   8 ++
+ src/net/http/transport.go           | 101 ++++++++++++----
+ src/net/http/transport_dial_test.go | 235 ++++++++++++++++++++++++++++++++++++
+ src/net/http/transport_test.go      |  57 ++++++---
+ 5 files changed, 371 insertions(+), 58 deletions(-)

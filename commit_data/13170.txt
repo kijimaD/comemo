@@ -1,0 +1,18 @@
+commit 97cbf47c78abf6f776640902804fb0006567a2ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 24 23:36:26 2012 -0400
+
+    cmd/8c: better fix for 64-bit register smash
+    
+    Ken pointed out that CL 5998043 was ugly code.
+    This should be better.
+    
+    Fixes #3501.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6258049
+
+ src/cmd/8c/cgen.c   | 23 ++++++++++++++++++++++-
+ src/cmd/8c/cgen64.c | 27 ---------------------------
+ 2 files changed, 22 insertions(+), 28 deletions(-)

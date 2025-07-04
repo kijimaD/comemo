@@ -1,0 +1,18 @@
+commit 88a6a4d1ba75c01fcc7ab8b2b5c6108c36eb92b9
+Author: Kevin Chen <kevin@chenbc.me>
+Date:   Thu Sep 22 14:45:52 2022 +0000
+
+    cmd/compile/internal/syntax: remove TypeList syntax in comment
+    
+    Change-Id: Ic4df6a8e198b069a9f3a28710fa40f29bd658b06
+    GitHub-Last-Rev: 51040eb5e53f4cf0238cb0b7876d1ee612a924ef
+    GitHub-Pull-Request: golang/go#55345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432795
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

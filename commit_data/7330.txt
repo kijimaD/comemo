@@ -1,0 +1,14 @@
+commit bd4e49f524bc0e5b033850cbaa923527f7b80af7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 11:02:56 2011 -0800
+
+    Effective Go: fix typo
+    
+    Fixes #1467.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3981054
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

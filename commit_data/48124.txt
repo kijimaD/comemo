@@ -1,0 +1,17 @@
+commit 20c300bc70e10071bb15091f37a8bb3464cf13e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 18:40:28 2022 -0800
+
+    spec: the type of a constant cannot be a type parameter
+    
+    Add corresponding rules and a couple of examples.
+    
+    Fixes #50202.
+    
+    Change-Id: I4287b5e2d0fd29a0c871795e07f1bb529c9c6004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384240
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)

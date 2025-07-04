@@ -1,0 +1,13 @@
+commit 1a9a63961b03e386af000ed83fde5fca325c6bd1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jan 12 03:13:55 2013 -0800
+
+    cmd/5l: fix invalid executable header on Plan 9
+    
+    R=minux.ma, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/7094048
+
+ src/cmd/5l/asm.c | 44 +++++++++++++++++++++++++++++++-------------
+ src/cmd/5l/l.h   |  1 -
+ 2 files changed, 31 insertions(+), 14 deletions(-)

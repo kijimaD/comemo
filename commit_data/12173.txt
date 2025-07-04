@@ -1,0 +1,12 @@
+commit 999c77d78a7f179ec1ef13b4ab6b07853f21deb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 12:23:17 2012 -0800
+
+    godoc: don't show testdata directories
+    
+    R=golang-dev, bradfitz, dsymonds, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700043
+
+ src/cmd/godoc/dirtrees.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

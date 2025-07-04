@@ -1,0 +1,26 @@
+commit ae33b66c19a2a2cf3b95e67d4cec81b474cf733d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 27 14:54:06 2024 +0000
+
+    cmd/link: add variable_parameter attr to functype outparams
+    
+    When generating DW_TAG_subroutine_type DIEs during linker DWARF type
+    synthesis, ensure that in the list of children of the subroutine type
+    DIE (correspondings to input/output params) the output params are
+    marked with the DW_AT_variable_parameter attribute. In addition, fix
+    up the generated types of the output params: prior to this patch for a
+    given output parameter of type T, we would emit the DIE type as *T
+    (presumably due to how parameter passing/returning worked prior to the
+    register ABI); with this patch the emitted type will just be T, not *T.
+    
+    Fixes #59977.
+    
+    Change-Id: I5b5600be86473695663c75b85baeecad667b9245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go   | 24 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf.go | 10 ++++++----
+ 2 files changed, 30 insertions(+), 4 deletions(-)

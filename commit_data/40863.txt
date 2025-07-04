@@ -1,0 +1,28 @@
+commit 39a9cb4b5dbf1e518b0c66fa3a7b4175f90226fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 20 14:43:04 2019 -0500
+
+    misc/cgo/testplugin: avoid writing to GOROOT
+    
+    One of the 'go build' commands executed by this test passed the '-i'
+    flag, which caused the 'go' command to attempt to install transitive
+    standard-library dependencies to GOROOT/pkg/$GOOS_$GOARCH_dynlink.
+    
+    That failed if GOROOT/pkg was not writable (for example, if GOROOT was
+    owned by the root user, but the user running the test was not root).
+    
+    As far as I can tell the '-i' flag is not necessary in this test.
+    Prior to the introduction of the build cache it may have been an
+    optimization, but now that the build cache is required the '-i' flag
+    only adds extra work.
+    
+    Updates #30316
+    
+    Change-Id: Ib60080a008c1941aa92b5bdd5a194d89fd6202aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208120
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testplugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

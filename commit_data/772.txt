@@ -1,0 +1,13 @@
+commit a1065faf7c4a73a7b0659d0559932ad2c68009d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 29 20:37:46 2008 -0700
+
+    - corrections and more on interface types
+    
+    R=r
+    DELTA=35  (12 added, 13 deleted, 10 changed)
+    OCL=16162
+    CL=16164
+
+ doc/go_spec.txt | 41 ++++++++++++++++++++---------------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)

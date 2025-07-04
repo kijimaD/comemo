@@ -1,0 +1,16 @@
+commit cf69867af44152f06b9a47a1c3129e4a314a00e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 19 07:30:12 2017 -0700
+
+    runtime: speed up key copying in specialized evacuate routines
+    
+    Similar to CL 59110.
+    
+    Change-Id: Ia2858541c86a44b105eacbca9a46b1044632c5ca
+    Reviewed-on: https://go-review.googlesource.com/59134
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap_fast.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

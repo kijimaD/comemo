@@ -1,0 +1,19 @@
+commit 9a9a9005058f7b678c9ef89ce49255528fb97a33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 12 18:17:37 2019 -0800
+
+    os/exec: don't run TestExtraFiles if extra files were open for the test
+    
+    Our attempts to close existing open files are flaky. They will fail if,
+    for example, file descriptor 3 is open when the test binary starts.
+    Instead, report any such cases, and skip TestExtraFiles.
+    
+    Updates #35469
+    
+    Change-Id: I7caec083f3f4a31579bf28fc9c82ae89b1bde49a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go | 82 +++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 53 insertions(+), 29 deletions(-)

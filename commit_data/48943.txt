@@ -1,0 +1,22 @@
+commit 2278a51fa0570b01f58a80d60589fcf8e33be9c8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 28 21:18:49 2022 -0700
+
+    sync/atomic: use consistent first-store-in-progress marker
+    
+    We need to use the same marker everywhere. My CL to rename the
+    marker (CL 241661) and the CL to add more uses of the marker
+    under the old name (CL 241678) weren't coordinated with each other.
+    
+    Fixes #52612
+    
+    Change-Id: I97023c0769e518491924ef457fe03bf64a2cefa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403094
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/sync/atomic/value.go     |  8 ++++----
+ test/fixedbugs/issue52612.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 4 deletions(-)

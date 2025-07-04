@@ -1,0 +1,24 @@
+commit 003a68bc7fcb917b5a4d92a5c2244bb1adf8f690
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 1 13:52:26 2016 -0700
+
+    cmd/vet: remove copylock warning about result types and calls
+    
+    Don't issue a copylock warning about a result type; the function may
+    return a composite literal with a zero value, which is OK.
+    
+    Don't issue a copylock warning about a function call on the RHS, or an
+    indirection of a function call; the function may return a composite
+    literal with a zero value, which is OK.
+    
+    Updates #16227.
+    
+    Change-Id: I94f0e066bbfbca5d4f8ba96106210083e36694a2
+    Reviewed-on: https://go-review.googlesource.com/24711
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/copylock.go               | 22 ++++++++++++++--------
+ src/cmd/vet/testdata/copylock_func.go | 12 ++++++++++--
+ 2 files changed, 24 insertions(+), 10 deletions(-)

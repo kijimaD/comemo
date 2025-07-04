@@ -1,0 +1,25 @@
+commit 0add9a4dcfb4cbc0d99cd168752bd1bd641ce8e2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Mar 7 14:14:19 2018 -0800
+
+    encoding/csv: avoid mangling invalid UTF-8 in Writer
+    
+    In the situation where a quoted field is necessary, avoid processing
+    each UTF-8 rune one-by-one, which causes mangling of invalid sequences
+    into utf8.RuneError, causing a loss of information.
+    Instead, search only for the escaped characters, handle those specially
+    and copy everything else in between verbatim.
+    
+    This symmetrically matches the behavior of Reader.
+    
+    Fixes #24298
+    
+    Change-Id: I9276f64891084ce8487678f663fad711b4095dbb
+    Reviewed-on: https://go-review.googlesource.com/99297
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/csv/writer.go      | 51 ++++++++++++++++++++++++++---------------
+ src/encoding/csv/writer_test.go |  2 ++
+ 2 files changed, 34 insertions(+), 19 deletions(-)

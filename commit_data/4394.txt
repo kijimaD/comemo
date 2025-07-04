@@ -1,0 +1,12 @@
+commit 97a08f7a813ce76ab05fddf5be27f9264d3f7a18
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 11 15:31:24 2009 -0800
+
+    parser changed to reflect new semicolon rules
+    
+    R=rsc
+    https://golang.org/cl/175046
+
+ src/pkg/go/parser/parser.go      | 390 ++++++++++++++++-----------------------
+ src/pkg/go/parser/parser_test.go |   6 +-
+ 2 files changed, 167 insertions(+), 229 deletions(-)

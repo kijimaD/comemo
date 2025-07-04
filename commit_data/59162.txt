@@ -1,0 +1,17 @@
+commit 4f5863c2ce7d18f2c51db02cebe3f715d4efb925
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 8 04:08:29 2023 +1100
+
+    cmd/internal/obj/arm64: provide and use an oprrrr function
+    
+    Provide a four register version of oprrr, which takes an additional 'ra'
+    register. Use this instead of oprrr where appropriate.
+    
+    Change-Id: I8882957a83c2b08e407f37a37c61864cd920bbc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471519
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

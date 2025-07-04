@@ -1,0 +1,32 @@
+commit 60178e6240d6d0e52ca0556fcab29a1d3effef4d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 4 21:06:06 2021 -0400
+
+    cmd/dist: add maymorestack tests
+    
+    These tests run the runtime, reflect, and sync package tests with the
+    two maymorestack hooks we have.
+    
+    These tests only run on the longtest builders (or with
+    GO_TEST_SHORT=false) because we're running the runtime test two
+    additional times and the mayMoreStackMove hook makes it about twice as
+    slow (~230 seconds).
+    
+    To run just these tests by hand, do
+    
+      GO_TEST_SHORT=false go tool dist test -run mayMoreStack
+    
+    Updates #48297.
+    
+    This detected #49354, which was found as a flake on the dashboard, but
+    was reliably reproducible with these tests; and #49395.
+    
+    Change-Id: If785a8b8d6e1b9ad4d2ae67493b54055ab6cbc85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361212
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

@@ -1,0 +1,16 @@
+commit e0791a3adfd7d42ef3f5b6b208156a2ee085b5cf
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 9 13:51:39 2013 -0500
+
+    crypto/x509: disable SCG test with system validation.
+    
+    On Windows, CryptoAPI is finding an alternative validation path. Since
+    this is a little non-deterministic, this change disables that test
+    when using system validation.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7313068
+
+ src/pkg/crypto/x509/verify_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

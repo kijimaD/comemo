@@ -1,0 +1,15 @@
+commit 4f38ef811f0aedb7d61932caff43695ddc4f9c89
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 29 17:16:21 2015 +0900
+
+    net: add missing Close tests
+    
+    This change adds missing CloseRead test and Close tests on Conn,
+    Listener and PacketConn with various networks.
+    
+    Change-Id: Iadf99eaf526a323f853d203edc7c8d0577f67972
+    Reviewed-on: https://go-review.googlesource.com/9469
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go | 380 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 201 insertions(+), 179 deletions(-)

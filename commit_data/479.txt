@@ -1,0 +1,27 @@
+commit 7a799be49a75c85c3ce3a0ec09ea6cfb88a3de00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 4 15:37:47 2008 -0700
+
+    - switch to new export syntax
+    - deprecate old syntax in this front-end (use -6g for compatibility)
+    
+    R=r
+    OCL=13831
+    CL=13833
+
+ usr/gri/gosrc/ast.go         |  9 ++--
+ usr/gri/gosrc/base.go        |  8 ++--
+ usr/gri/gosrc/compilation.go |  3 +-
+ usr/gri/gosrc/decls.go       | 98 ++++++++++++++++++++++----------------------
+ usr/gri/gosrc/export.go      |  3 +-
+ usr/gri/gosrc/globals.go     | 18 +++-----
+ usr/gri/gosrc/import.go      |  3 +-
+ usr/gri/gosrc/object.go      |  3 +-
+ usr/gri/gosrc/parser.go      | 12 ++++--
+ usr/gri/gosrc/printer.go     |  3 +-
+ usr/gri/gosrc/scanner.go     |  3 +-
+ usr/gri/gosrc/type.go        |  3 +-
+ usr/gri/gosrc/universe.go    | 19 +--------
+ usr/gri/gosrc/utils.go       |  9 ++--
+ usr/gri/gosrc/verifier.go    |  3 +-
+ 15 files changed, 81 insertions(+), 116 deletions(-)

@@ -1,0 +1,12 @@
+commit 3906706297a78df69d7f87748963bf375b4c4511
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 11:06:26 2012 -0800
+
+    spec: index and array/slice size constants must fit into an int
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6903048
+
+ doc/go_spec.html | 40 ++++++++++++++++++++++++----------------
+ 1 file changed, 24 insertions(+), 16 deletions(-)

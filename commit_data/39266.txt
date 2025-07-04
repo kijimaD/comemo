@@ -1,0 +1,29 @@
+commit 5d0d87ae1659807909da9d97ed1da77d7544d30c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 28 14:35:49 2019 -0700
+
+    cmd/compile: fix package initialization ordering
+    
+    This CL rewrites cmd/compile's package-level initialization ordering
+    algorithm to be compliant with the Go spec. See documentation in
+    initorder.go for details.
+    
+    Incidentally, this CL also improves fidelity of initialization loop
+    diagnostics by including referenced functions in the emitted output
+    like go/types does.
+    
+    Fixes #22326.
+    
+    Change-Id: I7c9ac47ff563df4d4f700cf6195387a0f372cc7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170062
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/init.go      |   2 +-
+ src/cmd/compile/internal/gc/initorder.go | 355 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/sinit.go     | 266 +++--------------------
+ src/cmd/compile/internal/gc/syntax.go    |  28 +++
+ test/fixedbugs/issue22326.go             |  25 +++
+ test/fixedbugs/issue22326.out            |   1 +
+ 6 files changed, 439 insertions(+), 238 deletions(-)

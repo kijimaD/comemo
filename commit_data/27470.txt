@@ -1,0 +1,16 @@
+commit 1ded9fdcff8722ae961fb9da015faac874b7690e
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Thu May 19 22:26:01 2016 -0700
+
+    syscall: fix unshare test on mips
+    
+    Change-Id: Iedce3770a92112802f3a45c7b95ee145ab5b187e
+    Reviewed-on: https://go-review.googlesource.com/23282
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

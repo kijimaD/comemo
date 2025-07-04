@@ -1,0 +1,25 @@
+commit 1951afc9193f8e197cb7dfaf6afed70ea02404cb
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Jul 31 10:20:10 2021 +0000
+
+    cmd/compile: lowered MulUintptr on riscv64
+    
+    According to RISCV instruction set manual v2.2 Sec 6.1
+    MULHU followed by MUL will be fused into one multiply by microarchitecture
+    
+    name              old time/op  new time/op  delta
+    MulUintptr/small  11.2ns ±24%   9.2ns ± 0%  -17.54%  (p=0.000 n=10+9)
+    MulUintptr/large  15.9ns ± 0%  10.9ns ± 0%  -31.55%  (p=0.000 n=8+8)
+    
+    Change-Id: I3d152218f83948cbc5c576bda29dc86e9b4206ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338753
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/compile/internal/riscv64/ssa.go        | 21 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
+ src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
+ 6 files changed, 43 insertions(+), 1 deletion(-)

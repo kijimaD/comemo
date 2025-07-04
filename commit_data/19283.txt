@@ -1,0 +1,15 @@
+commit 3b3e5ea460dab2468d46da501cc78757d30a2475
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 7 11:58:25 2014 +1000
+
+    cmd/addr2line: skip broken TestAddr2Line on plan9 (fixes build)
+    
+    Update #7947
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/100180043
+
+ src/cmd/addr2line/addr2line_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

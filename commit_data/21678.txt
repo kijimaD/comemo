@@ -1,0 +1,19 @@
+commit 89a091de2405d0b03c015a322ac27bc749aaca8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 16:43:27 2015 -0500
+
+    runtime: split gc_m into gcMark and gcSweep
+    
+    This is a nice split but more importantly it provides a better
+    way to fit the checkmark phase into the sequencing.
+    
+    Also factor out common span copying into gcSpanCopy.
+    
+    Change-Id: Ia058644974e4ed4ac3cf4b017a3446eb2284d053
+    Reviewed-on: https://go-review.googlesource.com/5333
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go      | 156 +++++++++++++++++++-----------------------------
+ src/runtime/mgcmark.go  |  22 +++----
+ src/runtime/mgcsweep.go |  14 ++---
+ 3 files changed, 76 insertions(+), 116 deletions(-)

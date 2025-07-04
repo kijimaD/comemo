@@ -1,0 +1,19 @@
+commit d38d59ffb5d56c838b1ed7cc346b8d63398b5452
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Sep 8 19:27:24 2016 -0400
+
+    runtime: fix SIGILL in checkvectorfacility on s390x
+    
+    STFLE does not necessarily write to all the double-words that are
+    requested. It is therefore necessary to clear the target memory
+    before calling STFLE in order to ensure that the facility list does
+    not contain false positives.
+    
+    Fixes #17032.
+    
+    Change-Id: I7bec9ade7103e747b72f08562fe57e6f091bd89f
+    Reviewed-on: https://go-review.googlesource.com/28850
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_s390x.s | 1 +
+ 1 file changed, 1 insertion(+)

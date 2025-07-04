@@ -1,0 +1,20 @@
+commit 95f18757a0fa283c4237ca03b48049980fe9b9c3
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 29 12:13:02 2019 +0100
+
+    runtime/cgo: use free TLS slot on Android Q
+    
+    Android assumes pthread tls keys correspond to some offset from the
+    TLS base. This is about to change in a future version of Android.
+    Fortunately, Android Q leaves a slot open for use to use, TLS_SLOT_APP.
+    
+    Fixes #29674
+    
+    Change-Id: Id6ba19afacdfed9b262453714715435e2544185f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170117
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_android.c | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

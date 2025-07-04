@@ -1,0 +1,14 @@
+commit 0dc814cd7f6a5c01213169be17e823b69e949ada
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Sat Nov 18 12:49:54 2017 -0500
+
+    regexp: examples for Regexp.FindIndex and Regexp.FindAllSubmatchIndex methods
+    
+    This commit adds examples that demonstrate usage in a practical way.
+    
+    Change-Id: I105baf610764c14a2c247cfc0b0c06f27888d377
+    Reviewed-on: https://go-review.googlesource.com/78635
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

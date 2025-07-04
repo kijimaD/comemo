@@ -1,0 +1,20 @@
+commit 6d594342c6fbbdc3673748b00bb8f2faaf63a0a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 26 11:12:43 2017 -0700
+
+    cmd/compile: use correct variable when setting up dummy CallStmt in error
+    
+    Fixes crash when printing a related error message later on.
+    
+    Fixes #20789.
+    
+    Change-Id: I6d2c35aafcaeda26a211fc6c8b7dfe4a095a3efe
+    Reviewed-on: https://go-review.googlesource.com/46713
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go |  2 +-
+ test/fixedbugs/issue20789.go              | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

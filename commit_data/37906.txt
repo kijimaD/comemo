@@ -1,0 +1,64 @@
+commit 8d2e65d22408e9e1c6329485baf432be9300f410
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jan 21 13:50:22 2019 -0500
+
+    cmd/go: copy missing bit of documentation about code generated comment
+    
+    This CL attempts to restore the clarity of the original specification
+    at https://golang.org/s/generatedcode that the line may appear
+    anywhere. It is preferable (for human readability), and most common
+    for it to be early in the file, but that is merely a convention, not
+    a strict well-specified requirement. Document it as so.
+    
+    Background
+    
+    Issue #13560 was a proposal define a standard for marking files as
+    generated, one that is suitable to be recognized both by humans
+    and machine tools. It was accepted, and the final specification
+    was documented at https://golang.org/s/generatedcode. Its text,
+    copied exactly:
+    
+            Generated files are marked by a line of text that matches
+            the regular expression, in Go syntax:
+    
+                    ^// Code generated .* DO NOT EDIT\.$
+    
+            The .* means the tool can put whatever folderol it wants in there,
+            but the comment must be a single line and must start with Code generated
+            and end with DO NOT EDIT., with a period.
+    
+            The text may appear anywhere in the file.
+    
+    The https://golang.org/s/generatedcode link points to a comment
+    in a very large GitHub issue. That makes it harder to find.
+    Issue #25433 was opened about moving that information somewhere else.
+    It was resolved via CL 118756, which added text to cmd/go documentation
+    at https://golang.org/cmd/go/#hdr-Generate_Go_files_by_processing_source:
+    
+            To convey to humans and machine tools that code is generated,
+            generated source should have a line early in the file that
+            matches the following regular expression (in Go syntax):
+    
+                    ^// Code generated .* DO NOT EDIT\.$
+    
+    The CL description noted that "This change merely moves that
+    information to a more visible place." The intention was to preserve
+    the specification unmodified.
+    
+    The original specification was very clear that "The text may appear
+    anywhere in the file." The new text in cmd/go documentation wasn't
+    very clear. "A line early in the file" is not a precise enough criteria
+    to be recognized by a machine tool, because there isn't a precise
+    definition of what lines are "early in the file".
+    
+    Updates #13560
+    Updates #25433
+    Updates #28089
+    
+    Change-Id: I4e374163b16c3f972f9591ec2647fd3d5a2dd5ae
+    Reviewed-on: https://go-review.googlesource.com/c/158817
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go                    | 7 +++++--
+ src/cmd/go/internal/generate/generate.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 903e7cc69971b2c7bf40a1e7ff2a9e3dd353dc5a
+Author: Nick Sherron <nsherron90@gmail.com>
+Date:   Fri Feb 18 22:43:31 2022 +0000
+
+    doc/go1.18: fix grammar error
+    
+    sed 's/the/that/g'
+    
+    Change-Id: I3f539817b055d54b0ec99346555ac91b756d9ed6
+    GitHub-Last-Rev: 2e7df1c3462d4b3a17e9a05ff178341f4ee369b0
+    GitHub-Pull-Request: golang/go#51267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386854
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

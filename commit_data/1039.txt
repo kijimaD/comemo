@@ -1,0 +1,15 @@
+commit 730fd707cb4ce48b21ccda2c881e0750d6475244
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 3 15:50:11 2008 -0800
+
+    support ... as a special type in the reflection library.
+    
+    R=rsc
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=18386
+    CL=18393
+
+ src/lib/reflect/test.go     |  1 +
+ src/lib/reflect/tostring.go |  2 ++
+ src/lib/reflect/type.go     | 14 ++++++++++++++
+ 3 files changed, 17 insertions(+)

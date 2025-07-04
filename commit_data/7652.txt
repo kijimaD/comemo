@@ -1,0 +1,17 @@
+commit 59d2acd2d4a3434f49daaa478f2fab1e29f362db
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 6 17:04:24 2011 -0500
+
+    build: remove old cgo files
+    
+    Cgo changed to write these files into _obj, but some
+    trees may still have the old ones in the source directory.
+    They need to be removed during make clean so that
+    a subsequent build will use the ones in _obj.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4254056
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

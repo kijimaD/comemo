@@ -1,0 +1,41 @@
+commit 98def53f5610247b3d635ff85bf47fd19e848c01
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 30 18:11:10 2016 -0700
+
+    cmd/dist: make test names consistent
+    
+    Current banners are:
+    
+    ##### Building Go bootstrap tool.
+    ##### Building Go toolchain using /Users/josh/go/1.4.
+    ##### Building go_bootstrap for host, darwin/amd64.
+    ##### Building packages and commands for darwin/amd64.
+    ##### Testing packages.
+    ##### GOMAXPROCS=2 runtime -cpu=1,2,4
+    ##### Testing without libgcc.
+    ##### sync -cpu=10
+    ##### ../misc/cgo/stdio
+    ##### ../misc/cgo/life
+    ##### ../misc/cgo/fortran
+    ##### ../misc/cgo/test
+    ##### Testing race detector
+    ##### ../misc/cgo/testso
+    ##### ../misc/cgo/testsovar
+    ##### misc/cgo/testcarchive
+    ##### ../misc/cgo/testcshared
+    ##### ../misc/cgo/errors
+    ##### ../test/bench/go1
+    ##### ../test
+    ##### API check
+    
+    One of these things is not like the others.
+    Fix that.
+    
+    Change-Id: If0bd8ea9293d73b5d1b70d6bf676bd9192991505
+    Reviewed-on: https://go-review.googlesource.com/26759
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 2c4c2a5106e16a2ef51e3fc1d846e5d75d7ee6cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 19 15:09:21 2022 -0700
+
+    time: add comment explaining >>33 in Now
+    
+    Change-Id: I022b617cd345b412bee0b50a862676a1dca94e01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418376
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/time/time.go | 3 +++
+ 1 file changed, 3 insertions(+)

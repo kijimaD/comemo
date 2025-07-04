@@ -1,0 +1,36 @@
+commit 787e7b048cff392d1cb68c57c99ff71602997475
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Mar 22 09:28:21 2020 +0100
+
+    build: force all Windows batch files to CRLF
+    
+    Batch files should use CRLF endings. LF endings mostly
+    work but in some situations they cause random errors like
+    goto commands failing for mysterious reasons. See
+    golang.org/issue/37791 for more information.
+    
+    Next CL triggered one of such bug (a label was not being
+    recognized), so prepare for it by converting to CRLF.
+    
+    This CL also touches all existing batch files to force git
+    to update the line endings (unfortunately, changing
+    .gitattributes only has effect next time the file is checked
+    out or modified).
+    
+    Fixes #37791
+    Updates #9281
+    
+    Change-Id: I6f9a114351cb7ac9881914400aa210c930eb8cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/96495
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ .gitattributes   |  6 ++++++
+ src/all.bat      |  1 +
+ src/clean.bat    |  1 +
+ src/make.bat     |  1 +
+ src/race.bat     |  1 -
+ src/run.bat      |  1 +
+ test/winbatch.go | 30 ++++++++++++++++++++++++++++++
+ 7 files changed, 40 insertions(+), 1 deletion(-)

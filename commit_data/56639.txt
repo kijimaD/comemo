@@ -1,0 +1,21 @@
+commit 375031d8dcec9ae74d2dbc437b201107dba3bb5f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 13 13:20:37 2024 -0700
+
+    crypto/x509: don't match bare wildcard
+    
+    When verifying the name "test", a SAN with a bare wildcard ("*") should
+    not constitute a match.
+    
+    Updates #65085
+    
+    Change-Id: I02151761e2f29f3e358708a3f723af32b0d79288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585076
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/verify.go      |  5 +++++
+ src/crypto/x509/verify_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

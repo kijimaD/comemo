@@ -1,0 +1,15 @@
+commit 6dd789fdea8e45280caecac7fca85c76673ad3c8
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 26 13:48:05 2018 +0700
+
+    cmd/link: document limitation of -X
+    
+    Fixes #26042
+    
+    Change-Id: Ica16f14a65c03659a19926852cca5e554c99baf1
+    Reviewed-on: https://go-review.googlesource.com/120935
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/doc.go              | 4 +++-
+ src/cmd/link/internal/ld/data.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

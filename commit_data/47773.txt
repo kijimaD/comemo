@@ -1,0 +1,36 @@
+commit 6f42be78bbc107beef8b6eb61a794355e07120ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 9 11:54:46 2021 -0500
+
+    net: do not try to remove the LocalAddr of a unix socket
+    
+    TestUnixAndUnixpacketServer deferred a call to os.Remove on the local
+    address of a dialed unix domain socket, in an attempt to remove the
+    socket from the server. However, that call appears to be neither
+    necessary nor correct.
+    
+    In this test, the file that needs to be unlinked is the one attached
+    to the listener — but the listener's Close method already does that
+    (see the Unlink call in  (*UnixListener).close), so there is no need
+    for the test itself to do the same.
+    
+    Moreover, the local address is not something that is sensible to
+    delete — on Linux, it is empirically always the literal string "@" —
+    and the Addr returned by c.LocalAddr is not reliably non-nil on all
+    platforms (see #34611).
+    
+    Since we don't need to do anything with the local address, we shouldn't.
+    At best, this is a benign Remove of a file that doesn't exist anyway;
+    at worst, it is a nil-panic.
+    
+    Fixes #34611
+    
+    Change-Id: Ie072b3388d884d60e819d1df210fa7d3e2eed124
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370695
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/server_test.go | 29 ++---------------------------
+ 1 file changed, 2 insertions(+), 27 deletions(-)

@@ -1,0 +1,17 @@
+commit 6e4e29408aba3adbc1bfc3f474ab120f1c983ec2
+Author: Eric Daniels <eric@erdaniels.com>
+Date:   Tue Jul 17 00:49:55 2018 +0000
+
+    http/internal: document final CRLF behavior on chunkedWriter
+    
+    Change-Id: I0f76b40dbfda2d382c88aec377db1851c4ac7441
+    
+    Change-Id: I0f76b40dbfda2d382c88aec377db1851c4ac7441
+    GitHub-Last-Rev: ab42559278d8cba9e025b431a459d117500a73da
+    GitHub-Pull-Request: golang/go#26410
+    Reviewed-on: https://go-review.googlesource.com/124255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/httputil.go | 4 +++-
+ src/net/http/internal/chunked.go  | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

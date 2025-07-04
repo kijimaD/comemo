@@ -1,0 +1,26 @@
+commit f880efcc1666e2b99fbda644eeff258e4a15dd38
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 18 16:32:09 2018 -0800
+
+    Revert "runtime: use QPC for nanotime and time.now on windows/arm"
+    
+    This reverts change https://golang.org/cl/154758.
+    
+    Restore the previous implementations of nanotime and time.now, which
+    are sufficiently high resolution and more efficient than
+    QueryPerformanceCounter. The intent of the change was to improve
+    resolution of tracing timestamps, but the change was overly broad
+    as it was only necessary to fix cputicks(). cputicks() is fixed in
+    a subsequent change.
+    
+    Updates #26148
+    
+    Change-Id: Ib9883d02fe1af2cc4940e866d8f6dc7622d47781
+    Reviewed-on: https://go-review.googlesource.com/c/154761
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_windows.go     |  13 ++---
+ src/runtime/sys_windows_arm.s | 109 ++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 110 insertions(+), 12 deletions(-)

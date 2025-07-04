@@ -1,0 +1,15 @@
+commit 32a1ee85b1929b85f7b1fd9c0acc4673aec4a443
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 3 13:29:13 2008 -0800
+
+    Make strconv.atof("-0") return -0
+    and update test.
+    
+    R=iant
+    DELTA=11  (3 added, 1 deleted, 7 changed)
+    OCL=20350
+    CL=20362
+
+ src/lib/strconv/atof.go      | 14 ++++++++------
+ src/lib/strconv/atof_test.go |  2 +-
+ 2 files changed, 9 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit 02faa939d3e419b14db5d1da41de6147a2123238
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 10 20:00:21 2013 +0900
+
+    net: remove dreg of obsoleted network poller
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/13396051
+
+ src/pkg/net/fd_posix_test.go | 57 --------------------------------------------
+ src/pkg/net/net.go           | 34 --------------------------
+ 2 files changed, 91 deletions(-)

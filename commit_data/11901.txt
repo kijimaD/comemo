@@ -1,0 +1,15 @@
+commit f8f0a2bc7bbb587836312747600d0e084b30baef
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 14 20:23:45 2012 +0100
+
+    cgo: add support for returning errno with gccgo.
+    
+    Also eliminate some warnings in builds.
+    
+    R=golang-dev, fullung, iant, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5650066
+
+ src/cmd/cgo/out.go  | 50 +++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/go/build.go | 11 +++++++----
+ 2 files changed, 46 insertions(+), 15 deletions(-)

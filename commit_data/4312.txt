@@ -1,0 +1,15 @@
+commit f3d63bea42e38720834ce6589d0747982b30ea7d
+Author: Michael Elkins <michael.elkins@gmail.com>
+Date:   Thu Dec 3 20:03:07 2009 -0800
+
+    Add Count, Cycle, ZipWith, GroupBy, Repeat, RepeatTimes, Unique to exp/iterable.
+    
+    Modify iterFunc to take chan<- instead of just chan.
+    
+    R=rsc, dsymonds1
+    CC=golang-dev, r
+    https://golang.org/cl/160064
+
+ src/pkg/exp/iterable/iterable.go      | 183 ++++++++++++++++++++++++++----
+ src/pkg/exp/iterable/iterable_test.go | 205 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 363 insertions(+), 25 deletions(-)

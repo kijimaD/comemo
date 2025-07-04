@@ -1,0 +1,13 @@
+commit 0ee18ca8169b6dcbc527627bb803b0ddcbee06f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 16 10:43:49 2009 -0700
+
+    add heap.Remove
+    
+    R=gri
+    DELTA=14  (14 added, 0 deleted, 0 changed)
+    OCL=34636
+    CL=34687
+
+ src/pkg/container/heap/heap.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

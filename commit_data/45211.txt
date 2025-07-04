@@ -1,0 +1,18 @@
+commit fd3612e4339d10a0e02571a8e43868d569b11a9f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
+
+    internal/buildcfg: enable regabiwrappers by default
+    
+    For #40724.
+    
+    Change-Id: I75d6ba2d3e4e2d858eea8053efd0f3fd4439dab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310172
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/buildcfg/exp.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

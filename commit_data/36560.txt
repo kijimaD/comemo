@@ -1,0 +1,20 @@
+commit 88206b89313bd7c143bc0d4946543969255ecc2b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 27 07:21:24 2018 -0400
+
+    test: improve runtime/pprof tests for gccgo
+    
+    In the CPU profile tests for gccgo, check to make sure that the
+    runtime's sigprof handler itself doesn't appear in the profile. Add a
+    "skip if gccgo" guard to one testpoint.
+    
+    Updates #26595
+    
+    Change-Id: I92a44161d61f17b9305ce09532134edd229745a7
+    Reviewed-on: https://go-review.googlesource.com/126316
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 53 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 42 insertions(+), 11 deletions(-)

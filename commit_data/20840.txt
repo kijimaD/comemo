@@ -1,0 +1,14 @@
+commit 1965ba6e6fce0b643a48f08d6d78c0c2c7822dd5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 31 09:37:11 2014 -0700
+
+    A+C: add Gabriel Aszalos (individual CLA)
+    
+    LGTM=bradfitz
+    R=adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/162580043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

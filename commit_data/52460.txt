@@ -1,0 +1,25 @@
+commit fde1b139be35c655437a8df668dddf0367c3a67c
+Author: Stefan Dombrowski <sdo451@gmail.com>
+Date:   Mon Jun 6 08:23:37 2022 +0000
+
+    os: don't check for IsExist in MkdirAll example
+    
+    If a directory already exists, then MkdirAll returns nil. Therefore the
+    check with IsExist is not necessary.
+    
+    Change-Id: Idf83c056f64bb56f49eb2b649af7827b759bcd7c
+    GitHub-Last-Rev: 1f29873d0cd852642938cbd899549b9bf04301da
+    GitHub-Pull-Request: golang/go#53242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410434
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

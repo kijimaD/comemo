@@ -1,0 +1,18 @@
+commit 8de8925c7794a39d9747e386163ebdccda561cca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 17:52:49 2015 -0700
+
+    math/big: add more Float.Float64 conversion tests
+    
+    - structure the Float64 conversion tests the same way as for Float32
+    - add additional test cases, including one that exposes a current issue
+      (currently disabled, same issue as was fixed for Float32)
+    
+    The Float64 fix will be in a subsequent change for easier reviewing.
+    
+    Change-Id: I95dc9e8d1f6b6073a98c7bc2289e6d3248fc3420
+    Reviewed-on: https://go-review.googlesource.com/10351
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float_test.go | 88 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 53 insertions(+), 35 deletions(-)

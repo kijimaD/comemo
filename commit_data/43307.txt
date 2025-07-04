@@ -1,0 +1,16 @@
+commit 3c9488edff40f9837dfef94554ac638433708a65
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 15 14:48:26 2020 +0200
+
+    cmd/compile: clean up C->Go translation artifacts in badtype
+    
+    Change-Id: I576a596ed8e9ce14e3750031d0e338e9276eff1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262537
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

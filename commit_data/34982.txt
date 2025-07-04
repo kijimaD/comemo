@@ -1,0 +1,22 @@
+commit 11309ba0e651bbbec0ff9d7200bb51b56a5c0f49
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 14 14:14:28 2018 +1000
+
+    cmd/internal/obj/arm64: do not clear environment in TestLarge and TestNoRet
+    
+    Windows process cannot run properly, if it only has
+    GOOS and GOARCH environment variables set. It needs
+    other environment variables. So adjust TestLarge and
+    TestNoRet to add GOOS and GOARCH to the existing
+    variables set instead of clearing environment.
+    
+    Fixes #24855
+    
+    Change-Id: I9fd9430d89031c3bacdbc6283450efaa4819e616
+    Reviewed-on: https://go-review.googlesource.com/107035
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/asm_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 921ceadd2997f2c0267455e13f909df044234805
+Author: Jerrin Shaji George <jerrinsg@gmail.com>
+Date:   Wed Feb 5 01:21:11 2020 +0000
+
+    runtime: rewrite a comment in malloc.go
+    
+    This commit changes the wording of a comment in malloc.go that describes
+    how span objects are zeroed to make it more clear.
+    
+    Change-Id: I07722df1e101af3cbf8680ad07437d4a230b0168
+    GitHub-Last-Rev: 0e909898c709a9119cea7dbd80c25d9d7a73e22b
+    GitHub-Pull-Request: golang/go#37008
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217618
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

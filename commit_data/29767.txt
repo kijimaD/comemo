@@ -1,0 +1,29 @@
+commit 291254414b2adcea8e36374c6dbcdb3d9ede06c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 7 22:25:41 2016 -0800
+
+    io: fix MultiReader panic on nil reader.
+    
+    The combination of two prior CLs can cause panics:
+    * CL/17873: make chained multiReader Read more efficient
+    * CL/28533: make MultiReader nil exhausted Readers for earlier GC
+    
+    The first CL allows MultiReader to "inherit" another MultiReader's list of Readers
+    for efficiency reasons. This is problematic when combined with the
+    later CL since that can set prior Readers in that list to nil for GC reasons.
+    This causes panics when two MultiReaders are used together (even synchronously).
+    
+    To fix this, rather than setting consumed Readers as nil, we set them with
+    a special eofReader that always returns EOF.
+    
+    Fixes #18232
+    
+    Change-Id: I2a9357ab217e3d54d38ea9022d18e4d14f4182d3
+    Reviewed-on: https://go-review.googlesource.com/34140
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/multi.go      | 12 ++++++++++--
+ src/io/multi_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

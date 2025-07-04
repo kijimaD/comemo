@@ -1,0 +1,12 @@
+commit 5d0ec6c076978846f7cbbf4bd2c0dc55d946b0f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 29 23:34:59 2010 -0700
+
+    gc: flush warnings, if any
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/811042
+
+ src/cmd/gc/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

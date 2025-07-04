@@ -1,0 +1,13 @@
+commit 1d1316c885e5624aacd30a00c0c553499422195f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 16:16:55 2009 -0700
+
+    makefile fixes
+    
+    R=r
+    OCL=28369
+    CL=28369
+
+ src/lib/Makefile    | 72 ++++++++++++++++++++++++++++++-----------------------
+ src/lib/go/Makefile | 45 ---------------------------------
+ 2 files changed, 41 insertions(+), 76 deletions(-)

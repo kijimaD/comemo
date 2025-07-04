@@ -1,0 +1,18 @@
+commit e4bb139e75bf9bff76ebe6e060b7196579ce2172
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 28 19:51:02 2013 +0900
+
+    net: make protocol-specific Dial and Listen return consistent error value
+    
+    Update #4856
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/12916046
+
+ src/pkg/net/iprawsock_posix.go | 14 +++++++-------
+ src/pkg/net/ipsock_posix.go    | 13 +------------
+ src/pkg/net/tcpsock_posix.go   | 10 +++++-----
+ src/pkg/net/udpsock_posix.go   | 20 ++++++++++----------
+ src/pkg/net/unixsock_posix.go  | 28 ++++++++++------------------
+ 5 files changed, 33 insertions(+), 52 deletions(-)

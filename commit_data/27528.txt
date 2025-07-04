@@ -1,0 +1,19 @@
+commit d9557523c2febc29ad3ecab8b1a4358abd709b30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 20:01:25 2016 -0400
+
+    runtime: make framepointer mode safe for Windows
+    
+    A few other architectures have already defined a NOFRAME flag.
+    Use it to disable frame pointer code on a few very low-level functions
+    that must behave like Windows code.
+    
+    Makes the failing os/signal test pass on a Windows gomote.
+    
+    Change-Id: I982365f2c59a0aa302b4428c970846c61027cf3e
+    Reviewed-on: https://go-review.googlesource.com/23456
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go |  3 +--
+ src/runtime/sys_windows_amd64.s  | 26 +++++++++++++-------------
+ 2 files changed, 14 insertions(+), 15 deletions(-)

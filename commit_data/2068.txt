@@ -1,0 +1,13 @@
+commit 011bf2b6d3d17eaa7d08b5ad075ffa850f63d001
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 15:14:34 2009 -0700
+
+    minor adjustments to comments for better godoc output
+    
+    R=r
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=27686
+    CL=27688
+
+ src/lib/bignum.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

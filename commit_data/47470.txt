@@ -1,0 +1,24 @@
+commit 92655582d0d3b739a1fc88c73cc49a24eb57f845
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 11:47:55 2021 -0500
+
+    cmd/compile/internal/types2: add a check for nil reason in assignableTo
+    
+    A recent change to error message formatting was missing a nil check.
+    
+    Fixes #49592
+    
+    Change-Id: Ic1843e0277ba75eec0e8e41fe34b59c323d7ea31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364034
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/operand.go                  |  4 +++-
+ .../internal/types2/testdata/fixedbugs/issue49592.go2       | 11 +++++++++++
+ src/go/types/testdata/fixedbugs/issue49592.go2              | 11 +++++++++++
+ test/fixedbugs/issue49592.go                                | 13 +++++++++++++
+ 4 files changed, 38 insertions(+), 1 deletion(-)

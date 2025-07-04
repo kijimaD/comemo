@@ -1,0 +1,12 @@
+commit 54a2e63a60d1a0119390081e7f64f3b919f1bd20
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 23 23:21:52 2012 +0800
+
+    doc/reference-cmd: doc/fmt can be invoked by cmd/go but also available as independent command
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/5877050
+
+ doc/reference-cmd.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

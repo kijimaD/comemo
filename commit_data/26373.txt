@@ -1,0 +1,18 @@
+commit 248c3a3c7b376e128c14fcb13eebf28733553d03
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 18 09:55:18 2016 +1100
+
+    regexp: avoid copying mutex in (*Regexp).Copy.
+    
+    There's nothing guaranteeing that the *Regexp isn't in active use,
+    and so copying the sync.Mutex value is invalid.
+    
+    Updates #14839.
+    
+    Change-Id: Iddf52bf69df1b563377922399f64a571f76b95dd
+    Reviewed-on: https://go-review.googlesource.com/20841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/regexp/regexp.go | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

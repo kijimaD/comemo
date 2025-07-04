@@ -1,0 +1,14 @@
+commit 2a642c34e55bcafd57cca9c84c63cba3902c6a79
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 17 14:15:01 2012 +1000
+
+    misc/cgo/test: disable test on windows (attempt to fix windows build)
+    
+    see issus 3358 for similar problem
+    
+    R=golang-dev
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6464072
+
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

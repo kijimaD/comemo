@@ -1,0 +1,20 @@
+commit 78d749fbe978bf6eac9c5e11aa4641dc126c9128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 7 17:02:53 2021 -0700
+
+    go/types: partial revert of incorrect unification "fix"
+    
+    This is a port of CL 354690 from types2 to go/types.
+    
+    Change-Id: I50e7297a67e37d261335260e285b9cb1c0d2a62d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354691
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/testdata/fixedbugs/issue48619.go2 | 18 ++++++++++--------
+ src/go/types/testdata/fixedbugs/issue48656.go2 | 11 +++++------
+ src/go/types/testdata/fixedbugs/issue48695.go2 | 14 ++++++++++++++
+ src/go/types/unify.go                          | 26 +++-----------------------
+ 4 files changed, 32 insertions(+), 37 deletions(-)

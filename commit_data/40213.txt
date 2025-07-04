@@ -1,0 +1,18 @@
+commit d0f10a6e68b3cd1a0bb8536317cae4e850f38ba5
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Oct 10 12:31:43 2019 +0530
+
+    runtime,internal/bytealg: optimize wasmZero, wasmMove, Compare
+    
+    Coalesce set/get pairs into a tee.
+    
+    Change-Id: I88ccdcb148465615437bebf24145e941a037e0a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200357
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/bytealg/compare_wasm.s | 3 +--
+ src/runtime/sys_wasm.s              | 6 ++----
+ 2 files changed, 3 insertions(+), 6 deletions(-)

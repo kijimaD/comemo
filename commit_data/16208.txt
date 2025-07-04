@@ -1,0 +1,12 @@
+commit b0cd458605fc79481461172e0a751cb9524e2c3b
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Sun Apr 21 13:10:19 2013 +0200
+
+    doc: add missing <code> to go1.1.html
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8880043
+
+ doc/go1.1.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 5d22cebb1272b3761860c5fa9ee82ceb3d94c628
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 8 17:48:22 2018 -0500
+
+    runtime: explain and enforce that _panic values live on the stack
+    
+    It's a bit mysterious that _defer.sp is a uintptr that gets
+    stack-adjusted explicitly while _panic.argp is an unsafe.Pointer that
+    doesn't, but turns out to be critically important when a deferred
+    function grows the stack before doing a recover.
+    
+    Add a comment explaining that this works because _panic values live on
+    the stack. Enforce this by marking _panic go:notinheap.
+    
+    Change-Id: I9ca49e84ee1f86d881552c55dccd0662b530836b
+    Reviewed-on: https://go-review.googlesource.com/99735
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/runtime2.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

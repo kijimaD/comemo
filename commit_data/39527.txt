@@ -1,0 +1,19 @@
+commit 34778e58b30a3d615502a9f75bb603d6a13e0504
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 18 08:18:58 2019 -0400
+
+    test: new testcase for gccgo bug
+    
+    Updates #33158.
+    
+    Change-Id: Id87eb00ddcb104ba8e7a0d2f6cf324a77a84f4a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue33158.dir/a.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue33158.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue33158.go       |  9 +++++++++
+ 3 files changed, 45 insertions(+)

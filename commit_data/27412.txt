@@ -1,0 +1,13 @@
+commit 99ef42fe7b310749d83f9b76d814e78fe8139b42
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 16 15:45:18 2016 -0700
+
+    A+C: add Andrew Werner (corporate CLA for Upthere, Inc)
+    
+    Change-Id: I7627e480d5d2366cba223fd81635c4115649f752
+    Reviewed-on: https://go-review.googlesource.com/23154
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

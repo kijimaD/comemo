@@ -1,0 +1,15 @@
+commit 3d2321f639452afbccc2249153c16abec2a6607f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 10:01:28 2014 -0400
+
+    io: clarify Reader returning 0, nil
+    
+    Fixes #8317.
+    
+    LGTM=bradfitz
+    R=bradfitz, iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/143100043
+
+ src/io/io.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

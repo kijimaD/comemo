@@ -1,0 +1,19 @@
+commit df52d2ebd12687617da16b78076fc541f2622e33
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 25 10:32:46 2014 -0700
+
+    encoding/json: make ,string work when encoding pointer fields
+    
+    It was respected by unmarshal, but not marshal, so they didn't
+    round-trip.
+    
+    Fixes #8582
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/132960043
+
+ src/pkg/encoding/json/encode.go      |  4 ++--
+ src/pkg/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 2a1c9377d91e6616cb97bbdf1c220ca2018b44ec
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 15:14:12 2009 -0700
+
+    use /bin/ed to avoid portability issues
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=34696
+    CL=34700
+
+ src/cmd/6l/mkenam | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

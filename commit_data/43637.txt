@@ -1,0 +1,25 @@
+commit 256d729c0b272021a44f61f47cd2c9c6d9fb1722
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 13 18:11:26 2020 -0400
+
+    runtime: simplify gcBgMarkWorker preemption
+    
+    gcBgMarkWorker G's are primarily scheduled by findRunnableGCWorker, but
+    that no longer needs to be strictly enforced. Temporary preemption to a
+    runq is fine when the P is not in use.
+    
+    We still releasem in gopark in the normal case for efficiency: if
+    gcDrain stops because gp.preempt is set, then gopark would always
+    preempt. That is fine, but inefficient, since it will reschedule simply
+    to park again. Thus, we keep releasem in unlockf to skip this extra
+    cycle.
+    
+    Change-Id: I6d1a42e3ca41b76227142a6b5bfb376c9213e3c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262349
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go | 67 ++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 45 insertions(+), 22 deletions(-)

@@ -1,0 +1,16 @@
+commit 2dbee8919c5c0e19e26e9d80d9135c367d2bf4cf
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 28 17:06:06 2015 -0500
+
+    runtime/cgo: no-op getwd call as test breakpoint
+    
+    This is to be used by an lldb script inside go_darwin_arm_exec to pause
+    the execution of tests on iOS so the working directory can be adjusted
+    into something resembling a GOROOT.
+    
+    Change-Id: I69ea2d4d871800ae56634b23ffa48583559ddbc6
+    Reviewed-on: https://go-review.googlesource.com/6363
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgo/gcc_darwin_arm.c | 5 +++++
+ 1 file changed, 5 insertions(+)

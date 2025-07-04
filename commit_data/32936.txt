@@ -1,0 +1,51 @@
+commit 5fe9bbcf6312b32e0c9df10a5ea6ba18e929de72
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 1 02:37:20 2017 +0000
+
+    cmd/link: remove coutbuf global variable
+    
+    Begin passing coutbuf by as a parameter. To make the initial plumbing
+    pass easier, it is also a field in the standard ctxt parameter.
+    
+    Consolidate the byte writing functions into the OutBuf object.
+    The result is less architecture-dependent initialization.
+    
+    To avoid plumbing out everywhere we want to report an error, move
+    handling of out file deletion to an AtExit function.
+    
+    For #22095
+    
+    Change-Id: I0863695241562e0662ae3669666c7922b8c846f9
+    Reviewed-on: https://go-review.googlesource.com/67318
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go  |  88 ++++++-------
+ src/cmd/link/internal/amd64/obj.go  |   6 -
+ src/cmd/link/internal/arm/asm.go    |  74 +++++------
+ src/cmd/link/internal/arm/obj.go    |   6 -
+ src/cmd/link/internal/arm64/asm.go  |  98 +++++++-------
+ src/cmd/link/internal/arm64/obj.go  |   6 -
+ src/cmd/link/internal/ld/data.go    |  41 ++----
+ src/cmd/link/internal/ld/dwarf.go   |  27 ++--
+ src/cmd/link/internal/ld/elf.go     | 253 ++++++++++++++++++------------------
+ src/cmd/link/internal/ld/lib.go     | 100 ++------------
+ src/cmd/link/internal/ld/link.go    |   2 +
+ src/cmd/link/internal/ld/macho.go   | 146 ++++++++++-----------
+ src/cmd/link/internal/ld/outbuf.go  | 120 +++++++++++++++++
+ src/cmd/link/internal/ld/pe.go      | 217 ++++++++++++++++---------------
+ src/cmd/link/internal/ld/sym.go     |   8 ++
+ src/cmd/link/internal/ld/symtab.go  |  82 ++++--------
+ src/cmd/link/internal/ld/util.go    |   5 +-
+ src/cmd/link/internal/mips/asm.go   |  34 ++---
+ src/cmd/link/internal/mips/obj.go   |  16 ---
+ src/cmd/link/internal/mips64/asm.go |  70 +++++-----
+ src/cmd/link/internal/mips64/obj.go |  15 ---
+ src/cmd/link/internal/ppc64/asm.go  | 114 ++++++++--------
+ src/cmd/link/internal/ppc64/obj.go  |  16 ---
+ src/cmd/link/internal/s390x/asm.go  |  42 +++---
+ src/cmd/link/internal/s390x/obj.go  |   6 -
+ src/cmd/link/internal/x86/asm.go    |  82 ++++++------
+ src/cmd/link/internal/x86/obj.go    |   6 -
+ 27 files changed, 800 insertions(+), 880 deletions(-)

@@ -1,0 +1,16 @@
+commit 456df7c282f984133a4e687e5cff1bcda0f180e4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 14:23:24 2014 -0700
+
+    doc/go1.4.html: first pieces of release notes
+    Move the release notes into an HTML file.
+    Start writing the text.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, kamil.kisiel, tracey.brendan, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/161350043
+
+ doc/go1.4.html | 256 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.4.txt  |  53 ------------
+ 2 files changed, 256 insertions(+), 53 deletions(-)

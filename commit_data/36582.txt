@@ -1,0 +1,15 @@
+commit 55ef446026748bea0e9bd5aa35132a07297ff734
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Aug 28 13:10:31 2018 +0530
+
+    cmd/go/internal/modcmd: remove non-existent -dir flag
+    
+    Fixes #27243
+    
+    Change-Id: If9230244938dabd03b9afaa6600310df8f97fe92
+    Reviewed-on: https://go-review.googlesource.com/131775
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                  | 2 +-
+ src/cmd/go/internal/modcmd/download.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 3656c2db9639c524fe492ce74f485a35e0794cf4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 3 09:01:44 2014 -0500
+
+    crypto/tls: split connErr to avoid read/write races.
+    
+    Currently a write error will cause future reads to return that same error.
+    However, there may have been extra information from a peer pending on
+    the read direction that is now unavailable.
+    
+    This change splits the single connErr into errors for the read, write and
+    handshake. (Splitting off the handshake error is needed because both read
+    and write paths check the handshake error.)
+    
+    Fixes #7414.
+    
+    LGTM=bradfitz, r
+    R=golang-codereviews, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/69090044
+
+ src/pkg/crypto/tls/conn.go             | 127 +++++++++++++++------------------
+ src/pkg/crypto/tls/handshake_client.go |   2 +-
+ src/pkg/crypto/tls/handshake_server.go |   2 +-
+ 3 files changed, 61 insertions(+), 70 deletions(-)

@@ -1,0 +1,33 @@
+commit fdbbb066ed86a08c39ac6195548054435406b60d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 26 16:42:49 2011 +1100
+
+    compress/lzw: don't use a closure in NewReader, which avoids having
+    to move some variables from the stack to the heap.
+    
+    Sorted benchmark runs on my 2007-era Mac Mini (GOARCH=amd64, GOOS=linux):
+    
+    Before:
+    lzw.BenchmarkDecoder        2000        878176 ns/op
+    lzw.BenchmarkDecoder        2000        878415 ns/op
+    lzw.BenchmarkDecoder        2000        880352 ns/op
+    lzw.BenchmarkDecoder        2000        898445 ns/op
+    lzw.BenchmarkDecoder        2000        901728 ns/op
+    
+    After:
+    lzw.BenchmarkDecoder        2000        859065 ns/op
+    lzw.BenchmarkDecoder        2000        859402 ns/op
+    lzw.BenchmarkDecoder        2000        860035 ns/op
+    lzw.BenchmarkDecoder        2000        860555 ns/op
+    lzw.BenchmarkDecoder        2000        861109 ns/op
+    
+    The ratio of before/after median times is 1.024.
+    
+    The runtime.MemStats.Mallocs delta per loop drops from 109 to 104.
+    
+    R=r, r2, dfc
+    CC=golang-dev
+    https://golang.org/cl/4253043
+
+ src/pkg/compress/lzw/reader.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

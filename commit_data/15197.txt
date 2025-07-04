@@ -1,0 +1,14 @@
+commit 0a22018d461d7999df3af40cefb6ace17dfe79c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 11 07:46:39 2013 -0500
+
+    spec: reject top-level init names
+    
+    Fixes #4586.
+    
+    R=golang-dev, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/7307082
+
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

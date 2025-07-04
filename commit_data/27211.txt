@@ -1,0 +1,12 @@
+commit 36b6c03827f51a8464a135d27212100d893f582c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 29 15:56:57 2016 -0700
+
+    root: remove dev.garbage file
+    
+    Change-Id: I99b2ca52824341d986090f5c78ab4f396594bcdf
+    Reviewed-on: https://go-review.googlesource.com/22660
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ dev.garbage | 1 -
+ 1 file changed, 1 deletion(-)

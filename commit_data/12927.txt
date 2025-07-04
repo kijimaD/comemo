@@ -1,0 +1,12 @@
+commit 32c3a626da60210c85dc004ead609941dfff73bc
+Author: Michael Chaten <mchaten@gmail.com>
+Date:   Sat Apr 21 13:24:41 2012 +1000
+
+    runtime: add benchmark for complex128 division
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6070043
+
+ src/pkg/runtime/complex_test.go | 57 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

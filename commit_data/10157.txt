@@ -1,0 +1,12 @@
+commit d0eaa58b5a19f15546af4d61a1dc9987af168b5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 17:50:25 2011 -0400
+
+    runtime/pprof: document OS X being broken
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5307078
+
+ src/pkg/runtime/pprof/pprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

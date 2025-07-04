@@ -1,0 +1,28 @@
+commit 0193139becc629407fc6a8802d33294667086d74
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 15 19:47:52 2011 -0400
+
+    undo CL 4557047 / 8818ac606e92
+    
+    I don't think we've discussed this API enough.
+    
+    ««« original CL description
+    bike/shed: new package.
+    
+    It comes up often enough that it's time to provide
+    the utility of a standard package.
+    
+    R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
+    CC=golang-dev
+    https://golang.org/cl/4557047
+    »»»
+    
+    R=dsymonds, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/4576065
+
+ src/pkg/Makefile                 |  1 -
+ src/pkg/bike/shed/Makefile       | 11 -----------
+ src/pkg/bike/shed/colors.go      | 26 --------------------------
+ src/pkg/bike/shed/colors_test.go | 15 ---------------
+ 4 files changed, 53 deletions(-)

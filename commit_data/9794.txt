@@ -1,0 +1,16 @@
+commit aa2a31e6c47cdeffe1abdc8a1a80d50711341083
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 26 10:25:13 2011 -0400
+
+    exp/ssh: move common code to common.go
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/5132041
+
+ src/pkg/exp/ssh/Makefile     |   6 +--
+ src/pkg/exp/ssh/common.go    |  33 ++++++++++++
+ src/pkg/exp/ssh/messages.go  |  70 +++++++++++++++++++++++++
+ src/pkg/exp/ssh/server.go    | 121 ++++++++++---------------------------------
+ src/pkg/exp/ssh/transport.go |  35 ++++++++++++-
+ 5 files changed, 166 insertions(+), 99 deletions(-)

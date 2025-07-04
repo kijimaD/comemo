@@ -1,0 +1,17 @@
+commit 766d042e48aebf0bcd042e338e73090a1d27ccaf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 20:29:08 2010 -0800
+
+    fix garbage benchmark Makefile.
+    
+    apparently some versions of GNU make cannot
+    handle the %: %.$O rule.  i don't understand why
+    and don't care enough to find out.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/206055
+
+ .hgignore             | 4 +---
+ test/garbage/Makefile | 8 ++++----
+ 2 files changed, 5 insertions(+), 7 deletions(-)

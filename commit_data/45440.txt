@@ -1,0 +1,21 @@
+commit fd095936673dcb53b96b825d95c1e83adde3ce15
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 29 14:52:24 2021 -0400
+
+    cmd/compile: minor doc enhancements
+    
+    Add a little more detail to the ssa README relating to GOSSAFUNC.
+    
+    Update the -d=ssa help section to give a little more detail on what
+    to expect with applying the /debug=X qualifier to a phase.
+    
+    Change-Id: I7027735f1f2955dbb5b9be36d9a648e8dc655048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315229
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/README.md  | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/compile.go |  5 +++++
+ 2 files changed, 18 insertions(+)

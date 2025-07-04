@@ -1,0 +1,29 @@
+commit 14cb41584dbf6b0ced5a6467034c1821210fd01c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Aug 25 01:56:50 2017 +0200
+
+    cmd/compile: don't use MOVOstore instruction on plan9/amd64
+    
+    CL 54410 and CL 56250 recently added use of the MOVOstore
+    instruction to improve performance.
+    
+    However, we can't use the MOVOstore instruction on Plan 9,
+    because floating point operations are not allowed in the
+    note handler.
+    
+    This change adds a configuration flag useSSE to enable the
+    use of SSE instructions for non-floating point operations.
+    This flag is enabled by default and disabled on Plan 9.
+    When this flag is disabled, the MOVOstore instruction is
+    not used and the MOVQstoreconst instruction is used instead.
+    
+    Fixes #21599
+    
+    Change-Id: Ie609e5d9b82ec0092ae874bab4ce01caa5bc8fb8
+    Reviewed-on: https://go-review.googlesource.com/58850
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go       |   7 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  36 ++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 176 +++++++++++++++++++++++----
+ 3 files changed, 185 insertions(+), 34 deletions(-)

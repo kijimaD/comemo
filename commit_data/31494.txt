@@ -1,0 +1,15 @@
+commit 8d63408f4688ff577c25f07a1728fe131d0cae2a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 4 08:41:49 2017 -0700
+
+    go/constant: avoid generating rats for large negative exponents
+    
+    Fixes #20228
+    
+    Change-Id: I1893ae3e192da01f9befe5469b2a32e534a691ba
+    Reviewed-on: https://go-review.googlesource.com/42592
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/constant/value.go      | 7 +++++++
+ src/go/constant/value_test.go | 3 ++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

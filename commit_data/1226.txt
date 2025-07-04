@@ -1,0 +1,25 @@
+commit e3b793004fe9fb169099026e8c8d732913ec2ffa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 12:30:40 2008 -0800
+
+    hash writers: adler32, crc32, md5, sha1.
+    all could probably be made faster.
+    
+    R=r
+    DELTA=929  (929 added, 0 deleted, 0 changed)
+    OCL=19879
+    CL=19911
+
+ src/lib/hash/Makefile        |  80 +++++++++++++++++++++++++++++++++
+ src/lib/hash/adler32.go      |  62 ++++++++++++++++++++++++++
+ src/lib/hash/adler32_test.go |  64 ++++++++++++++++++++++++++
+ src/lib/hash/crc32.go        |  85 +++++++++++++++++++++++++++++++++++
+ src/lib/hash/crc32_test.go   |  64 ++++++++++++++++++++++++++
+ src/lib/hash/md5.go          | 102 ++++++++++++++++++++++++++++++++++++++++++
+ src/lib/hash/md5_test.go     |  74 ++++++++++++++++++++++++++++++
+ src/lib/hash/sha1.go         | 104 +++++++++++++++++++++++++++++++++++++++++++
+ src/lib/hash/sha1_test.go    |  76 +++++++++++++++++++++++++++++++
+ src/lib/hash/sha1block.go    |  86 +++++++++++++++++++++++++++++++++++
+ src/lib/hash/test_cases.txt  |  31 +++++++++++++
+ src/lib/hash/test_gen.awk    |  14 ++++++
+ 12 files changed, 842 insertions(+)

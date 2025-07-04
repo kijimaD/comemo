@@ -1,0 +1,14 @@
+commit cb5fad79d068420409686f435385a8d62f26c56f
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Jun 2 13:46:34 2020 -0400
+
+    doc/go1.15: add release notes for strconv
+    
+    Updates #37419
+    
+    Change-Id: Ic72bf0da914fa8a56570750b8fd4b4d09d2ed075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236157
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

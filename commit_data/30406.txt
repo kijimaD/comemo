@@ -1,0 +1,20 @@
+commit c7894924c7702c88e2b9836323bd4f40cd0257e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 11 14:44:16 2017 -0800
+
+    runtime/pprof: handle empty stack traces in Profile.Add
+    
+    If the caller passes a large number to Profile.Add,
+    the list of pcs is empty, which results in junk
+    (a nil pc) being recorded. Check for that explicitly,
+    and replace such stack traces with a lostProfileEvent.
+    
+    Fixes #18836.
+    
+    Change-Id: I99c96aa67dd5525cd239ea96452e6e8fcb25ce02
+    Reviewed-on: https://go-review.googlesource.com/36891
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof.go      |  7 ++++++-
+ src/runtime/pprof/pprof_test.go | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

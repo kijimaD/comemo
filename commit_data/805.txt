@@ -1,0 +1,14 @@
+commit 7766b12ead95c1f722f4a2a993acc8081f96fd8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 3 17:06:24 2008 -0700
+
+    const bug, name bug - working on both
+    
+    R=r
+    DELTA=43  (43 added, 0 deleted, 0 changed)
+    OCL=16468
+    CL=16475
+
+ test/bugs/bug110.go | 19 +++++++++++++++++++
+ test/bugs/bug111.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

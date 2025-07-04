@@ -1,0 +1,15 @@
+commit 670f6b602d1e9ef6d1ce54830593415f62d48246
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Feb 24 21:57:16 2013 -0800
+
+    go/types: unresolved literal keys must be looked up in universe.
+    
+    Fixes #4888.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/7383051
+
+ src/pkg/go/types/expr.go            | 2 ++
+ src/pkg/go/types/testdata/expr3.src | 9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

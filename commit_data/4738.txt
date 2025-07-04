@@ -1,0 +1,18 @@
+commit 637e0eecb43e4a17f4e6ac7de38bf1ec70b8170b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 30 11:31:30 2010 -0800
+
+    New gccgo error message; match both compilers with one string.
+    
+    8g:
+    runtime.go:19: cannot refer to unexported name runtime.printbool
+    
+    gccgo:
+    runtime.go:19:10: error: invalid reference to unexported identifier ‘runtime.printbool’
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194157
+
+ test/runtime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

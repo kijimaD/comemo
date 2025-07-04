@@ -1,0 +1,29 @@
+commit afac2c0508208ce0baf0cf2f0ba9b86ee7b60469
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 13:58:58 2019 +0000
+
+    test: avoid writing temporary files to GOROOT
+    
+    This reverts CL 207477, restoring CL 207352 with a fix for the
+    regression observed in the Windows builders.
+    
+    cmd/compile evidently does not fully support NUL as an output on
+    Windows, so this time we write ignored 'compile' outputs
+    to temporary files (instead of os.DevNull as in CL 207352).
+    
+    Updates #28387
+    Fixes #35619
+    
+    Change-Id: I2edc5727c3738fa1bccb4b74e50d114cf2a7fcff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207602
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go        | 14 +++++++++-----
+ test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
+ test/fixedbugs/bug369.go    | 22 +++++++++++++---------
+ test/fixedbugs/issue9355.go | 12 ++++++++++--
+ test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
+ test/sinit_run.go           | 16 ++++++++++++++--
+ 6 files changed, 91 insertions(+), 41 deletions(-)

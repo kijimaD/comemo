@@ -1,0 +1,18 @@
+commit 156bbe283cea5237c0461a004aefc3ea3d118023
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jun 7 12:43:56 2018 +0530
+
+    cmd/go/internal: add wasm magic header
+    
+    This is needed when we are re-building to the wasm target.
+    
+    Fixes #25774
+    
+    Change-Id: I5dc47bd7e56c8570b8d2485273ef0d10f2feac6f
+    Reviewed-on: https://go-review.googlesource.com/116915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

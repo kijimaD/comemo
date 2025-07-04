@@ -1,0 +1,28 @@
+commit 9c4a8620c802fbb03545e401c41f11d622b84b42
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 28 09:28:47 2022 -0500
+
+    CONTRIBUTORS: update for the Go 1.18 release
+    
+    This update was created using the updatecontrib command:
+    
+            go install golang.org/x/build/cmd/updatecontrib@latest
+            cd gotip
+            updatecontrib
+    
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    For #12042.
+    
+    Change-Id: If08b7e798cff6ec4248011bdadcc524b510aaff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388394
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ CONTRIBUTORS | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 96 insertions(+), 1 deletion(-)

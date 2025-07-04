@@ -1,0 +1,20 @@
+commit c55a50edb9454dbdaca165be4b030a1e0cfbaa19
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 13 15:42:24 2019 -0500
+
+    cmd/go: invalidate cached test results when the -timeout flag changes
+    
+    Fixes #36134
+    
+    Change-Id: Icc5e1269696db778ba5c1e6bebed9969b8841c81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220365
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.15.html                                  |  8 ++++++++
+ src/cmd/go/go_test.go                            | 24 ------------------------
+ src/cmd/go/internal/test/test.go                 |  5 +----
+ src/cmd/go/testdata/script/test_cache_inputs.txt | 21 +++++++++++++++++++++
+ 4 files changed, 30 insertions(+), 28 deletions(-)

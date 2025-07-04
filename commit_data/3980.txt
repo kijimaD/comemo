@@ -1,0 +1,14 @@
+commit 5281869fac4abd538aa3fbcadf3001c26bcd0aff
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 11:19:33 2009 -0800
+
+    gopack: convert long to time_t before taking a pointer.
+    
+    Fixes #40.
+    
+    R=rsc, r1
+    CC=golang-dev
+    https://golang.org/cl/154057
+
+ src/cmd/gopack/ar.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

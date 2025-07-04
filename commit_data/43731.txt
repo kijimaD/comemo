@@ -1,0 +1,36 @@
+commit 3a81338622eb5c8b94f11001855e2a68a9e36bed
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Feb 18 03:03:32 2017 -0700
+
+    runtime: make stack traces of endless recursion print only top and bottom 50
+    
+    This CL makes it so that instead of printing massive stack traces during
+    endless recursion, which spams users and aren't useful, it now prints out
+    the top and bottom 50 frames. If the number of frames <= 100
+    (_TracebackMaxFrames), we'll just print all the frames out.
+    
+    Modified gentraceback to return counts of:
+    * ntotalframes
+    * nregularframes
+    which allows us to get accurate counts of the various kinds of frames.
+    
+    While here, also fixed a bug that resulted from CL 37222, in which we
+    no longer accounted for decrementing requested frame skips, and assumed
+    that when printing, that skip would always be 0. The fix is instead to add
+    precondition that we'll only print if skip <= 0, but also decrement skip
+    as we iterate.
+    
+    Fixes #7181.
+    Fixes #24628.
+    
+    Change-Id: Ie31ec6413fdfbe43827b254fef7d99ea26a5277f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/37222
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/crash_test.go                 | 126 ++++++++++++++++++++++
+ src/runtime/testdata/testprog/deadlock.go |  13 +++
+ src/runtime/traceback.go                  | 173 ++++++++++++++++++++++--------
+ 3 files changed, 265 insertions(+), 47 deletions(-)

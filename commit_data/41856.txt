@@ -1,0 +1,18 @@
+commit 7dc1c62cc9eb7a8c0c554dd6d67da9bd4ddeac1c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 11:39:44 2020 -0400
+
+    cmd/link: remove darwin/arm test
+    
+    The darwin/arm port is removed in Go 1.15. Setting GOOS=darwin
+    GOARCH=arm will fail, therefore "go test cmd/link" on macOS will
+    fail (in non -short mode). Remove this test point.
+    
+    Updates #37611.
+    
+    Change-Id: Ia9531c4b4a6692a0c49153517af9fdddd1f3e0bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/dwarf_test.go | 2 --
+ 1 file changed, 2 deletions(-)

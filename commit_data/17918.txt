@@ -1,0 +1,126 @@
+commit 7d507dc6e608e800bc26a5850259bbdb05abdf65
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 8 22:49:37 2013 -0500
+
+    liblink: create new library based on linker code
+    
+    There is an enormous amount of code moving around in this CL,
+    but the code is the same, and it is invoked in the same ways.
+    This CL is preparation for the new linker structure, not the new
+    structure itself.
+    
+    The new library's definition is in include/link.h.
+    
+    The main change is the use of a Link structure to hold all the
+    linker-relevant state, replacing the smattering of global variables.
+    The Link structure should both make it clearer which state must
+    be carried around and make it possible to parallelize more easily
+    later.
+    
+    The main body of the linker has moved into the architecture-independent
+    cmd/ld directory. That includes the list of known header types, so the
+    distinction between Hplan9x32 and Hplan9x64 is removed (no other
+    header type distinguished 32- and 64-bit formats), and code for unused
+    formats such as ipaq kernels has been deleted.
+    
+    The code being deleted from 5l, 6l, and 8l reappears in liblink or in ld.
+    Because multiple files are being merged in the liblink directory,
+    it is not possible to show the diffs nicely in hg.
+    
+    The Prog and Addr structures have been unified into an
+    architecture-independent form and moved to link.h, where they will
+    be shared by all tools: the assemblers, the compilers, and the linkers.
+    The unification makes it possible to write architecture-independent
+    traversal of Prog lists, among other benefits.
+    
+    The Sym structures cannot be unified: they are too fundamentally
+    different between the linker and the compilers. Instead, liblink defines
+    an LSym - a linker Sym - to be used in the Prog and Addr structures,
+    and the linker now refers exclusively to LSyms. The compilers will
+    keep using their own syms but will fill out the corresponding LSyms in
+    the Prog and Addr structures.
+    
+    Although code from 5l, 6l, and 8l is now in a single library, the
+    code has been arranged so that only one architecture needs to
+    be linked into a particular program: 5l will not contain the code
+    needed for x86 instruction layout, for example.
+    
+    The object file writing code in liblink/obj.c is from cmd/gc/obj.c.
+    
+    Preparation for golang.org/s/go13linker work.
+    
+    This CL does not build by itself. It depends on 35740044
+    and will be submitted at the same time.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/35790044
+
+ include/link.h         |  567 +++++++++
+ include/u.h            |    2 +
+ src/cmd/5l/5.out.h     |   85 +-
+ src/cmd/5l/asm.c       | 1495 ++--------------------
+ src/cmd/5l/l.h         |  350 +-----
+ src/cmd/5l/list.c      |   40 +-
+ src/cmd/5l/noop.c      |  671 +---------
+ src/cmd/5l/obj.c       |  724 +----------
+ src/cmd/5l/optab.c     |  277 ----
+ src/cmd/5l/pass.c      |  409 ------
+ src/cmd/5l/prof.c      |  211 ----
+ src/cmd/5l/softfloat.c |   91 --
+ src/cmd/5l/span.c      |  937 --------------
+ src/cmd/6l/6.out.h     |   12 -
+ src/cmd/6l/asm.c       |  234 ++--
+ src/cmd/6l/l.h         |  365 +-----
+ src/cmd/6l/list.c      |   22 +-
+ src/cmd/6l/obj.c       |  670 +---------
+ src/cmd/6l/optab.c     | 1372 --------------------
+ src/cmd/6l/pass.c      |  991 ---------------
+ src/cmd/6l/prof.c      |  171 ---
+ src/cmd/6l/span.c      | 1846 ---------------------------
+ src/cmd/8l/8.out.h     |   12 -
+ src/cmd/8l/asm.c       |  343 ++---
+ src/cmd/8l/l.h         |  331 +----
+ src/cmd/8l/list.c      |   22 +-
+ src/cmd/8l/obj.c       |  674 +---------
+ src/cmd/8l/optab.c     | 1032 ---------------
+ src/cmd/8l/pass.c      |  858 -------------
+ src/cmd/8l/prof.c      |  173 ---
+ src/cmd/8l/span.c      | 1507 ----------------------
+ src/cmd/ld/data.c      |  535 ++------
+ src/cmd/ld/decodesym.c |   62 +-
+ src/cmd/ld/dwarf.c     |   86 +-
+ src/cmd/ld/dwarf.h     |    2 +-
+ src/cmd/ld/elf.c       |  184 +--
+ src/cmd/ld/elf.h       |   14 +-
+ src/cmd/ld/go.c        |   83 +-
+ src/cmd/ld/ldelf.c     |   42 +-
+ src/cmd/ld/ldmacho.c   |   34 +-
+ src/cmd/ld/ldpe.c      |   36 +-
+ src/cmd/ld/lib.c       | 1306 ++-----------------
+ src/cmd/ld/lib.h       |  383 ++----
+ src/cmd/ld/macho.c     |  106 +-
+ src/cmd/ld/pass.c      |  104 ++
+ src/cmd/ld/pcln.c      |  258 ++++
+ src/cmd/ld/pe.c        |   40 +-
+ src/cmd/ld/pe.h        |    2 +-
+ src/cmd/ld/pobj.c      |  223 ++++
+ src/cmd/ld/symtab.c    |   50 +-
+ src/liblink/Makefile   |    5 +
+ src/liblink/asm5.c     | 2443 +++++++++++++++++++++++++++++++++++
+ src/liblink/asm6.c     | 3289 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/liblink/asm8.c     | 2571 +++++++++++++++++++++++++++++++++++++
+ src/liblink/data.c     |  366 ++++++
+ src/liblink/go.c       |   74 ++
+ src/liblink/ld.c       |  572 +++++++++
+ src/liblink/obj.c      |  403 ++++++
+ src/liblink/obj5.c     | 1187 +++++++++++++++++
+ src/liblink/obj6.c     | 1078 ++++++++++++++++
+ src/liblink/obj8.c     |  937 ++++++++++++++
+ src/liblink/pass.c     |  115 ++
+ src/liblink/pcln.c     |  298 +++++
+ src/liblink/rdobj5.c   |  585 +++++++++
+ src/liblink/rdobj6.c   |  495 ++++++++
+ src/liblink/rdobj8.c   |  466 +++++++
+ src/liblink/sym.c      |  158 +++
+ 67 files changed, 17383 insertions(+), 17703 deletions(-)

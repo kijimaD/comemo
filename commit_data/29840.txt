@@ -1,0 +1,17 @@
+commit 61db2e4efa2a8f558fd3557958d1c86dbbe7d3cc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 14 13:24:21 2016 -0500
+
+    runtime: cross-reference _func type better
+    
+    It takes me several minutes every time I want to find where the linker
+    writes out the _func structures. Add some comments to make this
+    easier.
+    
+    Change-Id: Ic75ce2786ca4b25726babe3c4fe9cd30c85c34e2
+    Reviewed-on: https://go-review.googlesource.com/34390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 3 +++
+ src/runtime/runtime2.go          | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

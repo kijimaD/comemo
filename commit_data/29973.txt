@@ -1,0 +1,33 @@
+commit a96e117a58dce1d55fd83a7b3391fa667dd66652
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 23 08:22:10 2017 -0800
+
+    runtime: amd64, use 4-byte ops for memmove of 4 bytes
+    
+    memmove used to use 2 2-byte load/store pairs to move 4 bytes.
+    When the result is loaded with a single 4-byte load, it caused
+    a store to load fowarding stall.  To avoid the stall,
+    special case memmove to use 4 byte ops for the 4 byte copy case.
+    
+    We already have a special case for 8-byte copies.
+    386 already specializes 4-byte copies.
+    I'll do 2-byte copies also, but not for 1.8.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkIssue18740-8     7567          4799          -36.58%
+    
+    3-byte copies get a bit slower.  Other copies are unchanged.
+    name         old time/op   new time/op   delta
+    Memmove/3-8   4.76ns ± 5%   5.26ns ± 3%  +10.50%  (p=0.000 n=10+10)
+    
+    Fixes #18740
+    
+    Change-Id: Iec82cbac0ecfee80fa3c8fc83828f9a1819c3c74
+    Reviewed-on: https://go-review.googlesource.com/35567
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/memmove_amd64.s | 10 ++++++++--
+ src/runtime/memmove_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 2b59b15f6b7e6fa6ac725367acff5aef7c666e36
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Sep 21 23:11:28 2016 -0700
+
+    encoding/json: example on MarshalJSON, UnmarshalJSON
+    
+    Updates #16360.
+    
+    Change-Id: I5bf13d3367e68c5d8435f6ef2161d5a74cc747a7
+    Reviewed-on: https://go-review.googlesource.com/29611
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/example_marshaling_test.go | 73 ++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

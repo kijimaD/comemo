@@ -1,0 +1,22 @@
+commit 4f0d3bcd6d2d6bc726044153bf6875d195203b32
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Nov 18 18:34:15 2022 -0500
+
+    net/http: regenerate h2_bundle.go
+    
+    Done with:
+    
+            go generate -run=bundle std
+    
+    After CL 452096 updated the x/net version.
+    
+    Change-Id: I1c1cd76d4ec9e14f45dc66c945c74e41ff689a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452195
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/h2_bundle.go | 237 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 177 insertions(+), 60 deletions(-)

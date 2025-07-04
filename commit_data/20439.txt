@@ -1,0 +1,13 @@
+commit 15274e5c9bd5393f67a77200f0669ab00f2ab0ed
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 16 12:50:05 2014 -0700
+
+    runtime: make it clear that Goexit cannot be recover'd.
+    
+    LGTM=r
+    R=r, bradfitz, khr
+    CC=golang-codereviews
+    https://golang.org/cl/136660044
+
+ src/runtime/panic.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

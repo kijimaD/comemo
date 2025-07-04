@@ -1,0 +1,20 @@
+commit 126d475a4311c5c34f380a11941dbeeac39145fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 18 21:07:08 2012 -0500
+
+    gc: drop ideal bool
+    
+    R=golang-dev, ken2
+    CC=golang-dev
+    https://golang.org/cl/5674098
+
+ src/cmd/gc/const.c       | 7 +++----
+ src/cmd/gc/export.c      | 2 +-
+ src/cmd/gc/fmt.c         | 4 ++--
+ src/cmd/gc/go.h          | 1 -
+ src/cmd/gc/lex.c         | 5 ++---
+ src/cmd/gc/subr.c        | 4 ++--
+ test/fixedbugs/bug285.go | 1 -
+ test/named.go            | 4 +---
+ test/named1.go           | 4 ++--
+ 9 files changed, 13 insertions(+), 19 deletions(-)

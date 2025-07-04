@@ -1,0 +1,12 @@
+commit 89f341db230cee438e9d873cbb80b1ae4473b1ee
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 29 13:18:21 2008 -0700
+
+    new(chan)
+    
+    R=r
+    OCL=18027
+    CL=18027
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

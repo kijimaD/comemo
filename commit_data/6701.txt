@@ -1,0 +1,12 @@
+commit 70d0b6b242a2c6c6983b7189df6e8140ed479661
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 3 11:09:43 2010 -0700
+
+    Effective Go: correct error in recent edit: "..." is in call to Sprintln, not Output.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/2853042
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

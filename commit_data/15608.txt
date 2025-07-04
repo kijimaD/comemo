@@ -1,0 +1,20 @@
+commit 7610a0552fcd5ef3ed75c0e931275d2e7cdb9eaf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 15:48:28 2013 -0500
+
+    lib9: add mktempdir, removeall, runprog
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7523043
+
+ include/libc.h             |   4 ++
+ src/cmd/dist/windows.c     |   2 +
+ src/lib9/run_plan9.c       |  38 +++++++++++++++
+ src/lib9/run_unix.c        |  43 +++++++++++++++++
+ src/lib9/run_windows.c     |  83 +++++++++++++++++++++++++++++++++
+ src/lib9/tempdir_plan9.c   |  54 ++++++++++++++++++++++
+ src/lib9/tempdir_unix.c    |  52 +++++++++++++++++++++
+ src/lib9/tempdir_windows.c | 112 +++++++++++++++++++++++++++++++++++++++++++++
+ src/lib9/win.h             |   8 ++++
+ 9 files changed, 396 insertions(+)

@@ -1,0 +1,23 @@
+commit 1678829d9555761c0fa6571fd3bcaec016add3d2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 22 17:43:08 2021 -0500
+
+    cmd/compile: correctly use X15 to zero frame
+    
+    In CL 288093 we reserve X15 as the zero register and use that to
+    zero values. It only covered zeroing generated in SSA but missed
+    zeroing the frame generated late in the compilation. The latter
+    still uses X0, but now DUFFZERO expects X15, so it doesn't
+    actually zero the frame. Change it to use X15.
+    
+    Should fix #44333.
+    
+    Change-Id: I239d2b78a5f6468bc86b70aecdd294045311759f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295210
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/amd64/ggen.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

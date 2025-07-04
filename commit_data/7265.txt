@@ -1,0 +1,14 @@
+commit c9bf30cf19949221a4ffdd109b131496c40c5521
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Jan 27 14:00:31 2011 -0800
+
+    bytes: Add Buffer.ReadBytes, Buffer.ReadString
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4000046
+
+ src/pkg/bufio/bufio.go       |  6 ++++--
+ src/pkg/bytes/buffer.go      | 29 +++++++++++++++++++++++++++++
+ src/pkg/bytes/buffer_test.go | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 59 insertions(+), 3 deletions(-)

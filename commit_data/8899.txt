@@ -1,0 +1,20 @@
+commit f83609f642fc995a48de3ed8742c12ee4779d3a4
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jun 29 17:37:56 2011 +1000
+
+    runtime: windows/amd64 port
+    
+    R=rsc, alex.brainman, hectorchu, r
+    CC=golang-dev
+    https://golang.org/cl/3759042
+
+ src/pkg/runtime/cgo/windows_amd64.c    |  18 ++++-
+ src/pkg/runtime/mkasmh.sh              |  25 +++++--
+ src/pkg/runtime/proc.c                 |   2 +-
+ src/pkg/runtime/runtime.h              |   5 ++
+ src/pkg/runtime/windows/amd64/defs.h   |  40 ++++++++++
+ src/pkg/runtime/windows/amd64/rt0.s    |  10 +++
+ src/pkg/runtime/windows/amd64/signal.c |  20 +++++
+ src/pkg/runtime/windows/amd64/sys.s    | 129 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/thread.c       |   2 +-
+ 9 files changed, 237 insertions(+), 14 deletions(-)

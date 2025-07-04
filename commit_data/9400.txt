@@ -1,0 +1,22 @@
+commit 65bde087aeaad4844ea13c0064bcd4d8cc90cc03
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 17 14:56:27 2011 -0400
+
+    gc: implement nil map support
+    
+    The spec has defined nil maps this way for months.
+    I'm behind.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4901052
+
+ src/cmd/gc/builtin.c.boot |  12 +++---
+ src/cmd/gc/range.c        |   2 +-
+ src/cmd/gc/runtime.go     |  12 +++---
+ src/cmd/gc/walk.c         |  10 ++---
+ src/pkg/reflect/value.go  |  12 +++---
+ src/pkg/runtime/hashmap.c | 106 ++++++++++++++++++++++++++--------------------
+ src/pkg/runtime/runtime.h |   7 +--
+ src/pkg/runtime/type.h    |   1 -
+ 8 files changed, 88 insertions(+), 74 deletions(-)

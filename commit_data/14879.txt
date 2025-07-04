@@ -1,0 +1,12 @@
+commit 06af0ea3f3f09aed0fe5cd945067611e9fb76ff3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 14 17:03:19 2013 +1100
+
+    encoding/gob: fix broken test (fix build)
+    
+    R=golang-dev, kevlar
+    CC=adg, golang-dev
+    https://golang.org/cl/7093056
+
+ src/pkg/encoding/gob/gobencdec_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

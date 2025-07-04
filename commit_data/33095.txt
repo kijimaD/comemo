@@ -1,0 +1,54 @@
+commit e45e490296a514067144210e42d74d8f318014f1
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 11 10:28:20 2017 -0400
+
+    cmd/compile: attempt to deflake debug_test.go
+    
+    Excluded when -short because it still runs relatively long,
+    but deflaked.
+    
+    Removed timeouts from normal path and ensured that they were
+    not needed and that reference files did not change.
+    
+    Use "tbreak" instead of "break" with gdb to reduce chance
+    of multiple hits on main.main.  (Seems not enough, but a
+    move in the right direction).
+    
+    By default, testing ignores repeated lines that occur when
+    nexting.  This appears to sometimes be timing-dependent and
+    is the observed source of flakiness in testing so far.
+    Note that these can also be signs of a bug in the generated
+    debugging output, but it is one of the less-confusing bugs
+    that can occur.
+    
+    By default, testing with gdb uses compilation with
+    inlining disabled to prevent dependence on library code
+    (it's a bug that library code is seen while Nexting, but
+    the bug is current behavior).
+    
+    Also by default exclude all source files outside /testdata
+    to prevent accidental dependence on library code.  Note that
+    this is currently only applicable to dlv because (for the
+    debugging information we produce) gdb does not indicate a
+    change in the source file for inlined code.
+    
+    Added flags -i and -r to make gdb testing compile with
+    inlining and be sensitive to repeats in the next stream.
+    This is for developer-testing and so we can describe these
+    problems in bug reports.
+    
+    Updates #22206.
+    
+    Change-Id: I9a30ebbc65aa0153fe77b1858cf19743bdc985e4
+    Reviewed-on: https://go-review.googlesource.com/69930
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go         | 188 +++++++++++++--------
+ .../{hist-dbg.delve-nexts => hist.dbg-dlv.nexts}   |   4 -
+ .../{hist-dbg.gdb-nexts => hist.dbg-gdb.nexts}     |   6 -
+ .../{hist-opt.delve-nexts => hist.opt-dlv.nexts}   |  57 -------
+ .../{hist-opt.gdb-nexts => hist.opt-gdb.nexts}     |  37 ++--
+ 5 files changed, 131 insertions(+), 161 deletions(-)

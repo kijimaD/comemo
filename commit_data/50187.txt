@@ -1,0 +1,32 @@
+commit 67d85ad00f9d9be0cc2bb1bb96d01c3d40dcb376
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed May 11 10:48:48 2022 -0500
+
+    cmd/asm: add new classification for index memory operands on PPC64
+    
+    When a base+displacement kind of operand is given in an index-mode
+    instruction, the assembler does not flag it as an invalid instruction
+    causing the user to get an incorrect encoding of that instruction
+    leading to incorrect execution of the program.
+    Enable assembler to recognize valid and invalid operands used in index
+    mode instructions by classifying SOREG type into two further types
+    XOREG (used uniquely in index addressing mode instructions) and SOREG
+    for instructions working on base+displacement operands.
+    Also cleaned up usage of obj.Addr.Scale on PPC64.
+    
+    Change-Id: Ib4d84343ae57477c6c074f44c4c2749496e11b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405542
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+
+ src/cmd/asm/internal/asm/operand_test.go  |   2 +-
+ src/cmd/asm/internal/asm/parse.go         |  11 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 171 +++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/ppc64/a.out.go       |   3 +-
+ src/cmd/internal/obj/ppc64/anames9.go     |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go        | 147 +++++++++++++++----------
+ src/cmd/internal/obj/ppc64/asm_test.go    |   1 +
+ 7 files changed, 268 insertions(+), 68 deletions(-)

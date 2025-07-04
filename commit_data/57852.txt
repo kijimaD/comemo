@@ -1,0 +1,29 @@
+commit 3f694f73d0581b2f95054b4c5652a25b5d8e5116
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Oct 31 16:18:08 2024 +0800
+
+    cmd/asm: add support for the rest of loong64 unary bitops
+    
+    All remaining unary bitop instructions in the LoongArch v1.00 base ISA
+    are added with this change.
+    
+    While at it, add the missing W suffix to the current CLO/CLZ names. They
+    are not used anywhere as far as we know, so no breakage is expected.
+    Also, stop reusing SLL's instruction format for simplicity, in favor of
+    a new but trivial instruction format case.
+    
+    This patch is a copy of CL 477717.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: Idbcaca25dda1ed313674ef8b26da722e8d7151c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623876
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 22 +++++++-
+ src/cmd/internal/obj/loong64/a.out.go           | 34 ++++++++++++-
+ src/cmd/internal/obj/loong64/anames.go          | 22 +++++++-
+ src/cmd/internal/obj/loong64/asm.go             | 68 ++++++++++++++++++++++---
+ 4 files changed, 133 insertions(+), 13 deletions(-)

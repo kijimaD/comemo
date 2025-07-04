@@ -1,0 +1,12 @@
+commit d915b961000acdc2fc3f4ad726c540e1fc1e6aa2
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 3 16:41:32 2008 -0700
+
+    new iota
+    
+    SVN=125984
+
+ src/cmd/gc/go.h   |  3 +++
+ src/cmd/gc/go.y   | 28 +++++++++++++++++++++-------
+ src/cmd/gc/subr.c | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 7 deletions(-)

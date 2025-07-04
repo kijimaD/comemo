@@ -1,0 +1,13 @@
+commit 18b02f6cf3198b54ae1a112aa6fd3e6a058704bf
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 14 17:24:29 2010 +1000
+
+    CLA for Sebastien Binet
+    
+    R=adg
+    CC=binet, golang-dev
+    https://golang.org/cl/2188041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

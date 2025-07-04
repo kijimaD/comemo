@@ -1,0 +1,15 @@
+commit 551f3f27aaa69495a499eb3637b79480a2054cbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:21:26 2013 -0500
+
+    test/run: use correct $PWD to make os.Getwd less expensive
+    
+    The commands being run are 'go tool this' and 'go tool that',
+    and the go command will call Getwd during its init.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7336045
+
+ test/run.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

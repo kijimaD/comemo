@@ -1,0 +1,14 @@
+commit 646b3b5c02f15fa057a0ba9dcff2f5ccb2ff11ed
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 26 15:34:16 2009 -0800
+
+    improved logging formats.
+    
+    R=rsc
+    DELTA=210  (118 added, 60 deleted, 32 changed)
+    OCL=23508
+    CL=23518
+
+ src/lib/log.go      | 137 ++++++++++++++++++++++++++++++++++------------------
+ src/lib/log_test.go |  89 ++++++++++++++++++++--------------
+ 2 files changed, 142 insertions(+), 84 deletions(-)

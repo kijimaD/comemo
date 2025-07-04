@@ -1,0 +1,20 @@
+commit 6e49c592de91fd7ea7d47aa50360a1c4f49172f8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 14 17:20:48 2022 -0800
+
+    go/types: return Universe for (*Package)(nil).Scope()
+    
+    Port of go.dev/cl/325469.
+    
+    Fixes #46594.
+    
+    Change-Id: I4bcdafecaa86885360599c204678871646bb221b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385997
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/package.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

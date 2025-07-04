@@ -1,0 +1,16 @@
+commit f5e58442da1c08f5cd503f0a5f8eeafd858210cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 2 10:27:55 2018 -0700
+
+    cmd/compile: update fmt_test (fix build for long-running tests)
+    
+    Follow-up on https://golang.org/cl/136397.
+    
+    Change-Id: Ib0df690847c7c92d8de406dadc16a10507bfda39
+    Reviewed-on: https://go-review.googlesource.com/c/139059
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmt_test.go | 1 +
+ 1 file changed, 1 insertion(+)

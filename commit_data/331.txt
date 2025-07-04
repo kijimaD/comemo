@@ -1,0 +1,11 @@
+commit ae905980e7cd01d3706613f6ca6c978f75f83d84
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 10 20:50:38 2008 -0700
+
+    - fixed bug in parser.go
+    - added more tests
+    
+    SVN=126784
+
+ usr/gri/gosrc/parser.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

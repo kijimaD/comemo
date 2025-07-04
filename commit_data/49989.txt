@@ -1,0 +1,26 @@
+commit 6dc7b060cd725aa61421e627ec233e9a936600fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 22 15:08:07 2022 -0700
+
+    cmd/compile: rip out support for OpVarKill from ssa backend
+    
+    Change-Id: I008479a7516d8379186ce630748e503d94d3b1e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419235
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/liveness/arg.go       |  2 +-
+ src/cmd/compile/internal/liveness/plive.go     | 13 ++-----------
+ src/cmd/compile/internal/ssa/deadstore.go      |  4 ++--
+ src/cmd/compile/internal/ssa/debug.go          |  4 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 -
+ src/cmd/compile/internal/ssa/lower.go          |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |  2 +-
+ src/cmd/compile/internal/ssa/numberlines.go    |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  8 --------
+ src/cmd/compile/internal/ssa/value.go          |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go   |  8 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go         |  5 +----
+ 12 files changed, 16 insertions(+), 37 deletions(-)

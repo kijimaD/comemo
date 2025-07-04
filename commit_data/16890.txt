@@ -1,0 +1,22 @@
+commit e257cd8aae199d24c3634e76116c7280417c9dce
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jul 28 12:52:30 2013 +0900
+
+    net: extend sockaddr interface to the all address families
+    
+    This CL extends existing sockaddr interface to accommodate not only
+    internet protocol family endpoint addressess but unix network family
+    endpoint addresses.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11979043
+
+ src/pkg/net/ipsock_posix.go |  9 ---------
+ src/pkg/net/sock_posix.go   | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 9 deletions(-)

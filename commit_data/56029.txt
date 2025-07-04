@@ -1,0 +1,27 @@
+commit 1c864333cac25273ebfcefa53d50a82c270ebdab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 21 11:33:24 2024 -0700
+
+    runtime: add fast path for (*timers).adjust
+    
+    Affected benchmark results, including new benchmark (some of these may
+    just be noise, of course):
+    
+    AdjustTimers10000-12           797.7µ ±  2%   709.6µ ±   2%  -11.04% (p=0.000 n=10)
+    TickerResetNaive-12            62.69n ±  1%   63.56n ±   1%   +1.40% (p=0.018 n=10)
+    NowUnixMicro-12                29.95n ±  1%   30.25n ±   4%   +1.00% (p=0.024 n=10)
+    ParseDuration-12               81.88n ±  0%   81.45n ±   0%   -0.51% (p=0.006 n=10)
+    UnmarshalText-12               186.9n ±  1%   185.2n ±   1%   -0.88% (p=0.006 n=10)
+    geomean                        151.8n         151.2n          -0.40%
+    
+    Change-Id: I3ef8356249c5d703b314498e34ee8095093671c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573455
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/time.go    |  5 +++++
+ src/time/sleep_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+)

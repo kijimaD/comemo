@@ -1,0 +1,14 @@
+commit 053aef4f1bcaf118210fca7d72f141cb8d260aeb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 2 09:20:38 2016 -0800
+
+    go/ast: fix typo in comment
+    
+    Change-Id: I719231466286b3c0135314388a7c560ef44d7c35
+    Reviewed-on: https://go-review.googlesource.com/20130
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/ast/commentmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

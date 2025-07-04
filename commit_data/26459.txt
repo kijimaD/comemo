@@ -1,0 +1,16 @@
+commit 7177cb9fa4c748e45aa4866ee77d648961368c3f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 22 09:43:28 2016 -0700
+
+    cmd/compile: remove dots from register names
+    
+    They are kind of useless and are cluttering up
+    https://go-review.googlesource.com/c/21000/
+    
+    Change-Id: Iafdec75ada11c7ebdc40540d251fdc514bb00d3d
+    Reviewed-on: https://go-review.googlesource.com/21001
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   73 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 1316 +++++++++++++-------------
+ 2 files changed, 693 insertions(+), 696 deletions(-)

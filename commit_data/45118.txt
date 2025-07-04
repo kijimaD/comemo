@@ -1,0 +1,25 @@
+commit eb433ed5a2ab13567cd5d7f0413308174750d5dd
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Apr 11 09:47:13 2021 -0700
+
+    cmd/compile: set types properly for imported funcs with closures
+    
+    For the new export/import of node types, we were just missing setting
+    the types of the closure variables (which have the same types as the
+    captured variables) and the OCLOSURE node itself (which has the same
+    type as the Func node).
+    
+    Re-enabled inlining of functions with closures.
+    
+    Change-Id: I687149b061f3ffeec3244ff02dc6e946659077a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308974
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go        |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 11 +++++++
+ test/closure3.dir/main.go                     | 44 +++++++++++++--------------
+ test/inline.go                                | 22 +++++++-------
+ 4 files changed, 45 insertions(+), 34 deletions(-)

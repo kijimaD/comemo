@@ -1,0 +1,17 @@
+commit af7f417665fb1612eb9865c7ab4992bf095148e2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:53:13 2022 +0800
+
+    runtime: convert local var stop at TestAfterStress to atomic type
+    
+    For #53821
+    
+    Change-Id: I7e86dac34691f7752f68879ff379061f3435cd45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427139
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/time/sleep_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

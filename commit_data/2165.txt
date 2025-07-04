@@ -1,0 +1,16 @@
+commit 97bc222d5cb888cce280b50b0c9ddf8f60c0ffa3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 17:36:29 2009 -0700
+
+    another attempt at avoiding IPv6 when it's not supported.
+    
+    dsymonds confirms that this one works.
+    
+    R=r
+    DELTA=50  (23 added, 17 deleted, 10 changed)
+    OCL=28433
+    CL=28444
+
+ src/lib/net/ip.go  | 13 +++++++------
+ src/lib/net/net.go | 47 ++++++++++++++++++++++++++---------------------
+ 2 files changed, 33 insertions(+), 27 deletions(-)

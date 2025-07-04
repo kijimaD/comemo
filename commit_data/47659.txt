@@ -1,0 +1,15 @@
+commit c3a7fb207409a77b2ad644fe777db04d7df8e08c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 1 11:39:51 2021 -0500
+
+    doc/go1.18: mention stack trace change
+    
+    For #47694.
+    
+    Change-Id: I06cac88d5328c8c0e38212ad801d70bc36cdfc6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368234
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.18.html | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

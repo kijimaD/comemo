@@ -1,0 +1,22 @@
+commit 12e63226b97433bdb283bdb732cc189101e7fc7f
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Thu Jan 31 13:00:51 2019 +0300
+
+    all: remove commented-out print statements
+    
+    Those print statements are not a good debug helpers
+    and only clutter the code.
+    
+    Change-Id: Ifbf450a04e6fa538af68e6352c016728edb4119a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160537
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/dist/test.go              | 2 --
+ src/cmd/internal/obj/mips/asm0.go | 2 --
+ src/cmd/internal/obj/x86/asm6.go  | 1 -
+ src/runtime/mbitmap.go            | 3 ---
+ src/runtime/mem_aix.go            | 1 -
+ src/runtime/mheap.go              | 1 -
+ 6 files changed, 10 deletions(-)

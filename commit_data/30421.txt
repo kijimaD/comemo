@@ -1,0 +1,26 @@
+commit 4dbcb53d0b5842d4db5735f9a67935405aa84eab
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Feb 21 15:20:38 2017 -0500
+
+    cmd/compile: fix merging of s390x conditional moves into branch conditions
+    
+    A type conversion inserted between MOVD{LT,LE,GT,GE,EQ,NE} and CMPWconst
+    by CL 36256 broke the rewrite rule designed to merge the two.
+    This results in simple for loops (e.g. for i := 0; i < N; i++ {})
+    emitting two comparisons instead of one, plus a conditional move.
+    
+    This CL explicitly types the input to CMPWconst so that the type conversion
+    can be omitted. It also adds a test to check that conditional moves aren't
+    emitted for loops with 'less than' conditions (i.e. i < N) on s390x.
+    
+    Fixes #19227.
+    
+    Change-Id: Ia39e806ed723791c3c755951aef23f957828ea3e
+    Reviewed-on: https://go-review.googlesource.com/37334
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/export_test.go  |  5 ++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  2 +-
+ src/cmd/compile/internal/ssa/loop_test.go    | 87 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  4 +-
+ 4 files changed, 95 insertions(+), 3 deletions(-)

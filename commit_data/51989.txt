@@ -1,0 +1,20 @@
+commit 0b922bfa9c43b0b1b957f3f6d62bb366bb2c9870
+Author: Ikko Eltociear Ashimine <eltociear@gmail.com>
+Date:   Sat Feb 11 12:45:01 2023 +0000
+
+    cmd/internal/cov: fix typo in readcovdata.go
+    
+    hte -> the
+    
+    Change-Id: Ie81062997289d622756881acdd11af66611cd778
+    GitHub-Last-Rev: 5ef07542b47f243d5a66ef166c74db0348fd2c80
+    GitHub-Pull-Request: golang/go#58473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467518
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/cov/readcovdata.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

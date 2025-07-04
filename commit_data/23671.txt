@@ -1,0 +1,20 @@
+commit e6a0c21e7d1970431c4b0e82acc9b0ec34dee29f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jul 2 08:36:45 2015 +0200
+
+    net: fix setKeepAlivePeriod on Plan 9
+    
+    The interface to set TCP keepalive on Plan 9 is
+    writing the "keepalive n" string to the TCP ctl file,
+    where n is the milliseconds between keepalives.
+    
+    Fixes #11266.
+    
+    Change-Id: Ic96f6c584063665a1ddf921a9a4ddfa13cc7501b
+    Reviewed-on: https://go-review.googlesource.com/11860
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/tcpsockopt_plan9.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 326e5e1b7a9f421db972fed0a6e79a1c9601d0ae
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Feb 12 18:39:08 2025 -0500
+
+    cmd/compile/internal/escape: additional constant and zero value tests and logging
+    
+    This adds additional logging for the work that walk does to reduce
+    how often an interface conversion results in an allocation.
+    
+    Also, as part of #71359, we will be updating how escape analysis and
+    walk handle basic literals, composite literals, and zero values,
+    so add some tests that uses this new logging.
+    
+    By the end of our CL stack, we address all of these tests.
+    
+    Updates #71359
+    
+    Change-Id: I43fde8343d9aacaec1e05360417908014a86c8bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649076
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/debug.go   |   1 +
+ src/cmd/compile/internal/walk/convert.go |  13 ++
+ test/escape_iface_data.go                | 257 +++++++++++++++++++++++++++++++
+ 3 files changed, 271 insertions(+)

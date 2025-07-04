@@ -1,0 +1,18 @@
+commit d16e4d34fc24c2c4ad6d4965edb17204ca5e1c67
+Author: Don Byington <don@dbyington.com>
+Date:   Wed Oct 3 21:54:54 2018 +0000
+
+    reflect: add an example for Kind
+    
+    Fixes #27990
+    
+    Change-Id: I0f09fc6f68cec770b1c26eed2315afbf6bf6cd4d
+    GitHub-Last-Rev: 8486e6d5019c6c21b10e5fcf10a2727cf2705174
+    GitHub-Pull-Request: golang/go#27991
+    Reviewed-on: https://go-review.googlesource.com/c/139417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

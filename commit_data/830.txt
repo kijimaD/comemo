@@ -1,0 +1,12 @@
+commit 103fec0455fd8862509280dc5730717ceced111f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 8 09:46:31 2008 -0700
+
+    add http to lib build
+    
+    R=r
+    OCL=16721
+    CL=16727
+
+ src/lib/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

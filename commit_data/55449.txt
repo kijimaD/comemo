@@ -1,0 +1,18 @@
+commit 3dcdc09c85bb07be0bbef6d6acc9e0e2534205be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 14:42:42 2024 -0500
+
+    maps: correct use of linkname
+    
+    Linkname should have uses at both ends,
+    and then no fake assembly file is needed.
+    
+    Change-Id: Ia2066be7b1e08d71a6db622d2a167f1b09cb7d9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558297
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/maps/maps.go | 5 +++++
+ src/maps/maps.s  | 5 -----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

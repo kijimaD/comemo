@@ -1,0 +1,18 @@
+commit 197a2a3799cebd91ec623616c6b5fac850955b58
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 29 15:06:21 2020 -0400
+
+    runtime/pprof: fix units of MaxRSS on Linux
+    
+    Rusage.Maxrss is in bytes on Darwin but in KiB on Linux. Fix this
+    discrepancy so it's always in bytes.
+    
+    Change-Id: Ic714abc3276566b8fe5e30565072092212610854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230979
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/runtime/pprof/pprof_rusage.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

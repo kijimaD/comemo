@@ -1,0 +1,14 @@
+commit c647264619bba886f1bff90e594d3cddc057f6ce
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:18:42 2022 -0400
+
+    runtime: trivial replacements of g in signal_unix.go
+    
+    Change-Id: I0d8d50c8b7ae6cd01594091392dc726cf149e34a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418590
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/signal_unix.go | 78 +++++++++++++++++++++++-----------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

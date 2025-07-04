@@ -1,0 +1,20 @@
+commit 54182ff54a687272dd7632c3a963e036ce03cb7c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 10 01:34:35 2022 +0700
+
+    internal/syscall/windows: simplify unsafe.Slice usage
+    
+    CL 428780 used unsafe.Slice instead of unsafeheader for simplifiying the
+    code. However, it can be even simpler, since "p" is already a *uin16,
+    the unsafe cast is not necessary.
+    
+    Change-Id: Idc492b73518637997e85c0b33f8591bd19b7929f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/syscall/windows/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

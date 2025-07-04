@@ -1,0 +1,13 @@
+commit 6e4ddc6872fd5d884847b35ec5f3cfc0276aef50
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 21 07:11:44 2012 +0900
+
+    net: move hosts testdata to testdata folder
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5687052
+
+ src/pkg/net/hosts_test.go                      | 2 +-
+ src/pkg/net/{hosts_testdata => testdata/hosts} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)

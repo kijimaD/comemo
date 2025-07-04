@@ -1,0 +1,28 @@
+commit 122b35e838af8ab9c0d5027741d6f73cef09f966
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 2 15:55:29 2023 -0400
+
+    syscall: copy original rlimit before modifying
+    
+    CL 531516 converted origRlimitNofile from an atomic.Value to
+    atomic.Pointer[Rlimit]. i.e., it changed from storing a value to storing
+    a pointer.
+    
+    After storing a pointer to lim, the remainder of this function
+    immediately modifies it, thus mutating the value pointer to by
+    origRlimitNofile (and thus defeating the point of origRlimitNofile).
+    
+    This broke the android-amd64-emu builder because it is (apparently) the
+    only builder where the original RLIMIT_NOFILE Cur != Max.
+    TestRlimitRestored is skipped on every other builder.
+    
+    Change-Id: I12076350eeddfd221823ad651e7e7eca59d2bdcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532100
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/rlimit.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

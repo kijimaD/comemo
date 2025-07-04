@@ -1,0 +1,16 @@
+commit be5d2d443247e8ab447f962a6bb583e62c746f60
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 23 12:47:30 2014 -0800
+
+    runtime: Print elision message if we skipped frames on traceback.
+    
+    Fixes bug 7180
+    
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews, gri
+    https://golang.org/cl/55810044
+
+ src/pkg/runtime/runtime.h       | 5 +++++
+ src/pkg/runtime/traceback_arm.c | 9 +++++++--
+ src/pkg/runtime/traceback_x86.c | 9 +++++++--
+ 3 files changed, 19 insertions(+), 4 deletions(-)

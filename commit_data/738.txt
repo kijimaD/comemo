@@ -1,0 +1,13 @@
+commit a0e7937243336af37f19f093b011b825f37037a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 10:13:57 2008 -0700
+
+    6ar: exit with error status if files cannot be opened.
+    
+    R=r
+    DELTA=15  (8 added, 0 deleted, 7 changed)
+    OCL=15952
+    CL=15954
+
+ src/cmd/ar/ar.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

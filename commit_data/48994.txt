@@ -1,0 +1,19 @@
+commit 884530b374501b997422d08833c2a21966bd1069
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun May 1 00:11:13 2022 +0800
+
+    cmd/compile: mark shape type dupok
+    
+    Fixes #52633
+    
+    Change-Id: I3f19804cd7c00cee7e365062402c264d84b596c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403316
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit d36452eb560b4cf42c67be4b59d3f09c9df8d014
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Jun 11 15:12:54 2019 -0400
+
+    doc: add release notes describing the default mirror and sumdb
+    
+    Change-Id: I4923f0726ae0261a7c7b0f85e7433ae0f605c123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181738
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,53 @@
+commit eaa1ddee84cfdfbd47183b03962744fea52624f0
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 15 16:48:54 2021 -0400
+
+    all: explode GOEXPERIMENT=regabi into 5 sub-experiments
+    
+    This separates GOEXPERIMENT=regabi into five sub-experiments:
+    regabiwrappers, regabig, regabireflect, regabidefer, and regabiargs.
+    Setting GOEXPERIMENT=regabi now implies the working subset of these
+    (currently, regabiwrappers, regabig, and regabireflect).
+    
+    This simplifies testing, helps derisk the register ABI project,
+    and will also help with performance comparisons.
+    
+    This replaces the -abiwrap flag to the compiler and linker with
+    the regabiwrappers experiment.
+    
+    As part of this, regabiargs now enables registers for all calls
+    in the compiler. Previously, this was statically disabled in
+    regabiEnabledForAllCompilation, but now that we can control it
+    independently, this isn't necessary.
+    
+    For #40724.
+    
+    Change-Id: I5171e60cda6789031f2ef034cc2e7c5d62459122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302070
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/lex/input.go            | 30 ++++++++++---
+ src/cmd/compile/internal/amd64/ggen.go       |  4 +-
+ src/cmd/compile/internal/amd64/ssa.go        | 16 +++----
+ src/cmd/compile/internal/base/flag.go        |  2 -
+ src/cmd/compile/internal/ssa/config.go       |  3 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +--
+ src/cmd/compile/internal/ssagen/abi.go       |  4 +-
+ src/cmd/compile/internal/ssagen/ssa.go       |  5 +--
+ src/cmd/internal/obj/x86/obj6.go             |  4 +-
+ src/cmd/internal/objabi/util.go              | 65 ++++++++++++++++++++++++++--
+ src/cmd/link/internal/ld/lib.go              |  8 ++--
+ src/cmd/link/internal/ld/main.go             |  1 -
+ src/cmd/link/internal/ld/symtab.go           |  2 +-
+ src/internal/abi/abi_amd64.go                |  4 +-
+ src/internal/abi/abi_generic.go              |  4 +-
+ src/runtime/abi_test.go                      |  4 +-
+ src/runtime/asm_amd64.s                      |  8 ++--
+ src/runtime/race_amd64.s                     | 12 ++---
+ src/runtime/sys_linux_amd64.s                |  8 ++--
+ 20 files changed, 131 insertions(+), 60 deletions(-)

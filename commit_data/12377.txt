@@ -1,0 +1,12 @@
+commit 5ab9d2befd7c37468121081a84188aa687678e13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 13:47:36 2012 -0500
+
+    cmd/gc: show duplicate key in error
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5728064
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

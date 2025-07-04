@@ -1,0 +1,13 @@
+commit 785ee50c558a81bd79892c8ba837192ed1a91ff1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 11:35:38 2012 +1100
+
+    net/textproto: delete spurious quote
+    Sigh.
+    
+    R=golang-dev, gri, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5675071
+
+ src/pkg/net/textproto/textproto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

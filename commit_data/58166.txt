@@ -1,0 +1,21 @@
+commit 98e719f677e401e65e0cf41a630fc859ae0b28b8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 19 09:15:19 2024 -0800
+
+    cmd/compile: let MADD/MSUB combination happen more often on arm64
+    
+    We have a single-instruction x+y*z op. Unfortunately x can't be
+    a constant, so the rule that builds them doesn't apply in that case.
+    
+    This CL handles x+(c+y*z) by reordering to c+(x+y*z) so x is
+    in the right place.
+    
+    Change-Id: Ibed621607d49da70474128e20991e0c4630ebfad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629858
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |   6 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 361 ++++++++++++++++++++++++++
+ 2 files changed, 367 insertions(+)

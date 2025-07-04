@@ -1,0 +1,12 @@
+commit fece09e58a094fb917703c147ebc9cd4f87924d0
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Feb 11 10:15:56 2013 +1100
+
+    cmd/8l/asm.c: Unused function arguments, suppress warnings.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7304069
+
+ src/cmd/8l/asm.c | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,21 @@
+commit 61d9a3c3b0b52682a280adc58f305bf125f498d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 23:30:42 2008 -0700
+
+    - stronger syntax checks
+    - fixed a bug with non-eof terminated //-style comments
+    - collecting comments
+    - first experiments with reproducing comments
+      (works but not very pretty, disabled for now)
+    - idempotent for all correct .go files we have checked in
+    
+    R=r
+    OCL=17333
+    CL=17333
+
+ usr/gri/pretty/node.go    |  17 +++++++
+ usr/gri/pretty/parser.go  | 120 ++++++++++++++++++++++++++++++++--------------
+ usr/gri/pretty/pretty.go  |  32 ++++++-------
+ usr/gri/pretty/printer.go |  38 ++++++++++++++-
+ usr/gri/pretty/scanner.go |  32 ++++++++-----
+ 5 files changed, 173 insertions(+), 66 deletions(-)

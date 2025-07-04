@@ -1,0 +1,29 @@
+commit 4a0fd73eaded9f395b3e5025ab9e1c5c5f124143
+Author: Yuki Osaki <yuki.osaki7@gmail.com>
+Date:   Wed Aug 18 05:05:55 2021 +0000
+
+    cmd/go/internal/work/exec: throw an error when buildP is negative
+    
+    Fixed a problem where an error would not occur
+    when a negative value was specified for the p flag.
+    
+    `go build -p=0`
+    now should throw an error.
+    
+    this is my first pr to this project.
+    If there's anything I'm missing, please let me know 🙏
+    Fixes #46686
+    
+    Change-Id: I3b19773ef095fad0e0419100d317727c2268699a
+    GitHub-Last-Rev: e5c57804d9995f5c858aa42d9de21b25de246eb5
+    GitHub-Pull-Request: golang/go#47360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336751
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/work/init.go                | 4 ++++
+ src/cmd/go/testdata/script/build_negative_p.txt | 5 +++++
+ 2 files changed, 9 insertions(+)

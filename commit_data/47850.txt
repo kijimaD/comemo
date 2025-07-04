@@ -1,0 +1,16 @@
+commit 90fb5a4f97a11bb3aa4a6143ec687d20b35ef010
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 14:44:27 2021 -0800
+
+    doc/go1.18: document {text,html}/template {break,continue} commands
+    
+    For #20531
+    For #47694
+    
+    Change-Id: Iaefaa0a8982eabf59cd6a53120c8af9124d60d1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373915
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

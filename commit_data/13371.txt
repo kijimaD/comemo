@@ -1,0 +1,13 @@
+commit a033e367661d2c76f8949822673ffc36a560852a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 24 01:41:17 2012 +0800
+
+    runtime: fix struct Sigaction for Linux/386
+            We need to use kernel headers to generate defs_linux_$GOARCH.h
+    
+    R=golang-dev, dave, alex.brainman, iant
+    CC=golang-dev
+    https://golang.org/cl/6296091
+
+ src/pkg/runtime/defs_linux_386.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

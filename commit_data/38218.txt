@@ -1,0 +1,18 @@
+commit 88da9ccb98ffaf84bb06b98c9a24af5d0a7025d2
+Author: Carrie Bynon <cbynon@gmail.com>
+Date:   Fri Feb 15 22:16:54 2019 +1100
+
+    doc: make path platform dependent
+    
+    Path should now appear with the correct slash, depending on which
+    platform install document is being viewed - keeping in line with the
+    rest of the document.
+    
+    Fixes #30160
+    
+    Change-Id: Ib10e5a4adf366c700bff6f8d246bd5e3111ed61c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162918
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

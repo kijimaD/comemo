@@ -1,0 +1,14 @@
+commit 059bbdd34002406d5226fe684b94409a570aa2ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 16:17:09 2009 -0700
+
+    print(1<<x)
+    
+    R=ken
+    OCL=32252
+    CL=32252
+
+ src/cmd/gc/const.c       |  2 +-
+ src/cmd/gc/walk.c        |  7 ++++---
+ test/fixedbugs/bug174.go | 12 ++++++++++++
+ 3 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 884dceca1fedff9d68424357311b2ec179993428
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Nov 1 16:14:43 2010 -0400
+
+    6a/6l: fix MOVOU encoding
+    
+    The andproto field was set incorrectly, causing 6a to encode illegal
+    instructions.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2781042
+
+ src/cmd/6l/optab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

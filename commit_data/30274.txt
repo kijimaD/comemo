@@ -1,0 +1,16 @@
+commit a8dc43edd1d04cfd9acabaf1e65fffe1e5bdeb32
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 12:47:51 2017 +1100
+
+    internal/testenv: do not delete target file
+    
+    We did not create it. We should not delete it.
+    
+    Change-Id: If98454ab233ce25367e11a7c68d31b49074537dd
+    Reviewed-on: https://go-review.googlesource.com/37030
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/testenv/testenv_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

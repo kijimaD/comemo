@@ -1,0 +1,21 @@
+commit d97b11f12fb36ae8117519ee983a8f811360ee1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 17 13:43:35 2018 -0700
+
+    go/types: don't report cycle error if clearer error follows
+    
+    If a cyclic declaration uses a non-type object where it expects
+    a type, don't report the cycle error in favor of the clearer and
+    more informative error about the missing type.
+    
+    Fixes #25790.
+    
+    Change-Id: If937078383def878efb4c69686e5b4b2a495fd5d
+    Reviewed-on: https://go-review.googlesource.com/135700
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go              |  2 +-
+ src/go/types/testdata/cycles5.src | 21 +++++++++++++++------
+ src/go/types/testdata/decls0.src  | 10 +++++-----
+ src/go/types/typexpr.go           | 18 +++++++++++++++---
+ 4 files changed, 36 insertions(+), 15 deletions(-)

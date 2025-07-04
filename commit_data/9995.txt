@@ -1,0 +1,12 @@
+commit fc61ea3ba3ed9d8d19dbef79b285493d4f3fca17
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Oct 15 07:12:10 2011 -0700
+
+    goyacc: clean up after units
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5286047
+
+ src/cmd/goyacc/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

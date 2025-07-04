@@ -1,0 +1,16 @@
+commit bb431245cc9a464797b9c58fdf066d3969f66384
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 15 07:14:33 2014 -0400
+
+    net/http: don't call FileSystem.Open with unclean index.html path
+    
+    Fixes #8722
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/142090043
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

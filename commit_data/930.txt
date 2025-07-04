@@ -1,0 +1,15 @@
+commit 14c639161af6b7105a67541964fe6eaeb253d053
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Oct 21 20:55:40 2008 -0700
+
+    elided dots
+    
+    R=r
+    OCL=17601
+    CL=17601
+
+ src/cmd/gc/dcl.c  |   8 ++--
+ src/cmd/gc/go.h   |   8 ++--
+ src/cmd/gc/go.y   |  14 +++----
+ src/cmd/gc/walk.c | 118 +++++++++++++++++++++++++++++++++++++++++++-----------
+ 4 files changed, 109 insertions(+), 39 deletions(-)

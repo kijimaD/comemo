@@ -1,0 +1,24 @@
+commit 6609d2f88d05666e504e8bfc2b0656f09be9a73c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 10:59:55 2009 -0700
+
+    restructure makefiles, scripts to factor out O= logic.
+    remove a few hardcoded paths elsewhere too.
+    
+    R=r,gri
+    DELTA=123  (44 added, 15 deleted, 64 changed)
+    OCL=29914
+    CL=29945
+
+ doc/progs/run           | 23 +++++++++++++++--------
+ src/Make.386            |  9 +++++++++
+ src/Make.amd64          |  9 +++++++++
+ src/Make.arm            |  9 +++++++++
+ src/cmd/gc/mkbuiltin    |  9 ++++++++-
+ src/cmd/gotest/gotest   | 20 +++++++++++---------
+ src/cmd/ld/go.c         | 20 ++++++++++----------
+ src/cmd/make.bash       | 11 ++++-------
+ src/lib/Makefile        |  2 --
+ usr/gri/pretty/Makefile | 25 ++++++++++++-------------
+ usr/gri/pretty/test.sh  | 12 +++++++++---
+ 11 files changed, 96 insertions(+), 53 deletions(-)

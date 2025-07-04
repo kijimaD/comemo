@@ -1,0 +1,17 @@
+commit 8c190e58541493c580590a77fccfee87d174e5d4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 9 13:11:48 2016 -0800
+
+    io: update documentation on LimitedReader
+    
+    Specify that that LimitedReader returns EOF when the underlying
+    R returns EOF even if bytes remaining, N > 0.
+    
+    Fixes #18271
+    
+    Change-Id: I990a7135f1d31488d535238ae061d42ee96bacb7
+    Reviewed-on: https://go-review.googlesource.com/34249
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/io.go | 1 +
+ 1 file changed, 1 insertion(+)

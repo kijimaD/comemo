@@ -1,0 +1,17 @@
+commit 200e7bf6b13a16452e5add94bb641ed434526e37
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 22 21:18:09 2014 -0500
+
+    misc/cgo: fix issue 9400 test on 386
+    
+    issue9400_linux.go did not build on 386 because it used a constant
+    that was larger than a 32-bit int in a ... argument.  Fix this by
+    casting the constant to uint64 (to match how the constant is being
+    used).
+    
+    Change-Id: Ie8cb64c3910382a41c7852be7734a62f0b2d5a21
+    Reviewed-on: https://go-review.googlesource.com/2060
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue9400_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

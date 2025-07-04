@@ -1,0 +1,16 @@
+commit b8644e324355137bc7b2abe290235e0197df9b13
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jan 29 17:01:41 2018 -0500
+
+    cmd/compile/internal: reuse memory for valueToProgAfter
+    
+    Not a big improvement, but does help edge cases like the SSA package.
+    Change-Id: I40e531110b97efd5f45955be477fd0f4faa8d545
+    Reviewed-on: https://go-review.googlesource.com/92396
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go    |  8 +++++++-
+ src/cmd/compile/internal/ssa/cache.go | 18 +++++++++++-------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

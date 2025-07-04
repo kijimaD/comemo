@@ -1,0 +1,15 @@
+commit 46276d6b6b14993b4851b77cf48c67ede3360e31
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 26 18:09:54 2016 -0400
+
+    doc: catch go1.8.txt up on runtime changes
+    
+    This clarifies some of the titles so they're more "news" friendly and
+    less implementation-oriented.
+    
+    Change-Id: Ied02aa1e6824b04db5d32ecdd58e972515b1f588
+    Reviewed-on: https://go-review.googlesource.com/29830
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ doc/go1.8.txt | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

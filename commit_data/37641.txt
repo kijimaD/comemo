@@ -1,0 +1,19 @@
+commit 01e072db5d26c224dfbe7763a5b94ab23c163983
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 11 07:46:10 2018 -0800
+
+    cmd/cgo: don't cache bad pointer typedefs
+    
+    The set of bad pointer typedefs changes as we see more typedefs, so
+    avoid looking in the cache when we find one.
+    
+    Fixes #29175
+    
+    Change-Id: Idd82289bdd8628d11a983fa5ec96517e3a5bcbf1
+    Reviewed-on: https://go-review.googlesource.com/c/153597
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

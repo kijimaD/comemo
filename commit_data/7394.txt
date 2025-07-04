@@ -1,0 +1,15 @@
+commit 0122a667b65eec420e17ef58509ef57864157b61
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 8 14:51:15 2011 -0800
+
+    go spec: fix a few typos
+    
+    The spec can now be parsed with an
+    xml.Parser using the HTML settings.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4155042
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

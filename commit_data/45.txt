@@ -1,0 +1,26 @@
+commit 2181098189ea34ba1e0414dccde4ac3b1af683ae
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Mar 28 13:56:47 2008 -0700
+
+    SVN=114204
+
+ src/lib/math/asin.go  |  60 ++++++++++++++
+ src/lib/math/atan.go  |  84 ++++++++++++++++++++
+ src/lib/math/atan2.go |  40 ++++++++++
+ src/lib/math/exp.go   |  54 +++++++++++++
+ src/lib/math/fabs.go  |  17 ++++
+ src/lib/math/floor.go |  37 +++++++++
+ src/lib/math/fmod.go  |  48 ++++++++++++
+ src/lib/math/hypot.go |  54 +++++++++++++
+ src/lib/math/log.go   |  70 +++++++++++++++++
+ src/lib/math/main.go  | 212 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/math/math.go  |  48 ++++++++++++
+ src/lib/math/pow.go   |  70 +++++++++++++++++
+ src/lib/math/pow10.go |  60 ++++++++++++++
+ src/lib/math/sin.go   |  73 +++++++++++++++++
+ src/lib/math/sinh.go  |  75 ++++++++++++++++++
+ src/lib/math/sqrt.go  |  64 +++++++++++++++
+ src/lib/math/sys.go   |  16 ++++
+ src/lib/math/tan.go   |  74 ++++++++++++++++++
+ src/lib/math/tanh.go  |  32 ++++++++
+ 19 files changed, 1188 insertions(+)

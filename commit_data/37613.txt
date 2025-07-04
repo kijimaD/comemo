@@ -1,0 +1,20 @@
+commit e546ef123e6e3a28dc7722fb6bbf1161b7024163
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 07:25:50 2018 -0800
+
+    cmd/internal/obj/s390x: don't crash on invalid instruction
+    
+    I didn't bother with a test as there doesn't seem to be an existing
+    framework for testing assembler failures, and tests for invalid code
+    aren't all that interesting.
+    
+    Fixes #26700
+    
+    Change-Id: I719410d83527802a09b9d38625954fdb36a3c0f7
+    Reviewed-on: https://go-review.googlesource.com/c/153177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/s390x/asmz.go | 4 ++++
+ 1 file changed, 4 insertions(+)

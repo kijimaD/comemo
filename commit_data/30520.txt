@@ -1,0 +1,22 @@
+commit 2b780af08e1a8767792b5990b06a102cfd96d7c4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 19:54:03 2017 +0100
+
+    Revert "all: test adjustments for the iOS builder"
+    
+    This reverts commit 467109bf56fb560d1fd8a27c6184dbfe4f64ffef.
+    
+    Replaced by a improved strategy later in the CL relation chain.
+    
+    Change-Id: Ib90813b5a6c4716b563c8496013d2d57f9c022b8
+    Reviewed-on: https://go-review.googlesource.com/36066
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go    |  6 ++++--
+ src/compress/bzip2/bzip2_test.go  | 24 +++++++++---------------
+ src/go/doc/doc_test.go            |  5 +----
+ src/go/parser/performance_test.go | 13 +++++++++----
+ src/os/os_test.go                 |  5 +----
+ 5 files changed, 24 insertions(+), 29 deletions(-)

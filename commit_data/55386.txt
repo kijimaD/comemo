@@ -1,0 +1,19 @@
+commit f19f31f2e7c136a8dae03cbfe4f8ebbb8b54569b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 19 16:51:24 2024 -0500
+
+    net: work around runtime scheduler starvation on js and wasip1
+    
+    Fixes #65177.
+    Updates #65178.
+    Updates #64321.
+    
+    Change-Id: I698fd3b688c7dfbde692eb7c29cbdafc89e7ca32
+    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557037
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/net_fake.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

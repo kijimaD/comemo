@@ -1,0 +1,18 @@
+commit 9eef9648005c17681800fdb55ed2404ab769761e
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 18:17:43 2019 +0100
+
+    misc/wasm: exit with code 1 if WebAssembly.instantiate fails
+    
+    go_js_wasm_exec was returning with code 0 if WebAssembly.instantiate
+    failed. This made failing tests show as passed.
+    
+    Change-Id: Icfb2f42e9f1c3c70ca4a130a61a63cb305edff32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168885
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

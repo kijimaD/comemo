@@ -1,0 +1,13 @@
+commit abdb4dbe2c9c3315f23f68b784fd995e3c5705f7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 20 14:11:38 2012 +1100
+
+    cmd/godoc: inform users that the playground doesn't work via local godoc
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5843065
+
+ doc/play/playground.js | 15 +++++++++++----
+ src/cmd/godoc/main.go  | 10 ++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

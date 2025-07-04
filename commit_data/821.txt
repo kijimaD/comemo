@@ -1,0 +1,17 @@
+commit e6cd1e445bf9da557a90687bf9a89bf4ec8e249e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:59:54 2008 -0700
+
+    remove uses of *T as an implicit forward declaration of T
+    
+    R=gri,r
+    OCL=16648
+    CL=16652
+
+ src/lib/flag.go          |  6 ++++++
+ test/bugs/bug041.go      |  1 +
+ test/fixedbugs/bug066.go |  4 ++++
+ test/ken/rob2.go         |  6 ++++++
+ usr/gri/gosrc/globals.go |  9 +++++++--
+ usr/gri/pretty/ast.go    | 49 +++++++++++++++++++++++++++++++++++++++++++++---
+ 6 files changed, 70 insertions(+), 5 deletions(-)

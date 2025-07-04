@@ -1,0 +1,19 @@
+commit 1d3baf20dcac2d9ad88634ac3fe75e9f6d966971
+Author: Tom Payne <twpayne@gmail.com>
+Date:   Fri Oct 23 23:40:00 2020 +0100
+
+    regexp/syntax: add note about Unicode character classes
+    
+    As proposed on golang-nuts:
+    https://groups.google.com/g/golang-nuts/c/M3lmSUptExQ/m/hRySV9GsCAAJ
+    
+    Includes the latest updates from re2's mksyntaxgo:
+    https://code.googlesource.com/re2/+/refs/heads/master/doc/mksyntaxgo
+    
+    Change-Id: Ib7b79aa6531f473feabd0a7f1d263cd65c4388e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264678
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/regexp/syntax/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

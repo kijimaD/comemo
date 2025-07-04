@@ -1,0 +1,15 @@
+commit 8e79b0a2a829a9ea3cf370aa32ffb467ffc4ce8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 21 11:56:28 2009 -0800
+
+    With the removal of export, this bug no longer tests anything
+    interesting.  It was disabled last week anyhow.  Let's just
+    delete it.
+    
+    R=r,rsc
+    DELTA=12  (0 added, 12 deleted, 0 changed)
+    OCL=23204
+    CL=23219
+
+ test/fixedbugs/bug025.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

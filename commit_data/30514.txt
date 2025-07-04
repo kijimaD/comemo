@@ -1,0 +1,23 @@
+commit 1c6ef9aeedf951a7a1fa7f510aa42150d3051567
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:07:47 2017 -0500
+
+    cmd/compile: copy literals when inlining
+    
+    Without this, literals keep their original source positions through
+    inlining, which results in strange jumps in line numbers of inlined
+    function bodies. By copying literals, inlining can update their source
+    position like other nodes.
+    
+    Fixes #15453.
+    
+    Change-Id: Iad5d9bbfe183883794213266dc30e31bab89ee69
+    Reviewed-on: https://go-review.googlesource.com/37232
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 43 ++++++++++++++++++++------------
+ test/inline_literal.go             | 50 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 16 deletions(-)

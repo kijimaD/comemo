@@ -1,0 +1,49 @@
+commit 38921b36ba5b28b49ba36c4f7122ddc19b52bb07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 15:10:26 2016 -0800
+
+    cmd/compile: rewrite code to omit many nodeSeq calls
+    
+    This CL was automatically generated using a special-purpose AST
+    rewriting tool, followed by manual editing to put some comments back in
+    the right places and fix some bad line breaks.
+    
+    The result is not perfect but it's a big step toward getting back to
+    sanity, and because it was automatically generated there is a decent
+    chance that it is correct.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I01c09078a6d78e2b008bc304d744b79469a38d3d
+    Reviewed-on: https://go-review.googlesource.com/20440
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  54 ++++----
+ src/cmd/compile/internal/gc/bexport.go   |   6 +-
+ src/cmd/compile/internal/gc/bimport.go   |  40 +++---
+ src/cmd/compile/internal/gc/cgen.go      |  24 ++--
+ src/cmd/compile/internal/gc/closure.go   |  57 ++++----
+ src/cmd/compile/internal/gc/const.go     |  13 +-
+ src/cmd/compile/internal/gc/dcl.go       |  47 +++----
+ src/cmd/compile/internal/gc/esc.go       | 105 +++++++-------
+ src/cmd/compile/internal/gc/export.go    |   4 +-
+ src/cmd/compile/internal/gc/fmt.go       |  30 ++--
+ src/cmd/compile/internal/gc/gen.go       |  12 +-
+ src/cmd/compile/internal/gc/inl.go       | 144 ++++++++++----------
+ src/cmd/compile/internal/gc/order.go     | 159 +++++++++++-----------
+ src/cmd/compile/internal/gc/parser.go    |  32 ++---
+ src/cmd/compile/internal/gc/racewalk.go  |  18 +--
+ src/cmd/compile/internal/gc/range.go     |  62 ++++-----
+ src/cmd/compile/internal/gc/select.go    | 124 +++++++++--------
+ src/cmd/compile/internal/gc/sinit.go     |  73 ++++------
+ src/cmd/compile/internal/gc/ssa.go       |  18 +--
+ src/cmd/compile/internal/gc/subr.go      |  32 ++---
+ src/cmd/compile/internal/gc/swt.go       | 104 +++++++-------
+ src/cmd/compile/internal/gc/syntax.go    |  20 +++
+ src/cmd/compile/internal/gc/typecheck.go | 227 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/unsafe.go    |   6 +-
+ src/cmd/compile/internal/gc/walk.go      | 194 +++++++++++++-------------
+ 25 files changed, 794 insertions(+), 811 deletions(-)

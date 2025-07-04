@@ -1,0 +1,18 @@
+commit 6d73537128ad7ff35ba1dbc55fc2837b0989b6b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 4 17:06:21 2018 +0000
+
+    debug/pe: skip a test on windows/arm
+    
+    It requires a DLL that's not available on windows/arm apparently.
+    
+    Fixes #27904
+    
+    Change-Id: I082a273f62976b7184636c6aeca6201a7871d238
+    Reviewed-on: https://go-review.googlesource.com/c/139720
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 9e3b0f444ae27629b3e93b2e8d0d8ba0f6f939ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 09:44:01 2009 -0800
+
+    snapshot before making more changes:
+    - fine-tuning of ast
+    - more accurate block pos info (improved printing in some cases)
+    - collecting local variables and fields
+    - more work on type checking
+    - lots of minor tweaks
+    
+    R=r
+    OCL=23375
+    CL=23375
+
+ usr/gri/pretty/ast.go     |  65 ++++++++++--
+ usr/gri/pretty/parser.go  | 264 ++++++++++++++++++++++++----------------------
+ usr/gri/pretty/printer.go |  46 ++++----
+ usr/gri/pretty/scanner.go |   4 +-
+ usr/gri/pretty/test.sh    |   5 +-
+ 5 files changed, 222 insertions(+), 162 deletions(-)

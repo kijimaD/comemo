@@ -1,0 +1,14 @@
+commit c7065e927d1e8bbee6365bc8acfdf0b58ffdce8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 9 16:20:19 2013 -0700
+
+    builtin: document print and println
+    
+    Fixes #5787.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/11057043
+
+ src/pkg/builtin/builtin.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

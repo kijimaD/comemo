@@ -1,0 +1,20 @@
+commit 3eedba50b10ca9086646f12d7917912cff7d4d0a
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 6 17:10:10 2023 -0500
+
+    cmd/go: extend path shortening to all paths in messages
+    
+    The previous code only shortened the directory name for files
+    in the directory being compiled (and $WORK and runtime/std).
+    
+    This extends the shortening to all file names.
+    
+    Change-Id: I6abef6141d57036d893420b82e01ed0fbb637788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465805
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/work/exec.go                   | 29 ++++++--
+ .../script/build_shorten_sibling_package.txt       | 81 ++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 5 deletions(-)

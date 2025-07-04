@@ -1,0 +1,32 @@
+commit 658a338f78ef5dce4c81527c34fb52be95357ef7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Mar 4 16:28:45 2015 +1300
+
+    cmd/internal/ld, runtime: halve tlsoffset on ELF/intel
+    
+    For OSes that use elf on intel, 2*Ptrsize bytes are reserved for TLS.
+    But only one pointer (g) has been stored in the TLS for a while now.
+    So we can set it to just Ptrsize, which happily matches what happens
+    when externally linking.
+    
+    Fixes #9913
+    
+    Change-Id: Ic816369d3a55a8cdcc23be349b1a1791d53f5f81
+    Reviewed-on: https://go-review.googlesource.com/6584
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/sym.go        |  2 +-
+ src/cmd/internal/obj/sym.go       |  2 +-
+ src/runtime/sys_dragonfly_386.s   |  4 ++--
+ src/runtime/sys_dragonfly_amd64.s |  2 +-
+ src/runtime/sys_freebsd_386.s     |  2 +-
+ src/runtime/sys_freebsd_amd64.s   |  2 +-
+ src/runtime/sys_linux_386.s       | 10 +++++-----
+ src/runtime/sys_linux_amd64.s     |  2 +-
+ src/runtime/sys_netbsd_386.s      |  4 ++--
+ src/runtime/sys_netbsd_amd64.s    |  4 ++--
+ src/runtime/sys_openbsd_386.s     |  4 ++--
+ src/runtime/sys_openbsd_amd64.s   |  2 +-
+ 12 files changed, 20 insertions(+), 20 deletions(-)

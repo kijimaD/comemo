@@ -1,0 +1,13 @@
+commit c241f696f87a1d0aaf1cc28eb6383e73184ef837
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 15 08:52:22 2013 +0900
+
+    syscall: simplify socket control messages
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7016044
+
+ src/pkg/syscall/sockcmsg_linux.go | 26 +++++++-------
+ src/pkg/syscall/sockcmsg_unix.go  | 76 +++++++++++++++++----------------------
+ 2 files changed, 45 insertions(+), 57 deletions(-)

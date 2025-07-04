@@ -1,0 +1,15 @@
+commit 8421390cb9ba9583af6369c7cc4786149058b131
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 15:25:41 2012 +1100
+
+    misc/dashboard: record install counts for external packages
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5699082
+
+ misc/dashboard/app/app.yaml       |   4 +-
+ misc/dashboard/app/build/build.go |  52 ++++++++++
+ misc/dashboard/app/build/pkg.go   | 201 ++++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/cron.yaml      |   4 +
+ 4 files changed, 259 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit fb24d792da87e4f16ac5ad4f3bb85262d789f649
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 11:21:20 2009 -0700
+
+    update spec to io.Writer
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=28528
+    CL=28531
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

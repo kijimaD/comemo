@@ -1,0 +1,38 @@
+commit f444b48fe419c2d19b7b9a89faad30f0e8b0e474
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 16:54:02 2016 -0400
+
+    encoding/json: fix decoding of null into Unmarshaler, TextUnmarshaler
+    
+    1. Define behavior for Unmarshal of JSON null into Unmarshaler and
+    TextUnmarshaler. Specifically, an Unmarshaler will be given the
+    literal null and can decide what to do (because otherwise
+    json.RawMessage is impossible to implement), and a TextUnmarshaler
+    will be skipped over (because there is no text to unmarshal), like
+    most other inappropriate types. Document this in Unmarshal, with a
+    reminder in UnmarshalJSON about handling null.
+    
+    2. Test all this.
+    
+    3. Fix the TextUnmarshaler case, which was returning an unmarshalling
+    error, to match the definition.
+    
+    4. Fix the error that had been used for the TextUnmarshaler, since it
+    was claiming that there was a JSON string when in fact the problem was
+    NOT having a string.
+    
+    5. Adjust time.Time and big.Int's UnmarshalJSON to ignore null, as is
+    conventional.
+    
+    Fixes #9037.
+    
+    Change-Id: If78350414eb8dda712867dc8f4ca35a9db041b0c
+    Reviewed-on: https://go-review.googlesource.com/30944
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/big/intmarsh.go |   4 +
+ src/encoding/json/decode.go              |  31 ++++-
+ src/encoding/json/decode_test.go         | 225 ++++++++++++++++++++++++++-----
+ src/math/big/intmarsh.go                 |   4 +
+ src/time/time.go                         |   4 +
+ 5 files changed, 231 insertions(+), 37 deletions(-)

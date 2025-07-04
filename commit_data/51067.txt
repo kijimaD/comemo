@@ -1,0 +1,27 @@
+commit 81efd7b347dd6d7f12fd49c6eee0274005734c71
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Nov 1 08:53:10 2022 +0000
+
+    net: support no-reload option for unix go resolver
+    
+    It adds support for no-reload option, as specified in resolv.conf(5):
+     no-reload (since glibc 2.26)
+                         Sets RES_NORELOAD in _res.options.  This option
+                         disables automatic reloading of a changed
+                         configuration file.
+    
+    Change-Id: I11182c5829434503f719ed162014f2301e3ba8d4
+    GitHub-Last-Rev: 7ae44be2d5d5e3242dc39e733f154a64724dbedd
+    GitHub-Pull-Request: golang/go#56489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446555
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go      |  4 ++++
+ src/net/dnsclient_unix_test.go | 47 +++++++++++++++++++++++++++++++++++++++---
+ src/net/dnsconfig.go           |  1 +
+ src/net/dnsconfig_unix.go      |  2 ++
+ 4 files changed, 51 insertions(+), 3 deletions(-)

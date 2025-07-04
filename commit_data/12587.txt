@@ -1,0 +1,16 @@
+commit 2b8bc93f323bd5e161f70cc2a730dcd206b38a00
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 10:17:10 2012 +1100
+
+    godoc: use elastic layout for most pages
+    
+    We use the absence of a Title to detect the front page.
+    I can't find other pages without titles, so this seems reasonable.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/5797076
+
+ doc/style.css        | 10 +++++++++-
+ lib/godoc/godoc.html | 10 +++-------
+ 2 files changed, 12 insertions(+), 8 deletions(-)

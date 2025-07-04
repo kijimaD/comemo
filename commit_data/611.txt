@@ -1,0 +1,35 @@
+commit ccede3e87278597b6a10614cbb11999396c1ae0d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 11 13:40:17 2008 -0700
+
+    make syscall use strings for file names
+    tweak os to adjust
+    move StringToBytes into syscall, at least for now
+    
+    this program still works:
+    
+            package main
+    
+            import os "os"
+    
+            func main() {
+                    os.Stdout.WriteString("hello, world\n");
+                    a, b := os.NewFD(77).WriteString("no way");
+                    os.Stdout.WriteString(b.String() + "\n");
+            }
+    
+    R=rsc
+    DELTA=263  (59 added, 176 deleted, 28 changed)
+    OCL=15153
+    CL=15153
+
+ src/lib/os/Makefile              |   4 +-
+ src/lib/os/os.go                 | 161 ---------------------------------------
+ src/lib/os/os_base.go            |  18 -----
+ src/lib/os/os_error.go           |   4 +-
+ src/lib/os/os_file.go            |   8 +-
+ src/syscall/Makefile             |  22 ++++--
+ src/syscall/file_amd64_darwin.go |  34 +++++++--
+ src/syscall/file_amd64_linux.go  |  34 +++++++--
+ src/syscall/syscall.go           |  14 ++++
+ 9 files changed, 87 insertions(+), 212 deletions(-)

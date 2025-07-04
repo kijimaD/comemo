@@ -1,0 +1,12 @@
+commit 81a9cc31c46aada8ec4ff7e262b8b0a46e2ce57a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 20 12:06:08 2012 +1000
+
+    misc/cgo/test: do not run wasteCPU during TestParallelSleep unless on arm
+    
+    R=golang-dev, r, minux.ma, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6532052
+
+ misc/cgo/test/issue1560.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 3108f3f4a0025ad9079aa884dbf31cde268732c3
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Feb 8 22:30:06 2011 -0500
+
+    codereview: use cmd.communicate.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4145046
+
+ lib/codereview/codereview.py | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

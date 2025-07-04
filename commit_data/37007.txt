@@ -1,0 +1,19 @@
+commit e508a5f072c6e3c8449007bf7ca87142c6746404
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 2 20:23:41 2018 +0000
+
+    runtime: de-duplicate span scavenging
+    
+    Currently, span scavenging was done nearly identically in two different
+    locations. This change deduplicates that into one shared routine.
+    
+    For #14045.
+    
+    Change-Id: I15006b2c9af0e70b7a9eae9abb4168d3adca3860
+    Reviewed-on: https://go-review.googlesource.com/c/139297
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 84 ++++++++++++++++++++--------------------------------
+ 1 file changed, 32 insertions(+), 52 deletions(-)

@@ -1,0 +1,18 @@
+commit c3b217a0e5f032cadf4595884dad839e169c902c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 13 09:16:39 2021 -0700
+
+    cmd/go: document 'go install cmd@version' ignores vendor directories
+    
+    For #48332
+    
+    Change-Id: I708eb3e8f3f386f03210b7117d9ab8b0be2125bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349591
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 7 +++++--
+ src/cmd/go/internal/work/build.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

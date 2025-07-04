@@ -1,0 +1,12 @@
+commit 4d8d6d5cdaef1771ebe32a1a0799b5778c06fc74
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:52:59 2010 -0500
+
+    ld: reading of ELF object files
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3507041
+
+ src/cmd/ld/ldelf.c | 822 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 822 insertions(+)

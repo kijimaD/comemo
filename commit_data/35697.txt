@@ -1,0 +1,19 @@
+commit 4a778cdf3375d418062b3c3e9f6891cc9162e3d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 13 11:56:15 2018 -0700
+
+    os: don't poll fifos on Darwin
+    
+    The Darwin kqueue implementation doesn't report any event when the
+    last writer for a fifo is closed.
+    
+    Fixes #24164
+    
+    Change-Id: Ic2c47018ef1284bf2e26379f8dd7646edaad4d05
+    Reviewed-on: https://go-review.googlesource.com/118566
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/fifo_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go |  15 +++++++-
+ src/os/pipe_test.go |  67 ++++++++++++++++++++++++++++++++
+ 3 files changed, 189 insertions(+), 2 deletions(-)

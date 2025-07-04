@@ -1,0 +1,13 @@
+commit 716a409b9044850d0edf11318ec0eca63de57a93
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 29 13:55:12 2013 -0700
+
+    net/http: redirect handlers from mux.Handler() shouldn't clear the query string
+    
+    R=bradfitz, alberto.garcia.hierro, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/7099045
+
+ src/pkg/net/http/serve_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  4 ++-
+ 2 files changed, 74 insertions(+), 1 deletion(-)

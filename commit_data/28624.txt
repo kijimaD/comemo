@@ -1,0 +1,12 @@
+commit fe77c5b36994d907a6c0f4cd8ffb0a2ad6cfde5e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 3 11:25:25 2016 -0700
+
+    doc: add PKG_CONFIG and GIT_ALLOW_PROTOCOL env vars to go1.8.txt
+    
+    Change-Id: I592b87f49fc636b89807d911132f69257d718afd
+    Reviewed-on: https://go-review.googlesource.com/30168
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.txt | 2 ++
+ 1 file changed, 2 insertions(+)

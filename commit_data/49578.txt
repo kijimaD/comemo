@@ -1,0 +1,19 @@
+commit c847a2c9f024f47eee25c132f2d80e7037adea36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 30 16:41:31 2022 -0700
+
+    go/types, types2: document that exported predicates are unspecified for invalid type arguments
+    
+    Per discussion on the issue.
+    
+    For #53595.
+    
+    Change-Id: Iefd161e5c7e792d454652cbe831a0c2d769f748e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415574
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/types2/api.go | 15 ++++++++-------
+ src/go/types/api.go                    | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

@@ -1,0 +1,36 @@
+commit 0262ea1ff9ac3b9fd268a48fcaaa6811c20cbea2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 28 14:57:29 2023 -0400
+
+    runtime: print a stack trace at "morestack on g0"
+    
+    Error like "morestack on g0" is one of the errors that is very
+    hard to debug, because often it doesn't print a useful stack trace.
+    The runtime doesn't directly print a stack trace because it is
+    a bad stack state to call print. Sometimes the SIGABRT may trigger
+    a traceback, but sometimes not especially in a cgo binary. Even if
+    it triggers a traceback it often does not include the stack trace
+    of the bad stack.
+    
+    This CL makes it explicitly print a stack trace and throw. The
+    idea is to have some space as an "emergency" crash stack. When the
+    stack is in a really bad state, we switch to the crash stack and
+    do a traceback.
+    
+    Currently only implemented on AMD64 and ARM64.
+    
+    TODO: also handle errors like "morestack on gsignal" and bad
+    systemstack. Also handle other architectures.
+    
+    Change-Id: Ibfc397202f2bb0737c5cbe99f2763de83301c1c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm.s          |  8 +++++++
+ src/runtime/asm_amd64.s    | 55 ++++++++++++++++++++++++++++++-------------
+ src/runtime/asm_arm64.s    | 43 +++++++++++++++++++++++++++-------
+ src/runtime/crash_test.go  |  8 +++++++
+ src/runtime/export_test.go |  2 +-
+ src/runtime/proc.go        | 58 +++++++++++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 147 insertions(+), 27 deletions(-)

@@ -1,0 +1,27 @@
+commit 3c5614344234af95250f06fb97d605a2005d5353
+Author: Changkun Ou <hi@changkun.us>
+Date:   Thu Aug 1 16:22:28 2019 +0000
+
+    runtime: one lock per order
+    
+    This CL implements one lock per order of stackpool. It improves performance when mutator stack growth deeply, see benchmark below:
+    
+    ```
+    name                old time/op  new time/op  delta
+    StackGrowth-8       3.60ns ± 5%  3.59ns ± 1%    ~     (p=0.794 n=10+9)
+    StackGrowthDeep-8    370ns ± 1%   335ns ± 1%  -9.47%  (p=0.000 n=9+9)
+    StackCopyPtr-8      72.6ms ± 0%  71.6ms ± 1%  -1.31%  (p=0.000 n=9+9)
+    StackCopy-8         53.5ms ± 0%  53.2ms ± 1%  -0.54%  (p=0.006 n=8+9)
+    StackCopyNoCache-8   100ms ± 0%    99ms ± 0%  -0.70%  (p=0.000 n=8+8)
+    ```
+    
+    Change-Id: I1170d3fd9e6ff8516e25f669d0aaf1861311420f
+    GitHub-Last-Rev: 13b820cddd8008079c98d01ac22dd123a46a6603
+    GitHub-Pull-Request: golang/go#33399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188478
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stack.go | 53 +++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 30 insertions(+), 23 deletions(-)

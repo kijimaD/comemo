@@ -1,0 +1,35 @@
+commit 2923b14a7be6b9d6daa2e140c2e444aa3eade398
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 11 20:31:41 2017 +0100
+
+    cmd/compile/internal/gc: don't panic on continue in switch
+    
+    Continues outside of a loop are not allowed. Most of these possibilities
+    were tested in label1.go, but one was missing - a plain continue in a
+    switch/select but no enclosing loop.
+    
+    This used to error with a "continue not in loop" in 1.8, but recently
+    was broken by c03e75e5. In particular, innerloop does not only account
+    for loops, but also for switches and selects. Swap it by bools that
+    track whether breaks and continues should be allowed.
+    
+    While at it, improve the wording of errors for breaks that are not where
+    they should be. Change "loop" by "loop, switch, or select" since they
+    can be used in any of those.
+    
+    And add tests to make sure this isn't broken again. Use a separate func
+    since I couldn't get the compiler to crash on f() itself, possibly due
+    to the recursive call on itself.
+    
+    Fixes #19934.
+    
+    Change-Id: I8f09c6c2107fd95cac50efc2a8cb03cbc128c35e
+    Reviewed-on: https://go-review.googlesource.com/40357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/checkcfg.go | 22 ++++++++++++++++------
+ test/label1.go                          | 28 ++++++++++++++++++++--------
+ 2 files changed, 36 insertions(+), 14 deletions(-)

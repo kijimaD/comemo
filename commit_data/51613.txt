@@ -1,0 +1,16 @@
+commit 16cec4e7a0ed4b1e5cf67a07a1bf24bdf2f6b04c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 13 11:40:13 2023 -0500
+
+    doc/go1.20: mention build speed improvements
+    
+    For #49569.
+    For #54202.
+    
+    Change-Id: Iac45338bc4e45617e8ac7425076cf4cd0af157a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461957
+    TryBot-Bypass: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.20.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

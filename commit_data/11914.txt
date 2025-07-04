@@ -1,0 +1,13 @@
+commit dd91d83d2427e5a076aa92342b70dda63dd1cbb6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 12:58:40 2012 +1100
+
+    doc: add App Engine docs to 'learn' and 'reference' pages
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5672048
+
+ doc/docs.html      | 6 ++++++
+ doc/reference.html | 6 ++++++
+ 2 files changed, 12 insertions(+)

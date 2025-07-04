@@ -1,0 +1,20 @@
+commit 1f3339f441e2053f8efd7ead417761ea319fe790
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Oct 26 06:53:07 2019 -0700
+
+    runtime:  fix dumpgoroutine() to deal with open-coded defers
+    
+    _defer.fn can be nil, so we need to add a check when dumping
+    _defer.fn.fn.
+    
+    Fixes #35172
+    
+    Change-Id: Ic1138be5ec9dce915a87467cfa51ff83acc6e3a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203697
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/heapdump.go | 7 ++++++-
+ src/runtime/runtime2.go | 8 ++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

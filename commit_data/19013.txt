@@ -1,0 +1,15 @@
+commit 568f50e3fcf3643cd5dd0ebf645ad2611cd34be5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 3 11:34:31 2014 +1100
+
+    cmd/gc: fix build
+    
+    Darwin 10.6 (gcc 4.2) and some older versions of gcc default to C90 mode, not C99 mode. Silence the warning.
+    
+    LGTM=aram, iant
+    R=golang-codereviews, aram, iant
+    CC=golang-codereviews
+    https://golang.org/cl/83090050
+
+ src/cmd/gc/plive.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

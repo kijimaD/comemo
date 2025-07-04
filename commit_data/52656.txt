@@ -1,0 +1,23 @@
+commit 11dd32d7290db946ddc28233513de248a116d0ea
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Apr 12 19:00:30 2023 -0400
+
+    cmd/go: parallelize part of loading test packages in list
+    
+    load.TestPackagesAndErrors is given an optional done func() argument.
+    If set, load.TestPackagesAndErrors will perform part of its work
+    asynchronously and call done when done. This allows go list to run
+    testPackagesAndErrors so that the parallelizable parts of
+    TestPackagesAndErrors run in parallel, making go list -e faster.
+    
+    Fixes #59157
+    Change-Id: I11f45bbb3ea4ceda928983bcf9fd41bfdcc4fbd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484496
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go |  53 +++++++---
+ src/cmd/go/internal/load/test.go | 202 ++++++++++++++++++++-------------------
+ 2 files changed, 148 insertions(+), 107 deletions(-)

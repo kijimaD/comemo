@@ -1,0 +1,19 @@
+commit ec510045675ac112184052bc303be190872fd51c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 11:48:01 2018 -0500
+
+    cmd/go: add a [root] condition to script_test
+    
+    [root] reports whether the current effective user ID is 0.
+    
+    Updates #29127
+    
+    Change-Id: I9ef42f1271ea669689011e7ceff4d918c0cecb6b
+    Reviewed-on: https://go-review.googlesource.com/c/153637
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go         | 2 ++
+ src/cmd/go/testdata/script/README | 1 +
+ 2 files changed, 3 insertions(+)

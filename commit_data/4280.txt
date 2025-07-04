@@ -1,0 +1,13 @@
+commit 69f893a127f09f81ae8777be4436ca65e332371f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 09:10:59 2009 -0800
+
+    codereview: move reviewers to cc line after submit,
+      so that the issue stops showing up on the
+      per-reviewer dashboard page.
+    
+    R=r
+    https://golang.org/cl/164075
+
+ lib/codereview/codereview.py | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

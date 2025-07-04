@@ -1,0 +1,18 @@
+commit 4f0561f9d354233787de7aa9eff8119a2d4cd5c6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 18 11:28:18 2024 -0500
+
+    cmd/dist: skip fips140test in exe mode on Android
+    
+    Android does not support non-PIE linking. Skip the test.
+    
+    Change-Id: I53071538c82f1e1f96eed1a2619f92eacd18d263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637495
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

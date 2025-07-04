@@ -1,0 +1,15 @@
+commit 4cf630da0feea55844ac26356bcefbd95ceb665b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 16:07:28 2011 +1000
+
+    exp/template: remove else and end nodes from public view.
+    They are used internally and do not appear in the final parse tree.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4905052
+
+ src/pkg/template/parse/node.go  | 31 ++++++++++++++++---------------
+ src/pkg/template/parse/parse.go |  8 ++++----
+ src/pkg/template/parse/set.go   |  2 +-
+ 3 files changed, 21 insertions(+), 20 deletions(-)

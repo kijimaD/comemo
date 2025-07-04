@@ -1,0 +1,18 @@
+commit c93193aec0f33e901d6802e61c966286785f57ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 11 18:09:34 2016 -0800
+
+    runtime: return errno value from Solaris mmap as expected
+    
+    The code in mem_bsd.go expects that when mmap fails it will return a
+    positive errno value.  This fixes the Solaris implementation of mmap to
+    work as expected.
+    
+    Change-Id: Id1c34a9b916e8dc955ced90ea2f4af8321d92265
+    Reviewed-on: https://go-review.googlesource.com/19477
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os3_solaris.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

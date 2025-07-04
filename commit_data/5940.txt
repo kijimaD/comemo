@@ -1,0 +1,13 @@
+commit d4af41f5bbb16535c0a11fd313b3c0edac34c3aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 13:01:28 2010 -0700
+
+    test/run: diff old new
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/1907046
+
+ test/run     | 2 +-
+ test/run-arm | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

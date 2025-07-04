@@ -1,0 +1,20 @@
+commit 17e493a2b11939f294bcf5e2d9b8fa0738ddf51e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 19:10:45 2011 -0800
+
+    go/printer: remove gratuitous string/[]byte conversions
+    
+    Cleanup and slight performance improvement (1.5%).
+    
+    Before (best of 3 runs):
+    printer.BenchmarkPrint        50          47377420 ns/op
+    
+    After (best of 3 runs):
+    printer.BenchmarkPrint        50          46707180 ns/op
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5416049
+
+ src/pkg/go/printer/printer.go | 64 ++++++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 31 deletions(-)

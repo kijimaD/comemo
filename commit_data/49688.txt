@@ -1,0 +1,22 @@
+commit f2a9f3e2e0ce7e582d226ad9a41d3c36b146fc25
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 1 13:23:36 2022 -0700
+
+    test: improve generic type assertion test
+    
+    The test added in CL 420394 only tested that the type assertions
+    compiled at all. This CL changes it into a run test to make sure the
+    type assertions compile and also run correctly.
+    
+    Updates #54135.
+    
+    Change-Id: Id17469faad1bb55ff79b0bb4163ef50179330033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420421
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ test/typeparam/issue54135.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

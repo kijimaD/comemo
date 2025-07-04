@@ -1,0 +1,30 @@
+commit ae8251b0aa946177877f61b45a96e90319dce1ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 30 09:57:04 2014 +0100
+
+    net/http: use a struct instead of a string in transport conn cache key
+    
+    The Transport's idle connection cache is keyed by a string,
+    for pre-Go 1.0 reasons.  Ever since Go has been able to use
+    structs as map keys, there's been a TODO in the code to use
+    structs instead of allocating strings. This change does that.
+    
+    Saves 3 allocatins and ~100 bytes of garbage per client
+    request. But because string hashing is so fast these days
+    (thanks, Keith), the performance is a wash: what we gain
+    on GC and not allocating, we lose in slower hashing. (hashing
+    structs of strings is slower than 1 string)
+    
+    This seems a bit faster usually, but I've also seen it be a
+    bit slower. But at least it's how I've wanted it now, and it
+    the allocation improvements are consistent.
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/58260043
+
+ src/pkg/net/http/export_test.go | 11 +++----
+ src/pkg/net/http/proxy_test.go  |  4 +--
+ src/pkg/net/http/transport.go   | 64 ++++++++++++++++++++++-------------------
+ 3 files changed, 43 insertions(+), 36 deletions(-)

@@ -1,0 +1,17 @@
+commit dccc653aeb35d511691191517c021c2ce6125cb4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 11 11:09:45 2017 -0700
+
+    cmd/compile: avoid checkwidth of [...] arrays
+    
+    Fixes #20333
+    
+    Change-Id: I0653cc859076f146d8ea8f5bd55cb22b0b8d987f
+    Reviewed-on: https://go-review.googlesource.com/43290
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++++-
+ test/fixedbugs/issue20333.go             | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

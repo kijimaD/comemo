@@ -1,0 +1,24 @@
+commit 793f1a13f74bbc767525f138ae78faacda59b44c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 22 12:06:53 2022 -0500
+
+    cmd/dist: revise skip sequence added in CL 452763
+    
+    Revise the code added in CL 452763 that skips some of the -race tests
+    on older windows builders. The old-style skip was doing a log.Printf,
+    which wound up being interpreted in "-list" mode. Fix is to pass in a
+    special rtPreFunc when registering the test (thanks Austin for the
+    fix suggestion).
+    
+    Updates #56904.
+    
+    Change-Id: Ia6ea31fb7f011b539173f47357ab3bf7389f256d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452769
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

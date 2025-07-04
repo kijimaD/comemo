@@ -1,0 +1,21 @@
+commit b0543ddd8acedc547e409ad930df5763badf08d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 15:59:19 2011 -0500
+
+    gc, runtime: make range on channel safe for multiple goroutines
+    
+    Fixes #397.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3994043
+
+ src/cmd/gc/builtin.c.boot   |  1 +
+ src/cmd/gc/go.h             |  2 +-
+ src/cmd/gc/range.c          | 13 ++++++++++---
+ src/cmd/gc/runtime.go       |  1 +
+ src/cmd/gc/walk.c           | 14 ++++++++++++++
+ src/pkg/runtime/chan.c      | 27 ++++++++++++++++++++++++---
+ src/pkg/runtime/reflect.goc |  2 +-
+ src/pkg/runtime/runtime.h   |  2 +-
+ 8 files changed, 53 insertions(+), 9 deletions(-)

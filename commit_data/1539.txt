@@ -1,0 +1,13 @@
+commit d9abca81c087448e305e4992d3056407a217f2cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 14:23:50 2009 -0800
+
+    let test sources specify commands to run
+    before their compilation.
+    
+    R=r
+    OCL=23300
+    CL=23300
+
+ src/cmd/gotest/gotest | 5 +++++
+ 1 file changed, 5 insertions(+)

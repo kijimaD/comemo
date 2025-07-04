@@ -1,0 +1,17 @@
+commit 5a4b9f9494bad1091f2f9cb777aed54293b647d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 14 13:21:11 2021 -0700
+
+    time: reference -tags=timetzdata in testing panic
+    
+    This will spare anyone who hits it having to search for the workaround.
+    
+    Change-Id: Iff0d449212f2675ac78e30ae5ffc8efb4d924088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334611
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/internal_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

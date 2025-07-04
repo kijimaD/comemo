@@ -1,0 +1,16 @@
+commit ab578e12ffa1ea813055c3206ac39437ce7a18de
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Mon Sep 16 16:29:04 2013 +1000
+
+    net/rpc: log I/O and internal errors only if debugLog is set.
+    
+    Fixes #6367.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/13395047
+
+ src/pkg/net/rpc/client.go | 6 ++++--
+ src/pkg/net/rpc/debug.go  | 3 +++
+ src/pkg/net/rpc/server.go | 5 +++--
+ 3 files changed, 10 insertions(+), 4 deletions(-)

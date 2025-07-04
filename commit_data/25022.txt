@@ -1,0 +1,20 @@
+commit 009517e0b7fb085c87b474a32fc7701613d0c0d3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 12:43:17 2015 -0800
+
+    html/template: add DefinedTemplates to html/template
+    
+    It is not important to add, since it's only used for creating an error message,
+    but for consistency in the API between text/template and html/template
+    it should be provided here.
+    
+    The implementation just calls the one in text/template.
+    
+    Fixes #13349.
+    
+    Change-Id: I0882849e06a58f1e38b00eb89d79ac39777309b2
+    Reviewed-on: https://go-review.googlesource.com/17172
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/template.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

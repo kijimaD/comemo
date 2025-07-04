@@ -1,0 +1,15 @@
+commit 343bec53c7317e1c780b3faf04aa124f19849b61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Sep 24 21:17:34 2016 -0700
+
+    runtime: merge sigpanic_unix.go into signal_unix.go
+    
+    Change-Id: Iba541045b4878405834c637095627631b6559a35
+    Reviewed-on: https://go-review.googlesource.com/29754
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal_unix.go   | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sigpanic_unix.go | 53 --------------------------------------------
+ 2 files changed, 53 insertions(+), 53 deletions(-)

@@ -1,0 +1,13 @@
+commit db9a9662a1dd8cf2e2774ffea4d1cc8eaf24d8cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 15:36:55 2010 -0800
+
+    godoc: updated documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/207112
+
+ src/cmd/godoc/doc.go   | 30 +++++++++++++++++++++++-------
+ src/cmd/godoc/godoc.go |  2 +-
+ 2 files changed, 24 insertions(+), 8 deletions(-)

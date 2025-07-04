@@ -1,0 +1,14 @@
+commit 231dfd9049a1344fc98ee3cd950473b2f986c28f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jul 10 15:34:24 2013 +1000
+
+    time: find correct zone abbreviations even on non-English windows systems
+    
+    Fixes #5783
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10956043
+
+ src/pkg/time/zoneinfo_windows.go | 83 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 82 insertions(+), 1 deletion(-)

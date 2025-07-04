@@ -1,0 +1,15 @@
+commit 83940d7c4a2a7ddf5c485f2745573552b096775c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 28 18:19:16 2009 -0700
+
+    Add a unique list ID to list elements, and verify it as necessary.
+    This makes the list closed under its provided operations.
+    
+    R=rsc,gri
+    APPROVED=rsc
+    DELTA=18  (14 added, 0 deleted, 4 changed)
+    OCL=32388
+    CL=32395
+
+ src/pkg/container/list/list.go | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 3311e1b6731219c0e4f2681e3cefa3ae9dfa1547
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 25 17:07:22 2008 -0700
+
+    - dump registers in case of signal (linux)
+    
+    SVN=124702
+
+ src/runtime/rt1_amd64_darwin.c |  19 +++---
+ src/runtime/rt1_amd64_linux.c  | 138 ++++++++++++++++++++++++++++++++++++-----
+ test/golden.out                |  38 +++++++++++-
+ 3 files changed, 169 insertions(+), 26 deletions(-)

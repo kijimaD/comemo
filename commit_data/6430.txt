@@ -1,0 +1,21 @@
+commit a2332a32b8c6eb3a71113ad86edffda709a59f4a
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Thu Sep 30 13:19:33 2010 +1000
+
+    doc: update http handler usage for new signature
+    
+    R=adg, r2
+    CC=golang-dev
+    https://golang.org/cl/2302041
+
+ doc/codelab/wiki/final-noclosure.go     |  34 ++++----
+ doc/codelab/wiki/final-noerror.go       |   8 +-
+ doc/codelab/wiki/final-parsetemplate.go |  32 ++++----
+ doc/codelab/wiki/final-template.go      |  16 ++--
+ doc/codelab/wiki/final.go               |  30 +++----
+ doc/codelab/wiki/http-sample.go         |   4 +-
+ doc/codelab/wiki/index.html             | 140 ++++++++++++++++----------------
+ doc/codelab/wiki/notemplate.go          |   8 +-
+ doc/codelab/wiki/part2.go               |   4 +-
+ doc/codelab/wiki/wiki.html              |  28 +++----
+ 10 files changed, 152 insertions(+), 152 deletions(-)

@@ -1,0 +1,12 @@
+commit 807eb29f9fbfeb4eb6e0f4da4b56eea9b029aed4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 29 14:50:55 2011 -0700
+
+    go spec: remove notes about gccgo limitations, now fixed
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5164041
+
+ doc/go_spec.html | 2 --
+ 1 file changed, 2 deletions(-)

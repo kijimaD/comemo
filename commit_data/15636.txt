@@ -1,0 +1,19 @@
+commit 2ac799cfbcf212675d64ea0df835ca6c2e2aa368
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 8 06:51:06 2013 +0900
+
+    net: fix multicast listener tests
+    
+    This CL splits multicast listener tests into two; for IPv4 and
+    for IPv6. It also removes redundant test inputs and makes sure
+    that assignment of multicast interface to stablize the tests.
+    
+    Fixes #4059.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7565043
+
+ src/pkg/net/multicast_posix_test.go | 180 -----------------------------------
+ src/pkg/net/multicast_test.go       | 184 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 184 insertions(+), 180 deletions(-)

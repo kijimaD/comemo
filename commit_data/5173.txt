@@ -1,0 +1,14 @@
+commit d166d1629a67054672f35c41cbc6b46e6a3bff47
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Mar 29 22:51:39 2010 -0700
+
+    runtime: Remove unused runtime.write from linux/amd64
+    
+    Also minor reformatting.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/845041
+
+ src/pkg/runtime/linux/amd64/sys.s | 26 +++++++++-----------------
+ 1 file changed, 9 insertions(+), 17 deletions(-)

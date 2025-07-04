@@ -1,0 +1,30 @@
+commit 96b8f70e22e103c11fbb89ba6df9d229d24cdbc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Apr 26 10:53:25 2016 -0400
+
+    cmd/link: correctly decode name length
+    
+    The linker was incorrectly decoding type name lengths, causing
+    typelinks to be sorted out of order and in cases where the name was
+    the exact right length, linker panics.
+    
+    Added a test to the reflect package that causes TestTypelinksSorted
+    to fail before this CL. It's not the exact failure seen in #15448
+    but it has the same cause: decodetype_name calculating the wrong
+    length.
+    
+    The equivalent decoders in reflect/type.go and runtime/type.go
+    have the parenthesis in the right place.
+    
+    Fixes #15448
+    
+    Change-Id: I33257633d812b7d2091393cb9d6cc8a73e0138c8
+    Reviewed-on: https://go-review.googlesource.com/22403
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/decodesym.go | 2 +-
+ src/reflect/all_test.go               | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

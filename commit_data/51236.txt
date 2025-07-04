@@ -1,0 +1,24 @@
+commit 122a22e0e9eba7fe712030d429fc4bcf6f447f5e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 11 12:42:51 2022 -0800
+
+    internal/syscall/unix: use runtime.gostring for Gostring
+    
+    Under the race detector, checkptr flags uses of unsafe.Slice that
+    result in slices that straddle multiple Go allocations.
+    Avoid that scenario by calling existing runtime code.
+    
+    This fixes a failure on the darwin-.*-race builders introduced in
+    CL 446178.
+    
+    Change-Id: I6e0fdb37e3c3f38d97939a8799bb4d10f519c5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449936
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/net_darwin.go | 14 ++++----------
+ src/runtime/string.go                   |  7 +++++++
+ 2 files changed, 11 insertions(+), 10 deletions(-)

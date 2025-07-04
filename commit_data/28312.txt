@@ -1,0 +1,14 @@
+commit 3bf141955be1d1f791f643700fbde60c258546d3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 09:16:48 2016 -0400
+
+    cmd/dist: test PIE internal linking on linux/amd64
+    
+    Change-Id: I88dd0811db3a9864106def47b89848f5c8de94d4
+    Reviewed-on: https://go-review.googlesource.com/28545
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

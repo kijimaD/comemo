@@ -1,0 +1,13 @@
+commit 1fab0cd12ac585068df138650a2a6d1dffa09fb3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 18 12:34:47 2010 -0800
+
+    Makefiles: Don't define _64BIT now that 6c does it by default.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3207041
+
+ src/Make.pkg             | 3 +--
+ src/pkg/runtime/Makefile | 4 +---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

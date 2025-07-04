@@ -1,0 +1,25 @@
+commit 810868c9f646ace10aa37ba5ded4b5d07bd28a19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 23 01:20:11 2022 +0700
+
+    cmd/compile: remove AllowsGoVersion checks in old typechecker
+    
+    types2 handles those checks instead.
+    
+    The only exception is noder.checkEmbed, since when types2
+    have not known about "//go:embed" pragma yet.
+    
+    Updates #51691
+    
+    Change-Id: I74ded03536023fe838f23fa7421e04513f904f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394556
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go |  4 ----
+ src/cmd/compile/internal/typecheck/func.go | 12 ------------
+ src/cmd/compile/internal/typecheck/subr.go |  3 ---
+ src/cmd/compile/internal/types/size.go     | 13 +++++--------
+ 4 files changed, 5 insertions(+), 27 deletions(-)

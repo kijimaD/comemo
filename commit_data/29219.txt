@@ -1,0 +1,18 @@
+commit 1bd39e79dbc146ae953284f82febf7d1fb461f4e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 17:18:36 2016 -0400
+
+    runtime: fix SP adjustment on amd64p32
+    
+    On amd64p32, rt0_go attempts to reserve 128 bytes of scratch space on
+    the stack, but due to a register mixup this ends up being a no-op. Fix
+    this so we actually reserve the stack space.
+    
+    Change-Id: I04dbfbeb44f3109528c8ec74e1136bc00d7e1faa
+    Reviewed-on: https://go-review.googlesource.com/32331
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_amd64p32.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

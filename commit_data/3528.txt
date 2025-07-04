@@ -1,0 +1,19 @@
+commit bf983a0df21fd3408a0a07014fe5852aef28785f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 22:10:16 2009 -0700
+
+    bye-bye to old makehtml.
+    go can do the job just fine.
+    
+    R=rsc
+    DELTA=290  (209 added, 13 deleted, 68 changed)
+    OCL=35699
+    CL=35699
+
+ doc/Makefile         |  11 +++
+ doc/go_tutorial.head |   3 -
+ doc/go_tutorial.html |  63 ++++++++---------
+ doc/go_tutorial.txt  |  18 +++--
+ doc/htmlgen.go       | 192 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/makehtml         |  31 +++++++++
+ 6 files changed, 277 insertions(+), 41 deletions(-)

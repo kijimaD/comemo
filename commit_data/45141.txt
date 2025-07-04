@@ -1,0 +1,27 @@
+commit 892cad7a9b6632533f87bf89d98c43f21c749a80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 13 17:48:45 2021 -0700
+
+    cmd/compile/internal/types2: add Named.SetTParams and Named.Orig methods
+    
+    Named.SetTParams sets the type parameters for a named type.
+    
+    Named.Orig returns the original generic type an instantiated
+    type is derived from. Added a new field orig for that purpose
+    and renamed the already existing orig field to fromRHS.
+    
+    Finally, updated various comments.
+    
+    Change-Id: Ic9d173e42740422d195713d8bdc62a54dc8c5f54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309832
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go        |  9 +++---
+ src/cmd/compile/internal/types2/issues_test.go |  2 +-
+ src/cmd/compile/internal/types2/sanitize.go    |  4 +--
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  5 ++-
+ src/cmd/compile/internal/types2/type.go        | 42 ++++++++++++++++----------
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +--
+ 7 files changed, 38 insertions(+), 30 deletions(-)

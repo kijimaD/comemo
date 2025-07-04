@@ -1,0 +1,30 @@
+commit 10240b9d6b39cd7edc6566d0875a4b6499bcd9b3
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Dec 1 12:54:24 2020 +0700
+
+    cmd/go: fix unbuffered channel passed to signal.Notify
+    
+    Unbuffered channels passed into signal.Notify can be lost
+    as the docs for signal.Notify caution with:
+    
+        Package signal will not block sending to c: the caller must ensure
+        that c has sufficient buffer space to keep up with the expected signal
+        rate. For a channel used for notification of just one signal value,
+        a buffer of size 1 is sufficient.
+    
+    Found by a static analyzer from Orijtech, Inc. called "sigchanyzer", but
+    it'll be donated to the Go project soon.
+    
+    Updates #9399.
+    
+    Change-Id: Ia0690e447582da028694ed65ace7b97961997b84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274332
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/base/signal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

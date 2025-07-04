@@ -1,0 +1,19 @@
+commit 2f184c65a5bdd422f88d841bb3a37fa60b3e1d52
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 27 19:54:05 2016 +0900
+
+    net: implement network interface API for Solaris
+    
+    Fixes #7177.
+    
+    Change-Id: Iba6063905f4f9c6acef8aba76b55d996f186d835
+    Reviewed-on: https://go-review.googlesource.com/29892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/go/build/deps_test.go    |   2 +-
+ src/net/interface.go         |  10 ++--
+ src/net/interface_solaris.go | 107 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/interface_stub.go    |   2 +-
+ src/net/interface_test.go    |  11 ++++-
+ 5 files changed, 125 insertions(+), 7 deletions(-)

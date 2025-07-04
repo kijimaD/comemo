@@ -1,0 +1,22 @@
+commit c32b60768785684342ebf6efdf50a7476326f473
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 29 11:18:49 2011 +1100
+
+    html: detect quirks mode
+    
+    Pass tests3.dat, test 23:
+    <p><table></table>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <table>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5446043
+
+ src/pkg/html/parse.go      | 117 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/html/parse_test.go |   2 +-
+ 2 files changed, 109 insertions(+), 10 deletions(-)

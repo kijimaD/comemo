@@ -1,0 +1,13 @@
+commit be98bc488eb0a53700bf8bf8134d4913b71b80d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 20:30:02 2009 -0800
+
+    websocket: avoid $GOROOT in case it has spaces
+    
+    Fixes #115.
+    
+    R=r, ukai, sergio
+    https://golang.org/cl/162057
+
+ src/pkg/websocket/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

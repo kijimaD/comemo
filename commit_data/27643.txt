@@ -1,0 +1,14 @@
+commit 0326e28f17ca760f76105fbcba9c5f55bb6ef1ce
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jun 4 07:33:28 2016 +0900
+
+    Revert "cmd/go: re-enable TestCgoConsistentResults on solaris"
+    
+    This reverts commit b89bcc1daeed9980c5ba8a255b37877493952874.
+    
+    Change-Id: Ief2f317ffc175f7e6002d0c39694876f46788c69
+    Reviewed-on: https://go-review.googlesource.com/23744
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

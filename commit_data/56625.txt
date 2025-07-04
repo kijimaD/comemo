@@ -1,0 +1,17 @@
+commit b6fa505c4a3508600a4e4d7834228046b0310873
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 21 04:15:40 2024 +0000
+
+    runtime: move goroutine stack exists events after span events
+    
+    Preserving an ordering wherein spans are always named before their
+    constituents makes parsing much more straightforward.
+    
+    Change-Id: Ida8764801a6c516d672ba343e4ce01b66ce9b427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586999
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/traceallocfree.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

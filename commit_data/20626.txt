@@ -1,0 +1,17 @@
+commit 13da3608453f7d50c0c810d5a0df79691bca8b64
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 3 15:33:29 2014 -0400
+
+    runtime: clear sg.selectdone before saving in SudoG cache
+    
+    Removes another dangling pointer that might
+    cause a memory leak in 1.4 or crash the GC in 1.5.
+    
+    LGTM=rlh
+    R=golang-codereviews
+    CC=golang-codereviews, iant, khr, r, rlh
+    https://golang.org/cl/150520043
+
+ src/runtime/proc.go   | 3 +++
+ src/runtime/select.go | 8 +++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

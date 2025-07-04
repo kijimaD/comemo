@@ -1,0 +1,20 @@
+commit 067d58b53433885124a5f46b381a0378d7aec35d
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 4 14:31:30 2024 -0800
+
+    net/http: handle new HTTP/2 error for 1xx limit exceeded
+    
+    CL 615295 changed the error message produced by the HTTP/2
+    implementation when a server sends more 1xx headers than expected.
+    Update a test that checks for this error.
+    
+    For #65035
+    
+    Change-Id: I57e22f6a880412e3a448e58693127540806d5ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625195
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/transport_test.go | 1 +
+ 1 file changed, 1 insertion(+)

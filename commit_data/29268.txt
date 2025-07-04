@@ -1,0 +1,17 @@
+commit 9dba33872a6a762e27b42a01ec50ac815916aec4
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 11:38:22 2016 -0700
+
+    doc: replace code.google.com/p/sitesearch with its new destination
+    
+    Fixes #16910.
+    
+    Change-Id: I0e97e88bee0361cd3621cacd1d4b84e6e42af718
+    Reviewed-on: https://go-review.googlesource.com/32424
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/articles/go_command.html | 46 ++++++++++++++++++++++----------------------
+ src/cmd/go/get.go            |  2 +-
+ 2 files changed, 24 insertions(+), 24 deletions(-)

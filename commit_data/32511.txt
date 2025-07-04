@@ -1,0 +1,18 @@
+commit 0b4f4e0153bbdb231eff3f3928f99eae3e48b363
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Aug 25 12:56:29 2017 -0400
+
+    cmd/trace: add -d that prints parsed traces
+    
+    This is useful when debugging the tool.
+    
+    Some tweaks on logging: log the webserver address, log.Print instead
+    of log.Printf when possible.
+    
+    Change-Id: Iaf71b6523b40dc13795511784d48eacf0f5a396a
+    Reviewed-on: https://go-review.googlesource.com/59570
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/main.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

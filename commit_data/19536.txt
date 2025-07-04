@@ -1,0 +1,33 @@
+commit 50365666c7264ac0608220adeff2c4f503b8fb67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 13 02:04:03 2014 -0400
+
+    undo CL 101970047 / 30307cc8bef2
+    
+    makes windows-amd64-race benchmarks slower
+    
+    ««« original CL description
+    testing: make benchmarking faster
+    
+    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
+    
+    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
+    
+    net/http        49s   -> 37s   (-24%)
+    runtime         8m31s -> 5m55s (-30%)
+    bytes           2m37s -> 1m29s (-43%)
+    encoding/json   29s   -> 21s   (-27%)
+    strings         1m16s -> 53s   (-30%)
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/101970047
+    »»»
+    
+    TBR=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/105950044
+
+ src/pkg/testing/benchmark.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

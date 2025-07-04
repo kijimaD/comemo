@@ -1,0 +1,26 @@
+commit 4c1a7ab49c4c68907bc7f7f7f776edd9116584a5
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Jan 18 14:41:20 2021 +0800
+
+    cmd/go: reject relative paths in GOMODCACHE environment
+    
+    Go already rejects relative paths in a couple environment variables,
+    It should reject relative paths in GOMODCACHE.
+    
+    Fixes #43715
+    
+    Change-Id: Id1ceff839c7ab21c00cf4ace45ce48324733a526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284432
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Baokun Lee <bk@golangcn.org>
+
+ src/cmd/go/internal/envcmd/env.go            |  2 +-
+ src/cmd/go/internal/modfetch/cache.go        | 31 +++++++++++++++++-----------
+ src/cmd/go/internal/modfetch/fetch.go        |  6 ++----
+ src/cmd/go/testdata/script/env_write.txt     |  6 ++++++
+ src/cmd/go/testdata/script/mod_cache_dir.txt | 11 ++++++++++
+ 5 files changed, 39 insertions(+), 17 deletions(-)

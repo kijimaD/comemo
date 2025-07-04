@@ -1,0 +1,14 @@
+commit 7d704a97608292150263f34da9430ac70a8c4ffd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 12:52:49 2018 +0900
+
+    net: fix ExampleUDPConn_WriteTo
+    
+    Change-Id: I174b17395509d4c9fb55332c2405890b2a350cbd
+    Reviewed-on: https://go-review.googlesource.com/115218
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

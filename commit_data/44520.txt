@@ -1,0 +1,24 @@
+commit 2b0e29f51669063002cbcceca4f4a43e00144876
+Author: John Bampton <jbampton@gmail.com>
+Date:   Sun Feb 14 17:27:56 2021 +0000
+
+    docs: fix case of GitHub
+    
+    Change `Github` to `GitHub`
+    
+    Change-Id: I514e8dc9a19182fcf9fcf5bc1b5fbff253c1a947
+    GitHub-Last-Rev: 7124c7058e0c7ff19dc8440fa79271eb6cfdaea9
+    GitHub-Pull-Request: golang/go#44260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291950
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ misc/chrome/gophertool/popup.html | 2 +-
+ src/cmd/go/internal/vcs/vcs.go    | 2 +-
+ src/crypto/md5/md5_test.go        | 2 +-
+ src/crypto/sha1/sha1_test.go      | 2 +-
+ src/crypto/sha256/sha256_test.go  | 2 +-
+ src/crypto/sha512/sha512_test.go  | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

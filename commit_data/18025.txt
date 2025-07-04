@@ -1,0 +1,13 @@
+commit 8d2757cba4333f945ac29fdf443b5657ed399158
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 14:49:07 2013 -0800
+
+    C+A: add Michael Hudson (Linaro CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/43670043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

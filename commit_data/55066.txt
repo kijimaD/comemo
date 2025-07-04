@@ -1,0 +1,15 @@
+commit cc7b4b3c3685a688638363bf5be9150b04b75945
+Author: Anton Telyshev <ant.telishev@gmail.com>
+Date:   Sun Oct 29 23:06:44 2023 +0200
+
+    cmd/vet: add lost checks in doc
+    
+    Change-Id: Iacbcb582e263149fede734822cba2df4b8162968
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/vet/doc.go | 54 ++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 32 insertions(+), 22 deletions(-)

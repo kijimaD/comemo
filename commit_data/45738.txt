@@ -1,0 +1,21 @@
+commit 1c6a2ea2ea4b04416f7344ee5effe81816c7200b
+Author: Uddeshya Singh <singhuddeshyaofficial@gmail.com>
+Date:   Fri May 7 13:18:05 2021 +0530
+
+    doc/go1.17: document time changes for Go1.17
+    
+    Documents the newly implemented changes of
+    - Time.IsDST() method
+    - Addition of Time.UnixMilli, Time.UnixMicro and to-Time helpers UnixMicro, UnixMilli methods
+    - Addition of comma "," support as separator for fraction seconds
+    
+    For #44513
+    Fixes #46026
+    
+    Change-Id: Ib8d3449d3b061f013112d33362b50e68ad6ddffa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317913
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

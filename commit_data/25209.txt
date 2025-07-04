@@ -1,0 +1,22 @@
+commit 1b7a2273e5ec693ac4e148a58a26087d80c2e72b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 8 15:13:19 2015 +1100
+
+    net: add TestInterfaceAddrsWithNetsh
+    
+    Use windows netsh command to verify interface
+    addresses and netmasks net package returns.
+    
+    The test is to be enabled once issue #12811
+    is fixed.
+    
+    Updates #12811
+    
+    Change-Id: I191e350a1403e5133791d4ec59561fefa24f5c61
+    Reviewed-on: https://go-review.googlesource.com/17478
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 137 ++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 132 insertions(+), 5 deletions(-)

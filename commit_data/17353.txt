@@ -1,0 +1,38 @@
+commit fcf6a7e5ceb79f771bcf8e783c85535bfaad4f9c
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Wed Aug 21 18:51:37 2013 +0400
+
+    time: make timers heap 4-ary
+    
+    This slightly improves performance when a lot of timers are present
+    
+    $ misc/benchcmp ../old_timers_m.txt ../new_timers_m.txt
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkAfterFunc                       6884         6605   -4.05%
+    BenchmarkAfterFunc-2                     4473         4144   -7.36%
+    BenchmarkAfterFunc-3                     8601         6185  -28.09%
+    BenchmarkAfterFunc-4                     9378         8773   -6.45%
+    BenchmarkAfter                           7237         7278   +0.57%
+    BenchmarkAfter-2                         4638         3923  -15.42%
+    BenchmarkAfter-3                         8751         6239  -28.71%
+    BenchmarkAfter-4                         9223         8737   -5.27%
+    BenchmarkStop                             603          496  -17.74%
+    BenchmarkStop-2                           795          577  -27.42%
+    BenchmarkStop-3                           982          680  -30.75%
+    BenchmarkStop-4                          1164          739  -36.51%
+    BenchmarkSimultaneousAfterFunc            657          593   -9.74%
+    BenchmarkSimultaneousAfterFunc-2          816          757   -7.23%
+    BenchmarkSimultaneousAfterFunc-3          844          830   -1.66%
+    BenchmarkSimultaneousAfterFunc-4          785          771   -1.78%
+    BenchmarkStartStop                        238          239   +0.42%
+    BenchmarkStartStop-2                      249          234   -6.02%
+    BenchmarkStartStop-3                      271          268   -1.11%
+    BenchmarkStartStop-4                      293          295   +0.68%
+    
+    R=golang-dev, dvyukov, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/13094043
+
+ src/pkg/runtime/time.goc   | 43 ++++++++++++++------
+ src/pkg/time/sleep_test.go | 98 +++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 111 insertions(+), 30 deletions(-)

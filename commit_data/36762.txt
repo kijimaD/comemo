@@ -1,0 +1,14 @@
+commit bf70ba07014c15e0b58a308080aa568c8a35f532
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Sep 19 12:46:09 2018 +0530
+
+    go/build: clarify that there are no build tags for minor releases
+    
+    Fixes #26458
+    
+    Change-Id: If932718ca8a2b230ab52495c1a7a82d86ab1325b
+    Reviewed-on: https://go-review.googlesource.com/136215
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

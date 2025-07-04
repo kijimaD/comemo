@@ -1,0 +1,25 @@
+commit f60c77026bb47db984c5da7e6f0590010e7e1a6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 12:10:12 2022 -0800
+
+    go/types, types2: report empty type sets in operand descriptions
+    
+    This leads to better error messages where operations are not
+    permitted because of empty type sets.
+    
+    Fixes #51525.
+    
+    Change-Id: I8d15645e2aff5145e458bdf9aaa4d2bee28d37fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452535
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/operand.go          |  4 ++++
+ src/cmd/compile/internal/types2/predicates.go       | 12 ++++++++++++
+ src/go/types/operand.go                             |  4 ++++
+ src/go/types/predicates.go                          | 12 ++++++++++++
+ src/internal/types/testdata/fixedbugs/issue51525.go |  4 ++++
+ 5 files changed, 36 insertions(+)

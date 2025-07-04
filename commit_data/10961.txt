@@ -1,0 +1,14 @@
+commit 019d78e5485d48a368d195914672817f3b94aea8
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Dec 22 14:21:25 2011 +1100
+
+    doc: refer to http://build.golang.org/ where applicable
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/5501062
+
+ doc/contrib.html     | 2 +-
+ doc/devel/index.html | 2 +-
+ doc/root.html        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

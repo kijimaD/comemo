@@ -1,0 +1,33 @@
+commit 8d86ef221631757ef4d89401947db674c730f94e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 11 14:00:07 2019 -0400
+
+    runtime: set itab.fun[0] only on successful conversion
+    
+    For a failed interface conversion not in ",ok" form, getitab
+    calls itab.init to get the name of the missing method for the
+    panic message. itab.init will try to find the methods, populate
+    the method table as it goes. When some method is missing, it sets
+    itab.fun[0] to 0 before return. There is a small window that
+    itab.fun[0] could be non-zero.
+    
+    If concurrently, another goroutine tries to do the same interface
+    conversion, it will read the same itab's fun[0]. If this happens
+    in the small window, it sees a non-zero fun[0] and thinks the
+    conversion succeeded, which is bad.
+    
+    Fix the race by setting fun[0] to non-zero only when we know the
+    conversion succeeds. While here, also simplify the syntax
+    slightly.
+    
+    Fixes #31419.
+    
+    Change-Id: Ied34d3043079eb933e330c5877b85e13f98f1916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171759
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/iface.go         |  9 ++++++-
+ test/fixedbugs/issue31419.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 1 deletion(-)

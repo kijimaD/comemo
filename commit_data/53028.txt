@@ -1,0 +1,31 @@
+commit be4fe08b57b3365f3f5db2e2def296904557442d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 17 13:06:16 2022 -0400
+
+    reflect: do not escape Value.Type
+    
+    Types are either static (for compiler-created types) or heap
+    allocated and always reachable (for reflection-created types, held
+    in the central map). So there is no need to escape types.
+    
+    With CL 408826 reflect.Value does not always escape. Some functions
+    that escapes Value.typ would make the Value escape without this CL.
+    
+    Had to add a special case for the inliner to keep (*Value).Type
+    still inlineable.
+    
+    Change-Id: I7c14d35fd26328347b509a06eb5bd1534d40775f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413474
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go |  18 ++-
+ src/reflect/deepequal.go               |   2 +-
+ src/reflect/makefunc.go                |   4 +-
+ src/reflect/type.go                    |  12 +-
+ src/reflect/value.go                   | 249 ++++++++++++++++++---------------
+ src/runtime/export_test.go             |   3 +
+ test/inline_sync.go                    |   4 +-
+ 7 files changed, 170 insertions(+), 122 deletions(-)

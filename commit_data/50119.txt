@@ -1,0 +1,48 @@
+commit 6a801d3082c6ab28372c115d13ef0c238e3535ae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 24 15:03:50 2022 -0700
+
+    cmd/compile/internal/noder: fix inlined function literal positions
+    
+    When inlining function calls, we rewrite the position information on
+    all of the nodes to keep track of the inlining context. This is
+    necessary so that at runtime, we can synthesize additional stack
+    frames so that the inlining is transparent to the user.
+    
+    However, for function literals, we *don't* want to apply this
+    rewriting to the underlying function. Because within the function
+    literal (when it's not itself inlined), the inlining context (if any)
+    will have already be available at the caller PC instead.
+    
+    Unified IR was already getting this right in the case of user-written
+    statements within the function literal, which is what the unit test
+    for #46234 tested. However, it was still using inline-adjusted
+    positions for the function declaration and its parameters, which
+    occasionally end up getting used for generated code (e.g., loading
+    captured values from the closure record).
+    
+    I've manually verified that this fixes the hang in
+    https://go.dev/play/p/avQ0qgRzOgt, and spot-checked the
+    -d=pctab=pctoinline output for kube-apiserver and kubelet and they
+    seem better.
+    
+    However, I'm still working on a more robust test for this (hence
+    "Updates" not "Fixes") and internal assertions to verify that we're
+    emitting correct inline trees. In particular, there are still other
+    cases (even in the non-unified frontend) where we're producing
+    corrupt (but at least acyclic) inline trees.
+    
+    Updates #54625.
+    
+    Change-Id: Iacfd2e1eb06ae8dc299c0679f377461d3d46c15a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425395
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/reader.go | 55 ++++++++++++++++++++++++++------
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ test/inline_unified.go                   |  4 +--
+ 3 files changed, 48 insertions(+), 13 deletions(-)

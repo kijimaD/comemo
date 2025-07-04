@@ -1,0 +1,17 @@
+commit d1eb9c8e0d4a9903c3b94e41aacc73117cc400e6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 27 05:59:06 2013 -0700
+
+    libmach: respect symbol table boundaries
+    
+    Since fp->symsz includes the size of the header
+    in the new symbol table format, we were reading
+    past the end and decoding a few garbage symbols
+    from data in the pc/line table.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/7993043
+
+ src/libmach/sym.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

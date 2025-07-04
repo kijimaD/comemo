@@ -1,0 +1,15 @@
+commit 61ba160120bcb5b5141fc95fa3ec232d577b9bfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 7 00:40:36 2009 -0700
+
+    Chdir
+    
+    R=r
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=27146
+    CL=27153
+
+ src/lib/os/file.go             | 6 ++++++
+ src/lib/syscall/file_darwin.go | 6 ++++++
+ src/lib/syscall/file_linux.go  | 5 +++++
+ 3 files changed, 17 insertions(+)

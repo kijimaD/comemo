@@ -1,0 +1,18 @@
+commit a5c5f6ea94dcd9caad0f0df8caaf68f8659900b2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 6 18:16:52 2016 +0200
+
+    all: fix copy-and-paste errors in tests
+    
+    Fixes #15570
+    
+    Change-Id: I95d1ac26e342c3bbf36ad1f0209711ea96eaf487
+    Reviewed-on: https://go-review.googlesource.com/22870
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/gob/codec_test.go | 4 ++--
+ src/net/conn_test.go           | 2 +-
+ src/net/mockserver_test.go     | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

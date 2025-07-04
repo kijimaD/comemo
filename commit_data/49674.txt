@@ -1,0 +1,24 @@
+commit faf4e97200df9415d55b04924ce77599f9e6fdfa
+Author: database64128 <free122448@hotmail.com>
+Date:   Fri Apr 29 17:29:58 2022 +0000
+
+    net: fix WriteMsgUDPAddrPort addr handling
+    
+    WriteMsgUDPAddrPort should accept IPv4 target addresses on IPv6 UDP sockets.
+    An IPv4 target address will be converted to an IPv4-mapped IPv6 address.
+    
+    Fixes #52264.
+    
+    Change-Id: Ib9ed4c61fa1289ae7bbc8c4c9de1a9951b647ec0
+    GitHub-Last-Rev: 6776fdb0a76faa71ebde58f5143fb1ffb3112adf
+    GitHub-Pull-Request: golang/go#52265
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399454
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ipsock_posix.go |  6 +++++-
+ src/net/udpsock_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)

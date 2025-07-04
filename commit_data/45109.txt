@@ -1,0 +1,32 @@
+commit 9913f821e23e9e26b84ce2b96698140116ee342b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 12 16:12:20 2021 -0400
+
+    cmd/compile: make map functions ABI insensitive
+    
+    Following CL 309029, this CL does the same thing for map
+    functions (mapaccess, mapassign, mapdelete).
+    
+    For simplicity, always wrap "defer delete(m, k)". With
+    regabidefers enabled, this call is wrapped in a closure and the
+    rewriting happens automatically. Without regabidefers, it may not
+    be wrapped for certain key types, and then we'd need special
+    handling of the delete (because earlier the order pass does not
+    handle it). And we will turn on defer wrapping by default anyway.
+    
+    Change-Id: I30663b1aa8e1d6f98e1fb81bf8c0c0ce607ab80b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309510
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/typecheck/builtin.go      | 313 +++++++++++----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  28 +-
+ src/cmd/compile/internal/walk/assign.go            |   4 +-
+ src/cmd/compile/internal/walk/complit.go           |  10 +-
+ src/cmd/compile/internal/walk/expr.go              |  12 +-
+ src/cmd/compile/internal/walk/order.go             |  46 ++-
+ src/cmd/compile/internal/walk/stmt.go              |   6 +-
+ src/cmd/compile/internal/walk/walk.go              |  26 +-
+ 8 files changed, 248 insertions(+), 197 deletions(-)

@@ -1,0 +1,23 @@
+commit d7a659b11b9ab9132fd4302ffe9250b30bbe431e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 10:09:44 2017 -0800
+
+    math/bits: faster OnesCount using table lookups for sizes 8,16,32
+    
+    For uint64, the existing algorithm is faster.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkOnesCount8-8      1.95          0.97          -50.26%
+    BenchmarkOnesCount16-8     2.54          1.39          -45.28%
+    BenchmarkOnesCount32-8     2.61          1.96          -24.90%
+    
+    Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.
+    
+    Change-Id: I6cc42882fef3d24694720464039161e339a9ae99
+    Reviewed-on: https://go-review.googlesource.com/37580
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/bits.go        | 21 +++------------------
+ src/math/bits/bits_tables.go | 19 +++++++++++++++++++
+ src/math/bits/make_tables.go |  9 +++++++++
+ 3 files changed, 31 insertions(+), 18 deletions(-)

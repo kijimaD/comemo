@@ -1,0 +1,17 @@
+commit 881d5405402d6e8c54f83eed6216a9ed29778006
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 16:11:53 2020 -0400
+
+    cmd/link: fix SLIBFUZZER_EXTRA_COUNTER symbol handling
+    
+    Found this while deleting the old code. This should be data2.
+    
+    Change-Id: I1232fac22ef63bb3a3f25a0558537cc371af3bd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234098
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

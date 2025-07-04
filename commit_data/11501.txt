@@ -1,0 +1,17 @@
+commit 2d7495d287005b87047f353ac3574146ef50ac29
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 21:39:38 2012 -0800
+
+    test: float to integer test case
+    
+    gccgo currently fails this test:
+    
+    fixedbugs/bug402.go:12:9: error: floating point constant truncated to integer
+    fixedbugs/bug402.go:13:8: error: floating point constant truncated to integer
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5600050
+
+ test/fixedbugs/bug402.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

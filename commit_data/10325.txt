@@ -1,0 +1,12 @@
+commit 6c10aa19b88d3a3c602c725821f73b02d0cd2d58
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Nov 9 13:50:13 2011 -0800
+
+    os/exec: Fix documentation references to os.DevNull
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5372049
+
+ src/pkg/os/exec/exec.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

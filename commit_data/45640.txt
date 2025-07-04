@@ -1,0 +1,28 @@
+commit 0eb38f2b164ec5b0094c5895cfe1b3a40c183d50
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed May 12 12:09:18 2021 +0200
+
+    cmd/go/internal/load: override Package.Root in module mode
+    
+    The Context.ImportDir method in the go/build package sets Package.Root
+    to $GOPATH, if a package is inside a GOPATH workspace.  The
+    loadPackageData function keeps this value even when modules are enabled.
+    
+    Override Package.Root when modules are enabled, instead of just set its
+    value when Context.ImportDir was unable to set it.
+    
+    Add a regression test.
+    
+    Fixes #46119
+    
+    Change-Id: I900a33fe13a445cb771e2952d0d830f1b4a5921f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319209
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    |  4 +++-
+ .../go/testdata/script/list_gomod_in_gopath.txt    | 23 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

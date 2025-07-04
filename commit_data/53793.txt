@@ -1,0 +1,20 @@
+commit 1c10d743eaff174f08e48dff85f64ade0b92425c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 14 18:31:44 2023 -0400
+
+    cmd/link: sort HOSTOBJ and UNDEFEXT symbols with undefined symbols in Mach-O symbol table
+    
+    HOSTOBJ and UNDEFEXT symbols are actually not defined in the
+    current translation unit. So put them as undefined symbols, along
+    with DYNIMPORT.
+    
+    For #61229.
+    
+    Change-Id: I1112ca928cdc401bac45adaa3f88b19422813960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503539
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

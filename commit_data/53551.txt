@@ -1,0 +1,28 @@
+commit dac75b66754978a89eeb143e2b7cabb830409fd8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 13 13:43:21 2023 -0700
+
+    go/types, types2: fix Hilbert test for stand-alone run
+    
+    When run as a stand-alone test (without other tests running before),
+    the builtin function 'assert' (only available for testing) is missing.
+    Make sure it's declared.
+    
+    This change only affects this test, when run stand-alone, as in:
+    
+    go test -run Hilbert
+    
+    Fixes #60774.
+    
+    Change-Id: Ib07d97ba2670b839e8ad11ef50d0e6581bb3d79d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502996
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/hilbert_test.go | 3 +++
+ src/go/types/generate_test.go                   | 2 +-
+ src/go/types/hilbert_test.go                    | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

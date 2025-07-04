@@ -1,0 +1,16 @@
+commit 92ac4bff747fdecbdb32f27490310ea6d60a080e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 24 15:56:39 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug192.go:11:5: error: redefinition of ‘fmt’
+    bug192.go:9:8: note: previous definition of ‘fmt’ was here
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=33780
+    CL=33790
+
+ test/fixedbugs/bug192.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

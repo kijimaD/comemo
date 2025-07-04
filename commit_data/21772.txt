@@ -1,0 +1,30 @@
+commit fb75f856df0c3ad5f4df861ab6ff3cab8a73a129
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 26 22:41:33 2015 +0100
+
+    runtime: fix memory allocator on Plan 9
+    
+    Previously, the memory allocator on Plan 9 did
+    not free memory properly. It was only able to
+    free the last allocated block.
+    
+    This change implements a variant of the
+    Kernighan & Ritchie memory allocator with
+    coalescing and splitting.
+    
+    The most notable differences are:
+    
+    - no header is prefixing the allocated blocks, since
+      the size is always specified when calling sysFree,
+    - the free list is nil-terminated instead of circular.
+    
+    Fixes #9736.
+    Fixes #9803.
+    Fixes #9952.
+    
+    Change-Id: I00d533714e4144a0012f69820d31cbb0253031a3
+    Reviewed-on: https://go-review.googlesource.com/5524
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mem_plan9.go | 126 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 113 insertions(+), 13 deletions(-)

@@ -1,0 +1,17 @@
+commit 836fe697c4ec34fb30fcba65052cb42822edf752
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed May 2 12:45:47 2018 +0200
+
+    cmd/link: let writelines work when pcstmt symbol doesn't exist
+    
+    The assembler does not produce pcstmt symbols, writeline should be able
+    to work even if no pcstmt symbol exists for a given function.
+    
+    Fixes #25216, #25191
+    
+    Change-Id: I41e16df1e7c8ca59d27e7514537609e309a51c51
+    Reviewed-on: https://go-review.googlesource.com/110816
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 8a2fb87b996a3c4198aa8d9505fd77e560df0bbc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun May 25 08:38:59 2014 +1000
+
+    runtime: skip stack growth test on 32bit platforms
+    
+    Update #8083
+    
+    See discussion in https://groups.google.com/forum/#!topic/golang-dev/dh6Ra_xJomc
+    
+    LGTM=khr
+    R=golang-codereviews, gobot, khr
+    CC=golang-codereviews
+    https://golang.org/cl/99440048
+
+ src/pkg/runtime/stack_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

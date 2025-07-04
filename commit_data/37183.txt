@@ -1,0 +1,23 @@
+commit 5cc80899486027db5f0de00870f1e022e1cfb9c5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 26 18:44:17 2018 +1100
+
+    os: use Stat instead of Lstat in Symlink
+    
+    Windows implementation of Symlink uses CreateSymbolicLink Windows
+    API. The API requires to identify the target type: file or
+    directory. Current Symlink implementation  uses Lstat to determine
+    symlink type, but Lstat will not be able to determine correct
+    result if destination is symlink. Replace Lstat call with Stat.
+    
+    Fixes #28432
+    
+    Change-Id: Ibee6d8ac21e2246bf8d0a019c4c66d38b09887d4
+    Reviewed-on: https://go-review.googlesource.com/c/145217
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_windows.go |  2 +-
+ src/os/stat_test.go    | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

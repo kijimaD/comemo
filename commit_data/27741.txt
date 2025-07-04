@@ -1,0 +1,23 @@
+commit b75b0630fe6d8f66f937f78f15f540b5b6dab24f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Jun 16 14:57:45 2016 -0500
+
+    runtime/internal/atomic: Use power5 compatible instructions for ppc64
+    
+    This modifies a recent performance improvement to the
+    And8 and Or8 atomic functions which required both ppc64le
+    and ppc64 to use power8 instructions. Since then it was
+    decided that ppc64 (BE) should work for power5 and later.
+    This change uses instructions compatible with power5 for
+    ppc64 and uses power8 for ppc64le.
+    
+    Fixes #16004
+    
+    Change-Id: I623c75e8e6fd1fa063a53d250d86cdc9d0890dc7
+    Reviewed-on: https://go-review.googlesource.com/24181
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/asm_ppc64x.s | 51 +++++++++++++++++++++++++++++---
+ 1 file changed, 47 insertions(+), 4 deletions(-)

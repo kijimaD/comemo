@@ -1,0 +1,12 @@
+commit 9fc0f159c31e7b63708ed80982a88753db8a4a02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 23 10:12:38 2011 -0800
+
+    sync: make package comment appear
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4220044
+
+ src/pkg/sync/cond.go | 1 +
+ 1 file changed, 1 insertion(+)

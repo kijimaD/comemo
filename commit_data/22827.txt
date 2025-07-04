@@ -1,0 +1,16 @@
+commit dc870d5f4b77c0a2a276f8fd12510a53969c56b5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 6 14:30:03 2015 -0400
+
+    runtime: detailed debug output of controller state
+    
+    This adds a detailed debug dump of the state of the GC controller and
+    a GODEBUG flag to enable it.
+    
+    Change-Id: I562fed7981691a84ddf0f9e6fcd9f089f497ac13
+    Reviewed-on: https://go-review.googlesource.com/9640
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go      | 28 ++++++++++++++++++++++++++++
+ src/runtime/runtime1.go |  2 ++
+ 2 files changed, 30 insertions(+)

@@ -1,0 +1,20 @@
+commit 7abc8a2e3370bd013d9aa12b5d443e21537dfb26
+Author: Alexander Scheel <alex.scheel@hashicorp.com>
+Date:   Thu Nov 3 13:09:31 2022 +0000
+
+    crypto/x509: switch test to ParseRevocationList
+    
+    In following with Roland's TODO, switch TestDisableSHA1ForCertOnly to ParseRevocationList(...) over ParseCRL(...).
+    
+    Change-Id: I8cdaf04ad0a1c8b94303415ae41933657067041e
+    GitHub-Last-Rev: bb2ef760e4fdd8c0c9228004674d4e1f581c4271
+    GitHub-Pull-Request: golang/go#56541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447036
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

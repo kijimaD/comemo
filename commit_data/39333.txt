@@ -1,0 +1,21 @@
+commit eb2fabf2fa4e1cb0386ae52e041c3d6b0ced3d29
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 16 22:13:47 2019 +0900
+
+    text/template: clarify the safety of Template.New
+    
+    In particular, the returned template isn't independent from the parent.
+    For example, it can't be parsed concurrently with other children
+    templates. Only methods which are explicitly safe for concurrent use,
+    like Execute, may be used concurrently.
+    
+    Fixes #30281.
+    
+    Change-Id: Idc84bf4199c035316cdb83b950fd4a8f2a71cd0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172297
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/template.go | 4 ++++
+ 1 file changed, 4 insertions(+)

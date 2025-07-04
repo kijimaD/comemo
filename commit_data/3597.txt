@@ -1,0 +1,19 @@
+commit fcb9387089015c5e153ebc8c99d75b46b7aa5396
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 22:33:56 2009 -0700
+
+    support for 5.out files
+    
+    R=kaib
+    DELTA=1262  (1247 added, 7 deleted, 8 changed)
+    OCL=35907
+    CL=35909
+
+ include/ureg_arm.h       |   49 +++
+ src/cmd/5l/asm.c         |    5 +-
+ src/libmach/5.c          |   92 ++++
+ src/libmach/5db.c        | 1095 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/libmach/Makefile     |    2 +
+ src/libmach/executable.c |    1 -
+ src/libmach/setmach.c    |   26 +-
+ 7 files changed, 1255 insertions(+), 15 deletions(-)

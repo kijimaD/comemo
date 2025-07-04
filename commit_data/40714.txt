@@ -1,0 +1,21 @@
+commit bde1968e4c1d0d43d1d558a364eb427ef2143c42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 15:28:51 2019 -0800
+
+    os/signal: use a larger channel buffer for all signals in TestSignal
+    
+    Now that the runtime can send preemption signals, it is possible that
+    a channel that asks for all signals can see both SIGURG and SIGHUP
+    before reading either, in which case one of the signals will be dropped.
+    We have to use a larger buffer so that the test see the signal it expects.
+    
+    Fixes #35466
+    
+    Change-Id: I36271eae0661c421780c72292a5bcbd443ada987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

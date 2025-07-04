@@ -1,0 +1,16 @@
+commit a677724edfc465193d2f79ee48d2c06defbc916b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Apr 18 03:18:13 2016 +0200
+
+    os: enable TestGetppid on Plan 9
+    
+    Fixes #8206.
+    
+    Change-Id: Iec1026ecc586495f5c9562cc84b3240c71d53da5
+    Reviewed-on: https://go-review.googlesource.com/22164
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

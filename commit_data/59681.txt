@@ -1,0 +1,39 @@
+commit 7589e9604237ad94869c5803af3bf428f108fefa
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Sat May 17 01:55:12 2025 +0800
+
+    cmd/compile: fold negation into addition/subtraction on s390x
+    
+    Fold negation into addition/subtraction and avoid double negation.
+    
+    file      before    after     Δ       %
+    addr2line 3909260   3909204   -56     -0.001%
+    asm       6714513   6714505   -8      -0.000%
+    buildid   3680344   3679504   -840    -0.023%
+    cgo       6219857   6219521   -336    -0.005%
+    compile   29527941  29528037  +96     +0.000%
+    cover     6869451   6868731   -720    -0.010%
+    dist      4498817   4498769   -48     -0.001%
+    doc       10483319  10481719  -1600   -0.015%
+    fix       4356204   4355932   -272    -0.006%
+    link      9080951   9080383   -568    -0.006%
+    nm        3899682   3833674   -66008  -1.693%
+    objdump   6347837   6347605   -232    -0.004%
+    pack      3103750   3103454   -296    -0.010%
+    pprof     18849998  18849478  -520    -0.003%
+    test2json 3619671   3619511   -160    -0.004%
+    trace     17164007  17161463  -2544   -0.015%
+    vet       10465861  10465173  -688    -0.007%
+    total     167058409 166983609 -74800  -0.045%
+    
+    Change-Id: I1b8cf3939b433e1765682196b8fc1aa07d37f895
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673476
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/S390X.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteS390X.go  | 34 +++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

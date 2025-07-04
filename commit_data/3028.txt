@@ -1,0 +1,14 @@
+commit 40b078637416026e6e01b1663ec53525ca5d5705
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Aug 19 19:19:57 2009 -0700
+
+    change from using /tmp to local directory
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=33534
+    CL=33567
+
+ src/all-arm.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

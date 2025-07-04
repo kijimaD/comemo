@@ -1,0 +1,27 @@
+commit 98938189a16a764007bce7fcd4bfeb2386043208
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 27 14:39:27 2016 -0700
+
+    cmd/compile: remove duplicate nilchecks
+    
+    Mark nil check operations as faulting if their arg is zero.
+    This lets the late nilcheck pass remove duplicates.
+    
+    Fixes #17242.
+    
+    Change-Id: I4c9938d8a5a1e43edd85b4a66f0b34004860bcd9
+    Reviewed-on: https://go-review.googlesource.com/29952
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go    |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go  |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go  |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go    |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go  |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go  |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go         | 57 +++++++++++++++------------
+ test/nilptr3.go                               | 14 +++++++
+ 9 files changed, 53 insertions(+), 32 deletions(-)

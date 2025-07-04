@@ -1,0 +1,29 @@
+commit 7f2314530e7cb4a11c6df4f7bd51187f5cffe2a5
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 13 20:11:07 2021 -0800
+
+    cmd/compile: don't re-typecheck while importing
+    
+    The imported code is already typechecked. NodAddrAt typechecks its
+    argument, which is unnecessary here and leads to errors when
+    typechecking unexported field references in other packages' code.
+    
+    Mark the node is question as already typechecked, so we don't
+    retypecheck it.
+    
+    Fixes #50148
+    
+    Change-Id: I9789e3e7dd4d58ec095675e27b1c98389f7a0c44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371554
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iimport.go |  7 ++++++-
+ test/typeparam/structinit.dir/a.go            | 15 +++++++++++++++
+ test/typeparam/structinit.dir/b.go            | 12 ++++++++++++
+ test/typeparam/structinit.dir/main.go         | 11 +++++++++++
+ test/typeparam/structinit.go                  |  7 +++++++
+ 5 files changed, 51 insertions(+), 1 deletion(-)

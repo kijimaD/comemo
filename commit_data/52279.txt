@@ -1,0 +1,23 @@
+commit 08c32998297e66486416d4021630510eafdcd81e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 10 09:38:49 2023 -0800
+
+    database/sql: remove a distracting alloc, use atomic.Bool
+    
+    This removes an allocation in Conn.grabConn that, while not super
+    important, was distracting me when optimizing code elsewhere.
+    
+    While here, convert an atomic that was forgotten when this package was
+    earlier updated to use the new Go 1.19 typed atomics.
+    
+    Change-Id: I4666256b4c0512e2162bd485c389130699f9d5ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475415
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 19 +++++++++++++------
+ src/database/sql/sql_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 6 deletions(-)

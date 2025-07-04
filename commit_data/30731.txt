@@ -1,0 +1,21 @@
+commit eb6c1dd7ebd7035978eda533d1c0470261306bff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 20 16:44:34 2017 +0000
+
+    net/http: deflake TestServerAllowsBlockingRemoteAddr more
+    
+    As noted in https://github.com/golang/go/issues/19161#issuecomment-287554171,
+    CL 37771 (adding use of the new httptest.Server.Client to all net/http
+    tests) accidentally reverted DisableKeepAlives for this test. For
+    many tests, DisableKeepAlives was just present to prevent goroutines
+    from staying active after the test exited.  In this case it might
+    actually be important. (We'll see)
+    
+    Updates #19161
+    
+    Change-Id: I11f889f86c932b51b11846560b68dbe5993cdfc3
+    Reviewed-on: https://go-review.googlesource.com/38373
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/net/http/serve_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

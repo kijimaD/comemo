@@ -1,0 +1,16 @@
+commit 2a1b4a83fc18ee54c1c44f33a9a2d317c32e2d8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 28 23:29:00 2011 -0400
+
+    gofix: netdial
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4278053
+
+ src/cmd/gofix/Makefile        |   1 +
+ src/cmd/gofix/fix.go          |  17 +++++--
+ src/cmd/gofix/main.go         |   2 +-
+ src/cmd/gofix/netdial.go      | 114 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/netdial_test.go |  51 +++++++++++++++++++
+ 5 files changed, 180 insertions(+), 5 deletions(-)

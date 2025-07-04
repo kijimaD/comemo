@@ -1,0 +1,14 @@
+commit d00e7ad640cf0bb91fff33aaac4bbb6da8d415c2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun May 24 03:58:03 2015 -0400
+
+    cmd/compile: show compiler panics when -d panic=1
+    
+    Fixes #10683.
+    
+    Change-Id: I4cce3f298b787c736dbabe544a11a9215bcd3671
+    Reviewed-on: https://go-review.googlesource.com/10336
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

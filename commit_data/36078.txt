@@ -1,0 +1,17 @@
+commit 9039c2c0bfc0c55e93756d9391fc71f13e87fcda
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 16:18:29 2018 -0400
+
+    cmd/go/internal/modget: fix get pkg@none
+    
+    Now pkg@none actually removes the pkg instead of dying.
+    
+    For #26342.
+    
+    Change-Id: I9df7281ed8fd24480109b36f33a563f92e279244
+    Reviewed-on: https://go-review.googlesource.com/124796
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                |  9 +++++----
+ src/cmd/go/testdata/script/mod_get_downgrade.txt | 11 +++++++++--
+ 2 files changed, 14 insertions(+), 6 deletions(-)

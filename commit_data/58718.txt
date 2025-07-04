@@ -1,0 +1,21 @@
+commit 4ffa9a8305ddca86813cda356ddf1529b8054601
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 13:51:26 2025 +0100
+
+    crypto/internal/fips140test: support disabling PAA/PAI
+    
+    FIPS 140-3 testing requires testing the module both with and without
+    platform hardware acceleration.
+    
+    Change-Id: I6a6a4656faad883062d64bc8e2363d4c59bd8cce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648817
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/fips140test/acvp_test.go |  8 ++++++++
+ src/crypto/internal/fips140test/fips_test.go |  6 ++++++
+ src/crypto/internal/impl/impl.go             | 14 ++++++++++++++
+ 3 files changed, 28 insertions(+)

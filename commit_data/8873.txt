@@ -1,0 +1,53 @@
+commit fe2ccb53c077baf5d4d97c4a5996f54f2cbcd1a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 22:42:34 2011 -0400
+
+    cc: add two new #pragma varargck
+    
+    #pragma varargck countpos f 1
+    says that the first argument to f is
+    the count of variadic arguments that follow.
+    
+    #pragma varargck type f t
+    says that t is one of the allowed types for
+    a variadic argument to f.
+    (can be repeated)
+    
+    combined, these can be used to check the
+    runtime.stdcall functions in the windows port
+    or in any other port that needs a vararg list of
+    uintptrs even on a 64-bit platform (where it is
+    very easy to pass a less-than-uintptr in the ...).
+    
+    demo:
+    
+    typedef unsigned int uintptr;
+    
+    #pragma varargck countpos f 1
+    #pragma varargck type f uintptr
+    #pragma varargck type f void*
+    
+    int f(int count, ...);
+    
+    void *v;
+    char *p;
+    
+    void
+    main(void)
+    {
+            f(1, v);  // ok
+            f(1, main);  // ok
+            f(1, p);  // ok
+            f(2, v, v);  // ok
+    
+            f(2, v);  // found 1 argument after count 2
+            f(1, 'a');  // invalid type INT in call to f
+            f(1, 0);  // invalid type INT in call to f
+    }
+    
+    R=ken, r, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4634103
+
+ src/cmd/cc/dpchk.c | 127 ++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 112 insertions(+), 15 deletions(-)

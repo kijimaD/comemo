@@ -1,0 +1,30 @@
+commit 1da62afeef1fdfb822afc4af0feb2eece10d8c7d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 24 13:50:26 2016 -0700
+
+    cmd/compile: replace len(Nodes.Slice()) with Nodes.Len()
+    
+    Generated with eg:
+    
+    func before(n gc.Nodes) int { return len(n.Slice()) }
+    func after(n gc.Nodes) int  { return n.Len() }
+    
+    Change-Id: Ifdf01915e60069166afe96aa7b1d08720bf62fc5
+    Reviewed-on: https://go-review.googlesource.com/22420
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/esc.go       |  6 +++---
+ src/cmd/compile/internal/gc/export.go    |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/inl.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/parser.go    |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ 13 files changed, 23 insertions(+), 23 deletions(-)

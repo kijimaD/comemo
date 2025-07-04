@@ -1,0 +1,21 @@
+commit 1efc5815dd316953a8f37e58f7e3542a6aac3adf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 17:52:16 2022 -0800
+
+    go/types, types2: use orig. compiler error message for a shift error
+    
+    Slightly better for cases such as string(1 << s).
+    Leaves type-checker tests alone for now because
+    there are multiple dozens.
+    
+    For #45117.
+    
+    Change-Id: I47b314c713fabe424c2158674bf965416a8a6f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379274
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 23 +++++++++++++++--------
+ src/go/types/expr.go                    | 21 ++++++++++++++-------
+ test/fixedbugs/issue28079c.go           |  2 +-
+ 3 files changed, 30 insertions(+), 16 deletions(-)

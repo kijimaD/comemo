@@ -1,0 +1,19 @@
+commit db0c524211d82af1f632b78c80d22d734c8b1be2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 5 17:10:40 2019 +0200
+
+    syscall: allow empty string argument to SetsockoptString
+    
+    Don't panic with "index out of range" on empty string argument.
+    
+    Fixes golang/go#31277
+    
+    Change-Id: I005f9523caec76337cb2ec87272a6be4736bce18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170937
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_unix.go      | 6 +++++-
+ src/syscall/syscall_unix_test.go | 8 ++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

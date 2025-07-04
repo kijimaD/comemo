@@ -1,0 +1,37 @@
+commit fa8470a8cd42a0ceff315232ec7e8a30ed1ff7d3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 1 18:02:14 2019 +0000
+
+    runtime: make treap iteration more efficient
+    
+    This change introduces a treapIterFilter type which represents the
+    power set of states described by a treapIterType.
+    
+    This change then adds a treapIterFilter field to each treap node
+    indicating the types of spans that live in that subtree. The field is
+    maintained via the same mechanism used to maintain maxPages. This allows
+    pred, succ, start, and end to be judicious about which subtrees it will
+    visit, ensuring that iteration avoids traversing irrelevant territory.
+    
+    Without this change, repeated scavenging attempts can end up being N^2
+    as the scavenger walks over what it already scavenged before finding new
+    spans available for scavenging.
+    
+    Finally, this change also only scavenges a span once it is removed from
+    the treap. There was always an invariant that spans owned by the treap
+    may not be mutated in-place, but with this change violating that
+    invariant can cause issues with scavenging.
+    
+    For #30333.
+    
+    Change-Id: I8040b997e21c94a8d3d9c8c6accfe23cebe0c3d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174878
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  12 +-
+ src/runtime/mgclarge.go    | 341 ++++++++++++++++++++++++++-------------------
+ src/runtime/mheap.go       |  14 +-
+ src/runtime/treap_test.go  |  19 +++
+ 4 files changed, 236 insertions(+), 150 deletions(-)

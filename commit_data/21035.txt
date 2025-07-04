@@ -1,0 +1,31 @@
+commit 474ce6903b0646101769b03e976f7f70527bab54
+Author: Jed Denlea <jed@fastly.com>
+Date:   Tue Dec 16 00:24:19 2014 -0800
+
+    net/http: Fix Range off-by-one error
+    
+    Given a file of size N, a request for "Range: bytes=N-*" should
+    return a 416 [1].  Currently, it returns a 206 and a body of 0
+    bytes, with the illegal Content-Range of "bytes N-(N-1)/N" [2].
+    
+    [1]: RFC 7233, sec 2.1: "If a valid byte-range-set includes at least one
+    byte-range-spec with a first-byte-pos that is less than the current
+    length of the representation, [...]".  sec 3.1: "If all of the
+    preconditions are true, the server supports the Range header field for
+    the target resource, and the specified range(s) are invalid or
+    unsatisfiable, the server SHOULD send a 416 (Range Not Satisfiable)
+    response."
+    
+    [2]: RFC 7233, sec 4.2: "A Content-Range field value is invalid if it
+    contains a byte-range-resp that has a last-byte-pos value less than its
+    first-byte-pos value, [...]"
+    
+    Fixes #8988
+    
+    Change-Id: If3e1134e7815f5d361efea01873b29aafe3de817
+    Reviewed-on: https://go-review.googlesource.com/1862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 16 ++++++++++++----
+ 2 files changed, 13 insertions(+), 5 deletions(-)

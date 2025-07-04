@@ -1,0 +1,14 @@
+commit 6bed304244493508191501ad63fdc74b41e19653
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 5 10:32:44 2020 +0700
+
+    test: fix issue 15992 test wrong function call
+    
+    Change-Id: I623ae5faffce456b34d97a2a0aa277ecbf1990f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217699
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue15992.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

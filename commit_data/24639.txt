@@ -1,0 +1,21 @@
+commit 8993f79eaccbb27455e2280fa2275fe80b75bde6
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Oct 24 13:28:00 2015 +0200
+
+    syscall: define common notes on Plan 9
+    
+    There is no signal list on Plan 9, since notes
+    are strings. However, some programs expect
+    signals to be defined in the syscall package.
+    Hence, we define a list of the most common notes.
+    
+    Updates #11975.
+    
+    Change-Id: I852e14fd98777c9595a406e04125be1cbebed0fb
+    Reviewed-on: https://go-review.googlesource.com/16301
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/errors_plan9.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

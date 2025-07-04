@@ -1,0 +1,26 @@
+commit 366681cc06357cfdca91c18eff059e11e5470383
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 7 11:34:35 2017 +0000
+
+    cmd/vet: don't warn on escaped newlines in Println
+    
+    The old code only worked for double-quoted strings, and only checked
+    that the end of the literal value was \n". This worked most of the time,
+    except for some strings like "foo\\n", which doesn't actually translate
+    into a trailing newline when unquoted.
+    
+    To fix this, unquote the string first and look for a real newline at the
+    end of it. Ignore errors, as we don't have anything to do with string
+    literals using back quotes.
+    
+    Fixes #22613.
+    
+    Change-Id: I7cf96916dd578b7068216c2051ec2622cce0b740
+    Reviewed-on: https://go-review.googlesource.com/76194
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/print.go          | 5 +++--
+ src/cmd/vet/testdata/print.go | 5 +++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)

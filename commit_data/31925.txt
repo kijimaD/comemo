@@ -1,0 +1,19 @@
+commit 5dafa91917eee6c446e411bad0aee13b0a556900
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Tue Jun 27 23:04:44 2017 +0900
+
+    cmd/go: update helpdoc.go about '-buildmode'
+    
+    After https://golang.org/cl/46421 is landed.
+    helpdoc.go should be updated that -buildmode=c-shared
+    requires only one main package.
+    
+    Fixes #15082
+    
+    Change-Id: I30a0ee956e6c4655c975ecdaa905887bd474952c
+    Reviewed-on: https://go-review.googlesource.com/46810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go               | 6 +++---
+ src/cmd/go/internal/help/helpdoc.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

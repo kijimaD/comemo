@@ -1,0 +1,15 @@
+commit a6820b65cbc585f32697cac047f2260c069ec4b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 15:04:41 2011 -0800
+
+    gofmt: don't attempt certain illegal rewrites
+    
+    (e.g.: echo 'package main' | gofmt -r 'x->7'
+    cannot change the package name to 7)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3913041
+
+ src/cmd/gofmt/rewrite.go | 36 ++++++++++++++++++++++++++----------
+ 1 file changed, 26 insertions(+), 10 deletions(-)

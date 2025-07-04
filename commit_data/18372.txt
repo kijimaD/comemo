@@ -1,0 +1,16 @@
+commit 731e6f7d1d7238c8465f44691836a8a865d4cdb9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 29 09:51:31 2014 +0900
+
+    net: fix incoming connection's network name handling on unix networks
+    
+    Fixes #7183.
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/57520043
+
+ src/pkg/net/conn_test.go      | 16 +++++++++++-----
+ src/pkg/net/unixsock_posix.go |  6 +++++-
+ 2 files changed, 16 insertions(+), 6 deletions(-)

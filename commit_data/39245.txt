@@ -1,0 +1,15 @@
+commit fc58acbe5cb18a8428a81452bdf6e2b84625315c
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:43:05 2019 +0000
+
+    compress/gzip: add missing error check in test
+    
+    Change-Id: Ib7be503a46f3609ea29464569e57e1f620e97a53
+    GitHub-Last-Rev: a43cffe45f3b9d208028f7682088cbe537d6deca
+    GitHub-Pull-Request: golang/go#30007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160431
+    Run-TryBot: Leon Klingele <git@leonklingele.de>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/gzip_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

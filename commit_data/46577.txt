@@ -1,0 +1,23 @@
+commit c90ead97ad7542437079462e0b70ff7b3f8e7811
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 16:53:21 2021 -0700
+
+    cmd/compile/internal/types2: delay union element checks
+    
+    We cannot determine the underlying type right when parsing
+    a union term since it may lead to types that are not yet
+    fully set up.
+    
+    Fixes #46461.
+    
+    Change-Id: I1fcadb1dcef2160be2f088a4a34e99dbab01da67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351969
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue46461.go2         |  9 +++++++++
+ src/cmd/compile/internal/types2/typeset.go           |  8 ++++----
+ src/cmd/compile/internal/types2/union.go             | 20 ++++++++++++++------
+ 3 files changed, 27 insertions(+), 10 deletions(-)

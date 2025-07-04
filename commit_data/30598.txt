@@ -1,0 +1,22 @@
+commit 228438e0973b688829fdd601e31352920a5914f4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 8 21:56:57 2017 +0100
+
+    os/user: fake Current on Android
+    
+    On Android devices where the stub fallback for Current fails to
+    extract a User from the environment, return a dummy fallback instead
+    of failing.
+    
+    While we're here, use / instead of /home/nacl for the NaCL fallback.
+    
+    Hopefully fixes the Android builder.
+    
+    Change-Id: Ia29304fbc224ee5f9c0f4e706d1756f765a7eae5
+    Reviewed-on: https://go-review.googlesource.com/37960
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/user/lookup_stubs.go | 16 ++++++++++++++--
+ src/os/user/user_test.go    |  3 ---
+ 2 files changed, 14 insertions(+), 5 deletions(-)

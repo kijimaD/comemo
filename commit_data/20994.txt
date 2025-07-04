@@ -1,0 +1,25 @@
+commit 8f36655346396e32952c6a7c9cfbc16c73a1ff4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 17:47:55 2014 +1100
+
+    net/http/httputil: don't use DisableKeepAlives in DumpRequestOut, fix build
+    
+    I broke the build in https://golang.org/change/207950a when I made
+    http.Transport send "Connection: close" request headers when
+    DisableKeepAlives was set true because I didn't run all the tests
+    before submitting.
+    
+    httputil.DumpRequestOut used Transport to get its output, and used it
+    with DisableKeepAlives, so this changed the output.
+    
+    Rather than updating golden data in our tests (because surely others
+    depend on the exact bytes from these in their tests), switch to not
+    using DisableKeepAlives in DumpRequestOut instead, so the output is
+    the same as before.
+    
+    Change-Id: I9fad190be8032e55872e6947802055a6d65244df
+    Reviewed-on: https://go-review.googlesource.com/1632
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/httputil/dump.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

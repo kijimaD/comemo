@@ -1,0 +1,13 @@
+commit b3382ec9e9cfbb20efd7bf7d6a369071a46c8dfe
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Jun 25 14:08:09 2012 -0400
+
+    exp/inotify: prevent data race
+    Fixes #3713.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6331055
+
+ src/pkg/exp/inotify/inotify_linux.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

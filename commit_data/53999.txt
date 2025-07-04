@@ -1,0 +1,25 @@
+commit 41c71d48a126b1429babad2c1df23b773b1fc702
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jun 27 11:30:29 2023 -0500
+
+    cmd/compile/internal: add RLDICR opcode for PPC64
+    
+    This is encoded similarly to RLDICL, but can clear the least
+    significant bits.
+    
+    Likewise, update the auxint encoding of RLDICL to match those
+    used by the rotate and mask word ssa opcodes for easier usage
+    within lowering rules. The RLDICL ssa opcode is not used yet.
+    
+    Change-Id: I42486dd95714a3e8e2f19ab237a6cf3af520c905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515575
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go         | 30 +++++++++---------
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  3 +-
+ src/cmd/compile/internal/ssa/opGen.go         | 45 ++++++++++++++++++---------
+ 3 files changed, 48 insertions(+), 30 deletions(-)

@@ -1,0 +1,15 @@
+commit 70896a78fab1c486af505f9d04f65e29c8a45d0a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 16 22:30:14 2014 +0200
+
+    syscall: don't cache environment variables on Plan 9
+    
+    Fixes #8849.
+    
+    LGTM=bradfitz, aram
+    R=bradfitz, rsc, aram
+    CC=golang-codereviews
+    https://golang.org/cl/158970045
+
+ src/syscall/env_plan9.go | 97 ++++++++----------------------------------------
+ 1 file changed, 15 insertions(+), 82 deletions(-)

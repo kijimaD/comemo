@@ -1,0 +1,16 @@
+commit fedc277013d7b8d2812c3ccb869e1a8530b5f6f5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 9 11:15:14 2012 +1100
+
+    misc/dist: new hierarchy for binary distribution packaging scripts
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5639063
+
+ misc/dist/README                     |  4 +++
+ misc/dist/darwin/README              |  3 ++
+ misc/dist/darwin/dist.bash           | 69 ++++++++++++++++++++++++++++++++++++
+ misc/dist/darwin/etc/paths.d/go      |  1 +
+ misc/dist/darwin/scripts/postinstall | 23 ++++++++++++
+ 5 files changed, 100 insertions(+)

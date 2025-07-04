@@ -1,0 +1,16 @@
+commit 2a3db5c0175e26ba99adca90e5bab6cb4e85cc2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 22:22:25 2016 -0400
+
+    cmd/cgo: document C.malloc behavior
+    
+    Fixes #16309.
+    
+    Change-Id: Ifcd28b0746e1af30e2519a7b118485aecfb12396
+    Reviewed-on: https://go-review.googlesource.com/31811
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

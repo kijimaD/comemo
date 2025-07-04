@@ -1,0 +1,43 @@
+commit 97f843b51f69f392bb09b24c077aca505e519551
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 13:54:50 2023 -0800
+
+    go/types: use nopos instead of token.NoPos to match types2
+    
+    This will simplify the generation of go/types files from types2 files.
+    
+    Change-Id: Ie9c8061346cff098cb884908c7eb569267886594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461082
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go |  5 +++--
+ src/cmd/compile/internal/types2/check.go    |  1 +
+ src/go/types/api_test.go                    |  7 +++++--
+ src/go/types/assignments.go                 |  5 ++---
+ src/go/types/builtins.go                    |  6 +++---
+ src/go/types/call.go                        |  6 +++---
+ src/go/types/check.go                       |  5 ++++-
+ src/go/types/context_test.go                |  9 ++++-----
+ src/go/types/errors.go                      |  4 ++--
+ src/go/types/errors_test.go                 |  5 ++---
+ src/go/types/eval.go                        |  2 +-
+ src/go/types/eval_test.go                   |  6 +++---
+ src/go/types/infer.go                       |  5 ++---
+ src/go/types/instantiate.go                 |  4 ++--
+ src/go/types/instantiate_test.go            |  5 ++---
+ src/go/types/interface.go                   |  2 +-
+ src/go/types/issues_test.go                 | 24 ++++++++++++------------
+ src/go/types/object.go                      | 14 +++++++-------
+ src/go/types/object_test.go                 |  2 +-
+ src/go/types/operand.go                     |  4 ++--
+ src/go/types/package.go                     |  3 +--
+ src/go/types/predicates.go                  | 12 +++++-------
+ src/go/types/resolver.go                    |  6 +++---
+ src/go/types/signature.go                   |  5 ++---
+ src/go/types/typeterm_test.go               |  3 +--
+ src/go/types/universe.go                    | 23 +++++++++++------------
+ 26 files changed, 85 insertions(+), 88 deletions(-)

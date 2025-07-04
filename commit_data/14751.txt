@@ -1,0 +1,18 @@
+commit 7c4183ac2439a48d42ae7491ef47a26dc469b5fd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Dec 28 21:01:52 2012 +1100
+
+    net: consolidate fd_{free,net,open}bsd.go into fd_bsd.go
+    
+    These files are identical, so probably pre date // +build.
+    
+    With a little work, fd_darwin could be merged as well.
+    
+    R=mikioh.mikioh, jsing, devon.odell, lucio.dere, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7004053
+
+ src/pkg/net/{fd_freebsd.go => fd_bsd.go} |   2 +
+ src/pkg/net/fd_netbsd.go                 | 116 -------------------------------
+ src/pkg/net/fd_openbsd.go                | 116 -------------------------------
+ 3 files changed, 2 insertions(+), 232 deletions(-)

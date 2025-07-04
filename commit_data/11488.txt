@@ -1,0 +1,12 @@
+commit 61ac24cecc8f3d69a808cfb19236c07411b63856
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 31 12:27:58 2012 +1100
+
+    fix: add image/{bmp,tiff} to go1pkgrename.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5581053
+
+ src/cmd/fix/go1pkgrename.go | 4 ++++
+ 1 file changed, 4 insertions(+)

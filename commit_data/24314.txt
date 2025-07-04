@@ -1,0 +1,29 @@
+commit 3d91624fad8be21e2e612ec28cc3a4a752c45561
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 14:13:56 2015 -0700
+
+    go/types: unified handling of assignment errors
+    
+    - simpler code
+    - closer to gc error messages
+    - more context information in some cases
+    
+    Change-Id: Iad155a887b838a4fc1edf719eed18269670b5ede
+    Reviewed-on: https://go-review.googlesource.com/14720
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go           |  2 +-
+ src/go/types/assignments.go        | 72 ++++++++++++++++++++------------------
+ src/go/types/builtins.go           | 17 ++++-----
+ src/go/types/call.go               |  8 ++---
+ src/go/types/decl.go               |  2 +-
+ src/go/types/errors.go             |  8 -----
+ src/go/types/expr.go               | 37 +++++---------------
+ src/go/types/stmt.go               | 21 +++++++----
+ src/go/types/testdata/builtins.src | 26 +++++++-------
+ src/go/types/testdata/decls1.src   | 16 ++++-----
+ src/go/types/testdata/expr0.src    |  2 +-
+ src/go/types/testdata/expr3.src    | 46 ++++++++++++------------
+ src/go/types/testdata/issues.src   | 36 +++++++++----------
+ src/go/types/testdata/stmt0.src    | 44 +++++++++++------------
+ 14 files changed, 158 insertions(+), 179 deletions(-)

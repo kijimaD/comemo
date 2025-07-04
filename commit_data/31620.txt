@@ -1,0 +1,13 @@
+commit b3b9b5e463cefb5eaad69628709ed5a0c1cb658f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun May 7 23:19:31 2017 -0700
+
+    net/url: add examples for URL.Hostname and URL.RequestURI
+    
+    Change-Id: I72a10cd5dfb863f8219bb3b5b8280c017f523cf4
+    Reviewed-on: https://go-review.googlesource.com/42856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/example_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

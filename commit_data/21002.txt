@@ -1,0 +1,12 @@
+commit 0293b7ee37de9b489688a3bd8672a1655e441d71
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 18 12:55:22 2014 +1100
+
+    doc: fixes to contributor docs
+    
+    Change-Id: Ib31fb1f8239d8113728bc4c6e411416721571341
+    Reviewed-on: https://go-review.googlesource.com/1743
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

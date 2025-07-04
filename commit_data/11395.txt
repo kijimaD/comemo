@@ -1,0 +1,37 @@
+commit ee9bfb023a0cda29ee97eeec592d34c504e9705c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 25 17:53:50 2012 -0500
+
+    gc: fix order of evaluation
+    
+    Pulling function calls out to happen before the
+    expression being evaluated was causing illegal
+    reorderings even without inlining; with inlining
+    it got worse.  This CL adds a separate ordering pass
+    to move things with a fixed order out of expressions
+    and into the statement sequence, where they will
+    not be reordered by walk.
+    
+    Replaces lvd's CL 5534079.
+    
+    Fixes #2740.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5569062
+
+ src/cmd/gc/Makefile      |   1 +
+ src/cmd/gc/fmt.c         |   8 +-
+ src/cmd/gc/gen.c         |   1 +
+ src/cmd/gc/go.h          |   7 +
+ src/cmd/gc/inl.c         |  37 +++--
+ src/cmd/gc/order.c       | 370 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/pgen.c        |   6 +-
+ src/cmd/gc/sinit.c       |   4 +
+ src/cmd/gc/subr.c        |  25 +++-
+ src/cmd/gc/typecheck.c   |   1 +
+ src/cmd/gc/walk.c        |  29 ++--
+ test/fixedbugs/bug401.go |  41 ++++--
+ test/func8.go            |  47 ++++++
+ test/reorder2.go         | 174 ++++++++++++++++++++++
+ 14 files changed, 705 insertions(+), 46 deletions(-)

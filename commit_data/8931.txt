@@ -1,0 +1,14 @@
+commit 3cd8f27d79604ac119ce732e87ac8a44fb998aaf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jul 2 14:07:06 2011 +1000
+
+    godoc: search GOPATH for documentation
+    
+    R=rsc, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4627065
+
+ src/cmd/godoc/godoc.go   | 11 ++++++++++-
+ src/cmd/godoc/main.go    |  6 +++++-
+ src/cmd/godoc/mapping.go | 12 ++++++------
+ 3 files changed, 21 insertions(+), 8 deletions(-)

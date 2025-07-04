@@ -1,0 +1,15 @@
+commit c333d07ebe9268efc3cf4bd68319d65818c75966
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 26 08:12:58 2020 -0800
+
+    strconv: stop describing Unicode graphic characters as non-ASCII
+    
+    Fixes #36778
+    
+    Change-Id: I3c4ce100fc219bda0ff1d7a086c2309ed695691d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216478
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strconv/quote.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

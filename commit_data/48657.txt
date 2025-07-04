@@ -1,0 +1,22 @@
+commit 85b5f86584686677c554b2538a7edee96d684aea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 17:26:21 2022 -0700
+
+    net: support error.Is of network errors and context errors
+    
+    Change timeouts to be Is(context.DeadlineExceeded) and cancelation to
+    be Is(context.Canceled).
+    
+    Fixes #51428
+    
+    Change-Id: Ic580bd9da0f338e993fb79138875a78d99cc1a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396877
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.19.html       | 12 ++++++++++++
+ src/net/error_test.go |  9 +++++++++
+ src/net/net.go        | 23 +++++++++++++++++------
+ 3 files changed, 38 insertions(+), 6 deletions(-)

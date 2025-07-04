@@ -1,0 +1,15 @@
+commit bbc2c0385277327c354896a142d234d6915a449e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 8 18:09:33 2009 -0700
+
+    - godoc periodic sync for Linux and Darwin
+    - support debug/sync (if automatic sync is enabled in the first place)
+    - removed debug/restart feature
+    
+    R=rsc
+    DELTA=97  (37 added, 27 deleted, 33 changed)
+    OCL=30068
+    CL=30079
+
+ usr/gri/pretty/godoc.go | 114 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 62 insertions(+), 52 deletions(-)

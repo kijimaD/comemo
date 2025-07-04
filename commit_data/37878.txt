@@ -1,0 +1,19 @@
+commit e1d20ce25acfd8a1c5933453f34db5f589585eaa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 9 21:01:41 2019 -0500
+
+    misc/sortac: delete sortac command
+    
+    The sortac command is no longer needed as of CL 157238, and
+    can be deleted. Its functionality has been directly integrated
+    into the new x/build/cmd/updatecontrib command. A previous version
+    of updatecontrib was the only user of sortac.
+    
+    Updates #12042
+    
+    Change-Id: If7442ebee11d05d095ff875a37eed3973c0fd9ca
+    Reviewed-on: https://go-review.googlesource.com/c/157257
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/sortac/sortac.go | 79 ---------------------------------------------------
+ 1 file changed, 79 deletions(-)

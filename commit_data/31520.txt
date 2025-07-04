@@ -1,0 +1,23 @@
+commit 9eacd977a0d2329ea5856db7ab9bf5130f7bafcc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 9 06:40:04 2017 -0700
+
+    cmd/go: put user flags after code generation flag
+    
+    This permits the user to override the code generation flag when they
+    know better. This is always a good policy for all flags automatically
+    inserted by the build system.
+    
+    Doing this now so that I can write a test for #20290.
+    
+    Update #20290
+    
+    Change-Id: I5c6708a277238d571b8d037993a5a59e2a442e98
+    Reviewed-on: https://go-review.googlesource.com/42952
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go             | 28 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/build.go |  6 +++---
+ 2 files changed, 31 insertions(+), 3 deletions(-)

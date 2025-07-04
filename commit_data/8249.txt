@@ -1,0 +1,15 @@
+commit 33ca16d616c93510b15e64c377d79112fae7c2f7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 28 13:14:35 2011 +1000
+
+    mime/multipart: add ReadForm and associated types
+    
+    R=brad_danga_com, rsc, dfc, r, dchest, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4439075
+
+ src/pkg/mime/multipart/Makefile         |   1 +
+ src/pkg/mime/multipart/formdata.go      | 169 ++++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/formdata_test.go |  87 ++++++++++++++++
+ src/pkg/mime/multipart/multipart.go     |  18 +++-
+ 4 files changed, 272 insertions(+), 3 deletions(-)

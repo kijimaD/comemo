@@ -1,0 +1,23 @@
+commit 2551fffd2c06cf0655ebbbd11d9b1e70a5b2e9cb
+Author: go101 <tapir.liu@gmail.com>
+Date:   Thu Nov 16 15:34:32 2023 +0000
+
+    slices: improve Insert panic message for index out of range
+    
+    The panic message of the current implementation for index out of range is not ideal.
+    This PR tries to improve it.
+    
+    Fixes #63913 and #64152
+    
+    Change-Id: Ibcf6c9c0f555c8b8bf46b7d6f20f0ccc5698acd4
+    GitHub-Last-Rev: 1bbec230f4b0ec547d21c8d38dd46007bd282855
+    GitHub-Pull-Request: golang/go#64163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542455
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/slices/slices.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

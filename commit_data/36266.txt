@@ -1,0 +1,20 @@
+commit a68b713ef600a14e15b59f5bac424be73e1acaf5
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 15 16:21:00 2018 -0700
+
+    runtime: load errno as signed 32-bit
+    
+    the function libc_errno returns a pointer to a signed-32 bit quantity,
+    not a 64-bit quantity.
+    
+    Fixes #27004
+    
+    Change-Id: I0623835ee34fd9655532251f096022a5accb58cd
+    Reviewed-on: https://go-review.googlesource.com/129475
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_darwin_amd64.s | 4 ++--
+ src/runtime/sys_darwin_arm64.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

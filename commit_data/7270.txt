@@ -1,0 +1,13 @@
+commit 50f574515c104d7235c5a659f441a787e22abcc1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 28 11:07:12 2011 -0800
+
+    gob: fix build
+    delete reference to Debug function.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4063048
+
+ src/pkg/gob/encoder_test.go | 1 -
+ 1 file changed, 1 deletion(-)

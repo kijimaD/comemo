@@ -1,0 +1,19 @@
+commit 571ee0436f388a5304a08a3f029113306bfd54d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 15:14:33 2017 -0800
+
+    os/signal: don't run TestTerminalSignal on Android
+    
+    At least some versions of the Android libc do not define posix_openpt.
+    
+    Updates #22845
+    
+    Change-Id: Id21705f47ef0f9694313a7dc7351a952d48d407b
+    Reviewed-on: https://go-review.googlesource.com/79399
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/internal/pty/pty.go | 2 +-
+ src/os/signal/signal_cgo_test.go  | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

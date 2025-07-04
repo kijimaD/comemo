@@ -1,0 +1,16 @@
+commit 5188c87c955a9caf64a0fb2efd8ea95ee9b30a41
+Author: Ivan Kutuzov <arbrix@gmail.com>
+Date:   Fri Aug 31 09:14:04 2018 -0600
+
+    encoding/pem: fix for TestFuzz, PEM type should not contain a colon
+    
+    Fixes #22238
+    
+    Change-Id: I8184f789bd4120f3e71c9374c7c2fcbfa95935bf
+    Reviewed-on: https://go-review.googlesource.com/132635
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/pem/pem_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

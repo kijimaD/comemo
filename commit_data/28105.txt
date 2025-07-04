@@ -1,0 +1,13 @@
+commit 0a7c73b5db9c78c4ecf8a5e8274ddf352b41562c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 13:53:43 2016 -0700
+
+    cmd/compile: use printer in typefmt, Tconv
+    
+    Change-Id: Ib3ac0177761af1edea6b7951ffbbea042fb836d2
+    Reviewed-on: https://go-review.googlesource.com/28055
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 135 ++++++++++++++++++-------------------
+ 1 file changed, 66 insertions(+), 69 deletions(-)

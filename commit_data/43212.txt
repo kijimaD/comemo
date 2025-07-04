@@ -1,0 +1,19 @@
+commit f8e554021b7de4bf1150f64d047091b429c92b39
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 23:58:29 2020 -0400
+
+    cmd/link: support C-shared buildmode on macOS/ARM64
+    
+    It just works, after the plugin work.
+    
+    Updates #38485.
+    
+    Change-Id: I55aa11b380a33a729fccb731b77f48bc7d0dea2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259443
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/test.go              | 2 +-
+ src/cmd/internal/sys/supported.go | 2 +-
+ src/cmd/link/internal/ld/lib.go   | 3 ---
+ 3 files changed, 2 insertions(+), 5 deletions(-)

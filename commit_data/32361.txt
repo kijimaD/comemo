@@ -1,0 +1,19 @@
+commit a93753401db052f3192103e2c4d4c547d740b41f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 11:36:10 2017 -0400
+
+    cmd/go: remove Package.Internal.Deps
+    
+    Package.Internal.Imports is enough in nearly all cases,
+    and not maintaining a separate Package.Internal.Deps
+    avoids the two lists ending up out of sync.
+    (In some synthesized packages created during go test,
+    only Internal.Imports is initialized.)
+    
+    Change-Id: I83f6a3ec6e6cbd75382f1fa0e439d31feec32d5a
+    Reviewed-on: https://go-review.googlesource.com/56278
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go  | 39 ++++++++++++++++++++++++++++++---------
+ src/cmd/go/internal/test/test.go | 10 ++--------
+ 2 files changed, 32 insertions(+), 17 deletions(-)

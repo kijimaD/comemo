@@ -1,0 +1,23 @@
+commit 755a2927d8f5bb79952db8fd17bbdec1aed91518
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 3 20:08:11 2022 -0700
+
+    os: if dirFS.Open fails, undo use of backslashes in error message
+    
+    This fixes a bug introduced by CL 426094 that caused the
+    golang.org/x/website/internal/web tests to fail.
+    
+    Fixes #56034
+    
+    Change-Id: Ic64967c6d440ad260b7283a18972b20023320ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437976
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/file.go    |  7 +++++++
+ src/os/os_test.go | 16 ++++++++++++++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

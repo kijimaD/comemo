@@ -1,0 +1,23 @@
+commit 472cd3af12609ded3484cfdf7f58083c42153a9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 31 11:43:52 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    gcc conventionally does not upper case in error messages.
+    
+    char_lit1.go:13: error: invalid unicode code point 0xd800
+    char_lit1.go:14: error: invalid unicode code point 0xd999
+    char_lit1.go:15: error: invalid unicode code point 0xdc01
+    char_lit1.go:16: error: invalid unicode code point 0xdddd
+    char_lit1.go:17: error: invalid unicode code point 0xdfff
+    char_lit1.go:20: error: invalid unicode code point 0x110000
+    char_lit1.go:22: error: invalid unicode code point 0x110000
+    char_lit1.go:23: error: invalid unicode code point 0xffffffff
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2040042
+
+ test/char_lit1.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

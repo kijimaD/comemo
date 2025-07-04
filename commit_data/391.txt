@@ -1,0 +1,10 @@
+commit e912c18c7c77663c9d09f475d7b88483e19b8f79
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 18 14:23:04 2008 -0700
+
+    - missing changes from prev. commit
+    
+    SVN=128064
+
+ usr/gri/gosrc/export.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

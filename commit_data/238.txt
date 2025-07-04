@@ -1,0 +1,10 @@
+commit 2b8db5a4390a02c2144d414fa0403a71d40006bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 15:15:38 2008 -0700
+
+    - added bug against maps
+    
+    SVN=124977
+
+ test/bugs/bug058.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

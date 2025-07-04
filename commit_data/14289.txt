@@ -1,0 +1,12 @@
+commit 936498e5dcd8a329a5da8cd743f60bdb820e6c22
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 1 22:59:53 2012 +0400
+
+    cmd/gc: fix build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6826047
+
+ src/cmd/gc/racewalk.c | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

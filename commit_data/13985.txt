@@ -1,0 +1,14 @@
+commit 0c494718afb00c4885638658e07f65ed0bc1c5e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 28 15:55:38 2012 -0700
+
+    go spec: arguments for append may overlap
+    
+    Fixes #4142.
+    
+    R=rsc, r, iant, ken, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6567062
+
+ doc/go_spec.html | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit b214a88d7671c8ad1192a0e9622a8c36bce3cecb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:26:50 2015 -0400
+
+    log/syslog: limiting tests on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ic5c6c0b2fdbb89f4579677e120a8f2dbf300e5b9
+    Reviewed-on: https://go-review.googlesource.com/8820
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/log/syslog/syslog_test.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

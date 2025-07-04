@@ -1,0 +1,20 @@
+commit 5756808ce8eb6f6af99aa8d3e5a125ce7d1b8544
+Author: martin <martin@zaber.com>
+Date:   Thu Dec 12 16:03:04 2019 -0800
+
+    runtime: do not exit(2) if a Go built DLL receives a signal
+    
+    Fixes #35965
+    
+    Change-Id: I172501fc0b29595e59b058f6e30f31efe5f6d1f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211139
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/os_windows.go                      |  6 +-
+ src/runtime/signal_windows_test.go             | 87 ++++++++++++++++++++++++++
+ src/runtime/testdata/testwinlibsignal/dummy.go | 10 +++
+ src/runtime/testdata/testwinlibsignal/main.c   | 50 +++++++++++++++
+ 4 files changed, 152 insertions(+), 1 deletion(-)

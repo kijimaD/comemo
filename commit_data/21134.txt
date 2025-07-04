@@ -1,0 +1,15 @@
+commit 17577e48c907744fbfd09ea5a4002178f3a83972
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 31 17:31:32 2014 -0800
+
+    runtime: use SETEQ instead of JZ for cas
+    
+    Change-Id: Ibabbca3988d39bdce584924173a912d45f50f0dd
+    Reviewed-on: https://go-review.googlesource.com/2243
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_386.s      | 22 +++-------------------
+ src/runtime/asm_amd64.s    | 22 +++-------------------
+ src/runtime/asm_amd64p32.s | 22 +++-------------------
+ 3 files changed, 9 insertions(+), 57 deletions(-)

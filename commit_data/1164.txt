@@ -1,0 +1,16 @@
+commit 92a4fe1dd5e6db1b65ab837098ad90c312070166
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:12:14 2008 -0800
+
+    more tests for strconv; convert to gotest.
+    
+    R=r
+    DELTA=219  (186 added, 32 deleted, 1 changed)
+    OCL=19508
+    CL=19523
+
+ src/lib/strconv/test.bash   |  13 ---
+ src/lib/strconv/testatoi.go | 190 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/strconv/testing.go  |  26 ------
+ src/run.bash                |   2 +-
+ 4 files changed, 191 insertions(+), 40 deletions(-)

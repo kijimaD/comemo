@@ -1,0 +1,15 @@
+commit c14c2b231ff05ff944a42978ea6032688a643d10
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 5 11:18:15 2009 -0800
+
+    fix 6a line number bug -
+    was incrementing lineno twice for
+    the \n after a // comment.
+    
+    R=r
+    DELTA=3  (0 added, 2 deleted, 1 changed)
+    OCL=21984
+    CL=22021
+
+ src/cmd/cc/lexbody | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

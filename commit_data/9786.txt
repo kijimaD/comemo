@@ -1,0 +1,13 @@
+commit 10b23e7fc94c6a89db2739080ba3c5e0fcbcaee9
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Sat Sep 24 10:38:39 2011 +1000
+
+    syscall: mksyscall_windows.pl to produce packages other than syscall (for example pkg/exp/wingui/zwinapi.go)
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/4964074
+
+ src/pkg/exp/wingui/Makefile          |  6 ------
+ src/pkg/syscall/mksyscall_windows.pl | 24 +++++++++++++++++-------
+ 2 files changed, 17 insertions(+), 13 deletions(-)

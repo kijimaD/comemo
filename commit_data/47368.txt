@@ -1,0 +1,39 @@
+commit 5430203a1e7f3ba3af70b17bf2eeb61efda2ae58
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 9 13:54:57 2021 -0500
+
+    all: update vendored golang.org/x/tools for Go 1.18 release
+    
+    The Go 1.18 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    This CL updates only the tools module, keeping mod unchanged because
+    its lastest commit isn't ready to be vendored yet.
+    
+    For #36905.
+    Updates #49350.
+    
+    Change-Id: Ib39713d28a55fc9ec79058aab9919eba912def5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361094
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   8 +-
+ .../x/tools/go/analysis/internal/facts/imports.go  |  33 +++-
+ .../tools/go/analysis/passes/copylock/copylock.go  |  75 ++++++--
+ .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |   6 +-
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   6 +
+ .../x/tools/go/analysis/passes/printf/printf.go    |  38 ++--
+ .../x/tools/go/analysis/passes/printf/types.go     | 211 +++++++++++++--------
+ .../x/tools/go/analysis/passes/shift/shift.go      |  26 ++-
+ .../go/analysis/passes/stringintconv/string.go     | 132 ++++++++++---
+ .../passes/testinggoroutine/testinggoroutine.go    |  23 ++-
+ .../x/tools/go/analysis/passes/tests/tests.go      |  10 +
+ .../analysis/passes/unusedresult/unusedresult.go   |   6 +
+ .../golang.org/x/tools/go/types/typeutil/callee.go |  30 ++-
+ src/cmd/vendor/modules.txt                         |   4 +-
+ 15 files changed, 467 insertions(+), 145 deletions(-)

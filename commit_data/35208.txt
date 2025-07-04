@@ -1,0 +1,23 @@
+commit 21656d09b710799806aee182856b2a02068609bd
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 30 07:50:10 2018 -0700
+
+    runtime: convert exit to use pthread library on Darwin
+    
+    Now we no longer need to mess with TLS on Darwin 386/amd64, we always
+    rely on the pthread library to set it up. We now just use one entry
+    in the TLS for the G.
+    Return from mstart to let the pthread library clean up the OS thread.
+    
+    Change-Id: Iccf58049d545515d9b1d090b161f420e40ffd244
+    Reviewed-on: https://go-review.googlesource.com/110215
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s          |  4 ++
+ src/runtime/asm_amd64.s        |  4 ++
+ src/runtime/os_darwin.go       | 16 +++----
+ src/runtime/proc.go            |  8 ++--
+ src/runtime/sys_darwin.go      |  9 ++--
+ src/runtime/sys_darwin_386.s   | 97 +++++++++---------------------------------
+ src/runtime/sys_darwin_amd64.s | 56 ++++++++----------------
+ 7 files changed, 62 insertions(+), 132 deletions(-)

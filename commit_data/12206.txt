@@ -1,0 +1,17 @@
+commit b36d25f1972b9e4d5a8626ed32e3f72d9a58e1b0
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 25 08:02:35 2012 +1100
+
+    doc/go1: new introduction
+    This distills the motivational discussion and makes it the introduction to the release notes.
+    After this lands, I'll expand the discussion of the major changes to include more background.
+    
+    Updates #3086.
+    
+    R=golang-dev, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5698057
+
+ doc/go1.html | 51 ++++++++++++++++++++++++++++++++++-----------------
+ doc/go1.tmpl | 51 ++++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 68 insertions(+), 34 deletions(-)

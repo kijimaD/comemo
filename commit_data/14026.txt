@@ -1,0 +1,21 @@
+commit 23599ca2f6a25aa43c24e24962dcd7616a83d508
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri Oct 5 16:23:30 2012 -0400
+
+    runtime: mask SSE exceptions on plan9/amd64
+    
+    The Go run-time assumes that all SSE floating-point exceptions
+    are masked so that Go programs are not broken by such invalid
+    operations. By default, the 64-bit version of the Plan 9 kernel
+    masks only some SSE floating-point exceptions. Here, we mask
+    them all on a per-thread basis.
+    
+    R=rsc, rminnich, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6592056
+
+ src/pkg/runtime/os_plan9.h        | 1 +
+ src/pkg/runtime/sys_plan9_386.s   | 4 ++++
+ src/pkg/runtime/sys_plan9_amd64.s | 9 +++++++++
+ src/pkg/runtime/thread_plan9.c    | 3 +++
+ 4 files changed, 17 insertions(+)

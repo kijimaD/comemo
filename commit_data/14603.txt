@@ -1,0 +1,13 @@
+commit b979b192b25beab5d4f9666b0e4aa198fbb02bcc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 12:02:07 2012 -0500
+
+    A+C: Brian Ketelsen and Miquel Sabaté Solà (individual CLA × 2)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6923051
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit b2963a545c78ddca5ea59c5e290f3c46f0a04773
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Dec 6 17:14:50 2015 +1100
+
+    doc: go1.6.txt: note windows path/filepath.Join behaviour change
+    
+    Change-Id: I321eba716319bf88695ac49580837b6254f1279e
+    Reviewed-on: https://go-review.googlesource.com/17474
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

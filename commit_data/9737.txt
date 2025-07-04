@@ -1,0 +1,17 @@
+commit f554c90cefd27ba6ee884d00dd4c55fa10a86202
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 19 11:50:45 2011 -0400
+
+    8l: remove left over debugging
+    
+            This line was triggering a null dereference warning
+            under clang-3.0. The line was added in a46819aa9150
+            but compared to it's sibling in 6l it appears to be
+            leftover debugging.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5049042
+
+ src/cmd/8l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

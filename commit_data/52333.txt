@@ -1,0 +1,22 @@
+commit f53a95fe393b0a23592a54cf83e3d25cfa4bdbdb
+Author: David Bendory <bendory@users.noreply.github.com>
+Date:   Fri Mar 17 14:04:01 2023 +0000
+
+    errors: clarify Join documentation
+    
+    The previous documentation used a double-negative in describing Join behavior; this use of language could be confusing.
+    
+    This update removes the double-negative.
+    
+    Change-Id: If13e88682e865314a556e7d381143a97fa5486d9
+    GitHub-Last-Rev: 92b3f88a5d49229e71adafcfa7b1d01dcb7646f3
+    GitHub-Pull-Request: golang/go#59082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477095
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/errors/join.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit da13da1fceff5439af70571826e2dd35925d86a5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 14:43:38 2023 -0400
+
+    cmd/compile/internal/pgo: remove stale comment
+    
+    targetDeclFuncs was removed before CL 492436 was ever merged.
+    
+    Change-Id: I1aafc28446ad23f63bcafc144b91f924dacd676e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528176
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 6 ------
+ 1 file changed, 6 deletions(-)

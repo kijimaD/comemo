@@ -1,0 +1,13 @@
+commit 863dafb9ae62cb22e885a4ee7e3e50da38175333
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 11:17:13 2009 -0800
+
+    typo
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=22411
+    CL=22411
+
+ src/lib/os/os_error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

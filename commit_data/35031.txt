@@ -1,0 +1,24 @@
+commit bf101662642c2585afb957c418b33c0499cf87dd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:56:29 2018 -0700
+
+    cmd/compile: use empty package name for runtime/{race,msan}
+    
+    These fake imports are just so we can emit build dependencies for the
+    linker, so the package name isn't really necessary. Also, the package
+    import logic assumes that if we have the name for a package, then
+    we've already read some package data for it.
+    
+    Using the empty string allows the importers to correctly populate it
+    the first time these packages are seen in package export data.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I047bde297600e9dc07478fccc3f57ccc75ce8ae4
+    Reviewed-on: https://go-review.googlesource.com/107619
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit ab39b8de7ef209f004c040e47b74f340347486f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 17:14:51 2015 -0800
+
+    os/signal: document signal handling
+    
+    This is an attempt to document the current state of signal handling.
+    It's not intended to describe the best way to handle signals.  Future
+    changes to signal handling should update these docs as appropriate.
+    
+    update #9896.
+    
+    Change-Id: I3c50af5cc641357b57dfe90ae1c7883a7e1ec059
+    Reviewed-on: https://go-review.googlesource.com/17877
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/signal/doc.go    | 183 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal.go |   1 -
+ 2 files changed, 183 insertions(+), 1 deletion(-)

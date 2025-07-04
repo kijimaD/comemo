@@ -1,0 +1,12 @@
+commit c29be2d41c6c3ed78a76b4d8d8c1c22d7e0ad5b7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 13:20:54 2022 -0400
+
+    runtime: add HACKING section on nosplit functions
+    
+    Change-Id: I247874d5c49d2c0d8db2a3d227aa848093551d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401759
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/HACKING.md | 48 ++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 38 insertions(+), 10 deletions(-)

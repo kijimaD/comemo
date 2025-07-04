@@ -1,0 +1,19 @@
+commit 8ee041dc24f46047f6cff0d61bd634d1cacfc380
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 13:17:10 2009 -0700
+
+    split rt1.c into signal.c and thread.c.
+    move out of arch-specific directory: only os-specific.
+    rm sys_types.h (unused).
+    
+    TBR=r
+    OCL=26681
+    CL=26681
+
+ src/runtime/Makefile                         |   3 +-
+ src/runtime/darwin/signal.c                  | 258 +++++++++++++++++++++++++++
+ src/runtime/darwin/{amd64/rt1.c => thread.c} | 207 ---------------------
+ src/runtime/linux/signal.c                   | 214 ++++++++++++++++++++++
+ src/runtime/linux/{amd64/rt1.c => thread.c}  | 211 +---------------------
+ src/runtime/sys_types.h                      |  13 --
+ 6 files changed, 476 insertions(+), 430 deletions(-)

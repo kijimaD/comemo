@@ -1,0 +1,18 @@
+commit 0a7ef31d7d3e372129a665043c9377dc9e3860ee
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 3 13:07:07 2017 -0700
+
+    runtime: give modulesSlice the correct type
+    
+    No need to type this global as an unsafe.Pointer, we know
+    what type the referent is.
+    
+    Change-Id: I7b1374065b53ccf1373754a21d54adbedf1fd587
+    Reviewed-on: https://go-review.googlesource.com/67990
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

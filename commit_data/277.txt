@@ -1,0 +1,11 @@
+commit 85728a2da7bc610c25087486e3ec2c23ccdf97a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 2 17:02:55 2008 -0700
+
+    - implemented first cut at Go scanner in Go
+    
+    SVN=125785
+
+ usr/gri/src/scanner.go      | 589 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/src/test_scanner.go |  36 +++
+ 2 files changed, 625 insertions(+)

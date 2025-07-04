@@ -1,0 +1,16 @@
+commit 32510eea742162bc8048e8eaa68c2c5b1d8712d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 16 11:10:54 2022 -0700
+
+    go/parser: remove unused method checkBinaryExpr
+    
+    Change-Id: Ica981657e50e30cbfa1757e8457819a479f11c7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/parser/parser.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

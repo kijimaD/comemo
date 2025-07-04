@@ -1,0 +1,40 @@
+commit 6a32ecc0598c7873e979ab0a5bf7fcc965db215b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 2 05:51:20 2023 +0000
+
+    runtime: eliminate possible stack movements in ReadMetricsSlow
+    
+    Currently it's possible (and even probable, with mayMoreStackMove mode)
+    for a stack allocation to occur between readmemstats_m and readMetrics
+    in ReadMetricsSlow. This can cause tests to fail by producing metrics
+    that are inconsistent between the two sources.
+    
+    Fix this by breaking out the critical section of readMetrics and calling
+    that from ReadMetricsSlow on the systemstack. Our main constraint in
+    calling readMetrics on the system stack is the fact that we can't
+    acquire the metrics semaphore from the system stack. But if we break out
+    the critical section, then we can acquire that semaphore before we go on
+    the system stack.
+    
+    While we're here, add another readMetrics call before readmemstats_m.
+    Since we're being paranoid about ways that metrics could get skewed
+    between the two calls, let's eliminate all uncertainty. It's possible
+    for readMetrics to allocate new memory, for example for histograms, and
+    fail while it's reading metrics. I believe we're just getting lucky
+    today with the order in which the metrics are produced. Another call to
+    readMetrics will preallocate this data in the samples slice. One nice
+    thing about this second read is that now we effectively have a way to
+    check if readMetrics really will allocate if called a second time on the
+    same samples slice.
+    
+    Fixes #60607.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: If6ce666530903239ef9f02dbbc3f1cb6be71e425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539117
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/export_test.go | 20 +++++++++++++-------
+ src/runtime/metrics.go     | 20 ++++++++++++++------
+ 2 files changed, 27 insertions(+), 13 deletions(-)

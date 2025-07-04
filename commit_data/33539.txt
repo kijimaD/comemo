@@ -1,0 +1,17 @@
+commit 0d9dc044d2008867e457a2023875501e1e986e6d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Nov 10 20:35:45 2017 +0100
+
+    net/url: clarify QueryUnescape and PathUnescape doc
+    
+    In the doc for QueryUnescape and PathUnescape, clarify that by 0xAB we
+    means a substring with any two valid hexadecimal digits.
+    
+    Fixes #18642
+    
+    Change-Id: Ib65b130995ae5fcf07e25ee0fcc41fad520c5662
+    Reviewed-on: https://go-review.googlesource.com/77050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

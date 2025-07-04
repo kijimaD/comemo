@@ -1,0 +1,15 @@
+commit b17b95301a549d168d96e38310d06216f595e53b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 20:06:41 2016 -0700
+
+    cmd/internal/sys: change ArchFamily constants to iotas
+    
+    RIP architecture characters.
+    
+    Change-Id: I36f53afdc311b14b9459ff3821bd6df54a057ded
+    Reviewed-on: https://go-review.googlesource.com/21628
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/sys/arch.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

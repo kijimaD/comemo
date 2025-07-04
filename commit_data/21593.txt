@@ -1,0 +1,22 @@
+commit cf964e1653489d99b68a0668d293b6b521e5ab62
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:05:55 2015 -0500
+
+    runtime: replace scanblock(0, 0, nil, nil) with drainworkbuf
+    
+    scanblock(0, 0, nil, nil) was just a confusing way of saying
+    
+      wbuf = getpartialorempty()
+      drainworkbuf(wbuf, true)
+    
+    Make drainworkbuf accept a nil workbuf and perform the
+    getpartialorempty itself and replace all uses of scanblock(0, 0, nil,
+    nil) with direct calls to drainworkbuf(nil, true).
+    
+    Change-Id: I7002a2f8f3eaf6aa85bbf17ccc81d7288acfef1c
+    Reviewed-on: https://go-review.googlesource.com/4781
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

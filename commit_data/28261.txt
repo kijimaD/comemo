@@ -1,0 +1,12 @@
+commit 0510f0dfe72ff9488c9c9aa23dbbc700837acfba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:02:36 2016 -0700
+
+    cmd/compile: use fmt.State in exprfmt
+    
+    Change-Id: If6c2d469c66a7aa8471bf54310354efdac3e0235
+    Reviewed-on: https://go-review.googlesource.com/28337
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 238 +++++++++++++++++++++++--------------
+ 1 file changed, 150 insertions(+), 88 deletions(-)

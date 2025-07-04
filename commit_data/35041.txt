@@ -1,0 +1,24 @@
+commit acebfba75570d3039720d603774dd72d51275c31
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Apr 18 13:03:35 2018 -0400
+
+    runtime: use saved state in SIGPROF handler for vDSO calls
+    
+    VDSO calls do manual stack alignment, which doesn't get tracked in the
+    pcsp table. Without accurate pcsp information, backtracing them is
+    dangerous, and causes a crash in the SIGPROF handler. Fortunately,
+    https://golang.org/cl/97315 saves a clean state in m.vdsoPC/SP. Change
+    to use those if they're present, without attempting a normal backtrace.
+    
+    Fixes #24925
+    
+    Change-Id: I4b8501ae73a9d18209e22f839773c4fe6102a509
+    Reviewed-on: https://go-review.googlesource.com/107778
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

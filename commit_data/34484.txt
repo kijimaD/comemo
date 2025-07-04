@@ -1,0 +1,16 @@
+commit 4599419e690628dd798c8d037bba4efd8d0b7391
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 5 07:40:26 2018 -0800
+
+    debug/macho: use bytes.IndexByte instead of a loop
+    
+    Simpler, and no doubt faster.
+    
+    Change-Id: Idd401918da07a257de365087721e9ff061e6fd07
+    Reviewed-on: https://go-review.googlesource.com/98759
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/macho/file.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

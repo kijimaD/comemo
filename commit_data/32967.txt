@@ -1,0 +1,19 @@
+commit 5edfaa2cf8407853a0303fd7ee561f7621140c4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 09:22:04 2017 -0400
+
+    cmd/go: clean up implicit compiler and linker dependencies
+    
+    Telling the truth about these will be important for
+    content-based staleness checks.
+    
+    Change-Id: Iaed6ca6c945eb805d815156753a3e5dc48c6f0b9
+    Reviewed-on: https://go-review.googlesource.com/68336
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/load/pkg.go   | 102 +++++++++++++++++++++++---------------
+ src/cmd/go/internal/test/test.go  |   7 +--
+ src/cmd/go/internal/work/build.go |   4 --
+ 3 files changed, 65 insertions(+), 48 deletions(-)

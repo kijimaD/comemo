@@ -1,0 +1,31 @@
+commit e0c430d5b70570fa6bf4f56d357ba7a517ff4e72
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 21:23:59 2013 -0800
+
+    cmd/6l, cmd/8l: fix BSD builds
+    
+    Before this CL, running
+    
+            cd misc/cgo/test
+            go test -c
+            readelf --dyn-syms test.test | grep cgoexp
+    
+    turned up many UNDEF symbols corresponding to symbols actually
+    in the binary but marked only cgo_export_static. Only symbols
+    marked cgo_export_dynamic should be listed in this mode.
+    And if the symbol is going to be listed, it should be listed with its
+    actual address instead of UNDEF.
+    
+    The Linux dynamic linker didn't care about the seemingly missing
+    symbols, but the BSD one did.
+    
+    This CL eliminates the symbols from the dyn-syms table.
+    
+    R=golang-dev
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7624043
+
+ src/cmd/6l/asm.c | 24 ++++++++++++------------
+ src/cmd/8l/asm.c | 20 ++++++++++----------
+ 2 files changed, 22 insertions(+), 22 deletions(-)

@@ -1,0 +1,15 @@
+commit bc3f14fd2afda8af73854104ac6a1cf42cef1519
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Oct 27 16:40:30 2015 +1300
+
+    runtime: invoke vsyscall helper via TCB when dynamic linking on linux/386
+    
+    The dynamic linker on linux/386 stores the address of the vsyscall helper at a
+    fixed offset from the %gs register on linux/386 for easy access from PIC code.
+    
+    Change-Id: I635305cfecceef2289985d62e676e16810ed6b94
+    Reviewed-on: https://go-review.googlesource.com/16346
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_386.s | 72 ++++++++++++++++++++++++---------------------
+ 1 file changed, 39 insertions(+), 33 deletions(-)

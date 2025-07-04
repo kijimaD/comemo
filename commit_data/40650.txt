@@ -1,0 +1,31 @@
+commit 73317080e12234defb59f84e2b5b15f69650b5d5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 21 00:24:25 2019 +0000
+
+    runtime: add scavenging code for new page allocator
+    
+    This change adds a scavenger for the new page allocator along with
+    tests. The scavenger walks over the heap backwards once per GC, looking
+    for memory to scavenge. It walks across the heap without any lock held,
+    searching optimistically. If it finds what appears to be a scavenging
+    candidate it acquires the heap lock and attempts to verify it. Upon
+    verification it then scavenges.
+    
+    Notably, unlike the old scavenger, it doesn't show any preference for
+    huge pages and instead follows a more strict last-page-first policy.
+    
+    Updates #35112.
+    
+    Change-Id: I0621ef73c999a471843eab2d1307ae5679dd18d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195697
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go      |  71 +++++++-
+ src/runtime/malloc.go           |   2 +-
+ src/runtime/mgcscavenge.go      | 369 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcscavenge_test.go | 382 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mpagealloc.go       |  25 ++-
+ src/runtime/mpagealloc_test.go  |  25 +--
+ src/runtime/mpallocbits.go      |  27 ++-
+ 7 files changed, 880 insertions(+), 21 deletions(-)

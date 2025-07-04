@@ -1,0 +1,16 @@
+commit c53b73455bdc2ca7ae6bc9f5e92984ba6682dc45
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 12 21:53:33 2012 -0800
+
+    sync/atomic: disable hammer pointer tests on wrong size system
+    
+    hammerCompareAndSwapPointer64 was only passing on
+    little-endian systems.  hammerCompareAndSwapPointer32 was
+    writing 8 bytes to a uint32 value on the heap.
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5654065
+
+ src/pkg/sync/atomic/atomic_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,12 @@
+commit c37090f00f57b38b4c8b93b1d5e97f5a10cb1765
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 16 21:24:27 2017 -0700
+
+    cmd/compile/internal/parser: use same logic for stmtList as for other lists (cleanup)
+    
+    Change-Id: I2c2571b33603f0fd0ba5a79400da7b845d246b8c
+    Reviewed-on: https://go-review.googlesource.com/71290
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

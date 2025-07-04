@@ -1,0 +1,22 @@
+commit 0ece9c4b592502647699c2b15d9f0b7332b26de6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 17 14:57:07 2016 +1000
+
+    debug/pe: revert CL 22720
+    
+    CL 22720 hid all recently added functionality for go1.7.
+    Make everything exported again, so we could use it now.
+    
+    Updates #15345
+    
+    Change-Id: Id8ccba7199422b554407ec14c343d2c28fbb8f72
+    Reviewed-on: https://go-review.googlesource.com/27212
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/debug/pe/file.go    | 14 +++++++-------
+ src/debug/pe/section.go | 12 ++++++------
+ src/debug/pe/string.go  | 10 +++++-----
+ src/debug/pe/symbol.go  |  8 ++++----
+ 4 files changed, 22 insertions(+), 22 deletions(-)

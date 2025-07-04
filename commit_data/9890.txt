@@ -1,0 +1,12 @@
+commit edacc863d0dd3806fd2caf869a99852d39c8ed08
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 6 13:12:11 2011 -0700
+
+    doc: remove errant console.log from godocs.js
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5211045
+
+ doc/godocs.js | 1 -
+ 1 file changed, 1 deletion(-)

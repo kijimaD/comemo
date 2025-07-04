@@ -1,0 +1,18 @@
+commit dcd10375bc48d0389919b573485d2730445650fd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 15 16:49:50 2022 -0400
+
+    runtime: convert gcController.idleMarkTime to atomic type
+    
+    For #53821.
+    
+    Change-Id: I2f2b462908096dacb97fba9973798036ea1d9b68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417783
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/mgc.go                |  2 +-
+ src/runtime/mgcpacer.go           | 13 ++++++-------
+ 3 files changed, 7 insertions(+), 9 deletions(-)

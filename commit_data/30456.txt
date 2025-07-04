@@ -1,0 +1,18 @@
+commit 29f061960d5008170541a886feab721bf754f0fd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 12:47:43 2017 +1100
+
+    cmd/link: write dwarf sections
+    
+    Also stop skipping TestExternalLinkerDWARF and
+    TestDefaultLinkerDWARF.
+    
+    Fixes #10776.
+    
+    Change-Id: Ia596a684132e3cdee59ce5539293eedc1752fe5a
+    Reviewed-on: https://go-review.googlesource.com/36983
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 6 +++++-
+ src/debug/pe/file_cgo_test.go     | 2 --
+ 2 files changed, 5 insertions(+), 3 deletions(-)

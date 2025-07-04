@@ -1,0 +1,21 @@
+commit 354fa9a84f7b88fe6b9ebf578e6671c2b511a402
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 12 14:24:16 2017 -0400
+
+    runtime: simplify stack walk in panicwrap
+    
+    panicwrap currently uses runtime.Callers and runtime.CallersFrames to
+    find the name of its caller. Simplify this by using getcallerpc.
+    
+    This will be important for #16723, since to fix that we're going to
+    make CallersFrames skip the wrapper method, which is exactly what
+    panicwrap needs to see.
+    
+    Change-Id: Icb0776d399966e31595f3ee44f980290827e32a6
+    Reviewed-on: https://go-review.googlesource.com/45411
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/error.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

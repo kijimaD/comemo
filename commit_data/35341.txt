@@ -1,0 +1,26 @@
+commit 66cb80c266a83313abadbd004b5358c1d1761ed3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 8 22:59:35 2018 +0200
+
+    misc/ios: inject the -u device_id option before any other arguments
+    
+    The idevicedebugserverproxy command takes a port number without a
+    flag, like so:
+    
+    idevicedebugserverproxy 3222
+    
+    If the -u <device_id> flag is added afterwards, it is ignored and
+    the command use an arbitrary device. Instead, always inject the -u
+    flag before any other idevice command arguments.
+    
+    While here, also kill any leftover idevicedebugserverproxy instance
+    previous (failed) runs might have left running.
+    
+    Change-Id: I0bf06ed1a20ef225abeca183f9ba8f396662d435
+    Reviewed-on: https://go-review.googlesource.com/112216
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

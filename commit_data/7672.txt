@@ -1,0 +1,15 @@
+commit 4371e094578cdb463a09ca57777078f36feb3002
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Mon Mar 7 11:11:21 2011 -0500
+
+    hash: new FNV-1a implementation
+    
+    R=agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4257042
+
+ src/pkg/Makefile             |   1 +
+ src/pkg/hash/fnv/Makefile    |  11 +++
+ src/pkg/hash/fnv/fnv.go      | 133 ++++++++++++++++++++++++++++++++++
+ src/pkg/hash/fnv/fnv_test.go | 167 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 312 insertions(+)

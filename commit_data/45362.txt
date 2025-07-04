@@ -1,0 +1,15 @@
+commit 88a8a2705684e693082cabaec18b76615cf0b4f0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 27 13:51:45 2021 +0200
+
+    os: don't check non-nil err twice in Symlink on windows
+    
+    Change-Id: I398d324723025b559fdca783fc334de9be68f2d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314030
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/file_windows.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

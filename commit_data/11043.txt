@@ -1,0 +1,15 @@
+commit a15448d65ed02435a79e79dafaa6634715d03504
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Fri Jan 6 14:34:16 2012 -0800
+
+    gc: improve unsafe.Pointer type-check error messages
+    
+    Fixes #2627.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5498088
+
+ src/cmd/gc/typecheck.c   |  1 +
+ test/fixedbugs/bug390.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,25 @@
+commit e3f7816f0eae375d261e35d0b541a61c463c9111
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 6 13:52:23 2022 -0400
+
+    cmd/link: remove name expansion logic
+    
+    Now both the compiler and the assembler require the -p flag and
+    emit full package path in symbol names, we no longer need to do
+    the name expansion in the linker. Delete it.
+    
+    Change-Id: I771d4d97987a0a17414881b52806d600ef4cc351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404300
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/goobj/objfile.go           |  7 +++---
+ src/cmd/link/internal/ld/go.go              |  7 ------
+ src/cmd/link/internal/ld/macho.go           |  4 +--
+ src/cmd/link/internal/ld/pe.go              |  2 +-
+ src/cmd/link/internal/ld/symtab.go          |  2 +-
+ src/cmd/link/internal/loader/loader.go      | 38 ++++-------------------------
+ src/cmd/link/internal/loader/loader_test.go |  2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go  |  2 +-
+ 8 files changed, 14 insertions(+), 50 deletions(-)

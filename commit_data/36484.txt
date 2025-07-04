@@ -1,0 +1,20 @@
+commit 707fd452e68b8cac4ddc68daf394889c4fd67e24
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 16:06:09 2018 -0700
+
+    cmd/compile: enable two orphaned tests
+    
+    These tests weren't being run.  Re-enable them.
+    
+    R=go1.12
+    
+    Change-Id: I8d3cd09b7f07e4c39f855ddb9be000718ec86494
+    Reviewed-on: https://go-review.googlesource.com/127117
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ .../internal/gc/testdata/{cmp.go => cmp_test.go}   | 27 +++-------
+ src/cmd/compile/internal/gc/testdata/divbyzero.go  | 58 ----------------------
+ .../compile/internal/gc/testdata/divbyzero_test.go | 48 ++++++++++++++++++
+ 3 files changed, 56 insertions(+), 77 deletions(-)

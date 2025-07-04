@@ -1,0 +1,20 @@
+commit 8eb14e9de5018afbcf7eefd7b4bce7a200d0ce3f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 22 16:13:06 2017 -0500
+
+    cmd/compile: accept string debug flags
+    
+    The compiler's -d flag accepts string-valued flags, but currently only
+    for SSA debug flags. Extend it to support string values for other
+    flags. This also makes the syntax somewhat more sane so flag=value and
+    flag:value now both accept integers and strings.
+    
+    Change-Id: Idd144d8479a430970cc1688f824bffe0a56ed2df
+    Reviewed-on: https://go-review.googlesource.com/37345
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/main.go     | 40 ++++++++++++++++++++-------------
+ src/cmd/compile/internal/ssa/compile.go |  2 +-
+ 2 files changed, 25 insertions(+), 17 deletions(-)

@@ -1,0 +1,13 @@
+commit 5912869d61f0b20aaa9ea858195e8039ddc78dc6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 9 10:47:36 2011 -0800
+
+    html/template: make Must work
+    Fixes #2545.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5475054
+
+ src/pkg/html/template/template.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit c920fa537f1b1b10d27067224bdbe64f7bc68d51
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 27 16:34:06 2017 -0400
+
+    cmd/compile: fix slice-in-bound check on amd64p32
+    
+    Should use CMPL instead of CMPQ.
+    
+    Fixes #20811.
+    
+    Change-Id: I610d487949c2c8a08b3743656149069d931a51bb
+    Reviewed-on: https://go-review.googlesource.com/46870
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 50 ++++++++++++++++++++++++++--
+ test/fixedbugs/issue20811.go                 | 23 +++++++++++++
+ 3 files changed, 75 insertions(+), 4 deletions(-)

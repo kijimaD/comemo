@@ -1,0 +1,18 @@
+commit 4b9e8415dee1587933a2d175966737c429f85f27
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 25 06:57:32 2012 +0900
+
+    net: add read, write message methods to IPConn, UDPConn
+    
+    Both methods allow to access the IP ancillary data through
+    socket control messages.
+    
+    This CL is required for CL 6482044; go.net/ipv4: new package.
+    
+    R=rsc, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6426047
+
+ src/pkg/net/iprawsock_posix.go | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/net/udpsock_posix.go   | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+)

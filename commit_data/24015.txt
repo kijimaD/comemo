@@ -1,0 +1,27 @@
+commit 467a2cb73ca867ccdb1dd22be220fa51b6d52491
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 15 15:25:46 2015 +1000
+
+    cmd/compile/internal/arm64: remove Reginuse check in clearfat
+    
+    Fixes golang/go#12133
+    
+    CL 13630 fixed the use of a stale reg[] array in the various arch
+    backends which was causing the check in clearfat to pass
+    unconditionally on arm64.
+    
+    With this check fixed, arm64 now considers REGRT1 to always be in use
+    as it is part of the reserved register set, see arm64/gsubr.go.
+    
+    However, ppc64 does not consider REGRT1 and REGRT2 to be part of its
+    reserved set, so its identical clearfat check passes.
+    
+    This CL removes the Reginuse check inside clearfat as REGRT1 is
+    guarenteed always be free on arm64.
+    
+    Change-Id: I4719150d3c3378fae155b863c474529df18d4c17
+    Reviewed-on: https://go-review.googlesource.com/13650
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/arm64/ggen.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

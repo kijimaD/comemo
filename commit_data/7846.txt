@@ -1,0 +1,26 @@
+commit 059c07cab02802edda5aeb2e8c4f5033df3986f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 23 10:38:18 2011 -0700
+
+    http: export Transport, add keep-alive support
+    
+    This patch adds a connection cache and keep-alive
+    support to Transport, which is used by the
+    HTTP client.
+    
+    It's also structured such that it's easy to add
+    HTTP pipelining in the future.
+    
+    R=rsc, petar-m, bradfitzwork, r
+    CC=golang-dev
+    https://golang.org/cl/4272045
+
+ src/pkg/http/client.go          |  34 ---
+ src/pkg/http/export_test.go     |  34 +++
+ src/pkg/http/httptest/server.go |  32 ++-
+ src/pkg/http/persist.go         |   4 +-
+ src/pkg/http/proxy_test.go      |  30 +--
+ src/pkg/http/serve_test.go      |   6 +-
+ src/pkg/http/transport.go       | 537 +++++++++++++++++++++++++++++++++-------
+ src/pkg/http/transport_test.go  | 200 ++++++++++++++-
+ 8 files changed, 738 insertions(+), 139 deletions(-)

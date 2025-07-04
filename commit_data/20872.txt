@@ -1,0 +1,13 @@
+commit 18b4f06b13d68c418dc8cb9712424671b63a4254
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:30:57 2014 +1100
+
+    cmd/api: bump go.tools golden CL hash
+    
+    TBR=bradfitz
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166380043
+
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

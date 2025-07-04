@@ -1,0 +1,15 @@
+commit d10241fcf63826d51e8d9c914ab0ad2ef9173151
+Author: qcrao <qcrao91@gmail.com>
+Date:   Sun Mar 28 12:17:35 2021 +0000
+
+    runtime: fix some typos
+    
+    Change-Id: I18b9508904f19d5aa68355c937c30b5fdf35442c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305249
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

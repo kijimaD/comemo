@@ -1,0 +1,15 @@
+commit 1329012a235067c057726341f369b6960682dae9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 5 09:27:19 2009 -0800
+
+    new command hgpatch, for use by codereview extension
+    
+    R=r
+    http://go/go-review/1018059
+
+ src/cmd/clean.bash       |   2 +-
+ src/cmd/hgpatch/Makefile |  11 ++
+ src/cmd/hgpatch/doc.go   |  19 +++
+ src/cmd/hgpatch/main.go  | 394 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/make.bash            |   2 +-
+ 5 files changed, 426 insertions(+), 2 deletions(-)

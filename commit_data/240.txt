@@ -1,0 +1,12 @@
+commit f28ec1af7f7d4bf707ee02d4e0def9c37ee369b8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 26 15:27:21 2008 -0700
+
+    slight change to file names
+    
+    SVN=124982
+
+ src/runtime/Makefile                       | 2 +-
+ src/runtime/sys_file.c                     | 2 +-
+ src/runtime/{sys_structs.h => sys_types.h} | 0
+ 3 files changed, 2 insertions(+), 2 deletions(-)

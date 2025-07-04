@@ -1,0 +1,16 @@
+commit f8fd77baa9e57b2de6b9c0e08a3de0a7a8ad8947
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Tue Jul 23 09:29:25 2013 +1000
+
+    runtime: Stop arm memmove corrupting its parameters
+    
+    Change use of x+(SP) to access the stack frame into x-(SP)
+    
+    Fixes #5925.
+    
+    R=golang-dev, bradfitz, dave, remyoudompheng, nick, rsc
+    CC=dave cheney <dave, golang-dev
+    https://golang.org/cl/11647043
+
+ src/pkg/runtime/memmove_arm.s | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

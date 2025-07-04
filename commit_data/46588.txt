@@ -1,0 +1,19 @@
+commit 584afc29289c2f1a204daa39f44a4a4afbacb741
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 22 16:16:16 2021 -0700
+
+    cmd/go: test that graph, verify, and why don't write go.mod or go.sum
+    
+    They should also not report an error if these files need to be
+    updated. These commands are used for debugging, so it's important that
+    they still work when go.mod and go.sum are incomplete.
+    
+    For #40775
+    
+    Change-Id: I1b731599e5a4510f47827b9812525636a7402bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351468
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_skip_write.txt | 96 +++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

@@ -1,0 +1,30 @@
+commit 52a9210a2c91098b667c2c8890c24dec89b5dfff
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 14:26:28 2020 -0500
+
+    cmd/go: convert import comment tests to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I30230ca3b4d8b037ea861db952b89e706ed8706d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213425
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 31 --------------
+ src/cmd/go/testdata/importcom/bad.go               |  3 --
+ src/cmd/go/testdata/importcom/conflict.go          |  3 --
+ src/cmd/go/testdata/importcom/src/bad/bad.go       |  1 -
+ src/cmd/go/testdata/importcom/src/conflict/a.go    |  1 -
+ src/cmd/go/testdata/importcom/src/conflict/b.go    |  1 -
+ src/cmd/go/testdata/importcom/src/works/x/x.go     |  1 -
+ src/cmd/go/testdata/importcom/src/works/x/x1.go    |  1 -
+ src/cmd/go/testdata/importcom/src/wrongplace/x.go  |  1 -
+ src/cmd/go/testdata/importcom/works.go             |  3 --
+ src/cmd/go/testdata/importcom/wrongplace.go        |  3 --
+ .../go/testdata/script/build_import_comment.txt    | 47 ++++++++++++++++++++++
+ 12 files changed, 47 insertions(+), 49 deletions(-)

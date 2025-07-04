@@ -1,0 +1,21 @@
+commit b34c5f0cb46d77c3929fc2b37e86f811c4d32377
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:50:36 2019 +0100
+
+    net/http: remove use of DeepEqual for testing errors
+    
+    Comparing errors using DeepEqual breaks if frame information
+    is added as proposed in Issue #29934.
+    
+    Updates #29934.
+    
+    Change-Id: I4ef076e262109a9d6f5b18846129df2535611d71
+    Reviewed-on: https://go-review.googlesource.com/c/162178
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/clientserver_test.go | 2 +-
+ src/net/http/transport.go         | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

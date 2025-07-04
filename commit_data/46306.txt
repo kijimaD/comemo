@@ -1,0 +1,20 @@
+commit 9cb5716f009ea71564a9ee84d653d7a76adf9926
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 18:45:11 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for constant loads
+    
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    a constant to register load, generate the appropriate machine instruction
+    sequence directly.
+    
+    Change-Id: I38e62f282b39be2a0a241f32280d306558d49b44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344450
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  2 ++
+ src/cmd/internal/obj/riscv/obj.go           | 52 ++++++++++++-----------------
+ 2 files changed, 24 insertions(+), 30 deletions(-)

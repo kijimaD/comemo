@@ -1,0 +1,23 @@
+commit 255fb521da978916da0d4a2052d7941d950e2a6a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 5 21:43:04 2013 +0800
+
+    cmd/dist: add -Wstrict-prototypes to CFLAGS and fix all the compiler errors
+    Plan 9 compilers insist this but as we don't have Plan 9
+    builders, we'd better let gcc check the prototypes.
+    
+    Inspired by CL 7289050.
+    
+    R=golang-dev, seed, dave, rsc, lucio.dere
+    CC=akumar, golang-dev
+    https://golang.org/cl/7288056
+
+ src/cmd/5g/gg.h      | 2 +-
+ src/cmd/6g/gg.h      | 2 +-
+ src/cmd/8g/gg.h      | 2 +-
+ src/cmd/dist/build.c | 3 +++
+ src/cmd/ld/lib.h     | 2 +-
+ src/cmd/ld/macho.h   | 2 +-
+ src/cmd/prof/main.c  | 8 ++++----
+ src/libmach/darwin.c | 2 +-
+ 8 files changed, 13 insertions(+), 10 deletions(-)

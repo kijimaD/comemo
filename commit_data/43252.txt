@@ -1,0 +1,28 @@
+commit 1aa43a53be83c3eaa468cae4914a55878fb2dad9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 10 11:22:14 2020 -0400
+
+    cmd/link: only dynamically export necessary symbols on darwin
+    
+    Currently on darwin, when a symbol needs to be exported, we
+    export it both statically and dynamically. The dynamic export is
+    unnecessary for some symbols. Only export the necessary ones.
+    
+    For special runtime C symbols (e.g. crosscall2), they used to be
+    exported dynamically, and we had a special case for pclntab to
+    not include those symbols (otherwise, when the dynamic linker
+    dedup them, the pclntab entries end up pointing out of the
+    module's address space). This CL changes it to not export those
+    symbols, and remove the special case.
+    
+    Change-Id: I2ab40630742d48a09b86ee150aa5f1f7002b134d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261497
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 40 +++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/pcln.go  | 17 -----------------
+ 2 files changed, 24 insertions(+), 33 deletions(-)

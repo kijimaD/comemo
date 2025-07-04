@@ -1,0 +1,12 @@
+commit 1518123114d12d852d92793bd986e8856ac13e25
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Apr 27 09:48:42 2020 -0700
+
+    database/sql/driver: enhance driver package documentation
+    
+    Change-Id: I455acdb71354f14e0bc4104cbd7abd5c89958dd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230214
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/database/sql/driver/driver.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

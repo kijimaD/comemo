@@ -1,0 +1,12 @@
+commit b758d8703a87aa2040302e9503a77d683b5f39f9
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Dec 18 13:29:27 2013 -0500
+
+    encoding/csv: remove unused unreadRune function
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/37720046
+
+ src/pkg/encoding/csv/reader.go | 6 ------
+ 1 file changed, 6 deletions(-)

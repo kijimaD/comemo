@@ -1,0 +1,16 @@
+commit d53f380e620c59cb3f30736584879c3c104ee488
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 18:32:27 2019 -0400
+
+    misc/cgo/errors: limit number of parallel executions
+    
+    Fixes #32328
+    
+    Change-Id: Iee71ecb247f2c439804c2ff03a6ed7b7f5a8b562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179603
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/ptr_test.go | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

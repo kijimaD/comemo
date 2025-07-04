@@ -1,0 +1,20 @@
+commit 56b70d98f522be3c1fed7df3d0359c913a2a1bc7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 10 15:32:17 2018 -0500
+
+    doc: use https scheme in oss-distros link
+    
+    The https scheme is supported, and should be used per best practices.
+    
+    The previous http link redirected to https:
+    
+            $ curl -i 'http://oss-security.openwall.org/wiki/mailing-lists/distros'
+            HTTP/1.1 302 Moved Temporarily
+            Location: https://oss-security.openwall.org/wiki/mailing-lists/distros
+    
+    Change-Id: I857b93eeec45996d6dc05dbf7532d1759bf4d447
+    Reviewed-on: https://go-review.googlesource.com/c/153457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/security.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

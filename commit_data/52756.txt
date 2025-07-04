@@ -1,0 +1,22 @@
+commit 6328e445c3a87d64a32b6203af3f39d43d874f9f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 21 11:42:20 2023 -0400
+
+    log: avoid leaking goroutines in TestOutputRace
+    
+    Leaked goroutines are the only explanation I can think of for excess
+    allocs in TestDiscard, and TestOutputRace is the only place I can see
+    where the log package leaks goroutines. Let's fix that leak and see if
+    it eliminates the TestDiscard flakes.
+    
+    Fixes #58797 (maybe).
+    
+    Change-Id: I2d54dcba3eb52bd10a62cd1c380131add6a2f651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487356
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/log/log_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

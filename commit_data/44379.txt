@@ -1,0 +1,16 @@
+commit fbed561f8a596ddbd2bb599a17ea3c6e0b223602
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 23 14:02:33 2021 -0500
+
+    runtime: reset stack poison flag accidentally set
+    
+    See if this clears failure on openbsd-amd64-68 (ahem).
+    
+    Change-Id: Ifa60ef711a95e5de8ad91433ffa425f75b36c76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295629
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/stack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

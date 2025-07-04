@@ -1,0 +1,12 @@
+commit 3a613be75ed75cdbb6565e1d780aa0ef4593b9dc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 3 16:48:59 2008 -0700
+
+    fix some tests
+    
+    SVN=125987
+
+ test/bugs/bug064.go | 23 +++++++++++++++++++++++
+ test/golden.out     | 28 +++++++++++++++++-----------
+ test/simassign.go   | 17 ++++++++++++++++-
+ 3 files changed, 56 insertions(+), 12 deletions(-)

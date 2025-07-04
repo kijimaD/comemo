@@ -1,0 +1,17 @@
+commit 549cfefc7233f17e6bf2d79294d11882181e9387
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 19:24:54 2021 -0800
+
+    doc/go1.18: expand section on generics
+    
+    Also, move it up in the document.
+    
+    Updates #47694
+    
+    Change-Id: I927c4c845089a5c22e2c5b5f3de1831c04c6d990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369102
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 78 ++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 60 insertions(+), 18 deletions(-)

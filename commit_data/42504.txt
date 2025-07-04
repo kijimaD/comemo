@@ -1,0 +1,49 @@
+commit ac743dea8e7d351d48a79bf4e7aea62ba3b4a515
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Jun 9 03:17:17 2020 -0700
+
+    cmd/compile: always tighten and de-duplicate tuple selectors
+    
+    The scheduler assumes two special invariants that apply to tuple
+    selectors (Select0 and Select1 ops):
+    
+      1. There is only one tuple selector of each type per generator.
+      2. Tuple selectors and generators reside in the same block.
+    
+    Prior to this CL the assumption was that these invariants would
+    only be broken by the CSE pass. The CSE pass therefore contained
+    code to move and de-duplicate selectors to fix these invariants.
+    
+    However it is also possible to write relatively basic optimization
+    rules that cause these invariants to be broken. For example:
+    
+      (A (Select0 (B))) -> (Select1 (B))
+    
+    This rule could result in the newly added selector (Select1) being
+    in a different block to the tuple generator (see issue #38356). It
+    could also result in duplicate selectors if this rule matches
+    multiple times for the same tuple generator (see issue #39472).
+    
+    The CSE pass will 'fix' these invariants. However it will only do
+    so when optimizations are enabled (since disabling optimizations
+    disables the CSE pass).
+    
+    This CL moves the CSE tuple selector fixup code into its own pass
+    and makes it mandatory even when optimizations are disabled. This
+    allows tuple selectors to be treated like normal ops for most of
+    the compilation pipeline until after the new pass has run, at which
+    point we need to be careful to maintain the invariant again.
+    
+    Fixes #39472.
+    
+    Change-Id: Ia3f79e09d9c65ac95f897ce37e967ee1258a080b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237118
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go |  3 ++
+ src/cmd/compile/internal/ssa/cse.go     | 54 ------------------------------
+ src/cmd/compile/internal/ssa/tuple.go   | 59 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue39472.go            | 12 +++++++
+ 4 files changed, 74 insertions(+), 54 deletions(-)

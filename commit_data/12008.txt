@@ -1,0 +1,20 @@
+commit 710d0540e27f57b2589552965418b95b88187fa7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Feb 17 11:29:34 2012 -0500
+
+    cmd/dist: make dir check in defaulttarg() more robust
+    
+    1, strip last path separator from $GOROOT
+       The user might define GOROOT=/path/to/go/, but then the dir
+       check in defaulttarg() will always complain the current dir
+       is not within $GOROOT/src/.
+    2, resolve symlinks in the default goroot
+       Or if getcwd() returns a fully-resolved path, the check in
+       defaulttarg() will always fail.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5649073
+
+ src/cmd/dist/build.c | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

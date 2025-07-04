@@ -1,0 +1,18 @@
+commit cc2fc024678020a361b5634f2aa349f2645ddf8a
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat May 14 20:43:18 2011 -0700
+
+    pkg: fix incorrect prints found by govet
+    
+    Also, clarify some error messages
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4548042
+
+ src/pkg/crypto/openpgp/packet/public_key_test.go |  2 +-
+ src/pkg/http/request_test.go                     | 10 +++++-----
+ src/pkg/http/response_test.go                    |  4 ++--
+ src/pkg/mime/multipart/formdata_test.go          |  2 +-
+ src/pkg/os/user/user_test.go                     |  2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)

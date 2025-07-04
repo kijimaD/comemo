@@ -1,0 +1,12 @@
+commit 893e02ab595042efa5a7b5230ca73626dd20a8de
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 18 20:55:21 2011 -0400
+
+    gopprof: update list of memory allocation functions
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4275057
+
+ src/cmd/prof/gopprof | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

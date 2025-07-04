@@ -1,0 +1,16 @@
+commit 275755401dabce1b625fd33960bd1d12eaab7ebb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 21 23:15:12 2015 +0900
+
+    net: fix WriteTo on Plan 9
+    
+    This change excludes internal UDP header size from a result of number of
+    bytes written on WriteTo.
+    
+    Change-Id: I847d57f7f195657b6f14efdf1b4cfab13d4490dd
+    Reviewed-on: https://go-review.googlesource.com/9196
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/net/udpsock_plan9.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

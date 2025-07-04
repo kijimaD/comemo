@@ -1,0 +1,18 @@
+commit 5ddaf9a098b3f562598502d28f730dd13b70c4bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 8 15:00:54 2009 -0700
+
+    reflection for channels
+    
+    R=r
+    DELTA=188  (171 added, 6 deleted, 11 changed)
+    OCL=31352
+    CL=31361
+
+ src/pkg/reflect/all_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/reflect/value.go    | 57 ++++++++++++++++++++++++++++++---
+ src/pkg/runtime/chan.c      | 28 +++++++++-------
+ src/pkg/runtime/reflect.cgo | 24 ++++++++++++++
+ src/pkg/runtime/runtime.h   |  6 ++++
+ src/pkg/runtime/type.h      |  8 +++++
+ 6 files changed, 183 insertions(+), 18 deletions(-)

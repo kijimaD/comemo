@@ -1,0 +1,21 @@
+commit dd38ade8d1f2cbe938604fbb34a69533cb128310
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Aug 23 16:52:37 2023 +0200
+
+    os: omit existence check for GetFinalPathNameByHandle
+    
+    GetFinalPathNameByHandle exists since Windows Vista, which we no longer
+    support, so we don't need to prove that it exists before using it.
+    
+    Updates #57003
+    
+    Change-Id: Iff2bbe51d3baa3aabcaacf39ea3cbeda0088b9d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522195
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/syscall_windows.go | 4 ----
+ src/os/file_windows.go                          | 6 ------
+ 2 files changed, 10 deletions(-)

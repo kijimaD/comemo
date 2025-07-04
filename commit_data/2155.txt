@@ -1,0 +1,15 @@
+commit 3071f8c8e5302a08b5e112eac96f23e349adf95e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 17:05:46 2009 -0700
+
+    fix a few type errors, make ErrorString a value
+    
+    will submit with fixed compiler
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=28371
+    CL=28379
+
+ src/lib/os/error.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

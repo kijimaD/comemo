@@ -1,0 +1,15 @@
+commit 06cac23d287fda29b8048ecb411ae44aaf407f70
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 26 16:14:17 2009 -0700
+
+    Implement divWW_g in Go.
+    
+    R=gri
+    DELTA=105  (77 added, 23 deleted, 5 changed)
+    OCL=33890
+    CL=33910
+
+ src/pkg/big/arith.go      | 87 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/big/arith_386.s   | 12 -------
+ src/pkg/big/arith_amd64.s | 11 ------
+ 3 files changed, 82 insertions(+), 28 deletions(-)

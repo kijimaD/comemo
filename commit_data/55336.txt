@@ -1,0 +1,19 @@
+commit 988b718f4130ab5b3ce5a5774e1a58e83c92a163
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 26 21:17:04 2023 -0800
+
+    doc: fix typo in example in spec
+    
+    Follow-up on CL 551095.
+    
+    For #56010.
+    
+    Change-Id: I8913d6ca96c419c81683e88c6286b05ae1323416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552915
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

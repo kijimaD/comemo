@@ -1,0 +1,21 @@
+commit 11390998ff04414545de38a5a47aa2e94e3df964
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 17 13:03:21 2023 -0700
+
+    cmd/internal/buildid: don't crash on 0 phdr.p_align field
+    
+    A 0 in phdr.p_align is the same as 1, meaning no alignment.
+    
+    Fixes #62097
+    
+    Change-Id: I931bab443fd6a89b5b45c8f99ead217f02e9b453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520597
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/buildid/buildid_test.go | 65 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/buildid/note.go         |  8 ++--
+ 2 files changed, 70 insertions(+), 3 deletions(-)

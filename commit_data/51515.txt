@@ -1,0 +1,19 @@
+commit 98da0fb43fb481a25b3b4399cd9f517fe94d9f3f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 6 12:11:57 2022 -0500
+
+    runtime/pprof: unskip TestTimeVDSO on Android
+    
+    It is possible that CL 455166 fixes this. Try unskipping the test
+    and see. If it fails again we can skip it again.
+    
+    Fixes #48655.
+    
+    Change-Id: Ia81b06cb7608f74adb276bc018e8fc840285bc11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455358
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

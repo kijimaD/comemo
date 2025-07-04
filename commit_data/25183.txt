@@ -1,0 +1,16 @@
+commit 84a875caa6de1b404dad596b1b6949e436168c76
+Author: andrey mirtchovski <mirtchovski@gmail.com>
+Date:   Sun Dec 6 17:44:44 2015 -0700
+
+    go/doc, syscall: change 'more then' to 'more than'
+    
+    This change modifies comments to use the more gramatically correct "more than"
+    instead of "more then".
+    
+    Change-Id: Ie3bddcf25eb6b243a21da934f2f3c76a750c083a
+    Reviewed-on: https://go-review.googlesource.com/17488
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/doc/reader.go       | 6 +++---
+ src/syscall/dll_windows.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,37 @@
+commit cffbfaeb1819bfb6770848c4d57615f0ee1a46ba
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Oct 9 20:51:58 2012 +0400
+
+    race: syscall changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
+    The purpose of this patch is to provide coarse-grained synchronization
+    between all Read() and Write() calls.
+    
+    R=rsc, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6610064
+
+ src/pkg/syscall/exec_unix.go              |  2 +-
+ src/pkg/syscall/race.go                   | 22 ++++++++++++++++++++++
+ src/pkg/syscall/race0.go                  | 19 +++++++++++++++++++
+ src/pkg/syscall/syscall_darwin.go         |  8 ++++----
+ src/pkg/syscall/syscall_freebsd.go        |  8 ++++----
+ src/pkg/syscall/syscall_linux.go          |  8 ++++----
+ src/pkg/syscall/syscall_netbsd.go         |  8 ++++----
+ src/pkg/syscall/syscall_openbsd.go        |  8 ++++----
+ src/pkg/syscall/syscall_plan9.go          | 11 ++++++++++-
+ src/pkg/syscall/syscall_unix.go           | 17 +++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |  8 ++++++++
+ src/pkg/syscall/zsyscall_darwin_386.go    |  8 ++++----
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  8 ++++----
+ src/pkg/syscall/zsyscall_freebsd_386.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_386.go     |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_amd64.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_arm.go     |  8 ++++----
+ src/pkg/syscall/zsyscall_netbsd_386.go    |  8 ++++----
+ src/pkg/syscall/zsyscall_netbsd_amd64.go  |  8 ++++----
+ src/pkg/syscall/zsyscall_openbsd_386.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_openbsd_amd64.go |  8 ++++----
+ 22 files changed, 141 insertions(+), 66 deletions(-)

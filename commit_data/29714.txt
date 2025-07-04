@@ -1,0 +1,19 @@
+commit 1102c70bc425e66d3b8981f69a40bd2043cf7e60
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 18:45:56 2016 +0000
+
+    net/http: teach NewRequest that NoBody has ContentLength zero
+    
+    NoBody is new in Go 1.8.
+    
+    Found while investigating #18117
+    
+    Change-Id: I6bda030f358e2270f090d108cb3a89c8a2665fcb
+    Reviewed-on: https://go-review.googlesource.com/33714
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go      |  4 +++-
+ src/net/http/request_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+commit a63907808d14679c723e566cb83acc76fc8cafc2
+Author: Nuno Gonçalves <nunomrgoncalves@tecnico.ulisboa.pt>
+Date:   Thu Apr 18 19:30:26 2024 +0000
+
+    net/http: add field Cookie.Quoted bool
+    
+    The current implementation of the http package strips double quotes
+    from the cookie-value during parsing, resulting in the serialized
+    cookie not including them. This patch addresses this limitation by
+    introducing a new field to track whether the original value was
+    enclosed in quotes.
+    
+    Additionally, the internal representation of a cookie in the cookiejar
+    package has been adjusted to align with the new representation.
+    
+    The syntax of cookies is outlined in RFC 6265 Section 4.1.1:
+    https://datatracker.ietf.org/doc/html/rfc6265\#section-4.1.1
+    
+    Fixes #46443
+    
+    Change-Id: Iac12a56397d77a6060a75757ab0daeacc60457f3
+    GitHub-Last-Rev: a76440e741440cddaa05944b6828a14a32b5a44a
+    GitHub-Pull-Request: golang/go#66752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577755
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/46443.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/net/http/46443.md |  3 +
+ src/net/http/cookie.go                       | 51 ++++++++++------
+ src/net/http/cookie_test.go                  | 90 ++++++++++++++++++----------
+ src/net/http/cookiejar/jar.go                |  4 +-
+ src/net/http/cookiejar/jar_test.go           | 26 +++++++-
+ src/net/http/request.go                      |  2 +-
+ 7 files changed, 124 insertions(+), 53 deletions(-)

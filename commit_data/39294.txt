@@ -1,0 +1,15 @@
+commit 2ce643d3b674c886d60c72246ec7cdd966f2e6cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 3 12:13:54 2019 -0400
+
+    cmd/go: document GO111MODULE=auto behavior for Go 1.13
+    
+    Fixes #31857
+    
+    Change-Id: Ic4afe1262d863112db97794edc1ade20f6926d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180197
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go               | 23 +++++++++++++----------
+ src/cmd/go/internal/modload/help.go | 23 +++++++++++++----------
+ 2 files changed, 26 insertions(+), 20 deletions(-)

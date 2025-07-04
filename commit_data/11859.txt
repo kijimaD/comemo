@@ -1,0 +1,14 @@
+commit b8df36182d7321201d3985a4b3d8ca1c0faf63d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 09:34:52 2012 +1100
+
+    net/http: add a Linux-only sendfile test
+    
+    I remembered that sendfile support was lacking a test.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5652079
+
+ src/pkg/net/http/fs_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)

@@ -1,0 +1,30 @@
+commit 091db6392da5913e4bd4806215102e461dc5649c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 4 11:24:28 2021 -0400
+
+    runtime: fix cgo signals detection
+    
+    CL 64070 removed lockOSThread from the cgocall path, but didn't update
+    the signal-in-cgo detection in sighandler. As a result, signals that
+    arrive during a cgo call are treated like they arrived during Go
+    execution, breaking the traceback.
+    
+    Update the cgo detection to fix the backtrace.
+    
+    Fixes #47522
+    
+    Change-Id: I61d77ba6465f55e3e6187246d79675ba8467ec23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339989
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_cgo_test.go                | 45 ++++++++++++++++++++++++++++
+ src/runtime/signal_unix.go                   |  6 ++--
+ src/runtime/signal_windows.go                |  4 +--
+ src/runtime/testdata/testprogcgo/panic.go    | 29 ++++++++++++++++++
+ src/runtime/testdata/testprogcgo/sigthrow.go | 20 +++++++++++++
+ 5 files changed, 100 insertions(+), 4 deletions(-)

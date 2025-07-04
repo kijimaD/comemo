@@ -1,0 +1,13 @@
+commit d62239b5f6b47e34a392cc3c884eab1f3770f2c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 18 15:46:36 2013 +0400
+
+    runtime/debug: make TestFreeOSMemory repeatable
+    Fixes #4835.
+    
+    R=golang-dev, fullung
+    CC=golang-dev
+    https://golang.org/cl/7319050
+
+ src/pkg/runtime/debug/garbage_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

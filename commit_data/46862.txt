@@ -1,0 +1,18 @@
+commit 61890fb1237a3d2c3be809f66dd3f831cd2cc3d2
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 12 16:45:40 2021 -0400
+
+    internal/fuzz: fix -fuzzminimizetime with 'x' bug
+    
+    Fixes #48928
+    
+    Change-Id: I3825ec615ab5fc19389ef4c10ad1042005a3761c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355450
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt | 57 +++++++++++++++++++----
+ src/internal/fuzz/fuzz.go                         |  8 ++--
+ 2 files changed, 54 insertions(+), 11 deletions(-)

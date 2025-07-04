@@ -1,0 +1,23 @@
+commit afdb8cff3ef267ecddb5ce807b850b8664ca9387
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Fri Mar 11 12:23:11 2016 +0100
+
+    compress/flate: test if results are deterministic
+    
+    This will test if deflate output is deterministic between two runs
+    of the deflater, when write sizes differ.
+    
+    The deflater makes no official promises that results are
+    deterministic between runs, but this is a good test to determine
+    unintentional randomness.
+    
+    Note that this does not guarantee that results are deterministic
+    across platforms nor that results will be deterministic between
+    Go versions. This is also not guarantees we should imply.
+    
+    Change-Id: Id7dd89fe276060fd83a43d0b34ac35d50fcd32d9
+    Reviewed-on: https://go-review.googlesource.com/20573
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/writer_test.go | 66 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

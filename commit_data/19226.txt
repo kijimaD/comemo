@@ -1,0 +1,27 @@
+commit 13ea1fd233465bc5dd410c8c64c8120ab249ab69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 25 06:44:51 2014 -0700
+
+    net/http, strings, bytes: fix http race, revert part of Reader behavior change
+    
+    I fixed this data race regression in two ways: in net/http itself, and also
+    partially reverting the change from https://golang.org/cl/77580046 .
+    Previously a Read from a strings.Reader or bytes.Reader returning 0 bytes
+    would not be a memory write. After 77580046 it was. This reverts that back
+    in case others depended on that. Also adds tests.
+    
+    Fixes #7856
+    
+    LGTM=ruiu, iant
+    R=iant, ruiu
+    CC=golang-codereviews, gri
+    https://golang.org/cl/94740044
+
+ src/pkg/bytes/reader.go         |  2 +-
+ src/pkg/bytes/reader_test.go    | 23 ++++++++++++++++++++++-
+ src/pkg/net/http/serve_test.go  | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go      | 15 +++++++++++----
+ src/pkg/strings/reader.go       |  2 +-
+ src/pkg/strings/reader_test.go  | 21 +++++++++++++++++++++
+ src/pkg/strings/strings_test.go |  2 +-
+ 7 files changed, 90 insertions(+), 8 deletions(-)

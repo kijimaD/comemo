@@ -1,0 +1,33 @@
+commit 78f7d0f001c26873f2e29fe2cdd6071763c3e723
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Oct 2 03:36:51 2022 +0000
+
+    cmd/compile/internal: fix a few function names on comments
+    
+    Change-Id: If78c6d3c6183494f71f2857e496e172a789da39f
+    GitHub-Last-Rev: 58e0b75052a92cb720371d2b3c75e1de79d79bdc
+    GitHub-Pull-Request: golang/go#55992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437517
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/print.go        | 2 +-
+ src/cmd/compile/internal/importer/iimport.go  | 2 +-
+ src/cmd/compile/internal/ir/abi.go            | 2 +-
+ src/cmd/compile/internal/ir/fmt.go            | 4 ++--
+ src/cmd/compile/internal/logopt/log_opts.go   | 2 +-
+ src/cmd/compile/internal/noder/stencil.go     | 2 +-
+ src/cmd/compile/internal/objw/objw.go         | 2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go  | 2 +-
+ src/cmd/compile/internal/ssa/op.go            | 2 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go  | 2 +-
+ src/cmd/compile/internal/typecheck/subr.go    | 6 +++---
+ src/cmd/compile/internal/types/type.go        | 2 +-
+ src/cmd/compile/internal/walk/expr.go         | 2 +-
+ src/cmd/compile/internal/walk/order.go        | 2 +-
+ 15 files changed, 18 insertions(+), 18 deletions(-)

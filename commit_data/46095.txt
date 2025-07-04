@@ -1,0 +1,18 @@
+commit e49775e0579891479888a514c82cf6eea123763f
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 16:01:42 2021 -0400
+
+    go/types: consolidate verification logic
+    
+    This is a straightforward port of CL 342149 to go/types.
+    
+    Change-Id: I468c5154b7545b7816bb3f240b8db91e7a1fd3f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342488
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go | 49 +++++++++++++++++++++++----------------------
+ src/go/types/typexpr.go     |  2 +-
+ 2 files changed, 26 insertions(+), 25 deletions(-)

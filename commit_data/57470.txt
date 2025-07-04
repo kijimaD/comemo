@@ -1,0 +1,29 @@
+commit 72739bbfa680b4bc95a6597d55f2c4d5354af51f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 13:17:39 2024 -0400
+
+    cmd/compile: remove ir.OGETCALLERPC
+    
+    Nothing ever creates this op, so it can be safely removed. Note that SSA
+    still intrinsifies runtime.getcallerpc.
+    
+    The similar ir.OGETCALLERSP is still used for defer handling in
+    typecheck/func.go:tcRecover.
+    
+    For #54766.
+    
+    Change-Id: I6bdb2072af2c068080ae977c0cbd4684d0c7c752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/escape/expr.go         | 2 +-
+ src/cmd/compile/internal/ir/expr.go             | 2 +-
+ src/cmd/compile/internal/ir/node.go             | 1 -
+ src/cmd/compile/internal/ir/op_string.go        | 9 ++++-----
+ src/cmd/compile/internal/ssagen/ssa.go          | 4 ----
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ src/cmd/compile/internal/walk/expr.go           | 2 +-
+ src/cmd/compile/internal/walk/walk.go           | 2 +-
+ 8 files changed, 9 insertions(+), 15 deletions(-)

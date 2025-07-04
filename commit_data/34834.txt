@@ -1,0 +1,16 @@
+commit 8f38f28222abccc505b9a1992deecfe3e2cb85de
+Author: James Hartig <fastest963@gmail.com>
+Date:   Fri Feb 2 13:45:19 2018 -0500
+
+    net/http/httputil: make ReverseProxy panic on error while copying body
+    
+    Fixes #23643.
+    
+    Change-Id: I4f8195a36be817d79b9e7c61a5301f153b681493
+    Reviewed-on: https://go-review.googlesource.com/91675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 23 +++++++++----
+ src/net/http/httputil/reverseproxy_test.go | 52 +++++++++++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 14 deletions(-)

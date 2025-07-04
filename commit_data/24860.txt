@@ -1,0 +1,20 @@
+commit c1b6e392f56a35d4e59e1e938c68e4c5db4fd919
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 30 12:47:24 2015 +1300
+
+    cmd/internal/obj, cmd/link, runtime: increase stack limit to accommodate larger frames on ppc64x
+    
+    Larger stack frames mean nosplit functions use more stack and so the limit
+    needs to increase.
+    
+    The change to test/nosplit.go is a bit ugly but I can't really think of a
+    way to make it nicer.
+    
+    Change-Id: I2616b58015f0b62abbd62951575fcd0d2d8643c2
+    Reviewed-on: https://go-review.googlesource.com/16504
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/stack.go |  2 +-
+ src/runtime/stack.go          |  2 +-
+ test/nosplit.go               | 64 ++++++++++++++++++++++++++-----------------
+ 3 files changed, 41 insertions(+), 27 deletions(-)

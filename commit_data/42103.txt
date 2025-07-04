@@ -1,0 +1,29 @@
+commit 67a8660b5acd570530f3777727d67e739e54cb2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 19:22:26 2020 -0700
+
+    cmd/compile: CSE the RHS of rewrite rules
+    
+    Keep track of all expressions encountered while
+    generating a rewrite result, and re-use them whenever possible.
+    Named expressions may still be used for clarity when desired.
+    
+    Change-Id: I640dca108763eb8baeff8f9a4169300af3445b82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229800
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  18 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  12 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  80 ++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 146 ++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 294 +++++++------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 169 ++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 236 ++++++--------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   8 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  44 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  70 ++----
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 238 ++++++++------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  84 +++----
+ 12 files changed, 426 insertions(+), 973 deletions(-)

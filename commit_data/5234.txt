@@ -1,0 +1,23 @@
+commit 6c3befc824ce9980666aea5e3a2783a0e4872999
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Apr 6 13:29:27 2010 -0700
+
+    Change goyacc to be reentrant.
+    Instead of calling the package scope Lex function,
+    Parse now takes an argument which is used to
+    do the lexing.
+    I reverted to having the generated switch
+    code inside Parse rather than a separate function because
+    the function needs 7 arguments or a context structure,
+    which seems unnecessary.
+    I used yyrun(), not the original $A so that
+    it's possible to run the backquoted code through gofmt.
+    
+    R=rsc, ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/879041
+
+ src/cmd/goyacc/doc.go    |  13 +
+ src/cmd/goyacc/goyacc.go | 456 ++++++++++++++------------------
+ src/cmd/goyacc/units.y   | 668 +++++++++++++++++++++++------------------------
+ 3 files changed, 532 insertions(+), 605 deletions(-)

@@ -1,0 +1,19 @@
+commit a837347dd95d045e05bf0e6df9bf1c9b157c7c53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 26 11:13:50 2014 +1100
+
+    runtime: use VEH for windows/amd64 exception handling
+    
+    Fixes windows/amd64 build.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/79470046
+
+ src/cmd/ld/pe.c                     | 44 ------------------
+ src/pkg/runtime/os_windows.c        |  3 --
+ src/pkg/runtime/os_windows_amd64.c  | 33 +++++++++++--
+ src/pkg/runtime/sys_windows_386.s   |  8 ----
+ src/pkg/runtime/sys_windows_amd64.s | 93 +++++++++++++++++--------------------
+ 5 files changed, 70 insertions(+), 111 deletions(-)

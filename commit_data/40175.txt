@@ -1,0 +1,16 @@
+commit d458b868360c0e223979951dd4b6ce3ce92cfd68
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 8 13:17:02 2019 +0200
+
+    cmd/compile: regenerate known formats in fmtmap_test.go
+    
+    This fixes TestFormats after CL 198037
+    
+    Change-Id: I3fb7d667f7c2a1fd88a320482310d33b75e068c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199777
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmtmap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

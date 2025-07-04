@@ -1,0 +1,14 @@
+commit 2f43ce7fb0390f9d429cedf4f9f6701c1268411e
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 11 17:27:29 2013 -0500
+
+    crypto/x509: fix typo in comment.
+    
+    Fixes #6633.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/40720046
+
+ src/pkg/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

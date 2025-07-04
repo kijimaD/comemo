@@ -1,0 +1,18 @@
+commit 45537d893d4b0a194a11d3d13ec18d460f86a237
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 13:56:23 2015 -0700
+
+    cmd/doc: document that json.Decode documents encoding/json.Decoder.Decode
+    
+    Refine the documentation in cmd/doc and go help doc.
+    
+    Fixes #12377.
+    
+    Change-Id: I670c0a5cf18c9c9d5bb9bb222d8a3dd3722a3934
+    Reviewed-on: https://go-review.googlesource.com/14121
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/doc/main.go   |  6 ++++--
+ src/cmd/go/alldocs.go | 21 ++++++++++++++++-----
+ src/cmd/go/doc.go     | 21 ++++++++++++++++-----
+ 3 files changed, 36 insertions(+), 12 deletions(-)

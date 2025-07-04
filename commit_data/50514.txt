@@ -1,0 +1,37 @@
+commit 686b38b5b27fe14318adfee57aac780c452fddd6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 31 18:21:48 2022 +0000
+
+    runtime: set G wait reason more consistently
+    
+    Currently, wait reasons are set somewhat inconsistently. In a follow-up
+    CL, we're going to want to rely on the wait reason being there for
+    casgstatus, so the status quo isn't really going to work for that. Plus
+    this inconsistency means there are a whole bunch of cases where we could
+    be more specific about the G's status but aren't.
+    
+    So, this change adds a new function, casGToWaiting which is like
+    casgstatus but also sets the wait reason. The goal is that by using this
+    API it'll be harder to forget to set a wait reason (or the lack thereof
+    will at least be explicit). This change then updates all casgstatus(gp,
+    ..., _Gwaiting) calls to casGToWaiting(gp, ..., waitReasonX) instead.
+    For a number of these cases, we're missing a wait reason, and it
+    wouldn't hurt to add a wait reason for them, so this change also adds
+    those wait reasons.
+    
+    For #49881.
+    
+    Change-Id: Ia95e06ecb74ed17bb7bb94f1a362ebfe6bec1518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427617
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/debugcall.go |  3 +--
+ src/runtime/heapdump.go  |  3 +--
+ src/runtime/mgc.go       |  7 +++----
+ src/runtime/mgcmark.go   |  6 ++----
+ src/runtime/proc.go      | 17 ++++++++++++++---
+ src/runtime/runtime2.go  |  6 ++++++
+ 6 files changed, 27 insertions(+), 15 deletions(-)

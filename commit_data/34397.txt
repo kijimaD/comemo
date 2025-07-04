@@ -1,0 +1,30 @@
+commit a379b7d9acd69cd4a23eec7d7409084e15f8ace0
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Feb 28 14:29:27 2018 +0000
+
+    syscall: reduce redundant getwd tracking in Plan 9
+    
+    In Plan 9, each M is implemented as a separate OS process with
+    its own working directory.  To keep the wd consistent across
+    goroutines (or rescheduling of the same goroutine), CL 6350
+    introduced a Fixwd procedure which checks using getwd and calls
+    chdir if necessary before any syscall operating on a pathname.
+    
+    This wd checking will not be necessary if the pathname is absolute
+    (starts with '/' or '#').  Getwd is a fairly expensive operation
+    in Plan 9 (implemented by opening "." and calling Fd2path on the
+    file descriptor).  Eliminating the redundant getwd calls can
+    significantly reduce overhead for common operations like
+    "dist test --list" which perform many syscalls on absolute pathnames.
+    
+    Updates #9428.
+    
+    Change-Id: I13fd9380779de27b0ac2f2b488229778d6839255
+    Reviewed-on: https://go-review.googlesource.com/97675
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/syscall/pwd_plan9.go     | 10 ++++++++++
+ src/syscall/syscall_plan9.go | 16 ++++++++--------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

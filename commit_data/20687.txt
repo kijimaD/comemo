@@ -1,0 +1,13 @@
+commit eeb2211a5b88ae0774fbfd5bccc1de329e7663f7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 10 09:46:41 2014 +1100
+
+    net: skip new TestReadFromUDP on nacl and plan9 (fixes build)
+    
+    TBR=0intro
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/157820043
+
+ src/net/udp_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

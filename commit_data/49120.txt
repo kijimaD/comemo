@@ -1,0 +1,22 @@
+commit 960ffa98ce73ef2c2060c84c7ac28d37a83f345e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 15:14:56 2022 -0400
+
+    os/exec: return clear error for missing cmd.Path
+    
+    Following up on CL 403694, there is a bit of confusion about
+    when Path is and isn't set, along with now the exported Err field.
+    Catch the case where Path and Err (and lookPathErr) are all unset
+    and give a helpful error.
+    
+    Fixes #52574
+    Followup after #43724.
+    
+    Change-Id: I03205172aef3801c3194f5098bdb93290c02b1b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403759
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/os/exec/exec.go      | 3 +++
+ src/os/exec/exec_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+)

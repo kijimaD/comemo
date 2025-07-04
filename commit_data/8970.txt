@@ -1,0 +1,12 @@
+commit 141f676bab9100cb9323297f839ef8d11b0c3e4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 7 13:45:13 2011 -0700
+
+    doc: remove ed from apt-get package list
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4672052
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

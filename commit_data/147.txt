@@ -1,0 +1,11 @@
+commit a544938c264bbf1dd83c6b8f3d3232f4d96497b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 11 12:07:43 2008 -0700
+
+    - added test case
+    
+    SVN=122159
+
+ test/bugs/bug046.go | 15 +++++++++++++++
+ test/golden.out     | 12 ++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

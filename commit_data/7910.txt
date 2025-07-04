@@ -1,0 +1,16 @@
+commit 0bc37a6d22223fcae11af4af66ff19cd4ebdb60c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 06:47:39 2011 -0700
+
+    test: match gccgo error messages for syntax/chan.go.
+    
+    chan.go:11:1: error: unexpected ‘}’ in channel type
+    chan.go:13:16: error: unexpected ‘)’ in channel type
+    chan.go:16:16: error: unexpected comma in channel type
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4313055
+
+ test/syntax/chan.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

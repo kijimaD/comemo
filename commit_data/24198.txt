@@ -1,0 +1,22 @@
+commit 74288f09dc0c29f8ce86a4ca44cb78828c0118ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 15:08:24 2015 -0700
+
+    strconv: add QuoteToGraphic and friends
+    
+    This version of quoting allows runes in category Zs, such as the
+    ideographic space characters, to be passed through unquoted.
+    
+    Still to do (maybe): A way to access this from Printf.
+    
+    Updates #11511.
+    
+    Change-Id: I3bae84b1aa0bc1b885318d3f67c5f451099a2a5a
+    Reviewed-on: https://go-review.googlesource.com/14184
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/strconv/isprint.go     | 20 +++++++++++
+ src/strconv/makeisprint.go | 17 +++++++++
+ src/strconv/quote.go       | 67 ++++++++++++++++++++++++++++++-----
+ src/strconv/quote_test.go  | 88 ++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 162 insertions(+), 30 deletions(-)

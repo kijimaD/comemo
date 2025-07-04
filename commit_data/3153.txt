@@ -1,0 +1,17 @@
+commit 60222bf5388246c13952a6908986538ce7015b53
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:10:16 2009 -0700
+
+    package debug/binary
+    
+    R=austin
+    DELTA=320  (320 added, 0 deleted, 0 changed)
+    OCL=33983
+    CL=34143
+
+ src/pkg/Make.deps                   |   1 +
+ src/pkg/Makefile                    |   1 +
+ src/pkg/debug/binary/Makefile       |  11 ++
+ src/pkg/debug/binary/binary.go      | 220 ++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/binary/binary_test.go |  87 ++++++++++++++
+ 5 files changed, 320 insertions(+)

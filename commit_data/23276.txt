@@ -1,0 +1,12 @@
+commit 24de40a8461a48f814c1bd37a1a6b911c922366f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 5 08:11:34 2015 -0700
+
+    cmd/dist: add more logging details when go list std cmd fails
+    
+    Change-Id: I12e6990b46ea9c733a5718dc5ca67f1fcd2dec66
+    Reviewed-on: https://go-review.googlesource.com/10754
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit aff914c6ecfcb5e053819a355cd433467ce8f75f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 15:21:52 2008 -0700
+
+    add nuke
+    
+    R=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=17497
+    CL=17500
+
+ src/lib/regexp/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)

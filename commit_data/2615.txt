@@ -1,0 +1,34 @@
+commit 27432d67ec4c8b4abe09954349e96745363af31e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 10:07:15 2009 -0700
+
+    move 6c/pgen.c, 6c/pswt.c into cc
+    and make 5c, 8c use them.
+    
+    centralizes reachability analysis
+    and switch generation.
+    
+    now 8c doesn't have spurious warnings
+    in pkg/runtime.
+    
+    R=ken
+    OCL=31266
+    CL=31266
+
+ src/cmd/5c/Makefile       |   6 +
+ src/cmd/5c/cgen.c         | 109 +++++++-----
+ src/cmd/5c/gc.h           |  10 +-
+ src/cmd/5c/sgen.c         | 422 +-------------------------------------------
+ src/cmd/5c/swt.c          | 142 +--------------
+ src/cmd/5c/txt.c          |  15 +-
+ src/cmd/6c/Makefile       |   4 +
+ src/cmd/6c/gc.h           |  11 +-
+ src/cmd/6c/machcap.c      |   5 +-
+ src/cmd/6c/pswt.c         | 168 ------------------
+ src/cmd/6c/sgen.c         |  12 ++
+ src/cmd/8c/Makefile       |   6 +
+ src/cmd/8c/gc.h           |   4 +
+ src/cmd/8c/sgen.c         | 436 +---------------------------------------------
+ src/cmd/8c/swt.c          | 128 --------------
+ src/cmd/{6c => cc}/pgen.c |  35 ++--
+ 16 files changed, 152 insertions(+), 1361 deletions(-)

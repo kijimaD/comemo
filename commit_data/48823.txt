@@ -1,0 +1,28 @@
+commit 302f5ed21dad2cb99f3f63fd99228dc3ab480772
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 18 18:43:22 2022 -0700
+
+    cmd/compile/internal/types2: don't crash in overflow check
+    
+    Be careful before accessing an operand's expr field (which may
+    be nil in some rare cases).
+    
+    While at it, factor out position information so that it's only
+    computed when there's an error, which is almost never.
+    
+    In go/types, remove an unnecessary argument to Checker.overflow.
+    The code is otherwise ok as it's structured slightly differently
+    due to the way positions are recorded in AST nodes.
+    
+    Fixes #52401.
+    
+    Change-Id: I447ebd9bb0c33eb6bff5e7b4d5aee37ceb0a4b14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400798
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 51 ++++++++++++----------
+ .../types2/testdata/fixedbugs/issue52401.go        | 11 +++++
+ src/go/types/expr.go                               | 12 ++---
+ src/go/types/testdata/fixedbugs/issue52401.go      | 11 +++++
+ 4 files changed, 56 insertions(+), 29 deletions(-)

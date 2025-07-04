@@ -1,0 +1,17 @@
+commit 115c62de8de3b1549453f93b738c4899c72d176a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 2 12:54:38 2009 -0700
+
+    heap algorithm
+    
+    R=rsc
+    DELTA=196  (194 added, 0 deleted, 2 changed)
+    OCL=34234
+    CL=34263
+
+ src/pkg/Make.deps                   |  5 +-
+ src/pkg/Makefile                    |  1 +
+ src/pkg/container/heap/Makefile     | 11 +++++
+ src/pkg/container/heap/heap.go      | 82 ++++++++++++++++++++++++++++++
+ src/pkg/container/heap/heap_test.go | 99 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 196 insertions(+), 2 deletions(-)

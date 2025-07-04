@@ -1,0 +1,23 @@
+commit 7c90e2cbda677a1a9993403df192f31fb011a112
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 3 10:27:48 2019 -0700
+
+    bytes/hash: disable seed test on 32-bit platforms
+    
+    The distribution of hash outputs when varying the seed is
+    not good enough on 32-bit platforms.
+    
+    This isn't a likely attack vector (the adversary controlling the seed),
+    so it isn't a huge deal. Would be nice to fix, though. For now, just
+    skip this test.
+    
+    Fixes #33988
+    
+    Change-Id: Icf51ab687fc215422a5492ae78e6f414b33e04cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193078
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/hash/smhasher_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

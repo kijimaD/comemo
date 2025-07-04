@@ -1,0 +1,35 @@
+commit 7ad496b6f5300131d6f1fbafe44ac882897889e4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 13 23:30:19 2021 -0400
+
+    runtime: unify C->Go ABI transitions
+    
+    The previous CL introduced macros for transitions from the Windows ABI
+    to the Go ABI. This CL does the same for SysV and uses them in almost
+    all places where we transition from the C ABI to the Go ABI.
+    
+    Compared to Windows, this transition is much simpler and I didn't find
+    any places that were getting it wrong. But this does let us unify a
+    lot of code nicely and introduces some degree of abstraction around
+    these ABI transitions.
+    
+    Change-Id: Ib6bdecafce587ce18fca4c8300fcf401284a2bcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309930
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/asm_amd64.s           | 21 +++++---------
+ src/runtime/cgo/abi_amd64.h       | 32 +++++++++++++++++++-
+ src/runtime/cgo/asm_amd64.s       | 30 ++++---------------
+ src/runtime/os_linux.go           |  2 +-
+ src/runtime/race_amd64.s          | 25 ++++------------
+ src/runtime/sys_darwin_amd64.s    | 59 ++++++++++---------------------------
+ src/runtime/sys_dragonfly_amd64.s | 38 ++++++++++--------------
+ src/runtime/sys_freebsd_amd64.s   | 38 ++++++++++--------------
+ src/runtime/sys_linux_386.s       |  7 +++--
+ src/runtime/sys_linux_amd64.s     | 39 ++++++++++---------------
+ src/runtime/sys_netbsd_amd64.s    | 38 ++++++++++--------------
+ src/runtime/sys_openbsd_amd64.s   | 61 ++++++++++++---------------------------
+ 12 files changed, 152 insertions(+), 238 deletions(-)

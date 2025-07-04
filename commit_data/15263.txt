@@ -1,0 +1,17 @@
+commit d71b3921f76c1064ee0474c6e195723d3dabb3a6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 15 15:52:12 2013 +1100
+
+    net: delete TestDialTimeoutHandleLeak
+    
+    It is too flaky. Tried to make it more reliable,
+    but that affects other tests (they run too long),
+    because we do unusual things here, like attempting
+    to connect to non-existing address and interrupt.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7314097
+
+ src/pkg/net/dial_windows_test.go | 73 ----------------------------------------
+ 1 file changed, 73 deletions(-)

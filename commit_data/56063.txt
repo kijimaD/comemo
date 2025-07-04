@@ -1,0 +1,24 @@
+commit 50dcffb384cf1693fb113de01c8a36debc6086d1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 25 17:11:26 2024 +0100
+
+    crypto/internal/boring: don't shadow named returns
+    
+    In setupRSA we use named returns so that we can defer freeing of the
+    boring private key and context, but were using returns of the form
+    `return nil, nil, ...` which nil'd the named returns, preventing them
+    from actually being freed.
+    
+    Update all of the returns to not shadow the named variables.
+    
+    Thanks to Quim Muntal of Microsoft for reporting this issue.
+    
+    Change-Id: Iaf0f0b17e123a7df730cb1e91a324fe622611f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574195
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/crypto/internal/boring/rsa.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

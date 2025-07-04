@@ -1,0 +1,15 @@
+commit 505fd760a20d27753def021bd5c2eecbf670e87d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 5 12:47:22 2009 -0800
+
+    same speedup as 6l
+    
+    R=rsc
+    http://go/go-review/1016050
+
+ src/cmd/8l/asm.c  | 152 +++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/8l/l.h    |   9 ++--
+ src/cmd/8l/list.c |   4 +-
+ src/cmd/8l/obj.c  |  25 +++++----
+ src/cmd/8l/span.c |  51 +++++++++++++++---
+ 5 files changed, 170 insertions(+), 71 deletions(-)

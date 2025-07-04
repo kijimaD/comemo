@@ -1,0 +1,16 @@
+commit c07ffe980a52b309d48d33265cfee438a01cb513
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat May 24 12:10:12 2025 +0100
+
+    testing/synctest: correct duration in doc example
+    
+    Fixes #73839
+    
+    Change-Id: I961641c6d8244cdeb101a3c9ae91931828a893ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/testing/synctest/synctest.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

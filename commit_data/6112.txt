@@ -1,0 +1,15 @@
+commit f7d87f355cc73a72ccbe5a1250f11c15a71fd5db
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 18:56:29 2010 -0400
+
+    codereview: speed upload
+    
+    Cuts time to upload trivial 160-file CL by 5x,
+    from 250 seconds to 50 seconds.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1991047
+
+ lib/codereview/codereview.py | 109 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 80 insertions(+), 29 deletions(-)

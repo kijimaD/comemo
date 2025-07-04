@@ -1,0 +1,16 @@
+commit 3b0efa689ec7a32de30cbda2221452f57abb2532
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 26 14:09:58 2016 -0700
+
+    cmd/compile: a rule's line number is at its ->
+    
+    Let's define the line number of a multiline rule as the line
+    number on which the -> appears.  This helps make the rule
+    cover analysis look a bit nicer.
+    
+    Change-Id: I4ac4c09f2240285976590ecfd416bc4c05e78946
+    Reviewed-on: https://go-review.googlesource.com/22473
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

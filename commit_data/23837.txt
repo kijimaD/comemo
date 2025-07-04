@@ -1,0 +1,16 @@
+commit a2cf0568e853a22a50110e43d5185a096f3145c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 16:53:35 2015 +0000
+
+    Revert "test: do not run external linking test on ppc64le"
+    
+    Broke most builders.
+    
+    This reverts commit a60c5366f91934a36793bde74556f4b637954665.
+    
+    Change-Id: Iae952cfcc73ef5da621616a0b3d586b60d1ce9c9
+    Reviewed-on: https://go-review.googlesource.com/12684
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fixedbugs/issue10607.go | 1 -
+ 1 file changed, 1 deletion(-)

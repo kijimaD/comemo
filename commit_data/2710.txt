@@ -1,0 +1,13 @@
+commit ba9d697336d024a669872f59c0a80dcdb5896f08
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 14 17:44:20 2009 -0700
+
+    allow user to override the Usage function
+    
+    R=gri
+    DELTA=15  (6 added, 5 deleted, 4 changed)
+    OCL=31649
+    CL=31649
+
+ src/pkg/flag/flag.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

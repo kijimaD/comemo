@@ -1,0 +1,27 @@
+commit 683ffe09f66f0834baf039deeabe16eec6b09daa
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 12:49:23 2019 -0700
+
+    database/sql: add support for decimal interface
+    
+    Add support for scanning decimal types into values. If the dest
+    supports the decimal composer interface and the src supports
+    the decimal decomposer, set the value of the decimal when Scanning.
+    
+    Add support for sending decimal decomposer interface values
+    as parameters.
+    
+    For #30870
+    
+    Change-Id: Ic5dbf9069df8d56405852b17542a9188d55c2947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174181
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/convert.go           |  44 ++++++++++++++
+ src/database/sql/convert_test.go      | 104 ++++++++++++++++++++++++++++++++++
+ src/database/sql/driver/types.go      |  16 +++++-
+ src/database/sql/driver/types_test.go |  14 +++++
+ src/database/sql/sql_test.go          |  12 ++--
+ 5 files changed, 183 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit 6af5775d74d45e5dcdb9ac97bece944b2b83277a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 14:25:11 2009 -0700
+
+    dreg
+    
+    R=r
+    DELTA=19  (0 added, 19 deleted, 0 changed)
+    OCL=30739
+    CL=30751
+
+ src/pkg/os/proc_linux.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

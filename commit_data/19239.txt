@@ -1,0 +1,18 @@
+commit 9fc6c0598bc57099a792ffdd5c4e7bfc913f875d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 26 22:31:32 2014 -0700
+
+    misc/cgo/test/backdoor: add gccgo version of backdoor function
+    
+    For the gc compiler the Go function Issue7695 is defined in
+    runtime.c, but there is no way to do that for gccgo, because
+    there is no way to get the correct pkgpath.  The test is not
+    important for gccgo in any case.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/93870044
+
+ misc/cgo/test/backdoor/backdoor_gccgo.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

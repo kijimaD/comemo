@@ -1,0 +1,18 @@
+commit b36b12b292d7cfc8330702fb27865e5ef04e6c9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 22:12:52 2017 -0500
+
+    database/sql/driver: explain Driver vs DriverContext vs Connector
+    
+    The docs make it seem like they are all things a single object
+    would implement. That's true of Driver and DriverContext,
+    but Connector is really something else. Attempt to clarify.
+    
+    Change-Id: I8fdf1cff855a0fbe37ea22720c082045c719a267
+    Reviewed-on: https://go-review.googlesource.com/82082
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/driver/driver.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

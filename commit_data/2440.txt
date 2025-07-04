@@ -1,0 +1,24 @@
+commit f2201185ab8d441b997588112fb0388adf315dc9
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jun 9 20:51:53 2009 -0700
+
+    Added ld/go.c functionality into 5l, primarily dead code
+    removal and typesigs and strings.
+    
+    Also added new header support to 5c/5a/5l.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=98  (66 added, 10 deleted, 22 changed)
+    OCL=30103
+    CL=30123
+
+ src/cmd/5a/lex.c    |  5 ++++
+ src/cmd/5c/swt.c    |  4 +++
+ src/cmd/5l/5.out.h  |  2 ++
+ src/cmd/5l/Makefile |  2 +-
+ src/cmd/5l/asm.c    | 20 +++++++++----
+ src/cmd/5l/l.h      |  9 ++++++
+ src/cmd/5l/obj.c    | 84 ++++++++++++++++++++++++++++++++++-------------------
+ src/cmd/5l/pass.c   |  3 +-
+ 8 files changed, 92 insertions(+), 37 deletions(-)

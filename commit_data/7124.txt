@@ -1,0 +1,17 @@
+commit 5adfe9375238421f3143c781996540acfcc77adc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 14 10:52:08 2011 -0800
+
+    cgo: In _cgo_main.c define all provided symbols as functions.
+    
+    This defines crosscall2 in a way that matches that real
+    definition, and also defines _cgo_allocate and _cgo_panic to
+    indicate that they are available to be called by code compiled
+    with gcc.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4026041
+
+ src/cmd/cgo/out.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

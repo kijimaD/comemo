@@ -1,0 +1,14 @@
+commit 8696b0844600882ca962d155576a0604efe96922
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 11:47:27 2012 -0400
+
+    reflect: fix mistake in error message
+    
+    Pointed out by James Chalfant after submit of CL 6500065.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6543067
+
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 9768f736ea11165f10062401dec5509fdf1882ba
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 23 08:12:30 2023 +0000
+
+    all: add a few links in package godocs
+    
+    I noticed the one in path/filepath while reading the docs,
+    and the other ones were found via some quick grepping.
+    
+    Change-Id: I386f2f74ef816a6d18aa2f58ee6b64dbd0147c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478795
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/bytes.go              |  2 +-
+ src/crypto/elliptic/elliptic.go |  6 +++---
+ src/encoding/gob/doc.go         |  2 +-
+ src/html/template/doc.go        |  8 ++++----
+ src/math/big/doc.go             |  5 ++---
+ src/net/netip/netip.go          | 13 ++++++-------
+ src/os/signal/doc.go            |  8 ++++----
+ src/path/filepath/path.go       |  2 +-
+ src/runtime/metrics/doc.go      |  2 +-
+ src/strconv/doc.go              | 12 ++++++------
+ src/sync/atomic/doc.go          |  2 +-
+ src/text/template/doc.go        |  2 +-
+ 12 files changed, 31 insertions(+), 33 deletions(-)

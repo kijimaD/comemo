@@ -1,0 +1,15 @@
+commit bc81f52e93b5f8200876bf0cf7ae5a61c96a4783
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 19 15:50:06 2019 -0700
+
+    text/scanner: rename AllowNumberbars to AllowDigitSeparators
+    
+    Fixes #32661.
+    
+    Change-Id: I32dc4e7b276b95ac2e87a384caa6c48702368d05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183077
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/text/scanner/scanner.go      | 30 +++++++++++++++---------------
+ src/text/scanner/scanner_test.go |  2 +-
+ 2 files changed, 16 insertions(+), 16 deletions(-)

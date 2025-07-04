@@ -1,0 +1,24 @@
+commit 1821639b57a643f9c3f6d3b3d329d2283d5d7a57
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Sat Jun 25 05:17:45 2022 +0000
+
+    runtime: mark string comparison hooks as no split
+    
+    These functions can be inserted by the compiler into the code to be
+    instrumented. This may result in these functions having callers that
+    are nosplit. That is why they must be nosplit.
+    
+    This is a followup for CL 410034 in order to fix #53190.
+    
+    Change-Id: I03746208a2a302a581a1eaad6c9d0672bb1e949a
+    GitHub-Last-Rev: 6506d86f221d745de083fad862bba7ba04a80455
+    GitHub-Pull-Request: golang/go#53544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413978
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/libfuzzer.go | 4 ++++
+ 1 file changed, 4 insertions(+)

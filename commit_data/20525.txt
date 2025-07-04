@@ -1,0 +1,20 @@
+commit 75cca0526dc00ffeacc2aecfa6a0263a5f276e8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 17:50:44 2014 -0400
+
+    runtime: more NOPTR
+    
+    Fixes (or makes better) various builds.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/146280043
+
+ src/runtime/cgo/dragonfly.c     | 4 ++++
+ src/runtime/cgo/freebsd.c       | 4 ++++
+ src/runtime/cgo/netbsd.c        | 4 ++++
+ src/runtime/cgo/openbsd.c       | 4 ++++
+ src/runtime/os_windows.c        | 4 ++++
+ src/runtime/rt0_windows_386.s   | 2 +-
+ src/runtime/rt0_windows_amd64.s | 2 +-
+ 7 files changed, 22 insertions(+), 2 deletions(-)

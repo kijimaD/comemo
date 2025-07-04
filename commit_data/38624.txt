@@ -1,0 +1,22 @@
+commit e29f74efb90b8a7f20fd4ffce4038c824c173f50
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Feb 25 13:56:18 2019 +0100
+
+    compile,link: export package name in debug_info
+    
+    Add a new custom attribute to compile units containing the package name
+    of the package (i.e. the name after the 'package' keyword), so that
+    debuggers can know it when it's different from the last segment
+    of the package path.
+    
+    Change-Id: Ieadaab6f47091aabf2f4dc42c8524452eaa6715b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163677
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/main.go    | 14 +++++++++
+ src/cmd/internal/dwarf/dwarf.go        |  4 +++
+ src/cmd/link/internal/ld/dwarf.go      |  6 ++++
+ src/cmd/link/internal/ld/dwarf_test.go | 53 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+)

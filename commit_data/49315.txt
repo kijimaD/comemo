@@ -1,0 +1,18 @@
+commit 654b03167f7d887d09a2d25bb3d1b4db9c8ae4f8
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon May 23 08:32:35 2022 +0800
+
+    cmd/internal/obj: add FuncInfo SPWRITE flag for linux/loong64
+    
+    Co-authored-by: limeidan <limeidan@loongson.cn>
+    Change-Id: Iac4f706fc9ff1047f1fa02f7178ebfbe38ad1ec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407754
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/obj/loong64/obj.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

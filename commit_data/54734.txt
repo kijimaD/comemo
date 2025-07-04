@@ -1,0 +1,22 @@
+commit 061d77cb7008cf9e4d8b3b6382828b483bff032f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Sep 15 15:20:56 2023 -0500
+
+    cmd/compile/internal/ssa: on PPC64, generate large constant paddi
+    
+    This is only supported power10/linux/PPC64. This generates smaller,
+    faster code by merging a pli + add into paddi.
+    
+    Change-Id: I1f4d522fce53aea4c072713cc119a9e0d7065acc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531717
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  3 +++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 27 ++++++++++++++++++++++
+ test/codegen/arithmetic.go                         | 15 ++++++++++++
+ 3 files changed, 45 insertions(+)

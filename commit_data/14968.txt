@@ -1,0 +1,15 @@
+commit 14bd52db3fb56670270aafc79302316afe1ed07c
+Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
+Date:   Tue Jan 22 22:13:40 2013 -0500
+
+    xml: Support fields not of type []byte when marshaling ",chardata"
+    
+    Fixes #4506.
+    
+    R=rsc, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7106045
+
+ src/pkg/encoding/xml/marshal.go      | 13 +++++++++++++
+ src/pkg/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

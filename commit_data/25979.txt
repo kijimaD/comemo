@@ -1,0 +1,14 @@
+commit 55e7636f9c251f2dbff3daa1924071bc11df28a8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 20:11:33 2016 -0800
+
+    cmd/compile: remove some unused consts from the old yacc parser
+    
+    Change-Id: I42f370b987fcc85201f7aaa055b9e58ee9b9a99e
+    Reviewed-on: https://go-review.googlesource.com/20079
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go | 9 ---------
+ 1 file changed, 9 deletions(-)

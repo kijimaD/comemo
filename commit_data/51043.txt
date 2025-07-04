@@ -1,0 +1,42 @@
+commit 204be97d24e4d6bbe2d5b8e85feb456e88fe0f6d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 28 17:34:43 2022 -0400
+
+    cmd/compile/internal/pgo: remove most global state
+    
+    Since pgo is a new package, it is reasonably straightforward to
+    encapsulate its state into a non-global object that we pass around,
+    which will help keep it isolated.
+    
+    There are no functional changes in this CL, just packaging up the
+    globals into a new object.
+    
+    There are two major pieces of cleanup remaining:
+    
+    1. reflectdata and noder have separate InlineCalls calls for method
+       wrappers. The Profile is not plumbed there yet, but this is not a
+       regression as the globals were previously set only right around the
+       main inlining pass in gc.Main.
+    
+    2. pgo.ListOfHotCallSites is still global, as it will require more work
+       to clean up. It is effectively a local variable in InlinePackage,
+       except that it assumes that InlineCalls is immediately preceded by a
+       CanInline call for the same function. This is not necessarily true
+       due to the recursive nature of CanInline. This also means that some
+       InlineCalls calls may be missing the list of hot callsites right now.
+    
+    For #55022.
+    
+    Change-Id: Ic1fe41f73df96861c65f8bfeecff89862b367290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446303
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/gc/main.go             |  15 +-
+ src/cmd/compile/internal/inline/inl.go          |  64 +++---
+ src/cmd/compile/internal/noder/reader.go        |   3 +-
+ src/cmd/compile/internal/pgo/graph.go           |   9 -
+ src/cmd/compile/internal/pgo/irgraph.go         | 247 +++++++++++++-----------
+ src/cmd/compile/internal/reflectdata/reflect.go |   3 +-
+ 6 files changed, 178 insertions(+), 163 deletions(-)

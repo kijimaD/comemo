@@ -1,0 +1,34 @@
+commit 9c62ef1243196a8a3a7dee5eef9b3b2f27e8d388
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 28 12:34:30 2023 -0400
+
+    syscall: skip TestUnshare if there's nothing more to unshare
+    
+    Tests that need to use the internet are expected not to run when -short
+    test flag is set, and the Go build system automatically catches when a
+    test forgets that. It does this by unsharing all real network interfaces
+    and leaving only a loopback interface in a new network namespace.
+    
+    TestUnshare tests that a process started with CLONE_NEWNET unshare flag
+    has fewer network interfaces than before. Of course, if /proc/net/dev
+    starts out with a single loopback interface, the test would fail with
+    a false positive:
+    
+    === RUN TestUnshare
+    exec_linux_test.go:139: Got 3 lines of output, want <3
+    --- FAIL: TestUnshare (0.00s)
+    
+    Give the test what it wants: a skip when the environment doesn't meet
+    the minimum requirements for the test, and more useful log output if
+    it fails.
+    
+    Change-Id: I6b9c29d88ce725e640a7ee86c7e1be9761f21b02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513762
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/syscall/exec_linux_test.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

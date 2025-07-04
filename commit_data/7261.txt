@@ -1,0 +1,12 @@
+commit 354219951e93ededd1cfc812af7be8a328d5c9c4
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Jan 27 08:26:28 2011 -0500
+
+    8l: fix ldpe sym name length == 8 strdup incorrect.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4102043
+
+ src/cmd/ld/ldpe.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

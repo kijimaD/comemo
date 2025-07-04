@@ -1,0 +1,37 @@
+commit 23e9dc79941be24d381d2e2c85600d4a3d0d6921
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Apr 25 11:45:53 2018 +0900
+
+    html/template: always write untyped nil as JS null
+    
+    text/template recently added support for passing untyped nil as function
+    call arguments, as those would be mixed up with "missing argument"
+    values before. See CL 95215.
+    
+    html/template now needs a small change to adapt to that new possibility.
+    In particular, when printing values as JS bytes, its code was written
+    under the assumption that the values would never be untyped nil - that
+    is, the reflect.Value would always be valid.
+    
+    Short-circuit indirectToJSONMarshaler on an untyped nil, to avoid the
+    panic and fall back to the existing " null " output. Before this change
+    and on 1.10, printing a typed nil and an untyped nil resulted in:
+    
+            null ""
+    
+    After this change, one will get:
+    
+            null null
+    
+    Fixes #24717.
+    
+    Change-Id: I03cd10ef64b96e837bacc9ccf4cf25624d80de1c
+    Reviewed-on: https://go-review.googlesource.com/109215
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/html/template/js.go      | 8 ++++++++
+ src/html/template/js_test.go | 1 +
+ 2 files changed, 9 insertions(+)

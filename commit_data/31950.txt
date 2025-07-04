@@ -1,0 +1,15 @@
+commit 8aee0b8b32c103da416369ebd16e2c07ad99badf
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed May 17 02:05:32 2017 -0700
+
+    syscall: add AmbientCaps to linux SysProcAttr
+    
+    Fixes #19713
+    
+    Change-Id: Id1ca61b35bca2a4bea23dd64c7fb001a3a14fd88
+    Reviewed-on: https://go-review.googlesource.com/43512
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go      |  22 ++++++
+ src/syscall/exec_linux_test.go | 159 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 181 insertions(+)

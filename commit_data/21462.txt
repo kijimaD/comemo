@@ -1,0 +1,45 @@
+commit f1d669aee994b28e1afcfe974680565932d25b70
+Author: Jacob H. Haven <jacob@cloudflare.com>
+Date:   Tue Feb 3 16:15:18 2015 -0800
+
+    crypto/tls: add support for AES_256_GCM_SHA384 cipher suites specified in RFC5289
+    
+    Generalizes PRF calculation for TLS 1.2 to support arbitrary hashes (SHA-384 instead of SHA-256).
+    Testdata were all updated to correspond with the new cipher suites in the handshake.
+    
+    Change-Id: I3d9fc48c19d1043899e38255a53c80dc952ee08f
+    Reviewed-on: https://go-review.googlesource.com/3265
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/cipher_suites.go                    |  40 +++---
+ src/crypto/tls/handshake_client.go                 |   6 +-
+ src/crypto/tls/handshake_client_test.go            |  15 ++-
+ src/crypto/tls/handshake_server.go                 |  13 +-
+ src/crypto/tls/handshake_server_test.go            |   8 ++
+ src/crypto/tls/prf.go                              |  44 ++++---
+ src/crypto/tls/prf_test.go                         |  10 +-
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 +++++++--------
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  62 ++++-----
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 102 +++++++--------
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  62 ++++-----
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     | 143 ++++++++++++---------
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  82 ++++++------
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  44 +++----
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 ++++++------
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  82 ++++++------
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  44 +++----
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  78 +++++------
+ src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  78 +++++------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 111 ++++++++--------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  65 +++++-----
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 106 +++++++--------
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  68 +++++-----
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 ++++++------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  78 +++++------
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  84 ++++++++++++
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  82 ++++++------
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  44 +++----
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         | 119 ++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 119 ++++++++---------
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  92 +++++++++++++
+ 31 files changed, 1185 insertions(+), 968 deletions(-)

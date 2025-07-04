@@ -1,0 +1,22 @@
+commit e3e1d735287a3bab5b060415513bd64785c4e209
+Author: Petr Osetrov <paradoxfilm2013@gmail.com>
+Date:   Fri Dec 6 21:51:36 2024 +0000
+
+    bufio: make the description of Peek's behavior better
+    
+    Previously, based on the description, it was not obvious that Peek could
+    change the buffer. It may have been mistakenly assumed that Peek would
+    always return an error if n is greater than b.Buffered().
+    
+    Change-Id: I095006dd2ba1c2138bb193396cb24e2dda42d771
+    GitHub-Last-Rev: 9d48f8ac81f46d5b8f4a1885af28cbccd1747c3b
+    GitHub-Pull-Request: golang/go#70712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634175
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/bufio/bufio.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

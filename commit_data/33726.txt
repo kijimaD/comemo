@@ -1,0 +1,15 @@
+commit 98a8e521498354e8312040daeff81146641b5608
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 29 13:27:50 2017 -0800
+
+    go/ast: improve documentation for channel directions
+    
+    Fixes #22815.
+    
+    Change-Id: Iaa54fa311bf2c0549a6316a0d51cc92425f5ba94
+    Reviewed-on: https://go-review.googlesource.com/80855
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/ast/ast.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

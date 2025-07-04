@@ -1,0 +1,14 @@
+commit 0359af4fdb5cd27fc9dd7b6689149cd00cbf55a1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 29 14:09:31 2013 -0700
+
+    bytes: document that Buffer.Write grows the buffer
+    Do a little reformatting too.
+    Fixes #5152.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/8157044
+
+ src/pkg/bytes/buffer.go | 49 +++++++++++++++++++++----------------------------
+ 1 file changed, 21 insertions(+), 28 deletions(-)

@@ -1,0 +1,47 @@
+commit 6fb6f4e7f9eea8b724ddde592686d7e9dcdaa41c
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Thu Aug 28 08:49:56 2014 -0700
+
+    database/sql: use slices rather than container/list
+    
+    Significantly reduces the number of allocations, while also
+    simplifying the code and increasing performance by a 1-2%.
+    
+    benchmark                          old ns/op     new ns/op     delta
+    BenchmarkConcurrentDBExec          13290567      13026236      -1.99%
+    BenchmarkConcurrentStmtQuery       13249399      13008879      -1.82%
+    BenchmarkConcurrentStmtExec        8806237       8680182       -1.43%
+    BenchmarkConcurrentTxQuery         13628379      12756293      -6.40%
+    BenchmarkConcurrentTxExec          4794800       4722440       -1.51%
+    BenchmarkConcurrentTxStmtQuery     5040804       5200721       +3.17%
+    BenchmarkConcurrentTxStmtExec      1366574       1336626       -2.19%
+    BenchmarkConcurrentRandom          11119120      10926113      -1.74%
+    
+    benchmark                          old allocs     new allocs     delta
+    BenchmarkConcurrentDBExec          14191          13684          -3.57%
+    BenchmarkConcurrentStmtQuery       16020          15514          -3.16%
+    BenchmarkConcurrentStmtExec        4179           3672           -12.13%
+    BenchmarkConcurrentTxQuery         16025          15518          -3.16%
+    BenchmarkConcurrentTxExec          12717          12709          -0.06%
+    BenchmarkConcurrentTxStmtQuery     15532          15525          -0.05%
+    BenchmarkConcurrentTxStmtExec      2175           2168           -0.32%
+    BenchmarkConcurrentRandom          12320          11997          -2.62%
+    
+    benchmark                          old bytes     new bytes     delta
+    BenchmarkConcurrentDBExec          2164827       2139760       -1.16%
+    BenchmarkConcurrentStmtQuery       2418070       2394030       -0.99%
+    BenchmarkConcurrentStmtExec        1728782       1704371       -1.41%
+    BenchmarkConcurrentTxQuery         2477144       2452620       -0.99%
+    BenchmarkConcurrentTxExec          588920        588343        -0.10%
+    BenchmarkConcurrentTxStmtQuery     790866        796578        +0.72%
+    BenchmarkConcurrentTxStmtExec      98502         98143         -0.36%
+    BenchmarkConcurrentRandom          1725906       1710220       -0.91%
+    
+    LGTM=ruiu, dave, bradfitz
+    R=golang-codereviews, ruiu, gobot, bradfitz, dave, minux
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/107020044
+
+ src/pkg/database/sql/sql.go      | 99 +++++++++++++++++++---------------------
+ src/pkg/database/sql/sql_test.go | 36 +++++++++------
+ 2 files changed, 67 insertions(+), 68 deletions(-)

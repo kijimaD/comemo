@@ -1,0 +1,18 @@
+commit 48f1cde942959e2fc3c56973a2986c24d554c82c
+Author: Pavel <kositsyn.pa@phystech.edu>
+Date:   Mon Nov 8 14:29:16 2021 +0000
+
+    database/sql: prevent closes slices from assigning to free conn
+    
+    In function connectionCleanerRunLocked append to closing slice affects db.freeConns and vise versa. Sometimes valid connections are closed and some invalid not.
+    
+    Change-Id: I5282f15be3e549533b7d994b17b2060db3c0e7da
+    GitHub-Last-Rev: b3eb3ab6f49c036519f777fc7189e9507010c166
+    GitHub-Pull-Request: golang/go#49429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362214
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go      |  2 +-
+ src/database/sql/sql_test.go | 61 +++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 50 insertions(+), 13 deletions(-)

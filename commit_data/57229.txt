@@ -1,0 +1,25 @@
+commit b5ee80a85ad1a0c5f3e87b95e516d4c6ca42fa4b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 21 23:17:26 2024 +0200
+
+    sort: drop implementation for Go <1.21
+    
+    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
+    the fallback implementation for Go versions <1.21 can be dropped.
+    
+    For #61180
+    For #64751
+    
+    Change-Id: Idfeca0a6e9f490e1ab0f308ead372612402923ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/sort/sort.go            | 17 ++++++++++-------
+ src/sort/sort_impl_120.go   | 15 ---------------
+ src/sort/sort_impl_go121.go | 22 ----------------------
+ 3 files changed, 10 insertions(+), 44 deletions(-)

@@ -1,0 +1,46 @@
+commit 46e3d9d12a51e6783ac8a244f13a9a96abfef85e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 3 16:01:49 2023 -0800
+
+    cmd/compile: use "satisfies" (not "implements") for constraint errors
+    
+    Per the latest spec, we distinguish between interface implementation
+    and constraint satisfaction. Use the verb "satisfy" when reporting
+    an error about failing constraint satisfaction.
+    
+    This CL only changes error messages. It has no impact on correct code.
+    
+    Fixes #57564.
+    
+    Change-Id: I6dfb3b2093c2e04fe5566628315fb5f6bd709f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460396
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go     | 25 +++++++++++--------
+ src/go/types/instantiate.go                        | 25 +++++++++++--------
+ src/internal/types/testdata/check/issues1.go       |  8 +++----
+ src/internal/types/testdata/check/typeinst1.go     | 28 +++++++++++-----------
+ src/internal/types/testdata/examples/inference.go  |  2 +-
+ .../types/testdata/fixedbugs/issue39754.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue40350.go         |  2 +-
+ .../types/testdata/fixedbugs/issue45920.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue47411.go         | 10 ++++----
+ .../types/testdata/fixedbugs/issue49112.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue49179.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue49739.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue50417.go         |  6 ++---
+ .../types/testdata/fixedbugs/issue50646.go         | 12 +++++-----
+ .../types/testdata/fixedbugs/issue50782.go         | 10 ++++----
+ .../types/testdata/fixedbugs/issue51257.go         |  8 +++----
+ .../types/testdata/fixedbugs/issue51376.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue51472.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue57486.go         |  6 ++---
+ src/internal/types/testdata/spec/comparable.go     | 12 +++++-----
+ src/internal/types/testdata/spec/comparable1.19.go | 12 +++++-----
+ src/internal/types/testdata/spec/oldcomparable.go  | 12 +++++-----
+ test/typeparam/mdempsky/8.dir/b.go                 |  2 +-
+ test/typeparam/mincheck.dir/main.go                |  4 ++--
+ 24 files changed, 111 insertions(+), 101 deletions(-)

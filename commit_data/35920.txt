@@ -1,0 +1,20 @@
+commit e97ef4127f153a2eb8b26685943310d4d19d5b60
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Jul 5 19:30:00 2018 +0200
+
+    syscall/js: add Value.Type
+    
+    This commits adds Value.Type(), which returns the JavaScript type of
+    a Value.
+    
+    The implementation uses two previously unused bits of the NaN payload
+    to encode type information.
+    
+    Change-Id: I568609569983791d50d35b8d80c44f3472203511
+    Reviewed-on: https://go-review.googlesource.com/122375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js    | 23 +++++++++++++--
+ src/syscall/js/js.go      | 72 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/syscall/js/js_test.go | 27 ++++++++++++++++++
+ 3 files changed, 115 insertions(+), 7 deletions(-)

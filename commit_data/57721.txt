@@ -1,0 +1,16 @@
+commit 4bfc81a727ddd2090e87e6b2c805684de924c22b
+Author: limeidan <limeidan@loongson.cn>
+Date:   Sat Jul 6 17:19:06 2024 +0800
+
+    cmd/compile/internal/ssa: optimize ANDconst rule of loong64
+    
+    Change-Id: I0e88f885ff17b4932c2f448dc3c577c0329a6658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 13 +++++++++++++
+ 2 files changed, 15 insertions(+)

@@ -1,0 +1,45 @@
+commit 20ea98842159d7cde30062711527495ac00bcacd
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Mon Feb 20 07:10:37 2023 +0100
+
+    math: huge argument handling for sin/cos in s390x
+    
+    Currently s390x, sin/cos assembly implementation not handling huge
+    arguments. This change reverts assembly routine to native go implementation
+    for huge arguments. Implementing the changes in assembly giving better
+    performance than native go changes in terms of execution/cycles.
+    
+    name                                         Go_changes     Asm_changes
+    Sin/input_size_(0.5)-8                      11.85ns ± 0%   5.32ns ± 1%
+    Sin/input_size_(1<<20)-8                    15.32ns ± 0%   9.75ns ± 3%
+    Sin/input_size_(1<<_40)-8                   17.9ns  ± 0%   10.3ns ± 6%
+    Sin/input_size_(1<<50)-8                    16.33ns ± 0%   9.75ns ± 6%
+    Sin/input_size_(1<<60)-8                    33.0ns  ± 1%   29.1ns ± 0%
+    Sin/input_size_(1<<80)-8                    29.9ns  ± 0%   27.2ns ± 2%
+    Sin/input_size_(1<<200)-8                   31.5ns  ± 1%   28.3ns ± 0%
+    Sin/input_size_(1<<480)-8                   29.4ns  ± 1%   28.0ns ± 1%
+    Sin/input_size_(1234567891234567_<<_180)-8  29.3ns  ± 1%   28.0ns ± 0%
+    Cos/input_size_(0.5)-8                      10.33ns ± 0%   5.69ns ± 1%
+    Cos/input_size_(1<<20)-8                    16.67ns ± 0%   9.18ns ± 0%
+    Cos/input_size_(1<<_40)-8                   18.50ns ± 0%   9.45ns ± 3%
+    Cos/input_size_(1<<50)-8                    16.67ns ± 0%   9.18ns ± 1%
+    Cos/input_size_(1<<60)-8                    31.6ns  ± 1%   26.7ns ± 2%
+    Cos/input_size_(1<<80)-8                    31.3ns  ± 0%   25.5ns ± 1%
+    Cos/input_size_(1<<200)-8                   30.0ns  ± 0%   26.7ns ± 1%
+    Cos/input_size_(1<<480)-8                   31.9ns  ±2%   27.0ns ± 0%
+    Cos/input_size_(1234567891234567_<<_180)-8  31.8ns  ± 0%   26.9ns ± 0%
+    
+    Fixes #29240
+    
+    Change-Id: Id2ebcfa113926f27510d527e80daaddad925a707
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/sin_s390x.s | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,14 @@
+commit 811dd2584ca6d5bdfa1961672e7647c88898ab4a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 20:39:39 2009 -0800
+
+    fix an HTML glitch.
+    say a little more about package main.
+    
+    R=rsc
+    DELTA=7  (4 added, 0 deleted, 3 changed)
+    OCL=25725
+    CL=25725
+
+ doc/go_spec.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

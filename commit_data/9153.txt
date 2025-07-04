@@ -1,0 +1,29 @@
+commit 5a141064ed3a699ec1c6060c77e4ff1ca3faf85b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 21 11:20:54 2011 +1000
+
+    html: parse misnested formatting tags according to the HTML5 spec.
+    This is the "adoption agency" algorithm.
+    
+    The test case input is "<a><p>X<a>Y</a>Z</p></a>". The correct parse is:
+    | <html>
+    |   <head>
+    |   <body>
+    |     <a>
+    |     <p>
+    |       <a>
+    |         "X"
+    |       <a>
+    |         "Y"
+    |       "Z"
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4771042
+
+ src/pkg/html/Makefile      |   2 +
+ src/pkg/html/const.go      |  90 +++++++++++++++++
+ src/pkg/html/node.go       | 146 +++++++++++++++++++++++++++
+ src/pkg/html/parse.go      | 243 +++++++++++++++++++++++++++++++++------------
+ src/pkg/html/parse_test.go |   4 +-
+ 5 files changed, 421 insertions(+), 64 deletions(-)

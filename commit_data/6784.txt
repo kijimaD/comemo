@@ -1,0 +1,16 @@
+commit 95c341fc78b885b265314a678fa6643522ce37f5
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Nov 22 11:01:30 2010 -0500
+
+    net: add ReadFrom and WriteTo windows version.
+    
+    Fixes #1275.
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/3136042
+
+ src/pkg/net/fd_windows.go               | 73 +++++++++++++++++++++++++++++++--
+ src/pkg/syscall/syscall_windows.go      | 11 +++++
+ src/pkg/syscall/zsyscall_windows_386.go | 30 ++++++++++++++
+ 3 files changed, 111 insertions(+), 3 deletions(-)

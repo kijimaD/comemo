@@ -1,0 +1,20 @@
+commit f5439d4c68e14d1f7758ec0e50cc8fe192ad2f5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 23:28:32 2020 -0700
+
+    cmd/compile: make type switch case positions consistent
+    
+    CL 228106 moved the position at which we
+    checked whether a type switch variable had a particular type
+    from the type switch to the case statement, but only for
+    single, concrete types. This is a better position,
+    so this change changes the rest.
+    
+    Change-Id: I601d4a5c4a0d9400e7804b9f1e729af948349a8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228220
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

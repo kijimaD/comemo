@@ -1,0 +1,17 @@
+commit 5b1a8a5239bd1ee0d6a988b11bc1fa482fe3b483
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 23:03:58 2015 -0500
+
+    cmd/vet: move cmd/vet/whitelist to cmd/vet/internal/whitelist
+    
+    This was a mistake made when bringing cmd/vet into the main repo.
+    
+    Fixes #13416.
+    
+    Change-Id: I03b512ab944577c56085aea06df8ff5e1acc16d7
+    Reviewed-on: https://go-review.googlesource.com/17455
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/vet/composite.go                          | 2 +-
+ src/cmd/vet/{ => internal}/whitelist/whitelist.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

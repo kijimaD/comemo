@@ -1,0 +1,23 @@
+commit 60299c251364c6f4a830721e4953230260d118a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 22:09:43 2024 +0000
+
+    cmd/go: revert "remove base.ShortPathConservative"
+    
+    This reverts commit 2e07ff35436b (CL 630276).
+    
+    Reason for revert: broke longtest builders.
+    
+    Change-Id: I86b313cc6c1be061b408502e96a09916a6ac2c4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630317
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/base/path.go       | 53 ++++++++++++++++++++++------------
+ src/cmd/go/internal/modload/init.go    |  2 +-
+ src/cmd/go/internal/modload/load.go    |  2 +-
+ src/cmd/go/internal/modload/modfile.go | 10 +++++--
+ src/cmd/go/internal/workcmd/use.go     | 15 +++++-----
+ 5 files changed, 52 insertions(+), 30 deletions(-)

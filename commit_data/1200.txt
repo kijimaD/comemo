@@ -1,0 +1,14 @@
+commit 64023e7b7d8ce78af2f08564dfcccca243a64a17
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 18:43:04 2008 -0800
+
+    a few Errorfs should have been Error
+    
+    R=rsc
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=19662
+    CL=19664
+
+ src/lib/strconv/testfp.go   | 8 ++++----
+ src/lib/strconv/testftoa.go | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

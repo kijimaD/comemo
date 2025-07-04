@@ -1,0 +1,16 @@
+commit ef6c922edf38d75f3410a51a31d65eb48bcaebc6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 24 10:13:00 2013 -0700
+
+    C+A: add Matthew Cottingham (Individual CLA)
+    
+    Done by addca, but codereview failed with a Python stacktrace,
+    so submitting by hand.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/16650043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

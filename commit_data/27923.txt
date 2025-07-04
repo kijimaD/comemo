@@ -1,0 +1,20 @@
+commit 0da545d1280af9895bacff587316b68f50799f16
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 18 16:20:44 2016 -0700
+
+    encoding/pem: be stricter about the ending line.
+    
+    Previously the code didn't check the type and final five dashes of the
+    ending line of a PEM block.
+    
+    Fixes #16335.
+    
+    Change-Id: Ia544e8739ea738d767cfe56c8d46204214ec0b5a
+    Reviewed-on: https://go-review.googlesource.com/27391
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/pem.go      | 19 ++++++++++++++++++-
+ src/encoding/pem/pem_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)

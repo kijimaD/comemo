@@ -1,0 +1,20 @@
+commit 71371d850f4255c4ec2d6900e026dfb3dd660c98
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 20:00:39 2019 +0200
+
+    os: skip Open("/") on Android
+    
+    It's not supported in an app context:
+    
+    $ go test -short os
+    --- FAIL: TestChdirAndGetwd (0.00s)
+        os_test.go:1213: Open /: open /: permission denied
+    
+    Change-Id: I56b951f925a50fd67715ee2f1de64951ee867e91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170946
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

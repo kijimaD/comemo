@@ -1,0 +1,15 @@
+commit 86abfbb931312db022ed8437a89219791ced6435
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 27 20:22:48 2017 -0500
+
+    doc/devel: update release.html for new support policy
+    
+    Fixes #19069.
+    
+    Change-Id: I211a304ec57d6b94366af4c0db413c8055b9634d
+    Reviewed-on: https://go-review.googlesource.com/37531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Steve Francia <spf@golang.org>
+
+ doc/devel/release.html | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

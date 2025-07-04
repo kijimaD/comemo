@@ -1,0 +1,21 @@
+commit 37d2f8190d5477c306675ec17cfc05499630fe63
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 11:48:48 2012 -0800
+
+    rename FooError vars to ErrFoo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5574056
+
+ src/pkg/archive/tar/reader.go        |  8 ++++----
+ src/pkg/archive/zip/reader.go        | 24 ++++++++++++------------
+ src/pkg/archive/zip/reader_test.go   | 16 ++++++++--------
+ src/pkg/archive/zip/writer.go        |  2 +-
+ src/pkg/compress/gzip/gunzip.go      | 14 +++++++-------
+ src/pkg/compress/gzip/gunzip_test.go |  6 +++---
+ src/pkg/compress/zlib/reader.go      | 12 ++++++------
+ src/pkg/compress/zlib/reader_test.go |  6 +++---
+ src/pkg/crypto/bcrypt/bcrypt.go      |  8 ++++----
+ src/pkg/crypto/bcrypt/bcrypt_test.go |  6 +++---
+ 10 files changed, 51 insertions(+), 51 deletions(-)

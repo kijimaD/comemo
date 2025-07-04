@@ -1,0 +1,15 @@
+commit ab3bd2c15fb5f58f9d41feaa65a42579aca91fdc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 14 15:16:09 2020 -0700
+
+    cmd/compile: make AlgKind a stringer
+    
+    Change-Id: I4a4b866d9233b8369e5ca913a9dd576b323b8f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228421
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/alg.go            |  2 ++
+ src/cmd/compile/internal/gc/algkind_string.go | 48 +++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

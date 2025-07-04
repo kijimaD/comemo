@@ -1,0 +1,14 @@
+commit b21425ddee558ecf8820a3b4564786833f3f0533
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 14 20:33:20 2009 -0700
+
+    runtime gc bug.
+    semacquire might move to another m.
+    
+    R=r
+    DELTA=5  (2 added, 2 deleted, 1 changed)
+    OCL=33317
+    CL=33326
+
+ src/pkg/runtime/mgc0.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

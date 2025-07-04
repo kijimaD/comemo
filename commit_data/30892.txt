@@ -1,0 +1,20 @@
+commit 94c95d3e52ed55ef57e60ace559b684e4d5ebcbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 10:16:50 2017 -0400
+
+    cmd/go: build test binaries with -s in addition to -w
+    
+    Fixes #19753.
+    
+    Change-Id: Ib20a69b1d0bcc42aa9e924918bcb578d6a560a31
+    Reviewed-on: https://go-review.googlesource.com/38742
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 17 +++++++++++++----
+ src/cmd/go/internal/load/pkg.go     |  2 +-
+ src/cmd/go/internal/run/run.go      |  2 +-
+ src/cmd/go/internal/test/test.go    |  2 +-
+ src/cmd/go/internal/work/build.go   |  4 ++--
+ 5 files changed, 18 insertions(+), 9 deletions(-)

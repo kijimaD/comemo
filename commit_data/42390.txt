@@ -1,0 +1,22 @@
+commit 9acdc705e7d53a59b8418dd0beb570db35f7a744
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 20:53:45 2020 -0400
+
+    time: simplify Duration.String example
+    
+    The existing example is needlessly complex.
+    You have to know that t.Sub returns a Duration
+    and also have to mentally subtract the two times
+    to understand what duration should be printed.
+    
+    Rewrite to focus on just the Duration.String operation.
+    
+    Change-Id: I00765b6019c07a6ff03022625b556c2b9ba87c09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234893
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

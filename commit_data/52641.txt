@@ -1,0 +1,38 @@
+commit f58c6cccc44752146aabcd50a30865e34817a4b4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 12 12:41:45 2023 -0700
+
+    cmd/compile: fix reproducible build of aliased generic types
+    
+    Due to a missing "&& !alias" check, the unified linker was treating
+    type aliases the same as defined types for the purpose of exporting
+    method bodies. The methods will get exported anyway alongside the
+    aliased type, so this mistake is normally harmless.
+    
+    However, if multiple type aliases instantiated the same generic type
+    but with different type arguments, this could result in the
+    same (generic) method body being exported multiple times under
+    different symbol names. Further, because bodies aren't expected to be
+    exported multiple times, we were sorting them simply based on index.
+    And consequently, the sort wasn't total and is sensitive to the map
+    iteration order used while ranging over linker.bodies.
+    
+    The fix is simply to add the missing "&& !alias" check, so that we
+    don't end up with duplicate bodies in the first place.
+    
+    Thanks rsc@ for providing a minimal repro case.
+    
+    Fixes #59571.
+    
+    Change-Id: Iaa55968cc7110b601e2f0f9b620901c2d55f7014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484155
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/noder/linker.go        |  2 +-
+ src/cmd/go/testdata/script/build_issue59571.txt | 40 +++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

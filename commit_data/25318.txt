@@ -1,0 +1,17 @@
+commit 53a207131d7487d8d1d8658341a2c9f5bbb4bcfe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 17:41:44 2015 +0000
+
+    net/http: document that ListenAndServe is a bit more than Listen+Serve
+    
+    Document that ListenAndServe and ListenAndServeTLS also set TCP
+    keep-alives.
+    
+    Fixes #12748
+    
+    Change-Id: Iba2e8a58dd657eba326db49a6c872e2d972883a4
+    Reviewed-on: https://go-review.googlesource.com/17681
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/server.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

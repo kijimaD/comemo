@@ -1,0 +1,32 @@
+commit b1b67841d1e229b483b0c9dd50ddcd1795b0f90f
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Apr 17 04:04:23 2020 -0700
+
+    net: add (*Resolver).LookupIP
+    
+    Previously, looking up only IPv4 or IPv6 addresses was only possible
+    with DefaultResolver via ResolveIPAddr. Add this functionality to the
+    Resolver type with a new method, LookupIP. This largely brings Resolver
+    functionally to parity with the global functions. The name LookupIP is
+    used over ResolveIPAddr to be consistent with the other Resolver
+    methods.
+    
+    There are two main benefits to (*Resolver).LookupIP over
+    (*Resolver).LookupHost. First is an ergonomic benefit. Wanting a
+    specific family of address is common enough to justify a method, evident
+    by the existence of ResolveIPAddr. Second, this opens the possibility of
+    not performing unnecessary DNS requests when only a specific family of
+    addresses are needed. This optimization is left to follow up work.
+    
+    Updates #30452
+    
+    Change-Id: I241f61019588022a39738f8920b0ddba900cecdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228641
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup.go      | 25 ++++++++++++++++
+ src/net/lookup_test.go | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+)

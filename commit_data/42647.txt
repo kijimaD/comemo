@@ -1,0 +1,16 @@
+commit 5ff5b3c5575afaa5f90c6a831dfadf3fabec516e
+Author: Andrew <andybons@golang.org>
+Date:   Mon Aug 10 19:29:58 2020 -0400
+
+    doc/go1.15: remove draft notice
+    
+    Updates #37419
+    
+    Change-Id: I945fd1f8d87b15cf3143808dc68021b38531297d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247772
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.15.html | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 6eb5eb398b7c37079526bbf7d5987be8c054bb50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 20 10:28:51 2014 -0700
+
+    test: add test for confusion with dot imports
+    
+    The gccgo compiler would fail this test.  The fix for gccgo is
+    https://golang.org/cl/116960043 .
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/118000043
+
+ test/fixedbugs/bug488.dir/a.go |  7 +++++++
+ test/fixedbugs/bug488.dir/b.go |  9 +++++++++
+ test/fixedbugs/bug488.go       | 12 ++++++++++++
+ 3 files changed, 28 insertions(+)

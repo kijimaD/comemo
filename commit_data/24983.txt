@@ -1,0 +1,19 @@
+commit d2c81ad84776edfb4c790666f1d80554b4393d46
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:31:04 2015 -0500
+
+    runtime: recursively disallow write barriers in sysmon
+    
+    sysmon runs without a P. This means it can't interact with the garbage
+    collector, so write barriers not allowed in anything that sysmon does.
+    
+    Fixes #10600.
+    
+    Change-Id: I9de1283900dadee4f72e2ebfc8787123e382ae88
+    Reviewed-on: https://go-review.googlesource.com/17006
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 3 +++
+ 1 file changed, 3 insertions(+)

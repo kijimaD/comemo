@@ -1,0 +1,21 @@
+commit 7418d419afeeaa832bd5c9104f1ff90331eaf184
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 15 12:49:21 2024 -0700
+
+    go/types, types2: simplify TestUnaliasTooSoonInCycle (cleanup)
+    
+    Follow-up on CL 576975 and CL 579015.
+    
+    Updates #66704
+    Updates #65294
+    
+    Change-Id: Ied95386a346be38ccda86d332d09b2089a68c5e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go |  9 ++-------
+ src/go/types/api_test.go                    | 12 ++----------
+ 2 files changed, 4 insertions(+), 17 deletions(-)

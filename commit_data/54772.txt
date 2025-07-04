@@ -1,0 +1,29 @@
+commit 255ed03a94c4c91840f16fe417a7ed5097a04862
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 23 10:22:17 2023 +0700
+
+    runtime: allow for 10 more threads in TestWindowsStackMemory*
+    
+    CL 473415 allowed 5 more threads in TestWindowsStackMemory, to cover
+    sysmon and any new threads in future. However, during go1.22 dev cycle,
+    the test becomes flaky again, failing in windows-386 builder a couple of
+    times in CL 535975 and CL 536175 (and maybe others that haven't caught).
+    
+    This CL increases the extra threads from 5 to 10, hopefully to make the
+    test stable again for windows-386. The theory is that Go process load a
+    bunch of DLLs, which may start their own threads. We could investigate
+    more deeply if the test still be flaky with 10 extra threads.
+    
+    Fixes #58570
+    
+    Change-Id: I255d0d31ed554859a5046fa76dfae1ba89a89aa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536058
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/testdata/testprog/syscall_windows.go  | 4 ++--
+ src/runtime/testdata/testprogcgo/stack_windows.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

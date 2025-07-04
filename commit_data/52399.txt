@@ -1,0 +1,23 @@
+commit a6c382eaa8eaa611d71232aa4d5391b56a5c2693
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Mar 23 16:10:05 2023 -0400
+
+    cmd/link: add padding after runtime.etext
+    
+    The runtime.etext symbol is a marker symbol that marks the end of
+    (Go's) text section. Currently it has 0 size on some platforms.
+    Especially in external linking mode, this may cause the next
+    symbol (e.g. a C function) to have the same address as
+    runtime.etext, which may confuse some symbolizer. Add some padding
+    bytes to avoid address collision.
+    
+    Change-Id: Ic450bab72e4ac79a3b6b891729831d4148b89234
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479075
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    Run-TryBot: Nicolas Hillegeer <aktau@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

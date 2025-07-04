@@ -1,0 +1,14 @@
+commit b6684b31042fea4bc9985196670b74a880ba3f65
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 10 14:17:48 2014 +1000
+
+    doc/go1.3.html: minor changes: crypto, net
+    All that's left is net/http and the stuff I need help describing: FreeBSD and Windows.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/86320043
+
+ doc/go1.3.html | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

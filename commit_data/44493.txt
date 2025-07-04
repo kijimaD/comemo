@@ -1,0 +1,25 @@
+commit 4532467c1854fa16378063bd99defadc4a1e5fb1
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 18 15:50:37 2021 -0500
+
+    cmd/compile: pass register parameters to called function
+    
+    still needs morestack
+    still needs results
+    lots of corner cases also not dealt with.
+    
+    For #40724.
+    
+    Change-Id: I03abdf1e8363d75c52969560b427e488a48cd37a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293889
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 +-
+ src/cmd/compile/internal/ssa/op.go           | 54 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/opGen.go        |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go     | 27 +++++++++++---
+ 4 files changed, 78 insertions(+), 8 deletions(-)

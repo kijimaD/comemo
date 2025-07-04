@@ -1,0 +1,23 @@
+commit 8854bdbd76d66a39b35980cee6643b4d4bd48fd4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 27 12:06:11 2015 +0900
+
+    net: fix parsing literal IPv6 address with zone identifier when using cgo
+    
+    Parsing literal IPv6 address with zone identifier is already supported
+    when not using cgo. This change enables it when using cgo too.
+    
+    Fixes #12241.
+    
+    Change-Id: I3ed78c9e750e75eff0dae76ba8608df39503cf85
+    Reviewed-on: https://go-review.googlesource.com/17215
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/net/cgo_socknew.go |  4 ++--
+ src/net/cgo_sockold.go |  4 ++--
+ src/net/cgo_unix.go    | 12 ++++++++----
+ src/net/lookup_test.go | 24 ++++++++++++++++++++++++
+ src/net/testdata/hosts |  3 +--
+ 5 files changed, 37 insertions(+), 10 deletions(-)

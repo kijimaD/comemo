@@ -1,0 +1,21 @@
+commit 8bf13838eb21921bf02e2970f8f8d3f2a745d982
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 6 16:58:07 2015 +1100
+
+    time: return informative errors when failing to load timezone data.
+    
+    If we cannot load timezone information for a reason other than the
+    zoneinfo file not existing, return it since that will be much more
+    useful in debugging failures than "unknown time zone XYZ".
+    
+    Fixes #9723.
+    
+    Change-Id: I3aa5774859cec28e584d16bcc1fef0705d95288c
+    Reviewed-on: https://go-review.googlesource.com/3984
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sys_unix.go         | 2 ++
+ src/time/zoneinfo_plan9.go   | 9 +++++----
+ src/time/zoneinfo_unix.go    | 6 ++++++
+ src/time/zoneinfo_windows.go | 9 +++++----
+ 4 files changed, 18 insertions(+), 8 deletions(-)

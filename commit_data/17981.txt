@@ -1,0 +1,12 @@
+commit 74a43546b03e521eb70a3bfd6a84123ffc4e12c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 19:01:50 2013 -0800
+
+    .hgignore: remove duplicate entry
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/40690048
+
+ .hgignore | 1 -
+ 1 file changed, 1 deletion(-)

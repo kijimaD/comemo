@@ -1,0 +1,20 @@
+commit fd9b9c31fb51db2b515a2bbababaa6c3567e5854
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Jul 27 18:02:45 2015 -0400
+
+    cmd/go: import runtime/cgo into darwin/arm64 tests
+    
+    Until cl/12721 and cl/12574, all standard library tests included
+    runtime/cgo on darwin/arm64 by virtue of package os including it. Now
+    that is no longer true, runtime/cgo needs to be added by the go tool
+    just as it is for darwin/arm. (This installs the Mach exception
+    handler used to properly handle EXC_BAD_ACCESS.)
+    
+    Fixes #11901
+    
+    Change-Id: I991525f46eca5b0750b93595579ebc0ff10e47eb
+    Reviewed-on: https://go-review.googlesource.com/12723
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

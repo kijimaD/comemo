@@ -1,0 +1,50 @@
+commit acf3ff2e8a0ee777a35b42879c90a1d5a130988f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 14 23:58:50 2019 +0000
+
+    runtime: convert page allocator bitmap to sparse array
+    
+    Currently the page allocator bitmap is implemented as a single giant
+    memory mapping which is reserved at init time and committed as needed.
+    This causes problems on systems that don't handle large uncommitted
+    mappings well, or institute low virtual address space defaults as a
+    memory limiting mechanism.
+    
+    This change modifies the implementation of the page allocator bitmap
+    away from a directly-mapped set of bytes to a sparse array in same vein
+    as mheap.arenas. This will hurt performance a little but the biggest
+    gains are from the lockless allocation possible with the page allocator,
+    so the impact of this extra layer of indirection should be minimal.
+    
+    In fact, this is exactly what we see:
+        https://perf.golang.org/search?q=upload:20191125.5
+    
+    This reduces the amount of mapped (PROT_NONE) memory needed on systems
+    with 48-bit address spaces to ~600 MiB down from almost 9 GiB. The bulk
+    of this remaining memory is used by the summaries.
+    
+    Go processes with 32-bit address spaces now always commit to 128 KiB of
+    memory for the bitmap. Previously it would only commit the pages in the
+    bitmap which represented the range of addresses (lowest address to
+    highest address, even if there are unused regions in that range) used by
+    the heap.
+    
+    Updates #35568.
+    Updates #35451.
+    
+    Change-Id: I0ff10380156568642b80c366001eefd0a4e6c762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207497
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/export_test.go      |  28 +++++---
+ src/runtime/mgcscavenge.go      |  14 ++--
+ src/runtime/mpagealloc.go       | 148 +++++++++++++++++++++++++---------------
+ src/runtime/mpagealloc_32bit.go |   7 ++
+ src/runtime/mpagealloc_64bit.go |   7 ++
+ src/runtime/mpagealloc_test.go  |   8 ++-
+ src/runtime/mpagecache.go       |  16 +++--
+ src/runtime/mpallocbits.go      |   3 +
+ 8 files changed, 156 insertions(+), 75 deletions(-)

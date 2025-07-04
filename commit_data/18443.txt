@@ -1,0 +1,15 @@
+commit 4d1301949a546b373e9bd75bbefac3fc228b9de5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 10 12:48:56 2014 -0800
+
+    container/heap: avoid and/or ambiguity in documentation
+    
+    (per suggestion by Doug McIlroy)
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/50580046
+
+ src/pkg/container/heap/heap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

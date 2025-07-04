@@ -1,0 +1,20 @@
+commit 882ac6388501bbbe659fb46a739490a0945a8f48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 6 18:57:37 2008 -0700
+
+    - implement scanner token stream via channel
+    - change test_scanner to scan using both methods
+    - add -pscan flag to Go front-end to choose between conventional
+      synchronous or parallel asynchronous scanning
+    
+    R=r
+    OCL=13937
+    CL=13937
+
+ usr/gri/gosrc/compilation.go  |  8 +++++++-
+ usr/gri/gosrc/globals.go      |  3 ++-
+ usr/gri/gosrc/go.go           |  2 ++
+ usr/gri/gosrc/parser.go       | 11 +++++++++--
+ usr/gri/gosrc/scanner.go      | 19 +++++++++++++++++++
+ usr/gri/gosrc/test_scanner.go | 31 ++++++++++++++++++++++++++++---
+ 6 files changed, 67 insertions(+), 7 deletions(-)

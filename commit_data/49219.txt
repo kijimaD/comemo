@@ -1,0 +1,27 @@
+commit db875f4d1b125e41a3999e3dd5c30d6b1bce235c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 16 11:41:12 2022 -0400
+
+    runtime/pprof: eliminate arbitrary deadline in testCPUProfile
+    
+    The testCPUProfile helper function iterates until the profile contains
+    enough samples. However, in general very slow builders may need longer
+    to complete tests, and may have less-responsive schedulers (leading to
+    longer durations required to collect profiles with enough samples).
+    To compensate, slower builders generally run tests with longer timeouts.
+    
+    Since this test helper already dynamically scales the profile duration
+    based on the collected samples, allow it to continue to retry and
+    rescale until it would exceed the test's deadline.
+    
+    Fixes #52656 (hopefully).
+    
+    Change-Id: I4561e721927503f33a6d23336efa979bb9d3221f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406614
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/runtime/pprof/pprof_test.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

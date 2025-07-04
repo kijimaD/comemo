@@ -1,0 +1,15 @@
+commit 492ac4b8663094b0f98aebf1e378b19f123d0b7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 9 13:19:19 2015 -0800
+
+    go/parser: permit type elision from composite literal map keys
+    
+    Per pending https://go-review.googlesource.com/2591 .
+    
+    Change-Id: I1ce9d1c629e9fc43dbd862b3433aa5840f46656c
+    Reviewed-on: https://go-review.googlesource.com/2621
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/parser/parser.go     | 26 ++++++++++++++++++++------
+ src/go/parser/short_test.go |  2 ++
+ 2 files changed, 22 insertions(+), 6 deletions(-)

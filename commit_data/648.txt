@@ -1,0 +1,12 @@
+commit 721cb9c6a1bbe0de8021e38502a3be5ce19d7e61
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 15 19:07:23 2008 -0700
+
+    redeclaring methods
+    
+    R=r
+    OCL=15375
+    CL=15375
+
+ src/cmd/gc/dcl.c | 1 +
+ 1 file changed, 1 insertion(+)

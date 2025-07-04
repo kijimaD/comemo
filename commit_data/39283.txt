@@ -1,0 +1,23 @@
+commit 2165452a37b156d154a6e2dc85495b23a4a61565
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 20:59:35 2019 +1000
+
+    strconv: document handling of NaN and ±Inf
+    
+    In addition to the example that was added in 203b80ab, mention these
+    special cases in the doc comment. This change also adjusts the example
+    to include "+Inf", as it was not otherwise mentioned that the plus
+    symbol may be present.
+    
+    Fix #30990
+    
+    Change-Id: I97d66f4aff6a17a6ccc0ee2e7f32e39ae91ae454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179738
+    Reviewed-by: Alex Miasoedov <msoedov@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/atof.go         | 3 +++
+ src/strconv/example_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

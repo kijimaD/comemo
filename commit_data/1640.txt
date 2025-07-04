@@ -1,0 +1,13 @@
+commit bcf48076e5e075e268ca1e2da584dbb1b9ed21fc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 6 18:03:13 2009 -0800
+
+    fix up syscall for darwin after StringToBytes change
+    
+    R=rsc
+    DELTA=30  (0 added, 18 deleted, 12 changed)
+    OCL=24628
+    CL=24628
+
+ src/lib/syscall/file_darwin.go | 42 ++++++++++++------------------------------
+ 1 file changed, 12 insertions(+), 30 deletions(-)

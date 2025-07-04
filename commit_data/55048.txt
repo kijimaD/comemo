@@ -1,0 +1,25 @@
+commit 06145fe03c61c3d9c0cfd87ce710c197aaa9eafd
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Nov 9 22:20:27 2023 -0800
+
+    misc/wasm: support new wasmtime CLI
+    
+    Wasmtime 14.0.0 introduced new CLI flags and removed the existing
+    flags, in particular the --max-wasm-stack flag we were using to avoid
+    errors in some tests.
+    
+    This introduces a regular expression based switch that uses the old
+    flags for wasmtime versions < 14 and the new flags otherwise.
+    
+    Fixes #63718
+    
+    Change-Id: I44673e7d9f8729065757abdbf8c41e8a61897d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541219
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

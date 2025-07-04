@@ -1,0 +1,12 @@
+commit 4e0738a3ad872cf03e64e44371508dc92d205cf4
+Author: RaviTeja <ravi.tezu@gmail.com>
+Date:   Wed Aug 9 17:23:47 2017 +0530
+
+    doc/contribute.html: fix name of .gitcookies file
+    
+    Change-Id: I41c22b9c6933b3f3469c0e815048a49e1d37927a
+    Reviewed-on: https://go-review.googlesource.com/54190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 3a30381b2110f15de85514609965b7cafd90aec0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 22:07:26 2021 -0700
+
+    cmd/compile/internal/types2: simplify Checker.funcInst
+    
+    Now that we use square brackets for instantiations, we
+    can tell type arguments from ordinary arguments without
+    "guessing" which permits a simpler implementation.
+    
+    While at it, also fix a minor position error for type
+    instantiations (now matching the code for function
+    instantiations).
+    
+    Change-Id: I20eca51c5b06259703767b5906e89197d6cd595a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306169
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go    | 36 ++++++++----------------------
+ src/cmd/compile/internal/types2/typexpr.go |  2 +-
+ 2 files changed, 10 insertions(+), 28 deletions(-)

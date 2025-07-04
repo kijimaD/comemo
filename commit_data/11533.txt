@@ -1,0 +1,18 @@
+commit 8039683cef026edb88ae9dc6cd766feccdb40ff4
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jan 31 18:15:42 2012 -0800
+
+    gc: use octal escapes in mkopnames
+    
+    Plan 9's tr(1) doesn't accept the C-style escapes
+    for tab and newline characters.  I was going to use
+    the \xFF hexadecimal escapes but GNU tr(1) doesn't
+    accept those.  It seems octal is the least common
+    denominator.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5576079
+
+ src/cmd/gc/mkopnames | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

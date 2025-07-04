@@ -1,0 +1,24 @@
+commit 94d36fbc4acdbcff5d4d7ad3869f285294c4181c
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Mon Apr 3 09:32:05 2023 -0400
+
+    runtime: zero saved frame pointer when reusing goroutine stack on arm64
+    
+    When a goroutine stack is reused on arm64, the spot on the stack where
+    the "caller's" frame pointer goes for the topmost frame should be
+    explicitly zeroed. Otherwise, the frame pointer check in adjustframe
+    with debugCheckBP enabled will fail on the topmost frame of a call stack
+    the first time a reused stack is grown.
+    
+    Updates #39524, #58432
+    
+    Change-Id: Ic1210dc005e3ecdbf9cd5d7b98846566e56df8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481636
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/proc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

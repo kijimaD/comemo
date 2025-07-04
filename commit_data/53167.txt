@@ -1,0 +1,29 @@
+commit d694046152c1772048d0e443fa32c9cff59f2fc2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 17 15:22:25 2023 -0700
+
+    net: ignore more errors in TestDialCancel
+    
+    TestDialCancel assumes that packets sent to the private IP addresses
+    198.18.0.254 and 2001:2::254 will be routed to /dev/null.
+    Not all systems are configured that way. We already ignore one
+    error case in the test; ignore a couple more than have appeared
+    on the builders. The test is still valid as long as some builders
+    discard the packets as expected.
+    
+    Fixes #52579
+    Fixes #57364
+    
+    Change-Id: Ibe9ed73b8b3b498623f1d18203dadf9207a0467e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496037
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dial_test.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

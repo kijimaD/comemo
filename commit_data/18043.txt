@@ -1,0 +1,28 @@
+commit 4f234814831c48a3bbc2b9a2d00242fad890facf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 18 10:57:07 2013 -0500
+
+    crypto/x509: add non-cgo darwin system anchor certs
+    
+    The set of certs fetched via exec'ing `security` is not quite identical
+    to the certs fetched via the cgo call. The cgo fetch includes
+    any trusted root certs that the user may have added; exec does not.
+    The exec fetch includes an Apple-specific root cert; the cgo fetch
+    does not. Other than that, they appear to be the same.
+    
+    Unfortunately, os/exec depends on crypto/x509, via net/http. Break the
+    circular dependency by moving the exec tests to their own package.
+    
+    This will not work in iOS; we'll cross that bridge when we get to it.
+    
+    R=golang-dev, minux.ma, agl
+    CC=golang-dev
+    https://golang.org/cl/22020045
+
+ src/pkg/crypto/x509/root_cgo_darwin.go   | 79 ++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/root_darwin.go       | 78 ++++---------------------------
+ src/pkg/crypto/x509/root_darwin_test.go  | 50 ++++++++++++++++++++
+ src/pkg/crypto/x509/root_nocgo_darwin.go | 11 +++++
+ src/pkg/crypto/x509/root_stub.go         | 14 ------
+ src/pkg/os/exec/exec_test.go             | 28 ++++++-----
+ 6 files changed, 166 insertions(+), 94 deletions(-)

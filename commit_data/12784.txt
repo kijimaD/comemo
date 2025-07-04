@@ -1,0 +1,23 @@
+commit 671862747ef238f1713170f712e85d1cd6d46685
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 27 11:16:10 2012 -0400
+
+    go/build: fix import check
+    
+    When we find a package in DIR/src/foo, we only let it
+    be known as foo if there is no other foo in an earlier
+    GOPATH directory or the GOROOT directory.
+    The GOROOT check was looking in GOROOT/src/foo
+    instead of GOROOT/src/pkg/foo, which meant that
+    the import paths "lib9", "libbio", "libmach", and so
+    on were unavailable, and the import paths "math",
+    "errors", and so on were available.  Correct this.
+    
+    Fixes #3390.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5927050
+
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit eb3dd019ed6a1f15585852274ccfd4d021d35957
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 17 18:23:21 2023 +0700
+
+    cmd/compile: cleanup test code pre Unified IR
+    
+    Change-Id: Ibb9a7ce37ac28873aa720a64d1f89cb87fc5fa27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543315
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/importer/gcimporter_test.go | 17 ++---------------
+ src/cmd/compile/internal/ssa/debug_lines_test.go     | 12 ++----------
+ 2 files changed, 4 insertions(+), 25 deletions(-)

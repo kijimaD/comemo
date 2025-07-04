@@ -1,0 +1,11 @@
+commit bb3e3090c62df3963733823972fd3536512ec214
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 31 18:29:06 2009 -0700
+
+    concurrency
+    
+    R=go-dev, iant, rsc
+    http://go/go-review/1018004
+
+ doc/effective_go.html | 244 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 240 insertions(+), 4 deletions(-)

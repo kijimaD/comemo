@@ -1,0 +1,17 @@
+commit 883a96d9509c62fddc03fedf4b711c738dc7ac9e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 17 22:50:59 2012 +1100
+
+    spec: delete references to unsafe.Reflect,Typeof,Unreflect
+    They have been deleted from package unsafe.
+    Also delete their appearance in exp/types.
+    
+    Fixes #3338.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5847056
+
+ doc/go_spec.html              | 23 +----------------------
+ src/pkg/exp/types/universe.go |  5 -----
+ 2 files changed, 1 insertion(+), 27 deletions(-)

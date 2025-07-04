@@ -1,0 +1,21 @@
+commit 4fe42799a8a3170715dcbfa3d904ca8173131d79
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 11:16:09 2017 -0400
+
+    cmd/vet: accept package config from go command
+    
+    This CL adds support for accepting package config from
+    the go command. Paired with CL 74356 this lets us make
+    sure vet has complete information about package sources.
+    This fixes many issues (see CL 74356 for the list), including
+    mishandling of cgo and vendoring.
+    
+    Change-Id: Ia4a1dce6f9b1b0a8ef5fdf9005a20a8b294969f1
+    Reviewed-on: https://go-review.googlesource.com/74355
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/main.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

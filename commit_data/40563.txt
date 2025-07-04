@@ -1,0 +1,23 @@
+commit 26d5f032e99e68252f20d298bec925f2e1a1613e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 30 14:06:54 2019 +0700
+
+    cmd/compile: add test for skipping empty init functions
+    
+    CL 200958 adds skipping empty init function feature without any tests
+    for it. A codegen test sounds ideal, but it's unlikely that we can make
+    one for now, so use a program to manipulate runtime/proc.go:initTask
+    directly.
+    
+    Updates #34869
+    
+    Change-Id: I2683b9a1ace36af6861af02a3a9fb18b3110b282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204217
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go |  1 +
+ test/initempty.go   | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

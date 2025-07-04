@@ -1,0 +1,19 @@
+commit b899e0b8cc1afc4534758c9ebe1e051e5220bfbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 23 09:55:31 2024 -0800
+
+    go/types: generate errors_test.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 50 LOC.
+    
+    Change-Id: I022688d6db58bf58e7844487582725a23ca820be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566515
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/errors_test.go   | 6 +++---
+ src/go/types/generate_test.go | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

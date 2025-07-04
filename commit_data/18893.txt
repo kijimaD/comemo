@@ -1,0 +1,16 @@
+commit f34251a91c2d075def51b763c52a0c602f3e09c9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 19 10:16:48 2014 +1100
+
+    strconv: CanBackquote should reject \x7F
+    It's a control character.
+    Fixes #7565.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/77300043
+
+ src/pkg/strconv/quote.go      | 3 ++-
+ src/pkg/strconv/quote_test.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

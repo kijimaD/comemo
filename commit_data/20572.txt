@@ -1,0 +1,14 @@
+commit bd72d2c650d0b7b668a8b3de58e60b8b61278956
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 29 12:23:43 2014 -0700
+
+    go/build: add go1.4 tag.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/138000044
+
+ src/go/build/build.go | 6 +++---
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

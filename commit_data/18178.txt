@@ -1,0 +1,22 @@
+commit 8f9844348fc66b560e5193cb402085d91f466788
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 7 23:04:17 2014 +1100
+
+    syscall: include mmap constants in netbsd zerror* files
+    
+    Include the <sys/mman.h> header for NetBSD mkerrors.sh. This brings
+    in constants used with mmap(2), msync(2) and mlockall(2).
+    
+    The regeneration of the NetBSD zerror* files also picks clone(2)
+    related constants.
+    
+    Update #4929.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/45510044
+
+ src/pkg/syscall/mkerrors.sh             |  1 +
+ src/pkg/syscall/zerrors_netbsd_386.go   | 51 ++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 51 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 101 insertions(+), 2 deletions(-)

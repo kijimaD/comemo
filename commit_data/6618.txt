@@ -1,0 +1,13 @@
+commit 425bbadd3cc77581f3a4d767895b0e35c1fb6ca5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 16:41:06 2010 -0700
+
+    go_spec: allow copy() to copy bytes from a string into a []byte
+             (language change as discussed a while ago)
+    
+    R=iant, ken2, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2716041
+
+ doc/go_spec.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

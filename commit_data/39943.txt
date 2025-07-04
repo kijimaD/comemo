@@ -1,0 +1,22 @@
+commit e70e0a6cbc4004f2449bdeb345dcf68278aaf8fe
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 18 17:13:46 2019 +0100
+
+    all: remove trailing whitespace from HTML files
+    
+    I noticed lots of trailing whitespace in one of cmd/trace's HTML files.
+    While at it, remove a few others from still-maintained files. Leave old
+    documents alone, such as doc/devel/weekly.html.
+    
+    Change-Id: I7de7bbb6dd3fe6403bbb1f1178a8d3640c1e537b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196178
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/articles/wiki/index.html      |  2 +-
+ doc/gccgo_contribute.html         |  2 +-
+ doc/gccgo_install.html            |  2 +-
+ doc/go_faq.html                   |  4 ++--
+ misc/trace/trace_viewer_full.html | 20 ++++++++++----------
+ 5 files changed, 15 insertions(+), 15 deletions(-)

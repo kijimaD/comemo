@@ -1,0 +1,22 @@
+commit af9ab6b2e852c4177db06cf91edc7a869b4cb93e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 23:08:36 2020 -0400
+
+    cmd/link: check for reflect.Value.MethodByName explicitly
+    
+    Currently we only check for reflect.Value.Method. And
+    reflect.Value.MethodByName is covered since it calls
+    reflect.Value.Method internally. But it is brittle to rely on
+    implementation detail of the reflect package. Check for
+    MethodByName explicitly.
+    
+    Change-Id: Ifa8920e997524003dade03abc4fb3c4e64723643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228881
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go  | 5 +++--
+ src/cmd/link/internal/ld/deadcode2.go | 3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

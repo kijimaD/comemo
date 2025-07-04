@@ -1,0 +1,15 @@
+commit 91abab0429a9740ac1b9b0b06282c04f132103f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 8 16:49:17 2015 +0000
+
+    crypto/tls: document lack of Lucky13 hardening
+    
+    Updates #13385
+    
+    Change-Id: I9c2edf8c02adc388c48760b29e63dfa2966262d6
+    Reviewed-on: https://go-review.googlesource.com/17532
+    Reviewed-by: Tim Cooijmans <timcooijmans@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/tls.go | 5 +++++
+ 1 file changed, 5 insertions(+)

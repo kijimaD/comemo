@@ -1,0 +1,15 @@
+commit e6ee0d24924f926f3a648fdcd5e5ccb81e1d4f14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 14 17:41:47 2011 -0800
+
+    godoc: don't hide package lookup error if there's no command with the same name
+    
+    Fixes #1514.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4173050
+
+ src/cmd/godoc/godoc.go |  5 +++++
+ src/cmd/godoc/main.go  | 10 ++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

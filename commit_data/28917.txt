@@ -1,0 +1,15 @@
+commit e6a901ea3ac4b37be94aaf7b0285ba1840354c4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 09:37:54 2016 -0400
+
+    cmd/go: disable SSH connection pooling to avoid git hang
+    
+    Fixes #13453.
+    Fixes #16104.
+    
+    Change-Id: I4e94f606df786af8143f8649c9afde570f346301
+    Reviewed-on: https://go-review.googlesource.com/31353
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/get.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

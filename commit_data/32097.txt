@@ -1,0 +1,14 @@
+commit f396fa4285dd5def6d28ebedb4261cf89133bae1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 16:05:17 2017 -0700
+
+    internal/poll: don't add non-sockets to runtime poller
+    
+    Updates #21172
+    
+    Change-Id: I0fec6e645328bbc85f3e47f4f71dd8d1d68c75ab
+    Reviewed-on: https://go-review.googlesource.com/52551
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

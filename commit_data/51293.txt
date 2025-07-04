@@ -1,0 +1,18 @@
+commit 509ac2ca6dbda4fff7a0e4e25589bb8827c897c2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:51:11 2022 -0500
+
+    cmd/vet: use the test binary as 'vet' instead of rebuilding it
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: I4914870396f90097f45d00012e5601fe42655899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450710
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/vet/vet_test.go | 65 +++++++++++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 40 deletions(-)

@@ -1,0 +1,23 @@
+commit 6d0b55193104357255dacc9b3270c944374eed97
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 08:00:46 2016 -0900
+
+    cmd/link: track offset instead of using seek
+    
+    The Cpos function is used frequently (at least once per symbol) and
+    it is implemented with the seek syscall. Instead, track current
+    output offset and use it.
+    
+    Building the godoc binary with DWARF, best of ten:
+    
+    tip:  real 0m1.287s user 0m1.573s
+    this: real 0m1.208s user 0m1.555s
+    
+    Change-Id: I068148695cd6b4d32cd145db25e59e6f6bae6945
+    Reviewed-on: https://go-review.googlesource.com/20055
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 44 +++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)

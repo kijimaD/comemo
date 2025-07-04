@@ -1,0 +1,12 @@
+commit 316bc2637de964b0fd39b985b7ac7030b3febeb1
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 17:29:57 2008 -0700
+
+    default to amd64 in run
+    test/func.go now works; update golden.out
+    
+    SVN=121617
+
+ test/golden.out | 4 ----
+ test/run        | 3 ++-
+ 2 files changed, 2 insertions(+), 5 deletions(-)

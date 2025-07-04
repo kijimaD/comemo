@@ -1,0 +1,18 @@
+commit 9a96fb3a29548d2d44b65eec6289c279a73618cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 13:37:02 2010 -0400
+
+    mkall.sh, mkerrors.sh: work more broadly
+    
+    work on FreeBSD even without /usr/src/sys.
+    work on systems where gcc -static is broken.
+    
+    TBR so I can test my semi-automated z builder.
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2215046
+
+ src/pkg/syscall/mkall.sh    |  4 ++--
+ src/pkg/syscall/mkerrors.sh | 15 ++++++++++-----
+ 2 files changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 7f70bb59133d026a0f246b74713df5210a6937ac
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Nov 14 19:06:12 2012 +1100
+
+    syscall: regenerate z-files for openbsd/386
+    
+    Regenerate z-files for OpenBSD/386 on OpenBSD 5.2.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6844044
+
+ src/pkg/syscall/zerrors_openbsd_386.go | 107 +++++++++++++++++++++++++++++----
+ src/pkg/syscall/zsysnum_openbsd_386.go |   9 +--
+ src/pkg/syscall/ztypes_openbsd_386.go  |  47 ++++++++-------
+ 3 files changed, 122 insertions(+), 41 deletions(-)

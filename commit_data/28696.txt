@@ -1,0 +1,27 @@
+commit 91706c04b93e9f14321a038943829e99dc333794
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Oct 5 23:08:25 2016 -0400
+
+    cmd/asm, cmd/internal/obj/s390x: delete unused instructions
+    
+    Deletes the following s390x instructions:
+    
+     - ADDME
+     - ADDZE
+     - SUBME
+     - SUBZE
+    
+    They appear to be emulated PPC instructions left over from the
+    porting process and I don't think they will ever be useful.
+    
+    Change-Id: I9b1ba78019dbd1218d0c8f8ea2903878802d1990
+    Reviewed-on: https://go-review.googlesource.com/30538
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/s390x.go   |  6 +----
+ src/cmd/internal/obj/s390x/a.out.go  |  4 ---
+ src/cmd/internal/obj/s390x/anames.go |  4 ---
+ src/cmd/internal/obj/s390x/asmz.go   | 47 +++---------------------------------
+ 4 files changed, 5 insertions(+), 56 deletions(-)

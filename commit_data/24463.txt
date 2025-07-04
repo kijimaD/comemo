@@ -1,0 +1,16 @@
+commit 1ef9b5a5b90e6ea4dd5d9495cfe0d3d24446ff22
+Author: Charlie Dorian <cldorian@gmail.com>
+Date:   Tue Oct 6 23:16:47 2015 -0400
+
+    math/cmplx: make error tolerance test function of expected value
+    
+    Copy math package CL 12230 to cmplx package.
+    
+    Change-Id: I3345b782b84b5b98e2b6a60d8774c7e7cede2891
+    Reviewed-on: https://go-review.googlesource.com/15500
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/cmplx/cmath_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

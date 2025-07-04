@@ -1,0 +1,13 @@
+commit a947d0d0c17fda02a105f171daddd686ff1ecc90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 29 14:01:09 2009 -0800
+
+    test case for issue 471
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/183084
+
+ test/bugs/bug238.go | 19 +++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 22 insertions(+)

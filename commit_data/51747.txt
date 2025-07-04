@@ -1,0 +1,33 @@
+commit 3900ba4baf0e3b309a55b5ac4dd25f709df09772
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Jan 24 09:20:13 2023 +0800
+
+    all: fix some comments
+    
+    Change-Id: I3e9f05d221990b1ae464545d6d8b2e22c35bca21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463077
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ src/cmd/compile/internal/types/type.go          |  2 +-
+ src/cmd/compile/internal/types2/assignments.go  |  2 +-
+ src/cmd/compile/internal/types2/conversions.go  |  2 +-
+ src/cmd/compile/internal/types2/index.go        |  2 +-
+ src/cmd/compile/internal/walk/builtin.go        |  2 +-
+ src/cmd/dist/build.go                           |  2 +-
+ src/cmd/dist/buildgo.go                         |  2 +-
+ src/cmd/go/internal/load/pkg.go                 |  8 ++++----
+ src/cmd/go/internal/modget/get.go               |  2 +-
+ src/cmd/go/internal/search/search.go            |  6 +++---
+ src/cmd/go/internal/vcs/vcs.go                  |  2 +-
+ src/cmd/go/internal/web/http.go                 |  2 +-
+ src/cmd/go/internal/work/exec.go                | 12 ++++++------
+ src/cmd/internal/archive/archive.go             |  2 +-
+ src/go/types/conversions.go                     |  2 +-
+ src/go/types/index.go                           |  2 +-
+ src/syscall/timestruct.go                       |  2 +-
+ 18 files changed, 28 insertions(+), 28 deletions(-)

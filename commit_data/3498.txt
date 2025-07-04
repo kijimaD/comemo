@@ -1,0 +1,16 @@
+commit 1620023d039413c0df4ccbbb9e06a499c2b35083
+Author: Kai Backman <kaib@golang.org>
+Date:   Sat Oct 10 22:06:26 2009 -0700
+
+    fix float <-> int64 conversions
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=35566
+    CL=35574
+
+ src/cmd/gc/sys.go          |  2 ++
+ src/cmd/gc/walk.c          | 10 ++++++++++
+ src/pkg/runtime/arm/vlrt.c | 13 +++++++++++++
+ 3 files changed, 25 insertions(+)

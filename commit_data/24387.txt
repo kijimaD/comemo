@@ -1,0 +1,13 @@
+commit 02e8ec008ca80e6b7dd93410aa9abac3a906dee4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 29 10:16:09 2015 +1000
+
+    text/template, html/template: fix block example name
+    
+    Change-Id: I004a43842430201296363a9745480bee94920041
+    Reviewed-on: https://go-review.googlesource.com/15084
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/example_test.go | 2 +-
+ src/text/template/example_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

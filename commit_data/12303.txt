@@ -1,0 +1,14 @@
+commit b14a6643dc47104689facd938a0fb254996ddf85
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 1 08:24:03 2012 -0800
+
+    test: add test of calling recover in a varargs function
+    
+    gccgo did not handle this correctly.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5714050
+
+ test/recover.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

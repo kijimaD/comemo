@@ -1,0 +1,27 @@
+commit fd22542eaa02f73bdd1e74b5116165813fc3458b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Feb 26 14:00:57 2018 -0600
+
+    strings: speed-up replace for byteStringReplacer case
+    
+    Use Count instead of loop to determine a number of replacements.
+    Also increment index instead of advancing slices, to avoid some extra stores.
+    Shows very significant speed-up on html benchmarks:
+    
+    Escape-6          34.2µs ± 2%  20.8µs ± 2%  -39.06%  (p=0.000 n=10+10)
+    EscapeNone-6      7.04µs ± 1%  1.05µs ± 0%  -85.03%  (p=0.000 n=10+10)
+    
+    On benchmarks in package strings results are still significant:
+    
+    ByteStringMatch-6    1.59µs ± 2%    1.17µs ± 2%  -26.35%  (p=0.000 n=10+10)
+    HTMLEscapeNew-6       390ns ± 2%     337ns ± 2%  -13.62%  (p=0.000 n=10+10)
+    HTMLEscapeOld-6       621ns ± 2%     603ns ± 2%   -2.95%  (p=0.000 n=10+9)
+    
+    Change-Id: Ibea3235b6e451ba72cd5db57716d17b917e72944
+    Reviewed-on: https://go-review.googlesource.com/97255
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/replace.go | 72 +++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 53 insertions(+), 19 deletions(-)

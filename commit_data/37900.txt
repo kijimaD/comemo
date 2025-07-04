@@ -1,0 +1,14 @@
+commit 5538a9a34fc4e395967c0233aab5bdde0cebbf9b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 18 17:32:30 2019 -0500
+
+    doc/go1.12: mention small RSA keys will cause some TLS handshakes to fail
+    
+    Updates #29779
+    
+    Change-Id: I9becaba41ab4cd0bac25b4bedf3f8b19761d8158
+    Reviewed-on: https://go-review.googlesource.com/c/158638
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

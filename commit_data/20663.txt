@@ -1,0 +1,24 @@
+commit dcc4a674d85fc2b0a434d71c1a504ebc559118bf
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 7 15:21:00 2014 -0700
+
+    runtime: zero pointer-looking scalararg values
+    
+    I have a CL which at every gc looks through data and bss
+    sections for nonpointer data (according to gc maps) that
+    looks like a pointer.  These are potential missing roots.
+    
+    The only thing it finds are begnign, storing stack pointers
+    into m0.scalararg[1] and never cleaning them up.  Let's
+    clean them up now so the test CL passes all.bash cleanly.
+    
+    The test CL can't be checked in because we might store
+    pointer-looking things in nonpointer data by accident.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/153210043
+
+ src/runtime/panic.c | 2 ++
+ 1 file changed, 2 insertions(+)

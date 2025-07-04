@@ -1,0 +1,22 @@
+commit 89de906aa20b18f801b1c44abc03f298ae850954
+Author: Cameron Bedard <cam.bedardca@gmail.com>
+Date:   Thu Jan 26 01:05:20 2023 +0000
+
+    cmd/go/internal/vcs: fix outdated comment
+    
+    Function was was replaced in https://go.dev/cl/12143.
+    
+    Fixes #57718
+    
+    Change-Id: I56ff9390af9ae31803805fa27d2c08b5e1d842e1
+    GitHub-Last-Rev: b8c9dbccbc0b412fd7833d4df9d347953798b17b
+    GitHub-Pull-Request: golang/go#57767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461610
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

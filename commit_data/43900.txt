@@ -1,0 +1,25 @@
+commit dd4a52c2a588c57edc76cb0a414ae6f2e5bf5d52
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Dec 1 11:10:40 2020 -0500
+
+    doc/go1.16: add multiple release notes for the go command
+    
+    Added notes for:
+    
+    * go test -c and -i flags used with unknown flags
+    * GO111MODULE=on by default
+    * GOVCS
+    * Dropped requirements on excluded versions
+    
+    Removed TODOs for documentation on the retract directive and
+    'go install pkg@version'. These pages will be written after the beta.
+    
+    Change-Id: Ic9877a62f908be177a6035a039b72e969e7b7f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274438
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/go1.16.html | 55 ++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 40 insertions(+), 15 deletions(-)

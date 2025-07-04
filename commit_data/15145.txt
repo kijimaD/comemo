@@ -1,0 +1,13 @@
+commit 7de3d71797a0e6f25975fa5c3c69c7b0e27d23d2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 6 01:18:37 2013 +0800
+
+    runtime: save LR to stack when panicking to handle leaf function traceback
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7289047
+
+ src/pkg/runtime/signal_linux_arm.c | 16 +++++++++++-----
+ src/pkg/runtime/traceback_arm.c    |  6 ++++++
+ 2 files changed, 17 insertions(+), 5 deletions(-)

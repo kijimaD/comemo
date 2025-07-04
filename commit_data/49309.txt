@@ -1,0 +1,22 @@
+commit 74f0ccb68b60a07a8730e16043f18d3749c15648
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 20 19:35:44 2022 -0400
+
+    reflect: store receiver in pointer slot for reflect call
+    
+    The code comment says that the receiver doesn't need to go into
+    the pointer slot as it will be kept alive in this frame. But it
+    doesn't. There is no direct reference of rcvr or v (the receiver)
+    after storing the arguments. Also, it is clearer to explicitly
+    keep it alive.
+    
+    Fixes #52800.
+    
+    Change-Id: Ie3fa8e83f6ecc69d62e8bfab767314d5181f5dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407508
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/value.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

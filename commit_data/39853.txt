@@ -1,0 +1,18 @@
+commit cb30430af84a220f67d4cedc47c273c31051d291
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Sep 10 14:42:50 2019 -0400
+
+    go/internal/gccgoimporter: remove guard on some assertions
+    
+    Remove unnecessary conditional guard for a couple of assertions in the
+    type parser's update() method (inspired by comment from Robert). No
+    change in functionality.
+    
+    Change-Id: I706a54569e75c6960768247889b7dec3f267dde9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194565
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gccgoimporter/parser.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

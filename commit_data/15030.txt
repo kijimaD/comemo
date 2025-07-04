@@ -1,0 +1,43 @@
+commit 3bdeaf2a64a9731fc664b6d0fc36a70e7a7e0a05
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jan 30 08:46:56 2013 -0800
+
+    6l/5l: PIC and shared library support for the linkers.
+    
+    Added the -shared flag to 5l/6l to output a PIC executable with the required
+    dynamic relocations and RIP-relative addressing in machine code.
+    Added dummy support to 8l to avoid compilation errors
+    
+    See also:
+    https://golang.org/cl/6822078
+    https://golang.org/cl/7064048
+    
+    and
+    
+    https://groups.google.com/d/topic/golang-nuts/P05BDjLcQ5k/discussion
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6926049
+
+ src/cmd/5l/asm.c    | 62 ++++++++++++++++++++++++++++++++++++---
+ src/cmd/5l/l.h      |  6 ++++
+ src/cmd/5l/list.c   |  1 +
+ src/cmd/5l/noop.c   | 19 ++++++++++++
+ src/cmd/5l/obj.c    |  2 ++
+ src/cmd/5l/optab.c  | 28 +++++++++---------
+ src/cmd/5l/span.c   | 31 ++++++++++++++------
+ src/cmd/6l/asm.c    | 16 ++++++++++-
+ src/cmd/6l/l.h      |  2 ++
+ src/cmd/6l/obj.c    |  2 ++
+ src/cmd/6l/span.c   | 28 ++++++++++++------
+ src/cmd/8l/asm.c    | 12 ++++++++
+ src/cmd/8l/l.h      |  2 ++
+ src/cmd/8l/obj.c    |  1 +
+ src/cmd/ld/data.c   | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/ld/elf.c    | 15 +++++++++-
+ src/cmd/ld/go.c     |  2 ++
+ src/cmd/ld/lib.c    |  9 +++++-
+ src/cmd/ld/lib.h    |  4 +++
+ src/cmd/ld/symtab.c |  5 ++++
+ 20 files changed, 289 insertions(+), 41 deletions(-)

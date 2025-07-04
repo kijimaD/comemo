@@ -1,0 +1,28 @@
+commit 99b80993f607e1c6e2f4c14445de103ba6856cfc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 17 15:30:04 2023 +0700
+
+    cmd: go get golang.org/x/tools@74c255b and revendor
+    
+    go get golang.org/x/tools@74c255b # CL 519295
+    go mod tidy
+    go mod vendor
+    
+    Pulling in the fix for unnecessary dependency on *types.StdSizes, which
+    is non guaranteed behavior.
+    
+    Updates #61035
+    
+    Change-Id: Ifb04bab060343b6a849980db6bb65da9889b4665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go.mod                                                        | 2 +-
+ src/cmd/go.sum                                                        | 4 ++--
+ .../vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go | 4 +++-
+ src/cmd/vendor/modules.txt                                            | 2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)

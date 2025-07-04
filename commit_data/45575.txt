@@ -1,0 +1,34 @@
+commit a11a1711b085e5035d42cde49f88bbbab8b36550
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed May 5 23:03:22 2021 -0400
+
+    go/types: expose types.Info.Inferred with -tags=typeparams
+    
+    Our workaround to get and set types.Info._Inferred makes it harder to
+    experiment with the new APIs in x/tools.
+    
+    Instead, just make a copy of the types.Info struct, so that the Inferred
+    field is accessible when the typeparams build tag is set.
+    
+    This is a trivially safe change: the only change when not building with
+    -tags=typeparams is that types.Info._Inferred is removed, and accessing
+    inferred type information goes through an additional layer of
+    indirection.
+    
+    For #46003
+    
+    Change-Id: I38f2bbb2c80aed28be31d0fe762ccead970476ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317549
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go                 |  96 +--------------------------------
+ src/go/types/api_notypeparams.go    | 104 ++++++++++++++++++++++++++++++++++++
+ src/go/types/api_typeparams.go      |  30 ++++++++---
+ src/go/types/api_typeparams_test.go |   4 +-
+ src/go/types/check.go               |   2 +-
+ src/go/types/sanitize.go            |   5 +-
+ 6 files changed, 133 insertions(+), 108 deletions(-)

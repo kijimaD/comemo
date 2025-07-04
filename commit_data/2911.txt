@@ -1,0 +1,15 @@
+commit 6c2738eb43e7cc3ea828c7b7401bef27cc5dd9c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 13:14:01 2009 -0700
+
+    bug181 - type T *struct { T } is an invalid embedded type
+    
+    R=ken
+    OCL=32886
+    CL=32886
+
+ src/cmd/gc/dcl.c         |  4 +++-
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/walk.c        |  8 +++++++-
+ test/fixedbugs/bug181.go | 11 +++++++++++
+ 4 files changed, 22 insertions(+), 2 deletions(-)

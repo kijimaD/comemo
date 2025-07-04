@@ -1,0 +1,21 @@
+commit ff7b245a31394b700a252fd547cf16ad0ad838b6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 10 08:32:45 2018 +1100
+
+    Revert "os: remove sleep in windows Process.Wait"
+    
+    This reverts CL 145221 (commit 5c359736f8d67338b53c26aaef52139ae8cd0538)
+    
+    Reason for revert: breaks the build occasionally.
+    
+    Updates #23171
+    Updates #25965
+    
+    Change-Id: Ie1e3c76ab9bcd8d28b6118440b5f80c76f9b1852
+    Reviewed-on: https://go-review.googlesource.com/c/148957
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

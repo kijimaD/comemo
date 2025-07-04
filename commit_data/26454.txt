@@ -1,0 +1,27 @@
+commit 00a2a94c1eab027bc1ac5bbb9f30329dec14cf87
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Jan 29 16:57:02 2016 +0100
+
+    testing: added name matcher and sanitizer
+    
+    The matcher is responsible for sanitizing and uniquing the
+    test and benchmark names and thus needs to be included before the
+    API can be exposed.
+    
+    Matching currently uses the regexp to only match the top-level
+    tests/benchmarks.
+    
+    Support for subtest matching is for another CL.
+    
+    Change-Id: I7c8464068faef7ebc179b03a7fe3d01122cc4f0b
+    Reviewed-on: https://go-review.googlesource.com/18897
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go  |  20 ++++----
+ src/testing/match.go      | 116 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/match_test.go |  67 ++++++++++++++++++++++++++
+ src/testing/sub_test.go   |   8 ++--
+ src/testing/testing.go    |  22 ++++-----
+ 5 files changed, 207 insertions(+), 26 deletions(-)

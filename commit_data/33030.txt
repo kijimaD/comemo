@@ -1,0 +1,12 @@
+commit c87fb208c5162e2067138dd8fcea2e5ab8c1d6de
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 10 15:53:51 2017 -0700
+
+    cmd/compile/internal/syntax: remove some outdated comments (cleanup)
+    
+    Change-Id: If242bb99d501420827b764c908580f2363e01ac4
+    Reviewed-on: https://go-review.googlesource.com/69730
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

@@ -1,0 +1,16 @@
+commit 07ccdeb1927c77ede1d56ac6f1c1871183761ea4
+Author: Brave Cow <rsr715@gmail.com>
+Date:   Tue Oct 22 15:00:07 2019 +0000
+
+    net/http: update sanitizeCookieValue description
+    
+    Commit 8f6d68eb (CL 37328) changed the code of sanitizeCookieValue without updating its description.
+    
+    Change-Id: Ib4a1a1f316548258b828458a31b09706bbd59b53
+    GitHub-Last-Rev: 9731494e177d909f33dd7d5ecfe1fd1a1c88a3e1
+    GitHub-Pull-Request: golang/go#34790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200041
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

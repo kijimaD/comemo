@@ -1,0 +1,27 @@
+commit 2057ad02bd8387378a2d1fd637e955e126f698bf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jan 12 16:28:56 2024 -0800
+
+    context: improve valueCtx.String
+    
+    Check for stringer on the key itself.
+    This is useful for locally defined context key types,
+    where there may be multiple instances of that type.
+    For example, see http.contextKey,
+    which can now be called after this change.
+    
+    For the value itself, print the type at least
+    instead of just resorting to "<not stringer>".
+    
+    Change-Id: I588ef1df34e90fb9ebd83cb180fea495e1fedaa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555697
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/context/context.go | 8 ++++----
+ src/context/x_test.go  | 8 +++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

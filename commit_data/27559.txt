@@ -1,0 +1,14 @@
+commit 53af0d3476e3c5f5b71f0c5fcf2141c24cc102b2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 28 03:20:11 2016 +0900
+
+    crypto/tls: fix race in Benchmark{Throughput,Latency}
+    
+    Fixes #15864.
+    
+    Change-Id: Ic12aa3654bf0b7e4a26df20ea92d07d7efe7339c
+    Reviewed-on: https://go-review.googlesource.com/23504
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/tls/tls_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

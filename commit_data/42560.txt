@@ -1,0 +1,20 @@
+commit b4652028d48f42506cfd10c1763c6d7e8b22cb7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 24 14:47:41 2020 -0700
+
+    net: consistently document deadline handling
+    
+    After CL 228645 some mentions of the Deadline methods referred
+    to the Timeout method, and some to os.ErrDeadlineExceeded.
+    Stop referring to the Timeout method, to encourage ErrDeadlineExceeded.
+    
+    For #31449
+    
+    Change-Id: I27b8ff34f31798f38b06437546886af8cce98ca4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239705
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net.go | 34 +++++++++++++++++++---------------
+ 1 file changed, 19 insertions(+), 15 deletions(-)

@@ -1,0 +1,18 @@
+commit c2fe4a0ea1cd926c4e8af5042a9e21a1c2abcb89
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Thu May 28 13:48:47 2015 +0200
+
+    archive/tar: terminate when reading malformed sparse files
+    
+    Fixes #10968.
+    
+    Change-Id: I027bc571a71629ac49c2a0ff101b2950af6e7531
+    Reviewed-on: https://go-review.googlesource.com/10482
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go               |   3 +++
+ src/archive/tar/reader_test.go          |  19 +++++++++++++++++++
+ src/archive/tar/testdata/issue10968.tar | Bin 0 -> 512 bytes
+ 3 files changed, 22 insertions(+)

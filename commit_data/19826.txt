@@ -1,0 +1,20 @@
+commit 30fbcc7576b969994231498e88518f9c321adf8d
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jul 28 15:46:27 2014 -0700
+
+    crypto/tls: check curve equation in ECDHE.
+    
+    This change causes a TLS client and server to verify that received
+    elliptic curve points are on the expected curve. This isn't actually
+    necessary in the Go TLS stack, but Watson Ladd has convinced me that
+    it's worthwhile because it's pretty cheap and it removes the
+    possibility that some change in the future (e.g. tls-unique) will
+    depend on it without the author checking that precondition.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/115290046
+
+ src/pkg/crypto/tls/key_agreement.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

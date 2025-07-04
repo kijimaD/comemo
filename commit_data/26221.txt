@@ -1,0 +1,15 @@
+commit de4317cbd705b3dc53bc0ca0b5831568d57b621a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 03:25:00 2016 -0800
+
+    cmd/compile: eliminate uses of Type.Down in bexport.go
+    
+    Change-Id: I298b9d389ac33a24365f4c06a122c3af989906c0
+    Reviewed-on: https://go-review.googlesource.com/20594
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 29 ++++++++++++++---------------
+ 1 file changed, 14 insertions(+), 15 deletions(-)

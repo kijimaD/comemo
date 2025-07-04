@@ -1,0 +1,19 @@
+commit b043d231fa1e1cbc17ddcfb007d92d83dee72428
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 11:46:41 2021 -0400
+
+    debug/gosym: fix version check in file table access
+    
+    Go 1.16 and 1.18 table are the same for that part. Accept 1.18
+    version number in that code.
+    
+    Fixes #48699.
+    
+    Change-Id: I44eafa279a94bd06444f61518aedd541b25390fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353329
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/debug/gosym/pclntab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

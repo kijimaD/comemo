@@ -1,0 +1,11 @@
+commit 9e0b68d1eee3821a920a66be768fc300fdd46820
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 4 13:49:58 2009 -0800
+
+    Add syscall.Rename for NaCl.  Fixes NaCl build.
+    
+    R=rsc
+    https://golang.org/cl/165062
+
+ src/pkg/syscall/syscall_nacl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

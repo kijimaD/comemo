@@ -1,0 +1,16 @@
+commit ff3a4ef7ecabc651400e7b195c46739f6ad4b5e7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Apr 7 09:09:17 2017 +0200
+
+    cmd/compile: reduce reliance on implementation details of Mpint
+    
+    Change-Id: Ifdc41f6c77c83d22b9ad8811280f1e1db051c781
+    Reviewed-on: https://go-review.googlesource.com/39951
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go    |  9 +++++----
+ src/cmd/compile/internal/gc/mpfloat.go  |  2 +-
+ src/cmd/compile/internal/gc/swt_test.go | 10 +++++++---
+ 3 files changed, 13 insertions(+), 8 deletions(-)

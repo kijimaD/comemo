@@ -1,0 +1,80 @@
+commit b49b71ae192c72faf699edd321ff0637f90e794c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 18 11:27:59 2016 -0400
+
+    runtime: don't rescan globals
+    
+    Currently the runtime rescans globals during mark 2 and mark
+    termination. This costs as much as 500µs/MB in STW time, which is
+    enough to surpass the 10ms STW limit with only 20MB of globals.
+    
+    It's also basically unnecessary. The compiler already generates write
+    barriers for global -> heap pointer updates and the regular write
+    barrier doesn't check whether the slot is a global or in the heap.
+    Some less common write barriers do cause problems.
+    heapBitsBulkBarrier, which is used by typedmemmove and related
+    functions, currently depends on having access to the pointer bitmap
+    and as a result ignores writes to globals. Likewise, the
+    reflect-related write barriers reflect_typedmemmovepartial and
+    callwritebarrier ignore non-heap destinations; though it appears they
+    can never be called with global pointers anyway.
+    
+    This commit makes heapBitsBulkBarrier issue write barriers for writes
+    to global pointers using the data and BSS pointer bitmaps, removes the
+    inheap checks from the reflection write barriers, and eliminates the
+    rescans during mark 2 and mark termination. It also adds a test that
+    writes to globals have write barriers.
+    
+    Programs with large data+BSS segments (with pointers) aren't common,
+    but for programs that do have large data+BSS segments, this
+    significantly reduces pause time:
+    
+    name \ 95%ile-time/markTerm              old         new  delta
+    LargeBSS/bss:1GB/gomaxprocs:4  148200µs ± 6%  302µs ±52%  -99.80% (p=0.008 n=5+5)
+    
+    This very slightly improves the go1 benchmarks:
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.62s ± 3%     2.62s ± 4%    ~     (p=0.904 n=20+20)
+    Fannkuch11-12                2.15s ± 1%     2.13s ± 0%  -1.29%  (p=0.000 n=18+20)
+    FmtFprintfEmpty-12          48.3ns ± 2%    47.6ns ± 1%  -1.52%  (p=0.000 n=20+16)
+    FmtFprintfString-12          152ns ± 0%     152ns ± 1%    ~     (p=0.725 n=18+18)
+    FmtFprintfInt-12             150ns ± 1%     149ns ± 1%  -1.14%  (p=0.000 n=19+20)
+    FmtFprintfIntInt-12          250ns ± 0%     244ns ± 1%  -2.12%  (p=0.000 n=20+18)
+    FmtFprintfPrefixedInt-12     219ns ± 1%     217ns ± 1%  -1.20%  (p=0.000 n=19+20)
+    FmtFprintfFloat-12           280ns ± 0%     281ns ± 1%  +0.47%  (p=0.000 n=19+19)
+    FmtManyArgs-12               928ns ± 0%     923ns ± 1%  -0.53%  (p=0.000 n=19+18)
+    GobDecode-12                7.21ms ± 1%    7.24ms ± 2%    ~     (p=0.091 n=19+19)
+    GobEncode-12                6.07ms ± 1%    6.05ms ± 1%  -0.36%  (p=0.002 n=20+17)
+    Gzip-12                      265ms ± 1%     265ms ± 1%    ~     (p=0.496 n=20+19)
+    Gunzip-12                   39.6ms ± 1%    39.3ms ± 1%  -0.85%  (p=0.000 n=19+19)
+    HTTPClientServer-12         74.0µs ± 2%    73.8µs ± 1%    ~     (p=0.569 n=20+19)
+    JSONEncode-12               15.4ms ± 1%    15.3ms ± 1%  -0.25%  (p=0.049 n=17+17)
+    JSONDecode-12               53.7ms ± 2%    53.0ms ± 1%  -1.29%  (p=0.000 n=18+17)
+    Mandelbrot200-12            3.97ms ± 1%    3.97ms ± 0%    ~     (p=0.072 n=17+18)
+    GoParse-12                  3.35ms ± 2%    3.36ms ± 1%  +0.51%  (p=0.005 n=18+20)
+    RegexpMatchEasy0_32-12      72.7ns ± 2%    72.2ns ± 1%  -0.70%  (p=0.005 n=19+19)
+    RegexpMatchEasy0_1K-12       246ns ± 1%     245ns ± 0%  -0.60%  (p=0.000 n=18+16)
+    RegexpMatchEasy1_32-12      72.8ns ± 1%    72.5ns ± 1%  -0.37%  (p=0.011 n=18+18)
+    RegexpMatchEasy1_1K-12       380ns ± 1%     385ns ± 1%  +1.34%  (p=0.000 n=20+19)
+    RegexpMatchMedium_32-12      115ns ± 2%     115ns ± 1%  +0.44%  (p=0.047 n=20+20)
+    RegexpMatchMedium_1K-12     35.4µs ± 1%    35.5µs ± 1%    ~     (p=0.079 n=18+19)
+    RegexpMatchHard_32-12       1.83µs ± 0%    1.80µs ± 1%  -1.76%  (p=0.000 n=18+18)
+    RegexpMatchHard_1K-12       55.1µs ± 0%    54.3µs ± 1%  -1.42%  (p=0.000 n=18+19)
+    Revcomp-12                   386ms ± 1%     381ms ± 1%  -1.14%  (p=0.000 n=18+18)
+    Template-12                 61.5ms ± 2%    61.5ms ± 2%    ~     (p=0.647 n=19+20)
+    TimeParse-12                 338ns ± 0%     336ns ± 1%  -0.72%  (p=0.000 n=14+19)
+    TimeFormat-12                350ns ± 0%     357ns ± 0%  +2.05%  (p=0.000 n=19+18)
+    [Geo mean]                  55.3µs         55.0µs       -0.41%
+    
+    Change-Id: I57e8720385a1b991aeebd111b6874354308e2a6b
+    Reviewed-on: https://go-review.googlesource.com/20829
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbarrier.go | 19 +++++++++++++++----
+ src/runtime/mbitmap.go  | 50 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/mgc.go      |  7 -------
+ src/runtime/mgcmark.go  | 24 ++++++++++++++----------
+ test/writebarrier.go    | 15 +++++++++++++++
+ 5 files changed, 92 insertions(+), 23 deletions(-)

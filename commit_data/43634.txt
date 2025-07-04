@@ -1,0 +1,23 @@
+commit f7e26467b4e7ee0bb3219c26e71292ff4aac7da9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 29 15:50:53 2020 -0400
+
+    runtime: allocate at desired address when race detector is on
+    
+    Currently, on all supported platforms, the race detector (LLVM
+    TSAN) expects the Go heap is at 0xc000000000 - 0xe000000000.
+    Move the raceenabled condition first, so we always allocate
+    there.
+    
+    This means on Linux/ARM64 when race detector is on we will
+    allocate to 0xc000000000 - 0xe000000000, instead of 0x4000000000.
+    The old address is meant for 39-bit VMA. But the race detector
+    only supports 48-bit VMA anyway. So this is fine.
+    
+    Change-Id: I51ac8eff68297b37c8c651a93145cc94f83a939d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266372
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/malloc.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

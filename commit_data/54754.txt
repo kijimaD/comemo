@@ -1,0 +1,39 @@
+commit 4c31dfe850165979bbcf0510c35576d022f26eb3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 20 17:01:40 2023 -0400
+
+    cmd/go: introduce Shell abstraction
+    
+    This CL separates running shell commands and doing shell-like
+    operations out of the Builder type and into their own, new Shell type.
+    Shell is responsible for tracking output streams and the Action that's
+    running commands. Shells form a tree somewhat like Context, where new
+    Shells can be derived from a root shell to adjust their state.
+    
+    The primary intent is to support "go build -json", where we need to
+    flow the current package ID down to the lowest level of command output
+    printing. Shell gives us a way to easily flow that context down.
+    
+    However, this also puts a clear boundary around how we run commands,
+    removing this from the rather large Builder abstraction.
+    
+    For #62067.
+    
+    Change-Id: Ia9ab2a2d7cac0269ca627bbb316dbd9610bcda44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/go/internal/clean/clean.go     |  20 ++-
+ src/cmd/go/internal/run/run.go         |   2 +-
+ src/cmd/go/internal/test/test.go       |  14 +-
+ src/cmd/go/internal/work/action.go     |  13 +-
+ src/cmd/go/internal/work/build_test.go |  12 +-
+ src/cmd/go/internal/work/buildid.go    |  33 ++---
+ src/cmd/go/internal/work/cover.go      |  12 +-
+ src/cmd/go/internal/work/exec.go       | 246 ++++++++++++++++++---------------
+ src/cmd/go/internal/work/gc.go         |  26 ++--
+ src/cmd/go/internal/work/gccgo.go      |  54 ++++----
+ src/cmd/go/internal/work/shell.go      |  90 ++++++++++++
+ 11 files changed, 321 insertions(+), 201 deletions(-)

@@ -1,0 +1,12 @@
+commit 1e1a3c50544485434bcd987b6a4a4ac237bf8417
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 2 16:35:00 2008 -0800
+
+    6g gives no error on "0 != nil"
+    
+    R=ken
+    OCL=20289
+    CL=20289
+
+ test/bugs/bug127.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

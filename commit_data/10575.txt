@@ -1,0 +1,19 @@
+commit bc9ce6a129af4b99ec63810e61166e2b98285823
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 11:50:15 2011 -0800
+
+    go/doc: better headscan
+    
+    - scan all comments not just the package documentation
+    - declutter output so that false positives are more easily spotted
+    - count the number of headings to quickly see differences
+    - minor tweaks
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5450061
+
+ src/pkg/go/doc/comment.go      | 14 +++----
+ src/pkg/go/doc/comment_test.go |  2 +-
+ src/pkg/go/doc/headscan.go     | 90 ++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 82 insertions(+), 24 deletions(-)

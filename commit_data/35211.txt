@@ -1,0 +1,36 @@
+commit 3aa53b31350dff905deefb97e6670a14f166d2a9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 13:44:53 2017 -0800
+
+    runtime: eliminate runtime.hselect
+    
+    Now the registration phase looks like:
+    
+        var cases [4]runtime.scases
+        var order [8]uint16
+        selectsend(&cases[0], c1, &v1)
+        selectrecv(&cases[1], c2, &v2, nil)
+        selectrecv(&cases[2], c3, &v3, &ok)
+        selectdefault(&cases[3])
+        chosen := selectgo(&cases[0], &order[0], 4)
+    
+    Primarily, this is just preparation for having the compiler open-code
+    selectsend, selectrecv, and selectdefault.
+    
+    As a minor benefit, order can now be layed out separately on the stack
+    in the pointer-free segment, so it won't take up space in the
+    function's stack pointer maps.
+    
+    Change-Id: I5552ba594201efd31fcb40084da20b42ea569a45
+    Reviewed-on: https://go-review.googlesource.com/37933
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 114 ++++++++++-----------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
+ src/cmd/compile/internal/gc/inl_test.go        |   1 -
+ src/cmd/compile/internal/gc/select.go          |  81 +++++++--------
+ src/runtime/select.go                          | 135 +++++++------------------
+ test/live.go                                   |   8 +-
+ 6 files changed, 144 insertions(+), 204 deletions(-)

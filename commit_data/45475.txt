@@ -1,0 +1,20 @@
+commit 93200b98c75500b80a2bf7cc31c2a72deff2741c
+Author: Matt Harden <matt.harden@gmail.com>
+Date:   Fri Apr 30 01:34:44 2021 +0000
+
+    bufio: mention ErrFinalToken in SplitFunc documentation
+    
+    It is documented elsewhere in the package documentation but this additional
+    mention of it will hopefully reduce confusion.
+    
+    Fixes #44261
+    
+    Change-Id: I4e9d8f4564ebb7fbe047c92ee2cdffedb39f2a31
+    GitHub-Last-Rev: 64b6421503dfb9396e46f94f9805ff7f8bf2b31b
+    GitHub-Pull-Request: golang/go#45839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314969
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/scan.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 35cfe059a1c1bbad29e2209bc432a3b01369b25d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Nov 2 10:22:18 2019 -0700
+
+    hash/maphash: move bytes/hash to hash/maphash
+    
+    Fixes #34778
+    
+    Change-Id: If8225a7c41cb2af3f67157fb9670eef86272e85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204997
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                          | 103 ++++++++++-----------
+ .../hash/hash.go => hash/maphash/maphash.go}       |   6 +-
+ .../hash_test.go => hash/maphash/maphash_test.go}  |  26 +++---
+ src/{bytes/hash => hash/maphash}/smhasher_test.go  |  12 +--
+ 4 files changed, 73 insertions(+), 74 deletions(-)

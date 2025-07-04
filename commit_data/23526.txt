@@ -1,0 +1,15 @@
+commit 2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 26 15:13:52 2015 -0700
+
+    archive/tar: also skip header roundtrip test on nacl
+    
+    Update #11426
+    
+    Change-Id: I7abc4ed2241a7a3af6d57c934786f36de4f97b77
+    Reviewed-on: https://go-review.googlesource.com/11592
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/tar_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

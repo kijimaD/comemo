@@ -1,0 +1,24 @@
+commit 24e94766c082338d83e5f3e1f8eccf4f070d8956
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 28 17:55:26 2017 -0400
+
+    cmd/compile: added special case for reflect header fields to esc
+    
+    The uintptr-typed Data field in reflect.SliceHeader and
+    reflect.StringHeader needs special treatment because it is
+    really a pointer.  Add the special treatment in walk for
+    bug #19168 to escape analysis.
+    
+    Includes extra debugging that was helpful.
+    
+    Fixes #19743.
+    
+    Change-Id: I6dab5002f0d436c3b2a7cdc0156e4fc48a43d6fe
+    Reviewed-on: https://go-review.googlesource.com/38738
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  9 ++++++++-
+ test/fixedbugs/issue19743.go       | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 0d8d181bd575dca359266a1008b436b50db8ba18
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Jan 31 19:10:33 2023 +0100
+
+    cmd/compile: use MakeResult in empty MakeSlice elimination
+    
+    This gets eliminated by thoses rules above:
+      // for rewriting results of some late-expanded rewrites (below)
+      (SelectN [0] (MakeResult x ___)) => x
+      (SelectN [1] (MakeResult x y ___)) => y
+      (SelectN [2] (MakeResult x y z ___)) => z
+    
+    Fixes #58161
+    
+    Change-Id: I4fbfd52c72c06b6b3db906bd9910b6dbb7fe8975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463846
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  12 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 149 ++++++++----------------
+ test/fixedbugs/issue58161.go                    |  15 +++
+ 3 files changed, 68 insertions(+), 108 deletions(-)

@@ -1,0 +1,21 @@
+commit 2b6ff90851b08d4595a55602e25265f596ac3b5b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 8 15:58:04 2022 -0500
+
+    debug/elf: define additional PPC64 ELFv2 relocations
+    
+    The PPC64 ELFv2 supplement version 1.5 defines a handful of
+    new relocation types, similarly some were not added.
+    
+    Fixes #54345
+    
+    Change-Id: Id39b29d404298fca4a10ccf1e96b5964dc452c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/54345.txt   | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/debug/elf/elf.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 216 insertions(+)

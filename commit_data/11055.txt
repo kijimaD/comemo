@@ -1,0 +1,12 @@
+commit 834830d2bbf5a213e1222c1505e898f2c360b672
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Mon Jan 9 10:47:28 2012 -0800
+
+    doc: use 2012 for year in model standard copyright header
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5531048
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

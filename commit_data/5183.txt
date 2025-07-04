@@ -1,0 +1,17 @@
+commit ac58f646ac63f9e12730ec683dd29367b50961d7
+Author: Risto Jaakko Saarelma <rsaarelm@gmail.com>
+Date:   Tue Mar 30 11:46:21 2010 -0700
+
+    Gofmt preserves newlines in multiline selector expressions.
+    
+    This is for making the fluent interface idiom usable with gofmt.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/802043
+
+ src/pkg/go/printer/nodes.go                    | 91 ++++++++++++++++++++++++--
+ src/pkg/go/printer/testdata/expressions.golden | 71 ++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 71 ++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 71 ++++++++++++++++++++
+ 4 files changed, 298 insertions(+), 6 deletions(-)

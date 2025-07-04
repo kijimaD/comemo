@@ -1,0 +1,31 @@
+commit e665de28611fd2cbf7789065e7a26ca12c4b9c00
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 15 14:58:02 2022 -0700
+
+    runtime/race: introduce subarch versioning of race syso
+    
+    Allow us to select a race .syso file based on subarch values.
+    
+    Note that this doesn't actually change the syso used. This CL
+    just moves things around in preparation for adding v3-specific
+    versions in future CLs.
+    
+    Change-Id: I14e3c273a7c6f07b13b22193b7a851ea94c765cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424034
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/go/build/deps_test.go                                   |   7 ++++++-
+ src/runtime/race/internal/amd64v1/doc.go                    |   8 ++++++++
+ .../amd64v1/race_darwin.syso}                               | Bin
+ .../amd64v1/race_freebsd.syso}                              | Bin
+ .../amd64v1/race_linux.syso}                                | Bin
+ .../amd64v1/race_netbsd.syso}                               | Bin
+ .../amd64v1/race_openbsd.syso}                              | Bin
+ .../amd64v1/race_windows.syso}                              | Bin
+ src/runtime/race/internal/amd64v3/doc.go                    |   8 ++++++++
+ src/runtime/race/race_v1_amd64.go                           |  10 ++++++++++
+ src/runtime/race/race_v3_amd64.go                           |  10 ++++++++++
+ 11 files changed, 42 insertions(+), 1 deletion(-)

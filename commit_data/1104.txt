@@ -1,0 +1,14 @@
+commit b682f924d79954ddf4a89b29627aac7a22ed4238
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 15:55:32 2008 -0800
+
+    don't try interface/structure conversion until
+    last resort, because it assumes every call is a
+    real use of the conversion.
+    
+    R=ken
+    OCL=19026
+    CL=19026
+
+ src/cmd/gc/walk.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

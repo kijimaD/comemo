@@ -1,0 +1,53 @@
+commit 8009a81f7a44235001ce373fbc39391a894c86df
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 15 16:36:47 2021 -0500
+
+    bytes: add asm implementation for index on ppc64x
+    
+    This adds an asm implementation of index on ppc64le and
+    ppc64. It results in a significant improvement in some
+    of the benchmarks that use bytes.Index.
+    
+    The implementation is based on a port of the s390x asm
+    implementation. Comments on the design are found
+    with the code.
+    
+    The following improvements occurred on power8:
+    
+    Index/10       70.7ns ± 0%    18.8ns ± 0%   -73.4
+    Index/32        165ns ± 0%      95ns ± 0%   -42.6
+    Index/4K       9.23µs ± 0%    4.91µs ± 0%   -46
+    Index/4M       9.52ms ± 0%    5.10ms ± 0%   -46.4
+    Index/64M       155ms ± 0%      85ms ± 0%   -45.1
+    
+    Count/10       83.0ns ± 0%    32.1ns ± 0%   -61.3
+    Count/32        178ns ± 0%     109ns ± 0%   -38.8
+    Count/4K       9.24µs ± 0%    4.93µs ± 0%   -46
+    Count/4M       9.52ms ± 0%    5.10ms ± 0%   -46.4
+    Count/64M       155ms ± 0%      85ms ± 0%   -45.1
+    
+    IndexHard1     2.36ms ± 0%    0.13ms ± 0%   -94.4
+    IndexHard2     2.36ms ± 0%    1.28ms ± 0%   -45.8
+    IndexHard3     2.36ms ± 0%    1.19ms ± 0%   -49.4
+    IndexHard4     2.36ms ± 0%    2.35ms ± 0%    -0.1
+    
+    CountHard1     2.36ms ± 0%    0.13ms ± 0%   -94.4
+    CountHard2     2.36ms ± 0%    1.28ms ± 0%   -45.8
+    CountHard3     2.36ms ± 0%    1.19ms ± 0%   -49.4
+    
+    IndexPeriodic/IndexPeriodic2  146µs ± 0%       8µs ± 0%   -94
+    IndexPeriodic/IndexPeriodic4  146µs ± 0%       8µs ± 0%   -94
+    
+    Change-Id: I7dd2bb7e278726e27f51825ca8b2f8317d460e60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309730
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/internal/bytealg/index_generic.go |   5 +-
+ src/internal/bytealg/index_native.go  |   5 +-
+ src/internal/bytealg/index_ppc64x.go  |  24 ++
+ src/internal/bytealg/index_ppc64x.s   | 422 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 452 insertions(+), 4 deletions(-)

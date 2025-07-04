@@ -1,0 +1,14 @@
+commit 37ab838d3a6544d3661f978a0a9305e61f447403
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 18 22:58:36 2009 -0700
+
+    &Foo{x,y} wasn't in the spec.  This gets it in, dependent on a proper section regarding
+    address operators, to follow.
+    
+    R=rsc
+    DELTA=11  (10 added, 0 deleted, 1 changed)
+    OCL=26529
+    CL=26532
+
+ doc/go_spec.html | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

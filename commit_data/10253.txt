@@ -1,0 +1,16 @@
+commit b14ee23f9b85b6c838207ccc2d67287fb0e56bb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 09:17:46 2011 -0700
+
+    http: support Trailers in ReadRequest
+    
+    Available after closing Request.Body.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5348041
+
+ src/pkg/net/http/readrequest_test.go | 57 +++++++++++++++++++++++++---
+ src/pkg/net/http/request.go          | 12 +-----
+ src/pkg/net/http/transfer.go         | 73 ++++++++++++++++++++++++++++++++----
+ 3 files changed, 119 insertions(+), 23 deletions(-)

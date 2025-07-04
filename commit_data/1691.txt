@@ -1,0 +1,13 @@
+commit c19468d8df692625f09803a4336696c0a43b02ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 20:44:29 2009 -0800
+
+    comment nit
+    
+    R=r
+    DELTA=2  (0 added, 2 deleted, 0 changed)
+    OCL=25081
+    CL=25084
+
+ src/lib/io/io.go | 2 --
+ 1 file changed, 2 deletions(-)

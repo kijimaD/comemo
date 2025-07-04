@@ -1,0 +1,12 @@
+commit 14d7e869ebd37d0dbe14c884eb97fec39485aeb0
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Fri Jan 20 14:44:05 2012 -0800
+
+    doc: fix typo in Go for C++ programmers
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5555062
+
+ doc/go_for_cpp_programmers.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

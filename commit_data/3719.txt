@@ -1,0 +1,11 @@
+commit 9c13215859d48f85c986d27a6cec93de8b5c5f9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 2 11:37:21 2009 -0800
+
+    rietveld does not like code reviews with subjects longer than 100 characters, so trim the line pulled out of the description to avoid the limit.
+    
+    R=r
+    http://go/go-review/1016027
+
+ lib/codereview/codereview.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

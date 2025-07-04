@@ -1,0 +1,24 @@
+commit 9eb2c434747cc83aa1e356b9ba7c2a58e8cb6926
+Author: Hana Kim <hakim@google.com>
+Date:   Thu May 24 15:15:45 2018 -0400
+
+    runtime/pprof: allow tests to run multiple times
+    
+    TestMutexProfile and TestEmptyCallStack couldn't run multiple times
+    because they mutate state in runtime (mutex profile counters and
+    a user-defined profile type) and test whether the state
+    matches what it is supposed to be after the very first run.
+    
+    We fix TestMutexProfile by relaxing the expected state condition.
+    We fix TestEmptyCallStack by creating a new profile with a different
+    name every time the test runs.
+    
+    For #25520
+    
+    Change-Id: I8e50cd9526eb650c8989457495ff90a24ce07863
+    Reviewed-on: https://go-review.googlesource.com/114495
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

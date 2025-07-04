@@ -1,0 +1,14 @@
+commit 0ce56e60b80d65c9677d148e885b575e21583260
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jul 13 02:00:07 2013 +0800
+
+    run.bash: enlarge timeout of runtime tests
+    Recently addition to runtime test makes it take very close to 720s
+    of timeout limit on the netbsd-arm-qemu builder.
+    
+    R=golang-dev, go.peter.90, rsc
+    CC=golang-dev
+    https://golang.org/cl/10935043
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

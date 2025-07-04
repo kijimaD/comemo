@@ -1,0 +1,27 @@
+commit 6f44cc88f5f94253096ceed16b8e0fdb117cdd06
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Feb 3 11:48:50 2024 -0500
+
+    archive/zip: reduce memory held by Writer.Copy
+    
+    Make a copy of the argument File's FileHeader, and pass a pointer
+    to the copy to CreateRaw.
+    
+    Passing the pointer directly causes the entire `File` to be referenced
+    by the receiver. The `File` includes a reference to the `ReaderAt`
+    underlying the `Reader`, so all its memory, which may be the entire
+    contents of the archive, is prevented from being garbage-collected.
+    
+    Also, explain the issue in the doc comment for CreateRaw. We
+    cannot change its behavior because someone may depend on the
+    preserving the identity of its argument pointer.
+    
+    For #65499.
+    
+    Change-Id: Ieb4963a0ea30539d597547d3511accbd8c6b5c5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560238
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/archive/zip/writer.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

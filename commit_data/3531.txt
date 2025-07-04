@@ -1,0 +1,14 @@
+commit f554ef78165500ff7ac1754aad66bd4acc3381c2
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 14 10:56:19 2009 -0700
+
+    Minor fixes and additions to the GMP wrapping.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=12  (11 added, 0 deleted, 1 changed)
+    OCL=35715
+    CL=35715
+
+ misc/cgo/gmp/gmp.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 503cbcef707135ffdf7e6a8c2eb30ee0d2231a01
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 12:28:15 2015 -0500
+
+    net/url: add tests for RequestURI returning //paths
+    
+    Fixes #10433.
+    
+    Change-Id: I2a8b54e3f07488f204b1d14eb2603842caaf1e5a
+    Reviewed-on: https://go-review.googlesource.com/17386
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

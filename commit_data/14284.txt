@@ -1,0 +1,18 @@
+commit 3b04d23cbfdb1c6a868d4ca4f264a8136376bf13
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 11:21:30 2012 -0700
+
+    cmd/cgo: improve gccgo support
+    
+    Use wrapper functions to tell scheduler what we are doing.
+    
+    With this patch, and a separate patch to the go tool, all the
+    cgo tests pass with gccgo.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6812058
+
+ src/cmd/cgo/gcc.go |   9 +-
+ src/cmd/cgo/out.go | 255 +++++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 197 insertions(+), 67 deletions(-)

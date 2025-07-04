@@ -1,0 +1,90 @@
+commit f0fdbb1e8ba44da536050329050424b7b555aecb
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 18 16:41:13 2017 +0100
+
+    math: consolidate assembly stub implementations
+    
+    Where assembly functions are just jumps to the Go implementation
+    put them into a stubs_<arch>.s file. This reduces the number of
+    files considerably and makes it easier to see what is really
+    implemented in assembly.
+    
+    I've also run the stubs files through asmfmt to format them in
+    a more consistent way.
+    
+    Eventually we should replace these 'stub' assembly files with
+    a pure Go implementation now that we have mid-stack inlining
+    (see #31362).
+    
+    Change-Id: If5b2022dcc23e1299f1b7ba79884f1b1263d0f7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173398
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/asin_amd64.s                     |  11 -
+ src/math/asin_amd64p32.s                  |   5 -
+ src/math/asin_arm.s                       |  11 -
+ src/math/asinh_stub.s                     |  17 -
+ src/math/atan2_amd64.s                    |   8 -
+ src/math/atan2_amd64p32.s                 |   5 -
+ src/math/atan2_arm.s                      |   8 -
+ src/math/atan_amd64.s                     |   8 -
+ src/math/atan_amd64p32.s                  |   5 -
+ src/math/atan_arm.s                       |   8 -
+ src/math/cbrt_stub.s                      |  11 -
+ src/math/dim_386.s                        |  11 -
+ src/math/dim_arm.s                        |  11 -
+ src/math/erf_stub.s                       |  14 -
+ src/math/exp2_amd64.s                     |   8 -
+ src/math/exp2_amd64p32.s                  |   5 -
+ src/math/exp2_arm.s                       |   8 -
+ src/math/exp_386.s                        |  11 -
+ src/math/exp_arm.s                        |   8 -
+ src/math/expm1_amd64.s                    |   8 -
+ src/math/expm1_amd64p32.s                 |   5 -
+ src/math/expm1_arm.s                      |   8 -
+ src/math/floor_arm.s                      |  14 -
+ src/math/frexp_amd64.s                    |   8 -
+ src/math/frexp_amd64p32.s                 |   5 -
+ src/math/frexp_arm.s                      |   8 -
+ src/math/hypot_arm.s                      |   8 -
+ src/math/ldexp_amd64.s                    |   8 -
+ src/math/ldexp_amd64p32.s                 |   5 -
+ src/math/ldexp_arm.s                      |   8 -
+ src/math/log10_amd64.s                    |  11 -
+ src/math/log10_amd64p32.s                 |   5 -
+ src/math/log10_arm.s                      |  11 -
+ src/math/log1p_amd64.s                    |   8 -
+ src/math/log1p_amd64p32.s                 |   5 -
+ src/math/log1p_arm.s                      |   8 -
+ src/math/log_arm.s                        |   8 -
+ src/math/mod_amd64.s                      |   8 -
+ src/math/mod_amd64p32.s                   |   5 -
+ src/math/mod_arm.s                        |   8 -
+ src/math/modf_amd64.s                     |   8 -
+ src/math/modf_amd64p32.s                  |   5 -
+ src/math/modf_arm.s                       |   8 -
+ src/math/remainder_amd64.s                |   8 -
+ src/math/remainder_amd64p32.s             |   5 -
+ src/math/remainder_arm.s                  |   8 -
+ src/math/sin_386.s                        |  13 -
+ src/math/sin_amd64.s                      |  11 -
+ src/math/sin_amd64p32.s                   |   5 -
+ src/math/sin_arm.s                        |  11 -
+ src/math/sinh_stub.s                      |  17 -
+ src/math/stubs_386.s                      |  53 +++
+ src/math/stubs_amd64.s                    |  86 ++++
+ src/math/{pow_stub.s => stubs_amd64p32.s} |   8 +-
+ src/math/stubs_arm.s                      | 110 +++++
+ src/math/stubs_arm64.s                    |  58 +--
+ src/math/stubs_mips64x.s                  |  76 ++--
+ src/math/stubs_mipsx.s                    | 140 +++----
+ src/math/stubs_ppc64x.s                   |  66 +--
+ src/math/stubs_s390x.s                    | 671 +++++++++++++++---------------
+ src/math/stubs_wasm.s                     |  64 +--
+ src/math/tan_386.s                        |   9 -
+ src/math/tan_amd64.s                      |   8 -
+ src/math/tan_amd64p32.s                   |   5 -
+ src/math/tan_arm.s                        |   8 -
+ 65 files changed, 789 insertions(+), 1007 deletions(-)

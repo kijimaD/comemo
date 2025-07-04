@@ -1,0 +1,31 @@
+commit 7fcc626b577ecd17f5b4a770671b265d3a850a49
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Oct 1 10:02:39 2023 -0700
+
+    cmd/compile: use internal/abi types in the compiler
+    
+    It is tricky to use those types directly, because the layout of those
+    types in the compiler may not be the same as the layout of those
+    types in target binary (typically because of 32 vs 64 bit differences).
+    
+    Instead, translate an internal/abi type into a cmd/compile/internal/types
+    type, which will then be laid out for the target machine.
+    
+    Along with the translation, keep track of where all the bits of the
+    type are so we can reference their locations symbolically instead of
+    hardcoding them.
+    
+    Change-Id: I2694c58968d4dc7ead63a2b1b29adfedd90ddd2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532155
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/gc/main.go             |   2 +
+ src/cmd/compile/internal/reflectdata/reflect.go |  41 ++---
+ src/cmd/compile/internal/rttype/rttype.go       | 192 ++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/switch.go         |   3 +-
+ src/internal/abi/compiletype.go                 |   9 --
+ src/internal/abi/type.go                        |  14 +-
+ 6 files changed, 219 insertions(+), 42 deletions(-)

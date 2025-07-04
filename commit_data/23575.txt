@@ -1,0 +1,12 @@
+commit 19b8aa3b5ddbc3937d9acab64fcfad581a73773d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jun 30 13:58:54 2015 +0200
+
+    cmd/compile/internal/gc: give OASWB name
+    
+    Change-Id: Iacb84421215ca80c7add2818118b2af1a650fd58
+    Reviewed-on: https://go-review.googlesource.com/11639
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/opnames.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,15 @@
+commit 8f763b55a58855b88f0afe28f21e3870fff42ee8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 25 11:31:49 2023 -0400
+
+    misc/android: copy entire modules in module mode
+    
+    Change-Id: I8a8aea4d4b9824b53f17bff160055c0d9d2960ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/go_android_exec/main.go | 81 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 53 insertions(+), 28 deletions(-)

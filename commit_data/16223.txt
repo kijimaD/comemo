@@ -1,0 +1,15 @@
+commit 578dc3a96ce6649b021ee437e089af3a205dff82
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 24 08:13:01 2013 -0700
+
+    cmd/5g, cmd/6g, cmd/8g: more nil ptr to large struct checks
+    
+    R=r, ken, khr, daniel.morsing
+    CC=dsymonds, golang-dev, rickyz
+    https://golang.org/cl/8925043
+
+ src/cmd/5g/cgen.c | 65 ++++++++++++++++++++++++++++++++-----------------------
+ src/cmd/6g/cgen.c | 51 +++++++++++++++++++++++++------------------
+ src/cmd/8g/cgen.c | 51 +++++++++++++++++++++++++------------------
+ test/nilptr.go    | 22 +++++++++++++++++++
+ 4 files changed, 120 insertions(+), 69 deletions(-)

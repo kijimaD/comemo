@@ -1,0 +1,23 @@
+commit 4b409289f6edac4b744d3589999dd5d3f5cf0f0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 27 11:20:15 2009 -0700
+
+    remove Line in bufio.ReadLine(Bytes|Slice|String)
+    also drop bool arg from ReadString
+    
+    R=r
+    DELTA=45  (13 added, 1 deleted, 31 changed)
+    OCL=33923
+    CL=33960
+
+ src/pkg/bufio/bufio.go           | 45 +++++++++++++++++++++-------------------
+ src/pkg/bufio/bufio_test.go      |  4 ++--
+ src/pkg/http/request.go          |  2 +-
+ src/pkg/log/log_test.go          |  3 ++-
+ src/pkg/net/parse_test.go        |  5 ++++-
+ src/pkg/strconv/fp_test.go       |  3 ++-
+ src/pkg/unicode/maketables.go    |  2 +-
+ test/bench/k-nucleotide.go       |  2 +-
+ test/bench/reverse-complement.go |  2 +-
+ usr/austin/sym/binary.go         |  8 +++++--
+ 10 files changed, 44 insertions(+), 32 deletions(-)

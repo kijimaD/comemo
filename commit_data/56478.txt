@@ -1,0 +1,38 @@
+commit 6ccd8e4cf69efbc8983a9873a41158f554ea5363
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 20:41:38 2024 -0400
+
+    cmd/go: add support for godebug lines in go.mod and go.work
+    
+    The fact that the go line sets both the language version and the
+    GODEBUG compatibility version can be a problem, especially since
+    the go line is also required to be ≥ the go lines of any required
+    dependency modules.
+    
+    This change adds a new 'godebug' line to go.mod and go.work
+    to allow setting the GODEBUG values for the entire module.
+    
+    It also adds a new meta-value default=go1.21 that means
+    take the defaults from Go 1.21 no matter what the go line says.
+    
+    These were discussed in proposal #65573.
+    
+    Fixes #65573.
+    
+    Change-Id: I91746322a10178370ed1015ce5278372a024c824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584476
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/godebug.md                                 | 32 ++++++++++--
+ src/cmd/go/alldocs.go                          | 46 ++++++++++++----
+ src/cmd/go/internal/load/godebug.go            | 53 +++++++++++--------
+ src/cmd/go/internal/modcmd/edit.go             | 62 ++++++++++++++++++----
+ src/cmd/go/internal/modload/init.go            | 72 ++++++++++++++++++++++++++
+ src/cmd/go/internal/workcmd/edit.go            | 36 +++++++++++++
+ src/cmd/go/testdata/script/godebug_default.txt | 42 +++++++++++++++
+ src/cmd/go/testdata/script/mod_edit.txt        | 20 +++++++
+ src/cmd/go/testdata/script/work_edit.txt       | 23 +++++++-
+ 9 files changed, 340 insertions(+), 46 deletions(-)

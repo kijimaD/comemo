@@ -1,0 +1,18 @@
+commit 6bb88fc280518150e31bf12744596467796a4528
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 24 10:13:25 2017 -0700
+
+    cmd/link: use full link, not compile, to test for -no-?pie
+    
+    This avoids an error from clang when using -nopie during compilation,
+    and permits us to check that the entire build succeeds.
+    
+    Updates #21042
+    
+    Change-Id: I2e6c7d5c97a85c223ed3288622bbb58ce33b8774
+    Reviewed-on: https://go-review.googlesource.com/50874
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

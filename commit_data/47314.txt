@@ -1,0 +1,20 @@
+commit 87a3fc518a462a6bef4c395ec5af26f2cdc41207
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 15:16:01 2021 +0100
+
+    net/netip: reduce allocations in MarshalBinary
+    
+    Addr's MarshalBinary required two allocations in the case of a zone
+    existing, and AddrPort and Prefix both required three. This refactors
+    things slightly so that each marshal function only needs a single
+    allocation.
+    
+    Change-Id: I9bde9969fedc1cad64bebb607188c4287f6a0d01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361054
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/netip.go | 47 +++++++++++++++++++++++------------------------
+ 1 file changed, 23 insertions(+), 24 deletions(-)

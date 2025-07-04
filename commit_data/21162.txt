@@ -1,0 +1,20 @@
+commit 54bb4dc3906578403aca1c57b482761a6824f079
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 10:07:47 2014 -0500
+
+    runtime: use typed memmove (write barriers) for chan, map, interface content
+    
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
+    
+    Change-Id: Iea83d693480c2f3008b4e80d55821acff65970a6
+    Reviewed-on: https://go-review.googlesource.com/2277
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/chan.go    |  8 ++++----
+ src/runtime/hashmap.go | 16 ++++++++--------
+ src/runtime/iface.go   | 49 ++++++++++++++++++++++++++++++++-----------------
+ src/runtime/mgc0.go    |  9 +++++----
+ src/runtime/select.go  |  8 ++++----
+ 5 files changed, 53 insertions(+), 37 deletions(-)

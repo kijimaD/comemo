@@ -1,0 +1,15 @@
+commit 2fd62a42b48ffc111aebdc4a191d705248888fc1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 30 22:38:54 2014 +0400
+
+    runtime/pprof: make CPU profiling tests more robust
+    Under the race detector most of the samples go into race runtime,
+    because of that freebsd race builder constantly fails on this test.
+    
+    LGTM=bradfitz, rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews, minux
+    https://golang.org/cl/133370043
+
+ src/pkg/runtime/pprof/pprof_test.go | 71 ++++++++++++++++++++++++++-----------
+ 1 file changed, 50 insertions(+), 21 deletions(-)

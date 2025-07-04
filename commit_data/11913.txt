@@ -1,0 +1,19 @@
+commit 7127b6fddcc07b960452aaba5dbbe84001e2e547
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 12:58:00 2012 +1100
+
+    bytes,strings: make *Reader implement io.ReaderAt
+    
+    R=golang-dev, adg, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5675053
+
+ src/pkg/archive/zip/reader_test.go | 11 ++---------
+ src/pkg/archive/zip/writer_test.go |  2 +-
+ src/pkg/archive/zip/zip_test.go    | 16 +++-------------
+ src/pkg/bytes/reader.go            | 19 +++++++++++++++++--
+ src/pkg/bytes/reader_test.go       | 30 ++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/formdata.go | 12 +-----------
+ src/pkg/strings/reader.go          | 19 +++++++++++++++++--
+ src/pkg/strings/reader_test.go     | 30 ++++++++++++++++++++++++++++++
+ 8 files changed, 101 insertions(+), 38 deletions(-)

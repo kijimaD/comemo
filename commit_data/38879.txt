@@ -1,0 +1,30 @@
+commit 74695644e0c38586a85b9b483830c546efbb6642
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 22 23:55:27 2019 -0400
+
+    cmd/go: add -trimpath build flag
+    
+    "go build -trimpath" trims the recorded file paths in the
+    resulting packages and executables to avoid recording
+    the names of any local directories. Instead, the files appear
+    to be stored in directories named either "go/src/..." (for the
+    standard library) or named after the module or package
+    in which the files appear.
+    
+    Fixes #16860.
+    
+    Change-Id: I433afeeb1fdeea641286b21693fee5e0a66d607e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173345
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                         |  6 +++++
+ src/cmd/go/internal/cfg/cfg.go                |  1 +
+ src/cmd/go/internal/work/build.go             |  7 ++++++
+ src/cmd/go/internal/work/exec.go              |  3 ++-
+ src/cmd/go/internal/work/gc.go                | 34 +++++++++++++++++++++------
+ src/cmd/go/script_test.go                     | 23 ++++++++++++++----
+ src/cmd/go/testdata/script/README             |  7 ++++--
+ src/cmd/go/testdata/script/build_trimpath.txt | 19 +++++++++++++++
+ 8 files changed, 85 insertions(+), 15 deletions(-)

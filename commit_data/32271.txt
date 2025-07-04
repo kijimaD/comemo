@@ -1,0 +1,20 @@
+commit 583a941d4ed7cb8e03bbeceaf05969c285c30b2e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Aug 15 11:33:18 2017 +0200
+
+    cmd/link: skip TestSizes on Plan 9
+    
+    TestSizes has been added in CL 55551. This test is
+    failing on Plan 9 because executables don't have
+    a DWARF symbol table.
+    
+    Fixes #21453.
+    
+    Change-Id: I560611b49aea5417e8c5ac0cec6c7882bd9f8335
+    Reviewed-on: https://go-review.googlesource.com/55692
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,13 @@
+commit 581e7c2a78bcb3833bc23ac47f77c1b62dab4f40
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 10:30:35 2012 -0700
+
+    go/ast: document CommentGroup.Text and add test case.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6206096
+
+ src/pkg/go/ast/ast.go      | 14 +++++++------
+ src/pkg/go/ast/ast_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 6 deletions(-)

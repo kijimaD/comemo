@@ -1,0 +1,18 @@
+commit 2e59cc5fb4e81fbd2ee9f662caa707c1138bf5ae
+Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
+Date:   Sat May 29 13:49:51 2021 +0000
+
+    cmd/go: add [-src] to documentation
+    
+    Change-Id: I554b5021386575af6ff44571a95bb31b38a0547f
+    GitHub-Last-Rev: 20aaec3aa0baee6112fc2e4d72e83f78b72a44ea
+    GitHub-Pull-Request: golang/go#45956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317109
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go          | 2 +-
+ src/cmd/go/internal/doc/doc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

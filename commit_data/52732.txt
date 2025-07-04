@@ -1,0 +1,22 @@
+commit d11ff3f08155b7614485d9b555e97f7a9555ede5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 16:09:48 2023 +0000
+
+    Revert "runtime, cmd: rationalize StackLimit and StackGuard"
+    
+    This reverts commit CL 486380.
+    
+    Submitted out of order and breaks bootstrap.
+    
+    Change-Id: I67bd225094b5c9713b97f70feba04d2c99b7da76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486916
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
+
+ src/cmd/internal/objabi/stack.go       | 15 ++++++++++++---
+ src/cmd/link/internal/ld/stackcheck.go |  2 +-
+ src/internal/abi/stack.go              |  8 --------
+ src/runtime/preempt.go                 |  2 +-
+ src/runtime/stack.go                   | 19 ++++++++++---------
+ test/nosplit.go                        | 13 ++++++++++---
+ 6 files changed, 34 insertions(+), 25 deletions(-)

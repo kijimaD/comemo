@@ -1,0 +1,26 @@
+commit 5038ce82b628e195af703168422e139e7faf1485
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 30 06:09:57 2024 +0700
+
+    cmd/compile: add missing OASOP case in mayModifyPkgVar
+    
+    CL 395541 made staticopy safe, stop applying the optimization once
+    seeing an expression that may modify global variables. However, it
+    misses the case for OASOP expression, causing the static init
+    mis-recognizes the modification and think it's safe.
+    
+    Fixing this by adding missing OASOP case.
+    
+    Fixes #66585
+    
+    Change-Id: I603cec018d3b5a09825c14e1f066a0e16f8bde23
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575216
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/staticinit/sched.go |  6 ++++++
+ test/fixedbugs/issue66585.go                 | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

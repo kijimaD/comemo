@@ -1,0 +1,49 @@
+commit db3ec4f239ad855066beb7f2942f6c736727131b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 4 21:31:30 2010 -0800
+
+    Match gccgo error messages.
+    
+    bug121.go:12:3: error: name list not allowed in interface type
+    bug121.go:16:2: error: expected signature or type name
+    
+    semi1.go:10:76: error: unexpected semicolon or newline before ‘{’
+    semi1.go:10:5: error: reference to undefined name ‘x’
+    semi1.go:10:8: error: reference to undefined name ‘y’
+    semi1.go:12:3: error: reference to undefined name ‘z’
+    
+    semi2.go:10:79: error: unexpected semicolon or newline before ‘{’
+    semi2.go:10:9: error: reference to undefined name ‘x’
+    
+    semi3.go:10:79: error: unexpected semicolon or newline before ‘{’
+    semi3.go:10:6: error: reference to undefined name ‘x’
+    semi3.go:10:9: error: reference to undefined name ‘y’
+    semi3.go:10:12: error: reference to undefined name ‘z’
+    semi3.go:12:3: error: reference to undefined name ‘z’
+    
+    semi4.go:11:2: error: unexpected semicolon or newline before ‘{’
+    semi4.go:10:6: error: reference to undefined name ‘x’
+    semi4.go:12:3: error: reference to undefined name ‘z’
+    
+    semi5.go:10:1: error: unexpected semicolon or newline before ‘{’
+    
+    semi7.go:11:2: error: unexpected semicolon or newline before ‘else’
+    semi7.go:10:5: error: reference to undefined name ‘x’
+    
+    slice.go:9:11: error: missing lower bound in slice expression
+    slice.go:9:9: error: reference to undefined name ‘y’
+    slice.go:9:12: error: reference to undefined name ‘z’
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/201061
+
+ test/fixedbugs/bug121.go | 2 +-
+ test/syntax/semi1.go     | 4 ++--
+ test/syntax/semi2.go     | 2 +-
+ test/syntax/semi3.go     | 4 ++--
+ test/syntax/semi4.go     | 6 +++---
+ test/syntax/semi5.go     | 2 +-
+ test/syntax/semi7.go     | 4 ++--
+ test/syntax/slice.go     | 2 +-
+ 8 files changed, 13 insertions(+), 13 deletions(-)

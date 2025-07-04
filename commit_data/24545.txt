@@ -1,0 +1,18 @@
+commit 26205cb3c098b4d02d658658fd938f58e8dcdd68
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 19 12:53:36 2015 -0400
+
+    cmd/link: PIE executables for android/arm
+    
+    For #10807
+    
+    Change-Id: Ied826d06cb622edf6413b6f2cdcc46987ab0b05a
+    Reviewed-on: https://go-review.googlesource.com/16054
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go    |  5 +----
+ src/cmd/link/internal/ld/lib.go    | 28 ++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/symtab.go |  5 +++--
+ 3 files changed, 28 insertions(+), 10 deletions(-)

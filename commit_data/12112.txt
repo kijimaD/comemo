@@ -1,0 +1,23 @@
+commit d36426995a3919cb8d6ebd8fac502e764f6e28ed
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Tue Feb 21 16:49:30 2012 -0500
+
+    cmd/dist: fix pprof permissions
+    
+    When installing pprof into the tools directory, it needs to
+    have execute permissions on unix-like systems.
+    
+    Fixes issues 3077.
+    
+    R=golang-dev, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5675095
+
+ src/cmd/dist/a.h            |  2 +-
+ src/cmd/dist/build.c        | 24 ++++++++++++------------
+ src/cmd/dist/buildgc.c      |  4 ++--
+ src/cmd/dist/buildruntime.c | 12 ++++++------
+ src/cmd/dist/goc2c.c        |  2 +-
+ src/cmd/dist/unix.c         |  9 ++++++---
+ src/cmd/dist/windows.c      |  4 +++-
+ 7 files changed, 31 insertions(+), 26 deletions(-)

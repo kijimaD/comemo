@@ -1,0 +1,38 @@
+commit 3a65abfbdac7ab29f693d69bd1eb12b2148a11ae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 29 17:45:02 2020 -0400
+
+    cmd/go: adjust ImportMissingError when module lookup is disabled
+    
+    Previously, ImportMissingError said
+    "cannot find module providing package …"
+    even when we didn't even attempt to find such a module.
+    
+    Now, we write "no module requirement provides package …"
+    when we did not attempt to identify a suitable module,
+    and suggest either 'go mod tidy' or 'go get -d' as appropriate.
+    
+    Fixes #41576
+    
+    Change-Id: I979bb999da4066828c54d99a310ea66bb31032ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258298
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go              | 40 +++++++++++++---------
+ src/cmd/go/internal/modload/load.go                | 25 ++++++++++----
+ src/cmd/go/testdata/script/mod_bad_domain.txt      | 16 +++++++--
+ src/cmd/go/testdata/script/mod_build_info_err.txt  |  2 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_errors.txt      |  4 +--
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_indirect.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_list_bad_import.txt |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt         | 19 ++++++----
+ src/cmd/go/testdata/script/mod_readonly.txt        | 27 ++++++++++++++-
+ src/go/build/build_test.go                         | 11 +++++-
+ 12 files changed, 110 insertions(+), 42 deletions(-)

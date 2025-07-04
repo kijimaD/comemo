@@ -1,0 +1,15 @@
+commit aba4c75408526256c7f44f131ed380d99c2f3632
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 11:24:35 2009 -0800
+
+    add Readdir: returns an array of Dir structures
+    
+    R=rsc
+    DELTA=200  (176 added, 12 deleted, 12 changed)
+    OCL=24680
+    CL=24680
+
+ src/lib/os/dir_amd64_darwin.go | 68 +++++++++++++++++++++++++++++++++++---
+ src/lib/os/dir_amd64_linux.go  | 69 +++++++++++++++++++++++++++++++++++---
+ src/lib/os/os_test.go          | 75 +++++++++++++++++++++++++++++++++---------
+ 3 files changed, 188 insertions(+), 24 deletions(-)

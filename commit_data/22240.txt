@@ -1,0 +1,19 @@
+commit 34ee744d006b3d9c8bd67107b012ad0a5f5ef3b8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 31 16:59:02 2015 +1100
+
+    crypto/x509: use syscall.GetVersion instead of internal/syscall/windows.GetVersion
+    
+    cl8167 introduced internal/syscall/windows.GetVersion, but we already
+    have that function in syscall.GetVersion. Use that instead.
+    Also revert all internal/syscall/windows cl8167 changes.
+    
+    Change-Id: I512a5bf4b3b696e93aaf69e9e8b7df7022670ec0
+    Reviewed-on: https://go-review.googlesource.com/8302
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/x509/sha2_windows_test.go             | 8 ++++++--
+ src/internal/syscall/windows/syscall_windows.go  | 6 ------
+ src/internal/syscall/windows/zsyscall_windows.go | 7 -------
+ 3 files changed, 6 insertions(+), 15 deletions(-)

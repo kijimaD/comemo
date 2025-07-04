@@ -1,0 +1,16 @@
+commit 3073797c37e168f3671880c683a228f9f8f942e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 20:49:37 2015 -0800
+
+    runtime: fix vet warning about println
+    
+    lfstack.go:19: println call ends with newline
+    
+    Change-Id: I2a903eef80a5300e9014999c2f0bc5d40ed5c735
+    Reviewed-on: https://go-review.googlesource.com/16836
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/runtime/lfstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

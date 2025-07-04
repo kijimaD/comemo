@@ -1,0 +1,17 @@
+commit fcbf04f9b93b4cd8addd05c2ed784118eb50a46c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 4 12:56:04 2015 -0800
+
+    cmd/cgo: gccgo support for cgoCheckPointer
+    
+    This uses weak declarations so that it will work with current versions
+    of gccgo that do not support pointer checking.
+    
+    Change-Id: Ia34507e3231ac60517cb6834f0b673764715a256
+    Reviewed-on: https://go-review.googlesource.com/17429
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/out.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 42 insertions(+), 1 deletion(-)

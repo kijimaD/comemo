@@ -1,0 +1,27 @@
+commit 95c9583a182ff2433fde9fae98f5dde9edd337e1
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Feb 10 17:45:12 2017 -0500
+
+    cmd/compile: intrinsify atomics on ppc64x
+    
+    This adds the necessary changes so that atomics are treated as
+    intrinsics on ppc64x.
+    
+    The implementations of And8 and Or8 require power8 for
+    both ppc64 and ppc64le.  This is a new requirement
+    for ppc64.
+    
+    Fixes #8739
+    
+    Change-Id: Icb85e2755a49166ee3652668279f6ed5ebbca901
+    Reviewed-on: https://go-review.googlesource.com/36832
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           |  26 +--
+ src/cmd/compile/internal/ppc64/prog.go       |  24 ++-
+ src/cmd/compile/internal/ppc64/ssa.go        | 268 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  21 +++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  61 ++++++
+ src/cmd/compile/internal/ssa/opGen.go        | 209 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 245 ++++++++++++++++++++++++
+ 7 files changed, 834 insertions(+), 20 deletions(-)

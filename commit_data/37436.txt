@@ -1,0 +1,27 @@
+commit 760ac1dd33f460a1e73c912913eb0c3da7afb286
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Nov 17 14:09:24 2018 +0100
+
+    os: make RemoveAll("") fail silently on unix
+    
+    CL 146020 changed the behavior of RemoveAll("") on unix systems using
+    the *at functions to return syscall.EINVAL instead of nil. Adjust the
+    *at implementation to retain this behavior as is the case on the *noat
+    systems.
+    
+    Additionally, also make sure RemoveAll("") on systems not using the "at
+    functions (e.g. nacl and js/wasm) follow the same behavior (which wasn't
+    the case previously).
+    
+    Fixes #28830
+    
+    Change-Id: I8383c1423fefe871d18ff49134a1d23077ec6867
+    Reviewed-on: https://go-review.googlesource.com/c/150158
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+
+ src/os/removeall_at.go   | 8 +++++++-
+ src/os/removeall_noat.go | 6 ++++++
+ src/os/removeall_test.go | 4 ++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

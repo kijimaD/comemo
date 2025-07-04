@@ -1,0 +1,12 @@
+commit c7cca2756e7cf04a472c97b81f07ab791b7186ca
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Mar 12 14:08:00 2012 -0700
+
+    os/exec: fix typo in documentation
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5797073
+
+ src/pkg/os/exec/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

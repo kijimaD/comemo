@@ -1,0 +1,21 @@
+commit eb6743d9d7dd48f785e48b1967f405658a6444d7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 15:11:14 2024 -0400
+
+    runtime: rename dlogger to dloggerImpl
+    
+    This is a mechanical change, other than adding the type alias for dlogger.
+    
+    This is a step in preparing us to make debuglog testable without the
+    debuglog build tag.
+    
+    Change-Id: Ief12f0eaf5db98a8b006c759fd325dabcc9a52d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600695
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debuglog.go             | 58 +++++++++++++++++++------------------
+ src/runtime/debuglog_off.go         |  4 +--
+ src/runtime/debuglog_on.go          |  8 ++---
+ src/runtime/export_debuglog_test.go | 18 ++++++------
+ 4 files changed, 45 insertions(+), 43 deletions(-)

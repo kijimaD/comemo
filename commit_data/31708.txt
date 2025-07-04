@@ -1,0 +1,19 @@
+commit a4ee95c805fb77e594603bcd62d7858dc9e853ab
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon May 1 14:27:36 2017 -0500
+
+    runtime: avoid division in gc
+    
+    Replace int division with (cheaper) byte division in heapBitsSetType.
+    Provides noticeable speed-up:
+    
+    GrowSlicePtr-6   181ns ± 3%   169ns ± 3%  -6.85%  (p=0.000 n=10+10)
+    
+    Change-Id: I4064bb72e8e692023783b8f58d19491844c39382
+    Reviewed-on: https://go-review.googlesource.com/42290
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

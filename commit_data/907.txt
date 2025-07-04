@@ -1,0 +1,14 @@
+commit 7c7a525d182a93473071307392fb47e8478aedd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 12:37:07 2008 -0700
+
+    add io.ReadWriteClose and use it in http
+    
+    R=r
+    DELTA=15  (6 added, 7 deleted, 2 changed)
+    OCL=17447
+    CL=17461
+
+ src/lib/http/conn.go | 11 ++---------
+ src/lib/io.go        |  6 ++++++
+ 2 files changed, 8 insertions(+), 9 deletions(-)

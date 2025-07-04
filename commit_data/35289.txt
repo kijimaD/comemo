@@ -1,0 +1,51 @@
+commit a8a60ac2a7bec701de6b502889e1dc740761e183
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Apr 26 18:30:11 2018 +0200
+
+    cmd/compile: optimize append(x, make([]T, y)...) slice extension
+    
+    Changes the compiler to recognize the slice extension pattern
+    
+      append(x, make([]T, y)...)
+    
+    and replace it with growslice and an optional memclr to avoid an allocation for make([]T, y).
+    
+    Memclr is not called in case growslice already allocated a new cleared backing array
+    when T contains pointers.
+    
+    amd64:
+    name                      old time/op    new time/op    delta
+    ExtendSlice/IntSlice         103ns ± 4%      57ns ± 4%   -44.55%  (p=0.000 n=18+18)
+    ExtendSlice/PointerSlice     155ns ± 3%      77ns ± 3%   -49.93%  (p=0.000 n=20+20)
+    ExtendSlice/NoGrow          50.2ns ± 3%     5.2ns ± 2%   -89.67%  (p=0.000 n=18+18)
+    
+    name                      old alloc/op   new alloc/op   delta
+    ExtendSlice/IntSlice         64.0B ± 0%     32.0B ± 0%   -50.00%  (p=0.000 n=20+20)
+    ExtendSlice/PointerSlice     64.0B ± 0%     32.0B ± 0%   -50.00%  (p=0.000 n=20+20)
+    ExtendSlice/NoGrow           32.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    
+    name                      old allocs/op  new allocs/op  delta
+    ExtendSlice/IntSlice          2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=20+20)
+    ExtendSlice/PointerSlice      2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=20+20)
+    ExtendSlice/NoGrow            1.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    
+    Fixes #21266
+    
+    Change-Id: Idc3077665f63cbe89762b590c5967a864fd1c07f
+    Reviewed-on: https://go-review.googlesource.com/109517
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |   1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/compile/internal/gc/order.go           |   9 +-
+ src/cmd/compile/internal/gc/ssa.go             |   2 +-
+ src/cmd/compile/internal/gc/walk.go            | 198 +++++++++++++++++++++++--
+ src/runtime/slice.go                           |  16 +-
+ src/runtime/slice_test.go                      |  30 ++++
+ test/append.go                                 |  25 ++--
+ test/append1.go                                |   2 +
+ test/codegen/slices.go                         |  31 ++++
+ test/fixedbugs/issue4085b.go                   |   6 +
+ 11 files changed, 295 insertions(+), 26 deletions(-)

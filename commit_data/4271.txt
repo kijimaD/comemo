@@ -1,0 +1,18 @@
+commit 49ebcfbb83104eba0dd32f3bcb74877b92555f6c
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Tue Dec 1 21:43:39 2009 -0800
+
+    Add syscall.Shutdown to FreeBSD i386/amd64
+    
+    Necessary for 163052
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/164068
+
+ src/pkg/syscall/syscall_freebsd.go        |   1 +
+ src/pkg/syscall/zerrors_freebsd_386.go    | 157 +++++++++++++++---------------
+ src/pkg/syscall/zerrors_freebsd_amd64.go  | 157 +++++++++++++++---------------
+ src/pkg/syscall/zsyscall_freebsd_386.go   |   6 ++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |   6 ++
+ 5 files changed, 173 insertions(+), 154 deletions(-)

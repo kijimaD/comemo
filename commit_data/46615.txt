@@ -1,0 +1,23 @@
+commit 5b909580849c611c633c111a15adb40c9c42ec8e
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Sep 23 16:46:58 2021 -0700
+
+    runtime: move sigprofNonGo
+    
+    The sigprofNonGo and sigprofNonGoPC functions are only used on unix-like
+    platforms. In preparation for unix-specific changes to sigprofNonGo,
+    move it (plus its close relative) to a unix-specific file.
+    
+    Updates #35057
+    
+    Change-Id: I9c814127c58612ea9a9fbd28a992b04ace5c604d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351790
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: David Chase <drchase@google.com>
+
+ src/runtime/proc.go        | 39 ---------------------------------------
+ src/runtime/signal_unix.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 39 deletions(-)

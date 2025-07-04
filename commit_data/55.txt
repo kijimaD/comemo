@@ -1,0 +1,10 @@
+commit 8cdb71017ad2ddc02101bf4badd97023ac5baec5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 3 16:59:46 2008 -0700
+
+    remove noisy print
+    
+    SVN=114939
+
+ src/lib/container/vector.go | 1 -
+ 1 file changed, 1 deletion(-)

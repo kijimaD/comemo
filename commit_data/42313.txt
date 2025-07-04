@@ -1,0 +1,26 @@
+commit 6ffca2260296d82f235d38367f0d0f008121521e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 7 23:43:22 2020 +0200
+
+    runtime: do not attempt bulkBarrierPreWrite when dst slice length is zero
+    
+    If dst slice length is zero in makeslicecopy then the called mallocgc is
+    using a fast path to only return a pointer to runtime.zerobase.
+    There may be no heapBits for that address readable by
+    bulkBarrierPreWriteSrcOnly which will cause a panic.
+    
+    Protect against this by not calling bulkBarrierPreWriteSrcOnly if
+    there is nothing to copy. This is the case for all cases where the
+    length of the destination slice is zero.
+    
+    runtime.growslice and runtime.typedslicecopy have fast paths that
+    do not call bulkBarrierPreWrite for zero copy lengths either.
+    
+    Fixes #38929
+    
+    Change-Id: I78ece600203a0a8d24de5b6c9eef56f605d44e99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232800
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/slice.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

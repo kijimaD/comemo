@@ -1,0 +1,20 @@
+commit f412bd31ce1859ea1dd0d46ec1b130c44b480115
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 28 17:29:25 2016 -0800
+
+    cmd/compile: file line number for //go:xxx directives
+    
+    Minimally invasive; fixes a regression from 1.7.
+    
+    Fixes #18459.
+    
+    Change-Id: I93b3b5c05706eaff8ae97a237f770838c1f8778c
+    Reviewed-on: https://go-review.googlesource.com/34721
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go |  2 ++
+ src/go/types/stdlib_test.go          |  1 +
+ test/fixedbugs/issue18459.go         | 13 +++++++++++++
+ 3 files changed, 16 insertions(+)

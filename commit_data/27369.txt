@@ -1,0 +1,26 @@
+commit ef62f641c37431a870fa093c43b3ee51a06db0da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 12:40:17 2016 -0700
+
+    cmd/compile: use ONAME instead of OPACK in binary export format
+    
+    This is addressing feedback given on golang.org/cl/23052;
+    we do it in a separate CL to separate the functional from
+    the rename change.
+    
+    ONAME was not used in the export data, but it's the natural node op
+    where we used OPACK instead. Renamed.
+    
+    Furthermore, OPACK and ONONAME nodes are replaced by the type checker
+    with ONAME nodes, so OPACK nodes cannot occur when exporting type-checked
+    code. Removed a special-case for OPACK nodes since they don't appear.
+    
+    Change-Id: I78b01a1badbf60e9283eaadeca2578a65d28cbd2
+    Reviewed-on: https://go-review.googlesource.com/23053
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 21 +++++++--------------
+ src/cmd/compile/internal/gc/bimport.go | 17 +++++------------
+ 2 files changed, 12 insertions(+), 26 deletions(-)

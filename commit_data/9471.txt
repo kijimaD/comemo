@@ -1,0 +1,15 @@
+commit 940281bd3c4f3cb323ff39041ac440779fade828
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Aug 24 16:12:20 2011 +0200
+
+    test: put GOROOT/bin before all others in run
+    
+    If you installed a 6g in /usr/bin it interferes
+    with test/run otherwise.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4944046
+
+ test/run | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

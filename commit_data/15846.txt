@@ -1,0 +1,19 @@
+commit f701e1c32043116448e7227ee598b21e00ce42c7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 20 23:42:00 2013 +1100
+
+    cmd/6c, cmd/8c: fix stack allocated Biobuf leaking at exit
+    
+    Fixes #5085.
+    
+    {6,8}c/swt.c allocates a third Biobuf in automatic memory which is not terminated at the end of the function. This causes the buffer to be 'in use' when the batexit handler fires, confusing valgrind.
+    
+    Huge thanks to DMorsing for the diagnosis.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/7844044
+
+ src/cmd/6c/swt.c | 2 +-
+ src/cmd/8c/swt.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

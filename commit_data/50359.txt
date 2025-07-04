@@ -1,0 +1,26 @@
+commit c83e1b6d5bd5378689a6485775a9a4f80c9c66ed
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 2 16:50:41 2022 -0400
+
+    cmd/link,runtime: remove unused fields from inlinedCall
+    
+    The parent, file, and line fields are no longer used now that we have
+    parentPc to find the parent and NOPs in the parent to attach file/line
+    pcdata to.
+    
+    Removing these fields reduces the binary size of cmd/go on linux-amd64
+    by 1.1%.
+    
+    Fixes #54849.
+    
+    Change-Id: If58f08622736b2b322288608776f8bedf0c3fd17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427960
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 16 ++++++----------
+ src/runtime/symtab.go            |  8 ++------
+ 2 files changed, 8 insertions(+), 16 deletions(-)

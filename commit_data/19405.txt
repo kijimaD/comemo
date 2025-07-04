@@ -1,0 +1,64 @@
+commit a4a1fadfa2bdb4f6cfb1ed1dcf6b4bb0cd58060f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 11:35:20 2014 -0400
+
+    cmd/ld: make lldb happy with Mach-O 6.out files
+    
+    Apparently all the __DWARF sections need addresses
+    even though they are marked as "do not load from disk".
+    Continue the address numbering from the data segment.
+    
+    With this change:
+    
+    g% lldb helloworld
+    Current executable set to 'helloworld' (x86_64).
+    (lldb) b main.main
+    Breakpoint 1: where = helloworld`main.main + 25 at helloworld.go:12, address = 0x0000000000002019
+    (lldb) r
+    Process 68509 launched: '/Users/rsc/g/go/src/cmd/6l/helloworld' (x86_64)
+    1 location added to breakpoint 1
+    (lldb)
+    [KProcess 68509 stopped
+    * thread #1: tid = 0x8b7a27, 0x0000000000002019 helloworld`main.main + 25 at helloworld.go:12, stop reason = breakpoint 1.2
+        frame #0: 0x0000000000002019 helloworld`main.main + 25 at helloworld.go:12
+       9    package main
+       10
+       11   func main() {
+    -> 12           print("hello, world\n")
+       13   }
+    (lldb) bt
+    * thread #1: tid = 0x8b7a27, 0x0000000000002019 helloworld`main.main + 25 at helloworld.go:12, stop reason = breakpoint 1.2
+      * frame #0: 0x0000000000002019 helloworld`main.main + 25 at helloworld.go:12
+    (lldb) disas
+    helloworld`main.main at helloworld.go:11:
+       0x2000:  movq   %gs:0x8a0, %rcx
+       0x2009:  cmpq   (%rcx), %rsp
+       0x200c:  ja     0x2015                    ; main.main + 21 at helloworld.go:11
+       0x200e:  callq  0x20da0                   ; runtime.morestack00_noctxt at atomic_amd64x.c:28
+       0x2013:  jmp    0x2000                    ; main.main at helloworld.go:11
+       0x2015:  subq   $0x10, %rsp
+    -> 0x2019:  leaq   0x2c2e0, %rbx
+       0x2021:  leaq   (%rsp), %rbp
+       0x2025:  movq   %rbp, %rdi
+       0x2028:  movq   %rbx, %rsi
+       0x202b:  movsq
+       0x202d:  movsq
+       0x202f:  callq  0x10300                   ; runtime.printstring at compiler.go:1
+       0x2034:  addq   $0x10, %rsp
+       0x2038:  ret
+       0x2039:  addb   %al, (%rax)
+       0x203b:  addb   %al, (%rax)
+       0x203d:  addb   %al, (%rax)
+    (lldb) quit
+    Quitting LLDB will kill one or more processes. Do you really want to proceed: [Y/n] y
+    g%
+    
+    Fixes #7070.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/93510043
+
+ src/cmd/ld/dwarf.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

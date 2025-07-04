@@ -1,0 +1,15 @@
+commit f9f21aa1fb45aaa4eece55f192783bfa46df4909
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 12 01:21:06 2011 -0400
+
+    runtime: fix data race on runtime·maxstring
+    The data race can lead to erroneous output of
+    "[invalid string]" instead of a string.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4678049
+
+ src/pkg/runtime/print.c    |  2 +-
+ src/pkg/runtime/string.goc | 10 +++++++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)

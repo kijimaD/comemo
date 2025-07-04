@@ -1,0 +1,20 @@
+commit 59d04d104d9e08322712e837b35f4cd54c9bae1a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 20 12:45:04 2021 -0500
+
+    cmd/internal/obj/riscv: mark stack bounds check prologue nonpreemptible
+    
+    This is similar to CL 207350, for RISCV64.
+    
+    May fix #50263.
+    Updates #35470.
+    
+    Change-Id: I0d39e195e8254d65fa1aca1cdf1fc553aa8b7cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373434
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit af872b2ba4b77325c383e698cdf81ee01c8ab66a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 15:25:16 2009 -0800
+
+    Add id attribute to h2 and h3 tags so that they exist when referring
+    to generated pages even if Javascript has not introduced them yet.
+    
+    R=rsc
+    https://golang.org/cl/154167
+
+ lib/godoc/package.html | 16 ++++++++--------
+ lib/godoc/search.html  |  8 ++++----
+ 2 files changed, 12 insertions(+), 12 deletions(-)

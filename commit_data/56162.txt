@@ -1,0 +1,74 @@
+commit 875332b8a26a159b5c6bd715e123fd6bb6086804
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 3 15:51:42 2024 +0000
+
+    cmd/compile/internal: merge stack slots for selected local auto vars
+    
+    [This is a partial roll-forward of CL 553055, the main change here
+    is that the stack slot overlap operation is flagged off by default
+    (can be enabled by hand with -gcflags=-d=mergelocals=1) ]
+    
+    Preliminary compiler support for merging/overlapping stack slots of
+    local variables whose access patterns are disjoint.
+    
+    This patch includes changes in AllocFrame to do the actual
+    merging/overlapping based on information returned from a new
+    liveness.MergeLocals helper. The MergeLocals helper identifies
+    candidates by looking for sets of AUTO variables that either A) have
+    the same size and GC shape (if types contain pointers), or B) have the
+    same size (but potentially different types as long as those types have
+    no pointers). Variables must be greater than (3*types.PtrSize) in size
+    to be considered for merging.
+    
+    After forming candidates, MergeLocals collects variables into "can be
+    overlapped" equivalence classes or partitions; this process is driven
+    by an additional liveness analysis pass. Ideally it would be nice to
+    move the existing stackmap liveness pass up before AllocFrame
+    and "widen" it to include merge candidates so that we can do just a
+    single liveness as opposed to two passes, however this may be difficult
+    given that the merge-locals liveness has to take into account
+    writes corresponding to dead stores.
+    
+    This patch also required a change to the way ssa.OpVarDef pseudo-ops
+    are generated; prior to this point they would only be created for
+    variables whose type included pointers; if stack slot merging is
+    enabled then the ssagen code creates OpVarDef ops for all auto vars
+    that are merge candidates.
+    
+    Note that some temporaries created late in the compilation process
+    (e.g. during ssa backend) are difficult to reason about, especially in
+    cases where we take the address of a temp and pass it to the runtime.
+    For the time being we mark most of the vars created post-ssagen as
+    "not a merge candidate".
+    
+    Stack slot merging for locals/autos is enabled by default if "-N" is
+    not in effect, and can be disabled via "-gcflags=-d=mergelocals=0".
+    
+    Fixmes/todos/restrictions:
+    - try lowering size restrictions
+    - re-evaluate the various skips that happen in SSA-created autotmps
+    
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: Ifda26bc48cde5667de245c8a9671b3f0a30bb45d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/debug.go             |   4 +
+ src/cmd/compile/internal/base/flag.go              |   3 +
+ src/cmd/compile/internal/base/hashdebug.go         |   7 +-
+ src/cmd/compile/internal/ir/name.go                |   3 +
+ src/cmd/compile/internal/liveness/mergelocals.go   | 691 +++++++++++++++++++++
+ src/cmd/compile/internal/liveness/plive.go         |  24 +-
+ src/cmd/compile/internal/ssa/check.go              |   5 +-
+ src/cmd/compile/internal/ssa/func.go               |  22 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |  69 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   9 +-
+ src/cmd/compile/internal/test/mergelocals_test.go  | 184 ++++++
+ .../test/testdata/mergelocals/integration.go       |  83 +++
+ src/cmd/compile/internal/walk/temp.go              |   4 +-
+ test/fixedbugs/bug385_64.go                        | 625 ++++++++++++-------
+ 14 files changed, 1511 insertions(+), 222 deletions(-)

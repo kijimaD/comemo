@@ -1,0 +1,27 @@
+commit e5e9211071d5a2437fd4f41f1fec77840d20da1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 22 15:27:50 2010 -0400
+
+    5l, 6l, 8l: introduce sub-symbols
+    
+    Sub-symbols are laid out inside a larger symbol
+    but can be addressed directly.
+    
+    Use to make Mach-O pointer array not a special case.
+    
+    Will use later to describe ELF sections.
+    
+    Glimpses of the beginning of ELF loading.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2623043
+
+ src/cmd/5l/l.h     | 12 +++---------
+ src/cmd/6l/l.h     |  5 +++--
+ src/cmd/6l/span.c  | 17 ++++++++---------
+ src/cmd/8l/l.h     |  8 +++++---
+ src/cmd/8l/span.c  | 12 +++---------
+ src/cmd/ld/data.c  | 26 +++++++++++++++++++++-----
+ src/cmd/ld/macho.c | 35 ++++++++++++++++++++++++-----------
+ 7 files changed, 67 insertions(+), 48 deletions(-)

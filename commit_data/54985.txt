@@ -1,0 +1,26 @@
+commit d3d517375987dc1a9747bef0f3bb3c76aab6827e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 14 10:34:59 2023 -0500
+
+    cmd/compile/internal/inline: fix buglet in panic path scoring
+    
+    Fix a bug in scoring of calls appearing on panic paths. For this code
+    snippet:
+    
+      if x < 101 {
+         foo()
+         panic("bad")
+      }
+    
+    the function flags analyzer was correctly capturing the status of the
+    block corresponding to the true arm of the "if" statement, but wasn't
+    marking "foo()" as being on a panic path.
+    
+    Change-Id: Iee13782828a1399028e2b560fed5f946850eb253
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542216
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../internal/inline/inlheur/analyze_func_flags.go      | 18 ++++++++++++++++--
+ .../internal/inline/inlheur/testdata/props/calls.go    |  6 +++---
+ 2 files changed, 19 insertions(+), 5 deletions(-)

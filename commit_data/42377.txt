@@ -1,0 +1,28 @@
+commit f7f9c8f2fb61fde1a109e277f27a30b610e67ed0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 19 01:29:11 2020 -0400
+
+    runtime: allocate fewer bytes during TestEINTR
+    
+    This will hopefully address the occasional "runtime: out of memory"
+    failures observed on the openbsd-arm-jsing builder:
+    https://build.golang.org/log/c296d866e5d99ba401b18c1a2ff3e4d480e5238c
+    
+    Also make the "spin" and "winch" loops concurrent instead of
+    sequential to cut down the test's running time.
+    
+    Finally, change Block to coordinate by closing stdin instead of
+    sending SIGINT. The SIGINT handler wasn't necessarily registered by
+    the time the signal was sent.
+    
+    Updates #20400
+    Updates #39043
+    
+    Change-Id: Ie12fc75b87e33847dc25a12edb4126db27492da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234538
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/testdata/testprogcgo/eintr.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

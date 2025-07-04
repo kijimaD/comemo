@@ -1,0 +1,67 @@
+commit d88d91e32e1440307369d50ba17ce622399a8bc1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 7 15:15:31 2022 -0400
+
+    crypto/ecdh: new package
+    
+    We use crypto/internal/edwards25519/field to implement X25519 directly,
+    so that golang.org/x/crypto/curve25519 can be dropped from the src
+    module dependencies, and eventually replaced with a crypto/ecdh wrapper,
+    removing the need to keep golang.org/x/crypto/curve25519/internal/field
+    in sync with crypto/internal/edwards25519/field.
+    
+    In crypto/internal/nistec, we add BytesX to serialize only the x
+    coordinate, which we'll need for the horrible ECDSA x-coord-to-scalar
+    operation, too.
+    
+    In crypto/tls, we replace the ECDHE implementation with crypto/ecdh,
+    dropping the X25519 special cases and related scaffolding.
+    
+    Finally, FINALLY, we deprecate the ~white whale~ big.Int-based APIs of
+    the crypto/elliptic package.   •_•)   ( •_•)>⌐■-■   (⌐■_■)
+    
+    Fixes #52182
+    Fixes #34648
+    Fixes #52221
+    
+    Change-Id: Iccdda210319cc892e96bb28a0e7b7123551982c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398914
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/52221.txt                                 |  19 +
+ src/crypto/ecdh/ecdh.go                            | 149 ++++++++
+ src/crypto/ecdh/ecdh_test.go                       | 255 +++++++++++++
+ src/crypto/ecdh/nist.go                            | 211 +++++++++++
+ src/crypto/ecdh/x25519.go                          | 136 +++++++
+ src/crypto/elliptic/elliptic.go                    |  43 ++-
+ src/crypto/elliptic/params.go                      |  34 ++
+ src/crypto/internal/nistec/generate.go             |  20 +
+ src/crypto/internal/nistec/p224.go                 |  20 +
+ src/crypto/internal/nistec/p256.go                 |  20 +
+ src/crypto/internal/nistec/p256_asm.go             |  24 ++
+ src/crypto/internal/nistec/p384.go                 |  20 +
+ src/crypto/internal/nistec/p521.go                 |  20 +
+ src/crypto/tls/handshake_client.go                 |  17 +-
+ src/crypto/tls/handshake_client_tls13.go           |  30 +-
+ src/crypto/tls/handshake_server_test.go            |   7 +-
+ src/crypto/tls/handshake_server_tls13.go           |  15 +-
+ src/crypto/tls/key_agreement.go                    |  35 +-
+ src/crypto/tls/key_schedule.go                     | 102 ++---
+ src/go/build/deps_test.go                          |   9 +-
+ .../golang.org/x/crypto/curve25519/curve25519.go   | 146 --------
+ .../x/crypto/curve25519/internal/field/README      |   7 -
+ .../x/crypto/curve25519/internal/field/fe.go       | 416 ---------------------
+ .../x/crypto/curve25519/internal/field/fe_amd64.go |  16 -
+ .../x/crypto/curve25519/internal/field/fe_amd64.s  | 379 -------------------
+ .../curve25519/internal/field/fe_amd64_noasm.go    |  12 -
+ .../x/crypto/curve25519/internal/field/fe_arm64.go |  16 -
+ .../x/crypto/curve25519/internal/field/fe_arm64.s  |  43 ---
+ .../curve25519/internal/field/fe_arm64_noasm.go    |  12 -
+ .../crypto/curve25519/internal/field/fe_generic.go | 264 -------------
+ .../curve25519/internal/field/sync.checkpoint      |   1 -
+ .../x/crypto/curve25519/internal/field/sync.sh     |  19 -
+ src/vendor/modules.txt                             |   2 -
+ 33 files changed, 1057 insertions(+), 1462 deletions(-)

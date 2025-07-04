@@ -1,0 +1,24 @@
+commit 7ef718f16fa05cd07bb0f7d22aa4bc57067de1f2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 11 22:03:04 2018 +0000
+
+    runtime: call mmap with MAP_FIXED on BSDs in race mode
+    
+    This change makes it so that reserving more of the address space for the
+    heap calls mmap with MAP_FIXED in race mode. Race mode requires certain
+    guarantees on where the heap is located in the address space, and on
+    Darwin 10.10 it appears that the kernel may end up ignoring the hint
+    quite often (#26475). Using MAP_FIXED is relatively OK in race mode
+    because nothing else should be mapped in the memory region provided by
+    the initial hints.
+    
+    Fixes #26475.
+    
+    Change-Id: Id7ac1534ee74f6de491bc04441f27dbda09f0285
+    Reviewed-on: https://go-review.googlesource.com/c/153897
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mem_bsd.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

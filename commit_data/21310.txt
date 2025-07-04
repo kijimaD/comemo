@@ -1,0 +1,15 @@
+commit f5b8813e93f3d61556ecc0ba112478fa319e4e30
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue Jan 20 14:35:33 2015 -0800
+
+    cmd/gc: don't unpack struct arguments to append
+    
+    Fixes #9634.
+    
+    Change-Id: I7b18f26c2fb812978fc7adc5bfd39ebfffe48701
+    Reviewed-on: https://go-review.googlesource.com/3080
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue9634.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

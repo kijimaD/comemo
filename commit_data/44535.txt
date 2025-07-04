@@ -1,0 +1,23 @@
+commit 9e6b1fcd0a42db0f4699ff17e3b248e563f7eee4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 22:24:58 2021 +0700
+
+    cmd/compile: do not report error for invalid constant
+    
+    Invalid constant was already reported by noder, so don't re-check in
+    typecheck, which lead to compiler crashing.
+    
+    Updates #43311
+    
+    Change-Id: I48e2f540601cef725c1ff628c066ed15d848e771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298713
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/noder.go         | 2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 +++-
+ test/char_lit1.go                               | 2 +-
+ test/fixedbugs/issue20232.go                    | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

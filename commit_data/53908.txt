@@ -1,0 +1,24 @@
+commit 41981930354fdc7bbb59950ce8f303939396b211
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 4 12:53:11 2023 -0700
+
+    cmd/compile/internal/ssagen: sort locals by alignment, not size
+    
+    Sorting variables by size doesn't actually do anything, but sorting by
+    alignment makes sure we can optimally pack variables into the stack
+    frame.
+    
+    While here, replace the monolithic description at the top of
+    cmpstackvarlt with line-by-line explanations of what each comparison
+    is doing.
+    
+    Change-Id: I860677799618130ce4a55f084cec637cb9a2e295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516197
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)

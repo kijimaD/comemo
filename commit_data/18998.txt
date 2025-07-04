@@ -1,0 +1,16 @@
+commit 2f3776ac2765a6d9cede9894efafb980c670ddb1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 2 08:23:35 2014 +1100
+
+    time: increase timeout in negative sleep duration test
+    
+    There's enough jitter in the scheduler on overloaded machines
+    that 25ms is not enough.
+    
+    LGTM=dave
+    R=golang-codereviews, gobot, rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/83300044
+
+ src/pkg/time/sleep_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

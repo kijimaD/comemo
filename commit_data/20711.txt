@@ -1,0 +1,16 @@
+commit 9d51cd0fee3cf8bf779ba23a34b7fb2ec311cfe1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 15 17:51:12 2014 +0200
+
+    net/http: don't reuse a server connection after any Write errors
+    
+    Fixes #8534
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/149340044
+
+ src/net/http/serve_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 32 +++++++++++++--
+ 2 files changed, 126 insertions(+), 3 deletions(-)

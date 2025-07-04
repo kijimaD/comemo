@@ -1,0 +1,22 @@
+commit 6b4dcf19fa493905689dedc27f2232b74c366057
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 28 20:02:57 2020 +0000
+
+    runtime: hold sched.lock over globrunqputbatch in runqputbatch
+    
+    globrunqputbatch should never be called without sched.lock held.
+    runqputbatch's documentation even says it may acquire sched.lock in
+    order to call it.
+    
+    Fixes #40457.
+    
+    Change-Id: I5421b64f1da3a6087dfebbef7203db0c95d213a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245377
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

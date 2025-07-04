@@ -1,0 +1,14 @@
+commit 2b9fe0ea24a3879cbe90f5bd160b7334756ff0b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 14:48:29 2009 -0800
+
+    Test balloon: Changed the spec to see the implications of changing the
+    syntax of function types and making them "reference types" like slice,
+    map, and chan. First step in Russ' proposal.
+    
+    DELTA=111  (32 added, 15 deleted, 64 changed)
+    OCL=23669
+    CL=23964
+
+ doc/go_spec.txt | 153 +++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 85 insertions(+), 68 deletions(-)

@@ -1,0 +1,12 @@
+commit d94da6fab584ebba9fd9b9adcecc173a4174932f
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Mar 15 05:04:19 2013 +0100
+
+    cmd/dist: instruct the user to bind $GOBIN on Plan 9
+    
+    R=seed, rminnich, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/7395059
+
+ src/cmd/dist/build.c | 33 +++++++++++++++++++++++----------
+ 1 file changed, 23 insertions(+), 10 deletions(-)

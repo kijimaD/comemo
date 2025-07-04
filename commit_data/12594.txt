@@ -1,0 +1,12 @@
+commit 4809ad655b53910908680c4895b11a5f1f828670
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Mar 12 19:41:15 2012 -0700
+
+    cmd/go: fix typo
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5777072
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

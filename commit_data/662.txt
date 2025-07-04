@@ -1,0 +1,21 @@
+commit 9350ef4eea88caf6b184c9455db140c7cb8082db
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 13:49:23 2008 -0700
+
+    add network listening & tests
+    
+    R=r,presotto
+    OCL=15410
+    CL=15440
+
+ src/lib/io.go                     |  20 ++---
+ src/lib/make.bash                 |   7 ++
+ src/lib/net/ip.go                 |  12 ++-
+ src/lib/net/net.go                | 159 ++++++++++++++++++++++++++++++++------
+ src/lib/net/socket_darwin.go      |   7 +-
+ src/lib/net/socket_linux.go       |  21 ++++-
+ src/runtime/proc.c                |   2 +-
+ src/syscall/syscall_amd64_linux.s |   1 -
+ test/dialgoogle.go                |  96 +++++++++++++++++++++++
+ test/tcpserver.go                 |  99 ++++++++++++++++++++++++
+ 10 files changed, 381 insertions(+), 43 deletions(-)

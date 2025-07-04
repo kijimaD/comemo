@@ -1,0 +1,23 @@
+commit f069a8299876f9987a01a8d4a664d2a887bd5efc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 24 16:33:10 2025 -0400
+
+    runtime: note custom GOMAXPROCS even if value doesn't change
+    
+    When an application calls runtime.GOMAXPROCS(runtime.GOMAXPROCS(0)), the
+    runtime does not need to change the actual GOMAXPROCS value (via STW).
+    However, this call must still transition from "automatic" to "custom"
+    GOMAXPROCS state, thus disabling background updates.
+    
+    Thus this case shouldn't return quite as early as it currently does.
+    
+    Change-Id: I6a6a636c42f73996532bd9f7beb95e933256c9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683815
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/debug.go                        |  8 +++++++-
+ src/runtime/testdata/testprog/gomaxprocs.go | 14 ++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

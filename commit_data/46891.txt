@@ -1,0 +1,20 @@
+commit a8c5a994d62cc920c134426f7eae892b013ee32d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 30 13:16:33 2021 -0700
+
+    cmd/go: migrate 'go version' to use buildinfo.ReadFile
+    
+    The same code was copied into debug/buildinfo. 'go version' doesn't
+    need its own copy.
+    
+    For #37475
+    
+    Change-Id: I9e473ce574139a87a5f9c63229f0fc7ffac447a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353929
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/version/exe.go     | 263 ---------------------------------
+ src/cmd/go/internal/version/version.go |  92 ++----------
+ 2 files changed, 14 insertions(+), 341 deletions(-)

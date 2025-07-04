@@ -1,0 +1,26 @@
+commit 7832ab5ba0b53622b978acf1aacd8f61f2a44ca5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 10:45:23 2008 -0800
+
+    code coverage tool
+    
+            $ 6cov -g 235.go 6.out
+            235.go:62,62 main·main 0x27c9-0x2829 MOVL       $main·.stringo(SB),AX
+            235.go:30,30 main·main 0x2856-0x285e ADDQ       $6c0,SP
+            $
+    
+    and assorted fixes.
+    
+    R=r
+    DELTA=743  (732 added, 8 deleted, 3 changed)
+    OCL=19226
+    CL=19243
+
+ src/cmd/cov/Makefile       |  28 ++++
+ src/cmd/cov/main.c         | 385 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cov/tree.c         | 246 +++++++++++++++++++++++++++++
+ src/cmd/cov/tree.h         |  47 ++++++
+ src/cmd/prof/Makefile      |   2 +-
+ src/libmach_amd64/darwin.c |  38 ++++-
+ src/libmach_amd64/sym.c    |  14 +-
+ 7 files changed, 747 insertions(+), 13 deletions(-)

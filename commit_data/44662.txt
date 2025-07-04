@@ -1,0 +1,18 @@
+commit a8d9fb2fcd1fc11b41651e0ea608b3a3e90755b7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 15 17:54:35 2021 +0100
+
+    cmd/internal/moddeps: fix typo in TestAllDependencies log messages
+    
+    s/dependecies/dependencies/
+    
+    Change-Id: I454668a36192e345965173d76be12cbd5917ea34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301849
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

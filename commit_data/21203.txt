@@ -1,0 +1,16 @@
+commit ee94cd1dfff26e3044713367adcdf901a5e2653a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 7 16:30:24 2015 -0800
+
+    cmd/cgo, go/build: finish a cleanup TODO
+    
+    Removing #cgo directive parsing from cmd/cgo was done in
+    https://golang.org/cl/8610044.
+    
+    Change-Id: Id1bec58c6ec1f932df0ce0ee84ff253655bb73ff
+    Reviewed-on: https://go-review.googlesource.com/2501
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go    | 14 --------------
+ src/go/build/build.go |  3 ---
+ 2 files changed, 17 deletions(-)

@@ -1,0 +1,27 @@
+commit 854dbb7fdcc85ca187e4d91a5a85d392242bb1cb
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Sat Aug 30 07:50:50 2014 +0900
+
+    net: ensure identical queries are not sent multiple times in builtin stub resolver
+    
+    Prevents non-rooted queries with > ndots dots from being tried twice on error.
+    Fixes #8616.
+    
+    Benchmark results on linux/amd64
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkGoLookupIPNoSuchHost      8212394      4413293  -46.26%
+    
+    benchmark                       old allocs   new allocs    delta
+    BenchmarkGoLookupIPNoSuchHost          216          108  -50.00%
+    
+    benchmark                        old bytes    new bytes    delta
+    BenchmarkGoLookupIPNoSuchHost        17460         8726  -50.02%
+    
+    LGTM=iant, mikioh.mikioh
+    R=golang-codereviews, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/137870043
+
+ src/pkg/net/dnsclient_unix.go      | 21 +++++++++------------
+ src/pkg/net/dnsclient_unix_test.go |  6 ++++++
+ 2 files changed, 15 insertions(+), 12 deletions(-)

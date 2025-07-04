@@ -1,0 +1,13 @@
+commit bd43eac30318e062635792d44c185ac037ef98fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 08:30:50 2011 -0700
+
+    bufio: return nil line from ReadLine on error, as documented
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5316069
+
+ src/pkg/bufio/bufio.go      |  3 +++
+ src/pkg/bufio/bufio_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

@@ -1,0 +1,18 @@
+commit 010817714e16b859211b50bde6ea7c804263146c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 11:22:06 2021 +0700
+
+    cmd/compile: ignore SliceExpr.CheckPtrCall for mknode
+    
+    CL 343972 added SliceExpr.CheckPtrCall field but forgot to add ignore
+    tag for mknode. This CL adds the missing tag.
+    
+    Change-Id: Ib39bff3d456063bdc10fc17b4047b8392d373bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345431
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

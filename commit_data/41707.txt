@@ -1,0 +1,16 @@
+commit 9a2db7c41ba5b1f9498d5354e6c2570610f626fb
+Author: kadern0 <kaderno@gmail.com>
+Date:   Sun Mar 22 17:33:52 2020 +1100
+
+    cmd/compile: remove unused isIntOrdering method
+    
+    Fixes #37989
+    
+    Change-Id: Iabf86529fde3be9a98222b7e8d09ff8301cf8830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224777
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 10 ----------
+ 1 file changed, 10 deletions(-)

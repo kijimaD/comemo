@@ -1,0 +1,18 @@
+commit b86fae041baff7a7077c67060bc4282d78a2118b
+Author: tbunyk <tbunyk@gmail.com>
+Date:   Tue Sep 5 19:01:16 2017 +0300
+
+    encoding/json: update documentation for MarshalIndent
+    
+    Make arguments semantics clear without the need to look for
+    json.Indent documentation.
+    
+    Change-Id: If9adfe9f477a30d426ae83790b0f2578c0a809b7
+    Reviewed-on: https://go-review.googlesource.com/61670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/encode.go       |  2 ++
+ src/encoding/json/example_test.go | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+)

@@ -1,0 +1,31 @@
+commit 59a684703913e383c482c1383b2d4958c674248c
+Author: John Papandriopoulos <jpap.code@gmail.com>
+Date:   Sun Sep 29 16:59:56 2019 -0700
+
+    cmd/link: pass-through undefined call targets in external link mode
+    
+    Allows Go asm calls referencing a function in a .syso file to be
+    passed through to the external linker, that would have otherwise
+    raised a "relocation target X not defined" error in cmd/link.
+    
+    Fixes #33139
+    
+    Change-Id: I2a8eb6063ebcd05fac96f141acf7652cf9189766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198798
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../go/testdata/script/link_syso_issue33139.txt    | 43 ++++++++++++++++++++++
+ src/cmd/link/internal/arm/asm.go                   |  2 +-
+ src/cmd/link/internal/ld/data.go                   | 15 +++++++-
+ src/cmd/link/internal/ld/go.go                     | 18 +++++++++
+ src/cmd/link/internal/ld/lib.go                    |  5 +++
+ src/cmd/link/internal/ld/macho.go                  |  4 +-
+ src/cmd/link/internal/ld/pe.go                     |  2 +-
+ src/cmd/link/internal/ld/symtab.go                 |  2 +-
+ src/cmd/link/internal/ld/xcoff.go                  |  2 +-
+ src/cmd/link/internal/ppc64/asm.go                 |  2 +-
+ src/cmd/link/internal/sym/symkind.go               |  1 +
+ src/cmd/link/internal/sym/symkind_string.go        | 19 +++++-----
+ 12 files changed, 97 insertions(+), 18 deletions(-)

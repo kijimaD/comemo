@@ -1,0 +1,19 @@
+commit cc1d4b7e1b36f1b1d7d85f9f2bad54cf91653cf1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 13 18:03:41 2009 -0700
+
+    Unix domain socket support, Linux and Darwin.
+    
+    R=r
+    DELTA=534  (353 added, 99 deleted, 82 changed)
+    OCL=28783
+    CL=28783
+
+ src/lib/net/net.go                                | 324 +++++++++++++++++-----
+ src/lib/net/net_darwin.go                         |  30 +-
+ src/lib/net/net_linux.go                          |  44 +++
+ src/lib/net/{tcpserver_test.go => server_test.go} |   8 +
+ src/lib/os/error.go                               |   2 +
+ src/lib/syscall/socket_darwin.go                  |   5 -
+ src/lib/syscall/socket_linux.go                   |   5 -
+ 7 files changed, 336 insertions(+), 82 deletions(-)

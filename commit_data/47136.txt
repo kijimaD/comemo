@@ -1,0 +1,38 @@
+commit 8e3d5f0bb324eebb92cc93264a63afa7ded9ab9a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 27 14:24:37 2021 +1100
+
+    image/draw: rename and reorder some benchmarks
+    
+    The intention is for BenchmarkFooBar functions to map 1:1 to drawFooBar
+    functions. Recent draw.go changes have added more drawFooBar functions
+    and have further modified the mapping, as fallback drawFooBar functions
+    aren't invoked as often as they used to.
+    
+    This commit restores the 1:1 mapping and reorganizes the BenchmarkFooBar
+    functions in the same order as the matching drawFooBar functions appear.
+    
+    Also modify a TestDraw test case from vgradGreen(255) = {0, 136, 0, 255}
+    to vgradGreen(90) = {0, 48, 0, 90}. Doing so matches the existing "The
+    source pixel is {0, 48, 0, 90}" comment but also makes for a more
+    interesting test case, as the source pixel is no longer fully opaque.
+    Fully opaque is already covered by the vgradGray() test case on the next
+    line.
+    
+    Also fix a "variable source" comment copy-pasto when the source image is
+    actually uniform, not variable.
+    
+    Also add a func DrawMask type switch comment about interface types.
+    
+    Change-Id: I828e71f2ee8ec617f523c8aafb118fb7ba166876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358974
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/draw/bench_test.go | 27 +++++++++++++--------------
+ src/image/draw/draw.go       |  2 ++
+ src/image/draw/draw_test.go  | 13 +++++++++----
+ 3 files changed, 24 insertions(+), 18 deletions(-)

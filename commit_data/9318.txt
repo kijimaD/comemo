@@ -1,0 +1,15 @@
+commit d24a9785eb871a7addb022bca6aedf7842600032
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 9 10:55:14 2011 -0700
+
+    http: configurable and default request header size limit
+    
+    This addresses the biggest DoS in issue 2093
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4841050
+
+ src/pkg/http/serve_test.go | 22 ++++++++++++++++
+ src/pkg/http/server.go     | 64 +++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 71 insertions(+), 15 deletions(-)

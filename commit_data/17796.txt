@@ -1,0 +1,12 @@
+commit 94bd34fe50a7ea7e913b58b3a278fc8dc36db1b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 15 13:46:57 2013 -0400
+
+    misc/cgo/test: fix build (define prototype for alloca)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/14454063
+
+ misc/cgo/test/issue6506.go | 1 +
+ 1 file changed, 1 insertion(+)

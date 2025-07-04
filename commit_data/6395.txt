@@ -1,0 +1,15 @@
+commit 929fdd860bec522d6fbb7e23cc64b2bf6e65a74b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 27 12:50:01 2010 -0400
+
+    runtime: correct stats in SysFree
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2254047
+
+ src/pkg/runtime/darwin/mem.c  | 1 +
+ src/pkg/runtime/freebsd/mem.c | 1 +
+ src/pkg/runtime/linux/mem.c   | 1 +
+ src/pkg/runtime/nacl/mem.c    | 1 +
+ 4 files changed, 4 insertions(+)

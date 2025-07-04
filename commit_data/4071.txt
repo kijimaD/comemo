@@ -1,0 +1,11 @@
+commit c3cf8d663a9520078e136ca7ea9ecf68c5500ec4
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Nov 16 11:58:28 2009 -0800
+
+    s/AJMP/AB/ to fix build breakage.
+    
+    R=rsc
+    https://golang.org/cl/155069
+
+ src/cmd/5g/cgen.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

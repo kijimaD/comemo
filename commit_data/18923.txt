@@ -1,0 +1,15 @@
+commit 9cb4963d187e044353e83e7919d2a5302bdd72ac
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 24 12:34:09 2014 +1100
+
+    misc/nacl: add Native Client support scripts and documentation
+    
+    LGTM=josharian, dan.kortschak
+    R=golang-codereviews, josharian, dan.kortschak
+    CC=golang-codereviews
+    https://golang.org/cl/75080043
+
+ misc/nacl/README                | 65 +++++++++++++++++++++++++++++++++++++++++
+ misc/nacl/go_nacl_386_exec      | 10 +++++++
+ misc/nacl/go_nacl_amd64p32_exec | 10 +++++++
+ 3 files changed, 85 insertions(+)

@@ -1,0 +1,12 @@
+commit 5b1fb9d5c6d57bf9abea2ca42a72012473bc269a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 26 11:03:52 2011 -0700
+
+    io: add ByteScanner, RuneScanner interfaces
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4530069
+
+ src/pkg/io/io.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

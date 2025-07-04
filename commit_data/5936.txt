@@ -1,0 +1,18 @@
+commit c6cb303a8a5d8751bf32d5c3d3974eff514d67a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 00:53:32 2010 -0700
+
+    gc: bug299, bug300
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1731057
+
+ src/cmd/gc/go.h                    |  1 +
+ src/cmd/gc/go.y                    | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/reflect/all_test.go        | 18 ++++++++----------
+ test/bugs/bug299.go                | 27 ---------------------------
+ test/fixedbugs/bug299.go           | 27 +++++++++++++++++++++++++++
+ test/{bugs => fixedbugs}/bug300.go | 12 ++++++------
+ test/golden.out                    | 12 ------------
+ 7 files changed, 74 insertions(+), 55 deletions(-)

@@ -1,0 +1,20 @@
+commit 9e621c3ae054404522dd8f14ed5bdacb04808ae0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 5 14:40:24 2024 -0700
+
+    go/types, types2: remove unused argument from Checker.updateExprType0
+    
+    With Checker.updateExprType0 and Checker.updateExprType being the
+    same now, rename updateExprType0 to updateExprType and remove the
+    old updateExprType.
+    
+    Change-Id: Ib5c3d74e7fac9cedcc87ad521b7543b8d7f83943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611276
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 16 ++++++----------
+ src/go/types/expr.go                    | 14 +++++---------
+ 2 files changed, 11 insertions(+), 19 deletions(-)

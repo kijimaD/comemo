@@ -1,0 +1,32 @@
+commit ee76992200a282f0ed4eb52e686ec254d8313cdc
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 12 17:07:04 2018 -0400
+
+    crypto/tls,crypto/x509: normalize RFC references
+    
+    Use the format "RFC XXXX, Section X.X" (or "Appendix Y.X") as it fits
+    more properly in prose than a link, is more future-proof, and as there
+    are multiple ways to render an RFC. Capital "S" to follow the quoting
+    standard of RFCs themselves.
+    
+    Applied the new goimports grouping to all files in those packages, too.
+    
+    Change-Id: I01267bb3a3b02664f8f822e97b129075bb14d404
+    Reviewed-on: https://go-review.googlesource.com/c/141918
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/tls/auth.go                    |  7 +++----
+ src/crypto/tls/cipher_suites.go           |  8 +++-----
+ src/crypto/tls/common.go                  | 27 +++++++++++--------------
+ src/crypto/tls/conn.go                    |  2 +-
+ src/crypto/tls/handshake_client.go        |  2 +-
+ src/crypto/tls/handshake_messages.go      | 33 +++++++++++++++----------------
+ src/crypto/tls/handshake_messages_test.go |  3 +--
+ src/crypto/tls/handshake_server.go        |  4 ++--
+ src/crypto/tls/key_agreement.go           |  5 ++---
+ src/crypto/tls/prf.go                     | 15 +++++++-------
+ src/crypto/x509/pem_decrypt.go            |  2 +-
+ src/crypto/x509/pkix/pkix.go              |  2 +-
+ src/crypto/x509/verify.go                 | 20 +++++++++----------
+ src/crypto/x509/x509.go                   | 32 +++++++++++++-----------------
+ 14 files changed, 72 insertions(+), 90 deletions(-)

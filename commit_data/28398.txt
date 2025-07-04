@@ -1,0 +1,19 @@
+commit 3eb16c059d301bc7242461ac8480d95e433e0374
+Author: David Chase <drchase@google.com>
+Date:   Thu Sep 15 12:43:29 2016 -0400
+
+    cmd/compile: repair GOSSAFUNC functionality
+    
+    GOSSAFUNC=foo had previously only done printing for the
+    single function foo, and didn't quite clean up after itself
+    properly. Changes ensures that Config.HTML != nil iff
+    GOSSAFUNC==name-of-current-function.
+    
+    Change-Id: I255e2902dfc64f715d93225f0d29d9525c06f764
+    Reviewed-on: https://go-review.googlesource.com/29250
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

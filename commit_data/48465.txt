@@ -1,0 +1,28 @@
+commit 79103faf2d85d60c14702329964dc390e3057603
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 21 11:24:24 2022 -0700
+
+    cmd/compile/internal/types: remove Sym.Block and Sym.Lastlineno
+    
+    These fields were used for tracking the last scope/position that an
+    identifier was declared, so that we could report redeclaration
+    errors. However, redeclaration errors are now diagnosed by types2 (and
+    typecheck.Redeclared was removed in CL 388537), so these fields can be
+    safely pruned.
+    
+    Updates #51691.
+    
+    Change-Id: Ifd5ea3f6795fadb420913298d59287c95e4669a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394276
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/typecheck/dcl.go      |  2 --
+ src/cmd/compile/internal/typecheck/syms.go     |  1 -
+ src/cmd/compile/internal/typecheck/universe.go |  3 ---
+ src/cmd/compile/internal/types/scope.go        | 24 +++++-------------------
+ src/cmd/compile/internal/types/sizeof_test.go  |  2 +-
+ src/cmd/compile/internal/types/sym.go          | 12 ++++++------
+ 6 files changed, 12 insertions(+), 32 deletions(-)

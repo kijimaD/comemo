@@ -1,0 +1,26 @@
+commit a9ea91d571b75d27a49e07f3604b8faa7a48525d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 16 16:18:04 2020 -0500
+
+    cmd/link, runtime: skip holes in func table
+    
+    On PPC64 when external linking, for large binaries we split the
+    text section to multiple sections, so the external linking may
+    insert trampolines between sections. These trampolines are within
+    the address range covered by the func table, but not known by Go.
+    This causes runtime.findfunc to return a wrong function if the
+    given PC is from such trampolines.
+    
+    In this CL, we generate a marker between text sections where
+    there could potentially be a hole in the func table. At run time,
+    we skip the hole if we see such a marker.
+    
+    Fixes #37216.
+    
+    Change-Id: I95ab3875a84b357dbaa65a4ed339a19282257ce0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219717
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 22 ++++++++++++++++++++++
+ src/runtime/symtab.go            | 10 +++++++++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f03f0cba2ba03d5e0ddb88c7b1f98d7bbbabb9ce
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 13:32:00 2014 +1100
+
+    doc/go1.4.html: rewrite first sentence to make it clearer
+    The grammar was atrocious, probably the victim of an editing error.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/178910043
+
+ doc/go1.4.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

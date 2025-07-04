@@ -1,0 +1,27 @@
+commit 7b83636800f46a484287796e5d7a7838c17375b6
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:40:08 2018 +0100
+
+    syscall/js: add package
+    
+    This commit adds the syscall/js package, which is used by the wasm
+    architecture to access the WebAssembly host environment (and the
+    operating system through it). Currently, web browsers and Node.js
+    are supported hosts, which is why the API is based on JavaScript APIs.
+    There is no common API standardized in the WebAssembly ecosystem yet.
+    
+    This package is experimental. Its current scope is only to allow
+    tests to run, but not yet to provide a comprehensive API for users.
+    
+    Updates #18892
+    
+    Change-Id: I236ea10a70d95cdd50562212f2c18c3db5009230
+    Reviewed-on: https://go-review.googlesource.com/109195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js    |  36 ++++-----
+ src/go/build/deps_test.go |   5 +-
+ src/syscall/js/js.go      | 190 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/js/js_js.s    |  73 ++++++++++++++++++
+ src/syscall/js/js_test.go | 128 +++++++++++++++++++++++++++++++
+ 5 files changed, 412 insertions(+), 20 deletions(-)

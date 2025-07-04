@@ -1,0 +1,21 @@
+commit a66a3bf494f652bc4fb209d861cbdba1dea71303
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 15:01:25 2024 -0800
+
+    go/types, types2: add tracing to Checker.validType
+    
+    Debugging support.
+    
+    For #65711.
+    
+    Change-Id: I2b8b03d2c6e02d32a4f9272313e852f17da35b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567975
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/validtype.go | 33 ++++++++++++++++++++--------
+ src/go/types/generate_test.go                |  2 +-
+ src/go/types/validtype.go                    | 33 ++++++++++++++++++++--------
+ 3 files changed, 49 insertions(+), 19 deletions(-)

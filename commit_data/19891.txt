@@ -1,0 +1,18 @@
+commit 24db88168997d650e8274dd2e84e8a56bf8d95b9
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Aug 5 21:10:07 2014 -0700
+
+    liblink: shorter encoding for zeroing register
+    
+    Encode MOV $0, %ax as XOR %eax, %eax instead of
+    XOR %rax, %rax. If an operand register does not
+    need REX.w bit (i.e. not one of R8-R15), it is
+    encoded in 2 bytes instead of 3 bytes.
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/115580044
+
+ src/liblink/asm6.c | 1 +
+ 1 file changed, 1 insertion(+)

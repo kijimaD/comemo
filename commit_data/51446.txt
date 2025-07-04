@@ -1,0 +1,23 @@
+commit 7a9ce7465575ac1bfda3aa44b95712cdd5dc47cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 16:11:19 2022 -0500
+
+    crypto/elliptic: remove deprecation markers
+    
+    These should be deprecated, but per go.dev/wiki/Deprecated,
+    that should only happen two releases after the replacement is
+    available (so Go 1.22).
+    
+    The deprecation of this package was part of the discussion
+    of proposal #52221. All that remains is waiting for the new
+    package to be widely available.
+    
+    Change-Id: I580a4af6514eb77d7ec31b443d07259a4a2cf030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453256
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/crypto/elliptic/elliptic.go | 24 ++++++++++--------------
+ src/crypto/elliptic/params.go   | 15 +++++++--------
+ 2 files changed, 17 insertions(+), 22 deletions(-)

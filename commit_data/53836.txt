@@ -1,0 +1,21 @@
+commit 977e23a70766f8d0801e43bbfb68136bf54a84b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 31 14:01:00 2023 -0400
+
+    doc/go_mem: explain arrays, structs, and complex numbers
+    
+    Arrays, structs, and complex numbers are collections of values that
+    are handled separately by the memory model.
+    
+    An earlier version may have said this, but the current version does not.
+    Say it.
+    
+    Change-Id: If3928bed6659e58e688f88aa0dde05423cbb3820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514476
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_mem.html | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

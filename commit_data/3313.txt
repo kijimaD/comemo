@@ -1,0 +1,19 @@
+commit 92f773dc775d5830077c03046a01c66c7ab6b279
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 11:50:24 2009 -0700
+
+    add DWARF method to elf.File.
+    test both ELF and Mach-O in dwarf package.
+    
+    R=r
+    DELTA=83  (44 added, 10 deleted, 29 changed)
+    OCL=34717
+    CL=34790
+
+ src/pkg/Make.deps                      | 19 +++++++------
+ src/pkg/Makefile                       |  1 +
+ src/pkg/debug/dwarf/testdata/typedef.c |  6 +++-
+ src/pkg/debug/dwarf/type.go            | 17 ++++--------
+ src/pkg/debug/dwarf/type_test.go       | 51 ++++++++++++++++++++--------------
+ src/pkg/debug/elf/file.go              | 24 ++++++++++++++++
+ 6 files changed, 76 insertions(+), 42 deletions(-)

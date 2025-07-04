@@ -1,0 +1,20 @@
+commit d152ff286f6ef2b25bd95bf97a429a1dc40ba4b5
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 23 12:38:36 2019 -0400
+
+    go/internal/gccgoimporter: revise previous anonymous field fix.
+    
+    Revise the fix for #31540 to take into account the possibility that we
+    may see an alias to a name that has already been installed into
+    package scope. This scenario is not possible to reproduce with the
+    current importer unit tests; changes to the harness to enable this
+    scenario will be added in a later CL.
+    
+    Updates #31540.
+    
+    Change-Id: Ie155d5e0b998604177a78471cba2413f57d40229
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173440
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+commit 434f1e32a075d546f47943598aa5974d4a2492ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 08:41:23 2011 -0500
+
+    runtime: remove tiny
+    
+    It is unmaintained and untested, and I think it's broken too.
+    It was a toy to show that Go can run on real hardware,
+    and it served its purpose.
+    
+    The source code will of course remain in the repository
+    history, so it could be brought back if needed later.
+    
+    R=r, r2, uriel
+    CC=golang-dev
+    https://golang.org/cl/3996047
+
+ src/pkg/runtime/Makefile             |   3 -
+ src/pkg/runtime/tiny/386/defs.h      |   1 -
+ src/pkg/runtime/tiny/386/rt0.s       |  28 --------
+ src/pkg/runtime/tiny/386/signal.c    |  19 ------
+ src/pkg/runtime/tiny/386/sys.s       |  92 --------------------------
+ src/pkg/runtime/tiny/README          | 123 -----------------------------------
+ src/pkg/runtime/tiny/arm/defs.h      |   1 -
+ src/pkg/runtime/tiny/arm/rt0.s       |   1 -
+ src/pkg/runtime/tiny/arm/signal.c    |   1 -
+ src/pkg/runtime/tiny/arm/sys.s       |   1 -
+ src/pkg/runtime/tiny/bootblock       | Bin 512 -> 0 bytes
+ src/pkg/runtime/tiny/dot-bochsrc     |  18 -----
+ src/pkg/runtime/tiny/io.go           |  53 ---------------
+ src/pkg/runtime/tiny/mem.c           |  50 --------------
+ src/pkg/runtime/tiny/os.h            |   1 -
+ src/pkg/runtime/tiny/runtime_defs.go |  14 ----
+ src/pkg/runtime/tiny/signals.h       |   1 -
+ src/pkg/runtime/tiny/thread.c        |  92 --------------------------
+ 18 files changed, 499 deletions(-)

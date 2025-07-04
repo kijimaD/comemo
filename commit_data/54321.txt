@@ -1,0 +1,34 @@
+commit 67fb00396d1f0acf4b726990d5cd729ecace403c
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Thu Aug 3 12:24:13 2023 -0700
+
+    html/template: support HTML-like comments in script contexts
+    
+    Per Appendix B.1.1 of the ECMAScript specification, support HTML-like
+    comments in script contexts. Also per section 12.5, support hashbang
+    comments. This brings our parsing in-line with how browsers treat these
+    comment types.
+    
+    Thanks to Takeshi Kaneko (GMO Cybersecurity by Ierae, Inc.) for
+    reporting this issue.
+    
+    Fixes #62196
+    Fixes CVE-2023-39318
+    
+    Change-Id: Id512702c5de3ae46cf648e268cb10e1eb392a181
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1976593
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/html/template/context.go      |  6 ++-
+ src/html/template/escape.go       |  5 ++-
+ src/html/template/escape_test.go  | 10 +++++
+ src/html/template/state_string.go | 26 +++++++------
+ src/html/template/transition.go   | 80 +++++++++++++++++++++++++--------------
+ 5 files changed, 84 insertions(+), 43 deletions(-)

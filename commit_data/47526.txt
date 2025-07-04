@@ -1,0 +1,15 @@
+commit aa34ea2f4c57ea2648286463ef3f891e49b64fa8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 17 09:40:11 2021 -0800
+
+    runtime: don't run TestCheckPtr/TestCheckPtr2 in short mode
+    
+    Change-Id: I02c9bea1637c2694a76e7747cb8a2e3562301566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364755
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/checkptr_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

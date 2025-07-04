@@ -1,0 +1,24 @@
+commit 29e6bdc69c580cf6e9c4cc27600b7f4e2b0def9f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 21 09:54:36 2017 -0700
+
+    runtime: strength reduce key pointer calculation in mapdelete_fast*
+    
+    Move the tophash checks after the equality/length checks.
+    
+    For fast32/fast64, since we've done a full equality check already,
+    just check whether tophash is empty instead of checking tophash.
+    This is cheaper and allows us to skip calculating tophash.
+    
+    These changes are modeled on the changes in CL 57590,
+    which were polished based on benchmarking.
+    Benchmarking directly is impeded by #21546.
+    
+    Change-Id: I0e17163028e34720310d1bf8f95c5ef42d223e00
+    Reviewed-on: https://go-review.googlesource.com/57611
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap_fast.go | 27 +++++++--------------------
+ 1 file changed, 7 insertions(+), 20 deletions(-)

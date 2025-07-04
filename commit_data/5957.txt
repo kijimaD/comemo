@@ -1,0 +1,41 @@
+commit e473f42b2d3ac9b877436638dc182342dcd2e86c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 4 17:50:22 2010 -0700
+
+    amd64: use segment memory for thread-local storage
+    Returns R14 and R15 to the available register pool.
+    Plays more nicely with ELF ABI C code.
+    In particular, our signal handlers will no longer crash
+    when a signal arrives during execution of a cgo C call.
+    
+    Fixes #720.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/1847051
+
+ src/cmd/6a/a.y                      |   6 ++
+ src/cmd/6c/cgen.c                   |   6 ++
+ src/cmd/6c/peep.c                   |   2 -
+ src/cmd/6c/sgen.c                   |   4 +
+ src/cmd/6c/txt.c                    |  12 ++-
+ src/cmd/6l/asm.c                    |  11 ++
+ src/cmd/6l/l.h                      |   1 +
+ src/cmd/6l/obj.c                    |  14 +++
+ src/cmd/6l/pass.c                   |  24 ++++-
+ src/cmd/6l/span.c                   |  31 +++++-
+ src/cmd/8c/txt.c                    |   1 -
+ src/cmd/8l/obj.c                    |   2 +-
+ src/cmd/cc/com.c                    |   6 +-
+ src/libcgo/Makefile                 |   4 +-
+ src/libcgo/amd64.S                  |  14 +--
+ src/libcgo/darwin_amd64.c           | 109 ++++++++++++++------
+ src/libcgo/freebsd_amd64.c          |  39 ++------
+ src/libcgo/libcgo.h                 |   6 +-
+ src/libcgo/linux_amd64.c            |  37 ++-----
+ src/pkg/runtime/amd64/asm.s         | 195 +++++++++++++++++++++++-------------
+ src/pkg/runtime/darwin/amd64/sys.s  |  59 +++++++++--
+ src/pkg/runtime/freebsd/amd64/sys.s |  32 +++++-
+ src/pkg/runtime/linux/amd64/sys.s   |  54 ++++++++--
+ src/pkg/runtime/mkasmh.sh           |  16 +--
+ 24 files changed, 467 insertions(+), 218 deletions(-)

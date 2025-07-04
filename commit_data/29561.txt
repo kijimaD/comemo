@@ -1,0 +1,21 @@
+commit 81627f0e47f91a6e6e7bfd7c59b4e3ac596668ca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 17 06:06:34 2016 +0900
+
+    net: deflake TestAcceptTimeout again
+    
+    This is a followup to CL 33257.
+    
+    It looks like active close operation at passive open side sometimes
+    takes a bit long time on Darwin.
+    
+    Fixes #17948.
+    
+    Change-Id: Ida17639c4e66a43e1be1f74fd0ef3baddde25092
+    Reviewed-on: https://go-review.googlesource.com/33258
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/timeout_test.go | 2 --
+ 1 file changed, 2 deletions(-)

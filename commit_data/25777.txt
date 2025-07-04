@@ -1,0 +1,15 @@
+commit 53ebde225e0ecaff8c3b71356a4726fad753d47c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 12:22:39 2016 -0500
+
+    cmd/cgo: do not use gcc -xc - to compile standard input
+    
+    We have private reports of compilers that mishandle that.
+    Write to a temporary file instead.
+    
+    Change-Id: I92e3cf4274b1a8048741e07fb52b8900c93b915e
+    Reviewed-on: https://go-review.googlesource.com/19616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/util.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

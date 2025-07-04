@@ -1,0 +1,18 @@
+commit c6116bea0309c28500ba0a233e5b0ab01a491a1b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 11:59:19 2023 -0400
+
+    cmd/fix: move cgo and 'go build' support checks into TestRewrite
+    
+    This avoids unnecessary work to determine 'go build' and cgo support
+    if we're not actually running the test (as in 'go test -list').
+    
+    Change-Id: Id175a759605b2130d4de8bff8eba4c23fe65ccba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491657
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/fix/main_test.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

@@ -1,0 +1,24 @@
+commit f7df55d174b886f8aea0243aa40e8debffbdffc0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Nov 13 14:25:19 2017 -0800
+
+    database/sql: do not leak the connectionResetter goroutine
+    
+    Before terminating the connectionResetter goroutine the connection
+    pool processes all of the connections on the channel to unlock the
+    driverConn instances so everthing can shutdown cleanly. However
+    the channel was never closed so the goroutine hangs on the range.
+    Close the channel prior to ranging over it. Also prevent additional
+    connections from being sent to the resetter after the connection
+    pool has been closed.
+    
+    Fixes #22699
+    
+    Change-Id: I440d2b13cbedec2e04621557f5bd0b1526933dd7
+    Reviewed-on: https://go-review.googlesource.com/77390
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

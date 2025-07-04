@@ -1,0 +1,35 @@
+commit 6d63a74f8e8be044d672fc594c0d356eb911f14b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 21 18:28:16 2020 -0700
+
+    time/tzdata: new package
+    
+    Importing the time/tzdata package will embed a copy of the IANA
+    timezone database into the program. This will let the program work
+    correctly when the timezone database is not available on the system.
+    It will increase the size of the binary by about 800K.
+    
+    You can also build a program with -tags timetzdata to embed the
+    timezone database in the program being built.
+    
+    Fixes #21881
+    Fixes #38013
+    Fixes #38017
+    
+    Change-Id: Iffddee72a8f46c95fee3bcde43c142d6899d9246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224588
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.15.html                     |    14 +
+ lib/time/update.bash                |     2 +
+ src/go/build/deps_test.go           |     2 +
+ src/time/embed.go                   |    12 +
+ src/time/tzdata/generate_zipdata.go |    83 +
+ src/time/tzdata/tzdata.go           |   107 +
+ src/time/tzdata/tzdata_test.go      |    95 +
+ src/time/tzdata/zipdata.go          | 13048 ++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_read.go           |    23 +
+ 9 files changed, 13386 insertions(+)

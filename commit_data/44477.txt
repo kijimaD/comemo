@@ -1,0 +1,23 @@
+commit 497feff168b44bdcb645ab0c2a956b0033d6100d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 27 19:07:32 2021 +1100
+
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or}{8,} on RISCV64
+    
+    The 32 bit versions are easily implement with a single instruction, while the
+    8 bit versions require a bit more effort but use the same atomic instructions
+    via rewrite rules.
+    
+    Change-Id: I42e8d457b239c8f75e39a8e282fc88c1bb292a99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268098
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go        |  8 +++
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 16 ++++++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  8 ++-
+ src/cmd/compile/internal/ssa/opGen.go          | 28 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 75 ++++++++++++++++++++++++++
+ 5 files changed, 134 insertions(+), 1 deletion(-)

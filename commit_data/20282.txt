@@ -1,0 +1,23 @@
+commit 996835887cd8472eadef961120de043a74724fa5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 00:54:37 2014 -0400
+
+    runtime: fix sigtrampPC on Windows
+    
+    The arm5 build breakage at CL 139110043 was caused by
+    calling funcPC on a lessstack defined as a struct{}.
+    That symbol ended up with a non-4-aligned address,
+    which caused the memory fault that broke the builders.
+    The definition of lessstack was fixed in CL 140880043.
+    
+    Tracking that down suggested that it would be worth
+    looking for the same bug elsewhere in the directory.
+    This is the only one I found.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, bradfitz
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/134410043
+
+ src/pkg/runtime/traceback_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit 535741a69a1300d1fe2800778b99c8a1b75d7fdd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 8 16:25:29 2016 -0500
+
+    debug/dwarf: fix nil pointer dereference in cyclic type structures
+    
+    Currently readType simultaneously constructs a type graph and resolves
+    the sizes of the types. However, these two operations are
+    fundamentally at odds: the order we parse a cyclic structure in may be
+    different than the order we need to resolve type sizes in. As a
+    result, it's possible that when readType attempts to resolve the size
+    of a typedef, it may dereference a nil Type field of another typedef
+    retrieved from the type cache that's only partially constructed.
+    
+    To fix this, we delay resolving typedef sizes until the end of the
+    readType recursion, when the full type graph is constructed.
+    
+    Fixes #13039.
+    
+    Change-Id: I9889af37fb3be5437995030fdd61e45871319d07
+    Reviewed-on: https://go-review.googlesource.com/18459
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/dwarf/testdata/cycle.c   |   7 +++++++
+ src/debug/dwarf/testdata/cycle.elf | Bin 0 -> 2624 bytes
+ src/debug/dwarf/type.go            |  34 +++++++++++++++++++++++++++-------
+ src/debug/dwarf/type_test.go       |  34 ++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/typeunit.go        |   2 +-
+ 5 files changed, 69 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit 27d0d849fe7802794c74d049f5e8e1b0be018f9a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu May 5 06:43:13 2016 +1000
+
+    compress/flate: distinguish between base and min match length.
+    
+    Change-Id: I93db5cd86e3fb568e4444cad95268ba4a02ce8a0
+    Reviewed-on: https://go-review.googlesource.com/22787
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/deflate.go     | 22 +++++++++++++++-------
+ src/compress/flate/deflatefast.go | 10 +++++-----
+ src/compress/flate/inflate.go     |  9 ++++-----
+ 3 files changed, 24 insertions(+), 17 deletions(-)

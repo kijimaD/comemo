@@ -1,0 +1,20 @@
+commit 666de6c9c429026f51721d2feae44f49845a618c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jul 26 17:18:39 2018 -0400
+
+    A+C: first round of automated updates for Go 1.11 and missing AUTHORS
+    
+    One first round of low-hanging fruit, excluding anything unclear.
+    
+    Also fixed a bug where, if a contributor had different emails under
+    different CLAs, only the first one was added to AUTHORS.
+    
+    Updates #12042
+    
+    Change-Id: Id7b06c885d74b4718ef2d74d149513a7c0f40c91
+    Reviewed-on: https://go-review.googlesource.com/126215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 188 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 200 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 388 insertions(+)

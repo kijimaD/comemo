@@ -1,0 +1,20 @@
+commit 77df26f0bd7b52f0edb06c0af9904d64faf787ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 4 16:12:55 2014 -0700
+
+    archive/zip: accept bogus trailing zeros in extras
+    
+    Popular tools both add incorrect trailing zeroes to the zip
+    extras, and popular tools accept trailing zeros. We seemed to
+    be the only ones being strict here. Stop being strict. :(
+    
+    Fixes #8186
+    
+    LGTM=ruiu, adg, dave
+    R=adg, ruiu, dave
+    CC=frohrweck, golang-codereviews
+    https://golang.org/cl/117550044
+
+ src/pkg/archive/zip/reader.go      |  9 +++++++--
+ src/pkg/archive/zip/reader_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

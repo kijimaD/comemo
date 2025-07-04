@@ -1,0 +1,19 @@
+commit 049c8dbfdbdd414359699c215f15764a7aa733b5
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Apr 27 11:45:11 2019 +0200
+
+    syscall: allow setting security attributes on processes
+    
+    This allows creating processes that can only be debugged/accessed by
+    certain tokens, according to a particular security descriptor. We
+    already had everything ready for this but just neglected to pass through
+    the value from the user-accessible SysProcAttr.
+    
+    Change-Id: I4a3fcc9f5078aa0058b26c103355c984093ae03f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174197
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/exec_windows.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

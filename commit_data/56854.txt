@@ -1,0 +1,23 @@
+commit 773767def0e0f29584a69bd760430167b7479d7d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Jun 26 01:35:13 2024 +0800
+
+    net/http: avoid appending an existing trailing slash to path again
+    
+    This CL is similar to CL 562557, and it takes over CL 594175.
+    
+    While here, unrelatedly remove mapKeys function, use slices.Sorted(maps.Keys(ms))
+    to simplify code.
+    
+    Fixes #67657
+    
+    Change-Id: Id8b99216f87a6dcfd6d5fa61407b515324c79112
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594737
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/net/http/routing_tree_test.go |  5 ++---
+ src/net/http/serve_test.go        | 16 ++++++++++++++++
+ src/net/http/server.go            | 16 ++++------------
+ 3 files changed, 22 insertions(+), 15 deletions(-)

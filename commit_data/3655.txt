@@ -1,0 +1,15 @@
+commit 5e6194cc1b888a3aee385d62b17400d5d5bb5bb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 26 16:06:46 2009 -0700
+
+    Recognize gccgo error messages.
+    
+    rename1.go:10:8: error: expected type
+    rename1.go:11:10: error: expected function
+    rename1.go:13:8: error: incompatible types in binary expression
+    
+    R=rsc
+    http://go/go-review/1015013
+
+ test/rename1.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

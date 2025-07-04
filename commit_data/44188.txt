@@ -1,0 +1,17 @@
+commit ad2ca26a521a5a642f51c3ef8e3004c9ce7af5aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 17:29:36 2021 -0800
+
+    doc/go1.16: mention os.DirEntry and types moved from os to io/fs
+    
+    For #40700
+    For #41467
+    For #41190
+    
+    Change-Id: Id94e7511c98c38a22b1f9a55af6e200c9df07fd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285592
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

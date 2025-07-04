@@ -1,0 +1,16 @@
+commit 99df7c9caa19d99747c4766be171c9487c9645cf
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 6 11:03:58 2017 +0000
+
+    cmd/link, crypto/tls: don't use append loops
+    
+    Change-Id: Ib47e295e8646b769c30fd81e5c7f20f964df163e
+    Reviewed-on: https://go-review.googlesource.com/36335
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 4 +---
+ src/crypto/tls/common.go             | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)

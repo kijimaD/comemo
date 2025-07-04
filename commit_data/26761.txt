@@ -1,0 +1,28 @@
+commit 007b12977aa8f3373b358361fe21802d5a8408b4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 6 14:12:48 2016 -0700
+
+    cmd/compile: move Type.Maplineno to separate data structure
+    
+    Relatively few types are ever used as map keys,
+    so tracking this separately is a net win.
+    
+    Passes toolstash -cmp.
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       55.9MB ± 0%      55.5MB ± 0%  -0.71%        (p=0.000 n=10+10)
+    Unicode        37.8MB ± 0%      37.7MB ± 0%  -0.27%        (p=0.000 n=10+10)
+    GoTypes         180MB ± 0%       179MB ± 0%  -0.52%         (p=0.000 n=7+10)
+    Compiler        806MB ± 0%       803MB ± 0%  -0.41%        (p=0.000 n=10+10)
+    
+    CPU and number of allocs are unchanged.
+    
+    Change-Id: I6d60d74a4866995a231dfed3dd5792d75d904292
+    Reviewed-on: https://go-review.googlesource.com/21622
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  4 ++--
+ src/cmd/compile/internal/gc/type.go        |  2 --
+ src/cmd/compile/internal/gc/typecheck.go   | 14 +++++++++-----
+ 4 files changed, 12 insertions(+), 10 deletions(-)

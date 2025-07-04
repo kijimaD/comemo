@@ -1,0 +1,14 @@
+commit f6fd086d5ef25e4d9edc953aa1a5b75a475abebb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 28 09:57:04 2015 -0700
+
+    runtime: add missing word in comment
+    
+    Change-Id: Iffe27445e35ec071cf0920a05c81b8a97a3ed712
+    Reviewed-on: https://go-review.googlesource.com/16431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

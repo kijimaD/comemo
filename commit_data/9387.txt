@@ -1,0 +1,13 @@
+commit ff0240da6db6bd7cb5f87b3b8bde965cf5dd22d5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 17 13:57:06 2011 +1000
+
+    misc: fix a couple of template uses preparatory to the big switch.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4876057
+
+ doc/tmpltohtml.go         | 2 +-
+ src/pkg/go/doc/comment.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

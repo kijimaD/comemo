@@ -1,0 +1,22 @@
+commit b4872ea187ded651edcfdcf1299de0b14999101b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 12 09:53:49 2023 -0400
+
+    cmd/go: fix go get go@badversion
+    
+    It was panicking instead of printing a nice error.
+    
+    Fixes #61258.
+    Fixes #61259.
+    
+    Change-Id: Ia30853db5bc7f1f2a4c7e91169c659ae2b79adcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509097
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/toolchain.go        | 30 +++++++++++++----
+ src/cmd/go/internal/modget/query.go              |  5 ++-
+ src/cmd/go/internal/modload/query.go             |  6 +++-
+ src/cmd/go/testdata/script/mod_get_toolchain.txt | 43 +++++++++++++++++++-----
+ 4 files changed, 67 insertions(+), 17 deletions(-)

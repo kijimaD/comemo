@@ -1,0 +1,25 @@
+commit 011fd002457da0823da5f06b099fcf6e21444b00
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 5 11:32:43 2021 -0700
+
+    sync: remove TestWaitGroupMisuse2 and TestWaitGroupMisuse3
+    
+    These tests are inherently nondeterministic: They exercise a racy
+    code path for up to one million iterations, and require that an
+    error occur at least once.
+    
+    TestWaitGroupMisuse2 in particular is an ongoing source of trybot
+    flakiness.
+    
+    Fixes #38163.
+    
+    Change-Id: Ibbbda2c998c915333487ad262d3df6829de01c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340249
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/waitgroup_test.go | 126 ---------------------------------------------
+ 1 file changed, 126 deletions(-)

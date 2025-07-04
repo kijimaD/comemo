@@ -1,0 +1,29 @@
+commit e10ee798c48b8570c0fe498a9a34bb4a5bc7d339
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 24 13:39:51 2018 -0700
+
+    cmd/compile/internal/types: remove ElemType wrapper
+    
+    This was an artifact from when we had a separate ssa.Type interface to
+    break circular dependency between packages ssa and gc. It's no longer
+    needed now that package ssa directly uses package types.
+    
+    Change-Id: I6a93e5d79082815f7f0eb89507381969cc6cb403
+    Reviewed-on: https://go-review.googlesource.com/109137
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go             |  4 ++--
+ src/cmd/compile/internal/ssa/deadstore.go      |  2 +-
+ src/cmd/compile/internal/ssa/decompose.go      |  8 +++----
+ src/cmd/compile/internal/ssa/export_test.go    |  4 ++--
+ src/cmd/compile/internal/ssa/gen/S390X.rules   | 16 ++++++-------
+ src/cmd/compile/internal/ssa/gen/dec.rules     |  2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 32 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritedec.go     |  4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 28 +++++++++++-----------
+ src/cmd/compile/internal/ssa/writebarrier.go   |  2 +-
+ src/cmd/compile/internal/types/type.go         |  5 ----
+ 12 files changed, 58 insertions(+), 63 deletions(-)

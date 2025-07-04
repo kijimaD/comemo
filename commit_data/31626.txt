@@ -1,0 +1,24 @@
+commit 6a6c792eef55eded7fb3165a330ec2b239b83960
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat May 20 18:19:54 2017 -0600
+
+    net/http: make ServeMux preserve query string during redirects
+    
+    Ensure that the implicitly created redirect
+    for
+      "/route"
+    after
+      "/route/"
+    has been registered doesn't lose the query string information.
+    
+    Fixes #17841.
+    
+    Change-Id: Ib7df9242fab8c9368a18fc0da678003d6bec63b8
+    Reviewed-on: https://go-review.googlesource.com/43779
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  9 +++++++++
+ 2 files changed, 51 insertions(+)

@@ -1,0 +1,16 @@
+commit 7534d40f6401817093711cc8d1f227abdaed5dd0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 18:21:01 2010 -0700
+
+    fix various comments
+    
+    (os package comments were duplicates)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2205042
+
+ src/pkg/go/doc/comment.go  | 2 +-
+ src/pkg/os/file_unix.go    | 2 --
+ src/pkg/os/file_windows.go | 2 --
+ 3 files changed, 1 insertion(+), 5 deletions(-)

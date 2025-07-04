@@ -1,0 +1,13 @@
+commit 1726e81c00e85b7554e12a11f440705ad7605a85
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 23 14:19:47 2009 -0700
+
+    publish Request.Write (rename from Request.write)
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1015003
+
+ src/pkg/http/client.go  | 2 +-
+ src/pkg/http/request.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

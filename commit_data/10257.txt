@@ -1,0 +1,14 @@
+commit 377ac335afb298bff873f3f95cd54ea71cfc7f43
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Nov 4 15:35:59 2011 -0400
+
+    math: improved high-angle test for Cos, Sin and Tan
+    
+    Maximum error for 386 is "close" (1e-14). For amd64, it's "veryclose" (4e-16).
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5340042
+
+ src/pkg/math/all_test.go | 59 ++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 50 insertions(+), 9 deletions(-)

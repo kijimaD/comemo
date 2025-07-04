@@ -1,0 +1,18 @@
+commit 218294f11ee4d988112263e1f2660acf443afdd9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 7 17:23:03 2022 +0200
+
+    internal/syscall/windows: use unsafe.Slice instead of unsafeheader package
+    
+    Follow CL 428777.
+    
+    Change-Id: I5ce49322e92c5d6539bb08248e3366187c30dcd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428780
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/syscall/windows/syscall_windows.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

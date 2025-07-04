@@ -1,0 +1,76 @@
+commit c8d6ee12d5eb1c64f2aff8a4d511f677a64e3aed
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 10 08:41:21 2021 -0800
+
+    cmd/compile: match Go 1.17 compiler error messages more closely
+    
+    When being used by the compiler, fix up types2 error messages to be more
+    like Go 1.17 compiler errors. In particular:
+    
+      - add information about which method is missing when a type is not
+        assignable/convertible/etc. to an interface.
+    
+      - add information about any existing method which has the same name,
+        but wrong type.
+    
+      - add extra hint in the case that the source or destination type is a
+        pointer to an interface, rather than an interface.
+    
+      - add extra hint "need type assertion" in the case that the source is
+        an interface that is implemented by the destination.
+    
+      - the following change in the CL stack also adds information about any
+        existing method with a different name that only differs in case.
+    
+    Include much of the new logic in a new common function
+    (*Checker).missingMethodReason().
+    
+    types2 still adds a little more information in some cases then the Go
+    1.17 compiler. For example, it typically says "(value of type T)",
+    rather than "(type T)", where "value" could also be "constant",
+    "variable", etc.
+    
+    I kept the types2 error messages almost all the same when types2 is not
+    used by the compiler. The only change (to reduce amount of compatibility
+    code) was to change "M method" phrasing in one case to "method M"
+    phrasing in one error message (which is the phrasing it uses in all
+    other cases). That is the reason that there are a few small changes in
+    types2/testdata/check/*.src.
+    
+    Added new test test/fixedbugs/issue48471.go to test that the added
+    information is appearing correctly.
+    
+    Also adjusted the pattern matching in a bunch of other
+    test/fixedbugs/*.go, now that types2 is producing error messages closer
+    to Go 1.17. Was able to remove a couple test files from the types2
+    exception list in run.go.
+    
+    Updated #48471
+    
+    Change-Id: I8af1eae6eb8a5541d8ea20b66f494e2e795e1956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363436
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/assignments.go     |  6 ++-
+ src/cmd/compile/internal/types2/conversions.go     | 16 ++++--
+ src/cmd/compile/internal/types2/expr.go            | 21 +++-----
+ src/cmd/compile/internal/types2/lookup.go          | 58 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/operand.go         | 39 +++++++++++----
+ .../internal/types2/testdata/check/expr3.src       |  4 +-
+ .../internal/types2/testdata/check/issues.src      |  2 +-
+ .../internal/types2/testdata/check/stmt0.src       |  2 +-
+ .../types2/testdata/fixedbugs/issue49005.go        |  4 +-
+ test/alias2.go                                     | 10 ++--
+ test/append1.go                                    |  2 +-
+ test/ddd1.go                                       |  2 +-
+ test/fixedbugs/bug389.go                           |  2 +-
+ test/fixedbugs/issue41247.go                       |  2 +-
+ test/fixedbugs/issue48471.go                       | 41 +++++++++++++++
+ test/fixedbugs/issue6572.go                        |  2 +-
+ test/fixedbugs/issue9521.go                        |  4 +-
+ test/interface/explicit.go                         |  2 +-
+ test/run.go                                        |  3 --
+ 19 files changed, 174 insertions(+), 48 deletions(-)

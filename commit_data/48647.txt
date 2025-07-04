@@ -1,0 +1,101 @@
+commit 7d87ccc860dc31c0cd60faf00720e2f30fd37efb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 29 19:07:27 2022 -0500
+
+    all: fix various doc comment formatting nits
+    
+    A run of lines that are indented with any number of spaces or tabs
+    format as a <pre> block. This commit fixes various doc comments
+    that format badly according to that (standard) rule.
+    
+    For example, consider:
+    
+            // - List item.
+            //   Second line.
+            // - Another item.
+    
+    Because the - lines are unindented, this is actually two paragraphs
+    separated by a one-line <pre> block. This CL rewrites it to:
+    
+            //  - List item.
+            //    Second line.
+            //  - Another item.
+    
+    Today, that will format as a single <pre> block.
+    In a future release, we hope to format it as a bulleted list.
+    
+    Various other minor fixes as well, all in preparation for reformatting.
+    
+    For #51082.
+    
+    Change-Id: I95cf06040d4186830e571cd50148be3bf8daf189
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384257
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go           |  12 +-
+ src/cmd/compile/internal/ir/expr.go                |  10 +-
+ src/cmd/compile/internal/noder/unified.go          |  28 +--
+ src/cmd/compile/internal/reflectdata/reflect.go    |   8 +-
+ src/cmd/compile/internal/ssa/block.go              |   9 +-
+ src/cmd/compile/internal/ssa/branchelim.go         |  10 +-
+ src/cmd/compile/internal/ssa/compile.go            |  12 +-
+ src/cmd/compile/internal/ssa/func.go               |  12 +-
+ .../compile/internal/ssa/fuse_branchredirect.go    |  24 +-
+ src/cmd/compile/internal/ssa/location.go           |  20 +-
+ src/cmd/compile/internal/ssa/loopbce.go            |  20 +-
+ src/cmd/compile/internal/ssa/phiopt.go             |  12 +-
+ src/cmd/compile/internal/ssa/prove.go              |  20 +-
+ src/cmd/compile/internal/ssa/sparsetree.go         |   4 +-
+ src/cmd/compile/internal/ssa/writebarrier.go       |  10 +-
+ src/cmd/compile/internal/syntax/parser.go          |  52 ++--
+ src/cmd/compile/internal/typecheck/subr.go         |  14 +-
+ src/cmd/compile/internal/types/size.go             |  18 +-
+ src/cmd/compile/internal/types/type.go             |   6 +-
+ src/cmd/compile/internal/types2/infer.go           |   3 +-
+ src/cmd/compile/internal/types2/object.go          |   2 +-
+ src/cmd/compile/internal/walk/builtin.go           |  12 +-
+ src/cmd/compile/internal/walk/range.go             |  12 +-
+ src/cmd/dist/buildgo.go                            |   2 +-
+ src/cmd/go/script_test.go                          |   4 +-
+ src/cmd/internal/goobj/objfile.go                  |  58 ++---
+ src/cmd/internal/obj/arm64/doc.go                  |  53 ++--
+ src/cmd/internal/obj/inl.go                        |  26 +-
+ src/cmd/internal/obj/objfile.go                    |  16 +-
+ src/cmd/internal/obj/ppc64/doc.go                  | 277 +++++++++++----------
+ src/cmd/internal/obj/riscv/cpu.go                  |   8 +-
+ src/cmd/internal/obj/riscv/obj.go                  |   4 +-
+ src/cmd/link/internal/benchmark/bench.go           |  20 +-
+ src/cmd/link/internal/ld/elf.go                    |  49 ++--
+ src/cmd/link/internal/ld/outbuf.go                 |  12 +-
+ src/cmd/link/internal/loader/loader.go             |  24 +-
+ src/cmd/link/internal/s390x/asm.go                 |   8 +-
+ src/compress/flate/huffman_code.go                 |  25 +-
+ src/crypto/cipher/gcm.go                           |   2 +-
+ src/crypto/elliptic/p256.go                        |   3 +-
+ src/crypto/x509/x509.go                            |  95 ++++---
+ src/database/sql/fakedb_test.go                    |   2 +-
+ src/debug/gosym/pclntab_test.go                    |  11 +-
+ src/fmt/doc.go                                     |   9 +-
+ src/go/doc/comment.go                              |  13 +-
+ src/go/types/object.go                             |   2 +-
+ src/math/big/nat.go                                |   7 +-
+ src/net/cgo_unix.go                                |  12 +-
+ src/net/http/client.go                             |   6 +-
+ src/net/http/cookie.go                             |  10 +-
+ src/net/http/server.go                             |  16 +-
+ src/net/smtp/smtp_test.go                          |   5 +-
+ src/os/file_windows.go                             |   2 +-
+ src/runtime/chan.go                                |   8 +-
+ src/runtime/mheap.go                               |  18 +-
+ src/runtime/netpoll.go                             |  20 +-
+ src/runtime/proc.go                                |  10 +-
+ src/runtime/runtime2.go                            |   6 +-
+ src/runtime/string.go                              |   8 +-
+ src/runtime/symtab_test.go                         |  16 +-
+ src/runtime/type.go                                |   2 +-
+ src/syscall/exec_windows.go                        |  10 +-
+ src/time/zoneinfo.go                               |  16 +-
+ 63 files changed, 619 insertions(+), 606 deletions(-)

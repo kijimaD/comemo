@@ -1,0 +1,19 @@
+commit c9638810df5c0ab7e15a0856f0ddddf4b3afbba6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 14 08:54:15 2016 -0400
+
+    cmd/compile: use type. prefix on importpath symbol
+    
+    This ensures that importpath symbols are treated like other type data
+    and end up in the same section under all build modes.
+    
+    Fixes: go test -buildmode=pie reflect
+    
+    Change-Id: Ibb8348648e8dcc850f2424d206990a06090ce4c6
+    Reviewed-on: https://go-review.googlesource.com/22081
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

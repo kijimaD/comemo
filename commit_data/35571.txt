@@ -1,0 +1,17 @@
+commit a34e6650c0847ba54445b036dfd33e7d98fe8a2c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 31 12:30:19 2018 -0700
+
+    encoding/hex: improve Decode and DecodeString docs
+    
+    Simplify the wording of both.
+    
+    Make the DecodeString docs more accurate:
+    DecodeString returns a slice, not a string.
+    
+    Change-Id: Iba7003f55fb0a37aafcbeee59a30492c0f68aa4e
+    Reviewed-on: https://go-review.googlesource.com/115615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/hex/hex.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

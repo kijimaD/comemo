@@ -1,0 +1,12 @@
+commit d77d4f509c61a8e1eaadeabca86ee48710bd8030
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 29 13:30:17 2017 +1000
+
+    cmd/link: unexport all peSection fields
+    
+    Change-Id: I83e168f0d1dd1897a0c02c0f1233e1054e93fb0f
+    Reviewed-on: https://go-review.googlesource.com/59791
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 139 ++++++++++++++++++++---------------------
+ 1 file changed, 69 insertions(+), 70 deletions(-)

@@ -1,0 +1,24 @@
+commit bf88adadac9bbb1b190ba7af1010373823dabb06
+Author: Roi Martin <jroi.martin@gmail.com>
+Date:   Thu Nov 25 13:47:39 2021 +0100
+
+    cmd/doc: fix "builtin" package parsing
+    
+    As stated in the code, "The builtin package needs special treatment: its
+    symbols are lower case but we want to see them, always". Thus, cmd/doc
+    forces the -u flag if the package being queried is called "builtin".
+    However, this happens after having already parsed the package. This
+    CL forces the -u flag just after parsing the command arguments and
+    before parsing any package.
+    
+    Fixes #49796.
+    
+    Change-Id: If690a900c7cfd1700feecb9529bd4344c3c249d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367134
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/doc/main.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 350504559e12272824d31e4d942d66929ba027c5
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jul 13 12:44:21 2011 -0700
+
+    net: windows/amd64 port
+    
+    R=rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/3790044
+
+ src/pkg/net/fd_windows.go                 |  2 +-
+ src/pkg/syscall/syscall_windows.go        |  2 +-
+ src/pkg/syscall/zsyscall_windows_386.go   |  2 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go |  2 +-
+ src/pkg/syscall/ztypes_windows.go         | 21 ++-------------------
+ src/pkg/syscall/ztypes_windows_386.go     | 17 +++++++++++++++++
+ src/pkg/syscall/ztypes_windows_amd64.go   | 17 +++++++++++++++++
+ 7 files changed, 40 insertions(+), 23 deletions(-)

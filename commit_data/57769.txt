@@ -1,0 +1,18 @@
+commit b45c7f1661a88d6765e2a5e1eaff4c06c5af33ed
+Author: Lin Runze <lrzlin@163.com>
+Date:   Tue Oct 15 15:18:08 2024 +0800
+
+    cmd/internal/obj: add prologue_end DWARF stmt for riscv64
+    
+    This patch adds prologue_end statement to the DWARF info for riscv64,
+    which delve debugger uses for skip stacksplit prologue.
+    
+    Change-Id: I4e5d9c26202385f65b3118b16f53f66de9d327f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620295
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

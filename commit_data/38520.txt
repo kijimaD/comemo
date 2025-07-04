@@ -1,0 +1,46 @@
+commit 94563de87fad642677ffc62a4a82766597e39123
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Mar 21 13:31:32 2019 -0400
+
+    cmd/go: fix the default build output name for versioned binaries
+    
+    This change is a re-apply of the reverted CL 140863 with changes to
+    address issue #30821. Specifically, path.Split continues to be used
+    to split the '/'-separated import path, rather than filepath.Split.
+    
+    Document the algorithm for how the default executable name is determined
+    in DefaultExecName.
+    
+    Rename a variable returned from os.Stat from bs to fi for consistency.
+    
+    CL 140863 factored out the logic to determine the default executable
+    name from the Package.load method into a DefaultExecName function,
+    and started using it in more places to avoid having to re-implement
+    the logic everywhere it's needed. Most previous callers already computed
+    the default executable name based on the import path. The load.Package
+    method, before CL 140863, was the exception, in that it used the p.Dir
+    value in GOPATH mode instead. There was a NOTE(rsc) comment that it
+    should be equivalent to use import path, but it was too late in Go 1.11
+    cycle to risk implementing that change.
+    
+    This is part 1, a more conservative change for backporting to Go 1.12.2,
+    and it keeps the original behavior of splitting on p.Dir in GOPATH mode.
+    Part 2 will address the NOTE(rsc) comment and modify behavior in
+    Package.load to always use DefaultExecName which splits the import path
+    rather than directory. It is intended to be included in Go 1.13.
+    
+    Fixes #27283 (again)
+    Updates #26869
+    Fixes #30821
+    
+    Change-Id: Ib1ebb95acba7c85c24e3a55c40cdf48405af34f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167503
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++--------
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/work/build.go                  | 10 ++--
+ .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 +++
+ src/cmd/go/testdata/script/mod_build_versioned.txt | 16 +++++++
+ 5 files changed, 60 insertions(+), 27 deletions(-)

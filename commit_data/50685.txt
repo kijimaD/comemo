@@ -1,0 +1,17 @@
+commit 090ec611dffeb896f767e6e4f20624a796c0e826
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:25:56 2022 +0800
+
+    cmd/asm: delete unused func newAddr
+    
+    Change-Id: I62f38aa07e9c6e2f0947d23adc7a1b453277c790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435942
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/asm/internal/asm/asm.go | 7 -------
+ 1 file changed, 7 deletions(-)

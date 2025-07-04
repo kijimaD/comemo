@@ -1,0 +1,17 @@
+commit a588c6fba6d411245d72b9e071eedc3b4d00a0c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 7 16:00:53 2025 -0800
+
+    go/types, types2: report better error messages for make calls
+    
+    Change-Id: I4593aeb4cad1e2c3f4705ed5249ac0bad910162f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655518
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    | 24 ++++++++++++++++++------
+ src/go/types/builtins.go                       | 24 ++++++++++++++++++------
+ src/internal/types/testdata/check/builtins1.go | 16 ++++++++++++----
+ 3 files changed, 48 insertions(+), 16 deletions(-)

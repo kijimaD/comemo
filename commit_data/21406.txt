@@ -1,0 +1,29 @@
+commit a5b1baeed7d26a3d8aea86bbabe81f59c3d4e9d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:15:43 2015 -0500
+
+    cmd/8a, cmd/8g, cmd/8l, liblink: update for portable Prog, Addr
+    
+    Change-Id: I19ed283962aa0221cf806307bde9ea0773a1bfd4
+    Reviewed-on: https://go-review.googlesource.com/3518
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/8a/a.y      |  99 ++++---
+ src/cmd/8a/lex.c    | 167 ++++++------
+ src/cmd/8a/y.tab.c  | 257 +++++++++--------
+ src/cmd/8g/cgen.c   |  33 +--
+ src/cmd/8g/cgen64.c |  18 +-
+ src/cmd/8g/galign.c |   8 +-
+ src/cmd/8g/gg.h     |   2 +-
+ src/cmd/8g/ggen.c   | 111 ++++----
+ src/cmd/8g/gobj.c   |  44 +--
+ src/cmd/8g/gsubr.c  | 203 +++++++-------
+ src/cmd/8g/opt.h    |   5 -
+ src/cmd/8g/peep.c   |  92 +++----
+ src/cmd/8g/prog.c   |  30 +-
+ src/cmd/8g/reg.c    |  96 ++++---
+ src/cmd/8l/8.out.h  | 124 ++++-----
+ src/liblink/asm8.c  | 774 +++++++++++++++++++++++++++-------------------------
+ src/liblink/list8.c | 178 ++++++------
+ src/liblink/obj8.c  | 248 +++++++++--------
+ 18 files changed, 1275 insertions(+), 1214 deletions(-)

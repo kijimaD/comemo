@@ -1,0 +1,19 @@
+commit 6d498ce8440d05b8b9c4d79446dc6201b8e00945
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 6 12:48:15 2024 -0500
+
+    doc: move Go 1.22 release notes to x/website
+    
+    Now that the development of the Go 1.22 release is almost done, its
+    release notes are moved to their eventual long-term home in x/website
+    in CL 562195. Delete the initial development copy here.
+    
+    Change-Id: Ic8e44ee5d95ff121f96a53f6093fd8764abea004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562155
+    Auto-Submit: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.22.html | 1019 -------------------------------------------------------
+ 1 file changed, 1019 deletions(-)

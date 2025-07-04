@@ -1,0 +1,25 @@
+commit e8e425cb231863c1ed1bcf00dd5a517ceeaf6b9c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 9 10:41:16 2021 -0500
+
+    runtime: add pollDesc partial edges
+    
+    gscan is taken during stack growth, which may occur while pollDesc is
+    held.
+    
+    mallocgc may also be called while pollDesc is held. mallocgc may take
+    mheap or mheapSpecial. The former exists, but is out of order; the
+    latter is missing.
+    
+    Fixes #44881
+    
+    Change-Id: Ie25935d9d433e813c11a528ee47255b317a09f41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300009
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lockrank.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

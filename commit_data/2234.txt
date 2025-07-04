@@ -1,0 +1,20 @@
+commit 23c81f74247f3d28d5de454e7629d8e01d20968c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 10:49:34 2009 -0700
+
+    add Getwd, Fchdir, tests
+    
+    R=r
+    DELTA=215  (186 added, 0 deleted, 29 changed)
+    OCL=28968
+    CL=28995
+
+ src/lib/os/Makefile                  |  5 +-
+ src/lib/os/error.go                  |  1 +
+ src/lib/os/file.go                   |  7 +++
+ src/lib/os/getwd.go                  | 94 ++++++++++++++++++++++++++++++++++++
+ src/lib/os/os_test.go                | 61 ++++++++++++++++++++---
+ src/lib/syscall/file_darwin.go       | 15 ++++++
+ src/lib/syscall/file_linux.go        | 60 +++++++++++++++--------
+ src/lib/syscall/types_amd64_linux.go |  2 +
+ 8 files changed, 216 insertions(+), 29 deletions(-)

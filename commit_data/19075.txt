@@ -1,0 +1,17 @@
+commit 907736e2fe94c8cd41d3016154f2093280065484
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Apr 9 08:34:17 2014 +0200
+
+    cmd/gc: ignore blank (_) labels in label declarations
+    
+    Fixes #7538
+    
+    LGTM=rsc
+    R=gri, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85040045
+
+ src/cmd/gc/gen.c             |  4 ++++
+ test/fixedbugs/issue7538a.go | 15 +++++++++++++++
+ test/fixedbugs/issue7538b.go | 13 +++++++++++++
+ 3 files changed, 32 insertions(+)

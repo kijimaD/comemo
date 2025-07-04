@@ -1,0 +1,29 @@
+commit d01ee38fb09bfc9f03f5930fa2054cc767d611d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 17:22:20 2011 -0700
+
+    godoc: support for reading/writing (splitted) index files.
+    
+    This CL implements a new godoc feature to save the search
+    index on disk. Use -write_index to create the search
+    index file named with -index_files. Use -index_files to
+    provide a glob pattern specifying index file(s) when
+    starting godoc; in this case the run-time indexer is not
+    run.
+    
+    Known issues:
+    - saving/restoring full text index is not yet supported
+    - the list of flags and overall usage logic could use a
+      cleanup
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4974045
+
+ src/cmd/godoc/appconfig.go | 13 ++++++--
+ src/cmd/godoc/appinit.go   | 27 +++++++++++-----
+ src/cmd/godoc/doc.go       |  6 ++++
+ src/cmd/godoc/godoc.go     | 80 ++++++++++++++++++++++++++++++++++------------
+ src/cmd/godoc/index.go     | 33 +++++++++++++++++++
+ src/cmd/godoc/main.go      | 46 +++++++++++++++++++++++---
+ 6 files changed, 170 insertions(+), 35 deletions(-)

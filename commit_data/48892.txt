@@ -1,0 +1,18 @@
+commit 6b1d9aefa8fce9f9c83f46193bec43b9b70068ce
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 25 10:27:34 2022 -0400
+
+    crypto/ed25519: test fixup
+    
+    Fix up TestEd25519Vectors to download files into its own temporary mod
+    cache, as opposed relying on whatever GOPATH or GOMODCACHE setting is
+    in effect when the test is run.
+    
+    Change-Id: I523f1862f5874b0635a6c0fa83d35a6cfac6073b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402154
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/ed25519/ed25519vectors_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

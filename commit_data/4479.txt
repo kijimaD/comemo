@@ -1,0 +1,17 @@
+commit 36d645f5fa4b1d80a585d992ece8dbe5e1fd96e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 22 15:14:10 2009 -0800
+
+    add comment (warning about generated files)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/180108
+
+ src/pkg/exp/vector/intvector.go         | 3 +++
+ src/pkg/exp/vector/intvector_test.go    | 4 +++-
+ src/pkg/exp/vector/stringvector.go      | 3 +++
+ src/pkg/exp/vector/stringvector_test.go | 4 +++-
+ src/pkg/exp/vector/vector.go            | 3 +++
+ src/pkg/exp/vector/vector_test.go       | 4 +++-
+ 6 files changed, 18 insertions(+), 3 deletions(-)

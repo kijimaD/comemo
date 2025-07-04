@@ -1,0 +1,25 @@
+commit fdbc66d6ddd605c49c13261e423bb8a862eca3a2
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 1 18:29:57 2023 -0400
+
+    math/big: rename Int.ToFloat64 to Float64
+    
+    The "To" prefix was a relic of the first draft
+    that I failed to make consistent with the unprefixed
+    name used in the proposal. Fortunately iant spotted
+    it during the API audit.
+    
+    Updates #56984
+    Updates #60560
+    
+    Change-Id: Ifa6eeddf6dd5f0637c0568e383f9a4bef88b10f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+
+ api/go1.21.txt           | 2 +-
+ doc/go1.21.html          | 2 +-
+ src/math/big/int.go      | 4 ++--
+ src/math/big/int_test.go | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

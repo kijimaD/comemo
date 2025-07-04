@@ -1,0 +1,13 @@
+commit ee6b883101d894f4e78a0a40b14ddd7cd35c09a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 18:26:10 2010 -0800
+
+    add bug246 (issue 492)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186216
+
+ test/bugs/bug246.go | 18 ++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 23 insertions(+)

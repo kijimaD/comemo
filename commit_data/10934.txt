@@ -1,0 +1,12 @@
+commit 16a2d2617fa96dc85359d9919e6dceff1413feab
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 21 21:20:17 2011 +0900
+
+    cmd/go: avoid infinite loop with package specific flags
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5505053
+
+ src/cmd/go/testflag.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

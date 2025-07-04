@@ -1,0 +1,16 @@
+commit 055e1a3ae7884df71da17dadc2acae227444e4d6
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jun 24 18:51:06 2015 +0200
+
+    runtime/race: fix test driver
+    
+    At some point it silently stopped recognizing test output.
+    Meanwhile two tests degraded...
+    
+    Change-Id: I90a0325fc9aaa16c3ef16b9c4c642581da2bb10c
+    Reviewed-on: https://go-review.googlesource.com/11416
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/race_test.go         | 5 ++++-
+ src/runtime/race/testdata/mop_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

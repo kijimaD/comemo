@@ -1,0 +1,14 @@
+commit 9742003ffc7fd72ce2b433e9895ecbb6d9e4c720
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 1 11:17:26 2013 -0700
+
+    strings: add IndexByte, for consistency with bytes package
+    
+    I always forget which package has it.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12214044
+
+ src/pkg/strings/strings.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

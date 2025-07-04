@@ -1,0 +1,18 @@
+commit 032e2bd1eb215cdeec605b33e42878ec7186cb53
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 12 23:28:36 2016 -0700
+
+    cmd/compile: replace aindex with typArray
+    
+    aindex is overkill when it's only ever used with known integer
+    constants, so just use typArray directly instead.
+    
+    Change-Id: I43fc14e604172df859b3ad9d848d219bbe48e434
+    Reviewed-on: https://go-review.googlesource.com/30979
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 24 ------------------------
+ src/cmd/compile/internal/gc/walk.go | 14 +++++++-------
+ 2 files changed, 7 insertions(+), 31 deletions(-)

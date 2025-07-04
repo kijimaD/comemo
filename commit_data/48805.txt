@@ -1,0 +1,22 @@
+commit f49e802892a225c7fd14a3a8bb8c0e83875d888d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 18 12:55:30 2022 -0400
+
+    net/http: eliminate arbitrary timeouts in TestServerRequestContextCancel_ConnClose
+    
+    These timeouts are empirically sometimes (but rarely) too short on
+    slower builders, and at any rate if this test fails “for real” we'll
+    want a goroutine dump in order to debug it anyway. A goroutine dump is
+    exactly what we get if we let the test time out on its own.
+    
+    Fixes #52414.
+    
+    Change-Id: Id2dd3839977bd8a41f296d67d1cccbf068fd73f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400816
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/serve_test.go | 19 +++----------------
+ 1 file changed, 3 insertions(+), 16 deletions(-)

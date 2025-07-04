@@ -1,0 +1,83 @@
+commit a20fd1f6ba668ec0bd8c432d26def2b65cc6609a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 14:51:48 2016 -0400
+
+    runtime: reclaim scan/dead bit in first word
+    
+    With the switch to separate mark bitmaps, the scan/dead bit for the
+    first word of each object is now unused. Reclaim this bit and use it
+    as a scan/dead bit, just like words three and on. The second word is
+    still used for checkmark.
+    
+    This dramatically simplifies heapBitsSetTypeNoScan and hasPointers,
+    since they no longer need different cases for 1, 2, and 3+ word
+    objects. They can instead just manipulate the heap bitmap for the
+    first word and be done with it.
+    
+    In order to enable this, we change heapBitsSetType and runGCProg to
+    always set the scan/dead bit to scan for the first word on every code
+    path. Since these functions only apply to types that have pointers,
+    there's no need to do this conditionally: it's *always* necessary to
+    set the scan bit in the first word.
+    
+    We also change every place that scans an object and checks if there
+    are more pointers. Rather than only checking morePointers if the word
+    is >= 2, we now check morePointers if word != 1 (since that's the
+    checkmark word).
+    
+    Looking forward, we should probably reclaim the checkmark bit, too,
+    but that's going to be quite a bit more work.
+    
+    Tested by setting doubleCheck in heapBitsSetType and running all.bash
+    on both linux/amd64 and linux/386, and by running GOGC=10 all.bash.
+    
+    This particularly improves the FmtFprintf* go1 benchmarks, since they
+    do a large amount of noscan allocation.
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.34s ± 1%     2.38s ± 1%  +1.70%  (p=0.000 n=17+19)
+    Fannkuch11-12                2.09s ± 0%     2.09s ± 1%    ~     (p=0.276 n=17+16)
+    FmtFprintfEmpty-12          44.9ns ± 2%    44.8ns ± 2%    ~     (p=0.340 n=19+18)
+    FmtFprintfString-12          127ns ± 0%     125ns ± 0%  -1.57%  (p=0.000 n=16+15)
+    FmtFprintfInt-12             128ns ± 0%     122ns ± 1%  -4.45%  (p=0.000 n=15+20)
+    FmtFprintfIntInt-12          207ns ± 1%     193ns ± 0%  -6.55%  (p=0.000 n=19+14)
+    FmtFprintfPrefixedInt-12     197ns ± 1%     191ns ± 0%  -2.93%  (p=0.000 n=17+18)
+    FmtFprintfFloat-12           263ns ± 0%     248ns ± 1%  -5.88%  (p=0.000 n=15+19)
+    FmtManyArgs-12               794ns ± 0%     779ns ± 1%  -1.90%  (p=0.000 n=18+18)
+    GobDecode-12                7.14ms ± 2%    7.11ms ± 1%    ~     (p=0.072 n=20+20)
+    GobEncode-12                5.85ms ± 1%    5.82ms ± 1%  -0.49%  (p=0.000 n=20+20)
+    Gzip-12                      218ms ± 1%     215ms ± 1%  -1.22%  (p=0.000 n=19+19)
+    Gunzip-12                   36.8ms ± 0%    36.7ms ± 0%  -0.18%  (p=0.006 n=18+20)
+    HTTPClientServer-12         77.1µs ± 4%    77.1µs ± 3%    ~     (p=0.945 n=19+20)
+    JSONEncode-12               15.6ms ± 1%    15.9ms ± 1%  +1.68%  (p=0.000 n=18+20)
+    JSONDecode-12               55.2ms ± 1%    53.6ms ± 1%  -2.93%  (p=0.000 n=17+19)
+    Mandelbrot200-12            4.05ms ± 1%    4.05ms ± 0%    ~     (p=0.306 n=17+17)
+    GoParse-12                  3.14ms ± 1%    3.10ms ± 1%  -1.31%  (p=0.000 n=19+18)
+    RegexpMatchEasy0_32-12      69.3ns ± 1%    70.0ns ± 0%  +0.89%  (p=0.000 n=19+17)
+    RegexpMatchEasy0_1K-12       237ns ± 1%     236ns ± 0%  -0.62%  (p=0.000 n=19+16)
+    RegexpMatchEasy1_32-12      69.5ns ± 1%    70.3ns ± 1%  +1.14%  (p=0.000 n=18+17)
+    RegexpMatchEasy1_1K-12       377ns ± 1%     366ns ± 1%  -3.03%  (p=0.000 n=15+19)
+    RegexpMatchMedium_32-12      107ns ± 1%     107ns ± 2%    ~     (p=0.318 n=20+19)
+    RegexpMatchMedium_1K-12     33.8µs ± 3%    33.5µs ± 1%  -1.04%  (p=0.001 n=20+19)
+    RegexpMatchHard_32-12       1.68µs ± 1%    1.73µs ± 0%  +2.50%  (p=0.000 n=20+18)
+    RegexpMatchHard_1K-12       50.8µs ± 1%    52.0µs ± 1%  +2.50%  (p=0.000 n=19+18)
+    Revcomp-12                   381ms ± 1%     385ms ± 1%  +1.00%  (p=0.000 n=17+18)
+    Template-12                 64.9ms ± 3%    62.6ms ± 1%  -3.55%  (p=0.000 n=19+18)
+    TimeParse-12                 324ns ± 0%     328ns ± 1%  +1.25%  (p=0.000 n=18+18)
+    TimeFormat-12                345ns ± 0%     334ns ± 0%  -3.31%  (p=0.000 n=15+17)
+    [Geo mean]                  52.1µs         51.5µs       -1.00%
+    
+    Change-Id: I13e74da3193a7f80794c654f944d1f0d60817049
+    Reviewed-on: https://go-review.googlesource.com/22632
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go    |   3 ++
+ src/runtime/cgocall.go     |   2 +-
+ src/runtime/gcinfo_test.go |   5 +-
+ src/runtime/heapdump.go    |   2 +-
+ src/runtime/malloc.go      |   2 +-
+ src/runtime/mbitmap.go     | 128 +++++++++++++++++----------------------------
+ src/runtime/mgcmark.go     |   2 +-
+ 7 files changed, 59 insertions(+), 85 deletions(-)

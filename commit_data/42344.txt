@@ -1,0 +1,24 @@
+commit daf39d06ee04414fa962aa61fd0e7bc4ee166bfd
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 7 15:16:25 2020 -0700
+
+    cmd/compile: restrict ppc64 constant shifts to amount 0-63
+    
+    ... and 0-31 for 32-bit shifts.
+    
+    Generally update the docs for ppc64 shift instructions to be
+    clearer about what they actually do.
+    
+    This issue is causing problems for the subsequent CL. The shift
+    amount was <0 and caused the assembler to report an invalid instruction.
+    
+    Change-Id: I8c708a15e7f71931835e6e543d8db3c716186e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232858
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 27 ++++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 24 +++++-----
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 72 ++++++++++++++--------------
+ 3 files changed, 62 insertions(+), 61 deletions(-)

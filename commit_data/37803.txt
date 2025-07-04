@@ -1,0 +1,18 @@
+commit 204a8f55dc2e0ac8d27a781dab0da609b98560da
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Mon Dec 31 17:14:54 2018 -0800
+
+    runtime: fix REFLECTMETHOD macro
+    
+    Removes spurious equals sign from REFLECTMETHOD macro.
+    
+    Fixes #29487
+    
+    Change-Id: Iaa3d85ff57087aa79a259f28816f8b0a552536f3
+    Reviewed-on: https://go-review.googlesource.com/c/155927
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/textflag.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

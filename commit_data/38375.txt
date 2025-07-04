@@ -1,0 +1,19 @@
+commit 01d1dc4172793edfc597f7abe5da38f7f232b69a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 16:43:45 2019 -0400
+
+    cmd/go: fix typo in GoGetInsecure to actually set GOPROXY
+    
+    I typo'd this variable in CL 165745, and neither I, the reviewer, nor the TryBots noticed.
+    But the longtest builder noticed, and it's not happy about it.
+    
+    Updates #30571
+    
+    Change-Id: I5e3d267346407855ec0d1f340a72dc2c521ecc63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167086
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

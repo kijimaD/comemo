@@ -1,0 +1,17 @@
+commit 2bdc60f8e71aabafccb1c414a7732a265faac3dd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 21 11:18:16 2012 +1000
+
+    net/http: fix send on close channel error
+    
+    Fixes #3793.
+    
+    Tested using GOMAXPROCS=81 which was able to trigger a panic
+    in TestStressSurpriseServerCloses continually on a Core i5.
+    
+    R=fullung, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6445069
+
+ src/pkg/net/http/transport.go | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

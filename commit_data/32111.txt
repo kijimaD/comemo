@@ -1,0 +1,13 @@
+commit 9b1e7cf2ac90d2c4637cae480957e0f0152c3622
+Author: Francesc Campoy <francesc@campoy.cat>
+Date:   Fri Aug 4 15:41:57 2017 -0700
+
+    math/bits: add examples for OnesCount functions
+    
+    Change-Id: Ie673f9665825a40281c2584d478ba1260f725856
+    Reviewed-on: https://go-review.googlesource.com/53357
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/math/bits/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

@@ -1,0 +1,20 @@
+commit f277ebfc7615f6b18856919917bc62e7628109bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 16:11:17 2009 -0700
+
+    import debug/gosym from usr/austin/sym
+    
+    R=austin
+    DELTA=958  (956 added, 0 deleted, 2 changed)
+    OCL=34180
+    CL=34212
+
+ src/pkg/debug/binary/binary.go      |   4 +-
+ src/pkg/debug/elf/file.go           |  10 +-
+ src/pkg/debug/gosym/pclinetest.h    |   7 +
+ src/pkg/debug/gosym/pclinetest.s    |  89 ++++++
+ src/pkg/debug/gosym/pclntab.go      |  85 ++++++
+ src/pkg/debug/gosym/pclntab_test.go | 209 ++++++++++++++
+ src/pkg/debug/gosym/symtab.go       | 548 ++++++++++++++++++++++++++++++++++++
+ src/pkg/io/io.go                    |   4 +
+ 8 files changed, 954 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 6405ab0fae63b9b5e051c8d19ba2ee3666cb327e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 4 22:29:10 2010 +1000
+
+    fmt: delete erroneous sentence about return value for Sprint*.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2160041
+
+ src/pkg/fmt/print.go | 3 ---
+ 1 file changed, 3 deletions(-)

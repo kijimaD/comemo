@@ -1,0 +1,12 @@
+commit 15cb18dbfa5d2a371aacd2b52fdd3e9cf29ff19d
+Author: Mat Byczkowski <mbyczkowski@gmail.com>
+Date:   Wed Aug 9 13:09:47 2017 -0700
+
+    doc/1.9: add CL 44074 for net/http to the release notes
+    
+    Change-Id: I2eb4f9531372c792a98578560e946d803ad96da8
+    Reviewed-on: https://go-review.googlesource.com/54411
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ doc/go1.9.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,26 @@
+commit 8d45e612f1255619e8637acff5546c09f0aa3e67
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 1 11:24:17 2019 +0100
+
+    syscall: add support for linux/riscv64
+    
+    Based on the riscv-go port and the linux/riscv64 files in x/sys/unix.
+    
+    Updates #27532
+    
+    Change-Id: Ib33a59a61f6b2721b12292c18f1fc9f9d0509cd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204659
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/asm_linux_riscv64.s       |  115 ++
+ src/syscall/endian_little.go          |    2 +-
+ src/syscall/mkall.sh                  |    9 +
+ src/syscall/syscall_linux_riscv64.go  |  203 ++++
+ src/syscall/types_linux.go            |    6 +-
+ src/syscall/zerrors_linux_riscv64.go  | 1878 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_riscv64.go | 1624 ++++++++++++++++++++++++++++
+ src/syscall/zsysnum_linux_riscv64.go  |  273 +++++
+ src/syscall/ztypes_linux_riscv64.go   |  631 +++++++++++
+ 9 files changed, 4737 insertions(+), 4 deletions(-)

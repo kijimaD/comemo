@@ -1,0 +1,35 @@
+commit 51cb12e83b87a100d1df0d80f5176417e08872ea
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 3 13:52:00 2023 -0700
+
+    runtime: add deferreturn fast path for linked defers
+    
+    A consequence of go.dev/cl/513837 was that calling deferreturn would
+    now use the unwinder to find (just) the current frame, and it turns
+    out there are workloads where this has a significant performance
+    impact.
+    
+    As a simple optimization, this CL adds a fast path for deferreturn to
+    detect when there are pending linked defers, which allows us to skip
+    invoking the unwinder entirely.
+    
+    Notably, this still doesn't handle the corner case of calling
+    deferreturn in a function that uses linked defer when dynamically
+    there just aren't any defers pending. It also means that after
+    recovering from a panic and returning to a frame that used open-coded,
+    we still need to use the unwinder too.
+    
+    I hope to further optimize defer handling to improve these cases too,
+    but this is an easy, short-term optimization that relieves the
+    performance impact to the affected workloads.
+    
+    Change-Id: I11fa73649302199eadccc27b403b231db8f33db2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515716
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/panic.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

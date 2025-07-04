@@ -1,0 +1,25 @@
+commit 9984a5bca403ec14340a05c6fd57fcbefd96f4df
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 22:45:55 2012 -0500
+
+    cmd/cc: grow some global arrays
+    
+    Avoids global array buffer overflows if they are
+    indexed using some of the values between NTYPE
+    and NALLTYPE.  It is entirely likely that not all of these
+    are necessary, but this is the C compiler and not worth
+    worrying much about.  This change takes up only a
+    few more bytes of memory and makes the behavior
+    deterministic.
+    
+    Fixes #3078.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5693052
+
+ src/cmd/cc/cc.h    |  4 ++--
+ src/cmd/cc/com64.c |  2 +-
+ src/cmd/cc/funct.c |  4 ++--
+ src/cmd/cc/sub.c   | 48 ++++++++++++++++++++++++------------------------
+ 4 files changed, 29 insertions(+), 29 deletions(-)

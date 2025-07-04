@@ -1,0 +1,19 @@
+commit 1c441e259f66bc2594cb8b0a95bf6cc0847e2bd8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 13 15:25:07 2012 -0800
+
+    exp/sql: fix statement leak
+    
+    Also verified in external test suite that this fixes MySQL
+    resource exhaustion problems, and also exposed a double-free
+    bug in the gosqlite3 driver (where gosqlite3 either got lucky
+    before, or was working around this bug)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5544057
+
+ src/pkg/exp/sql/fakedb_test.go | 17 ++++++++++++++++-
+ src/pkg/exp/sql/sql.go         | 19 ++++++++++++++-----
+ src/pkg/exp/sql/sql_test.go    | 18 ++++++++++++++++++
+ 3 files changed, 48 insertions(+), 6 deletions(-)

@@ -1,0 +1,32 @@
+commit 3844e707f699198ba44eaf911cbaf673aed8f286
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:50:57 2017 +0200
+
+    cmd/dist: simplify code segments
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (7).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: Ia3c33ef060b4baaef354b729ba82ed0b28e52857
+    Reviewed-on: https://go-review.googlesource.com/61013
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go     | 34 +++++++++++-----------
+ src/cmd/dist/buildgo.go   | 10 ++++---
+ src/cmd/dist/buildtool.go | 11 ++++---
+ src/cmd/dist/main.go      | 73 ++++++++++++++++++++++-------------------------
+ 4 files changed, 61 insertions(+), 67 deletions(-)

@@ -1,0 +1,21 @@
+commit f0e940ebc985661f54d31c8d9ba31a553b87041b
+Author: Michael Hendricks <michael@ndrix.org>
+Date:   Wed Oct 2 09:30:51 2019 -0600
+
+    net: avoid an infinite loop in LookupAddr
+    
+    If a request for a PTR record returned a response with a non-PTR
+    answer, goLookupPTR would loop forever.  Skipping non-PTR answers
+    guarantees progress through the DNS response.
+    
+    Fixes #34660
+    
+    Change-Id: I56f9d21e5342d07e7d843d253267e93a29707904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198460
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      |  8 +++++++
+ src/net/dnsclient_unix_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

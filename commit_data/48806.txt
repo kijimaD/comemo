@@ -1,0 +1,25 @@
+commit c5edd5f616b4ee4bbaefdb1579c6078e7ed7e84e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 16 20:23:28 2022 -0700
+
+    reflect: make Value.MapRange inlineable
+    
+    This allows the caller to decide whether MapIter should be
+    stack allocated or heap allocated based on whether it escapes.
+    In most cases, it does not escape and thus removes the utility
+    of MapIter.Reset (#46293). In fact, use of sync.Pool with MapIter
+    and calling MapIter.Reset is likely to be slower.
+    
+    Change-Id: Ic93e7d39e5dd4c83e7fca9e0bdfbbcd70777f0e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400675
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/test/inl_test.go |  1 +
+ src/reflect/all_test.go                   |  8 +++++---
+ src/reflect/value.go                      | 12 +++++++++++-
+ 3 files changed, 17 insertions(+), 4 deletions(-)

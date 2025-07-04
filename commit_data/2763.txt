@@ -1,0 +1,22 @@
+commit 79fac7ca8677ed634fa5652c9ad451e0f5a2112c
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 20 17:41:40 2009 -0700
+
+    Implement array types and index expressions.
+    
+    Some cleanup.  Elem() on PtrType is now just Elem and matches
+    with ArrayType.  Generators now switch over the result type
+    instead of the operand type.  Delete unused diag function.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=281  (219 added, 18 deleted, 44 changed)
+    OCL=31876
+    CL=31891
+
+ usr/austin/eval/decls.go |   9 ++
+ usr/austin/eval/expr.go  | 222 ++++++++++++++++++++++++++++++++++++++---------
+ usr/austin/eval/type.go  |  49 +++++++++--
+ usr/austin/eval/util.go  |   8 --
+ usr/austin/eval/value.go |  27 ++++++
+ 5 files changed, 258 insertions(+), 57 deletions(-)

@@ -1,0 +1,14 @@
+commit f30fcf32ac91ae0b7e6f23774baececf0932f40a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 13:33:57 2009 -0700
+
+    missing darwin files; g4 nothave.
+    
+    R=r
+    DELTA=115  (115 added, 0 deleted, 0 changed)
+    OCL=29884
+    CL=29888
+
+ src/lib/os/dir_darwin_386.go  | 76 +++++++++++++++++++++++++++++++++++++++++++
+ src/lib/os/stat_darwin_386.go | 41 +++++++++++++++++++++++
+ 2 files changed, 117 insertions(+)

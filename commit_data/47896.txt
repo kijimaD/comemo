@@ -1,0 +1,16 @@
+commit ade5488d75fefc4afd72f2f6090f4c823c93d083
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 10:06:53 2022 -0800
+
+    doc/go1.18: document type parameter name restriction
+    
+    For #47694.
+    
+    Change-Id: I00862f987a0ff9f71e0295ce4320e6f9a6a4332f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376414
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

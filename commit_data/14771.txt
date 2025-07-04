@@ -1,0 +1,12 @@
+commit 7ced3f12bcc2a667a8eead81e7c995f8c86f756e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 2 15:28:30 2013 -0500
+
+    api: add go/types to next.txt
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7035045
+
+ api/next.txt | 103 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 103 insertions(+)

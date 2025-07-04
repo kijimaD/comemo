@@ -1,0 +1,11 @@
+commit 948f3e77e1f378952c954ebb753de9bc6376a31b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 17 20:44:35 2009 -0800
+
+    bug in copy
+    
+    R=rsc
+    https://golang.org/cl/156056
+
+ src/pkg/runtime/slice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

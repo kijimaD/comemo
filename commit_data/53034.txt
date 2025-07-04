@@ -1,0 +1,23 @@
+commit 91b8cc0dfaae12af1a89e2b7ad3da10728883ee1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 27 13:23:10 2023 -0400
+
+    cmd/go/internal/modindex: update index_format.txt
+    
+    This incorporates the changes from CL 453603 and CL 416178.
+    
+    Please review carefully: I did my best to read through the CLs, but
+    I'm not entirely confident I haven't made a mistake.
+    
+    Fixes #59770.
+    
+    Change-Id: Ib8937e55dcd11e3f75c16b28519d3d91df1d4da3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492596
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modindex/index_format.txt | 20 +++++++++++++-------
+ src/cmd/go/internal/modindex/read.go          |  2 +-
+ 2 files changed, 14 insertions(+), 8 deletions(-)

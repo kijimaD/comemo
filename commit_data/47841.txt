@@ -1,0 +1,18 @@
+commit 4dfbb89f585aac690a1c41dbb1604a567bc46f63
+Author: “kinggo” <1510613524@qq.com>
+Date:   Mon Dec 20 05:54:27 2021 +0000
+
+    runtime: typo fix cyle -> cycle
+    
+    Change-Id: I213fa8aa9b9c2537a189677394ddd30c62312518
+    GitHub-Last-Rev: ccafdee9440b06232cdfca83099bf0aeff62a4c0
+    GitHub-Pull-Request: golang/go#50268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373336
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Zhuo Meng <mzh@golangcn.org>
+
+ src/runtime/mgcmark.go  | 2 +-
+ src/runtime/mgcsweep.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

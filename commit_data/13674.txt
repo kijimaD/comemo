@@ -1,0 +1,18 @@
+commit 6cf77f2af483b562e76556aec1f51ece00756d34
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 23 20:54:00 2012 +0900
+
+    net: avoid nil pointer dereference when RemoteAddr.String method chain is called
+    
+    Fixes #3721.
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6395055
+
+ src/pkg/net/fd.go         |  5 ++--
+ src/pkg/net/file.go       | 14 +++++-----
+ src/pkg/net/ipraw_test.go | 51 +++++++++++++++++++++++++++++++++++-
+ src/pkg/net/sock.go       | 67 +++++++++++++++++++++++++++++++++--------------
+ src/pkg/net/udp_test.go   | 27 +++++++++++++++++++
+ 5 files changed, 133 insertions(+), 31 deletions(-)

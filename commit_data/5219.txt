@@ -1,0 +1,52 @@
+commit 6c196015e090583d0d4549bff5675522556c98ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 5 12:51:09 2010 -0700
+
+    runtime: various arm fixes
+      * correct symbol table size
+      * do not reorder functions in output
+      * traceback
+      * signal handling
+      * use same code for go + defer
+      * handle leaf functions in symbol table
+    
+    R=kaib, dpx
+    CC=golang-dev
+    https://golang.org/cl/884041
+
+ src/cmd/5l/asm.c                       |   6 +-
+ src/cmd/5l/noop.c                      |   4 +-
+ src/cmd/5l/pass.c                      |   2 +-
+ src/pkg/runtime/386/arch.h             |   3 +
+ src/pkg/runtime/386/asm.s              |   4 +
+ src/pkg/runtime/Makefile               |   2 +-
+ src/pkg/runtime/amd64/arch.h           |   3 +
+ src/pkg/runtime/amd64/asm.s            |  26 +++
+ src/pkg/runtime/amd64/traceback.c      |   4 +-
+ src/pkg/runtime/arm/arch.h             |   3 +
+ src/pkg/runtime/arm/asm.s              |  15 +-
+ src/pkg/runtime/arm/softfloat.c        |  14 +-
+ src/pkg/runtime/arm/traceback.c        |  86 ++++++++-
+ src/pkg/runtime/darwin/386/signal.c    |   2 +-
+ src/pkg/runtime/darwin/amd64/signal.c  |   2 +-
+ src/pkg/runtime/darwin/amd64/sys.s     |  22 ---
+ src/pkg/runtime/freebsd/386/signal.c   |   2 +-
+ src/pkg/runtime/freebsd/amd64/signal.c |   2 +-
+ src/pkg/runtime/freebsd/amd64/sys.s    |  23 ---
+ src/pkg/runtime/linux/386/signal.c     |   2 +-
+ src/pkg/runtime/linux/amd64/signal.c   |   2 +-
+ src/pkg/runtime/linux/amd64/sys.s      |  22 ---
+ src/pkg/runtime/linux/arm/defs.h       |  66 ++++++-
+ src/pkg/runtime/linux/arm/signal.c     | 159 ++++++++--------
+ src/pkg/runtime/linux/arm/sys.s        |  39 ++++
+ src/pkg/runtime/linux/defs_arm.c       |  31 ++--
+ src/pkg/runtime/linux/os.h             |   2 +
+ src/pkg/runtime/proc.c                 |   9 +-
+ src/pkg/runtime/runtime.c              |   3 +-
+ src/pkg/runtime/runtime.h              |   2 +-
+ src/pkg/runtime/symtab.c               |  39 +++-
+ test/arm-pass.txt                      | 321 +++++++++++++++++++++------------
+ test/golden-arm.out                    |  37 ++--
+ test/run                               |   1 +
+ test/run-arm                           |   1 +
+ 35 files changed, 620 insertions(+), 341 deletions(-)

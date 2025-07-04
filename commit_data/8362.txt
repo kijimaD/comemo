@@ -1,0 +1,12 @@
+commit 607f5bac9432bc2a3f31fde4a85cdfbf23a0cb80
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 12 11:21:00 2011 -0400
+
+    CONTRIBUTORS: add Johan Euphrosine (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4515070
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

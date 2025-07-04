@@ -1,0 +1,42 @@
+commit 60ffae25bc1e8ddacaa52952683bfaf6caebc9fd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri May 25 09:58:38 2012 +1000
+
+    hash/adler32: optimize.
+    
+    The bulk of the gains come from hoisting the modulo ops outside of
+    the inner loop.
+    
+    Reducing the digest type from 8 bytes to 4 bytes gains another 1% on
+    the hash/adler32 micro-benchmark.
+    
+    Benchmarks for $GOOS,$GOARCH = linux,amd64 below.
+    
+    hash/adler32 benchmark:
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkAdler32KB         1660         1364  -17.83%
+    
+    image/png benchmark:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkDecodeGray               2466909      2425539   -1.68%
+    BenchmarkDecodeNRGBAGradient      9884500      9751705   -1.34%
+    BenchmarkDecodeNRGBAOpaque        8511615      8379800   -1.55%
+    BenchmarkDecodePaletted           1366683      1330677   -2.63%
+    BenchmarkDecodeRGB                6987496      6884974   -1.47%
+    BenchmarkEncodePaletted           6292408      6040052   -4.01%
+    BenchmarkEncodeRGBOpaque         19780680     19178440   -3.04%
+    BenchmarkEncodeRGBA              80738600     79076800   -2.06%
+    
+    Wall time for Denis Cheremisov's PNG-decoding program given in
+    https://groups.google.com/group/golang-nuts/browse_thread/thread/22aa8a05040fdd49
+    Before: 2.44s
+    After:  2.26s
+    Delta:  -7%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6251044
+
+ src/pkg/hash/adler32/adler32.go      | 62 +++++++++++++++-----------------
+ src/pkg/hash/adler32/adler32_test.go | 69 ++++++++++++++++++++++++------------
+ 2 files changed, 76 insertions(+), 55 deletions(-)

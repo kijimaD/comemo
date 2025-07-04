@@ -1,0 +1,15 @@
+commit 1767d2cc2fed70e4f195474677f72712eaf28c9e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Mar 13 18:00:17 2021 +0100
+
+    io/fs: use testing.T.TempDir in TestWalkDir
+    
+    Change-Id: I805ad51332e4efe27d47f6c6e3b0af945e0d4aa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301489
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/fs/walk_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

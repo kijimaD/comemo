@@ -1,0 +1,14 @@
+commit 01f0dbbafce1b4f7cd3771268041d3caa40fc73b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 20:46:57 2018 -0400
+
+    cmd/compile: gofmt
+    
+    I don't know how this file wasn't gofmted.
+    
+    Change-Id: I9b3765ae63970b7bc4dc87107f546e64a78e2830
+    Reviewed-on: https://go-review.googlesource.com/c/146497
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

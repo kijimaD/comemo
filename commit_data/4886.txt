@@ -1,0 +1,16 @@
+commit fc010adcd7005f6eaf646b6edde50d09cac69fc1
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Feb 18 17:55:11 2010 -0800
+
+    complex constant multiply and divide
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217041
+
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/const.c        | 84 +++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/typecheck.c    |  4 +++
+ src/cmd/gc/walk.c         | 12 ++++---
+ 5 files changed, 92 insertions(+), 10 deletions(-)

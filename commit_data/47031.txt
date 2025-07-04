@@ -1,0 +1,31 @@
+commit 49fda9e4f5cd3a05fd5fa0b3a2047a9d24873bd6
+Author: Fannie Zhang <fannie.zhang@arm.com>
+Date:   Wed Jan 6 08:57:44 2021 +0000
+
+    cmd/go: add -asan option
+    
+    The -asan option compiles Go code to use the address sanitizer.  This is
+    intended for use when linking with C/C++ code compiled with -fsanitize=address.
+    When memory blocks are passed back and forth between C/C++ and Go, code in
+    both languages will agree as to whether the memory is validly allocated or not,
+    and will report errors for any use of invalid memory.
+    
+    Updates #44853.
+    
+    Change-Id: I0209002ef795cc1c823daae557fb80c906158db3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298612
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  7 +++--
+ src/cmd/go/go_test.go                              |  2 ++
+ src/cmd/go/internal/cfg/cfg.go                     |  1 +
+ src/cmd/go/internal/load/pkg.go                    |  5 ++++
+ src/cmd/go/internal/work/build.go                  |  8 ++++--
+ src/cmd/go/internal/work/exec.go                   |  6 ++++-
+ src/cmd/go/internal/work/init.go                   | 30 +++++++++++++++++-----
+ src/cmd/go/script_test.go                          |  2 ++
+ src/cmd/go/testdata/script/README                  |  2 +-
+ src/cmd/go/testdata/script/goflags.txt             |  2 +-
+ .../script/install_msan_and_race_require_cgo.txt   |  6 +++--
+ 11 files changed, 55 insertions(+), 16 deletions(-)

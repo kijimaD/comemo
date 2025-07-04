@@ -1,0 +1,20 @@
+commit be8aa4b073450b799d9a711b19862b6d915fe9d1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:27:29 2014 +0900
+
+    os: handle file creation with close-on-exec flag correctly on darwin, freebsd
+    
+    Fixes #7187.
+    Update #7193
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, rsc, minux.ma, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/64510043
+
+ src/pkg/os/file_unix.go   |  7 +------
+ src/pkg/os/sys_darwin.go  | 31 +++++++++++++++++++++++++++++++
+ src/pkg/os/sys_freebsd.go | 23 +++++++++++++++++++++++
+ src/pkg/os/sys_nacl.go    |  9 +++++++++
+ src/pkg/os/sys_unix.go    | 11 +++++++++++
+ 5 files changed, 75 insertions(+), 6 deletions(-)

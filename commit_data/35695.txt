@@ -1,0 +1,28 @@
+commit 72c29fc8cde7a02c760915e7b3e63de5502496bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 13 08:20:23 2018 -0700
+
+    runtime: move darwin kevent calls to libc
+    
+    kqueue, kevent, closeonexec, setitimer, with sysctl and fcntl helpers.
+    
+    TODO:arm,arm64
+    
+    Change-Id: I9386f377186d6ac7cb99064c524a67e0c8282eba
+    Reviewed-on: https://go-review.googlesource.com/118561
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_darwin.go       |   4 ++
+ src/runtime/defs_darwin_386.go   |   3 +
+ src/runtime/defs_darwin_amd64.go |   3 +
+ src/runtime/netpoll_kqueue.go    |   6 --
+ src/runtime/os_darwin.go         |   6 --
+ src/runtime/os_dragonfly.go      |   6 ++
+ src/runtime/os_freebsd.go        |   6 ++
+ src/runtime/os_netbsd.go         |   6 ++
+ src/runtime/os_openbsd.go        |   6 ++
+ src/runtime/sys_darwin.go        |  46 +++++++++++++++
+ src/runtime/sys_darwin_386.s     | 120 ++++++++++++++++++++++++++-------------
+ src/runtime/sys_darwin_amd64.s   | 100 ++++++++++++++++----------------
+ 12 files changed, 211 insertions(+), 101 deletions(-)

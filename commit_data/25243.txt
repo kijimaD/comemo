@@ -1,0 +1,20 @@
+commit 85dd62d5dd507704671c129df8e7c669b7a9f356
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 11 19:11:54 2015 -0800
+
+    cmd/compile: add missing write barriers for return statements
+    
+    Copying return values to heap-escaped result parameters requires write
+    barriers.
+    
+    Fixes #13587.
+    
+    Change-Id: Ifa04ff7fa4adcc6393acdd82e527beb8f2a00a8b
+    Reviewed-on: https://go-review.googlesource.com/17762
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ test/fixedbugs/issue13587.go        | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)

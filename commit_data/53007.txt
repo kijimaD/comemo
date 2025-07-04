@@ -1,0 +1,22 @@
+commit 3943fc14d35c117f2256fb789743d9f075c9aba5
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 16:31:23 2023 -0400
+
+    misc/reboot: move to cmd/internal/bootstrap_test
+    
+    This is the last test run from misc by dist.
+    
+    For #37486.
+    
+    Change-Id: I1a70ded29ba0de548c9a16611ba987a258121e80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493606
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go                                       |  7 -------
+ .../cmd/internal/bootstrap_test}/experiment_toolid_test.go |  5 +++--
+ .../cmd/internal/bootstrap_test}/overlaydir_test.go        |  2 +-
+ .../cmd/internal/bootstrap_test}/reboot_test.go            | 14 ++++++++------
+ 4 files changed, 12 insertions(+), 16 deletions(-)

@@ -1,0 +1,19 @@
+commit 68981bf309be6143dd4cd769ffa94e9347de1fbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 23 20:54:05 2019 -0700
+
+    syscall: make TestGetdirentries checkptr safe
+    
+    Fixes Darwin.
+    
+    Updates #35092
+    
+    Change-Id: I045f070c8549d00610b459e3a82cac870d9ddb54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203077
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/getdirentries_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 11c450fa58b1aa712d7202d71285ae1b0612d201
+Author: yangwenmai <yangwen.yw@gmail.com>
+Date:   Sun Apr 10 16:04:22 2022 +0800
+
+    A+C: add Wen Yang (individual CLA)
+    
+    Change-Id: Iaac18d78b4a11698d0b5f70b1d5143c0da8a6943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399299
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

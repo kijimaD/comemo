@@ -1,0 +1,17 @@
+commit 707f888797c6d37cf5da85e666e992d45f973150
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Tue Nov 1 08:19:34 2022 +0900
+
+    cmd/compile/internal/pgo: gofmt and simplify
+    
+    Change-Id: I29621cb6a3845917e7558be28579fe0e1b2d5afa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446776
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

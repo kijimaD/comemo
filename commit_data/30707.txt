@@ -1,0 +1,24 @@
+commit 09272ae981905dcdc76ab7ffbda996c49d86595c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 17 13:35:36 2017 -0700
+
+    cmd/compile/internal/gc: rename Thearch to thearch
+    
+    Prepared using gorename.
+    
+    Change-Id: Id55dac9ae5446a8bfeac06e7995b35f4c249eeca
+    Reviewed-on: https://go-review.googlesource.com/38302
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/align.go |  6 +++---
+ src/cmd/compile/internal/gc/go.go    |  2 +-
+ src/cmd/compile/internal/gc/main.go  | 14 +++++++-------
+ src/cmd/compile/internal/gc/pgen.go  |  4 ++--
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go   | 36 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go  |  4 ++--
+ 9 files changed, 36 insertions(+), 36 deletions(-)

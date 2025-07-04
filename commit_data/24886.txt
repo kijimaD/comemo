@@ -1,0 +1,22 @@
+commit b5c1b5d7a035d589c5a970f17b7e0c52441d5d34
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 9 13:31:03 2015 -0800
+
+    cmd/go: fix build -n when adding to archive with gc toolchain
+    
+    Fix the output of build -n when adding to an existing archive with the
+    gc toolchain by observing that we are, now, always doing that.  When
+    using the gc toolchain the archive is now always created by the Go
+    compiler, and never by the pack command.
+    
+    No test because we have not historically tested build -n output.
+    
+    Fixes #13118.
+    
+    Change-Id: I3a5c43cf45169fa6c9581e4741309c77d2b6e58b
+    Reviewed-on: https://go-review.googlesource.com/16761
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/build.go | 37 +++++++++++++++----------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)

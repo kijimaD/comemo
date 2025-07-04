@@ -1,0 +1,14 @@
+commit d4e48eeca1ceffc95faee0d97f040612f9f206e9
+Author: Emil Hessman <emil@hessman.se>
+Date:   Sun Dec 28 08:21:58 2014 +0100
+
+    encoding/gob: address go vet report
+    
+    Use Fatalf for formatting directive rather than plain Fatal.
+    
+    Change-Id: Iebd30cd6326890e9501746113a6d97480949e3d2
+    Reviewed-on: https://go-review.googlesource.com/2161
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/encoder_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit aa798d26c46956f92042f8a6394c830b91f53f21
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Wed Mar 23 16:29:40 2011 +1100
+
+    misc/bbedit: remove closed keyword
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4284058
+
+ misc/bbedit/Go.plist | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

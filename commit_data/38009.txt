@@ -1,0 +1,17 @@
+commit 56e4b0b3a2520015cb1d38b5bf67820e75e16f83
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 09:20:42 2019 -0500
+
+    misc/android: add build constraints on files intended to be built by filename only
+    
+    Updates #30228
+    
+    Change-Id: I91a763d94de935d9102d927b5cefee564bbf049b
+    Reviewed-on: https://go-review.googlesource.com/c/163208
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/cleaner.go         | 2 ++
+ misc/android/go_android_exec.go | 2 ++
+ 2 files changed, 4 insertions(+)

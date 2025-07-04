@@ -1,0 +1,36 @@
+commit 4210ebcd089f216798152b5e523eaa71fbefe65d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 13:02:08 2023 -0800
+
+    go/types: make tracing configurable (matching types2)
+    
+    This CL replaces the internal trace flag with Config.trace.
+    While unexported, it can still be set for testing via reflection.
+    The typical use is for manual tests, where -v (verbose) turns on
+    tracing output. Typical use:
+    
+            go test -run Manual -v
+    
+    This change makes go/types match types2 behavior.
+    
+    Change-Id: I22842f4bba8fd632efe5929c950f4b1cab0a8569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461081
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/api.go        |  3 +++
+ src/go/types/call.go       |  2 +-
+ src/go/types/check.go      | 11 ++++-------
+ src/go/types/check_test.go | 10 ++++++----
+ src/go/types/decl.go       |  6 +++---
+ src/go/types/errors.go     |  2 +-
+ src/go/types/expr.go       |  2 +-
+ src/go/types/named.go      |  2 +-
+ src/go/types/stmt.go       |  2 +-
+ src/go/types/subst.go      |  2 +-
+ src/go/types/typeset.go    |  2 +-
+ src/go/types/typexpr.go    |  4 ++--
+ 12 files changed, 25 insertions(+), 23 deletions(-)

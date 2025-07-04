@@ -1,0 +1,17 @@
+commit 81188661f1fd51f67dfff40c451d4e878b533a66
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 8 00:33:32 2021 +0700
+
+    go/types: do not format TParams when hashing
+    
+    This is a port of CL 347534 to go/types.
+    
+    Change-Id: I2b15a29992c430e34592d110be16d7b2b10521a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348029
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/typestring.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

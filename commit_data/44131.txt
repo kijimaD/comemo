@@ -1,0 +1,26 @@
+commit bb5075a5259baeaa75f09db64c3860c5876a00fd
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jan 15 00:04:10 2021 +0100
+
+    syscall: remove RtlGenRandom and move it into internal/syscall
+    
+    There's on need to expose this to the frozen syscall package, and it
+    also doesn't need to be unsafe. So we move it into internal/syscall and
+    have the generator make a safer function signature.
+    
+    Fixes #43704.
+    
+    Change-Id: Iccae69dc273a0aa97ee6846eb537f1dc1412f2de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283992
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ api/go1.16.txt                                   |  2 --
+ src/crypto/rand/rand_windows.go                  |  4 ++--
+ src/internal/syscall/windows/syscall_windows.go  |  2 ++
+ src/internal/syscall/windows/zsyscall_windows.go | 13 +++++++++++++
+ src/syscall/syscall_windows.go                   |  1 -
+ src/syscall/zsyscall_windows.go                  |  9 ---------
+ 6 files changed, 17 insertions(+), 14 deletions(-)

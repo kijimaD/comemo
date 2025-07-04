@@ -1,0 +1,17 @@
+commit 513a46911904347d81691c5046e9fb76f77a76d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 13 21:18:28 2017 +0000
+
+    doc/go1.10: note that netbsd/arm is definitely broken
+    
+    Remove the ambiguity, know that we know it's actually broken,
+    per https://github.com/golang/go/issues/23073#issuecomment-351045421
+    
+    Updates #23073
+    
+    Change-Id: I9b904da2f4c7105a0727d2a9056aaa6895d3dadc
+    Reviewed-on: https://go-review.googlesource.com/83856
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

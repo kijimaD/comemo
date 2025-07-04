@@ -1,0 +1,24 @@
+commit 83613293d86eb6c6508508ddb1345f6b37bb80ec
+Author: racequite <quiterace@gmail.com>
+Date:   Tue Apr 23 11:45:49 2024 +0000
+
+    all: fix some typos in comments
+    
+    This change fixes some typographic errors that I found in various packages.
+    
+    Change-Id: Ie2d0316f0137d6521496d389a9777659ae22128b
+    GitHub-Last-Rev: 0307b03d50f664a00a4afa5afa08a35efb7f3045
+    GitHub-Pull-Request: golang/go#66917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580077
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/concurrent/hashtriemap.go | 2 +-
+ src/net/http/cookiejar/jar.go          | 2 +-
+ src/os/path_windows_test.go            | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

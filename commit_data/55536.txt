@@ -1,0 +1,30 @@
+commit c0984005487b293b4bb2f92e8cd9b58422f7831e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 19 18:06:27 2023 +0200
+
+    runtime,internal/syscall/windows: remove long path support check
+    
+    The runtime currently enables long path support process-wide by updating
+    the process environment block (PEB). It then tries to create a file
+    using a long path to check if the PEB update made any difference.
+    
+    There hasn't been any report that the PEB update was not effective,
+    and the check itself is quite tricky, so it's time to remove it.
+    
+    While here, linkname `runtime.canUseLongPaths` to a variable in
+    internal/syscall/windows instead of the os package so it is easier to
+    consume from other packages.
+    
+    Change-Id: I549380b7f2c242dc4db20d5be603840282de69b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/syscall/windows/syscall_windows.go |  6 +++
+ src/os/export_windows_test.go                   |  1 -
+ src/os/path_windows.go                          |  8 ++--
+ src/os/path_windows_test.go                     |  2 +-
+ src/runtime/os_windows.go                       | 55 ++-----------------------
+ 5 files changed, 14 insertions(+), 58 deletions(-)

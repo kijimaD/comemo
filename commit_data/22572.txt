@@ -1,0 +1,15 @@
+commit 8e5346571c409c0104cd4596557bd5d6241e09ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 10:11:44 2015 -0400
+
+    runtime: leave gccheckmark testing off by default
+    
+    It's not helping anymore, and it's fooling people who try to
+    understand performance (like me).
+    
+    Change-Id: I133a644acae0ddf1bfa17c654cdc01e2089da963
+    Reviewed-on: https://go-review.googlesource.com/9018
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime1.go | 3 ---
+ 1 file changed, 3 deletions(-)

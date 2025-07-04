@@ -1,0 +1,23 @@
+commit 1024503f84b2ddcd59104ec5db36d10a8adaae99
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 22:34:19 2022 -0700
+
+    cmd/compile: Fatalf in Type.SetBroke(true) and Node.SetDiag(true)
+    
+    Type.Broke and Node.Diag were used in the legacy typechecker to allow
+    reporting of multiple errors in a compilation unit, while suppressing
+    unhelpful follow-on errors. However, that's no longer needed now that
+    types2 handles (most) user-visible diagnostics.
+    
+    Updates #51691.
+    
+    Change-Id: I919c1598d8acebe5703939256bdca3e8d021f7ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392918
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/mini.go    | 6 +++---
+ src/cmd/compile/internal/types/type.go | 5 ++---
+ 2 files changed, 5 insertions(+), 6 deletions(-)

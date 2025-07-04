@@ -1,0 +1,131 @@
+commit 7defbffcdaa21037aa2ccccbbdaa6a8bc17cd057
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Aug 29 16:35:50 2019 -0400
+
+    cmd/compile: remove isStmt symbol from FuncInfo
+    
+    As promised in CL 188238, removing the obsolete symbol.
+    
+    Here are the latest stats. This is baselined at "e53edafb66" with only
+    these changes applied, run on magna.cam. The linker looks straight
+    better (in memory and speed).
+    
+    There is still a change I'm working on walking the progs to generate the
+    debug_lines data in the compiler. That will likely result in a compiler
+    speedup.
+    
+    name                      old time/op       new time/op       delta
+    Template                        324ms ± 3%        317ms ± 3%   -2.07%  (p=0.043 n=10+10)
+    Unicode                         142ms ± 4%        144ms ± 3%     ~     (p=0.393 n=10+10)
+    GoTypes                         1.05s ± 2%        1.07s ± 2%   +1.59%  (p=0.019 n=9+9)
+    Compiler                        4.09s ± 2%        4.11s ± 1%     ~     (p=0.218 n=10+10)
+    SSA                             12.5s ± 1%        12.7s ± 1%   +1.00%  (p=0.035 n=10+10)
+    Flate                           199ms ± 7%        203ms ± 5%     ~     (p=0.481 n=10+10)
+    GoParser                        245ms ± 3%        246ms ± 5%     ~     (p=0.780 n=9+10)
+    Reflect                         672ms ± 4%        688ms ± 3%   +2.42%  (p=0.015 n=10+10)
+    Tar                             280ms ± 4%        284ms ± 4%     ~     (p=0.123 n=10+10)
+    XML                             379ms ± 4%        381ms ± 2%     ~     (p=0.529 n=10+10)
+    LinkCompiler                    1.16s ± 4%        1.12s ± 2%   -3.03%  (p=0.001 n=10+9)
+    ExternalLinkCompiler            2.28s ± 3%        2.23s ± 3%   -2.51%  (p=0.011 n=8+9)
+    LinkWithoutDebugCompiler        686ms ± 9%        667ms ± 2%     ~     (p=0.277 n=9+8)
+    StdCmd                          14.1s ± 1%        14.0s ± 1%     ~     (p=0.739 n=10+10)
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        604ms ±23%        564ms ± 7%     ~     (p=0.661 n=10+9)
+    Unicode                         429ms ±40%        418ms ±37%     ~     (p=0.579 n=10+10)
+    GoTypes                         2.43s ±12%        2.51s ± 7%     ~     (p=0.393 n=10+10)
+    Compiler                        9.22s ± 3%        9.27s ± 3%     ~     (p=0.720 n=9+10)
+    SSA                             26.3s ± 3%        26.6s ± 2%     ~     (p=0.579 n=10+10)
+    Flate                           328ms ±19%        333ms ±12%     ~     (p=0.842 n=10+9)
+    GoParser                        387ms ± 5%        378ms ± 9%     ~     (p=0.356 n=9+10)
+    Reflect                         1.36s ±20%        1.43s ±21%     ~     (p=0.631 n=10+10)
+    Tar                             469ms ±12%        471ms ±21%     ~     (p=0.497 n=9+10)
+    XML                             685ms ±18%        698ms ±19%     ~     (p=0.739 n=10+10)
+    LinkCompiler                    1.86s ±10%        1.87s ±11%     ~     (p=0.968 n=10+9)
+    ExternalLinkCompiler            3.20s ±13%        3.01s ± 8%   -5.70%  (p=0.046 n=8+9)
+    LinkWithoutDebugCompiler        1.08s ±15%        1.09s ±20%     ~     (p=0.579 n=10+10)
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       36.3MB ± 0%       36.4MB ± 0%   +0.26%  (p=0.000 n=10+10)
+    Unicode                        28.5MB ± 0%       28.5MB ± 0%     ~     (p=0.165 n=10+10)
+    GoTypes                         120MB ± 0%        121MB ± 0%   +0.29%  (p=0.000 n=9+10)
+    Compiler                        546MB ± 0%        548MB ± 0%   +0.32%  (p=0.000 n=10+10)
+    SSA                            1.84GB ± 0%       1.85GB ± 0%   +0.49%  (p=0.000 n=10+10)
+    Flate                          22.9MB ± 0%       23.0MB ± 0%   +0.25%  (p=0.000 n=10+10)
+    GoParser                       27.8MB ± 0%       27.9MB ± 0%   +0.25%  (p=0.000 n=10+8)
+    Reflect                        77.5MB ± 0%       77.7MB ± 0%   +0.27%  (p=0.000 n=9+9)
+    Tar                            34.5MB ± 0%       34.6MB ± 0%   +0.23%  (p=0.000 n=10+10)
+    XML                            44.2MB ± 0%       44.4MB ± 0%   +0.32%  (p=0.000 n=10+10)
+    LinkCompiler                    239MB ± 0%        230MB ± 0%   -3.86%  (p=0.000 n=10+10)
+    ExternalLinkCompiler            243MB ± 0%        243MB ± 0%   +0.22%  (p=0.000 n=10+10)
+    LinkWithoutDebugCompiler        164MB ± 0%        155MB ± 0%   -5.45%  (p=0.000 n=10+10)
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         371k ± 0%         372k ± 0%   +0.44%  (p=0.000 n=10+10)
+    Unicode                          340k ± 0%         340k ± 0%   +0.05%  (p=0.000 n=10+10)
+    GoTypes                         1.32M ± 0%        1.32M ± 0%   +0.46%  (p=0.000 n=10+10)
+    Compiler                        5.34M ± 0%        5.37M ± 0%   +0.59%  (p=0.000 n=10+10)
+    SSA                             17.6M ± 0%        17.7M ± 0%   +0.63%  (p=0.000 n=10+10)
+    Flate                            233k ± 0%         234k ± 0%   +0.48%  (p=0.000 n=10+10)
+    GoParser                         309k ± 0%         310k ± 0%   +0.40%  (p=0.000 n=10+10)
+    Reflect                          964k ± 0%         969k ± 0%   +0.54%  (p=0.000 n=10+10)
+    Tar                              346k ± 0%         348k ± 0%   +0.48%  (p=0.000 n=10+9)
+    XML                              424k ± 0%         426k ± 0%   +0.51%  (p=0.000 n=10+10)
+    LinkCompiler                     751k ± 0%         645k ± 0%  -14.13%  (p=0.000 n=10+10)
+    ExternalLinkCompiler            1.79M ± 0%        1.69M ± 0%   -5.30%  (p=0.000 n=10+10)
+    LinkWithoutDebugCompiler         217k ± 0%         222k ± 0%   +2.02%  (p=0.000 n=10+10)
+    
+    name                      old object-bytes  new object-bytes  delta
+    Template                        547kB ± 0%        559kB ± 0%   +2.17%  (p=0.000 n=10+10)
+    Unicode                         215kB ± 0%        216kB ± 0%   +0.60%  (p=0.000 n=10+10)
+    GoTypes                        1.99MB ± 0%       2.03MB ± 0%   +2.02%  (p=0.000 n=10+10)
+    Compiler                       7.86MB ± 0%       8.07MB ± 0%   +2.73%  (p=0.000 n=10+10)
+    SSA                            26.4MB ± 0%       27.2MB ± 0%   +3.27%  (p=0.000 n=10+10)
+    Flate                           337kB ± 0%        343kB ± 0%   +2.02%  (p=0.000 n=10+10)
+    GoParser                        432kB ± 0%        441kB ± 0%   +2.11%  (p=0.000 n=10+10)
+    Reflect                        1.33MB ± 0%       1.36MB ± 0%   +1.87%  (p=0.000 n=10+10)
+    Tar                             477kB ± 0%        487kB ± 0%   +2.24%  (p=0.000 n=10+10)
+    XML                             617kB ± 0%        632kB ± 0%   +2.33%  (p=0.000 n=10+10)
+    
+    name                      old export-bytes  new export-bytes  delta
+    Template                       18.5kB ± 0%       18.5kB ± 0%     ~     (all equal)
+    Unicode                        7.92kB ± 0%       7.92kB ± 0%     ~     (all equal)
+    GoTypes                        35.0kB ± 0%       35.0kB ± 0%     ~     (all equal)
+    Compiler                        109kB ± 0%        109kB ± 0%   +0.09%  (p=0.000 n=10+10)
+    SSA                             137kB ± 0%        137kB ± 0%   +0.03%  (p=0.000 n=10+10)
+    Flate                          4.89kB ± 0%       4.89kB ± 0%     ~     (all equal)
+    GoParser                       8.49kB ± 0%       8.49kB ± 0%     ~     (all equal)
+    Reflect                        11.4kB ± 0%       11.4kB ± 0%     ~     (all equal)
+    Tar                            10.5kB ± 0%       10.5kB ± 0%     ~     (all equal)
+    XML                            16.7kB ± 0%       16.7kB ± 0%     ~     (all equal)
+    
+    name                      old text-bytes    new text-bytes    delta
+    HelloSize                       760kB ± 0%        760kB ± 0%     ~     (all equal)
+    CmdGoSize                      10.8MB ± 0%       10.8MB ± 0%     ~     (all equal)
+    
+    name                      old data-bytes    new data-bytes    delta
+    HelloSize                      10.7kB ± 0%       10.7kB ± 0%     ~     (all equal)
+    CmdGoSize                       312kB ± 0%        312kB ± 0%     ~     (all equal)
+    
+    name                      old bss-bytes     new bss-bytes     delta
+    HelloSize                       122kB ± 0%        122kB ± 0%     ~     (all equal)
+    CmdGoSize                       146kB ± 0%        146kB ± 0%     ~     (all equal)
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    HelloSize                      1.11MB ± 0%       1.13MB ± 0%   +1.10%  (p=0.000 n=10+10)
+    CmdGoSize                      14.9MB ± 0%       15.0MB ± 0%   +0.77%  (p=0.000 n=10+10)
+    
+    Change-Id: I42e6087cd6231dbdcfff5464e46d373474e455e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192417
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go             | 3 ---
+ src/cmd/internal/obj/link.go                | 1 -
+ src/cmd/internal/obj/objfile.go             | 8 +++-----
+ src/cmd/internal/obj/pcln.go                | 7 -------
+ src/cmd/internal/obj/plist.go               | 5 +----
+ src/cmd/internal/objabi/symkind.go          | 1 -
+ src/cmd/link/internal/sym/symkind.go        | 2 --
+ src/cmd/link/internal/sym/symkind_string.go | 7 +++----
+ 8 files changed, 7 insertions(+), 27 deletions(-)

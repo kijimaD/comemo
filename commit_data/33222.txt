@@ -1,0 +1,20 @@
+commit aedb79f092be44f13faa7a40ed195b1bf0d27855
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 23 21:57:54 2017 -0400
+
+    build: move final steps of make.bash, make.bat, make.rc into cmd/dist
+    
+    This CL expands the job of "dist bootstrap" to be "finish make.bash".
+    I need to change that logic in upcoming CLs related to cmd/go
+    changes, and I'd rather not change it in three places in three different
+    shell script languages.
+    
+    Change-Id: I545dc215e408289e4d0b28f7c2ffcd849d89ad3b
+    Reviewed-on: https://go-review.googlesource.com/72870
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ src/make.bash         | 48 ++++++++---------------------
+ src/make.bat          | 48 +++++++++--------------------
+ src/make.rc           | 37 ++++++++---------------
+ 4 files changed, 113 insertions(+), 103 deletions(-)

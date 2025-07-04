@@ -1,0 +1,22 @@
+commit fb5fa2a839ef0ea9952e47f6d0e05b51a5a51a8d
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 22 17:10:01 2024 -0800
+
+    net/http: avoid redundant installation of HTTP/2 support in transport
+    
+    Previously, we'd skip installing the bundled HTTP/2 support
+    if Transport.TLSNextProto is non-nil.
+    
+    With the addition of the Transport.Protocols field, we'll
+    install HTTP/2 if Protocols contains HTTP2, even if TLSNextProto
+    is non-nil. However, we shouldn't do so if it already contains an
+    "h2" entry.
+    
+    Change-Id: Ib086473bb52f1b76d83b1df961d41360c605832c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go | 4 ++++
+ 1 file changed, 4 insertions(+)

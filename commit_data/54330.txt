@@ -1,0 +1,18 @@
+commit 0eed32bd0d3fa713a4f5077462e402119dc761cb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 6 11:31:53 2023 +0200
+
+    cmd/go: remove unused (*testgoData).FailSSH test helper
+    
+    The last remaining user was removed by CL 213829.
+    
+    Change-Id: Ic788b22b2de0d20e5fa096d137536d3b5c6d6c36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525876
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/go_test.go           | 12 ------------
+ src/cmd/go/testdata/failssh/ssh |  2 --
+ 2 files changed, 14 deletions(-)

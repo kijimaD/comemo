@@ -1,0 +1,15 @@
+commit 27b9571de800c05a41081ea80cd934e48e0a8f70
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Feb 22 18:35:58 2019 +0100
+
+    androidtest.bash: wait for device to be ready before using it
+    
+    Updates #23824
+    
+    Change-Id: I265e3f40192a0a4bf54f608d9408ba0cfef2b69c
+    Reviewed-on: https://go-review.googlesource.com/c/163457
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/androidtest.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

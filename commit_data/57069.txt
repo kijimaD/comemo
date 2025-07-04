@@ -1,0 +1,24 @@
+commit 67c3f012cf5bfd69841c74666243281f0698e09f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Aug 1 16:18:06 2024 +0000
+
+    bytes,slices,strings: optimize Repeat a bit
+    
+    Like slices.Repeat, use math/bits.Mul to detect overflow in order to
+    avoid a divide which is slow.
+    
+    While here, also use builtin min/max to simplify code.
+    
+    Change-Id: I4a6d8cd5df97fa75f4e324d4be1405ce53c03d31
+    GitHub-Last-Rev: 54ba5c7126b1d4a301e95d664b5f6deee6d579d9
+    GitHub-Pull-Request: golang/go#68704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602475
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/bytes/bytes.go     | 11 +++++------
+ src/slices/slices.go   |  5 +++--
+ src/strings/strings.go | 14 +++++---------
+ 3 files changed, 13 insertions(+), 17 deletions(-)

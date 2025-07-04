@@ -1,0 +1,20 @@
+commit 01661612e433deadec99229c6075baa4174ac743
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Sep 30 11:27:52 2016 +0200
+
+    cmd/compile: update error messages in Mpint, Mpflt methods
+    
+    CL 20909 gave Mpint methods nice go-like names, but it
+    didn't update the names in the error strings. Fix them.
+    
+    Same for a couple of Mpflt methods.
+    
+    Change-Id: I9c99653d4b922e32fd5ba18aba768a589a4c7869
+    Reviewed-on: https://go-review.googlesource.com/30091
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/mpfloat.go |  4 ++--
+ src/cmd/compile/internal/gc/mpint.go   | 22 +++++++++++-----------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

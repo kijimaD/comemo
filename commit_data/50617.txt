@@ -1,0 +1,16 @@
+commit 789e798f0436361bfe8ca492a933cfeb17d2780c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 15:58:33 2022 +0800
+
+    internal/goroot: using strings.CutPrefix replace strings.HasPrefix and strings.TrimPrefix
+    
+    Change-Id: I63b2af955e2ada6d20e72c10797576d93bbc7e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435135
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/goroot/gc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

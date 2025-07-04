@@ -1,0 +1,16 @@
+commit f93b951f33add708d9e745e95a29ebe98f3e1255
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 12 13:08:16 2021 -0400
+
+    cmd/compile/abi-internal.md: fix table format
+    
+    The table was not rendered correctly because one line missed a
+    column.
+    
+    Change-Id: I1373e4e9fb8b8f2dcd9fd0db339083362cce9b71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319291
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/abi-internal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

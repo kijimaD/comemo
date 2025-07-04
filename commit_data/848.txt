@@ -1,0 +1,14 @@
+commit b5e0cc7ef5f6c6a279defd0c43c488c486e2abd1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 10 16:34:44 2008 -0700
+
+    - added language re: interface compparison using ==, !=
+    (seems not controversial)
+    
+    R=r
+    DELTA=8  (3 added, 2 deleted, 3 changed)
+    OCL=16940
+    CL=16940
+
+ doc/go_spec.txt | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

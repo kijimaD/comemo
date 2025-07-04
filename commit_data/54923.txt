@@ -1,0 +1,25 @@
+commit 0889b39ff12405c37ce23af5b65263ab4b31899c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 15:44:55 2023 +0800
+
+    testing: add available godoc link
+    
+    Change-Id: I8f4d097601796f53176d490cddf8832b7caa4c05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539836
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/benchmark.go              | 20 ++++++++++----------
+ src/testing/fstest/mapfs.go           |  2 +-
+ src/testing/fuzz.go                   |  4 ++--
+ src/testing/internal/testdeps/deps.go |  2 +-
+ src/testing/iotest/logger.go          |  4 ++--
+ src/testing/iotest/reader.go          |  6 +++---
+ src/testing/quick/quick.go            |  8 ++++----
+ src/testing/slogtest/slogtest.go      |  4 ++--
+ src/testing/testing.go                |  2 +-
+ 9 files changed, 26 insertions(+), 26 deletions(-)

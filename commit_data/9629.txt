@@ -1,0 +1,13 @@
+commit fe89af74d82de5dd08cb430c4b7606e1a7654ad6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 8 16:31:13 2011 +1000
+
+    A+C: Paul Lalonde (individual CLA).
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4961073
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

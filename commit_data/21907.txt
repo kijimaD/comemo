@@ -1,0 +1,18 @@
+commit 43941d85cf35fae53005bb51d545614651b3d8c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 22:29:03 2015 -0500
+
+    cmd/internal/ld: cache file name construction in linkgetline
+    
+    This avoids repeated allocation and map lookups
+    when constructing the pcln tables.
+    
+    For 6g compiling cmd/internal/gc/*.go this saves about 8% wall time.
+    
+    Change-Id: I6a1a80e278ae2c2a44bd1537015ea7b4e7a4d6ca
+    Reviewed-on: https://go-review.googlesource.com/6793
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/link.go |  8 -------
+ src/cmd/internal/obj/obj.go  | 54 ++++++++++++++++++++++++++++++--------------
+ 2 files changed, 37 insertions(+), 25 deletions(-)

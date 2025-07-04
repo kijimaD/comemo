@@ -1,0 +1,12 @@
+commit adb3b863c9c6488b4a3f8d346635940761d79ab1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Apr 11 23:33:25 2010 +1000
+
+    time: fix comment typo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/811044
+
+ src/pkg/time/tick.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

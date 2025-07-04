@@ -1,0 +1,13 @@
+commit d19ced040a23809e293fd74af364240076ff311d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 16:30:45 2017 -0400
+
+    cmd/dist: refresh deps.go after recent package io changes
+    
+    Change-Id: Iaa960c85011289e047c64b53cf610838eb50332d
+    Reviewed-on: https://go-review.googlesource.com/70073
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/deps.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

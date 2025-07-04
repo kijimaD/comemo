@@ -1,0 +1,19 @@
+commit 5d5e50c3db2ad15bef4ddc4e2f946d0628deda2d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 22 20:19:57 2021 -0700
+
+    os/user: simplify test skip for plan9
+    
+    There's no need to specifically check for runtime.GOOS as there's
+    already a generic mechanism for that.
+    
+    Change-Id: I7125443ead456548bd503c5e71cd56e9eb30b446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330750
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/user/lookup_plan9.go | 1 +
+ src/os/user/user_test.go    | 8 --------
+ 2 files changed, 1 insertion(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 7ca5a0d323058ef6f749f5c3b146081b931da113
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 15 08:56:32 2008 -0800
+
+    correct arg register in bsdthread_create
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=21040
+    CL=21176
+
+ src/runtime/sys_amd64_darwin.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

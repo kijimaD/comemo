@@ -1,0 +1,49 @@
+commit 094afe0cf1aa4182d62a3aea6970933b7ae4a27d
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sat May 14 10:27:31 2016 +0800
+
+    cmd/vendor: move cmd/internal/unvendor packages to cmd/vendor
+    
+    Updates #14047
+    
+    Change-Id: I4b150533393bfb90e840497095ac32bcca4f04c2
+    Reviewed-on: https://go-review.googlesource.com/23114
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/nacl/testzip.proto                            | 24 +++++++++++-----------
+ src/cmd/internal/objfile/disasm.go                 |  4 ++--
+ .../golang.org/x/arch/arm/armasm/Makefile          |  0
+ .../golang.org/x/arch/arm/armasm/decode.go         |  0
+ .../golang.org/x/arch/arm/armasm/decode_test.go    |  0
+ .../golang.org/x/arch/arm/armasm/ext_test.go       |  0
+ .../golang.org/x/arch/arm/armasm/gnu.go            |  0
+ .../golang.org/x/arch/arm/armasm/inst.go           |  0
+ .../golang.org/x/arch/arm/armasm/objdump_test.go   |  0
+ .../x/arch/arm/armasm/objdumpext_test.go           |  0
+ .../golang.org/x/arch/arm/armasm/plan9x.go         |  0
+ .../golang.org/x/arch/arm/armasm/tables.go         |  0
+ .../golang.org/x/arch/arm/armasm/testdata/Makefile |  0
+ .../x/arch/arm/armasm/testdata/decode.txt          |  0
+ .../golang.org/x/arch/x86/x86asm/Makefile          |  0
+ .../golang.org/x/arch/x86/x86asm/decode.go         |  0
+ .../golang.org/x/arch/x86/x86asm/decode_test.go    |  0
+ .../golang.org/x/arch/x86/x86asm/ext_test.go       |  0
+ .../golang.org/x/arch/x86/x86asm/gnu.go            |  0
+ .../golang.org/x/arch/x86/x86asm/inst.go           |  0
+ .../golang.org/x/arch/x86/x86asm/inst_test.go      |  0
+ .../golang.org/x/arch/x86/x86asm/intel.go          |  0
+ .../golang.org/x/arch/x86/x86asm/objdump_test.go   |  0
+ .../x/arch/x86/x86asm/objdumpext_test.go           |  0
+ .../golang.org/x/arch/x86/x86asm/plan9ext_test.go  |  0
+ .../golang.org/x/arch/x86/x86asm/plan9x.go         |  0
+ .../golang.org/x/arch/x86/x86asm/plan9x_test.go    |  0
+ .../golang.org/x/arch/x86/x86asm/tables.go         |  0
+ .../golang.org/x/arch/x86/x86asm/testdata/Makefile |  0
+ .../x/arch/x86/x86asm/testdata/decode.txt          |  0
+ .../x/arch/x86/x86asm/testdata/libmach8db.c        |  0
+ .../golang.org/x/arch/x86/x86asm/xed_test.go       |  0
+ .../golang.org/x/arch/x86/x86asm/xedext_test.go    |  0
+ src/cmd/{internal/unvendor => vendor}/vendor.json  |  0
+ 34 files changed, 14 insertions(+), 14 deletions(-)

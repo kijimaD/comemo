@@ -1,0 +1,14 @@
+commit ee14fbdf340cd2c0647fd45f5208c593ef301bcb
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Jul 25 13:39:01 2011 -0400
+
+    build: fixes for mingw-w64
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4742042
+
+ include/libc.h       | 8 ++++++--
+ src/lib9/fmt/dofmt.c | 2 +-
+ src/libmach/5.c      | 2 +-
+ 3 files changed, 8 insertions(+), 4 deletions(-)

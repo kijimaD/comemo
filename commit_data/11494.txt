@@ -1,0 +1,14 @@
+commit 38e37011fc739487b551dff7f1f6dab5e7abcde5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 23:33:16 2012 -0500
+
+    build: force numerical comparison in version.bash
+    
+    Fixes #2436.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5576075
+
+ src/version.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

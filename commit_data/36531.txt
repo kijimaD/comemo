@@ -1,0 +1,16 @@
+commit 31389254def190938c0cc802f645f958734bc865
+Author: Alex Kohler <alexjohnkohler@gmail.com>
+Date:   Thu Aug 30 10:01:54 2018 -0400
+
+    all: fix typos
+    
+    Change-Id: Icded6c786b7b185d5aff055f34e0cfe9e521826a
+    Reviewed-on: https://go-review.googlesource.com/132176
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ src/cmd/trace/annotations.go            | 5 ++---
+ src/cmd/trace/trace.go                  | 4 ++--
+ 3 files changed, 5 insertions(+), 6 deletions(-)

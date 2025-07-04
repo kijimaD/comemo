@@ -1,0 +1,12 @@
+commit a3baf7f90ebdfaa38358cb2e45abae827b97b99a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 2 20:40:47 2011 -0700
+
+    doc/install: specify clone -u instead of -r
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4435081
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

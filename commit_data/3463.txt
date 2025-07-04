@@ -1,0 +1,14 @@
+commit b1fc6506661b66e382432f76d0e6cbe81981c185
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 6 15:44:13 2009 -0700
+
+    - set uint type for flags
+    - simplified some code
+    
+    R=rsc
+    DELTA=19  (0 added, 0 deleted, 19 changed)
+    OCL=35405
+    CL=35407
+
+ src/pkg/tabwriter/tabwriter.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

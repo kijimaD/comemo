@@ -1,0 +1,24 @@
+commit 62a87f64b97d27e79d53a84e9006425aa234d7e6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 4 16:41:13 2021 -0400
+
+    cmd/go/internal/modload: only check root-promotion during tidy for lazy modules
+    
+    In a lazy module, it is important that tidyRoots does not add any new
+    roots because the dependencies of non-roots are pruned out.
+    
+    In an eager module, that property is not important (and does not hold
+    in general) because no dependencies are ever pruned out.
+    
+    Fixes #45952
+    
+    Change-Id: I5c95b5696b7112b9219e38af04e0dece7fb6e202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316754
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go             | 18 +++++++++++-------
+ src/cmd/go/testdata/script/mod_tidy_newroot.txt | 20 ++++++++++++++++++--
+ 2 files changed, 29 insertions(+), 9 deletions(-)

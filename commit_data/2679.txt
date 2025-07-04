@@ -1,0 +1,20 @@
+commit efb918b7dbed995c470c68db52776052e640d6ed
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 12:58:14 2009 -0700
+
+    the beginnings of an rpc service.
+    server side only; no client help yet (but it's easy).
+    no http yet.
+    service is synchronous.
+    all this will improve.
+    
+    R=rsc
+    DELTA=403  (403 added, 0 deleted, 0 changed)
+    OCL=31522
+    CL=31536
+
+ src/pkg/rpc/Makefile       |  62 ++++++++++++++
+ src/pkg/rpc/client.go      |  14 ++++
+ src/pkg/rpc/server.go      | 200 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rpc/server_test.go | 134 ++++++++++++++++++++++++++++++
+ 4 files changed, 410 insertions(+)

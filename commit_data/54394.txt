@@ -1,0 +1,41 @@
+commit e3ce3126212115808bc248bdc9ad92c0a46436fe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 18:04:31 2023 -0700
+
+    cmd/compile/internal/typecheck: fix closure field naming
+    
+    When creating the struct type to hold variables captured by a function
+    literal, we currently reuse the captured variable names as fields.
+    
+    However, there's no particular reason to do this: these struct types
+    aren't visible to users, and it adds extra complexity in making sure
+    fields belong to the correct packages.
+    
+    Further, it turns out we were getting that subtly wrong. If two
+    function literals from different packages capture variables with
+    identical names starting with an uppercase letter (and in the same
+    order and with corresponding identical types) end up in the same
+    function (e.g., due to inlining), then we could end up creating
+    closure struct types that are "different" (i.e., not types.Identical)
+    yet end up with equal LinkString representations (which violates
+    LinkString's contract).
+    
+    The easy fix is to just always use simple, exported, generated field
+    names in the struct. This should allow further struct reuse across
+    packages too, and shrink binary sizes slightly.
+    
+    Fixes #62498.
+    
+    Change-Id: I9c973f5087bf228649a8f74f7dc1522d84a26b51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527135
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/typecheck/func.go | 40 +++++++++---------------------
+ src/cmd/compile/internal/types/fmt.go      |  3 ---
+ test/fixedbugs/issue62498.dir/a.go         | 13 ++++++++++
+ test/fixedbugs/issue62498.dir/main.go      | 18 ++++++++++++++
+ test/fixedbugs/issue62498.go               |  7 ++++++
+ 5 files changed, 50 insertions(+), 31 deletions(-)

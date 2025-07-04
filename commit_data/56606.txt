@@ -1,0 +1,30 @@
+commit cbd8f16adc4cbe0480687e52d40c486b69c8dff4
+Author: Damien Neil <dneil@google.com>
+Date:   Sun Oct 22 16:31:59 2023 -0400
+
+    crypto/tls: improved 0-RTT QUIC API
+    
+    Add synchronous management of stored sessions to QUICConn.
+    
+    This adds QUICStoreSession and QUICResumeSession events,
+    permitting a QUIC implementation to handle session resumption
+    as part of its regular event loop processing.
+    
+    Fixes #63691
+    
+    Change-Id: I9fe16207cc1986eac084869675bc36e227cbf3f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/next/63691.txt                             |   8 ++
+ doc/next/6-stdlib/99-minor/crypto/tls/63691.md |   3 +
+ src/crypto/tls/handshake_client.go             |  13 ++-
+ src/crypto/tls/handshake_client_test.go        |   6 +-
+ src/crypto/tls/handshake_client_tls13.go       |   8 +-
+ src/crypto/tls/handshake_server_tls13.go       |  11 +-
+ src/crypto/tls/quic.go                         |  91 +++++++++++++++-
+ src/crypto/tls/quic_test.go                    | 145 +++++++++++++++++++++++--
+ src/crypto/tls/ticket.go                       |  10 +-
+ 9 files changed, 265 insertions(+), 30 deletions(-)

@@ -1,0 +1,15 @@
+commit 828a4b93765c87a96578c1aaa3b0781d3d4e31be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 24 15:54:48 2013 -0400
+
+    sync/atomic: adjust for new runtime.cas64 prototype
+    
+    R=golang-dev, minux.ma, josharian
+    CC=golang-dev
+    https://golang.org/cl/13859043
+
+ src/pkg/sync/atomic/asm_linux_arm.s          | 23 ++++++++++++++---------
+ src/pkg/sync/atomic/atomic_linux_arm_test.go | 14 ++++++++++++++
+ src/pkg/sync/atomic/atomic_test.go           | 10 +++++++---
+ src/pkg/sync/atomic/export_linux_arm_test.go |  9 +++++++++
+ 4 files changed, 44 insertions(+), 12 deletions(-)

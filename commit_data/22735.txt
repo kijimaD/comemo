@@ -1,0 +1,14 @@
+commit 673bd18805aab1d4c7c301129d329e68a2511fd7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 27 16:50:05 2015 -0700
+
+    test: gofmt run.go
+    
+    Clean up after CL 5310.
+    
+    Change-Id: Ib870e7b9d26eb118eefdaa3e76dcec4a4d459584
+    Reviewed-on: https://go-review.googlesource.com/9398
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/run.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

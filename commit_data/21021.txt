@@ -1,0 +1,13 @@
+commit c5089a7a817139ea1239ae4f841438a50b04f34a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 18 17:28:03 2014 -0500
+
+    test/fixedbugs/issue9355: fix build on windows and skip on nacl
+    
+    Change-Id: If367cc1e8c2d744569513bc71da6e6c454c74e9a
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1802
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ test/fixedbugs/issue9355.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

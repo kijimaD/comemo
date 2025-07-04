@@ -1,0 +1,18 @@
+commit 45134acbe645665e93cf1d399027d56b44f23299
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 22 11:13:20 2021 -0700
+
+    debug/gosym: add pcHeader parsing helpers
+    
+    A subsequent change will duplicate most of case ver116.
+    Make it easier to read.
+    
+    Change-Id: I3a93181c7f094b12715b8a618e9efef7a1438a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351909
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/gosym/pclntab.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

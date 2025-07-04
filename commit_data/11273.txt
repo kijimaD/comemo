@@ -1,0 +1,14 @@
+commit ca3e6d1367a365ec29020e3f16c7732b4240cf67
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 19 20:15:55 2012 -0200
+
+    encoding/xml: marshal/unmarshal xml.Name in field
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5542052
+
+ src/pkg/encoding/xml/marshal_test.go | 17 +++++++++++++++++
+ src/pkg/encoding/xml/read.go         |  4 ++++
+ src/pkg/encoding/xml/typeinfo.go     |  4 +++-
+ 3 files changed, 24 insertions(+), 1 deletion(-)

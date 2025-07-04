@@ -1,0 +1,16 @@
+commit 0e934dd90e81353aa006c9339c626b6c25ea923d
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Fri Jun 1 11:43:16 2018 +0300
+
+    os: check setStickyBit error in mkdir
+    
+    If an error occurs, delete the newly created directory.
+    
+    Change-Id: I97e960d24af32f027fb23d5ce3f61959e73f6fb0
+    Reviewed-on: https://go-review.googlesource.com/115715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

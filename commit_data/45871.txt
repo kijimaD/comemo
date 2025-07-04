@@ -1,0 +1,21 @@
+commit ed01ceaf4838cd67fd802df481769fa9ae9d0440
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 25 15:58:38 2021 -0400
+
+    runtime/race: use race build tag on syso_test.go
+    
+    All other test files in the runtime/race package have race build
+    tag, except syso_test.go. The test is only relevant if the race
+    detector is supported. So apply the build tag.
+    
+    Fixes #46931.
+    
+    Change-Id: Icdb94214d3821b4ccf61133412ef39b4d7cc7691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331050
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/race/syso_test.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

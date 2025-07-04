@@ -1,0 +1,48 @@
+commit f0fcb2d59fb431d45847f09cf1bbcfc3363047ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 28 17:20:33 2009 -0800
+
+    Symmetric changes to md4.go as for md5.go.
+    
+    Use uint index variables in some cases instead
+    of int to enable strength reduction; this makes
+    it possible for the compiler to reduce % into
+    masks.
+    
+    Old code: 6g -S md4.go md4block.go | grep "md4block.go:44"
+    0471 (md4block.go:44) MOVL    AX,BX
+    0472 (md4block.go:44) MOVL    AX,BP
+    0473 (md4block.go:44) MOVL    AX,R8
+    0474 (md4block.go:44) SARL    $31,R8
+    0475 (md4block.go:44) SHRL    $30,R8
+    0476 (md4block.go:44) ADDL    R8,BP
+    0477 (md4block.go:44) SARL    $2,BP
+    0478 (md4block.go:44) IMULL   $4,BP
+    0479 (md4block.go:44) SUBL    BP,BX
+    0480 (md4block.go:44) MOVLQSX BX,BX
+    0481 (md4block.go:44) LEAQ    shift1+0(SB),BP
+    0482 (md4block.go:44) CMPL    BX,8(BP)
+    0483 (md4block.go:44) JCS     ,485
+    0484 (md4block.go:44) CALL    ,runtime.throwindex+0(SB)
+    0485 (md4block.go:44) MOVQ    (BP),BP
+    0486 (md4block.go:44) MOVL    (BP)(BX*4),DI
+    
+    New code: 6g -S md4.go md4block.go | grep "md4block.go:44"
+    0471 (md4block.go:44) MOVL    AX,BX
+    0472 (md4block.go:44) ANDL    $3,BX
+    0473 (md4block.go:44) MOVLQZX BX,BX
+    0474 (md4block.go:44) LEAQ    shift1+0(SB),BP
+    0475 (md4block.go:44) CMPL    BX,8(BP)
+    0476 (md4block.go:44) JCS     ,478
+    0477 (md4block.go:44) CALL    ,runtime.throwindex+0(SB)
+    0478 (md4block.go:44) MOVQ    (BP),BP
+    0479 (md4block.go:44) MOVL    (BP)(BX*4),DI
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/181086
+
+ src/pkg/crypto/md4/md4.go      | 20 ++++++++------------
+ src/pkg/crypto/md4/md4block.go | 12 ++++++++----
+ src/pkg/crypto/md5/md5block.go | 40 ++++++++++++++++++----------------------
+ 3 files changed, 34 insertions(+), 38 deletions(-)

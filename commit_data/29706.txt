@@ -1,0 +1,16 @@
+commit 612469ab0b57bb53d1f054e37b64a63c08d8c6db
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Dec 1 23:20:03 2016 +0530
+
+    cmd/go: hide the "TERM" environment variable from "go bug"
+    
+    Fixes #18128
+    
+    Change-Id: I5530c9d774a1e398cd759a05bbf308e6e42f0007
+    Reviewed-on: https://go-review.googlesource.com/33810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/bug.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

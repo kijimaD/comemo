@@ -1,0 +1,41 @@
+commit c62b3265a757b853d0224d6d324d17df3cb425ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 11:42:55 2009 -0700
+
+    apply gofmt to the LGTM-marked files from 34501
+    that have not changed since I applied gofmt.
+    
+    R=gri
+    DELTA=456  (77 added, 3 deleted, 376 changed)
+    OCL=35378
+    CL=35383
+
+ doc/progs/echo.go             |  12 ++--
+ doc/progs/file.go             |  32 +++++-----
+ doc/progs/helloworld.go       |   2 +-
+ doc/progs/helloworld3.go      |   4 +-
+ doc/progs/print.go            |   7 ++-
+ doc/progs/print_string.go     |   9 ++-
+ doc/progs/sieve.go            |  14 ++---
+ doc/progs/sieve1.go           |  10 +--
+ doc/progs/sort.go             |  64 ++++++++++++++-----
+ doc/progs/sortmain.go         |  42 +++++++------
+ doc/progs/strings.go          |   4 +-
+ doc/progs/sum.go              |   8 +--
+ src/cmd/cgo/ast.go            |  51 ++++++++-------
+ src/cmd/cgo/main.go           |   8 +--
+ src/cmd/cgo/out.go            |  23 ++++---
+ src/cmd/cgo/util.go           |   1 -
+ src/cmd/ebnflint/ebnflint.go  |  16 ++---
+ src/cmd/gc/sys.go             | 142 +++++++++++++++++++++---------------------
+ src/cmd/gc/unsafe.go          |  14 ++---
+ src/cmd/gofmt/gofmt.go        |  38 +++++------
+ src/pkg/archive/tar/common.go |  64 +++++++++----------
+ src/pkg/archive/tar/reader.go |  54 ++++++++--------
+ src/pkg/base64/base64_test.go |  20 +++---
+ src/pkg/big/arith.go          |  62 +++++++++---------
+ src/pkg/big/arith_test.go     |  37 ++++++++---
+ src/pkg/big/int.go            |  18 +++---
+ src/pkg/big/nat.go            |  48 ++++++++------
+ src/pkg/big/nat_test.go       |  16 +++--
+ 28 files changed, 447 insertions(+), 373 deletions(-)

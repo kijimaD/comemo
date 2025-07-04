@@ -1,0 +1,21 @@
+commit 430d2aa3493c3a057f83af886cd866291cbf04ea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 19 02:34:06 2019 +1000
+
+    cmd/internal/obj/riscv: implement AUIPC and LUI instructions
+    
+    Add support for assembling AUIPC and LUI instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I178868b6dcc6fdc6b8527454569a3538ed50723e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196840
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  9 +++
+ src/cmd/internal/obj/riscv/obj.go            | 84 ++++++++++++++++++++++------
+ 2 files changed, 77 insertions(+), 16 deletions(-)

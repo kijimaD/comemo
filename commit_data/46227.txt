@@ -1,0 +1,15 @@
+commit 3920d6f2085559ae262d651b00bf8b29f953580a
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu May 6 09:04:03 2021 +0800
+
+    runtime: eliminate the redundant for loop in runqget()
+    
+    Change-Id: If9b283bbef3ff12a64d34b07491aee3396852f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317509
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

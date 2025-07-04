@@ -1,0 +1,12 @@
+commit 214ec7b5477cbb44bf702014e6f036f9533ad9ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 15:05:45 2011 -0500
+
+    gc: fix build (not sure how this edit got lost)
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/5449072
+
+ src/cmd/gc/go.y | 1 +
+ 1 file changed, 1 insertion(+)

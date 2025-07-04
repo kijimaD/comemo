@@ -1,0 +1,19 @@
+commit 5f256dc8e62bbfda861bf404678f653c14970540
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 9 16:15:01 2018 -0400
+
+    test: add test for gccgo bug #26248
+    
+    The fix is CL 122756.
+    
+    Updates #26248.
+    
+    Change-Id: Ic4250ab5d01da9f65d0bc033e2306343d9c87a99
+    Reviewed-on: https://go-review.googlesource.com/122757
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue26248.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

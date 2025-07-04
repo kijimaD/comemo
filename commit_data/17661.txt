@@ -1,0 +1,12 @@
+commit 0826c04e1454b41dac18365b08b4d59b2a82f543
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 20 16:00:13 2013 -0400
+
+    cmd/yacc: report correct line for 'default action causes potential type clash'
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13588044
+
+ src/cmd/yacc/yacc.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

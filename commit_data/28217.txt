@@ -1,0 +1,15 @@
+commit 4d5bb76279a7b0043bef97156a39ae1bef923e6d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 6 13:56:48 2016 -0400
+
+    cmd/compile: remove nil check if followed by storezero on ARM64, MIPS64
+    
+    Change-Id: Ib90c92056fa70b27feb734837794ef53e842c41a
+    Reviewed-on: https://go-review.googlesource.com/28513
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go  | 3 ++-
+ src/cmd/compile/internal/mips64/ssa.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

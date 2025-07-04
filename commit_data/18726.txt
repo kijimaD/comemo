@@ -1,0 +1,19 @@
+commit 0a3bd045f50d7a9cfeb3ad1418588c3ab5de329f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 3 23:33:27 2014 -0500
+
+    runtime: fix traceback on Windows
+    
+    The exception handler runs on the ordinary g stack,
+    and the stack copier is now trying to do a traceback
+    across it. That's never been needed before, so it was
+    unimplemented. Implement it, in all its ugliness.
+    
+    Fixes windows/amd64 build.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/71030043
+
+ src/pkg/runtime/traceback_x86.c | 49 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

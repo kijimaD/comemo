@@ -1,0 +1,12 @@
+commit bb4a490928aeb1b6d6cc50954da141b3cf0cacde
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 22 15:39:53 2012 -0500
+
+    builder: reuse existing workspace if possible
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5690069
+
+ misc/dashboard/builder/main.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

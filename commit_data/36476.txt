@@ -1,0 +1,23 @@
+commit 4cc027fb55956c001ce486f48538835581bc5197
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Jul 31 18:13:05 2018 +0300
+
+    cmd/compile: display AST IR in ssa.html
+    
+    This change adds a new column, AST IR. That column contains
+    nodes for a function specified in $GOSSAFUNC.
+    
+    Also this CL enables horizontal scrolling of sources and AST columns.
+    
+    Fixes #26662
+    
+    Change-Id: I3fba39fd998bb05e9c93038e8ec2384c69613b24
+    Reviewed-on: https://go-review.googlesource.com/126858
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go   |  5 ++++
+ src/cmd/compile/internal/gc/ssa.go   | 14 ++++++---
+ src/cmd/compile/internal/ssa/html.go | 55 ++++++++++++++++++++++++++++++++++--
+ 3 files changed, 68 insertions(+), 6 deletions(-)

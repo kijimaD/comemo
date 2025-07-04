@@ -1,0 +1,15 @@
+commit 769be04feb724e03c1f2b757fc19326a1486896c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Feb 4 17:33:14 2017 +1100
+
+    cmd/nm: skip TestInternalLinkerCgoFile if no internal linking is supported
+    
+    Fixes build.
+    
+    Change-Id: I2fee624c8a4b228bb9f2889e241ea016a317bb11
+    Reviewed-on: https://go-review.googlesource.com/36373
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/nm/nm_cgo_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

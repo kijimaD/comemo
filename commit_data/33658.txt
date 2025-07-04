@@ -1,0 +1,21 @@
+commit a2a1c173d7917e86e2f0a3323676ae29f188593c
+Author: Tim Wright <tenortim@gmail.com>
+Date:   Tue Nov 21 19:11:56 2017 -0800
+
+    syscall: add missing fs locking in Link, Rename on nacl
+    
+    Per the comments at the head of fs_nacl.go, unexported methods expect
+    the fs mutex to have been taken by the caller.
+    This change brings Link and Rename into line with the other exported
+    functions wrt fs locking.
+    
+    Fixes #22690
+    
+    Change-Id: I46d08f7d227f23ff49bb0099d218214364a45e1a
+    Reviewed-on: https://go-review.googlesource.com/79295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/fs_nacl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

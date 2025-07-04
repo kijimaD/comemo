@@ -1,0 +1,20 @@
+commit cd41db34bcd1776a783fb7507b68705a7de4e54a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 30 22:01:00 2016 +0100
+
+    regexp: remove unreachable code
+    
+    Found running go vet on the package. It barks that
+            regexp/backtrack.go:257: unreachable code
+            regexp/backtrack.go:302: unreachable code
+    
+    For #11041
+    
+    Change-Id: I0f5ba0d6183108fba3d144991b826273db0ffb09
+    Reviewed-on: https://go-review.googlesource.com/19824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/backtrack.go | 2 --
+ 1 file changed, 2 deletions(-)

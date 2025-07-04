@@ -1,0 +1,15 @@
+commit f2c3122307fc91b792226facbe1da1f48eec9be5
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Feb 14 18:43:54 2013 -0800
+
+    cmd/ld: fix -s flag for ELF executables
+    
+    This fixes a regression introduced in changeset 98034d036d03
+    which added support for producing host object files.
+    
+    R=rsc, minux.ma
+    CC=dave, golang-dev
+    https://golang.org/cl/7307107
+
+ src/cmd/ld/elf.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 80abe2fc59b8689413e906ad803ebc176389b926
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 28 12:28:09 2015 +0900
+
+    net: make spuriousENOTAVAIL to be able to parse EADDRNOTAVAIL correctly
+    
+    Change-Id: I82e3aadbd18fccb98a76d1c36876510f5e1c3089
+    Reviewed-on: https://go-review.googlesource.com/12750
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/error_posix_test.go | 27 ++++++++++++++++++++++++++-
+ src/net/tcpsock_posix.go    |  9 +++++++--
+ 2 files changed, 33 insertions(+), 3 deletions(-)

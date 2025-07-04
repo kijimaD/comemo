@@ -1,0 +1,14 @@
+commit 2a129f3e8a0e3701e92fec0d7fde68d648e0cab9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 11:36:19 2023 -0700
+
+    doc: document change of cgocheck=2 from debug to experiment
+    
+    Change-Id: I98bdfe8ab338a5b92c466a5aacfa95266171e5c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499279
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

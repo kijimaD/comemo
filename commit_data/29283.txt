@@ -1,0 +1,24 @@
+commit 807a7ebd5107b44ca93849f2b12b61bc4cacca10
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Oct 7 12:16:26 2016 -0400
+
+    cmd/compile: improve s390x rules for folding ADDconst into loads/stores
+    
+    There is no benefit to folding ADDconsts unless the resultant immediate
+    will fit into a 20-bit signed integer, so limit these rules accordingly.
+    
+    Also the signed load operations were missing, so I've added them, and
+    I've also removed some MOVDaddr rules that were dead code (MOVDaddrs
+    are rematerializable on s390x which means they can't take inputs other
+    than SP or SB).
+    
+    Change-Id: Iebeba78da37d3d71d32d4b7f49fe4ea9095d40ec
+    Reviewed-on: https://go-review.googlesource.com/30616
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  50 +++--
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 267 +++++++++++----------------
+ 2 files changed, 132 insertions(+), 185 deletions(-)

@@ -1,0 +1,13 @@
+commit 48b739caacaf8e63b5c420218704b6ce58eac0af
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Nov 8 23:25:48 2012 +0800
+
+    time: clarify why timer.Stop and ticker.Stop don't close the channel
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6818106
+
+ src/pkg/time/sleep.go | 2 ++
+ src/pkg/time/tick.go  | 2 ++
+ 2 files changed, 4 insertions(+)

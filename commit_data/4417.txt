@@ -1,0 +1,14 @@
+commit 55ca7a2644164f0dc33c1c0b4fa89762f0e81e26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 08:41:50 2009 -0800
+
+    fix TODO: insert semicolons before any sequence of comments
+    that introduce the newline (important for correct placement
+    of comments with gofmt when parsing new syntax)
+    
+    R=rsc
+    https://golang.org/cl/179055
+
+ src/pkg/go/scanner/scanner.go      | 103 +++++++++++++++++++++++--------------
+ src/pkg/go/scanner/scanner_test.go |  14 ++---
+ 2 files changed, 72 insertions(+), 45 deletions(-)

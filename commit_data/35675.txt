@@ -1,0 +1,28 @@
+commit 44b826bb28171c473cf906413c298f3095c86451
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 11 13:41:23 2018 -0400
+
+    cmd/compile: use a different register for updated value in AtomicAnd8/Or8 on ARM64
+    
+    ARM64 manual says it is "constrained unpredictable" if the src
+    and dst registers of STLXRB are same, although it doesn't seem
+    to cause any problem on real hardwares so far. Fix by allocating
+    a different register to hold the updated value for
+    AtomicAnd8/Or8. We do this by making the ops returns <val,mem>
+    like AtomicAdd, although val will not be used elsewhere.
+    
+    Fixes #25823.
+    
+    Change-Id: I735b9822f99877b3c7aee67a65e62b7278dc40df
+    Reviewed-on: https://go-review.googlesource.com/117976
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        | 13 +++++------
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++------
+ src/cmd/compile/internal/ssa/opGen.go        | 28 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 32 +++++++++++++++++++---------
+ 5 files changed, 56 insertions(+), 34 deletions(-)

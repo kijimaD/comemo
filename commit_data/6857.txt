@@ -1,0 +1,12 @@
+commit 458ec560e75cb9ad7afac643cb47d5981a11f23e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 16:14:45 2010 -0500
+
+    CONTRIBUTORS: add alias chressie@googlemail.com == chressie@gmail.com
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3485044
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

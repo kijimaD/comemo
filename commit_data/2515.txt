@@ -1,0 +1,12 @@
+commit 94439982b62dee7085aae289e4a6643debd69255
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 09:38:35 2009 -0700
+
+    Effective Go; draft
+    
+    TBR=r
+    OCL=30741
+    CL=30741
+
+ doc/effective_go.html | 740 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 740 insertions(+)

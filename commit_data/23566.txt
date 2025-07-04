@@ -1,0 +1,23 @@
+commit 4df6b1ec2f27d0dded28ecc7cde5d12f57e144d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 11:53:51 2015 -0400
+
+    path/filepath: document and test behavior of SkipDir on files
+    
+    This behavior is not what we might have designed from the start,
+    but it has been present since Go 1. Rather than make a visible
+    behavioral change that might cause programs to work differently
+    in Go ≤1.4 vs Go ≥1.5, document what SkipDir on a non-directory
+    has always meant. If code doesn't want this meaning, it is easy
+    enough not to return SkipDir on non-directories.
+    
+    Fixes #10533.
+    
+    Change-Id: Ic0612f032044bc7c69bf62583a02037e4b47530b
+    Reviewed-on: https://go-review.googlesource.com/11690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/filepath/path.go      |  9 +++++----
+ src/path/filepath/path_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

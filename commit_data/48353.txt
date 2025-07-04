@@ -1,0 +1,24 @@
+commit 2e46a0a99768408c90cf4eeda3690831693fd8b2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 10 10:01:35 2022 -0800
+
+    cmd/compile: fix expression switches using type parameters
+    
+    Both the thing we're switching on, as well as the cases we're switching for.
+    Convert anything containing a type parameter to interface{} before the
+    comparison happens.
+    
+    Fixes #51522
+    
+    Change-Id: I97ba9429ed332cb7d4240cb60f46d42226dcfa5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391594
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/stmt.go       |  2 +-
+ src/cmd/compile/internal/noder/stencil.go | 20 ++++++++++
+ test/typeparam/issue51522b.go             | 62 +++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 1 deletion(-)

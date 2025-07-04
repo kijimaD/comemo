@@ -1,0 +1,29 @@
+commit c870e863298a44ead08e0b797d62ea74d7b7c971
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 13 15:45:28 2021 -0800
+
+    cmd/asm: when dynamic linking, reject code that uses a clobbered R15
+    
+    The assember uses R15 as scratch space when assembling global variable
+    references in dynamically linked code. If the assembly code uses the
+    clobbered value of R15, report an error. The user is probably expecting
+    some other value in that register.
+    
+    Getting rid of the R15 use isn't very practical (we could save a
+    register to a field in the G maybe, but that gets cumbersome).
+    
+    Fixes #43661
+    
+    Change-Id: I43f848a3d8b8a28931ec733386b85e6e9a42d8ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283474
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go          |  14 ++-
+ .../asm/internal/asm/testdata/amd64dynlinkerror.s  |  68 ++++++++++++
+ src/cmd/internal/obj/link.go                       |   1 +
+ src/cmd/internal/obj/plist.go                      |   3 +
+ src/cmd/internal/obj/x86/obj6.go                   | 115 +++++++++++++++++++++
+ 5 files changed, 200 insertions(+), 1 deletion(-)

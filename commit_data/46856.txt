@@ -1,0 +1,28 @@
+commit f8bfdc9eda4a065b88e5d7ab968957d9c84694bf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Oct 11 15:51:10 2021 -0700
+
+    cmd/go: adjust documentation mentioning 'go get'
+    
+    In module-aware mode, 'go get' no longer builds or installs packages.
+    
+    - 'go generate' explains build commands do not run generate
+      commands. 'go get' is no longer a build command, so this CL removes
+      mention of it.
+    - 'go get' will continue to accept build flags, but they're
+      ignored. The documentation no longer mentions them, though it does
+      mention -x for printing VCS commands.
+    
+    For #43684
+    
+    Change-Id: I1eea7241eecf72ba9f98238b729d91cc77ec7665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355209
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                    | 9 ++++++---
+ src/cmd/go/internal/generate/generate.go | 2 +-
+ src/cmd/go/internal/modget/get.go        | 7 +++++--
+ 3 files changed, 12 insertions(+), 6 deletions(-)

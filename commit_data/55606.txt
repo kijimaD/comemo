@@ -1,0 +1,22 @@
+commit b2a169be6f499ac818620398570840b65100ccb7
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Thu Feb 8 18:32:55 2024 +0000
+
+    cmd/go: show Sum/GoModSum when listing modules
+    
+    Fixes #52792
+    
+    Tested: Ran go test cmd/go
+    Change-Id: Ib7006256f4dca9e9fbfce266c00253c69595d6ab
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562775
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                     |  2 ++
+ src/cmd/go/internal/list/list.go          |  2 ++
+ src/cmd/go/internal/modfetch/fetch.go     | 41 +++++++++++++++++++++++++++++++
+ src/cmd/go/internal/modinfo/info.go       | 37 ++++++++++++++--------------
+ src/cmd/go/internal/modload/build.go      |  6 +++++
+ src/cmd/go/testdata/script/mod_list_m.txt | 16 ++++++++++++
+ 6 files changed, 86 insertions(+), 18 deletions(-)

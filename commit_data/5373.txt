@@ -1,0 +1,16 @@
+commit 2f480b10e2a638e1e52f7c90479925b258f720c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 14:06:53 2010 -0700
+
+    pidigits: ~10% performance win by using adds instead of shifts
+    
+    user time for pidigits -s -n=10000:
+    6.466s w/ adds
+    7.138s w/ shifts
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1021041
+
+ test/bench/pidigits.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

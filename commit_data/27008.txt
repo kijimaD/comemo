@@ -1,0 +1,25 @@
+commit 55ab07c224a358cabe795fb1e52a627194d7daee
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 19 12:26:28 2016 -0700
+
+    cmd/compile: static composite literals are side-effect free
+    
+    This extends CL 22192.
+    
+    This removes the remaining performance disparity
+    between non-SSA and SSA on the AppendInPlace benchmarks.
+    
+    Going from non-SSA to SSA:
+    
+    AppendInPlace/NoGrow/2Ptr-8  1.60µs ± 5%  1.53µs ± 5%  -4.04%  (p=0.000 n=15+14)
+    AppendInPlace/NoGrow/3Ptr-8  2.04µs ± 3%  1.96µs ± 2%  -3.90%  (p=0.000 n=13+14)
+    AppendInPlace/NoGrow/4Ptr-8  2.83µs ± 8%  2.62µs ± 4%  -7.39%  (p=0.000 n=13+15)
+    
+    Previously these were 20% regressions.
+    
+    Change-Id: Ie87810bffd598730658e07585f5e2ef979a12b8f
+    Reviewed-on: https://go-review.googlesource.com/22248
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,13 @@
+commit 04b7da80cc3067d9db25c7d6384ec88878d8e465
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 29 14:18:45 2011 -0400
+
+    A+C: David Forsythe (individual CLA)
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4333041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

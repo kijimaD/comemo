@@ -1,0 +1,12 @@
+commit 42ae6851c023cbe34c0b68e3d56a648258ef57c6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 19:31:06 2008 -0700
+
+    fix bug names
+    add a new one: go func() { print "ok\n" } ();
+    
+    SVN=127144
+
+ test/bugs/bug067.go                | 11 +++++++++++
+ test/bugs/{bug065.go => bug068.go} |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

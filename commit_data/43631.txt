@@ -1,0 +1,37 @@
+commit 60f42ea61cb7e1de8d54432d8fb9ab028b8a575d
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri Aug 14 22:58:49 2020 +1200
+
+    strconv: fix incorrect bit size in ParseComplex; add tests
+    
+    In ParseComplex, the "size" passed to parseFloatPrefix should be 64 for
+    complex128, not 128. It still works because of how parseFloatPrefix
+    is forgiving about the size if it's not 32, but worth fixing anyway.
+    
+    Make ParseComplex and ParseFloat return a bit size error for anything
+    other than 128 or 64 (for ParseComplex), or 64 or 32 (for ParseFloat).
+    Add "InvalidBitSize" tests for these cases.
+    
+    Add tests for ParseComplex with bitSize==64: this is done in a similar
+    way to how the ParseFloat 32-bit tests work, re-using the tests for the
+    larger bit size.
+    
+    Add tests for FormatComplex -- there were none before.
+    
+    Fixes #40706
+    
+    Change-Id: I16ddd546e5237207cc3b8c2181dd708eca42b04f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248219
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Minux Ma <minux@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/atoc.go      |  6 +++---
+ src/strconv/atoc_test.go | 22 ++++++++++++++++++++
+ src/strconv/atof.go      |  3 +++
+ src/strconv/atof_test.go | 11 ++++++++++
+ src/strconv/ctoa_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/strconv/ftoa_test.go |  9 ++++++++
+ 6 files changed, 101 insertions(+), 3 deletions(-)

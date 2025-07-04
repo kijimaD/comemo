@@ -1,0 +1,14 @@
+commit df60c0a3b8128db948ee3bac6e7e69bb8832faea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 1 14:57:59 2013 +1100
+
+    html/template: fix doc typo
+    
+    Fixes #4950.
+    
+    R=golang-dev, peter
+    CC=golang-dev
+    https://golang.org/cl/7415046
+
+ src/pkg/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

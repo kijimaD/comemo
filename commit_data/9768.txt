@@ -1,0 +1,19 @@
+commit ec8469b6c7fcdfd1180c11db9e4862da4f15c172
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 21 15:12:06 2011 -0700
+
+    godoc: simplify internal FileSystem interface
+    
+    - also fixed bug: ReadFile never closed the file before
+    - per suggestion by bradfitz
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5092047
+
+ src/cmd/godoc/codewalk.go   |  4 ++--
+ src/cmd/godoc/filesystem.go | 15 ++++++++++-----
+ src/cmd/godoc/godoc.go      | 10 +++++-----
+ src/cmd/godoc/parser.go     |  2 +-
+ src/cmd/godoc/zip.go        |  9 ---------
+ 5 files changed, 18 insertions(+), 22 deletions(-)

@@ -1,0 +1,24 @@
+commit ea8c05508b582f7ab20850e336d5ae4abf4e448d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 11 12:18:51 2023 -0400
+
+    Revert "runtime: allow update of system stack bounds on callback from C thread"
+    
+    This reverts CL 525455. The test fails to build on darwin, alpine, and
+    android.
+    
+    For #62440.
+    
+    Change-Id: I39c6b1e16499bd61e0f166de6c6efe7a07961e62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527317
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/cgocall.go                          | 70 ---------------------
+ src/runtime/crash_cgo_test.go                   | 13 ----
+ src/runtime/proc.go                             | 33 +++++++---
+ src/runtime/testdata/testprogcgo/stackswitch.c  | 81 -------------------------
+ src/runtime/testdata/testprogcgo/stackswitch.go | 43 -------------
+ 5 files changed, 24 insertions(+), 216 deletions(-)

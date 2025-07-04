@@ -1,0 +1,24 @@
+commit 82a1e0f9d3e47ae7792cb857e950abc7103e9f39
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 15:40:54 2021 -0500
+
+    cmd/link: make symbol data writable before toc fixup
+    
+    On ppc64le, we need to insert a load to restore the toc
+    pointer in R2 after calling into plt stubs. Sometimes the
+    symbol data is loaded into readonly memory. This is the
+    case when linking with the race detector code.
+    
+    Likewise, add extra checks to ensure we can, and are
+    replacing a nop.
+    
+    Change-Id: Iea9d9ee7a5ba0f4ce285f4d0422823de1c037cb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304430
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

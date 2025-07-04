@@ -1,0 +1,19 @@
+commit b065c95551fdd89075c81b3f407a9c2d5cf326e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:12:34 2017 -0700
+
+    cmd/compile: convert more dxxx functions to work with LSyms
+    
+    This batch from reflect.go.
+    Changes made manually, since they are simple,
+    few, and typechecked by the compiler.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0030daab2dac8e7c95158678c0f7141fd90441f9
+    Reviewed-on: https://go-review.googlesource.com/41399
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)

@@ -1,0 +1,18 @@
+commit da0a6f4b57fc9eb4779c295bc9620c5ed271a641
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 12 13:25:01 2022 -0700
+
+    spec: fix prose about promoted methods of embedded fields
+    
+    The types of embedded fields must be named, but they don't
+    need to be defined types (e.g. if the type name is an alias).
+    
+    Fixes #41687.
+    
+    Change-Id: Ib9de65dfab0e23c27d8303875fa45c217aa03331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406054
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

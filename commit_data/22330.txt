@@ -1,0 +1,19 @@
+commit cce127a75f72110c045319407a652829b5a5b716
+Author: Jiong Du <londevil@gmail.com>
+Date:   Tue Dec 30 16:12:50 2014 +0800
+
+    database/sql: close connection if db.numOpen > db.maxOpen
+    
+    Bug Description:
+    When reduce db.maxOpen via db.SetMaxOpenConns, the unnecssary
+    connections won't been released until all other connections are free.
+    
+    Fixes #9453
+    
+    Change-Id: I9afb2e4b184139b31029ae53d7f5fd1fdb8d8d7e
+    Reviewed-on: https://go-review.googlesource.com/2200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      |  3 +++
+ src/database/sql/sql_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

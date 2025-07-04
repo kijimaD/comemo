@@ -1,0 +1,21 @@
+commit 515135f4c3f9c67d51d6d3d7b8fe82559ac2e9f2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 22 20:43:43 2022 +0700
+
+    cmd/compile: remove types.Type.SetBroken
+    
+    And use base.Fatalf in code that use t.SetBroke(true) instead.
+    
+    Updates #51691
+    
+    Change-Id: I9f3613379dd82d0dd069cdf7b61cbb281810e2e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 23 ++++-------------------
+ src/cmd/compile/internal/types/size.go          | 11 +----------
+ src/cmd/compile/internal/types/type.go          |  7 +++----
+ 3 files changed, 8 insertions(+), 33 deletions(-)

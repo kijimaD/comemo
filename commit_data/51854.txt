@@ -1,0 +1,42 @@
+commit 7d7fd6d3627f7dbba250ecfecea2f5ffe6c5aaa7
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Dec 9 09:56:15 2022 -0800
+
+    io: allocate copy buffers from a pool
+    
+    CopyBuffer allocates a 32k buffer when no buffer is available.
+    Allocate these buffers from a sync.Pool.
+    
+    This removes an optimization where the copy buffer size was
+    reduced when the source is a io.LimitedReader (including the
+    case of CopyN) with a limit less than the default buffer size.
+    This change could cause a program which only uses io.Copy
+    with sources with a small limit to allocate unnecessarily
+    large buffers. Programs which care about the transient
+    buffer allocation can avoid this by providing their own buffer.
+    
+    name           old time/op    new time/op    delta
+    CopyNSmall-10     165ns ± 7%     117ns ± 7%  -29.19%  (p=0.001 n=7+7)
+    CopyNLarge-10    7.33µs ±34%    4.07µs ± 2%  -44.52%  (p=0.001 n=7+7)
+    
+    name           old alloc/op   new alloc/op   delta
+    CopyNSmall-10    2.20kB ±12%    1.20kB ± 4%  -45.24%  (p=0.000 n=8+7)
+    CopyNLarge-10     148kB ± 9%      81kB ± 4%  -45.26%  (p=0.000 n=8+7)
+    
+    name           old allocs/op  new allocs/op  delta
+    CopyNSmall-10      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=8+8)
+    CopyNLarge-10      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=8+8)
+    
+    For #57202
+    
+    Change-Id: I2292226da9ba1dc09a2543f5d74fe5da06080d49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Thomas Austad <thomas.austad@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/io/io.go           | 30 ++++++++++++------------------
+ src/net/http/server.go | 17 +++--------------
+ 2 files changed, 15 insertions(+), 32 deletions(-)

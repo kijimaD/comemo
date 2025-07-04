@@ -1,0 +1,22 @@
+commit 8d8dab34eb3bedfbb0e384deaeb03a9395db89a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 22 11:45:03 2014 -0400
+
+    doc/go1.3.html: change uintptr to integer in unsafe.Pointer section
+    
+    The key property here is what the bit pattern represents,
+    not what its type is. Storing 5 into a pointer is the problem.
+    Storing a uintptr that holds pointer bits back into a pointer
+    is not as much of a problem, and not what we are claiming
+    the runtime will detect.
+    
+    Longer discussion at
+    https://groups.google.com/d/msg/golang-nuts/dIGISmr9hw0/0jO4ce85Eh0J
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/98370045
+
+ doc/go1.3.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

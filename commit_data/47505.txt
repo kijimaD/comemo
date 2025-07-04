@@ -1,0 +1,21 @@
+commit 01b6cf09fc9f272d9db3d30b4c93982f4911d120
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 15 15:56:39 2021 -0800
+
+    runtime: check GOAMD64 compatibility after setting up TLS
+    
+    We need TLS set up to be able to print an error without crashing.
+    
+    Fixes #49586
+    Update #45453
+    
+    Change-Id: I97f0efcd716a8dca614e82ab73f2d855b7277599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364174
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_amd64.s | 136 +++++++++++++++++++++++-------------------------
+ 1 file changed, 64 insertions(+), 72 deletions(-)

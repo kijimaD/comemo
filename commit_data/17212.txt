@@ -1,0 +1,14 @@
+commit a2599cf50e8f45a19c91c2180468ba0c9d96af0e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 13 16:29:51 2013 -0700
+
+    archive/zip: add File.DataOffset
+    
+    Accessor to find where the bytes of a file start.
+    
+    R=golang-dev, rsc, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/12784045
+
+ src/pkg/archive/zip/reader.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

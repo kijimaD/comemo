@@ -1,0 +1,18 @@
+commit b414d044ff6d24ff23531e64d45ad775bc6c96bb
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Feb 27 13:54:42 2024 +0000
+
+    os: remove if nil!=nil in openFileNolog
+    
+    Change-Id: I21cecc13570f3b61f3d6c4fede18dc63ddca1b69
+    GitHub-Last-Rev: 3c351e4aa84780d682fd7595ac2091defdcdfc62
+    GitHub-Pull-Request: golang/go#65958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567355
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/os/file_windows.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

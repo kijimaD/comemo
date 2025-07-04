@@ -1,0 +1,17 @@
+commit 18f518362b3fbe3dd9bd22927ce0396084d0ef42
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 11 09:42:07 2012 +1100
+
+    compress: add comments to gzip and zlib.
+    
+    Fixes #2939.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5655050
+
+ src/pkg/compress/gzip/gunzip.go |  8 ++++++--
+ src/pkg/compress/gzip/gzip.go   |  2 ++
+ src/pkg/compress/zlib/reader.go | 11 ++++++++---
+ src/pkg/compress/zlib/writer.go |  5 ++++-
+ 4 files changed, 20 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 1d46fc44b780507c4d09d54c232f73397cbf4e6d
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Tue Dec 11 12:17:53 2012 -0500
+
+    spec: Correct typo in method expressions example.
+    
+    Also, remove unnecessary whitespace.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6928045
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

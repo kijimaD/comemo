@@ -1,0 +1,13 @@
+commit f892540513d398156f32b357bcda43fe62f13728
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 16:14:19 2010 -0700
+
+    fix build
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1616041
+
+ test/bugs/bug285.go |  2 +-
+ test/golden.out     | 41 +++++++++++++++++++++--------------------
+ 2 files changed, 22 insertions(+), 21 deletions(-)

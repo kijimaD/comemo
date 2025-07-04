@@ -1,0 +1,13 @@
+commit 49c859a5f1ff32f7c36fc933796b545870889993
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 11:38:41 2009 -0800
+
+    AUTHORS+CONTRIBUTORS: more names; CLA verified
+    
+    R=gri
+    CC=r
+    https://golang.org/cl/163044
+
+ AUTHORS      | 9 ++++++++-
+ CONTRIBUTORS | 7 +++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

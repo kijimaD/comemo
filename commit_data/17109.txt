@@ -1,0 +1,20 @@
+commit 94179d61abf9516e24597ec8fa3888343d01388c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 10:49:01 2013 +1000
+
+    reflect: avoid allocation when interface's contents are not addressable
+    See issue 4949 for a full explanation.
+    
+    Allocs go from 1 to zero in the non-addressable case.
+    Fixes #4949.
+    
+    BenchmarkInterfaceBig             90           14  -84.01%
+    BenchmarkInterfaceSmall           14           14   +0.00%
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12646043
+
+ src/pkg/reflect/all_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    |  3 ++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

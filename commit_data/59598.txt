@@ -1,0 +1,18 @@
+commit a070533633bd709bc3598dbd7c28edca1d2ba6e2
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue May 20 15:59:02 2025 -0700
+
+    reflect: turn off allocation test if instrumentation is on
+    
+    Help fix the asan builders.
+    
+    Change-Id: I980f5171519643c3543bdefc6ea46fd0fca17c28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674616
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/reflect/all_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

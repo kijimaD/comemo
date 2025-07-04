@@ -1,0 +1,28 @@
+commit f432d3fc41b8f6b01131023aabcf935ebea172cb
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 26 14:13:19 2021 -0700
+
+    cmd/compile: fix nongeneric closures in generic functions
+    
+    Ensure that formal parameter Names are correctly copied and marked
+    with the correct Curfn. We need to ensure this even when the underlying
+    closure has no type parameters.
+    
+    (Aside: it is strange that the types of things contain formal
+    parameter names that need to be copied. Maybe that's an underlying
+    larger problem that needs to be fixed.)
+    
+    Fixes #45738
+    
+    Change-Id: Ia13d69eea992ff7080bd44065115bc52eb624e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313652
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/escape/escape.go |  5 ++++-
+ src/cmd/compile/internal/noder/stencil.go |  5 ++++-
+ test/typeparam/issue45738.go              | 18 ++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

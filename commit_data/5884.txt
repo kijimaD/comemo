@@ -1,0 +1,13 @@
+commit 5ee02eef4ce50344ee237821da3a0dbe1463dc1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 16:19:39 2010 -0700
+
+    net: TCPConn.SetNoDelay, back by popular demand
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1880047
+
+ src/pkg/net/sock.go    |  6 ++++++
+ src/pkg/net/tcpsock.go | 13 ++++++++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

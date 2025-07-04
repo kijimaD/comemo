@@ -1,0 +1,22 @@
+commit 6c934238c93f8f60775409f1ab410ce9c9ea2357
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 17 08:32:15 2014 -0700
+
+    runtime: change minimum stack size to 2K.
+    
+    It will be 8K on windows because it needs 4K for the OS.
+    Similarly, plan9 will be 4K.
+    
+    On linux/amd64, reduces size of 100,000 goroutines
+    from ~819MB to ~245MB.
+    
+    Update #7514
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, khr, aram
+    CC=golang-codereviews
+    https://golang.org/cl/145790043
+
+ src/runtime/proc.c  |  8 ++++----
+ src/runtime/stack.h | 21 ++++++++++++---------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

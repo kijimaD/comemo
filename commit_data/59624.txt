@@ -1,0 +1,24 @@
+commit 360600b1d20bc4b421217435d921a2437be07893
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sat Jan 25 10:28:02 2025 -0800
+
+    crypto/tls: replace custom intern cache with weak cache
+    
+    Uses the new weak package to replace the existing custom intern cache
+    with a map of weak.Pointers instead. This simplifies the cache, and
+    means we don't need to store a slice of handles on the Conn anymore.
+    
+    Change-Id: I5c2bf6ef35fac4255e140e184f4e48574b34174c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644176
+    TryBot-Bypass: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/cache.go                   | 93 +++++++------------------------
+ src/crypto/tls/cache_test.go              | 72 ++++--------------------
+ src/crypto/tls/conn.go                    |  3 -
+ src/crypto/tls/handshake_client.go        | 10 +---
+ src/crypto/tls/handshake_client_tls13.go  |  1 -
+ src/crypto/tls/handshake_messages_test.go |  4 --
+ src/crypto/tls/ticket.go                  | 46 +++++++--------
+ 7 files changed, 57 insertions(+), 172 deletions(-)

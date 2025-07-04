@@ -1,0 +1,14 @@
+commit 989409f5279df7394faa1c3f66ef00a418f6c888
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Aug 26 12:57:09 2019 -0400
+
+    doc/go1.13: add information about using private modules to the introduction
+    
+    Fixes #33796
+    
+    Change-Id: I9f6837be96410e96d004523c48bef95ee1427484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191746
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

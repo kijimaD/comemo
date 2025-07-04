@@ -1,0 +1,21 @@
+commit 70d83eda99d0687ba07348ca773ee8bf3e9bbfa9
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:41:30 2018 +0100
+
+    time: add wasm architecture
+    
+    This commit adds the wasm architecture to the time package.
+    
+    Updates #18892
+    
+    Change-Id: I86841e096894eacf7f972add9a532491e4d00014
+    Reviewed-on: https://go-review.googlesource.com/106997
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/time_js_wasm.s | 11 +++++++++++
+ src/syscall/timestruct.go  |  2 +-
+ src/time/sys_unix.go       |  2 +-
+ src/time/zoneinfo_unix.go  |  2 +-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

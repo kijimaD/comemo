@@ -1,0 +1,10 @@
+commit 12c2864e4f02d9d5ab452eb70e296fa6c715443b
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 21 17:28:37 2008 -0700
+
+    more nearly correct interface code for signals on linux
+    
+    SVN=124021
+
+ src/runtime/rt1_amd64_linux.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

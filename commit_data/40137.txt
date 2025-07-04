@@ -1,0 +1,20 @@
+commit 047141797c160430c9f41e1225bbfbf562fd7795
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 29 23:42:42 2019 +0700
+
+    cmd/compile: lookup methods of base type for named pointer type
+    
+    Passed toolstash-check.
+    
+    Updates #21738
+    Fixes #21934
+    
+    Change-Id: I59f0b2c9890146565ff913b04aeeeff7dc7a4499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197561
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  7 ++++++-
+ test/fixedbugs/issue21934.go        | 26 ++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

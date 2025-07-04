@@ -1,0 +1,12 @@
+commit e5a7ab8550e3725a52301586e8e99ee9845de91d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 10 14:30:52 2013 +0900
+
+    net: fix nits found by go tool vet
+    
+    R=golang-dev, dave, adg
+    CC=golang-dev
+    https://golang.org/cl/27430043
+
+ src/pkg/net/net_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

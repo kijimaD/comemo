@@ -1,0 +1,27 @@
+commit 42a46206b97ca7cf4246d3c1230a70cf42ad5bb0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 9 17:29:12 2022 -0400
+
+    cmd/go: omit VCS stamping during bootstrap
+    
+    cmd/dist can't easily hard-code -buildvcs=false because not all
+    versions of cmd/go supported for bootstrapping recognize that flag.
+    
+    However, we don't want to stamp the bootstrap binaries: the stamping
+    is redundant with the VERSION file writted during bootstrapping (which
+    is why it is normally omitted for standard-library packages and
+    commands), and it may also interfere with building the Go repo from a
+    source tarball or zip file.
+    
+    Fixes #54852.
+    
+    Change-Id: If223f094af137c4c202d6bf622619bd2da397ec4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432435
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/reboot/reboot_test.go      | 24 ++++++++++++++++++++----
+ src/cmd/go/internal/load/pkg.go |  6 ++++++
+ 2 files changed, 26 insertions(+), 4 deletions(-)

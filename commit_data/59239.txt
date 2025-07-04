@@ -1,0 +1,22 @@
+commit a6e74454577c68ea96ce6512e3e92beffbe15c5c
+Author: Dimitri John Ledkov <dimitri.ledkov@surgut.co.uk>
+Date:   Tue Jul 19 11:07:00 2022 -0400
+
+    cmd/go/internal/load: join incompatible and dirty build specifiers with .
+    
+    Change "+incompatible+dirty" version to be "+incompatible.dirty" such
+    that it is SemVer spec compatible.
+    
+    Fixes #71971
+    
+    Change-Id: I714ffb3f1ad88c793656c3652367db34739a2144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                           |  7 ++++++-
+ src/cmd/go/testdata/script/build_version_stamping_git.txt | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

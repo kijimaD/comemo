@@ -1,0 +1,11 @@
+commit 415397e3b72c6c88295909ada23468dfbf7afc65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 9 14:48:26 2008 -0700
+
+    - replaced recursive parsing of binary expressions with
+      precedence-based expression parser
+    
+    SVN=126556
+
+ usr/gri/src/parser.go | 115 +++++++++++++++++---------------------------------
+ 1 file changed, 39 insertions(+), 76 deletions(-)

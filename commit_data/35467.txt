@@ -1,0 +1,15 @@
+commit 5776bd558fd0cfe40c71dac549db148ea16c0fce
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 23 05:33:06 2018 +0000
+
+    misc/android: add a NL at the of README
+    
+    There is no NL at the end of README, and that make it strange
+    when doing "cat misc/android/README".
+    
+    Change-Id: Ib47953d7b16e8927a4d6be7d5be8de8f2ddbcc39
+    Reviewed-on: https://go-review.googlesource.com/114010
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ misc/android/README | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

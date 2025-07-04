@@ -1,0 +1,16 @@
+commit c295107708ad5fd26a78f9f1cb478f91aa7763e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 16:24:49 2021 -0700
+
+    doc/go1.17: mention new encoding/csv/Reader.FieldPos method
+    
+    For #44221
+    For #44513
+    
+    Change-Id: I2d2d1c55255f4411c11fd51f0f3ae726cbf4d136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323349
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+
+ doc/go1.17.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

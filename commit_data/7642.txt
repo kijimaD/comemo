@@ -1,0 +1,12 @@
+commit 5f54c807f16541ea19bb08cebcd2f77886d6d0cc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 5 14:53:29 2011 -0500
+
+    build: avoid calling gomake wrapper in recursive make
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4243058
+
+ src/Make.common | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

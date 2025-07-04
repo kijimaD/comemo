@@ -1,0 +1,34 @@
+commit 70dc28f766194a2b3b050b9c8fab83523164bfbb
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Apr 11 22:54:18 2019 -0600
+
+    math/cmplx: implement Payne-Hanek range reduction
+    
+    Tan has poles along the real axis. In order to accurately calculate
+    the value near these poles, a range reduction by Pi is performed and
+    the result calculated via a Taylor series.  The prior implementation
+    of range reduction used Cody-Waite range reduction in three parts.
+    This fails when x is too large to accurately calculate the partial
+    products in the summation accurately.  Above this threshold, Payne-Hanek
+    range reduction using a multiple precision value of 1/Pi is required.
+    
+    Additionally, the threshold used in math/trig_reduce.go for Payne-Hanek
+    range reduction was not set conservatively enough. The prior threshold
+    ensured that catastrophic failure did not occur where the argument x
+    would not actually be reduced below Pi/4. However, errors in reduction
+    begin to occur at values much lower when z = ((x - y*PI4A) - y*PI4B) - y*PI4C
+    is not exact because y*PI4A cannot be exactly represented as a float64.
+    reduceThreshold is lowered to the proper value.
+    
+    Fixes #31566
+    
+    Change-Id: I0f39a4171a5be44f64305f18dc57f6c29f19dba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172838
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go    |   2 +-
+ src/math/cmplx/cmath_test.go |  34 +++++++++++++
+ src/math/cmplx/tan.go        | 119 ++++++++++++++++++++++++++++++++++++++-----
+ src/math/huge_test.go        |  16 ++++++
+ src/math/trig_reduce.go      |  16 ++++--
+ 5 files changed, 167 insertions(+), 20 deletions(-)

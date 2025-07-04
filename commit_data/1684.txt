@@ -1,0 +1,13 @@
+commit b4af09ab569d72c7103b46f4e4833a4c7bc4ae78
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 16 16:36:18 2009 -0800
+
+    embedded interface types in interfaces.
+    
+    R=ken
+    OCL=25072
+    CL=25072
+
+ src/cmd/gc/dcl.c | 36 +++++++++++++++++++++++++++++++++---
+ src/cmd/gc/go.y  | 14 +++++++++++---
+ 2 files changed, 44 insertions(+), 6 deletions(-)

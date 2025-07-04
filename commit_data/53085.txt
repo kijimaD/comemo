@@ -1,0 +1,27 @@
+commit 93477f0770a1a0514916e458d077d767787d72f5
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 16:20:36 2023 -0400
+
+    cmd/dist: add -json flag
+    
+    This enables JSON output for all tests run by dist.
+    
+    Most the complexity here is that, in order to disambiguate JSON
+    records from different package variants, we have to rewrite the JSON
+    stream on the fly to include variant information. We do this by
+    rewriting the Package field to be pkg:variant so existing CI systems
+    will naturally pick up the disambiguated test name.
+    
+    Fixes #37486.
+    
+    Change-Id: I0094e5e27b3a02ffc108534b8258c699ed8c3b87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494958
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go          |  96 +++++++++++++++++++----
+ src/cmd/dist/testjson.go      | 176 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/testjson_test.go |  86 +++++++++++++++++++++
+ 3 files changed, 344 insertions(+), 14 deletions(-)

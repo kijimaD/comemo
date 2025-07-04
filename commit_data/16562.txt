@@ -1,0 +1,12 @@
+commit 2ffaefd1618efda434e3176f9bff658fbe70b003
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 13 16:02:50 2013 +0400
+
+    runtime: use ROUND macro for rounding
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/10256043
+
+ src/pkg/runtime/malloc.goc | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

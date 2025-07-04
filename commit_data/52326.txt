@@ -1,0 +1,20 @@
+commit 602e6aa97965c0c14d469c46370b76c0f276edbb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 12 03:12:40 2023 +1100
+
+    runtime: remove arm64 non-register ABI fallback code
+    
+    This presumably got missed in CL 393875.
+    
+    Change-Id: I4f2de00ebd6ec405d5e289a7f8c2fc781607260b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475617
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/sys_freebsd_arm64.s |  5 -----
+ src/runtime/sys_linux_arm64.s   | 11 -----------
+ src/runtime/sys_netbsd_arm64.s  |  5 -----
+ src/runtime/sys_openbsd_arm64.s |  5 -----
+ 4 files changed, 26 deletions(-)

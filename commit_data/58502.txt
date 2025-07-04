@@ -1,0 +1,26 @@
+commit d0c9142ce3b6fac83dadcc76ecfb85311431e743
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jan 9 12:22:53 2025 -0500
+
+    runtime/pprof: hide map runtime frames from heap profiles
+    
+    Heap profiles hide "runtime" frames like runtime.mapassign. This broke
+    in 1.24 because the map implementation moved to internal/runtime/maps,
+    and runtime/pprof only considered literal "runtime." when looking for
+    runtime frames.
+    
+    It would be nice to use cmd/internal/objabi.PkgSpecial to find runtime
+    packages, but that is hidden away in cmd.
+    
+    Fixes #71174.
+    
+    Change-Id: I6a6a636cb42aa17539e47da16854bd3fd8cb1bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641775
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pprof/pprof.go         |  2 +-
+ src/runtime/pprof/protomem.go      |  2 +-
+ src/runtime/pprof/protomem_test.go | 60 +++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 61 insertions(+), 3 deletions(-)

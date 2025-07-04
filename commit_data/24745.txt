@@ -1,0 +1,19 @@
+commit 26263354a3d607e1cc6c06be67530dad57f43074
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 18:20:57 2015 -0800
+
+    cmd/link: don't warn about unnamed symbols in .debug_str section
+    
+    They reportedly occur with LLVM 3.7 on FreeBSD ARM.
+    
+    Fixes #13139.
+    
+    Change-Id: Ia7d053a8662696b1984e81fbd1d908c951c35a98
+    Reviewed-on: https://go-review.googlesource.com/16667
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/ldelf.go | 7 +++++++
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

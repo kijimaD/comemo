@@ -1,0 +1,12 @@
+commit 16e6df980769eef5d11607bc4bbe463c9400b766
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 10 13:06:35 2010 -0800
+
+    fix 386 a[i] = cmplx(r, j)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/384043
+
+ src/cmd/8g/cgen.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

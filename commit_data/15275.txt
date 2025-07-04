@@ -1,0 +1,28 @@
+commit 8a6ff3ab3469ea6b448d682ac7ebc3b818208634
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:27:03 2013 -0500
+
+    runtime: allocate heap metadata at run time
+    
+    Before, the mheap structure was in the bss,
+    but it's quite large (today, 256 MB, much of
+    which is never actually paged in), and it makes
+    Go binaries run afoul of exec-time bss size
+    limits on some BSD systems.
+    
+    Fixes #4447.
+    
+    R=golang-dev, dave, minux.ma, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/7307122
+
+ src/pkg/runtime/malloc.goc      |  54 +++++++++++-----------
+ src/pkg/runtime/malloc.h        |   2 +-
+ src/pkg/runtime/mcache.c        |   4 +-
+ src/pkg/runtime/mcentral.c      |   8 ++--
+ src/pkg/runtime/mgc0.c          | 100 ++++++++++++++++++++--------------------
+ src/pkg/runtime/mheap.c         |   8 ++--
+ src/pkg/runtime/race.c          |  15 ++----
+ src/pkg/runtime/traceback_arm.c |   6 +--
+ src/pkg/runtime/traceback_x86.c |   4 +-
+ 9 files changed, 99 insertions(+), 102 deletions(-)

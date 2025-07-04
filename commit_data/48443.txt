@@ -1,0 +1,26 @@
+commit 9ac75d39514402d9b314e758524dcc28612b8937
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 15 16:37:50 2022 -0400
+
+    cmd/link: avoid stamping runtime.defaultGOROOT when paths are being trimmed
+    
+    Previously, runtime.GOROOT() would return the string "go" in a binary
+    build with -trimpath. This change stamps the empty string instead,
+    using a sentinel value passed from cmd/go that looks like the GOROOT
+    environment variable (either "$GOROOT" or "%GOROOT%", depending on the
+    platform).
+    
+    Fixes #51461
+    
+    Change-Id: I1f10ef2435016a7b6213bd8c547df911f7feeae7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390024
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/gc.go                     |  2 +-
+ .../go/testdata/script/build_trimpath_goroot.txt   | 63 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/main.go                   |  9 +++-
+ src/cmd/link/internal/ld/pcln.go                   |  4 +-
+ 4 files changed, 74 insertions(+), 4 deletions(-)

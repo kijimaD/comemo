@@ -1,0 +1,22 @@
+commit a48a15cd502395627293f85cdbe23aebc3e7e95f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Dec 3 21:03:02 2018 +0000
+
+    cmd/vendor: update to golang.org/x/tools@e5f3ab76
+    
+    To pull in the fix for #28858, which we want to include for Go 1.12.
+    
+    Fixes #28858.
+    
+    Change-Id: Id4964cfd38e3d44d6317a2ee124fe2d35038b5fd
+    Reviewed-on: https://go-review.googlesource.com/c/152277
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ .../go/analysis/internal/analysisflags/help.go     |  2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  4 +-
+ .../x/tools/go/analysis/passes/printf/types.go     | 13 +++--
+ .../x/tools/go/analysis/unitchecker/main.go        | 64 ++++++++++++++++++++++
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  2 +-
+ 5 files changed, 76 insertions(+), 9 deletions(-)

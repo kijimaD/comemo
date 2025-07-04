@@ -1,0 +1,13 @@
+commit da9b8b8352da37256fa153b15151e4577cc04c14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 28 17:06:34 2011 -0700
+
+    go/printer: added simple performance benchmark
+    
+    R=r, dfc, bradfitzwork, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4441078
+
+ src/pkg/go/printer/performance_test.go |   62 +
+ src/pkg/go/printer/testdata/parser.go  | 2252 ++++++++++++++++++++++++++++++++
+ 2 files changed, 2314 insertions(+)

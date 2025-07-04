@@ -1,0 +1,13 @@
+commit e35aff7205038e1f763387b1587d6414630a3e9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 11 14:32:25 2010 -0400
+
+    A+C: Jim McGrath (individual CLA)
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2438041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

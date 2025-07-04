@@ -1,0 +1,18 @@
+commit 6a1022a094ce66c5fe101d53d1953a5b6f91c3c0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 16 16:39:42 2013 -0400
+
+    crypto/tls: fix TLS 1.2 client certificates.
+    
+    With TLS 1.2, when sending client certificates the code was omitting
+    the new (in TLS 1.2) signature and hash fields.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13413050
+
+ src/pkg/crypto/tls/handshake_client.go      |  13 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 564 ++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_server.go      |   4 +-
+ src/pkg/crypto/tls/prf.go                   |  12 +-
+ 4 files changed, 582 insertions(+), 11 deletions(-)

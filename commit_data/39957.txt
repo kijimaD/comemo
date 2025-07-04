@@ -1,0 +1,42 @@
+commit fa42157d986c69664e2146b520ff45be204af8eb
+Author: Gert Cuykens <gert.cuykens@gmail.com>
+Date:   Thu Jun 27 03:04:21 2019 +0200
+
+    cmd/doc: add option to output a clean one-line symbol representation
+    
+    Currently there is no way for go doc to output a clean
+    one-line symbol representation of types, functions, vars
+    and consts without documentation lines or other text lines
+    added.
+    
+    For example `go doc fmt` has a huge introduction so if you
+    pass that to grep or fzf to search a symbol let say scan
+    `go doc fmt | grep scan` you get way to many false
+    positives.
+    
+    Added a `-short` flag to be able to do
+    `go doc -short fmt | grep scan` instead which will result in
+    just the symbols you are looking for.
+    
+    func Fscan(r io.Reader, a ...interface{}) (n int, err error)
+    func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err error)
+    func Fscanln(r io.Reader, a ...interface{}) (n int, err error)
+    func Sscan(str string, a ...interface{}) (n int, err error)
+    func Sscanf(str string, format string, a ...interface{}) (n int, err error)
+    func Sscanln(str string, a ...interface{}) (n int, err error)
+    
+    
+    Fixes #32597
+    
+    Change-Id: I77a73838adc512c8d1490f5a82075de6b0462a31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184017
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/doc/doc_test.go        | 12 ++++++++++++
+ src/cmd/doc/main.go            |  2 ++
+ src/cmd/doc/pkg.go             | 18 ++++++++++++++----
+ src/cmd/go/alldocs.go          |  2 ++
+ src/cmd/go/internal/doc/doc.go |  2 ++
+ 5 files changed, 32 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 26e43779f119683e8571ec109a7bf502ebe95d9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 17:01:34 2016 -0700
+
+    Revert "cmd/vet: teach vet about ast.AliasSpec"
+    
+    This reverts commit aa8c8e770e6db895405b66d38867c2368d94024a.
+    
+    Reason: Decision to back out current alias implementation.
+    
+    For #16339.
+    
+    Change-Id: I4db9a8d6b3625c794be9d2f1ff0e9c047f383d28
+    Reviewed-on: https://go-review.googlesource.com/32827
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/vet/copylock.go          | 5 +----
+ src/cmd/vet/shadow.go            | 3 ++-
+ src/cmd/vet/testdata/copylock.go | 9 ---------
+ 3 files changed, 3 insertions(+), 14 deletions(-)

@@ -1,0 +1,17 @@
+commit 39f7561e1b38e46d24b62e7dcc772ba87f8a802b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 15:35:21 2019 -0400
+
+    cmd/go/internal/load: remove unused hasSubdir function
+    
+    No references to this function remain; remove it to avoid confusion
+    and reduce build overhead.
+    
+    The last reference was removed in CL 167748.
+    
+    Change-Id: I9d023c5d8904800edd3898fed79aa9f824dfb46a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181548
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/go/internal/load/path.go | 24 ------------------------
+ 1 file changed, 24 deletions(-)

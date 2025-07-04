@@ -1,0 +1,22 @@
+commit 39070da4f82b8d80899c3ffa7d671a934dadd267
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 19:17:30 2025 -0400
+
+    math/big: add shift and mul to mini-compiler
+    
+    Step 3 of the mini-compiler: add the generators for the shift and mul routines.
+    
+    Change-Id: I981d5b7086262c740036f5db768d3e63083984e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664937
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/math/big/internal/asmgen/arch.go  |  16 +-
+ src/math/big/internal/asmgen/arm.go   |  13 +-
+ src/math/big/internal/asmgen/asm.go   |  31 +++-
+ src/math/big/internal/asmgen/cheat.go |   9 +-
+ src/math/big/internal/asmgen/main.go  |   4 +
+ src/math/big/internal/asmgen/mul.go   | 320 ++++++++++++++++++++++++++++++++++
+ src/math/big/internal/asmgen/shift.go | 135 ++++++++++++++
+ 7 files changed, 500 insertions(+), 28 deletions(-)

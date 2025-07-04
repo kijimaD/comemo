@@ -1,0 +1,15 @@
+commit bf453eba9008c37b56ac5239e585040414e8e28e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 4 15:52:03 2011 +1100
+
+    doc: update Effective Go for template API change.
+    
+    The original change 3378041 was submitted in December 2010:
+    template: change the signature of formatters for future development.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3862041
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

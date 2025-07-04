@@ -1,0 +1,19 @@
+commit 98aa4968b7f7fbbac2baba99c508d72d4f4ce883
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 11 16:47:53 2012 +0200
+
+    exp/norm: exposed runeInfo type in API.
+    For completeness, we also expose the Canonical Combining Class of a rune.
+    This does not increase the data size.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5931043
+
+ src/pkg/exp/norm/composition.go |  20 ++++----
+ src/pkg/exp/norm/forminfo.go    | 104 +++++++++++++++++++++++++++++-----------
+ src/pkg/exp/norm/iter.go        |  10 ++--
+ src/pkg/exp/norm/maketables.go  |  14 +++++-
+ src/pkg/exp/norm/normalize.go   |  28 +++++------
+ src/pkg/exp/norm/tables.go      |  21 ++++----
+ 6 files changed, 128 insertions(+), 69 deletions(-)

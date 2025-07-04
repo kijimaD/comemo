@@ -1,0 +1,16 @@
+commit 3fe97ba0ff1262f86f75cbd141e4c1f50f0a919e
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:34:52 2019 +0000
+
+    cmd/go/internal/work: properly ignore error
+    
+    Change-Id: Id0e8d170730d946b60c661d90bc98d0ca7545391
+    GitHub-Last-Rev: 19fed775b7e87c8c721b4487458354a2d5532a6c
+    GitHub-Pull-Request: golang/go#30001
+    Reviewed-on: https://go-review.googlesource.com/c/160425
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

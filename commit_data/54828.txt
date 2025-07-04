@@ -1,0 +1,21 @@
+commit 68e52bc03cd3072985ead4895a3ae97f43c02331
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Oct 27 16:20:44 2023 +0000
+
+    bytes,internal/bytealg: eliminate IndexRabinKarpBytes using generics
+    
+    This is a follow-up to CL 538175.
+    
+    Change-Id: Iec2523b36a16d7e157c17858c89fcd43c2470d58
+    GitHub-Last-Rev: 812d36e57c71ea3bf44d2d64bde0703ef02a1b91
+    GitHub-Pull-Request: golang/go#63770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538195
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/bytes/bytes.go              |  2 +-
+ src/internal/bytealg/bytealg.go | 35 +++--------------------------------
+ 2 files changed, 4 insertions(+), 33 deletions(-)

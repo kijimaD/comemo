@@ -1,0 +1,12 @@
+commit 36cd49e3187eb9a08d6abd50d75aa8ebe6c41df1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 4 11:42:41 2010 -0800
+
+    Added Andrew Gerrand to CONTRIBUTORS
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/201041
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

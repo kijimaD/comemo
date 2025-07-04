@@ -1,0 +1,13 @@
+commit a31f317a990ad663e24b3521a958705280c14733
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 31 13:07:25 2011 -0400
+
+    rpc: add benchmark for async rpc calls
+    Also makes sync benchmark concurrent.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4911043
+
+ src/pkg/rpc/server_test.go | 91 ++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 80 insertions(+), 11 deletions(-)

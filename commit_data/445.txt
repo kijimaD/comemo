@@ -1,0 +1,13 @@
+commit f095e263c5fef27b3da6dbfb3c76c3b601f46b9f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 29 13:16:42 2008 -0700
+
+    fix type error caused by recent change
+    
+    R=gri
+    OCL=13545
+    CL=13545
+
+ src/syscall/errstr_darwin.go | 4 ++--
+ src/syscall/errstr_linux.go  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

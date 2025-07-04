@@ -1,0 +1,16 @@
+commit 56517216c052649daab6c439f386f9dc02e90c3a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 1 14:12:51 2019 +0200
+
+    internal/bytealg: fix function reference in comments
+    
+    There's no IndexShortStr func, refer to Index instead.
+    
+    Change-Id: I6923e7ad3e910e4b5fb0c07d6339ddfec4111f4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170124
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/bytealg/index_arm64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

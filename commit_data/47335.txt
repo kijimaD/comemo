@@ -1,0 +1,34 @@
+commit 7bda349c1735fb6043b22d7a0e4542134baa6518
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 5 23:47:51 2021 +0000
+
+    runtime: disable GC in TestPanicSystemstack's subprocess
+    
+    TestPanicSystemstack spins up a subprocess that has 2 goroutines
+    deadlock on a runtime lock while on the system stack, with GOMAXPROCS=2.
+    
+    Each goroutine is going to be running on a P, and then is going to wedge
+    itself up on that P.
+    
+    If a GC is active and a worker starts executing (using a P), then it
+    could try to preempt a goroutine that is already blocked. It won't be
+    able to, so it'll just sit there forever trying to suspend it. At this
+    point there are no more Ps to execute the remaining goroutine that needs
+    to print something so the parent process can continue the test.
+    
+    This change fixes this issue by disabling GCs in the child process. An
+    alternative fix could be to increase GOMAXPROCS in the child, but maybe
+    letting the GC be on (which assumes it'll always be able to *eventually*
+    suspend a G) is just asking for trouble.
+    
+    Fixes #49388.
+    
+    Change-Id: I405c9dad50e24e1e68f2c52a646538da15797fbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361897
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/crash_unix_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

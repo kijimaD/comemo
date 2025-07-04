@@ -1,0 +1,23 @@
+commit 29957c52df59795ba21a6832662f66e9f1f298cf
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 23 14:01:21 2018 -0400
+
+    runtime: fix preemption deadlocks in TestDebugCall*
+    
+    TestDebugCall* uses atomic spin loops and hence can deadlock if the
+    garbage collector is enabled (because of #10958; ironically,
+    implementing debugger call injection is closely related to fixing this
+    exact issue, but we're not there yet).
+    
+    Fix this by disabling the garbage collector during these tests.
+    
+    Updates #25519 (might fix it, though I suspect not)
+    
+    Change-Id: If1e454b9cdea8e4b1cd82509b762c75b6acd8476
+    Reviewed-on: https://go-review.googlesource.com/114086
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/debug_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

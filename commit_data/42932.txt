@@ -1,0 +1,36 @@
+commit b96d32bd92087470f85cfab99e289e609a593d03
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 1 00:45:34 2020 -0400
+
+    cmd/go/internal/modload: track which packages are in 'all' during loading
+    
+    If the user requests the 'all' pattern in addition to explicit roots
+    outside of 'all', we should not load the transitive dependencies of
+    those explicit roots as if they were *in* 'all'. Without the '-test'
+    flag, we should not load test dependencies of any package outside of
+    'all'. Even *with* the '-test' flag, we should only load test
+    dependencies of the requested roots, not test dependencies of other
+    packages that happen to be imported by those roots.
+    
+    More precise tracking of membership in 'all' will be important when we
+    implement lazy loading, because membership in 'all' determines which
+    module dependencies we will record in the main module's go.mod file.
+    
+    This change also reduces reliance on global state, factors out the
+    loading process into several smaller functions, and sets us up to
+    reuse the 'go mod vendor' version of the 'all' pattern for lazy
+    loading.
+    
+    For #36460
+    Fixes #40799
+    
+    Change-Id: I5ca21c86a860daee1316f732cea131a331d8ddf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240505
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go       | 727 +++++++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_notall.txt |   4 +-
+ 2 files changed, 525 insertions(+), 206 deletions(-)

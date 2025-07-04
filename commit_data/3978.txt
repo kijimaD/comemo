@@ -1,0 +1,12 @@
+commit cd0cbd3ed2a01d10f14e04ee7f4dc1748af06f02
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 23:42:21 2009 -0800
+
+    lib9: rip out platform specific code that breaks on pclinuxos
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/154049
+
+ src/lib9/_p9dir.c | 116 ++++--------------------------------------------------
+ 1 file changed, 7 insertions(+), 109 deletions(-)

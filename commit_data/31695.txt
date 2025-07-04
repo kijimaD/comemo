@@ -1,0 +1,36 @@
+commit 3bdc2f3abf0f9cffc8f4e294ef22a23b82e88415
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Apr 14 13:53:40 2017 -0500
+
+    cmd/compile/internal/gc: speed-up small array comparison
+    
+    Currently we inline array comparisons for arrays with at most 4 elements.
+    Compare arrays with small size, but more than 4 elements (e. g. [16]byte)
+    with larger compares. This provides very slightly smaller binaries,
+    and results in faster code.
+    
+    ArrayEqual-6  7.41ns ± 0%  3.17ns ± 0%  -57.15%  (p=0.000 n=10+10)
+    
+    For go tool:
+    global text (code) = -559 bytes (-0.014566%)
+    
+    This also helps mapaccess1_faststr, and maps in general:
+    
+    MapDelete/Str/1-6               195ns ± 1%     186ns ± 2%   -4.47%  (p=0.000 n=10+10)
+    MapDelete/Str/2-6               211ns ± 1%     177ns ± 1%  -16.01%  (p=0.000 n=10+10)
+    MapDelete/Str/4-6               225ns ± 1%     183ns ± 1%  -18.49%  (p=0.000 n=8+10)
+    MapStringKeysEight_16-6        31.3ns ± 0%    28.6ns ± 0%   -8.63%  (p=0.000 n=6+9)
+    MapStringKeysEight_32-6        29.2ns ± 0%    27.6ns ± 0%   -5.45%  (p=0.000 n=10+10)
+    MapStringKeysEight_64-6        29.1ns ± 1%    27.5ns ± 0%   -5.46%  (p=0.000 n=10+10)
+    MapStringKeysEight_1M-6        29.1ns ± 1%    27.6ns ± 0%   -5.49%  (p=0.000 n=10+10)
+    
+    Change-Id: I9ec98e41b233031e0e96c4e13d86a324f628ed4a
+    Reviewed-on: https://go-review.googlesource.com/40771
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 31 ++++++++++++++-
+ src/cmd/compile/internal/gc/walk.go     | 69 ++++++++++++++++++++++++++++++---
+ src/runtime/hashmap_fast.go             |  2 -
+ 3 files changed, 93 insertions(+), 9 deletions(-)

@@ -1,0 +1,22 @@
+commit e2b30e900064373bce2f4ba4d3917df3de99ac69
+Author: Salman Aljammaz <s@0x65.net>
+Date:   Sun Aug 21 16:59:56 2016 +0100
+
+    net/http: prepend ./ to directory list hrefs in FileServer
+    
+    Certain browsers (Chrome 53, Safari 9.1.2, Firefox 46) won't correctly
+    follow a directory listing's links if the file name begins with a run
+    of characters then a colon, e.g. "foo:bar". Probably mistaking it for
+    a URI. However, they are happy to follow "./foo:bar", so this change
+    prepends "./" to all link hrefs in the directory listing of
+    FileServer.
+    
+    Change-Id: I60ee8e1ebac73cbd3a3ac0f23e80fdf52e3dc352
+    Reviewed-on: https://go-review.googlesource.com/27440
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

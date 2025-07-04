@@ -1,0 +1,13 @@
+commit b2bf14acd9058155b983b6ee3ebbebbb98b3550d
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Apr 5 11:49:44 2011 -0700
+
+    gotest: fixes for [^.]_test file pattern
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4339054
+
+ src/cmd/gotest/doc.go    | 16 +++++++++-------
+ src/cmd/gotest/gotest.go |  4 ++--
+ 2 files changed, 11 insertions(+), 9 deletions(-)

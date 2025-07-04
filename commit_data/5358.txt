@@ -1,0 +1,15 @@
+commit 6c124cb879cb7b6613d0d8bcec316e271ded3ee5
+Author: Micah Stetson <micah.stetson@gmail.com>
+Date:   Tue Apr 27 00:05:24 2010 -0700
+
+    time: remove incorrect time.ISO8601 and add time.RFC3339
+    
+    Fixes #734.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/975042
+
+ src/pkg/time/format.go    | 120 +++++++++++++++++++++++++++++-----------------
+ src/pkg/time/time_test.go |  22 ++++-----
+ 2 files changed, 88 insertions(+), 54 deletions(-)

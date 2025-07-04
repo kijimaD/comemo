@@ -1,0 +1,16 @@
+commit e31fa68a43d71efb73cf0745ab0f911400a40a5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 11 17:55:15 2012 -0700
+
+    cmd/api: work on Windows again, and make gccgo files work a bit more
+    
+    handle string and []byte conversions.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5754082
+
+ src/cmd/api/goapi.go                       | 9 ++++++++-
+ src/cmd/api/testdata/src/pkg/p1/golden.txt | 4 +++-
+ src/cmd/api/testdata/src/pkg/p1/p1.go      | 6 ++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,37 @@
+commit fa04d488bd54b8fdd78cc9bcc6d90de4bf5f8efb
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Sep 16 14:05:18 2020 +0800
+
+    cmd/asm: fix the issue of moving 128-bit integers to vector registers on arm64
+    
+    The CL 249758 added `FMOVQ $vcon, Vd` instruction and assembler used
+    128-bit simd literal-loading to load `$vcon` from pool into 128-bit vector
+    register `Vd`. Because Go does not have 128-bit integers for now, the
+    assembler will report an error of `immediate out of range` when
+    assembleing `FMOVQ $0x123456789abcdef0123456789abcdef, V0` instruction.
+    
+    This patch lets 128-bit integers take two 64-bit operands, for the high
+    and low parts separately and adds `VMOVQ $hi, $lo, Vd` instruction to
+    move `$hi<<64+$lo' into 128-bit register `Vd`.
+    
+    In addition, this patch renames `FMOVQ/FMOVD/FMOVS` ops to 'VMOVQ/VMOVD/VMOVS'
+    and uses them to move 128-bit, 64-bit and 32-bit constants into vector
+    registers, respectively
+    
+    Update the go doc.
+    
+    Fixes #40725
+    
+    Change-Id: Ia3c83bb6463f104d2bee960905053a97299e0a3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255900
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go        | 18 +++++++++------
+ src/cmd/asm/internal/asm/asm.go           | 21 ++++++++---------
+ src/cmd/asm/internal/asm/testdata/arm64.s |  6 +++--
+ src/cmd/internal/obj/arm64/a.out.go       |  4 +++-
+ src/cmd/internal/obj/arm64/anames.go      |  4 +++-
+ src/cmd/internal/obj/arm64/asm7.go        | 38 ++++++++++++++++---------------
+ src/cmd/internal/obj/arm64/doc.go         | 10 ++++++++
+ 7 files changed, 60 insertions(+), 41 deletions(-)

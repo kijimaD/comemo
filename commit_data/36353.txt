@@ -1,0 +1,17 @@
+commit dc272a4393dc2ba5f54f9cc37670d5581b6e774f
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Jun 19 12:34:17 2018 -0300
+
+    encoding/json: call reflect.TypeOf with nil pointers rather than allocating
+    
+    Updates #26775
+    
+    Change-Id: I83c9eeda59769d2f35e0cc98f3a8579861d5978b
+    Reviewed-on: https://go-review.googlesource.com/119715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go | 2 +-
+ src/encoding/json/encode.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

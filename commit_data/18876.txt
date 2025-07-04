@@ -1,0 +1,13 @@
+commit 63f4e4a14b26625d0918944e597f9d7f4055cdaa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 17 11:57:04 2014 -0700
+
+    C: add Rui Ueyama (Google CLA)
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76930044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

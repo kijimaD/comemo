@@ -1,0 +1,23 @@
+commit 9ff7df003d770b1dffc984e1861fd009fe08d579
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Mar 13 23:36:45 2018 +0000
+
+    sync: make WaitGroup more space-efficient
+    
+    The struct stores its 64-bit state field in a 12-byte array to
+    ensure that it can be 64-bit-aligned. This leaves 4 spare bytes,
+    which we can reuse to store the sema field.
+    
+    (32-bit alignment is still guaranteed because the array type was
+    changed to [3]uint32.)
+    
+    Fixes #19149.
+    
+    Change-Id: I9bc20e69e45e0e07fbf496080f3650e8be0d6e8d
+    Reviewed-on: https://go-review.googlesource.com/100515
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/waitgroup.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit 4962e7ee9b68c4cdfcb4248ac6bf6893a312b209
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 10:55:24 2009 -0700
+
+    use correct pc for printing fn+%#x in tracebacks
+    
+    R=austin
+    DELTA=12  (2 added, 0 deleted, 10 changed)
+    OCL=34098
+    CL=34120
+
+ src/pkg/runtime/386/traceback.c   | 11 ++++++-----
+ src/pkg/runtime/amd64/traceback.c | 11 ++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

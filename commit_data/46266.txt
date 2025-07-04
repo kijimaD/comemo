@@ -1,0 +1,20 @@
+commit 88859f3cd80e03f695cba5462d959949ff9a5583
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 1 12:42:35 2021 -0700
+
+    cmd/compile: optimize unified IR handling of imported functions
+    
+    This CL skips reading of imported function bodies except from the
+    local package or for inlining. Previously, we wasted a bunch of CPU
+    and memory by reading in normal function bodies for all imported
+    functions and methods.
+    
+    Change-Id: I0b3df3f4a3e2819117dac11a1f9e4526288c14d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347030
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

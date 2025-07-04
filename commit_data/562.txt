@@ -1,0 +1,12 @@
+commit 0ffacfd995764b02c4ecd65f0a621d18cec15249
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 2 17:12:32 2008 -0700
+
+    order of evaluation in function args
+    
+    R=r
+    OCL=14733
+    CL=14733
+
+ src/cmd/gc/walk.c | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

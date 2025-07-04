@@ -1,0 +1,20 @@
+commit cd294636c846860e4bb792e62c30b516ef6676ec
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 8 22:33:38 2015 +0200
+
+    net: return rooted DNS names on Plan 9
+    
+    This change returns rooted DNS names on Plan 9,
+    for consistency with other operating systems.
+    
+    Updates #12193.
+    
+    Change-Id: If983920c5b9a8f67d4ccb51bb295fac8dfb87e88
+    Reviewed-on: https://go-review.googlesource.com/15581
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/lookup_plan9.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

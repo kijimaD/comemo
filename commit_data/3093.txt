@@ -1,0 +1,15 @@
+commit 90dcd5face49edd4cc9c7b5dcb377e6c06a85731
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 16:23:54 2009 -0700
+
+    add io.LimitReader.
+    use it to limit data read from http.Request Body
+    
+    R=r
+    DELTA=32  (8 added, 6 deleted, 18 changed)
+    OCL=33899
+    CL=33916
+
+ src/pkg/http/client.go |  6 ++++++
+ src/pkg/io/io.go       | 36 ++++++++++++++++--------------------
+ 2 files changed, 22 insertions(+), 20 deletions(-)

@@ -1,0 +1,19 @@
+commit a734a8550a17e54548a6c7ebb3220c33d417e767
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 15:16:06 2015 +0000
+
+    net/http: require valid methods in NewRequest and Transport.RoundTrip
+    
+    Fixes #12078
+    
+    Change-Id: If09c927fae639ec4ed3894a2b393a87c1e677803
+    Reviewed-on: https://go-review.googlesource.com/16829
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/request.go        | 20 ++++++++++++++++++++
+ src/net/http/request_test.go   | 16 ++++++++++++++++
+ src/net/http/transport.go      |  3 +++
+ src/net/http/transport_test.go |  1 +
+ 4 files changed, 40 insertions(+)

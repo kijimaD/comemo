@@ -1,0 +1,21 @@
+commit abbfec2829b001cf758a058eba4ccdc940e029f4
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sat Sep 11 00:33:34 2021 +0800
+
+    cmd/go: insert goroot to the hash of build cache when the packages include C files
+    
+    There are some absolute paths in the object file of the packages include C files. The path in C objects file can't be rewritten by linker. The goroot must be used as input for the hash when the packages include C files. So that the debug_info of the binary is correctly.
+    
+    Fixes #48319
+    
+    Change-Id: I659a3d6d71c4e49fff83f5bcf53a0a417e552a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348991
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go                |  34 ++++--
+ src/cmd/go/testdata/script/build_issue48319.txt | 153 ++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+), 10 deletions(-)

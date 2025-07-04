@@ -1,0 +1,22 @@
+commit 7a131acfd142f0fc7612365078b9f00e371fc0e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:26:56 2020 -0400
+
+    io/fs: add ReadDir and ReadDirFS
+    
+    Add ReadDir helper function, ReadDirFS interface, and test.
+    Add ReadDir method to fstest.MapFS.
+    Add testing of ReadDir method to fstest.TestFS.
+    
+    For #41190.
+    
+    Change-Id: Ib860770ec7433ba77b29e626682b238f1b3bf54f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243914
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/fs/readdir.go         | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/readdir_test.go    | 35 +++++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  |  4 ++++
+ src/testing/fstest/testfs.go | 42 ++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 127 insertions(+), 1 deletion(-)

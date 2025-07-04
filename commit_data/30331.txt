@@ -1,0 +1,19 @@
+commit a37f9d8a17cffc6fb79120fad667b0684fd03bc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 20 19:48:28 2017 +0000
+
+    runtime/pprof: mark TestMutexProfile as flaky for now
+    
+    Flaky tests hurt productivity. Disable for now.
+    
+    Updates #19139
+    
+    Change-Id: I2e3040bdf0e53597a1c4f925b788e3268ea284c1
+    Reviewed-on: https://go-review.googlesource.com/37291
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

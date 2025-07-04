@@ -1,0 +1,21 @@
+commit 6ea3746adfd924ef5a389165c22c0eaddd35ddf2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 7 13:36:16 2014 -0700
+
+    runtime: update heap dump format for 1.4
+    
+    We no longer have full type information in the heap, so
+    we can't dump that any more.  Instead we dump ptr/noptr
+    maps so at least we can compute graph connectivity.
+    
+    In addition, we still dump Iface/Eface types so together
+    with dwarf type info we might be able to reconstruct
+    types of most things in the heap.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/155940043
+
+ src/runtime/heapdump.c | 44 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

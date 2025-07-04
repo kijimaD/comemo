@@ -1,0 +1,23 @@
+commit 1a14b5bad8926941023ca310fa3b53c70717b1e2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 4 17:13:22 2014 -0700
+
+    cmd/api: don't depend on os/user or USER to check api
+    
+    The -nocgo builder failed because it has cgo disabled
+    as well as no USER environment variable:
+    http://build.golang.org/log/2250abb82f5022b72a12997b8ff89fcdeff094c9
+    
+    # Checking API compatibility.
+    Error getting current user: user: Current not implemented on linux/amd64
+    exit status 1
+    
+    Don't require the environment variable here.
+    
+    LGTM=minux
+    R=dave, adg, minux
+    CC=golang-codereviews
+    https://golang.org/cl/140290043
+
+ src/cmd/api/run.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

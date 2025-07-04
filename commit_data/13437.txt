@@ -1,0 +1,12 @@
+commit d9c4cef67050791892511d1c2cb653dbcb15204c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 3 12:50:03 2012 -0400
+
+    doc/debugging_with_gdb: mention how to disable gc optimization
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6353055
+
+ doc/debugging_with_gdb.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

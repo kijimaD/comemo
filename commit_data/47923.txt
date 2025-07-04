@@ -1,0 +1,24 @@
+commit 1ee70da3125cb6339c1bcb0c127cd97a9e1dbe90
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Jan 8 10:33:35 2022 -0800
+
+    cmd/compile: fix the names of methods created during type substitution
+    
+    The names given to methods of types created during type substitution
+    were possible incorrect when the type parameters themselves were nested
+    types.
+    
+    Fixes #50485
+    
+    Change-Id: I7e0043ed22c26406a5f9d8d51d9e928770a678f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377494
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/subr.go |  24 ++-
+ test/typeparam/issue50485.dir/a.go         | 239 +++++++++++++++++++++++++++++
+ test/typeparam/issue50485.dir/main.go      |   9 ++
+ test/typeparam/issue50485.go               |   7 +
+ 4 files changed, 277 insertions(+), 2 deletions(-)

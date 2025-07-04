@@ -1,0 +1,12 @@
+commit 01cadde59761f2aade7ae45f41a145893b59cc71
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 15:56:44 2009 -0700
+
+    Deriving functions from methods
+    
+    DELTA=238  (118 added, 116 deleted, 4 changed)
+    OCL=34653
+    CL=34660
+
+ doc/go_spec.html | 240 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 121 insertions(+), 119 deletions(-)

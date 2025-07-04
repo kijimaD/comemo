@@ -1,0 +1,21 @@
+commit c6c9634515e6128a5acb8645dced62581f5d1b1b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 3 01:22:58 2024 +1000
+
+    cmd/compile/internal/ssagen: factor out intrinsics code
+    
+    The intrinsic handling code is a good thousand lines in the fairly
+    large ssa.go file. This code is already reasonably self-contained - factor
+    it out into a separate file so that future changes are easier to manage
+    (and it becomes easier to add/change intrinsics for an architecture).
+    
+    Change-Id: I3c18d3d1bb6332f1817d902150e736373bf1ac81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605477
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/intrinsics.go | 1047 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go        | 1035 +-----------------------
+ 2 files changed, 1051 insertions(+), 1031 deletions(-)

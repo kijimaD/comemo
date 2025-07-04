@@ -1,0 +1,17 @@
+commit 8c2b6226f7ab867f9b55a655cd32018cec997df0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Mar 13 09:40:38 2013 -0700
+
+    misc/pprof: fix address lookup regression on Linux
+    
+    Just use "go tool addr2line" no matter what, since we know
+    it works for all OSs.
+    
+    Fixes #4818.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/7526047
+
+ misc/pprof | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

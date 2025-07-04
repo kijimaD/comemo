@@ -1,0 +1,20 @@
+commit 69e244a104c4ae488c6fa6de9e836b133e4917d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 08:53:27 2010 -0800
+
+    ld: do not load the same object file multiple times.
+    eliminates spurious multiple initialization errors.
+    
+    give more information in the multiple init errors that remain.
+    
+    Fixes #87.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194052
+
+ src/cmd/5l/obj.c |  6 ++++++
+ src/cmd/6l/obj.c |  6 ++++++
+ src/cmd/8l/obj.c |  6 ++++++
+ src/cmd/ld/lib.c | 12 +++++++++---
+ 4 files changed, 27 insertions(+), 3 deletions(-)

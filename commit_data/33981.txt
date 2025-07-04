@@ -1,0 +1,18 @@
+commit 4a28707d55864505017dc6769dbbfc6668c8602c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 15 12:38:59 2017 -0800
+
+    cmd/go: run the real test binary if the test link was cached
+    
+    Fixes #23150
+    
+    Change-Id: Ia82c2d482a8dc53cabb3f173e4301fee66288821
+    Reviewed-on: https://go-review.googlesource.com/84376
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go              | 21 +++++++++++++++++++++
+ src/cmd/go/internal/test/test.go   |  2 +-
+ src/cmd/go/internal/work/action.go |  4 ++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

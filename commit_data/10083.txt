@@ -1,0 +1,12 @@
+commit 2572ca2ff2cda56a3fb1732a4b628fc7b85ea798
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Oct 25 08:35:20 2011 +0100
+
+    runtime: include bootstrap m in mcpu accounting
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5307052
+
+ src/pkg/runtime/proc.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

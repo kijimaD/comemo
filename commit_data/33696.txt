@@ -1,0 +1,32 @@
+commit 18ae4c834bdb33903dbf6774f57536c73de923bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 27 22:48:11 2017 +0000
+
+    net/http: panic on invalid WriteHeader status code
+    
+    Panic if an http Handler does:
+    
+        rw.WriteHeader(0)
+    
+    ... or other invalid values. (for a forgiving range of valid)
+    
+    I previously made it kinda work in https://golang.org/cl/19130 but
+    there's no good way to fake it in HTTP/2, and we want HTTP/1 and
+    HTTP/2 behavior to be the same, regardless of what programs do.
+    Currently HTTP/2 omitted the :status header altogether, which was a
+    protocol violation. In fixing that, I found CL 19130 added a test
+    about bogus WriteHeader values with the comment:
+    
+      // This might change at some point, but not yet in Go 1.6.
+    
+    This now changes. Time to be strict.
+    
+    Updates golang/go#228800
+    
+    Change-Id: I20eb6c0e514a31f4bba305ac4c24266f39b95fd5
+    Reviewed-on: https://go-review.googlesource.com/80077
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/clientserver_test.go | 61 +++++++++++++++++++++++++--------------
+ src/net/http/server.go            | 19 ++++++++++++
+ 2 files changed, 59 insertions(+), 21 deletions(-)

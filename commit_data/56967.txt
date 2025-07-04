@@ -1,0 +1,41 @@
+commit e76353d5a923dbc5e22713267104b56a2c856302
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 22 21:46:29 2024 +0000
+
+    runtime: allow the tracer to be reentrant
+    
+    This change allows the tracer to be reentrant by restructuring the
+    internals such that writing an event is atomic with respect to stack
+    growth. Essentially, a core set of functions that are involved in
+    acquiring a trace buffer and writing to it are all marked nosplit.
+    
+    Stack growth is currently the only hidden place where the tracer may be
+    accidentally reentrant, preventing the tracer from being used
+    everywhere. It already lacks write barriers, lacks allocations, and is
+    non-preemptible. This change thus makes the tracer fully reentrant,
+    since the only reentry case it needs to handle is stack growth.
+    
+    Since the invariants needed to attain this are subtle, this change also
+    extends the debugTraceReentrancy debug mode to check these invariants as
+    well. Specifically, the invariants are checked by setting the throwsplit
+    flag.
+    
+    A side benefit of this change is it simplifies the trace event writing
+    API a good bit: there's no need to actually thread the event writer
+    through things, and most callsites look a bit simpler.
+    
+    Change-Id: I7c329fb7a6cb936bd363c44cf882ea0a925132f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587599
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mheap.go          |   6 +-
+ src/runtime/stack.go          |   4 +-
+ src/runtime/traceallocfree.go |  18 ++---
+ src/runtime/tracebuf.go       | 109 ++++++++++++++++++++++++++-
+ src/runtime/traceevent.go     |  50 ++-----------
+ src/runtime/traceexp.go       |   2 +
+ src/runtime/traceruntime.go   | 168 +++++++++++++++++-------------------------
+ src/runtime/tracestatus.go    |  25 +++++++
+ src/runtime/tracetime.go      |   3 +-
+ 9 files changed, 227 insertions(+), 158 deletions(-)

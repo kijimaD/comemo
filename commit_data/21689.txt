@@ -1,0 +1,15 @@
+commit 2b0213d569dcfdd3f82fa7c98fd5fea26b6e3038
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 10:05:02 2015 -0800
+
+    math/big: incorporated feedback from prior TBR reviews
+    
+    Change-Id: Ida847365223ef09b4a3846e240b4bb6919cb0fe9
+    Reviewed-on: https://go-review.googlesource.com/5610
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 58 +++++++++++++++++++++++++---------------------
+ src/math/big/float_test.go |  2 ++
+ src/math/big/int.go        |  2 +-
+ src/math/big/natconv.go    |  2 +-
+ 4 files changed, 36 insertions(+), 28 deletions(-)

@@ -1,0 +1,12 @@
+commit dba4d11e0809547296e051ce58eb04ab10e549da
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 18:40:54 2013 -0500
+
+    .hgignore: ignore liblink/anames?.c
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/36300045
+
+ .hgignore | 4 ++++
+ 1 file changed, 4 insertions(+)

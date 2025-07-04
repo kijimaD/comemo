@@ -1,0 +1,14 @@
+commit b21611b963ec66b1e56c5d82274ae87f35983a59
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 14 07:37:03 2010 +1000
+
+    fmt/print: give %p priority, analogous to %T
+    Fixes #1024.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1961042
+
+ src/pkg/fmt/fmt_test.go | 25 ++++++++++++++++++++-----
+ src/pkg/fmt/print.go    | 29 +++++++++++++----------------
+ 2 files changed, 33 insertions(+), 21 deletions(-)

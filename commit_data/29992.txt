@@ -1,0 +1,23 @@
+commit 3e55059f305bde37a4dac1397e8a1b798b6fbd9e
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Jan 30 19:55:35 2017 +0100
+
+    cmd/dist: really skip the testsanitizers tests on Android
+    
+    The test.bash script in misc/cgo/testsanitizers use GOOS, not GOHOSTOS.
+    Fix the dist check from gohostos to goos accordingly.
+    
+    The error was masked on the builders because they run on a darwin host
+    where the sanitizers tests never ran.
+    
+    With this change, the Android test suite completes successfully on
+    Android/amd64.
+    
+    Change-Id: Id7690429f78c6ac7a26fc9118d913b719b565bb2
+    Reviewed-on: https://go-review.googlesource.com/35959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

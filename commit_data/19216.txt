@@ -1,0 +1,15 @@
+commit 6a40d549f101031025ba0c79f171725c3d64ed2b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 21 20:36:35 2014 +1000
+
+    cmd/nm: disable TestNM on darwin, linux and solaris
+    
+    Update #7829
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/89810043
+
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

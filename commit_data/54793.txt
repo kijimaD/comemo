@@ -1,0 +1,25 @@
+commit 555af99bcc6b7515ebad5a3c947f3e4ab147fd29
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Oct 25 10:51:58 2023 +0000
+
+    runtime/internal/atomic: add riscv64 operators for And/Or
+    
+    These primitives will be used by the new And/Or sync/atomic apis.
+    
+    For #61395
+    
+    Change-Id: I4062d6317e01afd94d3588f5425237723ab15ade
+    GitHub-Last-Rev: c0a8d8f34dc355997fa697d4d8da7d45a00bb3c7
+    GitHub-Pull-Request: golang/go#63272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531575
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
+ src/runtime/internal/atomic/atomic_riscv64.go    | 18 +++++++++++
+ src/runtime/internal/atomic/atomic_riscv64.s     | 40 ++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)

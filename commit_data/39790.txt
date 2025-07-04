@@ -1,0 +1,17 @@
+commit aee084b3caf47f87b74e8bad2e3b7265271e377c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 3 10:30:24 2019 -0700
+
+    cmd/compile/internal/gc: use GoToolPath in TestDeps
+    
+    Updates #31563
+    Fixes #34041
+    
+    Change-Id: Ib9fdcd2f83d867fd31b42eab3a813f5cef88860e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/compile/internal/gc/dep_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

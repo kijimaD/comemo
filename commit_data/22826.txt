@@ -1,0 +1,66 @@
+commit 4fffc50c262531f9fe11207ec0785873ca4c4c40
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 1 11:52:56 2015 -0400
+
+    runtime: correct accounting of scan work and bytes marked
+    
+    (1) Count pointer-free objects found during scanning roots
+    as marked bytes, by not zeroing the mark total after scanning roots.
+    
+    (2) Don't count the bytes for the roots themselves, by not adding
+    them to the mark total in scanblock (the zeroing removed by (1)
+    was aimed at that add but hitting more).
+    
+    Combined, (1) and (2) fix the calculation of the marked heap size.
+    This makes the GC trigger much less often in the Go 1 benchmarks,
+    which have a global []byte pointing at 256 MB of data.
+    That 256 MB allocation was not being included in the heap size
+    in the current code, but was included in Go 1.4.
+    This is the source of much of the relative slowdown in that directory.
+    
+    (3) Count the bytes for the roots as scanned work, by not zeroing
+    the scan total after scanning roots. There is no strict justification
+    for this, and it probably doesn't matter much either way,
+    but it was always combined with another buggy zeroing
+    (removed in (1)), so guilty by association.
+    
+    Austin noticed this.
+    
+    name                                    old mean                new mean        delta
+    BenchmarkBinaryTree17              13.1s × (0.97,1.03)      5.9s × (0.97,1.05)  -55.19% (p=0.000)
+    BenchmarkFannkuch11                4.35s × (0.99,1.01)     4.37s × (1.00,1.01)  +0.47% (p=0.032)
+    BenchmarkFmtFprintfEmpty          84.6ns × (0.95,1.14)    85.7ns × (0.94,1.05)  ~ (p=0.521)
+    BenchmarkFmtFprintfString          320ns × (0.95,1.06)     283ns × (0.99,1.02)  -11.48% (p=0.000)
+    BenchmarkFmtFprintfInt             311ns × (0.98,1.03)     288ns × (0.99,1.02)  -7.26% (p=0.000)
+    BenchmarkFmtFprintfIntInt          554ns × (0.96,1.05)     478ns × (0.99,1.02)  -13.70% (p=0.000)
+    BenchmarkFmtFprintfPrefixedInt     434ns × (0.96,1.06)     393ns × (0.98,1.04)  -9.60% (p=0.000)
+    BenchmarkFmtFprintfFloat           620ns × (0.99,1.03)     584ns × (0.99,1.01)  -5.73% (p=0.000)
+    BenchmarkFmtManyArgs              2.19µs × (0.98,1.03)    1.94µs × (0.99,1.01)  -11.62% (p=0.000)
+    BenchmarkGobDecode                21.2ms × (0.97,1.06)    15.2ms × (0.99,1.01)  -28.17% (p=0.000)
+    BenchmarkGobEncode                18.1ms × (0.94,1.06)    11.8ms × (0.99,1.01)  -35.00% (p=0.000)
+    BenchmarkGzip                      650ms × (0.98,1.01)     649ms × (0.99,1.02)  ~ (p=0.802)
+    BenchmarkGunzip                    143ms × (1.00,1.01)     143ms × (1.00,1.01)  ~ (p=0.438)
+    BenchmarkHTTPClientServer          110µs × (0.98,1.04)     101µs × (0.98,1.02)  -8.79% (p=0.000)
+    BenchmarkJSONEncode               40.3ms × (0.97,1.03)    31.8ms × (0.98,1.03)  -20.92% (p=0.000)
+    BenchmarkJSONDecode                119ms × (0.97,1.02)     108ms × (0.99,1.02)  -9.15% (p=0.000)
+    BenchmarkMandelbrot200            6.03ms × (1.00,1.01)    6.03ms × (0.99,1.01)  ~ (p=0.750)
+    BenchmarkGoParse                  8.58ms × (0.89,1.10)    6.80ms × (1.00,1.00)  -20.71% (p=0.000)
+    BenchmarkRegexpMatchEasy0_32       162ns × (1.00,1.01)     162ns × (0.99,1.02)  ~ (p=0.131)
+    BenchmarkRegexpMatchEasy0_1K       540ns × (0.99,1.02)     559ns × (0.99,1.02)  +3.58% (p=0.000)
+    BenchmarkRegexpMatchEasy1_32       139ns × (0.98,1.04)     139ns × (1.00,1.00)  ~ (p=0.466)
+    BenchmarkRegexpMatchEasy1_1K       889ns × (0.99,1.01)     885ns × (0.99,1.01)  -0.50% (p=0.022)
+    BenchmarkRegexpMatchMedium_32      252ns × (0.99,1.02)     252ns × (0.99,1.01)  ~ (p=0.469)
+    BenchmarkRegexpMatchMedium_1K     72.9µs × (0.99,1.01)    73.6µs × (0.99,1.03)  ~ (p=0.168)
+    BenchmarkRegexpMatchHard_32       3.87µs × (1.00,1.01)    3.86µs × (1.00,1.00)  ~ (p=0.055)
+    BenchmarkRegexpMatchHard_1K        118µs × (0.99,1.01)     117µs × (0.99,1.00)  ~ (p=0.133)
+    BenchmarkRevcomp                   995ms × (0.94,1.10)     949ms × (0.99,1.01)  -4.64% (p=0.000)
+    BenchmarkTemplate                  141ms × (0.97,1.02)     127ms × (0.99,1.01)  -10.00% (p=0.000)
+    BenchmarkTimeParse                 641ns × (0.99,1.01)     623ns × (0.99,1.01)  -2.79% (p=0.000)
+    BenchmarkTimeFormat                729ns × (0.98,1.03)     679ns × (0.99,1.00)  -6.93% (p=0.000)
+    
+    Change-Id: I839bd7356630d18377989a0748763414e15ed057
+    Reviewed-on: https://go-review.googlesource.com/9602
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 11 -----------
+ 1 file changed, 11 deletions(-)

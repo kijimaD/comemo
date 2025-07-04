@@ -1,0 +1,20 @@
+commit 305b4baf41ecbaa3469428b7debb389bd1527804
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 04:59:25 2016 +0000
+
+    net/http: update bundled http2, fixes TestConcurrentReadWriteReqBody_h2
+    
+    Updates http2 to x/net git rev 520af5de654d for
+    https://golang.org/cl/18370
+    
+    Fixes #13659
+    
+    Change-Id: I920eaff6036ac22c500a97449826c6b12f873d7f
+    Reviewed-on: https://go-review.googlesource.com/18371
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/clientserver_test.go |  7 ++----
+ src/net/http/h2_bundle.go         | 50 +++++++++++++++++++++++----------------
+ 2 files changed, 31 insertions(+), 26 deletions(-)

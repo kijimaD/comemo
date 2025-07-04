@@ -1,0 +1,18 @@
+commit b702a26cf8f2298de6d264c1cbc09042e2b0ac22
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 15:10:21 2024 -0500
+
+    os: mention fsys modifications during CopyFS
+    
+    Fixes #70465
+    
+    Change-Id: I47055df9ca5b1df21a361b0b8eea4c7d157e6403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639156
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/dir.go | 3 +++
+ 1 file changed, 3 insertions(+)

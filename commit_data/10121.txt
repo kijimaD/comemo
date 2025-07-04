@@ -1,0 +1,15 @@
+commit 2cf5359830b3a79fcc67b054d5f5f5926a862ad1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 15:28:18 2011 -0700
+
+    6l: remove mention of -e flag
+    
+    Emitting ELF symbol table is the default behavior now
+    and cannot be disabled.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5319050
+
+ src/cmd/6l/doc.go | 3 ---
+ 1 file changed, 3 deletions(-)

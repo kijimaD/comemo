@@ -1,0 +1,12 @@
+commit 3fc3597c9b0b1e5d4887771004320add2d0570f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 17:04:56 2012 -0500
+
+    cmd/go: remove debugging flag introduced in CL 6996054
+    
+    R=remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7002052
+
+ src/cmd/go/build.go | 2 --
+ 1 file changed, 2 deletions(-)

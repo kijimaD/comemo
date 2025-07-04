@@ -1,0 +1,13 @@
+commit 668f05aaf15bf12babb0bb8705fc9078d2d9b1cb
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Aug 24 10:38:52 2010 +1000
+
+    os: make return type of FileInfo.Permission() consistent with related functions
+    (uint32 rather than int)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1958048
+
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

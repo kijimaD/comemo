@@ -1,0 +1,18 @@
+commit 502504f433fa03fc8400b23c3fd10d5eb6e2b620
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Sep 5 15:05:27 2022 +0800
+
+    cmd/compile/internal/ssagen: use strings.Builder
+    
+    Change-Id: I840262eefff1073a452a243b9e31f61b53362fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428360
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/nowb.go | 4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

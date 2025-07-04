@@ -1,0 +1,23 @@
+commit 695c90daa0d9408e5144bf94ad797b33fbdb5a8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 15:58:58 2009 -0700
+
+    - adjustments for changed AST
+    - renamed gds -> godoc
+    - functionality to find and serve packages
+      (to get a list of packages provide dir path + "?p")
+    
+    Next steps: cleanups, better formatting, fine-tuning of output
+    
+    R=r
+    OCL=27037
+    CL=27039
+
+ usr/gri/pretty/Makefile               |   8 +-
+ usr/gri/pretty/astprinter.go          |  14 +-
+ usr/gri/pretty/docprinter.go          |  16 +-
+ usr/gri/pretty/gds.go                 | 235 ------------------
+ usr/gri/pretty/godoc.go               | 443 ++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/packages_template.html |  10 +
+ usr/gri/pretty/template.go            |   2 +-
+ 7 files changed, 473 insertions(+), 255 deletions(-)

@@ -1,0 +1,14 @@
+commit f8931c6cebc6a4bae54d0114beb65b336b5cdba8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 21 18:36:53 2009 -0700
+
+    Bug 143 is fixed, so clean up some of exvar.
+    
+    R=r
+    APPROVED=r
+    DELTA=8  (3 added, 1 deleted, 4 changed)
+    OCL=27699
+    CL=27701
+
+ src/lib/exvar.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

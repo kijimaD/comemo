@@ -1,0 +1,22 @@
+commit 6116a47800b4e2aa477702b415752995a3156b26
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 5 06:13:17 2023 -0400
+
+    log/slog: don't call SetDefault in examples
+    
+    Replace the default Logger in some examples with a locally constructed
+    Logger.
+    
+    Calling SetDefault changes global state that could affect other tests.
+    Although we could use a defer to restore the state, that clutters
+    the example and would not work if tests were run concurrently.
+    
+    Change-Id: Ib2595c57f8e6c3e0b39b982f682ba287c2ae249d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482475
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/example_test.go      |  4 +---
+ src/log/slog/example_wrap_test.go | 14 +++++---------
+ 2 files changed, 6 insertions(+), 12 deletions(-)

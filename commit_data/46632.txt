@@ -1,0 +1,19 @@
+commit 52b23a50f8a2028b6155da12161941803abd6198
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 23 18:03:56 2021 -0700
+
+    cmd/link: put type descriptor method arginfo in the correct section
+    
+    We were putting type descriptor funcdata,
+    such as type..eq.[2]interface {}.arginfo1
+    in type.* or typerel.* instead of go.func.*.
+    
+    Fix that.
+    
+    Change-Id: I779e6be3dd91c8029f2c3dc0e10a7d597c16678f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352071
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/symtab.go | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

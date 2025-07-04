@@ -1,0 +1,15 @@
+commit 53d9b6fcf3d459c2e550238502b499c462983329
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 4 08:41:19 2013 +1000
+
+    html/template: handle nils during indirection
+    
+    Fixes #5982.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12387043
+
+ src/pkg/html/template/content.go      |  6 ++++++
+ src/pkg/html/template/content_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

@@ -1,0 +1,12 @@
+commit 7685a67fe8a22b0edd131e55b0b53fd8b97d2556
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 9 20:25:45 2009 -0800
+
+    add a q&a about google's internal use of go
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1026035
+
+ doc/go_faq.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

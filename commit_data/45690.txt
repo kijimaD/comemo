@@ -1,0 +1,31 @@
+commit 8b462d75670dcd8b6a08cf9af225eb8e7628d412
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 14 16:53:06 2021 -0400
+
+    cmd/go: add a -compat flag to 'go mod tidy'
+    
+    Fixes #46141
+    
+    Change-Id: I9d4032e75252ade9eaa937389ea97ef3fb287499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321071
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html                                    |   5 +
+ src/cmd/go.sum                                     |  23 ++
+ src/cmd/go/alldocs.go                              |  10 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  17 +-
+ src/cmd/go/internal/modload/init.go                |  24 +-
+ src/cmd/go/internal/modload/load.go                | 254 ++++++++++++++++++++-
+ src/cmd/go/testdata/script/mod_tidy_compat.txt     |  21 +-
+ .../go/testdata/script/mod_tidy_compat_added.txt   | 105 +++++++++
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |  98 ++++++++
+ .../go/testdata/script/mod_tidy_compat_deleted.txt | 128 +++++++++++
+ .../testdata/script/mod_tidy_compat_implicit.txt   |  23 +-
+ .../script/mod_tidy_compat_incompatible.txt        |  37 ++-
+ .../testdata/script/mod_tidy_compat_irrelevant.txt |  30 +--
+ src/cmd/go/testdata/script/mod_tidy_oldgo.txt      |  21 ++
+ src/go.sum                                         |   7 +
+ 15 files changed, 749 insertions(+), 54 deletions(-)

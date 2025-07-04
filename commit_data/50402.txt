@@ -1,0 +1,23 @@
+commit e828fbdffe3318b976aa12d2aee27d4a53bc9f12
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 7 10:30:46 2022 -0700
+
+    os/exec: skip TestFindExecutableVsNoexec if mount failed
+    
+    Apparently, some testing environments do not allow root to mount tmpfs
+    (due to e.g. AppArmor profile disallowing mount(2) syscall).
+    
+    Always skip the test if the mount has failed.
+    
+    Fixes the test issue introduced by CL 414824.
+    
+    Change-Id: Ic565d2e6f277f2926d85a351be7df2498ffba656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429175
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/os/exec/lp_linux_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

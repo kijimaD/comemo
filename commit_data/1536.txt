@@ -1,0 +1,26 @@
+commit 61590c4c44cfa428b515a155e14c5fd7d3d5f255
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 14:51:57 2009 -0800
+
+    disallow P.t for lowercase t and not our package P.
+    
+    implement hiding lowercase methods m in
+    signatures by adding in a hash of the package name
+    to the type hash code.
+    
+    remove remaining checks for internally-generated _ names:
+    they are all gone.
+    
+    R=ken
+    OCL=23236
+    CL=23238
+
+ src/cmd/6g/gen.c    |  3 +--
+ src/cmd/6g/obj.c    | 11 ++++-------
+ src/cmd/gc/dcl.c    |  2 +-
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/lex.c    |  2 ++
+ src/cmd/gc/subr.c   | 10 +++-------
+ src/runtime/iface.c |  7 +++++++
+ test/golden.out     |  2 +-
+ 8 files changed, 20 insertions(+), 18 deletions(-)

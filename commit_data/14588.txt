@@ -1,0 +1,18 @@
+commit 4f3dd833e397cc16b3170b486a9239f369e03620
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 01:42:10 2012 -0500
+
+    net/http: fix text for ErrBodyReadAfterClose
+    
+    Can happen in both request and response.
+    Also use it in one place that wasn't.
+    
+    Fixes #3997.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6903057
+
+ src/pkg/net/http/server.go   | 2 +-
+ src/pkg/net/http/transfer.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

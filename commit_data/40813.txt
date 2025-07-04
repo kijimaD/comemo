@@ -1,0 +1,24 @@
+commit acb9ac07511e881b20727526e34351d9ef68b726
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 16:19:11 2019 -0500
+
+    cmd/dist: skip GOCACHE and .git when making GOROOT read-only
+    
+    When we run tests, we may need to write the test binary (and/or test
+    variants of its dependencies) to GOCACHE. (This also fixes several
+    test cases in cmd/go, which preserves the GOCACHE variable for
+    efficiency.)
+    
+    It is highly unlikely that tests will try to modify .git, and that
+    directory contains many files, so don't bother with it.
+    
+    Updates #30316
+    
+    Change-Id: Id11136c6c64d8f0afc6c6ba5d94c9269df231052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207441
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

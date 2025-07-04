@@ -1,0 +1,18 @@
+commit 8d538c6d3df70534a59e26ed05a7703cb1eae4ff
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 10:56:33 2011 +1000
+
+    exp/template: change the name from 'metacharacter' to 'delimiter',
+    because that's what they are.
+    No semantic change.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4675060
+
+ src/pkg/exp/template/lex.go        | 40 +++++++++++++++++++-------------------
+ src/pkg/exp/template/lex_test.go   |  4 ++--
+ src/pkg/exp/template/parse.go      | 18 ++++++++---------
+ src/pkg/exp/template/parse_test.go |  2 +-
+ src/pkg/exp/template/set.go        |  4 ++--
+ 5 files changed, 34 insertions(+), 34 deletions(-)

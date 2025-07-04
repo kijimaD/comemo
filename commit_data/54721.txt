@@ -1,0 +1,44 @@
+commit 7ee9980105f607641fb2d594f01a253e48abb1f4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 15 12:45:17 2023 -0400
+
+    cmd/go: replace formatOutput/showOutput with reportCmd
+    
+    The general pattern is to replace
+    
+            if len(cmdOut) > 0 {
+                    output := b.processOutput(cmdOut)
+                    if err != nil {
+                            err = formatOutput(b.WorkDir, dir, p.ImportPath, desc, output)
+                    } else {
+                            b.showOutput(a, dir, desc, output)
+                    }
+            }
+            if err != nil {
+                    return err
+            }
+    
+    with
+    
+            if err := b.reportCmd(a, p, desc, dir, cmdOut, err); err != nil {
+                    return err
+            }
+    
+    However, there is a fair amount of variation between call sites. The
+    most common non-trivial variation is sites where errors are an
+    expected outcome. In this case, often we simply pass "nil" for the
+    error to trigger only the printing behavior of reportCmd.
+    
+    For #62067, but also a nice cleanup on its own.
+    
+    Change-Id: Ie5f918017c02d8558f23ad4c38261077c0fa4ea3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529219
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/cover.go                  |   8 +-
+ src/cmd/go/internal/work/exec.go                   | 122 +++++++++------------
+ src/cmd/go/internal/work/gc.go                     |   2 +-
+ src/cmd/go/internal/work/gccgo.go                  |  25 +++--
+ .../go/testdata/script/list_pkgconfig_error.txt    |   2 +-
+ 5 files changed, 68 insertions(+), 91 deletions(-)

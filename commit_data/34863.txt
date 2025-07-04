@@ -1,0 +1,14 @@
+commit fd9d2898bd3983baa94fd2100602b06d8c487466
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 22:46:36 2018 -0700
+
+    cmd/compile: eliminate unused Sig.offset field
+    
+    Change-Id: If498d1fc6e8c0c4e8cf7ed38c4997adf05e003a6
+    Reviewed-on: https://go-review.googlesource.com/105043
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/reflect.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

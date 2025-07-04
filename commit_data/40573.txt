@@ -1,0 +1,26 @@
+commit 2566e21f243387156e8e7f2acad0ce14d9712bbc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 4 04:00:29 2019 +0000
+
+    net/http: support disabling built-in HTTP/2 with a new build tag
+    
+    Fixes #35082
+    Updates #6853
+    
+    Change-Id: I4eeb0e15f534cff57fefb6039cd33fadf15b946e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205139
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/net/http/clientserver_test.go |  3 ++
+ src/net/http/export_test.go       |  6 ++++
+ src/net/http/h2_bundle.go         |  4 ++-
+ src/net/http/http.go              |  7 ++++
+ src/net/http/http_test.go         | 26 ++++++++++++++
+ src/net/http/main_test.go         |  3 ++
+ src/net/http/omithttp2.go         | 71 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/serve_test.go        |  2 ++
+ src/net/http/server.go            |  2 +-
+ src/net/http/transport.go         |  7 +++-
+ src/net/http/transport_test.go    |  3 ++
+ 11 files changed, 131 insertions(+), 3 deletions(-)

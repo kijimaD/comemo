@@ -1,0 +1,20 @@
+commit ddbee9abd45bbb955fec973fc0e395276127d431
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 09:04:03 2017 -0800
+
+    cmd/vet: support importing from source
+    
+    Add a -source flag to cmd/vet that instructs
+    it to typecheck purely from source code.
+    
+    Updates #16086
+    Fixes #19332
+    
+    Change-Id: Ic83d0f14d5bb837a329d539b2873aeccdf7bf669
+    Reviewed-on: https://go-review.googlesource.com/37690
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/doc.go   | 3 +++
+ src/cmd/vet/main.go  | 1 +
+ src/cmd/vet/types.go | 6 +++++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)

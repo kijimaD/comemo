@@ -1,0 +1,32 @@
+commit 3fd8b8627f39d34e1a66bf4d610784bcd3f4319d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Dec 1 00:28:25 2021 +0700
+
+    cmd/compile: handle sole component for 1-byte type interface conversion
+    
+    For 1-byte type, we have a special case for converting to interface
+    type. But we missed an optimization for sole component-ed types, this CL
+    add that one.
+    
+    goos: linux
+    goarch: amd64
+    cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+    Benchmark_BoolField-8           1000000000               0.6473 ns/op
+    Benchmark_ByteField-8           1000000000               0.6094 ns/op
+    Benchmark_Uint8Field-8          1000000000               0.6385 ns/op
+    Benchmark_Int16Field-8          785179434                1.481 ns/op
+    Benchmark_Int32Field-8          796127782                1.539 ns/op
+    Benchmark_Int64Field-8          718815478                1.657 ns/op
+    
+    Fixes #49879
+    
+    Change-Id: Idc0e9d3ff738c8c8081b8e8d65093dacf2bcf392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367755
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/type.go   |  1 +
+ src/cmd/compile/internal/walk/convert.go | 32 +++++++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

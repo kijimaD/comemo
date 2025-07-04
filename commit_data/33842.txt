@@ -1,0 +1,31 @@
+commit 36aa2b036d762649a3b5a2b702b25e15cfd5c012
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 4 21:29:38 2017 -0800
+
+    cmd/cgo: make JNI's jobject type map to uintptr in Go
+    
+    The jobject type is declared as a pointer, but some JVMs
+    (Dalvik, ART) store non-pointer values in them. In Go, we must
+    use uintptr instead of a real pointer for these types.
+    
+    This is similar to the CoreFoundation types on Darwin which
+    were "fixed" in CL 66332.
+    
+    Update #22906
+    Update #21897
+    
+    RELNOTE=yes
+    
+    Change-Id: I0d4c664501d89a696c2fb037c995503caabf8911
+    Reviewed-on: https://go-review.googlesource.com/81876
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go   |   1 +
+ misc/cgo/test/test22906.go  |  74 ++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  78 +++++++++++++++++--
+ src/cmd/fix/cftype.go       |  13 ++--
+ src/cmd/fix/jnitype.go      |  65 ++++++++++++++++
+ src/cmd/fix/jnitype_test.go | 185 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 406 insertions(+), 10 deletions(-)

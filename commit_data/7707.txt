@@ -1,0 +1,21 @@
+commit 758d05551dbb69491ca255511b56c35e7e72e24b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 8 17:27:44 2011 -0800
+
+    big: implemented custom Gob(En/De)coder for Int type
+    
+    - factored implementation of Int.Bytes, Int.SetBytes
+      and replaced existing code with much simpler cores
+    - use the shared bytes, setBytes routines for Gob
+      (en/de)coding
+    
+    Fixes #1496.
+    
+    R=r, eds
+    CC=golang-dev
+    https://golang.org/cl/4249063
+
+ src/pkg/big/int.go      | 89 ++++++++++++++++++++++---------------------------
+ src/pkg/big/int_test.go | 39 ++++++++++++++++++++++
+ src/pkg/big/nat.go      | 47 ++++++++++++++++++++++++++
+ 3 files changed, 125 insertions(+), 50 deletions(-)

@@ -1,0 +1,15 @@
+commit 5cfadeb04774733d9e8124611ad4d1e7b6053fe5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 23:07:49 2011 -0500
+
+    misc: update type + builtin lists found in editor support files
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4072041
+
+ misc/bbedit/Go.plist   | 2 --
+ misc/fraise/go.plist   | 1 -
+ misc/kate/go.xml       | 4 +---
+ misc/vim/syntax/go.vim | 6 +++---
+ 4 files changed, 4 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 797124f5ff4bb80957007adbf3115287a4e90870
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 14 15:47:49 2020 -0400
+
+    cmd/go/internal/test: keep looking for go command flags after ambiguous test flag
+    
+    Fixes #40763
+    
+    Change-Id: I275970d1f8561414571a5b93e368d68fa052c60f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248618
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/test/testflag.go      | 29 +++++++++++++++++++++----
+ src/cmd/go/testdata/script/test_flags.txt | 35 +++++++++++++++++++++++++------
+ 2 files changed, 54 insertions(+), 10 deletions(-)

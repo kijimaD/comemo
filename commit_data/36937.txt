@@ -1,0 +1,16 @@
+commit bac6a2925c50964e9387da5d37f2f23d4e5e7ac4
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Oct 9 06:56:49 2018 +0000
+
+    test/codegen: add more arm64 test cases
+    
+    This CL adds 3 combined load test cases for arm64.
+    
+    Change-Id: I2c67308c40fd8a18f9f2d16c6d12911dcdc583e2
+    Reviewed-on: https://go-review.googlesource.com/c/140700
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/codegen/memcombine.go | 40 ++++++++++++++++++----------------------
+ 1 file changed, 18 insertions(+), 22 deletions(-)

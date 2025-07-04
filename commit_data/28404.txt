@@ -1,0 +1,22 @@
+commit e727e37090de987f2fafd48a02cd39455dff2ca5
+Author: Alberto Bertogli <albertito@blitiri.com.ar>
+Date:   Thu Sep 15 02:32:44 2016 +0100
+
+    net: document dummy byte in ReadMsgUnix and WriteMsgUnix
+    
+    ReadMsgUnix and WriteMsgUnix both will read/write 1 byte from/to the
+    socket if they were given no buffer to read/write, to avoid a common
+    pitfall in out of band operations (they will usually block
+    indefinitely if there's no actual data to read).
+    
+    This patch adds a note about this behaviour in their documentation, so
+    users can be aware of it.
+    
+    Change-Id: I751f0e12bb4d80311e94ea8de023595c5d40ec3e
+    Reviewed-on: https://go-review.googlesource.com/29180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

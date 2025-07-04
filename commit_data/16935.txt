@@ -1,0 +1,12 @@
+commit fa673bd872d738a24a61ca8ed09c7c3b88d10682
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 31 12:34:14 2013 +0900
+
+    net: add simple SetKeepAlivePeriod call test
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12090043
+
+ src/pkg/net/protoconn_test.go | 1 +
+ 1 file changed, 1 insertion(+)

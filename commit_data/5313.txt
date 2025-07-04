@@ -1,0 +1,13 @@
+commit ad2c5a4984862441697cfdbd8f258ad6bf4067f1
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Mon Apr 19 16:36:50 2010 -0700
+
+    Added strings.FieldsFunc, a generalization of strings.Fields in style of the strings.Trim*Func functions.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/824051
+
+ src/pkg/strings/strings.go      | 11 +++++++++--
+ src/pkg/strings/strings_test.go | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

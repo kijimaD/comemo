@@ -1,0 +1,44 @@
+commit eea8c88a095d4aa21893d96441cb5074a7314532
+Author: David Glasser <glasser@meteor.com>
+Date:   Fri Apr 28 16:40:39 2017 -0700
+
+    net/http: make Transport retry GetBody requests if nothing written
+    
+    This is another attempt at the change attempted in
+    https://golang.org/cl/27117 and rolled back in https://golang.org/cl/34134
+    
+    The difference between this and the previous attempt is that this version only
+    retries if the new field GetBody is set on the Request.
+    
+    Additionally, this allows retries of requests with idempotent methods even if
+    they have bodies, as long as GetBody is defined.
+    
+    This also fixes an existing bug where readLoop could make a redundant call to
+    setReqCanceler for DELETE/POST/PUT/etc requests with no body with zero bytes
+    written.
+    
+    This clarifies the existing TestRetryIdempotentRequestsOnError test (and changes
+    it into a test with 4 subtests).  When that test was written, it was in fact
+    testing "retry idempotent requests" logic, but the logic had changed since then,
+    and it was actually testing "retry requests with no body when no bytes have been
+    written". (You can confirm this by changing the existing test from a GET to a
+    DELETE; it passes without the changes in this CL.) We now test for the no-Body
+    and GetBody cases for both idempotent and nothing-written-non-idempotent
+    requests.
+    
+    Fixes #18241
+    Fixes #17844
+    
+    Change-Id: I69a48691796f6dc08c31f7aa7887b7dfd67e278a
+    Reviewed-on: https://go-review.googlesource.com/42142
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go             |   4 +-
+ src/net/http/export_test.go             |   1 +
+ src/net/http/request.go                 |   2 +-
+ src/net/http/transport.go               |  31 ++---
+ src/net/http/transport_internal_test.go |  26 ++++
+ src/net/http/transport_test.go          | 204 ++++++++++++++++++++++----------
+ 6 files changed, 186 insertions(+), 82 deletions(-)

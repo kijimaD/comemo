@@ -1,0 +1,35 @@
+commit 45e7e668440e79717e950162e6d42fb8773a109a
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 12:40:20 2018 -0700
+
+    cmd/compile: unify compilation of compiler tests
+    
+    Before this CL we would build&run each test file individually.
+    Building the test takes most of the time, a significant fraction of a
+    second. Running the tests are really fast.
+    
+    After this CL, we build all the tests at once, then run each
+    individually. We only have to run the compiler&linker once (or twice,
+    for softfloat architectures) instead of once per test.
+    
+    While we're here, organize these tests to fit a bit more into the
+    standard testing framework.
+    
+    This is just the organizational CL that changes the testing framework
+    and migrates 2 tests.  Future tests will follow.
+    
+    R=go1.12
+    
+    Update #26469
+    
+    Change-Id: I1a1e7338c054b51f0c1c4c539d48d3d046b08b7d
+    Reviewed-on: https://go-review.googlesource.com/126995
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa_test.go            | 125 ++++++++++++++++++++-
+ .../gc/testdata/{break.go => break_test.go}        |  17 +--
+ src/cmd/compile/internal/gc/testdata/short.go      |  60 ----------
+ src/cmd/compile/internal/gc/testdata/short_test.go |  57 ++++++++++
+ 4 files changed, 184 insertions(+), 75 deletions(-)

@@ -1,0 +1,21 @@
+commit a04a665a92714c71a039575d27155cd495891799
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 15 16:09:52 2023 -0700
+
+    spec: update section on type inference for Go 1.21
+    
+    The new section describes type inference as the problem
+    of solving a set of type equations for bound type parameters.
+    
+    The next CL will update the section on unification to match
+    the new inference approach.
+    
+    Change-Id: I2cb49bfb588ccc82d645343034096a82b7d602e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503920
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 484 ++++++++++++++++++++++---------------------------------
+ 1 file changed, 189 insertions(+), 295 deletions(-)

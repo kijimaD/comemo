@@ -1,0 +1,8 @@
+commit 369873c6e5d00314ae30276363f58e5af11b149c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 13:50:49 2014 +1100
+
+    convert .hgignore to .gitignore.
+
+ .hgignore => .gitignore | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

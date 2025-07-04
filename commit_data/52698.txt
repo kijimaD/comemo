@@ -1,0 +1,19 @@
+commit c9d5df0848515f4503d77e6a087a4b3920254e09
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 18 12:11:20 2023 -0400
+
+    cmd/go: mark gocacheverify godebug as undocumented
+    
+    This avoids the panic for godebugs without documentation. Perhaps we
+    eventually want to remove this godebug.
+    
+    Change-Id: I032cdded0f3ccf6681821286e2cb6f0b90a318c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485756
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

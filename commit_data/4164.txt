@@ -1,0 +1,13 @@
+commit ce88bfa5853e68853c4d053befc9f2410ef188ac
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Thu Nov 19 20:45:03 2009 -0800
+
+    Add json.Marshal to json package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157068
+
+ src/pkg/json/struct.go      | 97 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/json/struct_test.go | 46 +++++++++++++++++++++
+ 2 files changed, 143 insertions(+)

@@ -1,0 +1,22 @@
+commit e0f986bf26b72749553e45cad34f14d7d4166acb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 27 08:21:55 2016 -0700
+
+    cmd/compile: avoid function literal name collision with "glob"
+    
+    The compiler was treating all global function literals as occurring in a
+    function named "glob", which caused a symbol name collision when there
+    was an actual function named "glob".  Fixed by adding a period.
+    
+    Fixes #16193.
+    
+    Change-Id: I67792901a8ca04635ba41d172bfaee99944f594d
+    Reviewed-on: https://go-review.googlesource.com/24500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ test/fixedbugs/issue16193.go           | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

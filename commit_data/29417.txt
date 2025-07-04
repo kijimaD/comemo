@@ -1,0 +1,21 @@
+commit 9e4a70e8fd3e6fed93fcd6159228b3a8ecae1d80
+Author: Quentin Smith <quentin@golang.org>
+Date:   Tue Oct 25 15:41:14 2016 -0400
+
+    mime/multipart: test for overreading on a stream
+    
+    Some multipart data arrives in a stream, where subsequent parts may not
+    be ready yet. Read should return a complete part as soon as
+    possible.
+    
+    Fixes #15431
+    
+    Change-Id: Ie8c041b853f3e07f0f2a66fbf4bcab5fe9132a7c
+    Reviewed-on: https://go-review.googlesource.com/32032
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/multipart/multipart_test.go | 67 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

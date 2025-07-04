@@ -1,0 +1,23 @@
+commit c4fed25553ee266ed9cb3a98e7a33a82af110ed4
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 27 09:45:21 2020 -0700
+
+    cmd/compile: add floating point load+op operations to addressing modes pass
+    
+    They were missed as part of the refactoring to use a separate
+    addressing modes pass.
+    
+    Fixes #40426
+    
+    Change-Id: Ie0418b2fac4ba1ffe720644ac918f6d728d5e420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244859
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   6 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go |  17 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  34 ++-
+ src/cmd/compile/internal/ssa/opGen.go           | 320 ++++++++++++++++++++++++
+ test/codegen/memops.go                          |  23 ++
+ 5 files changed, 391 insertions(+), 9 deletions(-)

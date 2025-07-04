@@ -1,0 +1,13 @@
+commit b10849fbb97a2244c086991b4623ae9f32c212d0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 10 11:01:14 2020 +1000
+
+    strconv: add comment re extFloat errorscale
+    
+    Change-Id: I6f006ba72e1711ba2a24cd71552855ad88284eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227797
+    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/strconv/extfloat.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

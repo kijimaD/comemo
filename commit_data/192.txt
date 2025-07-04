@@ -1,0 +1,13 @@
+commit 1926fef175dc89079f39b952aa02487d5b6e1aeb
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 18 11:43:50 2008 -0700
+
+    bogus diagnostic with
+    default as first case
+    in a switch
+    
+    SVN=123398
+
+ src/cmd/6g/gen.c  | 3 +--
+ src/cmd/gc/walk.c | 9 ++++-----
+ 2 files changed, 5 insertions(+), 7 deletions(-)

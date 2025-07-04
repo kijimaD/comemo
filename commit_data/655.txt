@@ -1,0 +1,14 @@
+commit 4dfc7f0f14aed72dbda24abf48f4fc5fba987186
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 14:15:54 2008 -0700
+
+    fix / work around bugs in bufio test
+    
+    R=r
+    DELTA=11  (8 added, 0 deleted, 3 changed)
+    OCL=15405
+    CL=15405
+
+ src/lib/bufio.go | 12 ++++++++++--
+ test/bufiolib.go |  2 +-
+ 2 files changed, 11 insertions(+), 3 deletions(-)

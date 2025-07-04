@@ -1,0 +1,15 @@
+commit f1baf78247010bc40b8854a42af5b6d38276147a
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 6 22:33:12 2009 -0700
+
+    divide by a constant power of 2
+    
+    R=rsc
+    OCL=32858
+    CL=32858
+
+ src/cmd/6g/gg.h      |  2 ++
+ src/cmd/6g/ggen.c    | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/6g/gsubr.c   | 52 ++++++++++++++++++++++++++++++++
+ test/ken/divconst.go | 45 ++++++++++++++++++++++++++++
+ 4 files changed, 181 insertions(+), 2 deletions(-)

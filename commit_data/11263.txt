@@ -1,0 +1,14 @@
+commit 9e5f62ac0c7259988fb616d6a91625befa1db62f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 19 08:52:53 2012 -0800
+
+    go/doc, godoc: don't shadow receiver
+    
+    Fixes #2737.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5553062
+
+ src/pkg/go/doc/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

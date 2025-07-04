@@ -1,0 +1,16 @@
+commit 209f6b1d2ca84541505c29c6158cde9d5a0bbd57
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 16:50:27 2013 -0700
+
+    database/sql: don't close a driver.Conn until its Stmts are closed
+    
+    Fixes #5046
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8016044
+
+ src/pkg/database/sql/fakedb_test.go | 21 +++++++++-
+ src/pkg/database/sql/sql.go         | 82 ++++++++++++++++++++++++++++---------
+ src/pkg/database/sql/sql_test.go    | 54 ++++++++++++++++++++++++
+ 3 files changed, 137 insertions(+), 20 deletions(-)

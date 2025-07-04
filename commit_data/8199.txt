@@ -1,0 +1,15 @@
+commit 1bdb1803b9ec0b3434c7038e4c6949d0d4d96c5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 22 16:26:51 2011 -0700
+
+    go spec: for map types, mention indexing operations
+             (like we do for arrays and slices).
+    
+    Suggested by mathieu.lonjaret@gmail.com .
+    
+    R=r, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/4442074
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

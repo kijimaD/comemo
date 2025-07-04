@@ -1,0 +1,19 @@
+commit 6a9d81174e6c7d205fc189a1eac56212a723c40c
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Nov 7 21:29:30 2021 -0800
+
+    internal/fmtsort: order channels in test in memory address order
+    
+    Kind of a kludge, but it makes the test work reliably.
+    
+    Fixes #49431
+    
+    Change-Id: Ic2a075ba02f80ea7efcc1b3f0f5a43649e87c0d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361918
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/fmtsort/sort_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit ccd9a55609fcc8814146a7c61898b47e3a7aea7d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jun 11 19:36:17 2016 +0900
+
+    os: use waitid to avoid wait/kill race on darwin
+    
+    This change is a followup to https://go-review.googlesource.com/23967
+    for Darwin.
+    
+    Updates #13987.
+    Updates #16028.
+    
+    Change-Id: Ib1fb9f957fafd0f91da6fceea56620e29ad82b00
+    Reviewed-on: https://go-review.googlesource.com/24020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_unimp.go                     | 2 +-
+ src/os/{wait_linux.go => wait_waitid.go} | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

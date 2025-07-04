@@ -1,0 +1,17 @@
+commit 0d3399286624f5fe604129c7ec25997325123d16
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 10:31:48 2009 -0700
+
+    next step for 6.out on Borg: fix and test
+    net code on IPv4-only machines.
+    
+    R=r
+    DELTA=27  (25 added, 0 deleted, 2 changed)
+    OCL=28404
+    CL=28411
+
+ src/lib/net/dialgoogle_test.go   | 13 ++++++++++++-
+ src/lib/net/net.go               |  2 +-
+ src/lib/syscall/socket_darwin.go |  7 +++++++
+ src/lib/syscall/socket_linux.go  |  7 +++++++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

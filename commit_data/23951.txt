@@ -1,0 +1,22 @@
+commit c53de859e25b56d665f59c3bd2844bf5f288ecc3
+Author: Andy Maloney <asmaloney@gmail.com>
+Date:   Mon Aug 3 10:15:52 2015 -0400
+
+    doc: Mention contributor agreement immediately after Gerrit
+    
+    I walked through the steps for a contribution but ended up
+    with an error when doing "git mail" because I didn't have a
+    signed agreement.
+    
+    Added a section to check for or create one through Gerrit right
+    after the user has created the account and logged in.
+    
+    Moved some info from copyright section to the new section.
+    
+    Change-Id: I79bbd3e18fc3a742fa59a242085da14be9e19ba0
+    Reviewed-on: https://go-review.googlesource.com/13062
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/contribute.html | 61 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 36 insertions(+), 25 deletions(-)

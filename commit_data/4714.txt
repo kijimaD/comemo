@@ -1,0 +1,14 @@
+commit 535e427272595f3c3d313935b8b7899c87b92f83
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 28 15:38:32 2010 +1100
+
+    Regularize the comments for the websocket package and document all functions and methods.
+    
+    R=rsc, ukai
+    CC=golang-dev
+    https://golang.org/cl/196044
+
+ src/pkg/websocket/client.go    | 50 +++++++++++++++++++++---------------------
+ src/pkg/websocket/server.go    | 50 ++++++++++++++++++++++--------------------
+ src/pkg/websocket/websocket.go | 26 +++++++++++++++-------
+ 3 files changed, 69 insertions(+), 57 deletions(-)

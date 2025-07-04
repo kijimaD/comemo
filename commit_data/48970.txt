@@ -1,0 +1,28 @@
+commit 0537a74b76fcab1398da6699c3ff7411fef8fbe7
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon May 2 11:50:36 2022 +0000
+
+    io: NopCloser forward WriterTo implementations if the reader supports it
+    
+    This patch also include related fixes to net/http.
+    
+    io_test.go don't test reading or WritingTo of the because the logic is simple.
+    NopCloser didn't even had direct tests before.
+    
+    Fixes #51566
+    
+    Change-Id: I1943ee2c20d0fe749f4d04177342ce6eca443efe
+    GitHub-Last-Rev: a6b9af4e945a6903735a74aa185e2d1c4c2e2cef
+    GitHub-Pull-Request: golang/go#52340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400236
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/io/io.go             | 15 +++++++++++++++
+ src/io/io_test.go        | 21 +++++++++++++++++++++
+ src/net/http/transfer.go | 23 +++++++++++++++++++----
+ 3 files changed, 55 insertions(+), 4 deletions(-)

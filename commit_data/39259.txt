@@ -1,0 +1,18 @@
+commit bd61fc3da337dc23dd4d87ea36ffd5c129486c33
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 28 11:37:12 2019 -0400
+
+    testing/internal/testdeps: delete didSetLogger variable
+    
+    It was added in CL 83956 but never used.
+    
+    Updates #23129
+    
+    Change-Id: I70b50e974a56620069a77658386722af314cc857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179138
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/internal/testdeps/deps.go | 1 -
+ 1 file changed, 1 deletion(-)

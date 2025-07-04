@@ -1,0 +1,14 @@
+commit d0729a6edebcaae1ab6554244fc6ef2ff36609bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 28 07:53:37 2015 +0200
+
+    encoding/json: test style tweaks
+    
+    Rename test name from Http to HTTP, and fix some style nits.
+    
+    Change-Id: I00fe1cecd69ca2f50be86a76ec90031c2f921707
+    Reviewed-on: https://go-review.googlesource.com/12760
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/json/stream_test.go | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)

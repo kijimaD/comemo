@@ -1,0 +1,20 @@
+commit 935faf3be200d6f469cccdbec27cee3741a97350
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Nov 11 10:21:49 2015 +0900
+
+    path/filepath: in Rel use case-insensitive comparison on Windows
+    
+    Fixes #10802
+    
+    Compare Volume name and each path elements using strings.EqualFold.
+    
+    Change-Id: Ibdefdb801d0326e53755bc9cc8c10eed998094e5
+    Reviewed-on: https://go-review.googlesource.com/16795
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/path/filepath/path.go         | 4 ++--
+ src/path/filepath/path_plan9.go   | 4 ++++
+ src/path/filepath/path_test.go    | 1 +
+ src/path/filepath/path_unix.go    | 4 ++++
+ src/path/filepath/path_windows.go | 4 ++++
+ 5 files changed, 15 insertions(+), 2 deletions(-)

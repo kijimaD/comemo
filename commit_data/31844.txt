@@ -1,0 +1,12 @@
+commit 7d21123995e2fd6d450660ed4f52762528a440fa
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 15 20:02:44 2017 +0200
+
+    doc: fix typo in go1.9 release notes
+    
+    Change-Id: I64d32fd308f2b7968dfaf11cdc85ab1952170868
+    Reviewed-on: https://go-review.googlesource.com/45891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

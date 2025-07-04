@@ -1,0 +1,21 @@
+commit 67d30fc315f90207a7fd8cde465ab14687835f1c
+Author: kayos@tcp.direct <kayos@smoqueed.com>
+Date:   Mon Jan 8 07:42:00 2024 +0000
+
+    net/http: wrap client errors
+    
+    Fixes #50856
+    
+    Change-Id: I7fe89fcce223e1571debb73436f8aeb3bfbe4b9f
+    GitHub-Last-Rev: be570e7883be06adbd227a1dfe63a80e384d96f6
+    GitHub-Pull-Request: golang/go#63448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/client.go      |  4 ++--
+ src/net/http/client_test.go | 19 +++++++++++++++++++
+ src/net/http/transport.go   | 12 +++++++-----
+ 3 files changed, 28 insertions(+), 7 deletions(-)

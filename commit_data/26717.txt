@@ -1,0 +1,14 @@
+commit b9531d31ac8a0078b437f778caf09727e218f492
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 16:04:03 2016 +0000
+
+    doc: add httptest.ResponseRecorder note to go1.7.txt notes
+    
+    Fixes #14928
+    
+    Change-Id: Id772eb623815cb2bb3e49de68a916762345a9dc1
+    Reviewed-on: https://go-review.googlesource.com/21531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

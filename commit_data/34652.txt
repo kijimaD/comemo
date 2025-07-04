@@ -1,0 +1,16 @@
+commit 9c312245ac53f9d5a3f42eae10abb15f881da216
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Mon Mar 19 07:36:43 2018 +0000
+
+    cmd/asm: fix bug about VMOV instruction (move a vector element to another) on ARM64
+    
+    This change fixes index error when encoding VMOV instruction which pattern
+    is vmov Vn.<T>[index], Vd.<T>[index]
+    
+    Change-Id: I949166e6dfd63fb0a9365f183b6c50d452614f9d
+    Reviewed-on: https://go-review.googlesource.com/101335
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

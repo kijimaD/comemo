@@ -1,0 +1,18 @@
+commit 77aaa3555dd420c79bafa88de60dee31717949c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 00:34:01 2012 -0500
+
+    gc: fix import of struct type in struct literal
+    
+    Fixes #2716.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5652065
+
+ src/cmd/gc/go.y                   |  18 +-
+ src/cmd/gc/y.tab.c                | 342 ++++++++++++++++++++------------------
+ test/fixedbugs/bug415.dir/main.go |   9 +
+ test/fixedbugs/bug415.dir/p.go    |  14 ++
+ test/fixedbugs/bug415.go          |   9 +
+ 5 files changed, 228 insertions(+), 164 deletions(-)

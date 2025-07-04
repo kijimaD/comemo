@@ -1,0 +1,29 @@
+commit 5d2cc5662027f6464db2781c88b4f3bb64f58136
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Fri Aug 18 15:24:39 2023 -0400
+
+    cmd/internal/testdir: update errors when filepaths include 'C:\'
+    
+    Currently on Windows, commands like:
+    
+     go test cmd/internal/testdir -run=foo -update_errors
+    
+    will fail to update the errors because the parsing is
+    currently confused by the ':' in filepaths that
+    start with 'C:\', and wrongly thinks that ':' marks
+    the end of the Go filename.
+    
+    Instead of finding the first ':', use a regexp
+    to find what looks to be the end of the Go filename.
+    
+    Change-Id: I091106da55b8e9e9cf421814abf26a6f8b821af9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524942
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/testdir/testdir_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

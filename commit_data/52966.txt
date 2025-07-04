@@ -1,0 +1,18 @@
+commit b768a1fbb5cbe8423465b79ad8f82055f79eb5fa
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 19 13:49:04 2023 -0400
+
+    reflect: move funcType to abi/type.go
+    
+    Change-Id: I381229ba67a39487cdcc60da1c73d33b0a7d494a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487556
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/reflect/abi.go      |  12 ++---
+ src/reflect/makefunc.go |   2 +-
+ src/reflect/type.go     | 120 +++++++++++++++++++-----------------------------
+ src/reflect/value.go    |  37 +++++++--------
+ 4 files changed, 74 insertions(+), 97 deletions(-)

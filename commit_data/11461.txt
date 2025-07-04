@@ -1,0 +1,14 @@
+commit 2d13e1f16e4b6709dc98f2cc45d717af8807005a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 30 16:43:28 2012 +1100
+
+    build: use correct go-tool directory location
+    
+    R=golang-dev, rsc, cw, rsc
+    CC=golang-dev
+    https://golang.org/cl/5576070
+
+ src/cmd/cov/Makefile  | 2 +-
+ src/cmd/go/tool.go    | 3 ++-
+ src/cmd/prof/Makefile | 4 ++--
+ 3 files changed, 5 insertions(+), 4 deletions(-)

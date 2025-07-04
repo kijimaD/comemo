@@ -1,0 +1,20 @@
+commit d9504d4623556467f023da5c33236ec0cf4520cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 22 22:29:24 2016 -0700
+
+    cmd/link: don't record interpreter in flagInterpreter
+    
+    Keep flagInterpreter unchanged after flag parsing. This lets us replace
+    flagInterpreterSet with flagInterpreter != "".
+    
+    Change-Id: Ifd2edbb2ce0011e97276ca18281b8ffbabde1c50
+    Reviewed-on: https://go-review.googlesource.com/27563
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go  | 16 ++++++++--------
+ src/cmd/link/internal/ld/go.go   |  8 ++++----
+ src/cmd/link/internal/ld/lib.go  |  1 +
+ src/cmd/link/internal/ld/main.go | 29 ++++++++++++++---------------
+ 4 files changed, 27 insertions(+), 27 deletions(-)

@@ -1,0 +1,31 @@
+commit eed309f5fb223a879630e9dced8c44c2b049cf71
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 29 11:53:42 2016 -0400
+
+    cmd/trace: move process-wide GC events to their own row
+    
+    Currently, the process-wide GC state is attributed to the P that
+    happened to perform the allocation that exceeded the GC trigger. This
+    is pretty arbitrary and makes it hard to see when GC is running since
+    the GC spans are intermingled with a lot of other trace noise.
+    
+    The current display is particularly confusing because it creates three
+    sub-rows in the P row that can overlap each other. Usually a P has
+    just two sub-rows: one showing the current G and another showing that
+    G's activity. However, because GC is attributed to a proc, it winds up
+    as a third row that neither subsumes nor is subsumed by any other row.
+    This in turn screws up the trace's layout and results in overlapping
+    events.
+    
+    Fix these problems by creating a new dedicated row like the existing
+    "Network" and "Timer" rows and displaying process-wide GC events in
+    this row. Mark termination and sweep events still appear in their
+    respective P rows because these are meaningfully attributed.
+    
+    Change-Id: Ie1a1c6cf8c446e4b043f10f3968f91ff1b546d15
+    Reviewed-on: https://go-review.googlesource.com/30017
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/trace.go       | 3 +++
+ src/internal/trace/parser.go | 3 +++
+ 2 files changed, 6 insertions(+)

@@ -1,0 +1,14 @@
+commit b44ca1f3b39afab221891695a8079b16ab45c251
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu May 3 12:33:13 2018 +0200
+
+    cmd/go: update alldocs.go
+    
+    Ran go generate in order to update docs.
+    
+    Change-Id: Ideb903427d153d0ff35e5164b7e79426b83b1afb
+    Reviewed-on: https://go-review.googlesource.com/111336
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

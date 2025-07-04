@@ -1,0 +1,20 @@
+commit 39e335ac0618044bbd8ed2fca5e5b3583d8c444e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jul 31 21:32:26 2020 +0000
+
+    runtime: copy in MemStats fields explicitly
+    
+    Currently MemStats is populated via an unsafe memmove from memstats, but
+    this places unnecessary structural restrictions on memstats, is annoying
+    to reason about, and tightly couples the two. Instead, just populate the
+    fields of MemStats explicitly.
+    
+    Change-Id: I96f6a64326b1a91d4084e7b30169a4bbe6a331f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246972
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mstats.go | 70 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 47 insertions(+), 23 deletions(-)

@@ -1,0 +1,17 @@
+commit 358ae207775e146df1e96e463fc074aa5cc1dd12
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 12:24:43 2013 -0400
+
+    libmach: change three more BGET macro invocations back
+    
+    Various compilers complain about the macro expansion not
+    being used. I fixed a few yesterday. More today.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13643044
+
+ src/libmach/5obj.c | 4 ++--
+ src/libmach/6obj.c | 2 +-
+ src/libmach/8obj.c | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit ffd95aadcddc34ec2c83971346f04cf7234e0fca
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 3 12:59:09 2020 -0400
+
+    cmd/link: put read-only data in __DATA_CONST segment
+    
+    On darwin, we put read-only data in __TEXT segment on AMD64 in
+    exe (non-PIE) buildmode, and in __DATA on everywhere else. This
+    is not ideal: things in __DATA segment are not read-only, and
+    being mapped R/W may use more run-time resources.
+    
+    In fact, newer darwin systems support a __DATA_CONST segment,
+    which the dynamic linker will map it read-only after applying
+    relocations. Use that.
+    
+    Fixes #38830.
+    
+    Change-Id: Ic281e6c6ca8ef5fec4bb7c5b71c50dd5393e78ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253919
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go   | 20 ++++++++++++-------
+ src/cmd/link/internal/ld/macho.go  | 41 +++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/target.go |  6 +++++-
+ 3 files changed, 43 insertions(+), 24 deletions(-)

@@ -1,0 +1,14 @@
+commit be7e0f8160f173844108a537a988b800c558e652
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 15:38:46 2008 -0800
+
+    gotestify regexp
+    
+    R=rsc
+    DELTA=101  (53 added, 25 deleted, 23 changed)
+    OCL=19635
+    CL=19637
+
+ src/lib/regexp/Makefile | 60 +++++++++++++++++++++++++++++++++++--------------
+ src/lib/regexp/test.go  | 52 +++++++++++++++++++++---------------------
+ 2 files changed, 70 insertions(+), 42 deletions(-)

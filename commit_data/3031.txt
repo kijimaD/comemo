@@ -1,0 +1,34 @@
+commit 52cf67a61194d7d6d4b66e42cd8fa33d91f48600
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 10:18:48 2009 -0700
+
+    naming cleanup.
+    
+    gzip.GzipInflater -> gzip.Inflater
+    gzip.NewGzipInflater -> gzip.NewInflater
+    zlib.NewZlibInflater -> zlib.NewInflater
+    
+    io.ByteReader deleted in favor of bytes.Buffer
+    io.NewByteReader -> bytes.NewBuffer
+    
+    R=r
+    DELTA=52  (3 added, 0 deleted, 49 changed)
+    OCL=33589
+    CL=33592
+
+ src/pkg/base64/base64_test.go        |  4 ++--
+ src/pkg/bufio/bufio_test.go          |  8 ++++----
+ src/pkg/compress/gzip/gunzip.go      | 26 +++++++++++++-------------
+ src/pkg/compress/gzip/gunzip_test.go |  8 ++++----
+ src/pkg/compress/zlib/reader.go      |  4 ++--
+ src/pkg/compress/zlib/reader_test.go |  8 ++++----
+ src/pkg/crypto/block/cbc_aes_test.go |  4 ++--
+ src/pkg/crypto/block/cfb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ctr_aes_test.go |  4 ++--
+ src/pkg/crypto/block/eax_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ecb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ecb_test.go     |  4 ++--
+ src/pkg/crypto/block/ofb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/xor_test.go     |  4 ++--
+ src/pkg/http/request.go              |  2 +-
+ 15 files changed, 46 insertions(+), 46 deletions(-)

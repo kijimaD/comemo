@@ -1,0 +1,28 @@
+commit 3c3b1d39bee6d208ab437e24ba942fbae789eb7f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 4 10:38:58 2023 -0700
+
+    go/types, types2: infer minimum default type for untyped arguments
+    
+    This implements the proposal #58671.
+    Must be explicitly enabled and requires proposal approval.
+    
+    For #58671.
+    
+    Change-Id: I150e78f4f3282d6b7cf9d90feeb5f1c5a36d8c38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492835
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go             |  5 ++
+ src/cmd/compile/internal/types2/check_test.go      |  1 +
+ src/cmd/compile/internal/types2/infer.go           | 83 +++++++++++++++-------
+ src/go/types/api.go                                |  5 ++
+ src/go/types/check_test.go                         |  1 +
+ src/go/types/generate_test.go                      |  6 +-
+ src/go/types/infer.go                              | 83 +++++++++++++++-------
+ .../types/testdata/fixedbugs/issue58671.go         | 22 ++++++
+ 8 files changed, 157 insertions(+), 49 deletions(-)

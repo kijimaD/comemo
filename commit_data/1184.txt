@@ -1,0 +1,16 @@
+commit 692a5dbb9e705ef62a17d900365988e762d1a6e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 12:51:25 2008 -0800
+
+    coverage tweaks
+    
+    * handle new 6g shift sequence
+    * assume 6.out
+    
+    R=r
+    DELTA=24  (20 added, 0 deleted, 4 changed)
+    OCL=19593
+    CL=19596
+
+ src/cmd/cov/main.c | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)

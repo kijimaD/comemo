@@ -1,0 +1,12 @@
+commit 29753081250461b03978738b2adb3c2a2f7a7448
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 21 18:23:16 2009 -0700
+
+    more inlining of sliceslice
+    
+    R=rsc
+    OCL=34871
+    CL=34871
+
+ src/cmd/6g/ggen.c | 49 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 37 insertions(+), 12 deletions(-)

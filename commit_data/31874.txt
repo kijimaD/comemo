@@ -1,0 +1,21 @@
+commit 87adaf4c084e0ceba6444fddaf468165e0201fa1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 20 15:59:02 2017 -0400
+
+    syscall: mark forkAndExecInChild1 noinline
+    
+    This certainly won't get inlined right now, but in the spirit of
+    making this more robust, we have to disable inlining because inlining
+    would defeat the purpose of separating forkAndExecInChild1 into a
+    separate function.
+    
+    Updates #20732.
+    
+    Change-Id: I736c3f909cc42c5f5783740c2e19ba4827c7c2ec
+    Reviewed-on: https://go-review.googlesource.com/46174
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

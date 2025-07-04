@@ -1,0 +1,13 @@
+commit 6372bbbf3effbd0908ea71bbdbb2bac4ac353d67
+Author: Peter Williams <pwil3058@gmail.com>
+Date:   Wed Jun 2 17:11:52 2010 -0700
+
+    doc: codereview + Mercurial Queues
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1238044
+
+ doc/codereview_with_mq.html | 113 ++++++++++++++++++++++++++++++++++++++++++++
+ doc/contribute.html         |   6 +--
+ 2 files changed, 115 insertions(+), 4 deletions(-)

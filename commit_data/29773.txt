@@ -1,0 +1,14 @@
+commit 9ad47c4f67d592c768435f0c04a6d61ebee8c06f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 8 23:49:54 2016 +0000
+
+    doc: add http.NoBody and Transport change to go1.8.html
+    
+    Fixes #18257
+    
+    Change-Id: Iafba5aa0a0641cfe36351bb0e4b57f20257fdc4e
+    Reviewed-on: https://go-review.googlesource.com/34210
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

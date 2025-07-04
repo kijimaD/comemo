@@ -1,0 +1,26 @@
+commit c54605266b746dd4d81e3753b55910e5c8dde5f0
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 29 16:47:22 2021 -0400
+
+    cmd/go: remove remaining uses of TODOWorkspaces
+    
+    Most of them are fixed, but some of them have been rewritten to refer
+    to specific issues.
+    
+    For #45713
+    
+    Change-Id: Id24d9bd47afeac089835f7a26e7025332fb6119c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359794
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go             | 27 ++++----
+ src/cmd/go/internal/modload/init.go                | 75 ++++++++++++++++------
+ src/cmd/go/internal/workcmd/edit.go                | 27 ++------
+ src/cmd/go/internal/workcmd/init.go                |  6 +-
+ src/cmd/go/internal/workcmd/sync.go                | 17 ++++-
+ src/cmd/go/internal/workcmd/use.go                 | 28 ++------
+ .../go/testdata/script/work_why_download_graph.txt | 59 +++++++++++++++++
+ 7 files changed, 160 insertions(+), 79 deletions(-)

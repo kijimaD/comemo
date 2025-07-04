@@ -1,0 +1,14 @@
+commit 3e8faa640fa49f432060097e8dabbf8e4ecc2ef9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 10:18:53 2008 -0800
+
+    fix build - forgot these files
+    
+    TBR=r
+    OCL=20448
+    CL=20448
+
+ src/lib/syscall/mksignal               | 26 +++++++++++++++++++
+ src/lib/syscall/signal_amd64_darwin.go | 43 +++++++++++++++++++++++++++++++
+ src/lib/syscall/signal_amd64_linux.go  | 46 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+)

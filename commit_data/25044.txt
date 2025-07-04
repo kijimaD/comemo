@@ -1,0 +1,17 @@
+commit ab9d5f38bed577af201b851d54d43b1c760ae82f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 19 11:25:55 2015 -0500
+
+    runtime: make gcFlushBgCredit go:nowritebarrierrec
+    
+    Write barriers in gcFlushBgCredit lead to very subtle bugs because it
+    executes after the getfull barrier. I tracked some bugs of this form
+    down before go:nowritebarrierrec was implemented. Ensure that they
+    don't reappear by making gcFlushBgCredit go:nowritebarrierrec.
+    
+    Change-Id: Ia5ca2dc59e6268bce8d8b4c87055bd0f6e19bed2
+    Reviewed-on: https://go-review.googlesource.com/17052
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgcmark.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,12 @@
+commit 344b16512cd8e6883302617f4727381587d87305
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 6 15:30:07 2009 -0800
+
+    update utf8_test.go
+    
+    R=rsc
+    OCL=22170
+    CL=22170
+
+ src/lib/utf8_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

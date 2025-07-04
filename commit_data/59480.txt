@@ -1,0 +1,29 @@
+commit 3474c52e4b082421aa948eb178279f6a879701e2
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Apr 25 10:53:04 2025 +0800
+
+    cmd/internal/obj/loong64: Add preld{,x} instructions support
+    
+    Go asm syntax:
+            PRELD   16(R4), $8
+            PRELDX  (R4)(R5), $8
+    
+    Equivalent platform assembler syntax:
+            preld   $8, $r4, 16
+            preldx  $8, $r4, $r5
+    
+    Change-Id: Ie81d22ebaf4153388a7e9d8fa0f618a0ae7a1c9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671875
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/arch/loong64.go            |  8 +++++++
+ src/cmd/asm/internal/asm/asm.go                 |  6 +++++
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 +++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  4 ++++
+ src/cmd/internal/obj/loong64/anames.go          |  2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 32 ++++++++++++++++++++++++-
+ 6 files changed, 59 insertions(+), 1 deletion(-)

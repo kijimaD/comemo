@@ -1,0 +1,22 @@
+commit 42e97468a1fd4b9f08bccd076edb1598435c72fb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Mar 16 22:34:38 2017 -0700
+
+    cmd/compile: intrinsic for math/bits.Reverse on ARM64
+    
+    I don't know that it exists for any other architectures.
+    
+    Update #18616
+    
+    Change-Id: Idfe5dee251764d32787915889ec0be4bebc5be24
+    Reviewed-on: https://go-review.googlesource.com/38323
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 28 +++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 66 ++++++++++++++++++++++++++
+ 5 files changed, 128 insertions(+)

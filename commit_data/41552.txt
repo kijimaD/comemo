@@ -1,0 +1,13 @@
+commit d28b8524a4d5d86d7b1e2df790abff6244de2a00
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:24:35 2020 +1100
+
+    cmd/compile: optimize subtraction of zero on riscv64
+    
+    Change-Id: I9a994b01e9fecb13077c30df4b7677d40d179cce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221681
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 ++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 59 ++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

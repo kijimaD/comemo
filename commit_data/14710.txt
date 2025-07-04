@@ -1,0 +1,18 @@
+commit 4d3cbfdefac06f692c72520a59bede8a1c3f6cc7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Dec 21 23:46:16 2012 +0100
+
+    cmd/8g: introduce temporaries in byte multiplication.
+    
+    Also restore the smallintconst case for binary ops.
+    
+    Fixes #3835.
+    
+    R=daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6999043
+
+ src/cmd/8g/cgen.c | 10 +++++++++-
+ src/cmd/8g/ggen.c |  8 +++++---
+ test/torture.go   |  4 ++++
+ 3 files changed, 18 insertions(+), 4 deletions(-)

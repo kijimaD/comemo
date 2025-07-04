@@ -1,0 +1,23 @@
+commit b91e3737296c815ecf2508644cc07328172640eb
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 17 09:02:41 2022 -0400
+
+    runtime: make getStackMap a method of stkframe
+    
+    This places getStackMap alongside argBytes and argMapInternal as
+    another method of stkframe.
+    
+    For #54466, albeit rather indirectly.
+    
+    Change-Id: I411dda3605dd7f996983706afcbefddf29a68a85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424515
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ src/runtime/mgcmark.go | 2 +-
+ src/runtime/stack.go   | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit fdb46fb470a1e77d585d3d5445c014ea9069095e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:39:31 2011 -0500
+
+    codereview: record repository, base revision
+    
+    Include repository URL in initial mail.
+    Record repository and base revision in patch description.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4126052
+
+ lib/codereview/codereview.py | 38 ++++++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 10 deletions(-)

@@ -1,0 +1,21 @@
+commit d3f6e2f30083749ce8ab0668e324a523b6ba9ead
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 24 15:23:27 2020 +0700
+
+    cmd/compile: report error for unexported name only once
+    
+    Fixes #22921
+    
+    Change-Id: If29bd962335ac7676ea4f379727db3d55ae1bf8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250177
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go   | 10 ++++++++++
+ src/cmd/compile/internal/gc/noder.go |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go  |  7 -------
+ test/fixedbugs/bug229.go             |  8 ++++----
+ test/fixedbugs/issue22921.go         | 18 ++++++++++++++++++
+ test/runtime.go                      |  2 +-
+ 6 files changed, 37 insertions(+), 16 deletions(-)

@@ -1,0 +1,25 @@
+commit 83c10b204d619d18100716c9588404200acdf6e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 20:58:17 2015 -0500
+
+    cmd/go: add build flag -toolexec
+    
+    Like the -exec flag, which specifies a program to use to run a built executable,
+    the -toolexec flag specifies a program to use to run a tool like 5a, 5g, or 5l.
+    
+    This flag enables running the toolchain under common testing environments,
+    such as valgrind.
+    
+    This flag also enables the use of custom testing environments or the substitution
+    of alternate tools. See https://godoc.org/rsc.io/toolstash for one possibility.
+    
+    Change-Id: I256aa7af2d96a4bc7911dc58151cc2155dbd4121
+    Reviewed-on: https://go-review.googlesource.com/3351
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/build.go | 19 +++++++++++++------
+ src/cmd/go/doc.go   |  4 ++++
+ src/cmd/go/fix.go   |  2 +-
+ src/cmd/go/get.go   |  2 +-
+ src/cmd/go/vet.go   |  2 +-
+ 5 files changed, 20 insertions(+), 9 deletions(-)

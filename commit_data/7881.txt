@@ -1,0 +1,15 @@
+commit c3fa7305d1ff3964b3471bab246ba17894eadff2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Mar 26 11:56:34 2011 +1100
+
+    dashboard: remove old python/bash builder, update README
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4275076
+
+ misc/dashboard/README          |  34 +----
+ misc/dashboard/buildcontrol.py | 278 -----------------------------------------
+ misc/dashboard/buildcron.sh    |  58 ---------
+ misc/dashboard/builder.sh      |  95 --------------
+ 4 files changed, 5 insertions(+), 460 deletions(-)

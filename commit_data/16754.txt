@@ -1,0 +1,12 @@
+commit cfefe6a7633abc8964166720769df60e56a50583
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 12 12:24:57 2013 -0700
+
+    cmd/dist: allow assembly code to use enumerated constants.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11056044
+
+ src/cmd/dist/buildruntime.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

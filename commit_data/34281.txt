@@ -1,0 +1,29 @@
+commit d3beea8c529a20b9eebb5ff8c22684af5ee1c920
+Author: Shawn Smith <shawnpsmith@gmail.com>
+Date:   Tue Feb 20 20:50:20 2018 +0000
+
+    all: fix misspellings
+    
+    GitHub-Last-Rev: 468df242d07419c228656985702325aa78952d99
+    GitHub-Pull-Request: golang/go#23935
+    Change-Id: If751ce3ffa3a4d5e00a3138211383d12cb6b23fc
+    Reviewed-on: https://go-review.googlesource.com/95577
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go                     |  4 ++--
+ src/cmd/asm/internal/asm/parse.go                      |  2 +-
+ .../internal/gc/testdata/flowgraph_generator1.go       |  2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go            |  2 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go      |  2 +-
+ src/cmd/internal/obj/arm64/doc.go                      |  2 +-
+ src/cmd/link/internal/loadelf/ldelf.go                 |  2 +-
+ src/cmd/link/internal/sym/attribute.go                 |  2 +-
+ src/crypto/elliptic/elliptic_test.go                   |  4 ++--
+ src/crypto/x509/verify.go                              |  4 ++--
+ src/database/sql/sql_test.go                           |  2 +-
+ src/html/template/escape_test.go                       | 18 +++++++++---------
+ src/image/gif/reader.go                                |  2 +-
+ src/math/big/int.go                                    |  2 +-
+ 14 files changed, 25 insertions(+), 25 deletions(-)

@@ -1,0 +1,22 @@
+commit 078f08f0ee1eb6cb172fc1f9d53f34c5783e522d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 21:05:08 2021 -0800
+
+    spec: every type has a method set (minor clarification)
+    
+    The spec states that a type "may" have a method set associated with it.
+    Yet every type has a method set, which may be empty. This is clarified
+    later in the same paragraph. Be clear in the first sentence as well.
+    
+    Per the suggestion from https://github.com/DQNEO.
+    
+    Fixes #44318.
+    
+    Change-Id: I6097b1c7062853e404b7fead56d18a7f9c576fc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292853
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

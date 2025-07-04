@@ -1,0 +1,20 @@
+commit e1d9fcd267e1a827e9841dce4c91def0777a90ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 19 09:10:14 2012 -0700
+
+    net/http: clarify client return values in docs
+    
+    Also, fixes one violation found during testing where both
+    response and error could be non-nil when a CheckRedirect test
+    failed.  This is arguably a minor API (behavior, not
+    signature) change, but it wasn't documented either way and was
+    inconsistent & non-Go like.  Any code depending on the old
+    behavior was wrong anyway.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/6307088
+
+ src/pkg/net/http/client.go      | 92 +++++++++++++++++++++++++++--------------
+ src/pkg/net/http/client_test.go |  1 -
+ 2 files changed, 60 insertions(+), 33 deletions(-)

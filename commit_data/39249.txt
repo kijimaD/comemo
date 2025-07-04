@@ -1,0 +1,34 @@
+commit 7ed7669c0d35768dbb73eb33d7dc0098e45421b1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 17 14:48:04 2019 +0000
+
+    runtime: ensure mheap lock stack growth invariant is maintained
+    
+    Currently there's an invariant in the runtime wherein the heap lock
+    can only be acquired on the system stack, otherwise a self-deadlock
+    could occur if the stack grows while the lock is held.
+    
+    This invariant is upheld and documented in a number of situations (e.g.
+    allocManual, freeManual) but there are other places where the invariant
+    is either not maintained at all which risks self-deadlock (e.g.
+    setGCPercent, gcResetMarkState, allocmcache) or is maintained but
+    undocumented (e.g. gcSweep, readGCStats_m).
+    
+    This change adds go:systemstack to any function that acquires the heap
+    lock or adds a systemstack(func() { ... }) around the critical section,
+    where appropriate. It also documents the invariant on (*mheap).lock
+    directly and updates repetitive documentation to refer to that comment.
+    
+    Fixes #32105.
+    
+    Change-Id: I702b1290709c118b837389c78efde25c51a2cafb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177857
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 41 ++++++++++++++++++++++++++---------------
+ src/runtime/mcache.go      | 11 +++++++----
+ src/runtime/mgc.go         | 33 ++++++++++++++++++++++-----------
+ src/runtime/mheap.go       | 11 ++++++-----
+ src/runtime/mstats.go      |  3 +++
+ 5 files changed, 64 insertions(+), 35 deletions(-)

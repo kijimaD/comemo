@@ -1,0 +1,18 @@
+commit c7f0a8c443d91a7dcf5962936903aff7e43124cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 24 08:35:18 2023 -0400
+
+    cmd/go: accept trailing text in compiler errors in tests
+    
+    This fixes tests that were broken in CL 497716.
+    
+    Change-Id: I85fa8f093e04a97b7b83e2f6840f6261e08f59e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 2 +-
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

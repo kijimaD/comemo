@@ -1,0 +1,22 @@
+commit a7bb8d3eb8ffd99fc6728dd1b27152cebbb45dc4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Apr 6 05:00:25 2018 +1000
+
+    runtime: fix/improve exitThread on openbsd
+    
+    OpenBSD's __threxit syscall takes a pointer to a 32-bit value that will be
+    zeroed immediately before the thread exits. Make use of this instead of
+    zeroing freeWait from the exitThread assembly and using hacks like switching
+    to a static stack, so this works on 386.
+    
+    Change-Id: I3ec5ead82b6496404834d148f713794d5d9da723
+    Reviewed-on: https://go-review.googlesource.com/105055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_openbsd_386.s   |  9 ---------
+ src/runtime/sys_openbsd_amd64.s |  5 +----
+ src/runtime/sys_openbsd_arm.s   | 10 +---------
+ 3 files changed, 2 insertions(+), 22 deletions(-)

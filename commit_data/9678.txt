@@ -1,0 +1,16 @@
+commit 1007a11924ffd78f26b7339a5fb81e0ac82272c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 14 08:49:21 2011 -0700
+
+    go/printer: use panic/defer instead of goroutine
+    for handling errors
+    
+    Fixes #2249.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4952071
+
+ src/pkg/go/printer/printer.go      | 81 ++++++++++++++++++++------------------
+ src/pkg/go/printer/printer_test.go | 14 ++++++-
+ 2 files changed, 56 insertions(+), 39 deletions(-)

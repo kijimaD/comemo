@@ -1,0 +1,25 @@
+commit d6b56bb301470c62634d1747cc155489c4e0f18a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 6 09:55:33 2018 -0400
+
+    runtime: account for guard zone in Windows stack size
+    
+    Windows includes an 8K guard in system-allocated thread stacks, which
+    we currently don't account for when setting the g0 stack bounds. As a
+    result, if we do overflow the g0 stack bounds, we'll get a
+    STATUS_GUARD_PAGE_VIOLATION exception, which we're not expecting.
+    
+    Fix the g0 stack bounds to include a total of 16K of slop to account
+    for this 8K guard.
+    
+    Updates #21382.
+    
+    Change-Id: Ia89b741b1413328e4681a237f5a7ee645531fe16
+    Reviewed-on: https://go-review.googlesource.com/122516
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

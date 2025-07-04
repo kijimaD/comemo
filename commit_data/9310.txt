@@ -1,0 +1,22 @@
+commit 68fea34be3622070a8b54e15bd0a016f7a62adc7
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 8 09:56:45 2011 -0400
+
+    syscall: move bsd mmap syscall
+    
+    The mmap system call varies across BSDs. Move mmap and munmap into
+    the operating system dependent files. This will be needed to add
+    syscall support for OpenBSD.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4822056
+
+ src/pkg/syscall/syscall_bsd.go            |  3 ---
+ src/pkg/syscall/syscall_darwin.go         |  2 ++
+ src/pkg/syscall/syscall_freebsd.go        |  2 ++
+ src/pkg/syscall/zsyscall_darwin_386.go    | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 34 +++++++++++++++----------------
+ 7 files changed, 72 insertions(+), 71 deletions(-)

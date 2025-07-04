@@ -1,0 +1,14 @@
+commit f805b05b39a28a85017df4540f1770f0d833e3d2
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Dec 4 13:14:04 2019 -0500
+
+    doc: document Go 1.12.14
+    
+    Change-Id: I7589ef4bdac776c8f141e9cc60f59f8643649310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209840
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/devel/release.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,31 @@
+commit 892fa3ae6c2d70fa1554ac2c817adfbe3c4c0c50
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 17:35:21 2012 +0200
+
+    cmd/gc: replace "typechecking loop" by nicer errors in some cases.
+    
+    For issue 3757:
+    BEFORE:  test/fixedbugs/bug463.go:12: typechecking loop involving a
+                 test/fixedbugs/bug463.go:12 a
+                 test/fixedbugs/bug463.go:12 <node DCLCONST>
+    AFTER:   test/fixedbugs/bug463.go:12: constant definition loop
+                 test/fixedbugs/bug463.go:12: a uses a
+    
+    For issue 3937:
+    BEFORE: test/fixedbugs/bug464.go:12: typechecking loop involving foo
+                test/fixedbugs/bug464.go:12 <T>
+                test/fixedbugs/bug464.go:12 foo
+                test/fixedbugs/bug464.go:12 <node DCLFUNC>
+    AFTER:  test/fixedbugs/bug464.go:12: foo is not a type
+    
+    Fixes #3757.
+    Fixes #3937.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6614058
+
+ src/cmd/gc/typecheck.c   | 41 ++++++++++++++++++++++++++++++++++++++++-
+ test/fixedbugs/bug463.go | 22 ++++++++++++++++++++++
+ test/fixedbugs/bug464.go | 12 ++++++++++++
+ 3 files changed, 74 insertions(+), 1 deletion(-)

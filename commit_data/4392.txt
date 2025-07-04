@@ -1,0 +1,38 @@
+commit 857d4cf1a924dc23e08204822a51a1baa93a7f21
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Fri Dec 11 15:14:09 2009 -0800
+
+    Remove GOBIN in PATH dependency; don't assume cwd is $GOROOT/src
+    
+    This change removes the necessity to have GOBIN in $PATH,
+    and also doesn't assume that the build is being run from
+    $GOROOT/src. This is a minimal set of necessary changes
+    to get Go to build happily from the FreeBSD ports
+    collection.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/171044
+
+ doc/install.html           | 11 ++++-------
+ doc/progs/run              | 10 ++++++----
+ misc/cgo/stdio/Makefile    |  4 ++--
+ misc/cgo/stdio/test.bash   |  5 +++--
+ src/Make.cmd               |  4 ++--
+ src/Make.conf              | 10 ++++++++--
+ src/Make.pkg               | 36 ++++++++++++++++++++++++------------
+ src/Makefile               | 11 ++++++++---
+ src/clean.bash             |  6 ++++--
+ src/cmd/clean.bash         |  4 +++-
+ src/cmd/ebnflint/Makefile  |  2 +-
+ src/cmd/gc/mkbuiltin       |  4 +++-
+ src/cmd/gotest/gotest      | 18 ++++++++++--------
+ src/cmd/make.bash          |  6 ++++--
+ src/make-arm.bash          | 34 +++++++++++++++++++++-------------
+ src/make.bash              | 40 +++++++++++++++++++++-------------------
+ src/pkg/exp/eval/test.bash |  7 +++++--
+ src/pkg/exp/ogle/Makefile  |  4 ++--
+ src/pkg/runtime/Makefile   | 14 +++++++-------
+ src/run.bash               | 36 +++++++++++++++++++-----------------
+ test/bench/timing.sh       |  7 +++++--
+ 21 files changed, 162 insertions(+), 111 deletions(-)

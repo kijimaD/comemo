@@ -1,0 +1,17 @@
+commit 1b69d19a422830a5a2c043df36330f30b3df445e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Jan 24 12:27:59 2018 -0800
+
+    database/sql: fix TestConversions when count > 1
+    
+    Provide a fresh conversion table for TestConversions as it gets
+    modified on each test.
+    
+    Change-Id: I6e2240d0c3455451271a6879e994b82222c3d44c
+    Reviewed-on: https://go-review.googlesource.com/89595
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/convert_test.go | 243 ++++++++++++++++++++-------------------
+ 1 file changed, 123 insertions(+), 120 deletions(-)

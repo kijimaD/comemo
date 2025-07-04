@@ -1,0 +1,15 @@
+commit 567aefd99ddc66d596fffd442b6c014d83ac5eb9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 07:46:59 2016 -0400
+
+    cmd/link: address comments from CL 28540
+    
+    Change-Id: I11899096c71ee0e24e902c87914601fcd7ffd7a9
+    Reviewed-on: https://go-review.googlesource.com/28967
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 3 +++
+ src/cmd/link/internal/ld/data.go   | 3 +++
+ 2 files changed, 6 insertions(+)

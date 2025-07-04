@@ -1,0 +1,30 @@
+commit a7d2d4835b8dab9b1be6a3f772bb74d22fe9f312
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 13:07:22 2015 -0700
+
+    cmd/vet: adjust vet to use go/types and friends from std repo
+    
+    - s|"golang.org/x/tools/go/exact"|"go/constant"|
+    - s|"golang.org/x/tools/go/types"|"go/types"|
+    - removed import of gcimporter
+    - import "go/importer" instead
+    - trivial adjustments to make use of go/importer
+    - adjusted import paths for whitelist.go
+    
+    Change-Id: I43488ff44c329cd869c92dcc31193fb31bebfd29
+    Reviewed-on: https://go-review.googlesource.com/10695
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/composite.go           |  3 +--
+ src/cmd/vet/copylock.go            |  3 +--
+ src/cmd/vet/main.go                |  4 +---
+ src/cmd/vet/nilfunc.go             |  3 +--
+ src/cmd/vet/print.go               |  9 ++++-----
+ src/cmd/vet/shadow.go              |  3 +--
+ src/cmd/vet/shift.go               |  7 +++----
+ src/cmd/vet/types.go               | 19 ++++++++++---------
+ src/cmd/vet/unsafeptr.go           |  3 +--
+ src/cmd/vet/unused.go              |  3 +--
+ src/cmd/vet/vet_test.go            |  2 +-
+ src/cmd/vet/whitelist/whitelist.go |  2 +-
+ 12 files changed, 26 insertions(+), 35 deletions(-)

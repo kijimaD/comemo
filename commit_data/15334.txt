@@ -1,0 +1,13 @@
+commit 35367cc64129f1dfcf764ed6ba3461db9bb54343
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 14:34:03 2013 -0800
+
+    mime: use Scanner to read mime files during init
+    Also close the file when we're done.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7363045
+
+ src/pkg/mime/type_unix.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

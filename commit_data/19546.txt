@@ -1,0 +1,14 @@
+commit 60c0b3b5cf89c8054328e27d7ee58da79a12999e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 16 16:32:47 2014 -0700
+
+    text/scanner: provide facility for custom identifiers
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/108030044
+
+ src/pkg/text/scanner/scanner.go      | 25 +++++++++++++++++++------
+ src/pkg/text/scanner/scanner_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 6 deletions(-)

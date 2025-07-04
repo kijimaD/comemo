@@ -1,0 +1,22 @@
+commit b17d5449769622edf1cb27f7ea803c90f3cd477f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 20 10:56:47 2018 +0100
+
+    cmd/vendor: update vendored golang.org/x/sys/windows
+    
+    Update to x/sys git revision 074acd46bca67915925527c07849494d115e7c43
+    
+    This fixes TestFormatMessage and TestExample on windows/arm by pulling
+    in CL 154560 and CL 154817.
+    
+    Change-Id: Ic6495fe3072b5bcc7ea68efb3f0be5fc1fe4c238
+    Reviewed-on: https://go-review.googlesource.com/c/155297
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../golang.org/x/sys/windows/svc/svc_test.go       |  8 ++----
+ .../x/sys/windows/syscall_windows_test.go          | 29 +++-------------------
+ src/cmd/vendor/vendor.json                         | 12 ++++-----
+ 3 files changed, 12 insertions(+), 37 deletions(-)

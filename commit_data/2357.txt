@@ -1,0 +1,37 @@
+commit 9e0fec9c9c6b3d621dd64c943b050920cb8407e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 1 22:14:39 2009 -0700
+
+    update Go tree to use new syscall package.
+    
+    R=r
+    DELTA=713  (109 added, 386 deleted, 218 changed)
+    OCL=29707
+    CL=29722
+
+ doc/progs/file.go               |  14 ++--
+ doc/progs/run                   |   2 +-
+ src/lib/exec/exec.go            |   2 +-
+ src/lib/net/Makefile            |   5 +-
+ src/lib/net/fd.go               |  62 ++++++-----------
+ src/lib/net/fd_darwin.go        |  26 +++----
+ src/lib/net/fd_linux.go         |  39 +++++------
+ src/lib/net/net.go              | 150 +++++++++++++++++++++++-----------------
+ src/lib/net/net_darwin.go       | 100 ---------------------------
+ src/lib/net/net_linux.go        | 124 ---------------------------------
+ src/lib/net/timeout_test.go     |   2 +-
+ src/lib/os/Makefile             |  13 ++--
+ src/lib/os/dir_amd64_darwin.go  |  20 ++++--
+ src/lib/os/dir_amd64_linux.go   |  10 +--
+ src/lib/os/error.go             |   5 +-
+ src/lib/os/exec.go              |   8 +--
+ src/lib/os/file.go              | 107 ++++++++++++----------------
+ src/lib/os/proc.go              |  50 ++++++++++++++
+ src/lib/os/proc_darwin.go       |  20 ------
+ src/lib/os/stat_amd64_darwin.go |  10 +--
+ src/lib/os/stat_amd64_linux.go  |   6 +-
+ src/lib/os/time.go              |   7 +-
+ src/lib/os/user.go              |  64 -----------------
+ src/lib/time/sleep.go           |   7 +-
+ test/sigchld.go                 |   7 +-
+ 25 files changed, 291 insertions(+), 569 deletions(-)

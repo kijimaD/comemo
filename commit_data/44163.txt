@@ -1,0 +1,16 @@
+commit ec1b9452658dfa6ca865a9dd2711726ab71de99c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 18:21:35 2021 -0800
+
+    doc/go1.16: mention path/filepath.WalkDir
+    
+    For #40700
+    For #42027
+    
+    Change-Id: Ifb73050dfdab21784fa52d758ad9c408e6489684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285595
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.16.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

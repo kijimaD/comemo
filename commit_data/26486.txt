@@ -1,0 +1,23 @@
+commit b9feb91f32919e44c89205990314c9a6d3a9b2d1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 24 20:57:53 2016 +1100
+
+    cmd/compile: minor cleanups
+    
+    Some minor scoping cleanups found by a very old version of grind.
+    
+    Change-Id: I1d373817586445fc87e38305929097b652696fdd
+    Reviewed-on: https://go-review.googlesource.com/21064
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go      |  9 ++++-----
+ src/cmd/compile/internal/gc/lex.go       |  2 +-
+ src/cmd/compile/internal/gc/parser.go    | 11 +++--------
+ src/cmd/compile/internal/gc/reg.go       |  9 +++------
+ src/cmd/compile/internal/gc/sinit.go     | 24 ++++++++++--------------
+ src/cmd/compile/internal/ssa/config.go   |  3 +--
+ src/cmd/compile/internal/ssa/layout.go   |  1 -
+ src/cmd/compile/internal/ssa/regalloc.go |  3 +--
+ 8 files changed, 23 insertions(+), 39 deletions(-)

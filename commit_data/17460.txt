@@ -1,0 +1,12 @@
+commit 54b2a83d9ae31bdb7a6c5aa97f7dfa219b40035d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 4 10:04:12 2013 +0900
+
+    net/http: remove dreg of obsoleted network poller
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13261049
+
+ src/pkg/net/http/z_last_test.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,32 @@
+commit 0f89efa255a46eb6528d27c920030721ae68b507
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 29 10:16:24 2016 -0500
+
+    cmd/vet: report uncalled functions in Printf %v
+    
+    Given, say, var f *os.File, a new vet check in CL 14122 diagnoses:
+    
+            fmt.Printf("%s\n", f.Name)
+            fmt.Println(f.Name)
+    
+    but not
+    
+            fmt.Printf("%v\n", f.Name)
+    
+    In all three cases the error is that the argument should be f.Name().
+    
+    Diagnosing Println but not Printf %v seems oddly inconsistent,
+    so I changed %v to have the check too. In fact, all verbs now have
+    the check except %p and %T.
+    
+    Fixes Dave Cheney's confusion when trying to write an example
+    of the new vet check advertised in the Go 1.6 release notes.
+    
+    Change-Id: I92fa6a7a1d5d9339a6a59ae4e587a254e633f500
+    Reviewed-on: https://go-review.googlesource.com/19101
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 8 ++++----
+ src/cmd/vet/testdata/print.go | 3 +++
+ 2 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 005ba4db82c93298dbfdf0866c613f86df713b87
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 14:08:39 2014 -0500
+
+    cmd/9l: improve R_CALLPOWER error messages
+    
+    Change-Id: I8670540a2a9647efbd8b072a54272a04c530e54b
+    Reviewed-on: https://go-review.googlesource.com/2001
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/9l/asm.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

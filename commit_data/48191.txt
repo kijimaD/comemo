@@ -1,0 +1,15 @@
+commit c9fe126c8bf25d14b233f1ccaff12c1bffbd4971
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Feb 19 18:13:52 2022 +0100
+
+    doc/go1.18: fix a few small typos, add a few commas
+    
+    Updates #47694
+    
+    Change-Id: I6c1c3698fdd55fe83c756f28776d1d26dba0a9df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386974
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

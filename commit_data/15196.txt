@@ -1,0 +1,12 @@
+commit a801c8813dfda15224ac916a5be2c0520eaf370c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 11 18:01:18 2013 +1100
+
+    misc/dashboard: add missing return value
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7300084
+
+ misc/dashboard/app/build/notify.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

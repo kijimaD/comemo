@@ -1,0 +1,22 @@
+commit 7acbbbee947626d9d411f8b3398400413d0fd0ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 30 22:06:26 2022 -0700
+
+    net: ignore edns0 option in resolv.conf
+    
+    We use EDNS(0) by default. No need to fall back to netdns=cgo if we
+    see a explicit request for EDNS(0) in resolv.conf.
+    
+    For #51153
+    
+    Change-Id: I135363112e3de43ce877aad45aba71d1448068b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415579
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/dnsconfig_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

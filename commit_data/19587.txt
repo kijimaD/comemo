@@ -1,0 +1,20 @@
+commit 3142861ff86a8b4064256f31a0f63dcd23c2f971
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sat Jun 21 22:08:43 2014 -0700
+
+    strings: use sync.Pool to cache buffer
+    
+    benchmark                         old ns/op    new ns/op    delta
+    BenchmarkByteReplacerWriteString       3596         3094  -13.96%
+    
+    benchmark                        old allocs   new allocs    delta
+    BenchmarkByteReplacerWriteString          1            0  -100.00%
+    
+    LGTM=dvyukov
+    R=bradfitz, dave, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/101330053
+
+ src/pkg/strings/replace.go      | 33 +++++++++++++++++++-------------
+ src/pkg/strings/replace_test.go | 42 +++++++++++++++++++++++++++++------------
+ 2 files changed, 50 insertions(+), 25 deletions(-)

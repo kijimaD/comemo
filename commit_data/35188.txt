@@ -1,0 +1,19 @@
+commit af5143e384535f824a22e71f33e36f0503ae3bb9
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 25 12:50:31 2018 -0400
+
+    cmd/trace: use different colors for tasks
+    
+    and assign the same colors for spans belong to the tasks
+    (sadly, the trace viewer will change the saturation/ligthness
+    for asynchronous slices so exact color mapping is impossible.
+    But I hope they are not too far from each other)
+    
+    Change-Id: Idaaf0828a1e0dac8012d336dcefa1c6572ddca2e
+    Reviewed-on: https://go-review.googlesource.com/109338
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/trace.go | 101 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 66 insertions(+), 35 deletions(-)

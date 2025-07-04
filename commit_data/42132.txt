@@ -1,0 +1,25 @@
+commit 09630172d45c09e150bd1329e37b74611d4af830
+Author: Tyson Andre <tysonandre775@gmail.com>
+Date:   Sat Apr 25 21:39:19 2020 +0000
+
+    net/http/httputil: fix typo in unit test name
+    
+    Everywhere else is using "cancellation"
+    
+    The reasoning is mentioned in 170060
+    
+    > Though there is variation in the spelling of canceled,
+    > cancellation is always spelled with a double l.
+    >
+    > Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
+    
+    Change-Id: Ifc97c6785afb401814af77c377c2e2745ce53c5a
+    GitHub-Last-Rev: 05edd7477da46ca5c02703e139dbfc0cd05408ac
+    GitHub-Pull-Request: golang/go#38662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

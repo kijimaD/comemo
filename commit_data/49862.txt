@@ -1,0 +1,22 @@
+commit 5d7d50111f123011723989a7d123d6f0a6df38e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 17:39:12 2022 -0400
+
+    runtime: convert schedt.lastpoll to atomic type
+    
+    Note that this changes the type from uint64 to int64, the type used by
+    nanotime(). It also adds an atomic load in pollWork(), which used to use
+    a non-atomic load.
+    
+    For #53821.
+    
+    Change-Id: I6173c90f20bfdc0e0a4bc3a7b1c798d1c429fff5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419442
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/proc.go               | 18 +++++++++---------
+ src/runtime/runtime2.go           |  2 +-
+ 3 files changed, 10 insertions(+), 11 deletions(-)

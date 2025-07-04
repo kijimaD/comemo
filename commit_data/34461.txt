@@ -1,0 +1,16 @@
+commit 63bcabed498a53a24da51ca1264b338c1149be07
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 5 07:11:23 2018 -0800
+
+    internal/bytealg: fix arm64 Index function
+    
+    Missed removing the argument loading from the indexbody function.
+    
+    Change-Id: Ia1391231fc99771d00410a09fe80a09f08ceed02
+    Reviewed-on: https://go-review.googlesource.com/98575
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/bytealg/index_arm64.s | 4 ----
+ 1 file changed, 4 deletions(-)

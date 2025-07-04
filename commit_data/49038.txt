@@ -1,0 +1,26 @@
+commit 3ffc230a9fb6f2a2326cf64017eaa7cc4582a8d3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 18:02:22 2022 -0700
+
+    cmd/compile: change ir.NewCompLitExpr from Ntype to *types.Type
+    
+    All callers were already using TypeNode to get an Ntype anyway, so
+    just push the TypeNode constructor down into NewCompLitExpr. Prep
+    refactoring for next CL to remove the Ntype field.
+    
+    Change-Id: I671935afca707aaab11d1c46e39902bd37a485ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403840
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/expr.go             | 8 +++++---
+ src/cmd/compile/internal/noder/reader.go        | 2 +-
+ src/cmd/compile/internal/noder/transform.go     | 3 +--
+ src/cmd/compile/internal/typecheck/func.go      | 2 +-
+ src/cmd/compile/internal/typecheck/iimport.go   | 4 ++--
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 +---
+ src/cmd/compile/internal/walk/closure.go        | 4 ++--
+ src/cmd/compile/internal/walk/expr.go           | 2 +-
+ 8 files changed, 14 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 9ebd9d3b7dfe7b54427f873df80a94495a438608
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 20 15:16:48 2008 -0700
+
+    fix some tests
+    
+    R=ken
+    OCL=15598
+    CL=15598
+
+ test/{bugs => fixedbugs}/bug103.go | 0
+ test/golden.out                    | 8 +++++++-
+ test/ken/chan.go                   | 5 ++++-
+ 3 files changed, 11 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 3651d8e516950c46035cdc04ec3db1146f0590d2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 18 16:35:11 2023 +0000
+
+    runtime/metrics: refactor CPU stats accumulation
+    
+    Currently the CPU stats are only updated once every mark termination,
+    but for writing robust tests, it's often useful to force this update.
+    Refactor the CPU stats accumulation out of gcMarkTermination and into
+    its own function. This is also a step toward real-time CPU stats.
+    
+    While we're here, fix some incorrect documentation about dedicated GC
+    CPU time.
+    
+    For #59749.
+    For #60276.
+    
+    Change-Id: I8c1a9aca45fcce6ce7999702ae4e082853a69711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487215
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go             |  5 ++++
+ src/runtime/metrics/description.go |  1 -
+ src/runtime/metrics/doc.go         |  8 +++---
+ src/runtime/mgc.go                 | 47 ++++++++------------------------
+ src/runtime/mstats.go              | 55 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 74 insertions(+), 42 deletions(-)

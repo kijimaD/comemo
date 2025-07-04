@@ -1,0 +1,14 @@
+commit 60f0345667b8752f0a0f576f319dbfb495b36081
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 16:04:01 2015 +1000
+
+    cmd/dist: fix mkzversion to produce gofmt'd output
+    
+    Fix mkzversion to produce correctly formatted runtime/zversion.go.
+    
+    Change-Id: Ie6bcd361a2f2e390b7f6c4980fcae2c41bb7e52f
+    Reviewed-on: https://go-review.googlesource.com/14355
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/dist/buildruntime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

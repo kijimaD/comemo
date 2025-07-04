@@ -1,0 +1,41 @@
+commit 2c929d6f4c8fcd1021dc3cd57b2eedff5ae9a592
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 22 17:18:19 2025 -0500
+
+    runtime: pass through -asan/-msan/-race to testprog tests
+    
+    The tests using testprog / testprogcgo are currently not covered on the
+    asan/msan/race builders because they don't build testprog with the
+    sanitizer flag.
+    
+    Explicitly pass the flag if the test itself is built with the sanitizer.
+    
+    There were a few tests that explicitly passed -race (even on non-race
+    builders). These tests will now only run on race builders.
+    
+    For #71395.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15,gotip-linux-amd64-race
+    Change-Id: I6a6a636ce8271246316a80d426c0e4e2f6ab99c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643897
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go             |  15 ++-
+ src/cmd/link/internal/ld/elf_test.go               |   3 +-
+ src/cmd/link/internal/ld/ld_test.go                |   5 +-
+ src/cmd/link/internal/ld/macho_test.go             |   2 +-
+ src/cmd/link/link_test.go                          |  16 ++-
+ src/cmd/nm/nm_cgo_test.go                          |   4 +-
+ src/cmd/pack/pack_test.go                          |   4 +-
+ src/internal/testenv/testenv.go                    |  20 +++-
+ src/os/exec/exec_test.go                           |   5 +-
+ src/runtime/crash_cgo_test.go                      |  83 ++++++--------
+ src/runtime/crash_test.go                          |  54 +++++++--
+ src/runtime/ehooks_test.go                         | 121 +++++++++------------
+ src/runtime/gc_test.go                             |   5 +
+ src/runtime/stack_test.go                          |   4 +
+ .../testdata/testprog/lockosthread_linux.go        |   5 +-
+ src/runtime/time_test.go                           |   2 +-
+ 16 files changed, 204 insertions(+), 144 deletions(-)

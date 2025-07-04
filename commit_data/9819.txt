@@ -1,0 +1,12 @@
+commit 32d1e46058ce94d1959812ede5a51142bb36263f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 28 12:00:45 2011 -0400
+
+    json: use strings.EqualFold instead of strings.ToLower.
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/5127043
+
+ src/pkg/json/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

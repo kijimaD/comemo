@@ -1,0 +1,18 @@
+commit b23cae8095ea3e268c358bcebe5d6f58890a8d31
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 21 12:44:48 2023 -0700
+
+    doc/go1.21: correct GOOS to GOARCH
+    
+    For #57752
+    Fixes #60924
+    
+    Change-Id: Ie1e16c041885abb51dd6c2f0b7dfa03091cfb338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504879
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

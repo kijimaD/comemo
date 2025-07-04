@@ -1,0 +1,16 @@
+commit d1f679a6aff2e96364abb7f371f9da24a40e7a5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 25 10:33:00 2018 -0800
+
+    test: add test case for incorrect gccgo compilation error
+    
+    Updates #23489
+    
+    Change-Id: Ie846ccfe4c4d9295857f5da6863ac8f2ac0f2f6a
+    Reviewed-on: https://go-review.googlesource.com/89935
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue23489.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

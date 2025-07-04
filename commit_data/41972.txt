@@ -1,0 +1,26 @@
+commit b89f4c67200e6128e1dc936a9362b07900c2af3e
+Author: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
+Date:   Wed Apr 15 13:23:52 2020 +0000
+
+    runtime: add async preemption support on riscv64
+    
+    This CL adds support of call injection and async preemption on
+    riscv64. We also clobbered REG_TMP for the injected call. Unsafe
+    points related to REG_TMP access have been marked in previous commits.
+    
+    Fixes #36711.
+    
+    Change-Id: I1a1df5b7fc23eaafc34a6a6448fcc3c91054496e
+    GitHub-Last-Rev: f6110d470713be70d960fd3e984fea89bb371719
+    GitHub-Pull-Request: golang/go#38146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226206
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go |  12 ++++
+ src/runtime/mkpreempt.go          |  29 ++++++++-
+ src/runtime/preempt_riscv64.s     | 127 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/signal_riscv64.go     |  14 ++++-
+ 4 files changed, 176 insertions(+), 6 deletions(-)

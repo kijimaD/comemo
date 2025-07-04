@@ -1,0 +1,14 @@
+commit 28a8e9ba2f27326efcef7a1f5085ac19120f7216
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 12 15:12:40 2013 +0900
+
+    doc/go1.2.html: happy eyeballs on net
+    
+    Also fix trivial nits.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13532046
+
+ doc/go1.2.html | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

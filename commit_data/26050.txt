@@ -1,0 +1,24 @@
+commit 132ebeac3f865e14955b27caf12f641e80734577
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 20:48:00 2016 -0800
+
+    cmd/compile: convert walk.go and friends to use nodeSeq
+    
+    Pases toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I450d9f51fd280da91952008cd917b749d88960a3
+    Reviewed-on: https://go-review.googlesource.com/20210
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |   4 +-
+ src/cmd/compile/internal/gc/select.go  |   2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  60 ++---
+ src/cmd/compile/internal/gc/subr.go    |  18 +-
+ src/cmd/compile/internal/gc/swt.go     |   4 +-
+ src/cmd/compile/internal/gc/syntax.go  |   6 +-
+ src/cmd/compile/internal/gc/walk.go    | 402 ++++++++++++++++-----------------
+ 7 files changed, 247 insertions(+), 249 deletions(-)

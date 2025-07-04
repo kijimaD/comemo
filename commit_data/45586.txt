@@ -1,0 +1,15 @@
+commit 3980c4db192783c6aefa0a5978e553046c9c7dea
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri May 7 10:47:47 2021 -0700
+
+    doc/go1.17: fill in TODO for compress/lzw package
+    
+    Fixes #46005
+    
+    Change-Id: I80ca21eb64d245749af62506ba960dbc1726c6c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318012
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

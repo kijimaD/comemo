@@ -1,0 +1,19 @@
+commit 3f987ae61d4c52ddc364abf6472227d7821c9e43
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 24 10:09:17 2023 -0400
+
+    internal/testenv: actually try to exec on ios and wasm
+    
+    Due to a stray edit in CL 486275, the assignment to tryExecOk
+    in tryExec on ios would be immediately overwritten back to false.
+    This change fixes the stray edit.
+    
+    Change-Id: I4f45fbf130dc912305e5f453b0d1a622ba199ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488076
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 98259b92115f24b41c5ba40c3cddb68f6f0077f8
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Fri Jan 11 08:30:25 2013 -0800
+
+    os: use syscall.Pipe2 on Linux
+    
+    Update #2656
+    
+    R=golang-dev, iant, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7065063
+
+ src/pkg/os/file_unix.go  | 19 -------------------
+ src/pkg/os/pipe_bsd.go   | 28 ++++++++++++++++++++++++++++
+ src/pkg/os/pipe_linux.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 19 deletions(-)

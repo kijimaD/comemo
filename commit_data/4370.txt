@@ -1,0 +1,22 @@
+commit 542099d78f36f1a23eb21fbca9dc6d3723fbdd25
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 19:27:08 2009 -0800
+
+    making some more non-gofmt'ed files save for new semicolon rule
+    
+    R=rsc, r
+    https://golang.org/cl/171051
+
+ test/blank.go        |  2 +-
+ test/chan/powser1.go | 36 ++++++++++++++++++++++++------------
+ test/cmp1.go         |  3 +--
+ test/cmp2.go         |  3 +--
+ test/cmp3.go         |  3 +--
+ test/cmp4.go         |  3 +--
+ test/cmp5.go         |  3 +--
+ test/convert.go      |  4 +---
+ test/float_lit.go    |  9 +++------
+ test/indirect.go     |  9 +++------
+ test/indirect1.go    |  3 +--
+ test/intcvt.go       |  3 +--
+ 12 files changed, 39 insertions(+), 42 deletions(-)

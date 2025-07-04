@@ -1,0 +1,13 @@
+commit 381b6807195455cace7995913dd493fba29a1889
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 10:53:53 2017 -0400
+
+    doc: document Go 1.8.5
+    
+    Change-Id: I9241e6acb65c337b961eed9cdeaf4c041b6326a3
+    Reviewed-on: https://go-review.googlesource.com/73390
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/devel/release.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

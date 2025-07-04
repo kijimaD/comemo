@@ -1,0 +1,21 @@
+commit e351a1600514b6a4ae18c4b44e883b049c314ebd
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jul 24 03:47:39 2018 +0000
+
+    cmd/internal/obj/arm64: reject incorrect form of LDP/STP
+    
+    "LDP (R0), (F0, F1)" and "STP (F1, F2), (R0)" are
+    silently accepted by the arm64 assembler without
+    any error message. And this CL fixes that bug.
+    
+    fixes #26556.
+    
+    Change-Id: Ib6fae81956deb39a4ffd95e9409acc8dad3ab2d2
+    Reviewed-on: https://go-review.googlesource.com/125637
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 10 ++++++++++
+ 2 files changed, 12 insertions(+)

@@ -1,0 +1,13 @@
+commit fb6ffd8f787f76e629db9cdbae3216a7522b75af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 10:51:32 2011 -0800
+
+    go/scanner: strip CRs from raw literals
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5495049
+
+ src/pkg/go/scanner/scanner.go      | 27 ++++++++++++++++++++++++---
+ src/pkg/go/scanner/scanner_test.go | 14 ++++++++++++--
+ 2 files changed, 36 insertions(+), 5 deletions(-)

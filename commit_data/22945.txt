@@ -1,0 +1,14 @@
+commit c8b31c5cea0ecdb7eec44752701a653c325688df
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 9 21:53:33 2015 -0400
+
+    go/build: fix typo
+    
+    Thanks Dmitri Shuralyov for pointing it out.
+    
+    Change-Id: If9c5ac0e56d601d327b2b682ee3548037439cb83
+    Reviewed-on: https://go-review.googlesource.com/9881
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

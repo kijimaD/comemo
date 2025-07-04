@@ -1,0 +1,19 @@
+commit b7e74678657680a0eb31679623f90b539666c5f4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jun 14 20:31:08 2023 +0800
+
+    test/codegen: add fsqrt test for riscv64
+    
+    Add FSQRTD FSQRTS codegen tests for riscv64
+    
+    Change-Id: I16ca3753ad1ba37afbd9d0f887b078e33f98fda0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503275
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/codegen/math.go | 2 ++
+ 1 file changed, 2 insertions(+)

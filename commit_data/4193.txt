@@ -1,0 +1,40 @@
+commit 9e95d970cc8bfa300f5cb96b78426bdad79e4a2c
+Author: Vish Subramanian <vish@google.com>
+Date:   Mon Nov 23 14:26:30 2009 -0800
+
+            Fix crash in xml.Unmarshal. Occasionally while running a scrape of some xml with many goroutines
+            I see a crash with the following stack trace:
+    
+            SIGSEGV: segmentation violation
+            Faulting address: 0x44
+            PC=0x44e510
+    
+            runtime·mapaccess2+0x18 /home/vish/go/src/pkg/runtime/hashmap.c:790
+             runtime·mapaccess2(0x0, 0x0)
+            xml·*Parser·text+0x922 /home/vish/go/src/pkg/xml/xml.go:765
+             xml·*Parser·text(0xe44c9870, 0x7fa3, 0xffffffff, 0x7f00, 0x44b5c4, ...)
+            xml·*Parser·RawToken+0x174 /home/vish/go/src/pkg/xml/xml.go:405
+             xml·*Parser·RawToken(0xe44c9870, 0x7fa3, 0x0, 0x0)
+            xml·*Parser·Token+0x625 /home/vish/go/src/pkg/xml/xml.go:205
+             xml·*Parser·Token(0xe44c9870, 0x7fa3, 0x0, 0x0, 0x0, ...)
+            xml·*Parser·Skip+0x27 /home/vish/go/src/pkg/xml/read.go:371
+             xml·*Parser·Skip(0xe44c9870, 0x7fa3, 0x8, 0x0)
+            xml·*Parser·unmarshal+0xae6 /home/vish/go/src/pkg/xml/read.go:328
+             xml·*Parser·unmarshal(0xe44c9870, 0x7fa3, 0xe8127120, 0x7fa3, 0xdc94bc40, ...)
+            xml·Unmarshal+0xda /home/vish/go/src/pkg/xml/read.go:121
+             xml·Unmarshal(0xe65724b0, 0x7fa3, 0xdc94bc00, 0x7fa3, 0x4bcfc0, ...)
+            scraper·DoSearch+0x3d1 /home/vish/my-go-src/google3/experimental/users/vish/go_http/scraper.go:95
+             scraper·DoSearch(0xe7dc28c0, 0x7fa3, 0x33, 0x3, 0x6d2510, ...)
+            main·scrapeQueries+0x202 /home/vish/my-go-src/google3/experimental/users/vish/go_http/scrape.go:251
+             main·scrapeQueries(0xe7da2600, 0x7fa3, 0x64, 0x1db0, 0xe7e10000, ...)
+            goexit /home/vish/go/src/pkg/runtime/proc.c:135
+             goexit()
+            0x7fa3e7da2600 unknown pc
+    
+            Clearly xml.Parser is accessing an uninitialized map. Add a check for a nil map before accessing it.
+    
+    R=r, rsc
+    https://golang.org/cl/159050
+
+ src/pkg/xml/xml.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

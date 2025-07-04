@@ -1,0 +1,15 @@
+commit 03db2c24136939416903b284a19905d97ceea40d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 26 11:56:52 2021 -0700
+
+    cmd/compile/internal/types2: implement TypeList.String (debugging support)
+    
+    Change-Id: Iaa203def3dac94a7d5ff6120e89315c3d7977ee1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345471
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  6 ------
+ src/cmd/compile/internal/types2/typelists.go   | 13 +++++++++++++
+ 3 files changed, 14 insertions(+), 7 deletions(-)

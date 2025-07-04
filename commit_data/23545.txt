@@ -1,0 +1,12 @@
+commit c97e73d8497f61b61299e5d2d371ef672d0c596d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 15:43:42 2015 +1000
+
+    doc: fix typo in faq
+    
+    Change-Id: Id2cfa63d4c749503f729097654d7cbd2b252f192
+    Reviewed-on: https://go-review.googlesource.com/11660
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

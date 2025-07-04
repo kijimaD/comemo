@@ -1,0 +1,21 @@
+commit 666afa1c02e45c60cd110115bc60840a609fb3aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:03:56 2009 -0800
+
+    2nd attempt: no noIndent for string lists
+    - slightly better output in general
+    - extra indentation where we could do without
+      (however that seems better for now that not having the indentation
+      where it is needed)
+    - no information is lost, so a future better approach can fix these
+      places up again
+    
+    R=rsc
+    http://go/go-review/1017050
+
+ src/pkg/go/printer/nodes.go                    |  3 +-
+ src/pkg/go/printer/testdata/expressions.golden | 53 ++++++++++++++++++++++----
+ src/pkg/go/printer/testdata/expressions.input  | 38 ++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 53 ++++++++++++++++++++++----
+ src/pkg/go/printer/testdata/linebreaks.golden  |  6 +--
+ 5 files changed, 133 insertions(+), 20 deletions(-)

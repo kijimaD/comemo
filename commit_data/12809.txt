@@ -1,0 +1,12 @@
+commit 6727a2ad78cc786e381589828a41f4c91fe0e238
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Mon Apr 2 11:27:50 2012 -0400
+
+    runtime: fix a comment
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5975043
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

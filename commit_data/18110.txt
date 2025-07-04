@@ -1,0 +1,14 @@
+commit 59583b09f3165dedd46800f46000c83c92a7faba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 24 08:24:32 2013 -0800
+
+    runtime/cgo: include <signal.h> to fix build
+    
+    R=golang-codereviews
+    TBR=dfc
+    CC=golang-codereviews
+    https://golang.org/cl/43120044
+
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
+ src/pkg/runtime/cgo/gcc_linux_arm.c   | 1 +
+ 2 files changed, 2 insertions(+)

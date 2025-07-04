@@ -1,0 +1,14 @@
+commit 2deee2936c1bf44e07541e10552696d8118a6bb5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 9 19:12:54 2010 +1000
+
+    exp/draw: clip destination rectangle to the image bounds.
+    image: introduce Intersect and Union rectangle methods.
+    
+    R=r, rog, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/2115043
+
+ src/pkg/exp/draw/draw.go |  7 ++---
+ src/pkg/image/geom.go    | 67 +++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 64 insertions(+), 10 deletions(-)

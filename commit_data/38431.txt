@@ -1,0 +1,19 @@
+commit 9d9d4eeb87ed5dae09e26d744ea7d6caf9b182dc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 15 11:29:03 2019 +0100
+
+    bytes: add hard benchmarks for Index and Count
+    
+    Add Benchmark(Index|Count)Hard[1-3] in preparation for implementing
+    Index and Count in assembly on arm.
+    
+    Updates #29001
+    
+    Change-Id: I2a9701892190e8d91de069c2f5a7f5bd3544c6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167798
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,0 +1,16 @@
+commit 62ea2c9093eb54ca4f84f9d6e0fd014ad9fe547c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 4 16:47:10 2015 +1000
+
+    image/gif: be consistent wrt "color map" or "color table" names.
+    
+    The spec at http://www.w3.org/Graphics/GIF/spec-gif89a.txt always says
+    "color table" and not "color map".
+    
+    Change-Id: I4c172e3ade15618cbd616629822ce7d109a200af
+    Reviewed-on: https://go-review.googlesource.com/9668
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/reader.go      | 51 ++++++++++++++++++++++----------------------
+ src/image/gif/reader_test.go |  6 +++---
+ 2 files changed, 28 insertions(+), 29 deletions(-)

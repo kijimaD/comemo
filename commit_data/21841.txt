@@ -1,0 +1,15 @@
+commit 8012a2e9c96c6c14607388f85079400d2d419c0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 13:49:57 2015 -0500
+
+    cmd/go: avoid creating new empty environment variables
+    
+    Broke some tests that assume $GORACE is unset (because it never is).
+    Those tests are arguably wrong, but this is more robust.
+    
+    Change-Id: Id56daa160c9e7e01f301c1386791e410bbd5deef
+    Reviewed-on: https://go-review.googlesource.com/6480
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/main.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 81bfbe93331bcf5b67a61ae76af45844af3971e1
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 2 10:54:23 2011 -0800
+
+    fmt: allow recursive calls to Fscan etc.
+    Add a new Read method to ScanState so that it
+    satisfies the io.Reader interface; rename
+    Getrune and Ungetrune to ReadRune and UnreadRune.
+    Make sure ReadRune does not read past width restrictions;
+    remove now-unnecessary Width method from ScanState.
+    Also make the documentation a little clearer as to
+    how ReadRune and UnreadRune are used.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4240056
+
+ src/pkg/fmt/doc.go       |  16 ++---
+ src/pkg/fmt/scan.go      | 159 +++++++++++++++++++++++------------------------
+ src/pkg/fmt/scan_test.go |  51 +++++++++------
+ 3 files changed, 118 insertions(+), 108 deletions(-)

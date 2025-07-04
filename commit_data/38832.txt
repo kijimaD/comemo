@@ -1,0 +1,27 @@
+commit 14b5b4a2a13c3148fdfeb4852436661791a13e2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 19 12:27:25 2019 -0400
+
+    cmd/go/internal/modload: fix boundary conditions in matchPackages
+    
+    This makes the boundary logic of matchPackages consistent with
+    modload.dirInModule.
+    
+    Previously, matchPackages always stopped at go.mod file, even within
+    the vendor tree. However, we do not guarantee that the vendor tree is
+    free of such files in general.
+    
+    matchPackages also issued needless stat operations for modules in the
+    module cach, which we already know to be free of nested modules. On
+    systems with slow filesystems (such as macOS), those extra calls could
+    potentially slow package matching considerably.
+    
+    Change-Id: I71979ab752e1d3971b370b37085d30502690413b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172985
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/search.go              | 36 ++++++++++++++++------
+ src/cmd/go/testdata/script/mod_patterns_vendor.txt | 28 +++++++++++++++++
+ 2 files changed, 54 insertions(+), 10 deletions(-)

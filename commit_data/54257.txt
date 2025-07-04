@@ -1,0 +1,23 @@
+commit b3faace3f755a6dd64f482f085d76c9f8a6034d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 14:10:29 2023 -0700
+
+    cmd/internal/{dwarf,obj}: stop substituting "" with pkgprefix
+    
+    cmd/asm and cmd/compile now always create symbols with the appropriate
+    package prefixes, so cmd/internal/dwarf and cmd/internal/obj can stop
+    worrying about qualifying names itself.
+    
+    Change-Id: I9aee5d759bf0d41a61722c777e7f66fce957e79e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523338
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go | 19 ++++---------------
+ src/cmd/internal/obj/dwarf.go   |  2 --
+ src/cmd/internal/obj/objfile.go |  4 ++--
+ src/cmd/internal/obj/plist.go   | 13 +++++++++----
+ src/cmd/internal/obj/sym.go     |  8 +++++---
+ 5 files changed, 20 insertions(+), 26 deletions(-)

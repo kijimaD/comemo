@@ -1,0 +1,17 @@
+commit 33a9f01729cb88b80f915ae6d2ae9779106b9f0c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Nov 3 11:11:27 2017 +0100
+
+    cmd/compile: add mul by ±2ⁿ code-generation tests for arm/arm64
+    
+    This change adds code generation tests for multiplication by ±2ⁿ for
+    arm and arm64, in preparation for a future CL which will remove the
+    relevant architecture-specific SSA rules (the reduction is already
+    performed by rules in generic.rules added in CL 36323).
+    
+    Change-Id: Iebdd5c3bb2fc632c85888569ff0c49f78569a862
+    Reviewed-on: https://go-review.googlesource.com/75752
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 40 +++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

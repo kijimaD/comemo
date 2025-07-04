@@ -1,0 +1,13 @@
+commit 11ace8e9750edb8376c431a5a94b6c7de40344c6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Nov 5 23:08:18 2010 -0400
+
+    net: fix windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2932041
+
+ src/pkg/net/dnsname_test.go   | 4 ++++
+ src/pkg/net/resolv_windows.go | 9 +++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit ccaa2bc5c0932d3b733f7cdf67b72009c2d330d5
+Author: Darshan Parajuli <parajulidarshan@gmail.com>
+Date:   Tue Feb 27 03:01:01 2018 -0800
+
+    fmt: change some unexported method names to camel case
+    
+    Change-Id: I12f96a9397cfaebe11e616543d804bd62cd72da0
+    Reviewed-on: https://go-review.googlesource.com/97379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/format.go | 48 +++++++++++++++++++++++------------------------
+ src/fmt/print.go  | 56 +++++++++++++++++++++++++++----------------------------
+ 2 files changed, 52 insertions(+), 52 deletions(-)

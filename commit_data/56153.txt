@@ -1,0 +1,18 @@
+commit e8f5c04c1bcbc1fe33ddb7ab898ec393d3b2ad77
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 5 17:34:16 2024 -0400
+
+    go/types: Identical: document the need for consistent symbols
+    
+    Fixes golang/go#66690
+    Updates golang/go#57497
+    
+    Change-Id: I3d8f48d6b9baae8d5518eefeff59c83b12728cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_predicates.go | 12 ++++++++++++
+ src/go/types/api_predicates.go                    | 12 ++++++++++++
+ 2 files changed, 24 insertions(+)

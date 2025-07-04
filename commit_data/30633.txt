@@ -1,0 +1,21 @@
+commit dd0e1acfeb50f33f79738b2ef7e21a61ecec9d22
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 13 14:30:44 2017 +1100
+
+    cmd/compile/internal/gc: remove unused exportsize variable
+    
+    In Go 1.7 and earlier, gc.exportsize tracked the number of bytes
+    written through exportf. With the removal of the old exporter in Go 1.8
+    exportf is only used for printing the build id, and the header and
+    trailer of the binary export format. The size of the export data is
+    now returned directly from the exporter and exportsize is never
+    referenced. Remove it.
+    
+    Change-Id: Id301144b3c26c9004c722d0c55c45b0e0801a88c
+    Reviewed-on: https://go-review.googlesource.com/38116
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 490035b0b9dd27e8868ccc5dced45a29e9b21227
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Aug 4 00:19:21 2018 +1000
+
+    cmd/go: disable ccache when setting HOME to non-existent dir
+    
+    This fixes tests on systems where ccache is the default compiler.
+    
+    Also simplify a prior workaround for this fault.
+    
+    Fixed #26789
+    
+    Change-Id: I031ff0b65ace7fc5e284393298e004aa2ad3b6f5
+    Reviewed-on: https://go-review.googlesource.com/127775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go     | 10 ++++------
+ src/cmd/go/script_test.go |  1 +
+ 2 files changed, 5 insertions(+), 6 deletions(-)

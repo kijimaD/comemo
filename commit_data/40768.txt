@@ -1,0 +1,24 @@
+commit 07513d208a73fa25d1ee4969adfd0927bbf3ecc4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 11 16:45:34 2019 -0800
+
+    cmd/compile: fix -m=2 infinite loop in escape.go
+    
+    This CL detects infinite loops due to negative dereference cycles
+    during escape analysis, and terminates the loop gracefully. We still
+    fail to print a complete explanation of the escape path, but esc.go
+    didn't print *any* explanation for these test cases, so the release
+    blocking issue here is simply that we don't infinite loop.
+    
+    Updates #35518.
+    
+    Change-Id: I39beed036e5a685706248852f1fa619af3b7abbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206619
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/escape.go |  9 +++++++++
+ test/fixedbugs/issue35518.go          | 36 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

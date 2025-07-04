@@ -1,0 +1,16 @@
+commit 064ce85c2062cfee8dc87b69a831980e67d3d8a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 13:59:00 2019 -0400
+
+    runtime: fix non-tab indentation in lookup_darwin_*.s
+    
+    Change-Id: Ie00494f098bd2bce9bfd1b18dbf9543cf46faad6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180840
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/lookup_darwin_386.s   | 74 +++++++++++++++++++--------------------
+ src/runtime/lookup_darwin_amd64.s | 54 ++++++++++++++--------------
+ src/runtime/lookup_darwin_arm.s   | 12 +++----
+ src/runtime/lookup_darwin_arm64.s | 12 +++----
+ 4 files changed, 76 insertions(+), 76 deletions(-)

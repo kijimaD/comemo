@@ -1,0 +1,14 @@
+commit 6c8100270cd1254fef21b48fa3f4e77fc9aab69d
+Author: Terin Stock <terinjokes@gmail.com>
+Date:   Wed Jun 20 14:00:04 2018 -0700
+
+    flag: add a Value example
+    
+    Change-Id: I579cc9f4f8e5be5fd6447a99614797ab7bc53611
+    Reviewed-on: https://go-review.googlesource.com/120175
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/flag/example_value_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

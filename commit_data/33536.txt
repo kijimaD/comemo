@@ -1,0 +1,21 @@
+commit cea92e8d130540969056be58be188a8487d90a88
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 14 12:51:58 2017 +1100
+
+    runtime: make TestWindowsStackMemory build even with CGO_ENABLED=0 set
+    
+    Just copy some code to make TestWindowsStackMemory build
+    when CGO_ENABLED is set to 0.
+    
+    Fixes #22680
+    
+    Change-Id: I63f9b409a3a97b7718f5d37837ab706d8ed92e81
+    Reviewed-on: https://go-review.googlesource.com/77430
+    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go       | 15 ++++++---------
+ src/runtime/syscall_windows_test.go | 10 +++++++++-
+ 2 files changed, 15 insertions(+), 10 deletions(-)

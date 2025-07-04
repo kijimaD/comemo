@@ -1,0 +1,17 @@
+commit b03b541b7a8834d31e00efa11911eb8aacfe4746
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Apr 24 16:43:31 2009 -0700
+
+    recognize a defined constant
+    as a new name in a later declaration
+    (bug 144)
+    
+    R=r
+    OCL=27850
+    CL=27850
+
+ src/cmd/gc/go.y                    |  1 +
+ src/cmd/gc/walk.c                  | 21 +++++++++++++++++++--
+ test/{bugs => fixedbugs}/bug144.go |  0
+ test/golden.out                    |  8 --------
+ 4 files changed, 20 insertions(+), 10 deletions(-)

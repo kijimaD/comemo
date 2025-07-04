@@ -1,0 +1,16 @@
+commit ba3149612f62c011765876d7a437095fa50e0771
+Author: Allen Li <ayatane@google.com>
+Date:   Thu Jul 11 00:57:57 2019 +0000
+
+    time: clarify when draining a Timer's channel is needed
+    
+    Updates #27169
+    
+    Change-Id: I22a6194c06529ba70b1ec648e3188c191224e321
+    GitHub-Last-Rev: 457b2a61a8ee4a745371c87756e5b6f38058af28
+    GitHub-Pull-Request: golang/go#32996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185245
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/sleep.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 6b112c24db0a3c6ddd373c2001129f11f7d9e7f1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 21 17:53:45 2014 +0900
+
+    net: fix typo
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/128500043
+
+ src/pkg/net/sockopt_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

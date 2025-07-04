@@ -1,0 +1,18 @@
+commit eb69476c66339ca494f98e65a78d315da99a9c79
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 12 13:55:46 2016 -0700
+
+    text/template: detect pathologically recursive template invocations
+    
+    Return an error message instead of eating memory and eventually
+    triggering a stack overflow.
+    
+    Fixes #15618
+    
+    Change-Id: I3dcf1d669104690a17847a20fbfeb6d7e39e8751
+    Reviewed-on: https://go-review.googlesource.com/23091
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      | 19 +++++++++++++++----
+ src/text/template/exec_test.go | 13 +++++++++++++
+ 2 files changed, 28 insertions(+), 4 deletions(-)

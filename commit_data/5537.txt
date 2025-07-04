@@ -1,0 +1,12 @@
+commit 426fef55858dd01ad9e9ecff647b4cd8699359bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 15:26:20 2010 -0700
+
+    fix build - forgot golden.out
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1274042
+
+ test/golden.out | 12 ------------
+ 1 file changed, 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 1761e250117e9917c3927fec06475fe98651c564
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 26 08:23:52 2013 -0700
+
+    test/shift1.go: recognize gccgo errors
+    
+    R=golang-dev, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/10524045
+
+ test/shift1.go | 185 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 93 insertions(+), 92 deletions(-)

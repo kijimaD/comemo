@@ -1,0 +1,15 @@
+commit 11999306df8b02dbbf26ac0772429c8ca5754ab5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 12 08:47:09 2012 +0100
+
+    cmd/gc: don't import the same package multiple times.
+    
+    Implementation suggested by DMorsing.
+    
+    R=golang-dev, dave, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6903059
+
+ src/cmd/gc/go.h  |  1 +
+ src/cmd/gc/lex.c | 10 ++++++++++
+ 2 files changed, 11 insertions(+)

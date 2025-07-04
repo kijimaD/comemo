@@ -1,0 +1,47 @@
+commit 0b56804084eb75495e704921f71e4f215fced6b7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 20 14:33:46 2023 -0500
+
+    runtime: use racereleasemerge for godebugInc
+    
+    CL 549796 adds race annotations to godebugInc. It uses racerelease
+    to model a CompareAndSwap. However, a CompareAndSwap is
+    essentially a load and a store. Modeling it as just racerelease
+    makes it not synchronized with other racerelease, i.e. other CAS.
+    For the following execution
+    
+    thread         A             B
+              load, got nil
+                            load, got nil
+              set *inc
+                            set *inc
+              racerelease
+              CAS success
+                            racerelease
+                            CAS fail
+                            load
+                            raceacquire
+                            use *inc (from A)
+    
+    On thread B, the raceacquire synchronizes with the previous
+    racerelease, which is not synchronized with racerelease on thread
+    A, so it doesn't know that the use of *inc on thread B is after
+    the set on thread A, and will report a race.
+    
+    Change it to use racereleasemerge, which synchronizes with
+    previous racerelease and racereleasemerge. So in the case above it
+    knows thread B's CAS is after thread A's.
+    
+    Also remove stale comment that was more relevant when the code
+    used atomic store, where CL 549796 changed to CAS.
+    
+    Updates #64649.
+    
+    Change-Id: I17671090a19c0699fcb4e6481e2abd98ef2e5542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551856
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/runtime.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

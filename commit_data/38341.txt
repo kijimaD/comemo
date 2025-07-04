@@ -1,0 +1,18 @@
+commit 65a54aef5bedbf8035a465d12ad54783fb81e957
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 11 10:41:50 2019 -0400
+
+    cmd/go: set GO111MODULE=off explicitly in TestScript/list_test_err
+    
+    This test was added after CL 162697.
+    
+    Updates #30228
+    
+    Change-Id: Ia33ad3adc99e53b0b03e68906dc1f2e39234e2cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166697
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/script/list_test_err.txt | 2 ++
+ 1 file changed, 2 insertions(+)

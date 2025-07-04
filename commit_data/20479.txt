@@ -1,0 +1,16 @@
+commit 048692e5de12c89b80761a9532c86eff526af640
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 20:41:00 2014 -0400
+
+    runtime: fix Windows SysUsed
+    
+    Same fix as for SysUnused.
+    Fixes #8038.
+    
+    LGTM=iant, alex.brainman
+    R=golang-codereviews, iant, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/147820043
+
+ src/runtime/mem_windows.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,15 @@
+commit 49014c5b12bd00817203c5ae5dbd4ec1c8f6d157
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 8 08:59:20 2010 +1100
+
+    html: handle unexpected EOF during parsing.
+    
+    This lets us parse HTML like "<html>foo".
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3460043
+
+ src/pkg/html/parse.go      | 59 +++++++++++++++++++++++++++++++++-------------
+ src/pkg/html/parse_test.go | 13 +++++-----
+ 2 files changed, 48 insertions(+), 24 deletions(-)

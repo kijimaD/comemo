@@ -1,0 +1,16 @@
+commit c00c1efbd8f763eb087912c54c036c21f310b98f
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sun Apr 8 10:30:15 2018 +0800
+
+    internal/cpu: skip arm64 feature test on unsupported GOOS
+    
+    Fixes #24753
+    
+    Change-Id: Ic6049da98b8eee41223df71ffafa71a894915bd7
+    Reviewed-on: https://go-review.googlesource.com/105455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/cpu/cpu_test.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

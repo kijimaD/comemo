@@ -1,0 +1,23 @@
+commit 0add0647d80f8ec794042b4608275830372fe298
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Mar 8 16:43:47 2022 -0500
+
+    go/printer: don't print unnecesary commas for func type param lists
+    
+    Type parameter lists are not ambiguous for function declarations in the
+    way that they are ambiguous for type declarations. Avoid printing an
+    extra comma to disambiguate.
+    
+    Fixes #51548
+    
+    Change-Id: I8ca2b21e271982013653b9e220f92ee74f577ba2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390914
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/printer/nodes.go                 | 24 ++++++++++++++++--------
+ src/go/printer/testdata/generics.golden | 26 ++++++++++++++++++++++++++
+ src/go/printer/testdata/generics.input  | 25 +++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 8 deletions(-)

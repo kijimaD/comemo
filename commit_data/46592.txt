@@ -1,0 +1,22 @@
+commit c94543b85fe6f41dc3bc1725f928c6ed98d8d72c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 24 23:02:08 2021 +0700
+
+    cmd/compile: move all usage of delayTransform out of helpers.go
+    
+    So next CL will make delayTransform to become irgen's method, because
+    the delay transform logic also depends on irgen.topFuncIsGeneric field.
+    
+    For #48609
+    
+    Change-Id: I660ed19856bd06c3b6f4279a9184db96175dea2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351854
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/expr.go    | 29 +++++++++++++++++++++++++----
+ src/cmd/compile/internal/noder/helpers.go | 30 ++++++++----------------------
+ 2 files changed, 33 insertions(+), 26 deletions(-)

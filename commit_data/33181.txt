@@ -1,0 +1,20 @@
+commit 5c18a3ca70268c3a85972a4bb40f5dbb0277a27f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 20 10:53:48 2017 -0400
+
+    cmd/compile: skip runtime.nextFreeFast inlining test on MIPS64x
+    
+    Since inlining budget calculation is fixed in CL 70151
+    runtime.nextFreeFast is no longer inlineable on MIPS64x because
+    it does not support Ctz64 as intrinsic. Skip the test.
+    
+    Updates #22239.
+    
+    Change-Id: Id00d55628ddb4b48d27aebfa10377a896765d569
+    Reviewed-on: https://go-review.googlesource.com/72271
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

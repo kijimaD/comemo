@@ -1,0 +1,40 @@
+commit 1ce6245d6cc313daba1a4d7b5b349328e18bba6b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 7 16:42:54 2010 -0500
+
+    throughout: fix broken calls to Printf etc.
+    I have written a tool to verify Printf calls, and although it's not
+    ready to be reviewed yet it's already uncovered a spate of problems
+    in the repository.  I'm sending this CL to break the changes into
+    pieces; as the tool improves it will find more, I'm sure.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3427043
+
+ src/pkg/archive/zip/reader_test.go            |  4 +--
+ src/pkg/big/int_test.go                       |  2 +-
+ src/pkg/bufio/bufio_test.go                   |  6 ++--
+ src/pkg/bytes/buffer_test.go                  |  2 +-
+ src/pkg/container/vector/intvector_test.go    | 48 +++++++++++++--------------
+ src/pkg/container/vector/stringvector_test.go | 48 +++++++++++++--------------
+ src/pkg/container/vector/vector_test.go       | 48 +++++++++++++--------------
+ src/pkg/crypto/elliptic/elliptic_test.go      |  2 +-
+ src/pkg/fmt/scan_test.go                      |  6 ++--
+ src/pkg/gob/codec_test.go                     |  4 +--
+ src/pkg/json/scanner_test.go                  |  4 +--
+ src/pkg/json/stream_test.go                   |  4 +--
+ src/pkg/netchan/netchan_test.go               |  2 +-
+ src/pkg/os/os_test.go                         |  6 ++--
+ src/pkg/os/path_test.go                       |  6 ++--
+ src/pkg/path/path_test.go                     |  2 +-
+ src/pkg/reflect/all_test.go                   |  2 +-
+ src/pkg/strconv/atob_test.go                  |  2 +-
+ src/pkg/syslog/syslog_test.go                 |  2 +-
+ src/pkg/time/tick_test.go                     |  2 +-
+ src/pkg/unicode/maketables.go                 | 12 +++----
+ src/pkg/utf8/string_test.go                   |  8 ++---
+ src/pkg/utf8/utf8_test.go                     |  2 +-
+ src/pkg/websocket/websocket_test.go           |  2 +-
+ src/pkg/xml/xml_test.go                       |  2 +-
+ 25 files changed, 114 insertions(+), 114 deletions(-)

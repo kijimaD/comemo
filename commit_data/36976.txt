@@ -1,0 +1,19 @@
+commit d6e80069f3007d5bc03750f0a83e213bbac8c86e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jan 21 13:02:27 2018 +0100
+
+    cmd/compile: simplify as2 method of *Order
+    
+    Merge the two for loops that set up the node lists for
+    temporaries into one for loop.
+    
+    Passes toolstash -cmp
+    
+    Change-Id: Ibc739115f38c8869b0dcfbf9819fdc2fc96962e0
+    Reviewed-on: https://go-review.googlesource.com/c/141819
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

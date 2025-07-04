@@ -1,0 +1,23 @@
+commit 29162ec9a7d4ee08a558729236cd9bf50febee09
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Apr 3 18:59:44 2018 +0200
+
+    cmd/compile: in prove, infer unsigned relations while branching
+    
+    When a branch is followed, we apply the relation as described
+    in the domain relation table. In case the relation is in the
+    positive domain, we can also infer an unsigned relation if,
+    by that point, we know that both operands are non-negative.
+    
+    Fixes #20393
+    
+    Change-Id: Ieaf0c81558b36d96616abae3eb834c788dd278d5
+    Reviewed-on: https://go-review.googlesource.com/100278
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ test/prove.go                         | 9 +++++++++
+ 2 files changed, 12 insertions(+)

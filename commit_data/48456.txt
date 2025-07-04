@@ -1,0 +1,19 @@
+commit 6673d5d701d224919d910e88a73b6f69472c9ed1
+Author: Jero Bado <programmer@jerobado.com>
+Date:   Tue Feb 1 23:22:31 2022 +0000
+
+    README.md: update links to go.dev
+    
+    Fixes #50916.
+    
+    Change-Id: I51f3269b7a0793a3002eef83de1d871111fc3cdc
+    GitHub-Last-Rev: fc8c183ac7fa84d6caefdf49ed1d8cac19d7744f
+    GitHub-Pull-Request: golang/go#50919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381962
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ README.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

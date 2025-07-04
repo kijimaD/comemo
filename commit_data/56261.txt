@@ -1,0 +1,35 @@
+commit 4bb67bc21eea06afadceec239bae6e5e40a9e759
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Apr 19 22:12:18 2024 +0000
+
+    runtime: always acquire M when acquiring locks by rank
+    
+    Profiling of runtime-internal locks checks gp.m.locks to see if it's
+    safe to add a new record to the profile, but direct use of
+    acquireLockRank can change the list of the M's active lock ranks without
+    updating gp.m.locks to match. The runtime's internal rwmutex
+    implementation makes a point of calling acquirem/releasem when
+    manipulating the lock rank list, but the other user of acquireLockRank
+    (the GC's Gscan bit) relied on the GC's invariants to avoid deadlocks.
+    
+    Codify the rwmutex approach by renaming acquireLockRank to
+    acquireLockRankAndM and having it include a call to aquirem. Do the same
+    for release.
+    
+    Fixes #64706
+    Fixes #66004
+    
+    Change-Id: Ib76eaa0cc1c45b64861d03345e17e1e843c19713
+    GitHub-Last-Rev: 160577bdb2bb2a4e869c6fd7e53e3be8fb819182
+    GitHub-Pull-Request: golang/go#66276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lockrank_off.go |  6 ++++--
+ src/runtime/lockrank_on.go  | 16 ++++++++++++----
+ src/runtime/proc.go         |  9 ++++-----
+ src/runtime/rwmutex.go      |  7 ++-----
+ 4 files changed, 22 insertions(+), 16 deletions(-)

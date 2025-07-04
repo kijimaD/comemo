@@ -1,0 +1,16 @@
+commit 32e979c0de1d13e51b0295392ba6f5778b2f3902
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 28 14:03:16 2009 -0700
+
+    mysterious bug: runtime.acid wasn't getting rebuilt
+    when switching architectures.
+    
+    fix bug twice: make sure clean removes the file,
+    and generate into architecture-specific file names.
+    
+    R=r
+    http://go/go-review/1013018
+
+ src/pkg/runtime/Makefile  | 8 ++++----
+ src/pkg/runtime/mkasmh.sh | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit c4206cb231e02380b68f6e954014cdf3533196d5
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Tue May 31 10:11:47 2011 -0400
+
+    runtime: save cdecl registers in Windows SEH handler
+    
+    Fixes #1779
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4566041
+
+ src/pkg/runtime/windows/386/sys.s | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

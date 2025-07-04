@@ -1,0 +1,50 @@
+commit 3c42ebf3e2dccbe228b78ca2e157010a7d3c5b9d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 21 18:34:03 2022 +1100
+
+    internal/bytealg: optimise memequal on riscv64
+    
+    Implement memequal using loops that process 32 bytes, 16 bytes, 4 bytes
+    or 1 byte depending on size and alignment. For comparisons that are less
+    than 32 bytes the overhead of checking and adjusting alignment usually
+    exceeds the overhead of reading and processing 4 bytes at a time.
+    
+    Updates #50615
+    
+    name                 old time/op    new time/op     delta
+    Equal/0-4              38.3ns _ 0%     43.1ns _ 0%    +12.54%  (p=0.000 n=3+3)
+    Equal/1-4              77.7ns _ 0%     90.3ns _ 0%    +16.27%  (p=0.000 n=3+3)
+    Equal/6-4               116ns _ 0%      121ns _ 0%     +3.85%  (p=0.002 n=3+3)
+    Equal/9-4               137ns _ 0%      126ns _ 0%     -7.98%  (p=0.000 n=3+3)
+    Equal/15-4              179ns _ 0%      170ns _ 0%     -4.77%  (p=0.001 n=3+3)
+    Equal/16-4              186ns _ 0%      159ns _ 0%    -14.65%  (p=0.000 n=3+3)
+    Equal/20-4              215ns _ 0%      178ns _ 0%    -17.18%  (p=0.000 n=3+3)
+    Equal/32-4              298ns _ 0%      101ns _ 0%    -66.22%  (p=0.000 n=3+3)
+    Equal/4K-4             28.9_s _ 0%      2.2_s _ 0%    -92.56%  (p=0.000 n=3+3)
+    Equal/4M-4             29.6ms _ 0%      2.2ms _ 0%    -92.72%  (p=0.000 n=3+3)
+    Equal/64M-4             758ms _75%       35ms _ 0%       ~     (p=0.127 n=3+3)
+    CompareBytesEqual-4     226ns _ 0%      131ns _ 0%    -41.76%  (p=0.000 n=3+3)
+    
+    name                 old speed      new speed       delta
+    Equal/1-4            12.9MB/s _ 0%   11.1MB/s _ 0%    -13.98%  (p=0.000 n=3+3)
+    Equal/6-4            51.7MB/s _ 0%   49.8MB/s _ 0%     -3.72%  (p=0.002 n=3+3)
+    Equal/9-4            65.7MB/s _ 0%   71.4MB/s _ 0%     +8.67%  (p=0.000 n=3+3)
+    Equal/15-4           83.8MB/s _ 0%   88.0MB/s _ 0%     +5.02%  (p=0.001 n=3+3)
+    Equal/16-4           85.9MB/s _ 0%  100.6MB/s _ 0%    +17.19%  (p=0.000 n=3+3)
+    Equal/20-4           93.2MB/s _ 0%  112.6MB/s _ 0%    +20.74%  (p=0.000 n=3+3)
+    Equal/32-4            107MB/s _ 0%    317MB/s _ 0%   +195.97%  (p=0.000 n=3+3)
+    Equal/4K-4            142MB/s _ 0%   1902MB/s _ 0%  +1243.76%  (p=0.000 n=3+3)
+    Equal/4M-4            142MB/s _ 0%   1946MB/s _ 0%  +1274.22%  (p=0.000 n=3+3)
+    Equal/64M-4           111MB/s _55%   1941MB/s _ 0%  +1641.21%  (p=0.000 n=3+3)
+    
+    Change-Id: I9af7e82de3c4c5af8813772ed139230900c03b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380075
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/bytealg/equal_riscv64.s | 144 +++++++++++++++++++++++++++--------
+ 1 file changed, 111 insertions(+), 33 deletions(-)

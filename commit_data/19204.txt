@@ -1,0 +1,13 @@
+commit 0d612a8572229d02e569a865e27e32e163c40ea2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 18 11:00:38 2014 -0700
+
+    doc/go1.3.html: go test always builds
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/89370043
+
+ doc/go1.3.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

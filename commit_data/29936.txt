@@ -1,0 +1,24 @@
+commit f65abf6ddc8d1f3d403a9195fd74eaffa022b07f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 11 13:53:34 2017 -0800
+
+    cmd/compile: hide testdclstack behind debug flag
+    
+    This reduces compilation time for the program
+    in #18602 from 7 hours to 30 min.
+    
+    Updates #14781
+    Updates #18602
+    
+    Change-Id: I3c4af878a08920e6373d3b3b0c4453ee002e32eb
+    Reviewed-on: https://go-review.googlesource.com/35113
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go     |  8 ++++++--
+ src/cmd/compile/internal/gc/bimport.go |  4 +++-
+ src/cmd/compile/internal/gc/main.go    | 13 +++++++------
+ src/cmd/compile/internal/gc/noder.go   |  1 +
+ src/cmd/compile/internal/gc/subr.go    |  4 +++-
+ 5 files changed, 20 insertions(+), 10 deletions(-)

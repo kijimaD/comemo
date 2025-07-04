@@ -1,0 +1,13 @@
+commit edc5d7ef2a66e989cc0befa4efbb8e115f05b64c
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 14 12:04:08 2012 -0500
+
+    A+C: Casey Marshall (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6948050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

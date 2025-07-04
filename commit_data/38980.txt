@@ -1,0 +1,20 @@
+commit 85387aa364f5ebb8c1c10ee2de78ae8ded5a80dd
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 30 09:47:19 2019 -0700
+
+    cmd/compile: remove dynamic entry handling from sinit/maplit
+    
+    The order pass now handles all the dynamic entries.
+    
+    Update #26552
+    
+    Followup to CL 174417
+    
+    Change-Id: Ie924cadb0e0ba36c423868f654f13040100b44c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174498
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 52 ++++++++++++------------------------
+ 1 file changed, 17 insertions(+), 35 deletions(-)

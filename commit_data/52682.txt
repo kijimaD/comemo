@@ -1,0 +1,63 @@
+commit f8162a0e726f4b3a9df60a37e8ca7883dde61914
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 4 18:31:46 2023 -0400
+
+    cmd/compile: allow more inlining of functions that construct closures
+    
+    [This is a roll-forward of CL 479095, which was reverted due to a bad
+    interaction between inlining and escape analysis, then later fixed
+    fist with an attempt in CL 482355, then again in 484859 .]
+    
+    Currently, when the inliner is determining if a function is
+    inlineable, it descends into the bodies of closures constructed by
+    that function. This has several unfortunate consequences:
+    
+    - If the closure contains a disallowed operation (e.g., a defer), then
+      the outer function can't be inlined. It makes sense that the
+      *closure* can't be inlined in this case, but it doesn't make sense
+      to punish the function that constructs the closure.
+    
+    - The hairiness of the closure counts against the inlining budget of
+      the outer function. Since we currently copy the closure body when
+      inlining the outer function, this makes sense from the perspective
+      of export data size and binary size, but ultimately doesn't make
+      much sense from the perspective of what should be inlineable.
+    
+    - Since the inliner walks into every closure created by an outer
+      function in addition to starting a walk at every closure, this adds
+      an n^2 factor to inlinability analysis.
+    
+    This CL simply drops this behavior.
+    
+    In std, this makes 57 more functions inlinable, and disallows inlining
+    for 10 (due to the basic instability of our bottom-up inlining
+    approach), for an net increase of 47 inlinable functions (+0.6%).
+    
+    This will help significantly with the performance of the functions to
+    be added for #56102, which have a somewhat complicated nesting of
+    closures with a performance-critical fast path.
+    
+    The downside of this seems to be a potential increase in export data
+    and text size, but the practical impact of this seems to be
+    negligible:
+    
+                   │    before    │           after            │
+                   │    bytes     │    bytes      vs base      │
+    Go/binary        15.12Mi ± 0%   15.14Mi ± 0%  +0.16% (n=1)
+    Go/text          5.220Mi ± 0%   5.237Mi ± 0%  +0.32% (n=1)
+    Compile/binary   22.92Mi ± 0%   22.94Mi ± 0%  +0.07% (n=1)
+    Compile/text     8.428Mi ± 0%   8.435Mi ± 0%  +0.08% (n=1)
+    
+    Updates #56102.
+    
+    Change-Id: I6e938d596992ffb473cf51e7e598f372ce08deb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484860
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go    | 11 +++++------
+ src/cmd/compile/internal/test/inl_test.go | 22 +++++++++-------------
+ test/closure3.dir/main.go                 | 26 +++++++++++++++-----------
+ 3 files changed, 29 insertions(+), 30 deletions(-)

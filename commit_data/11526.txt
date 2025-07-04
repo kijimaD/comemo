@@ -1,0 +1,16 @@
+commit f7d473dd33e90e28285fcdbf8876ffbe1caed3a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 31 15:41:25 2012 -0800
+
+    go/doc: added error, rune to list of predeclared types
+    
+    Don't throw away factory functions returning error or rune.
+    
+    Fixes #2820.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5604046
+
+ src/pkg/go/doc/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

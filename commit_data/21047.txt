@@ -1,0 +1,12 @@
+commit 1e93125aa61a2695682e7cd43fd36b6356b9b08e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 15:28:58 2014 -0500
+
+    cmd/ld: clean up nested if when loading bind local syms
+    
+    Change-Id: I15269722ca3d2654a9dd7a3f8a89ad375dc9bee0
+    Reviewed-on: https://go-review.googlesource.com/1759
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/ld/ldelf.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

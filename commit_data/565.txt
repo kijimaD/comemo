@@ -1,0 +1,18 @@
+commit e1e53e35a40e27c3a141f08b0efce39a9e1c7dac
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 3 13:21:05 2008 -0700
+
+    update tests
+    add commands to two new ken tests
+    
+    R=gri
+    OCL=14751
+    CL=14751
+
+ test/{bugs => fixedbugs}/bug027.go |  2 +-
+ test/{bugs => fixedbugs}/bug072.go |  0
+ test/{bugs => fixedbugs}/bug076.go |  0
+ test/golden.out                    | 51 ++++++++++++++++++++++++--------------
+ test/ken/array.go                  |  9 +++----
+ test/ken/shift.go                  |  1 -
+ 6 files changed, 37 insertions(+), 26 deletions(-)

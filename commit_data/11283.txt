@@ -1,0 +1,23 @@
+commit 7fc4c07172b7b6feb2da345511ad439fedaf876b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 19 16:04:26 2012 -0800
+
+    database/sql: move from exp/sql
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5536076
+
+ src/pkg/Makefile                                   | 4 ++--
+ src/pkg/{exp => database}/sql/Makefile             | 2 +-
+ src/pkg/{exp => database}/sql/convert.go           | 2 +-
+ src/pkg/{exp => database}/sql/convert_test.go      | 2 +-
+ src/pkg/{exp => database}/sql/doc.txt              | 0
+ src/pkg/{exp => database}/sql/driver/Makefile      | 2 +-
+ src/pkg/{exp => database}/sql/driver/driver.go     | 0
+ src/pkg/{exp => database}/sql/driver/types.go      | 0
+ src/pkg/{exp => database}/sql/driver/types_test.go | 0
+ src/pkg/{exp => database}/sql/fakedb_test.go       | 3 +--
+ src/pkg/{exp => database}/sql/sql.go               | 3 +--
+ src/pkg/{exp => database}/sql/sql_test.go          | 0
+ 12 files changed, 8 insertions(+), 10 deletions(-)

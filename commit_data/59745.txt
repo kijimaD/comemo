@@ -1,0 +1,17 @@
+commit 68b51e99f9ed6d15d1ea53c671f60c55979c4a40
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 30 15:23:36 2025 -0400
+
+    cmd/distpack: add test case for pack tool being excluded
+    
+    For #71867
+    
+    Change-Id: Ic4c6304b9a6b35c45bf35342523930924c68545a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/distpack/test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

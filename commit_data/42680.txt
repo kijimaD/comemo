@@ -1,0 +1,22 @@
+commit 82c45eb68187d7827bca392d528dbfa06607e3f0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jul 27 12:08:56 2020 +0700
+
+    cmd/compile: handle OCLOSURE/OCALLPART in mustHeapAlloc check
+    
+    Currently, generated struct wrapper for closure is not handled in
+    mustHeapAlloc. That causes compiler crashes when the wrapper struct
+    is too large for stack, and must be heap allocated instead.
+    
+    Fixes #39292
+    
+    Change-Id: I14c1e591681d9d92317bb2396d6cf5207aa93e08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244917
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/esc.go     |  7 +++++++
+ test/fixedbugs/issue39292.go           | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)

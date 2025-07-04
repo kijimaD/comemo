@@ -1,0 +1,15 @@
+commit 1d2101116f50ab828b165ffebc9d379824cf7266
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 21 20:23:50 2021 +0200
+
+    net: don't check nil err twice in interfaceMessages on freebsd
+    
+    Change-Id: Ie614e49d07b24c5b3dde469561893643bc858d1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312389
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface_freebsd.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 7faf30246a67746d0bbd0d762e5cd7309fadfc6f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 12 21:42:01 2017 +0000
+
+    net: delete TestDialTimeoutFDLeak
+    
+    It's flaky and distracting.
+    
+    I'm not sure what it's testing, either. It hasn't saved us before.
+    
+    Somebody can resurrect it if they have time.
+    
+    Updates #15157
+    
+    Change-Id: I27bbfe51e09b6259bba0f73d60d03a4d38711951
+    Reviewed-on: https://go-review.googlesource.com/40498
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/dial_test.go | 65 ----------------------------------------------------
+ 1 file changed, 65 deletions(-)

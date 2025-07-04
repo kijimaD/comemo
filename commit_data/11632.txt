@@ -1,0 +1,12 @@
+commit b9917045dadeb8a2158cf291d71f4e0124cf6ced
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sun Feb 5 16:59:32 2012 -0800
+
+    net: fix Plan 9 build
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5631051
+
+ src/pkg/net/ipsock_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

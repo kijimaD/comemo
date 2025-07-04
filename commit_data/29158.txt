@@ -1,0 +1,21 @@
+commit 79d2115ec933904c02311cd31923b125fe4303dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 27 19:53:50 2016 -0700
+
+    cmd/compile: eliminate more allocs in newblock
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         389k ± 0%        386k ± 0%  -0.84%        (p=0.000 n=10+10)
+    Unicode          323k ± 0%        323k ± 0%  -0.25%        (p=0.000 n=10+10)
+    GoTypes         1.17M ± 0%       1.16M ± 0%  -0.93%        (p=0.000 n=10+10)
+    Compiler        4.13M ± 0%       4.09M ± 0%  -1.05%        (p=0.000 n=10+10)
+    
+    Change-Id: I6c00850d07511c2e65761c7373fc3df738499105
+    Reviewed-on: https://go-review.googlesource.com/32235
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

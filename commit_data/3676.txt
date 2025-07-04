@@ -1,0 +1,18 @@
+commit 9e96f25fa2c518c380c5a116aa99bc74094aaec9
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 29 17:38:25 2009 -0700
+
+    Add RSA PKCS#1 v1.5 support.
+    
+    R=go-dev
+    APPROVED=rsc
+    DELTA=407  (400 added, 0 deleted, 7 changed)
+    OCL=36007
+    CL=36146
+
+ src/pkg/crypto/rsa/Makefile         |   1 +
+ src/pkg/crypto/rsa/pkcs1v15.go      | 137 +++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/pkcs1v15_test.go | 182 ++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/rsa.go           |  38 ++++++--
+ src/pkg/crypto/rsa/rsa_test.go      |  56 +++++++++++
+ 5 files changed, 407 insertions(+), 7 deletions(-)

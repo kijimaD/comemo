@@ -1,0 +1,17 @@
+commit ae7cd5c029927e41b50170e5059b6b896c3d779a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Feb 20 20:44:18 2020 +0000
+
+    doc/go1.14: document the change to json.Number decoding
+    
+    It might break a program if it was depending on undocumented behavior.
+    Give a proper heads up.
+    
+    Fixes #37308.
+    
+    Change-Id: Id65bc70def1138d5506b694329c52250b417ec6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220418
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

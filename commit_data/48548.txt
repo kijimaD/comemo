@@ -1,0 +1,27 @@
+commit 0d651041a9f48bbd1456317dfc784cdfa253e877
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Dec 1 19:48:58 2021 -0800
+
+    syscall: optimize Byte{Ptr,Slice}FromString
+    
+    Use bytealg.IndexByteString(str, 0) instead of looping through the
+    string to check for a zero byte. A quick and dirty benchmark shows 10x
+    performance improvement (on amd64 machine, using go 1.17.3).
+    
+    BytePtrFromString is used by many functions with string arguments.
+    This change should make many functions in os package, such as those
+    accepting a filename (os.Open, os.Stat, etc.), a tad faster.
+    
+    PS I am aware that syscall package is deprecated and frozen, but this
+    change is mainly for the os package and the likes. The alternative
+    would be for os to switch to x/sys, which is a much bigger change.
+    
+    Change-Id: I18fdd50f9fbfe0a23a4a71bc4bd0a5f5b0eaa475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368457
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

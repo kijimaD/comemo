@@ -1,0 +1,12 @@
+commit 236e79cab382bf3e702aa7d03b03903c36445053
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 8 10:40:56 2012 +1100
+
+    godoc: fetch jQuery via https
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6614064
+
+ lib/godoc/godoc.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

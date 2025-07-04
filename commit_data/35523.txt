@@ -1,0 +1,14 @@
+commit 377567edd01572a3ce7ff263fd7923a5ba7a9217
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue May 29 14:36:28 2018 +0200
+
+    reflect: document that StructOf panics on unexported fields
+    
+    Fixes #25401
+    
+    Change-Id: I0b61ecfcee43ebfe0a84b5c1e28a3817f96b94ed
+    Reviewed-on: https://go-review.googlesource.com/115015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

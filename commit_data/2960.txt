@@ -1,0 +1,16 @@
+commit ceaa7741a2f5831d351d94f68b5cf388be9e5ab2
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 12 17:22:47 2009 -0700
+
+    Convert ptrace to whole-package compilation.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=15  (9 added, 6 deleted, 0 changed)
+    OCL=33136
+    CL=33136
+
+ usr/austin/ptrace/Makefile            | 13 +++++++++++++
+ usr/austin/ptrace/ptrace_linux.go     |  5 -----
+ usr/austin/ptrace/regs_linux_amd64.go |  1 -
+ 3 files changed, 13 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 764b6ec1aaa832650bd0c65aab749fc811a419c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 8 13:55:57 2009 -0700
+
+    reflection for maps
+    
+    R=r
+    DELTA=304  (248 added, 34 deleted, 22 changed)
+    OCL=31345
+    CL=31347
+
+ src/pkg/reflect/Makefile    |   3 +-
+ src/pkg/reflect/all_test.go |  54 +++++++++++++++++++
+ src/pkg/reflect/value.go    |  77 ++++++++++++++++++++++++---
+ src/pkg/runtime/Makefile    |   1 +
+ src/pkg/runtime/hashmap.c   | 124 +++++++++++++++++++++++++++-----------------
+ src/pkg/runtime/reflect.cgo |  51 ++++++++++++++++++
+ src/pkg/runtime/runtime.h   |   8 +++
+ src/pkg/runtime/type.h      |   8 +++
+ 8 files changed, 272 insertions(+), 54 deletions(-)

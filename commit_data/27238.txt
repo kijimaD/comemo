@@ -1,0 +1,17 @@
+commit ade0eb2f0689b4d88d425451387c516013fd4b20
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 30 22:28:37 2016 -0700
+
+    cmd/compile: fix reslice
+    
+    := is the wrong thing here.  The new variable masks the old
+    variable so we allocate the slice afresh each time around the loop.
+    
+    Change-Id: I759c30e1bfa88f40decca6dd7d1e051e14ca0844
+    Reviewed-on: https://go-review.googlesource.com/22679
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

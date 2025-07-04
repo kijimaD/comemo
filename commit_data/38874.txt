@@ -1,0 +1,19 @@
+commit de050717f1b668dfd196f1dc4d18c77d03f3afb4
+Author: Udalov Max <re.udalov@gmail.com>
+Date:   Tue Apr 23 12:53:35 2019 +0300
+
+    cmd/go/internal/modcmd: assign module's path and version to fileJSON when modFile's module statement exists
+    
+    Fixes panic on nil pointer dereference error when assigning module's path and version pair to fileJSON.
+    
+    Fixes #31623
+    
+    Change-Id: I3f61122ba0676a1270d3ad98900af8c8e9c90935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173397
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/edit.go      |  4 +++-
+ src/cmd/go/testdata/script/mod_edit.txt | 16 +++++++++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 9ca57923e222335cc63924833d5bf562962e06c9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 23 10:54:09 2019 -0400
+
+    testing: testing: add (*T).Deadline method for test timeout
+    
+    Fixes #28135
+    
+    Change-Id: I62818595eaf4a59d8b5c26cd6848c08fec795ad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202758
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next.txt                                 |  1 +
+ doc/go1.15.html                              |  9 +++++
+ src/cmd/go/testdata/script/test_deadline.txt | 50 ++++++++++++++++++++++++++++
+ src/testing/testing.go                       | 43 +++++++++++++++++-------
+ 4 files changed, 91 insertions(+), 12 deletions(-)

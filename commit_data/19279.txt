@@ -1,0 +1,13 @@
+commit d3764dd43511e6e9ca9fbca42506e097132a2f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 6 09:01:38 2014 -0400
+
+    test: add test that gccgo compiled incorrectly
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/94100045
+
+ test/fixedbugs/bug485.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,0 +1,42 @@
+commit b0683bd77a0779fd9a87a2a51bd9eb7969606ffe
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 2 22:02:14 2009 -0800
+
+    move ReadFile, WriteFile, and ReadDir into a separate io/ioutil package.
+    this breaks the dependency of package io on package bytes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/163085
+
+ src/cmd/cgo/util.go                                 |  6 +++---
+ src/cmd/ebnflint/ebnflint.go                        |  4 ++--
+ src/cmd/godoc/godoc.go                              | 11 ++++++-----
+ src/cmd/gofmt/gofmt.go                              |  6 +++---
+ src/cmd/hgpatch/main.go                             |  9 +++++----
+ src/pkg/Makefile                                    |  1 +
+ src/pkg/archive/tar/writer_test.go                  |  3 ++-
+ src/pkg/compress/flate/deflate_test.go              |  4 ++--
+ src/pkg/compress/zlib/writer_test.go                |  5 +++--
+ src/pkg/debug/proc/proc_linux.go                    |  4 ++--
+ src/pkg/ebnf/ebnf_test.go                           |  4 ++--
+ src/pkg/encoding/ascii85/ascii85_test.go            |  6 +++---
+ src/pkg/encoding/base64/base64_test.go              |  6 +++---
+ src/pkg/encoding/git85/git_test.go                  |  8 ++++----
+ src/pkg/exec/exec_test.go                           |  5 +++--
+ src/pkg/exp/eval/main.go                            |  2 +-
+ src/pkg/go/parser/interface.go                      |  5 +++--
+ src/pkg/go/printer/printer_test.go                  |  6 +++---
+ src/pkg/http/client_test.go                         |  4 ++--
+ src/pkg/http/request.go                             |  3 ++-
+ src/pkg/io/Makefile                                 |  1 -
+ src/pkg/io/io.go                                    |  3 +--
+ src/pkg/io/ioutil/Makefile                          | 11 +++++++++++
+ src/pkg/io/{utils.go => ioutil/ioutil.go}           | 11 ++++++-----
+ src/pkg/io/{utils_test.go => ioutil/ioutil_test.go} |  8 ++++----
+ src/pkg/os/os_test.go                               |  3 ++-
+ src/pkg/path/path.go                                |  4 ++--
+ src/pkg/time/zoneinfo.go                            |  4 ++--
+ test/bench/k-nucleotide.go                          |  4 ++--
+ test/bench/regex-dna.go                             |  4 ++--
+ 30 files changed, 87 insertions(+), 68 deletions(-)

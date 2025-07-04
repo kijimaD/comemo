@@ -1,0 +1,24 @@
+commit 8f9bfa9b7b7739324e73b4f19280caa2011e6ae8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 11 15:11:29 2022 -0400
+
+    crypto/internal/boring: factor Cache into crypto/internal/boring/bcache
+    
+    Requested by the maintainers of the OpenSSL-based fork of Go+BoringCrypto,
+    to make maintaining that fork easier.
+    
+    Change-Id: I770e70ecc12b589034da31edecf59c73b2c6e1dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407135
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/crypto/ecdsa/boring.go                            | 5 +++--
+ src/crypto/internal/boring/{ => bcache}/cache.go      | 3 ++-
+ src/crypto/internal/boring/{ => bcache}/cache_test.go | 2 +-
+ src/crypto/internal/boring/{ => bcache}/stub.s        | 0
+ src/crypto/rsa/boring.go                              | 5 +++--
+ src/go/build/deps_test.go                             | 7 +++++--
+ src/runtime/mgc.go                                    | 2 +-
+ 7 files changed, 15 insertions(+), 9 deletions(-)

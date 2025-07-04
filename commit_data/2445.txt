@@ -1,0 +1,13 @@
+commit be87e33b1f398af8f0dad48c5edca9212bf3eee6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 12 15:17:39 2009 -0700
+
+    removed bogus if-statement
+    
+    R=iant
+    DELTA=3  (0 added, 3 deleted, 0 changed)
+    OCL=30251
+    CL=30251
+
+ src/pkg/go/parser/parser.go | 3 ---
+ 1 file changed, 3 deletions(-)

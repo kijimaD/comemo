@@ -1,0 +1,14 @@
+commit feb8d0b2ba96810ada77d022a9b2ebd78418551b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 13:43:43 2011 -0800
+
+    netchan: make fields public for pending gob change
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3882042
+
+ src/pkg/netchan/common.go | 14 +++++++-------
+ src/pkg/netchan/export.go | 30 +++++++++++++++---------------
+ src/pkg/netchan/import.go | 22 +++++++++++-----------
+ 3 files changed, 33 insertions(+), 33 deletions(-)

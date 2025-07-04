@@ -1,0 +1,24 @@
+commit d00bd1d1f4a39fb81b34150aca89dcc5e45b727e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 11:49:59 2013 +1000
+
+    cmd/gc: better error messages for C-style if statements.
+    Given
+            if (i == 0)
+                    x++
+    The old message was
+            x.go:6: syntax error: unexpected semicolon or newline before {
+    Now we see
+            x.go:6: syntax error: missing { after if clause
+    
+    Fixes #5687
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12822045
+
+ src/cmd/gc/go.errors |    8 +-
+ src/cmd/gc/y.tab.c   | 1866 +++++++++++++++++---------------------------------
+ src/cmd/gc/y.tab.h   |   46 +-
+ src/cmd/gc/yerr.h    |    8 +-
+ 4 files changed, 662 insertions(+), 1266 deletions(-)

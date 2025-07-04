@@ -1,0 +1,12 @@
+commit 2ab9114dd76abcc5dce4a7fa526f99b39acfc2e8
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Tue Mar 23 17:52:16 2010 -0700
+
+    Trivial: remove duplicate line #include <sys/types.h>
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/645044
+
+ src/pkg/syscall/types_darwin.c | 1 -
+ 1 file changed, 1 deletion(-)

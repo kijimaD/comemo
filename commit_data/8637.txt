@@ -1,0 +1,16 @@
+commit 5e03143c1aff5e62a8181f73fc52e5b7684d76de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 6 15:56:15 2011 -0700
+
+    html: improve attribute parsing, note package status
+    
+    Fixes #1890
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4528102
+
+ src/pkg/html/doc.go        |  1 +
+ src/pkg/html/token.go      | 29 ++++++++++++++++++++++++++++-
+ src/pkg/html/token_test.go | 10 ++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

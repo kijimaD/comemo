@@ -1,0 +1,18 @@
+commit 33fac9bad86d7f3bba8926d92c33e5a0cf28061f
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Thu Oct 10 00:04:14 2019 +0300
+
+    cmd/compile/internal/gc: preallocate slices in noder
+    
+    The slice capacity is known for all these cases. Therefore,
+    we can initialize them with the desired capacity.
+    
+    Change-Id: I1835b49108d157203d62e4aa119c2d7ab5e5e46f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200119
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

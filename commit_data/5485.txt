@@ -1,0 +1,12 @@
+commit b629687f791b697140beb69d33a4e521a71b5ba8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 18 23:25:07 2010 -0700
+
+    fix build - no netchan tests under NaCl
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1230042
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

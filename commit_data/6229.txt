@@ -1,0 +1,12 @@
+commit 9c1b6dffd6490d61c0f7397c63d1804ef0edbbbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 10 14:40:56 2010 -0400
+
+    net: fix freebsd build
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2174043
+
+ src/pkg/net/fd_freebsd.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

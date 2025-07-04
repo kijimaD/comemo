@@ -1,0 +1,16 @@
+commit 902fc114272978a40d2e65c2510a18e870077559
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 18:19:51 2018 +0000
+
+    net/http: try to document ServeFile security more
+    
+    We've expanded this several times. Try more.
+    
+    Fixes #18837
+    
+    Change-Id: I03b699391351a30ee60a15d7aa712c6c66444cf9
+    Reviewed-on: https://go-review.googlesource.com/125875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/fs.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

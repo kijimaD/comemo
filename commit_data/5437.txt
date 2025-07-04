@@ -1,0 +1,16 @@
+commit 32df67889433b43f0e20c89dec5a8f88920bddcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 17:51:48 2010 -0700
+
+    gc: bug264
+    
+    Fixes #692.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1092041
+
+ src/cmd/gc/sinit.c                 |  4 +++-
+ test/{bugs => fixedbugs}/bug264.go |  5 -----
+ test/golden.out                    | 11 -----------
+ 3 files changed, 3 insertions(+), 17 deletions(-)

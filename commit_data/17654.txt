@@ -1,0 +1,12 @@
+commit 318e165238e1f7a18650c71496118bd6ad0ff736
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Sep 20 15:49:26 2013 +1000
+
+    crypto/x509: update comment on system root cert locations.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13775045
+
+ src/pkg/crypto/x509/root_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

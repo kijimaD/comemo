@@ -1,0 +1,18 @@
+commit cd47e8944dca019a89222b99b343d9981ac3a8e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 09:52:59 2018 -0800
+
+    cmd/compile: avoid multiple errors regarding misuse of ... in signatures
+    
+    Follow-up on #28450 (golang.org/cl/152417).
+    
+    Updates #28450.
+    Fixes #29107.
+    
+    Change-Id: Ib4b4fe582c35315a4f71cf6dbc7f7f2f24b37ec1
+    Reviewed-on: https://go-review.googlesource.com/c/152758
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 8 +++++---
+ test/fixedbugs/issue28450.go         | 4 ++--
+ 2 files changed, 7 insertions(+), 5 deletions(-)

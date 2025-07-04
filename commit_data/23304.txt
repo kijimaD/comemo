@@ -1,0 +1,35 @@
+commit a44becef4a7e3af238a1546670717c78eb0069db
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 8 16:21:50 2015 -0700
+
+    cmd/compile: use generated temps in bool codegen
+    
+    Bool codegen was generating a temp for function calls
+    and other complex expressions, but was not using it.
+    
+    This was a refactoring bug introduced by CL 7853.
+    The cmp code used to do (in short):
+    
+            l, r := &n1, &n2
+    
+    It was changed to:
+    
+            l, r := nl, nr
+    
+    But the requisite assignments:
+    
+            nl, nr = &n1, &n2
+    
+    were only introduced on one of two code paths.
+    
+    Fixes #10654.
+    
+    Change-Id: Ie8de0b3a333842a048d4308e02911bb10c6915ce
+    Reviewed-on: https://go-review.googlesource.com/10844
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go |  2 ++
+ test/fixedbugs/issue10654.go        | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

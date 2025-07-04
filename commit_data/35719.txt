@@ -1,0 +1,29 @@
+commit d31cad7ca52580cfc7048766599e6cddeab3c61c
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Jun 8 11:48:18 2018 -0600
+
+    math/big: round x + (-x) to -0 for mode ToNegativeInf
+    
+    Handling of sign bit as defined by IEEE 754-2008, section 6.3:
+    
+    When the sum of two operands with opposite signs (or the difference of
+    two operands with like signs) is exactly zero, the sign of that sum (or
+    difference) shall be +0 in all rounding-direction attributes except
+    roundTowardNegative; under that attribute, the sign of an exact zero
+    sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
+    sign as x even when x is zero.
+    
+    This change handles the special case of Add/Sub resulting in exactly zero
+    when the rounding mode is ToNegativeInf setting the sign bit accordingly.
+    
+    Fixes #25798
+    
+    Change-Id: I4d0715fa3c3e4a3d8a4d7861dc1d6423c8b1c68c
+    Reviewed-on: https://go-review.googlesource.com/117495
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go      |  8 ++++++--
+ src/math/big/float_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

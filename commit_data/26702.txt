@@ -1,0 +1,14 @@
+commit fcac88098b1d5eee5f0a546e550c3d95cc13f64b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 10:28:19 2016 +1000
+
+    runtime: remove race out of BenchmarkChanToSyscallPing1ms
+    
+    Fixes #15119
+    
+    Change-Id: I31445bf282a5e2a160ff4e66c5a592b989a5798f
+    Reviewed-on: https://go-review.googlesource.com/21448
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/syscall_windows_test.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

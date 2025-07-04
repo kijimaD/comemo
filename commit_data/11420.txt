@@ -1,0 +1,14 @@
+commit 8a90a8861f66525fed7f4b5e8d5499af0248806a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 26 10:08:21 2012 -0800
+
+    math/big: test both bitLen and bitLen_g
+    
+    Also: simpler, more direct test.
+    
+    R=golang-dev, dave.andersen
+    CC=golang-dev
+    https://golang.org/cl/5573070
+
+ src/pkg/math/big/arith_test.go | 30 +++++++++++-------------------
+ 1 file changed, 11 insertions(+), 19 deletions(-)

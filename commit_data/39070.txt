@@ -1,0 +1,19 @@
+commit 4cd6c3bac77a4c35cdc9c6c7ca63f09d8747254b
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 8 09:36:07 2019 +0200
+
+    cmd/link/internal/ld: bump macOS and macOS SDK version to 10.9
+    
+    Satisfies the Apple Notary.
+    
+    Fixes #30488
+    
+    Change-Id: I91cf2d706a3ebe79bafdb759a0d32266ed6b9096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175918
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/macho.go |  6 ++--
+ src/cmd/link/link_test.go         | 65 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 2 deletions(-)

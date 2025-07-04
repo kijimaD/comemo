@@ -1,0 +1,18 @@
+commit b98cecff882e42c7f0842c7adae1deeca1b99002
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Sun May 5 17:23:20 2019 +0900
+
+    net: use same TCP Keep Alive interval between dial and accept
+    
+    Fixes #31510
+    
+    Change-Id: I601d114b617a055380bf3c805e2d9a9b0795b656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dial.go          | 8 +++++++-
+ src/net/tcpsock_plan9.go | 3 +--
+ src/net/tcpsock_posix.go | 3 +--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

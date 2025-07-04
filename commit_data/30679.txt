@@ -1,0 +1,38 @@
+commit 211c8c9f1a1d11a6f5c42e85ec78cd06a69fbe0c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 9 09:46:44 2017 -0500
+
+    cmd/compile: pass types on SSA Store/Move/Zero ops
+    
+    For SSA Store/Move/Zero ops, attach the type of the value being
+    stored to the op as the Aux field. This type will be used for
+    write barrier insertion (in a followup CL). Since SSA passes
+    do not accurately propagate types of values (because of type
+    casting), we can't simply use type of the store's arguments
+    for write barrier insertion.
+    
+    Passes "toolstash -cmp" on std.
+    
+    Updates #17583.
+    
+    Change-Id: I051d5e5c482931640d1d7d879b2a6bb91f2e0056
+    Reviewed-on: https://go-review.googlesource.com/36838
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 115 ++++++++++++++++++-------
+ src/cmd/compile/internal/gc/type.go            |  15 ++++
+ src/cmd/compile/internal/ssa/gen/dec.rules     |  22 ++---
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |   8 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  26 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  14 +--
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  36 ++++----
+ src/cmd/compile/internal/ssa/rewritedec.go     |  21 +++--
+ src/cmd/compile/internal/ssa/rewritedec64.go   |   8 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  27 ++++--
+ src/cmd/compile/internal/ssa/type.go           |   9 ++
+ src/cmd/compile/internal/ssa/type_test.go      |   4 +
+ src/cmd/compile/internal/ssa/writebarrier.go   |   5 +-
+ 14 files changed, 217 insertions(+), 97 deletions(-)

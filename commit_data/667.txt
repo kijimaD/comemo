@@ -1,0 +1,27 @@
+commit 9f35e8b227d9217b550489d260f78e354f1cdbc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 16:20:00 2008 -0700
+
+    time & date.
+    
+    rename AddrToInt, StatToInt, etc -> BytePtr, StatPtr, ...
+    
+    R=r
+    OCL=15450
+    CL=15456
+
+ src/lib/make.bash                  |  14 +-
+ src/lib/os/Makefile                |   3 +-
+ src/lib/os/os_time.go              |  20 ++
+ src/lib/time/Makefile              |  32 ++++
+ src/lib/time/time.go               | 365 +++++++++++++++++++++++++++++++++++++
+ src/lib/time/zoneinfo.go           |  14 ++
+ src/syscall/Makefile               |   1 +
+ src/syscall/file_amd64_darwin.go   |  18 +-
+ src/syscall/file_amd64_linux.go    |  22 +--
+ src/syscall/syscall.go             |   2 +-
+ src/syscall/syscall_amd64_darwin.s |   4 +-
+ src/syscall/syscall_amd64_linux.s  |  11 +-
+ src/syscall/time_amd64_darwin.go   |  19 ++
+ src/syscall/time_amd64_linux.go    |  19 ++
+ 14 files changed, 515 insertions(+), 29 deletions(-)

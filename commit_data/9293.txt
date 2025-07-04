@@ -1,0 +1,12 @@
+commit 5b1f159fb580c14f90227cdc51ea635a474762af
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 5 08:25:49 2011 +1000
+
+    exp/norm: fix build by adding a test placeholder
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4838050
+
+ src/pkg/exp/norm/norm_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,0 +1,38 @@
+commit 3167ff7ca91b56f3d06c5cda371b2a7c2741cd35
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 24 20:44:09 2016 +1000
+
+    cmd/internal/*: only call ctx.Bso.Flush when something has been written
+    
+    In many places where ctx.Bso.Flush is used as the target for some debug
+    logging, ctx.Bso.Flush is called unconditionally. In the majority of
+    cases where debug logging is not enabled, this means Flush is called
+    many times when there is nothing to be flushed (it will be called anyway
+    when ctx.Bso is eventually closed), sometimes in a loop.
+    
+    Avoid this by moving the ctx.Bso.Flush call into the same condition
+    block as the debug print. This pattern was previously applied
+    sporadically.
+    
+    Change-Id: I0444cb235cc8b9bac51a59b2e44e59872db2be06
+    Reviewed-on: https://go-review.googlesource.com/27579
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/arm64/obj7.go  |  2 +-
+ src/cmd/internal/obj/mips/obj0.go   |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go  |  2 +-
+ src/cmd/internal/obj/s390x/objz.go  |  2 +-
+ src/cmd/link/internal/amd64/asm.go  | 12 ++++++------
+ src/cmd/link/internal/arm/asm.go    | 10 +++++-----
+ src/cmd/link/internal/arm64/asm.go  | 10 +++++-----
+ src/cmd/link/internal/ld/data.go    |  9 ++++-----
+ src/cmd/link/internal/ld/lib.go     |  4 ++--
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ src/cmd/link/internal/mips64/asm.go | 10 +++++-----
+ src/cmd/link/internal/ppc64/asm.go  | 10 +++++-----
+ src/cmd/link/internal/s390x/asm.go  | 10 +++++-----
+ src/cmd/link/internal/x86/asm.go    | 10 +++++-----
+ 14 files changed, 47 insertions(+), 48 deletions(-)

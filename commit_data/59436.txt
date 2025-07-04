@@ -1,0 +1,26 @@
+commit 509c11f3a39aeb627cc16dc9ffcad45fc457c5ec
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 3 12:31:55 2025 -0800
+
+    crypto,crypto/x509: implement MessageSigner
+    
+    And use it in crypto/x509. This allows people to implement single-shot
+    signers which do the hashing themselves.
+    
+    Fixes #63405
+    
+    Change-Id: I038c2e10f77b050b6136c4c0a5b031cb416f59aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654375
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/63405.txt                              |  5 ++
+ doc/next/6-stdlib/99-minor/crypto/63405.md      |  1 +
+ doc/next/6-stdlib/99-minor/crypto/x509/63405.md |  1 +
+ src/crypto/crypto.go                            | 32 +++++++++
+ src/crypto/crypto_test.go                       | 90 +++++++++++++++++++++++++
+ src/crypto/x509/x509.go                         | 23 +++----
+ src/crypto/x509/x509_test.go                    | 42 ++++++++++++
+ 7 files changed, 180 insertions(+), 14 deletions(-)

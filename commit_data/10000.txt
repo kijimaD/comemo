@@ -1,0 +1,14 @@
+commit 64471ae76204b116ab28c13f7008e90ae826a379
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 17 15:54:36 2011 +1100
+
+    http: fix panic when recovering from hijacked connection panic
+    
+    Fixes #2375.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5279049
+
+ src/pkg/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

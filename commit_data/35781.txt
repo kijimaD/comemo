@@ -1,0 +1,15 @@
+commit 75fdeaa801bc64b8b720433a868e1be197d03eaf
+Author: Thomas Bruyelle <thomas.bruyelle@gmail.com>
+Date:   Fri Jun 22 11:16:40 2018 +0200
+
+    net/http: fix test assertion
+    
+    Logf doesn't make the test fail, so the test was always OK.
+    
+    Change-Id: I7c10ee74ff7e5d28cbd3a35e185093cb9f349470
+    Reviewed-on: https://go-review.googlesource.com/120496
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transfer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

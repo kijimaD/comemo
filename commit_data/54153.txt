@@ -1,0 +1,25 @@
+commit 88a6df72c9c056559bda14d88252ba350949bf50
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 17:11:31 2023 -0400
+
+    cmd/internal/objabi: generalize "is runtime package" check
+    
+    There are several implementations of "is this package path a runtime
+    package". They all have slightly different lists because they all care
+    about slightly different properties of building the runtime.
+    
+    To start converging these, we replace objabi.IsRuntimePackagePath with
+    objabi.LookupPkgSpecial, which returns a struct we can extend with
+    various special build properties. We'll extend this with several other
+    flags in the following CLs.
+    
+    Change-Id: I21959cb8c3d18a350d6060467681c72ea49af712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521698
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/asm/main.go                   |  2 +-
+ src/cmd/internal/objabi/path.go       | 24 -----------------
+ src/cmd/internal/objabi/pkgspecial.go | 50 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 25 deletions(-)

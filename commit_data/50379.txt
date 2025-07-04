@@ -1,0 +1,16 @@
+commit 6a2ff105f169ac3b607621d6b8cd5bd0a7c800e6
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:20:31 2022 +0800
+
+    unicode/utf8: use strings.Builder
+    
+    Change-Id: I88b55f61eccb5764cac2a9397fd99a62f8735a9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428281
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/unicode/utf8/utf8_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 3aee82b66003b4cbf9d938382273c8bce390fc35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 26 09:59:53 2011 -0500
+
+    encoding/line: make it an io.Reader too
+    
+    R=agl1, bradfitzwork, rsc
+    CC=golang-dev
+    https://golang.org/cl/4066043
+
+ src/pkg/encoding/line/line.go      | 26 +++++++++++++++++++++-----
+ src/pkg/encoding/line/line_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 5 deletions(-)

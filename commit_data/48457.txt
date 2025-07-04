@@ -1,0 +1,16 @@
+commit 7eaad60737bc507596c56cec4951b089596ccc9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 20 11:52:02 2022 -0700
+
+    net/http: flesh out Request.SetBasicAuth docs a bit
+    
+    Clarify that username can't contain a colon.
+    See https://go.dev/play/p/aM25UHC6n98
+    
+    Change-Id: I342575107104cbcd28b1d3442c474adf93b7f03c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394115
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

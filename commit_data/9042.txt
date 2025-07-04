@@ -1,0 +1,16 @@
+commit 41efecf51c507f4abeec51247540ece7943d7c8e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 13 13:21:18 2011 +1000
+
+    exp/template: allow variables as template names.
+    Just an oversight it wasn't already there.
+    Thanks to islandberry@live.com for pointing out the omission.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, islandberry
+    https://golang.org/cl/4703043
+
+ src/pkg/exp/template/parse.go      | 38 +++++++++++++++++++++-----------------
+ src/pkg/exp/template/parse_test.go |  3 +++
+ src/pkg/exp/template/set_test.go   |  1 +
+ 3 files changed, 25 insertions(+), 17 deletions(-)

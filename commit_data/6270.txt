@@ -1,0 +1,16 @@
+commit 6ee7997366ef4c1f666790d65b039e76407327f3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 14 11:06:17 2010 +1000
+
+    fmt.Fscan: use UnreadRune to preserve data across calls.
+    Fixes #1055.
+    (About as well as it can be fixed without changing the API.)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2156047
+
+ src/pkg/fmt/doc.go       | 12 ++++++++----
+ src/pkg/fmt/scan.go      | 38 +++++++++++++++++++++++++++++---------
+ src/pkg/fmt/scan_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 13 deletions(-)

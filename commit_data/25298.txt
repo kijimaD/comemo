@@ -1,0 +1,17 @@
+commit 91c8e5f80be36f20e3b63715f52babc015258640
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 14:07:21 2015 -0500
+
+    cmd/compile: fix export type conversion loss in inlined func body
+    
+    Fixes #12677.
+    
+    Change-Id: I72012f55615fcf5f4a16c054706c9bcd82e49ccd
+    Reviewed-on: https://go-review.googlesource.com/17817
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ test/fixedbugs/issue12677.dir/p.go | 8 ++++++++
+ test/fixedbugs/issue12677.dir/q.go | 7 +++++++
+ test/fixedbugs/issue12677.go       | 9 +++++++++
+ 4 files changed, 25 insertions(+), 1 deletion(-)

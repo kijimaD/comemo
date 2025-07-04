@@ -1,0 +1,23 @@
+commit ca3aefc4a96f2e26c7bed549a6c90b6f12c1ecea
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 29 20:14:51 2021 -0400
+
+    cmd/compile: make expandCalls preserve types of pointer stores
+    
+    This is accomplished by checking for simple stores of pointer types
+    and leaving them alone.  The failure case was when a *mspan
+    (not in heap) stored type was replaced by unsafe.Pointer.
+    
+    Updates #40724.
+    
+    Change-Id: I529e1705bf58fb0e64e60d48fd550b3a407e57e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305672
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 5 ++++-
+ src/cmd/compile/internal/ssa/value.go        | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

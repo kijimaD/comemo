@@ -1,0 +1,27 @@
+commit 933f6685f7d33f3865d6ef062cbb0944d3f5d2fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 16 12:55:15 2021 -0800
+
+    cmd/compile: unique LinkString for renamed, embedded fields
+    
+    Using type aliases, it's possible to create structs with embedded
+    fields that have no corresponding type literal notation. However, we
+    still need to generate a unique name for these types to use for linker
+    symbols. This CL introduces a new "struct{ Name = Type }" syntax for
+    use in LinkString formatting to represent these types.
+    
+    Fixes #50190.
+    
+    Change-Id: I025ceb09a86e00b7583d3b9885d612f5d6cb44fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372914
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/fmt.go | 37 +++++++++++++++++++++++++++++++++--
+ test/fixedbugs/issue50190.go          | 21 ++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 2 deletions(-)

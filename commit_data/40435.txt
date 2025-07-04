@@ -1,0 +1,25 @@
+commit 06bdd52f7540eca9e3ade6e78234d00703f3ee23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 25 15:37:00 2019 -0400
+
+    os: use an actual RemoveAll failure in TestRemoveAllWithMoreErrorThanReqSize
+    
+    Previously we injected an error, and the injection points were
+    (empirically) not realistic on some platforms.
+    
+    Instead, we now make the directory read-only, which (on most
+    platforms) suffices to prevent the removal of its files.
+    
+    Fixes #35117
+    Updates #29921
+    
+    Change-Id: Ica4e2818566f8c14df3eed7c3b8de5c0abeb6963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/export_test.go    |  1 -
+ src/os/removeall_at.go   |  1 -
+ src/os/removeall_noat.go |  1 -
+ src/os/removeall_test.go | 50 ++++++++++++++++++++++++++++++++----------------
+ 4 files changed, 34 insertions(+), 19 deletions(-)

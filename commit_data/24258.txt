@@ -1,0 +1,15 @@
+commit 4c96e7b79b9bb8207885e8ba63cc19f2d863b75c
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Sep 2 20:25:46 2015 +0200
+
+    cmd/compile/internal/gc: clean up errcmp
+    
+    Change-Id: Id07811a25bf4aa3ff834e7254a3dfb04522b2926
+    Reviewed-on: https://go-review.googlesource.com/14174
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/subr.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

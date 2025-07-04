@@ -1,0 +1,12 @@
+commit c408266e2861513eac79d999f7553dc93992a965
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:59 2016 +0200
+
+    internal/syscall/unix: add randomTrap const for GOARCH=mips{,le}
+    
+    Change-Id: I76c62a7b79ea526f59f281e933e4fd431539d2da
+    Reviewed-on: https://go-review.googlesource.com/31486
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/syscall/unix/getrandom_linux_mipsx.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

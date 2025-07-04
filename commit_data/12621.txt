@@ -1,0 +1,23 @@
+commit 5659826e43349426d86ccc8816fbf02babe19065
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Mar 14 13:03:11 2012 +1100
+
+    doc: add Go Concurrency Patterns: Timing out, moving on article
+    
+    Originally published on The Go Programming Language Blog, September 23, 2010.
+    
+    http://blog.golang.org/2010/09/go-concurrency-patterns-timing-out-and.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5815044
+
+ doc/Makefile                                       |  4 +-
+ ..._concurrency_patterns_timing_out_moving_on.html | 79 ++++++++++++++++++++++
+ doc/docs.html                                      |  2 +-
+ doc/progs/run                                      |  7 +-
+ doc/progs/timeout1.go                              | 28 ++++++++
+ doc/progs/timeout2.go                              | 27 ++++++++
+ 6 files changed, 144 insertions(+), 3 deletions(-)

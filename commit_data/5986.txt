@@ -1,0 +1,18 @@
+commit 56b989f1b9d5290ab38bcdd96be80600ea97b61b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 10 16:08:21 2010 +1000
+
+    First cut of an HTML tokenizer (and eventually a parser).
+    
+    R=r, rsc, gri, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1814044
+
+ src/pkg/Makefile           |   1 +
+ src/pkg/html/Makefile      |  14 ++
+ src/pkg/html/doc.go        |  87 ++++++++++
+ src/pkg/html/entity.go     |  38 +++++
+ src/pkg/html/escape.go     |  89 ++++++++++
+ src/pkg/html/token.go      | 406 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/token_test.go | 162 ++++++++++++++++++
+ 7 files changed, 797 insertions(+)

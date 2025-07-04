@@ -1,0 +1,32 @@
+commit efc86a74e4e1f0bf38e42271dae11d7a23026b4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 16:48:10 2008 -0800
+
+    change meaning of $GOMAXPROCS to number of cpus to use,
+    not number of threads.  can still starve all the other threads,
+    but only by looping, not by waiting in a system call.
+    
+    fix darwin syscall.Syscall6 bug.
+    
+    fix chanclient bug.
+    
+    delete $GOMAXPROCS from network tests.
+    
+    add stripped down printf, sys.printhex to runtime.
+    
+    R=r
+    DELTA=355  (217 added, 36 deleted, 102 changed)
+    OCL=20017
+    CL=20019
+
+ src/lib/net/fd.go                  |   2 +
+ src/lib/syscall/asm_amd64_darwin.s |  12 ++-
+ src/lib/syscall/asm_amd64_linux.s  |  17 ++-
+ src/runtime/print.c                |  93 +++++++++++++---
+ src/runtime/proc.c                 | 215 ++++++++++++++++++++++++++-----------
+ src/runtime/rt1_amd64_darwin.c     |  46 ++++----
+ src/runtime/rt1_amd64_linux.c      |  46 ++++----
+ src/runtime/runtime.h              |   6 ++
+ test/dialgoogle.go                 |   2 +-
+ test/tcpserver.go                  |   4 +-
+ 10 files changed, 312 insertions(+), 131 deletions(-)

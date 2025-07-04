@@ -1,0 +1,16 @@
+commit 6070e432d2cbde0f04b7391069f5dbb27589b341
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 28 11:36:29 2018 -0700
+
+    cmd/dist: report correct CC name in error about missing CC
+    
+    Fixes #25611
+    
+    Change-Id: I487463584e4d9d99cf5d8db0c9a4b4e66464ecd8
+    Reviewed-on: https://go-review.googlesource.com/114935
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 599f758d42d6c6f58edeff902707493564fb0495
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 10:40:07 2010 -0700
+
+    godoc: don't use quadratic algorithm to filter paths
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2212042
+
+ src/cmd/godoc/godoc.go | 53 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 43 insertions(+), 10 deletions(-)

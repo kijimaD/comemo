@@ -1,0 +1,12 @@
+commit 549cb18a9131221755694c0ccc610ae9a406129d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Feb 16 23:26:02 2018 -0500
+
+    doc: update devel/release.html to add Go 1.10
+    
+    Change-Id: I869f1607b0209ad190bc02999879f0682965fdf7
+    Reviewed-on: https://go-review.googlesource.com/94915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

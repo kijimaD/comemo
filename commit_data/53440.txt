@@ -1,0 +1,20 @@
+commit 7183e77cc07e380fd3df98f978386d29ecc79eb0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 1 10:16:01 2023 -0700
+
+    go/types, types2: use exact matching when unifying constraint method signatures
+    
+    Fixes #60556.
+    
+    Change-Id: I203a0bc79eff607654c3e8350d259e694cb035b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go            |  8 +++++++-
+ src/go/types/infer.go                               |  8 +++++++-
+ src/internal/types/testdata/fixedbugs/issue60556.go | 19 +++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

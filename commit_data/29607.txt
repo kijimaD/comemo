@@ -1,0 +1,20 @@
+commit 8d226da29d95d31b6016a669b6da8f1dd52027c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 16:15:05 2016 -0800
+
+    cmd/go: don't check standard packages when using gccgo
+    
+    The gccgo compiler does not have the standard packages available, so it
+    can not check for violations of internal references.
+    
+    Also, the gccgo compiler can not read runtime/internal/sys/zversion.go;
+    in fact, the file does not even exist for gccgo.
+    
+    Change-Id: Ibadf16b371621ad1b87b6e858c5eb233913e179d
+    Reviewed-on: https://go-review.googlesource.com/33295
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/pkg.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

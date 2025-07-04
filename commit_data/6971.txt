@@ -1,0 +1,13 @@
+commit 1a072f4b37f7d2a5bc3fb7a43cb9003e122acd5e
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 15 13:58:57 2010 -0500
+
+    crypto/tls: commit fixes which I hadn't saved.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3685041
+
+ src/pkg/crypto/tls/cipher_suites.go | 10 ++++++----
+ src/pkg/crypto/tls/common.go        |  2 +-
+ 2 files changed, 7 insertions(+), 5 deletions(-)

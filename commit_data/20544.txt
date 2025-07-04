@@ -1,0 +1,13 @@
+commit dff461f935523035d2f64dc80b1626a0644ab344
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 14:10:56 2014 -0700
+
+    doc/gopher: add biplane.jpg
+    
+    LGTM=0intro
+    R=golang-codereviews, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/150960043
+
+ doc/gopher/biplane.jpg | Bin 0 -> 203420 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

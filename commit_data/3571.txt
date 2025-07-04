@@ -1,0 +1,13 @@
+commit 3c5a570ab41e6da2deca3ffc34ee83a7b2e3b632
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:08:46 2009 -0700
+
+    more description
+    
+    R=r
+    DELTA=4  (2 added, 0 deleted, 2 changed)
+    OCL=35809
+    CL=35822
+
+ pkg/~place-holder~ | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

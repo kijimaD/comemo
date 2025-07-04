@@ -1,0 +1,13 @@
+commit fd774f1a33328a84d1fa86f6a9b67ab92db863ab
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 13:33:11 2009 -0700
+
+    fix test
+    
+    R=gri
+    DELTA=4  (0 added, 4 deleted, 0 changed)
+    OCL=33202
+    CL=33204
+
+ src/pkg/go/printer/testdata/golden1.x | 4 ----
+ 1 file changed, 4 deletions(-)

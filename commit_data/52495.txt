@@ -1,0 +1,26 @@
+commit 8edcdddb23c6d3f786b465c43b49e8d9a0015082
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 30 09:52:39 2023 -0700
+
+    crypto/subtle: don't cast to *uintptr when word size is 0
+    
+    Casting to a *uintptr is not ok if there isn't at least 8 bytes of
+    data backing that pointer (on 64-bit archs).
+    So although we end up making a slice of 0 length with that pointer,
+    the cast itself doesn't know that.
+    Instead, bail early if the result is going to be 0 length.
+    
+    Fixes #59334
+    
+    Change-Id: Id3c0e09d341d838835c0382cccfb0f71dc3dc7e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480575
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/subtle/xor_generic.go |  8 +++++++-
+ test/fixedbugs/issue59334.go     | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

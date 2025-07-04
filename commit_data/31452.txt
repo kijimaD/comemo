@@ -1,0 +1,16 @@
+commit a8e3852a05ddc1e590c7ae40b050ca663f1e1e4a
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sun Apr 30 14:47:04 2017 +0200
+
+    sync: really test DeepCopyMap
+    
+    since there current version suffers from a copy'n'paste error.
+    
+    Change-Id: I1ef97a4413198dde10c5c926a2a9806724cd6d44
+    Reviewed-on: https://go-review.googlesource.com/42095
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/map_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

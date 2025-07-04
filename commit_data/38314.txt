@@ -1,0 +1,25 @@
+commit 514c5593f0a76ffb86a44b9a5a839ed806d9c7fe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 28 16:04:43 2019 -0500
+
+    go/build: change the search order for "vendor/" paths based on srcDir
+    
+    If srcDir is within GOROOT, prefer GOROOT.
+    Otherwise, prefer GOPATH.
+    
+    The attached tests may seem a bit strange; they will make more sense
+    in a followup CL.
+    
+    Updates #16333
+    Updates #30241
+    Updates #30228
+    
+    Change-Id: Ic5f1334cce5e242d7f49080aba083bcf2080dee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164619
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/gopath_std_vendor.txt | 41 ++++++++++++++++++++
+ src/go/build/build.go                            | 48 +++++++++++++++++++-----
+ 2 files changed, 79 insertions(+), 10 deletions(-)

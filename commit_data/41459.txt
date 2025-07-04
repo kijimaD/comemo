@@ -1,0 +1,15 @@
+commit d0e9a4ebfd0be15bceeeae31f56658785e66f4d4
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Feb 24 17:23:19 2020 -0500
+
+    crypto/tls: use new ecdsa.VerifyASN1 API
+    
+    Change-Id: I2a233190bda78ca022ff4074b4553788847d7583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220720
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/auth.go   | 10 +---------
+ src/crypto/tls/common.go |  8 --------
+ 2 files changed, 1 insertion(+), 17 deletions(-)

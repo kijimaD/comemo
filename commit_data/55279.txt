@@ -1,0 +1,16 @@
+commit dce7f335c5f9373dc1b56d7165f1a722e9240c61
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 12 11:10:35 2023 -0800
+
+    doc/go1.22: document zero-copy to net.UnixConn
+    
+    For #58808
+    
+    Change-Id: Id73b9e4b5fb96426a01b76ce7a1053a6ad61a58e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549197
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ doc/go1.22.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

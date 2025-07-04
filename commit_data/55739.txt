@@ -1,0 +1,20 @@
+commit 5e00352b9b8919836f5793a2fe2db690fb7507c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 27 09:21:44 2024 -0800
+
+    go/types, types2: consistently use singular when reporting version errors
+    
+    Change-Id: I39af932b789cd18dc4bfc84f9667b1c32c9825f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567476
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/conversions.go |  4 ++--
+ src/cmd/compile/internal/types2/version.go     |  8 ++++----
+ src/go/types/conversions.go                    |  4 ++--
+ src/go/types/version.go                        |  8 ++++----
+ src/internal/types/testdata/check/go1_12.go    | 18 +++++++++---------
+ test/fixedbugs/issue31747.go                   | 18 +++++++++---------
+ 6 files changed, 30 insertions(+), 30 deletions(-)

@@ -1,0 +1,75 @@
+commit 6e81f78c0f1653ea140e6c8d008700ddad1fa0a5
+Merge: b0fa2f5b09 113da92ab6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 20 15:13:52 2021 -0700
+
+    [dev.fuzz] Merge remote-tracking branch 'origin/dev.fuzz' into merge-fuzz
+    
+    Change-Id: I3976e624fe2817d06b708005c994f6832f6d4357
+
+ api/except.txt                                     |    1 +
+ api/next.txt                                       |   36 +
+ src/cmd/go/alldocs.go                              |   78 +-
+ src/cmd/go/internal/cache/cache.go                 |   10 +
+ src/cmd/go/internal/cfg/cfg.go                     |    4 +
+ src/cmd/go/internal/clean/clean.go                 |   18 +-
+ src/cmd/go/internal/load/flag.go                   |    5 +-
+ src/cmd/go/internal/load/pkg.go                    |   18 +-
+ src/cmd/go/internal/load/test.go                   |   16 +-
+ src/cmd/go/internal/test/flagdefs.go               |    3 +
+ src/cmd/go/internal/test/flagdefs_test.go          |    2 +-
+ src/cmd/go/internal/test/genflags.go               |    2 +-
+ src/cmd/go/internal/test/test.go                   |  131 ++-
+ src/cmd/go/internal/test/testflag.go               |    3 +
+ src/cmd/go/internal/work/init.go                   |    8 +
+ src/cmd/go/main.go                                 |    1 +
+ src/cmd/go/testdata/script/test_fuzz.txt           |  442 ++++++++
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |   81 ++
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt    |  106 ++
+ src/cmd/go/testdata/script/test_fuzz_cleanup.txt   |   67 ++
+ src/cmd/go/testdata/script/test_fuzz_deadline.txt  |   37 +
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |   82 ++
+ src/cmd/go/testdata/script/test_fuzz_io_error.txt  |  101 ++
+ src/cmd/go/testdata/script/test_fuzz_match.txt     |   39 +
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  200 ++++
+ .../script/test_fuzz_minimize_interesting.txt      |  112 ++
+ src/cmd/go/testdata/script/test_fuzz_multiple.txt  |   51 +
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  295 +++++
+ .../go/testdata/script/test_fuzz_mutate_fail.txt   |  103 ++
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt   |  166 +++
+ .../testdata/script/test_fuzz_mutator_repeat.txt   |   66 ++
+ .../testdata/script/test_fuzz_non_crash_signal.txt |   55 +
+ src/cmd/go/testdata/script/test_fuzz_parallel.txt  |   61 +
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   |  168 +++
+ src/cmd/go/testdata/script/test_fuzz_setenv.txt    |   45 +
+ src/cmd/go/testdata/script/test_fuzz_tag.txt       |   31 +
+ src/cmd/link/internal/ld/data.go                   |   24 +-
+ src/go/build/deps_test.go                          |    5 +-
+ src/go/doc/example.go                              |   16 +-
+ src/go/doc/example_test.go                         |    6 +
+ src/internal/fuzz/coverage.go                      |  115 ++
+ src/internal/fuzz/encoding.go                      |  240 ++++
+ src/internal/fuzz/encoding_test.go                 |  172 +++
+ src/internal/fuzz/fuzz.go                          | 1020 +++++++++++++++++
+ src/internal/fuzz/mem.go                           |  134 +++
+ src/internal/fuzz/minimize.go                      |  116 ++
+ src/internal/fuzz/minimize_test.go                 |  286 +++++
+ src/internal/fuzz/mutator.go                       |  317 ++++++
+ src/internal/fuzz/mutator_test.go                  |  101 ++
+ src/internal/fuzz/mutators_byteslice.go            |  301 +++++
+ src/internal/fuzz/mutators_byteslice_test.go       |  179 +++
+ src/internal/fuzz/pcg.go                           |  145 +++
+ src/internal/fuzz/queue.go                         |   71 ++
+ src/internal/fuzz/queue_test.go                    |   58 +
+ src/internal/fuzz/sys_posix.go                     |  131 +++
+ src/internal/fuzz/sys_unimplemented.go             |   44 +
+ src/internal/fuzz/sys_windows.go                   |  152 +++
+ src/internal/fuzz/trace.go                         |   30 +
+ src/internal/fuzz/worker.go                        | 1160 ++++++++++++++++++++
+ src/internal/fuzz/worker_test.go                   |  147 +++
+ src/testing/benchmark.go                           |   23 +-
+ src/testing/fuzz.go                                |  783 +++++++++++++
+ src/testing/internal/testdeps/deps.go              |   71 ++
+ src/testing/sub_test.go                            |    9 +-
+ src/testing/testing.go                             |  199 +++-
+ 65 files changed, 8593 insertions(+), 106 deletions(-)

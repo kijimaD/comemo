@@ -1,0 +1,13 @@
+commit fe330cf5bb28c3e29514ce78ed4b88ba89508de7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 24 16:34:51 2014 +0900
+
+    syscall: make mkerrors.sh work with clang
+    
+    LGTM=iant
+    R=golang-codereviews, minux.ma, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/67170043
+
+ src/pkg/syscall/mkerrors.sh | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

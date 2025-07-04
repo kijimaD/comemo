@@ -1,0 +1,18 @@
+commit ff73221d6f0f1abd632153c420ce954d2f6fc23a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 18:52:39 2009 -0700
+
+    fix infinite loop in Readdirnames: bufp > nbuf can happen
+    after EOF has been hit, because nbuf is now 0 or -1.
+    
+    discard old comment.
+    
+    R=r
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=27463
+    CL=27465
+
+ src/lib/os/dir_amd64_darwin.go | 2 +-
+ src/lib/os/dir_amd64_linux.go  | 2 +-
+ src/lib/os/file.go             | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

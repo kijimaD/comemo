@@ -1,0 +1,16 @@
+commit 82d1019c60af4a013f2ffbff87e0cad028a073d7
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:43:28 2022 +0800
+
+    net/textproto: use strings.Builder
+    
+    Change-Id: I2ed993a804dd830b9ff445c467eb224b7aaa3401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428273
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/textproto/writer_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

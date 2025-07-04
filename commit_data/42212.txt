@@ -1,0 +1,20 @@
+commit 844b410922b2ea7d22b651c536178e79696749f6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 29 16:45:05 2020 -0700
+
+    net/http/cgi: replace constant map with switch statement
+    
+    The switch statement can be statically optimized by the compiler,
+    whereas similarly optimizing the map index expression would require
+    additional compiler analysis to detect the map is never mutated.
+    
+    Updates #10848.
+    
+    Change-Id: I2fc70d4a34dc545677b99f218b51023c7891bbbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231041
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cgi/host.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

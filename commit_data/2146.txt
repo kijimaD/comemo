@@ -1,0 +1,26 @@
+commit 1d6bd79ceb3dc8f1acc0f223ca5d7fd86c5fd2e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 5 18:38:45 2009 -0700
+
+    new dir structure for lib/go
+    
+    R=r
+    DELTA=9298  (4760 added, 4536 deleted, 2 changed)
+    OCL=28317
+    CL=28317
+
+ src/lib/Makefile                         |   4 +-
+ src/lib/go/Makefile                      | 100 -------------------------------
+ src/lib/go/ast/Makefile                  |  68 +++++++++++++++++++++
+ src/lib/go/{ => ast}/ast.go              |   0
+ src/lib/go/doc/Makefile                  |  68 +++++++++++++++++++++
+ src/lib/go/{ => doc}/doc.go              |   0
+ src/lib/go/parser/Makefile               |  68 +++++++++++++++++++++
+ src/lib/go/{ => parser}/parser.go        |   0
+ src/lib/go/{ => parser}/parser_test.go   |   0
+ src/lib/go/scanner/Makefile              |  68 +++++++++++++++++++++
+ src/lib/go/{ => scanner}/scanner.go      |   0
+ src/lib/go/{ => scanner}/scanner_test.go |   0
+ src/lib/go/token/Makefile                |  68 +++++++++++++++++++++
+ src/lib/go/{ => token}/token.go          |   0
+ 14 files changed, 342 insertions(+), 102 deletions(-)

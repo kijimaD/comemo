@@ -1,0 +1,22 @@
+commit 794442375d87e57d012bab2d7424575f6cdff018
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 18 17:05:54 2016 -0700
+
+    cmd/vet: allow large shifts of constants
+    
+    Large shifts of constants are frequently
+    used for fancy 32/64 bit detection.
+    
+    This removes 14 false positives from the
+    standard library.
+    
+    Updates #11041
+    
+    Change-Id: Ib39346e5c161da04c38a6a3067932ef43bf74f2d
+    Reviewed-on: https://go-review.googlesource.com/27155
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/shift.go          | 6 ++++++
+ src/cmd/vet/testdata/shift.go | 2 ++
+ 2 files changed, 8 insertions(+)

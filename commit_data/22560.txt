@@ -1,0 +1,13 @@
+commit 5da1c254d5e083922f0943c79677b8b43faf49be
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 16:05:52 2015 -0400
+
+    runtime: do not run main when buildmode=c-shared
+    
+    Change-Id: Ie7f85873978adf3fd5c739176f501ca219592824
+    Reviewed-on: https://go-review.googlesource.com/9011
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

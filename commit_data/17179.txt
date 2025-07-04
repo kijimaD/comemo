@@ -1,0 +1,14 @@
+commit 9707f269c1eb7ee68a2be93e87eb49d481fb1a84
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 12:55:57 2013 +0400
+
+    runtime: fix network timers related crash
+    Fixes #6103.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12686045
+
+ src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/netpoll.goc |  9 ++++++---
+ 2 files changed, 39 insertions(+), 3 deletions(-)

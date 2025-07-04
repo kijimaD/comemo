@@ -1,0 +1,16 @@
+commit 892d146a7aae17e5fe22e04b16ba4da7e3d8c767
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 19 11:22:52 2016 +1000
+
+    cmd/vet: fix documentation for -structtags
+    
+    Was missing a title in the documentation, so it formatted wrong.
+    
+    Fixes #17124
+    
+    Change-Id: Ie8a9c36fbc54eed7d8a761f89a088e582b8c062d
+    Reviewed-on: https://go-review.googlesource.com/29340
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/vet/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

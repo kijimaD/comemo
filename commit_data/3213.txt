@@ -1,0 +1,12 @@
+commit 620dc595ff70d6722985a8ca2c306e7152401957
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 16:18:03 2009 -0700
+
+    missed in last compiler change
+    
+    R=ken
+    OCL=34348
+    CL=34348
+
+ test/golden.out | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

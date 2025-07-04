@@ -1,0 +1,12 @@
+commit 4087c1b842774310467871470797ef81653f0125
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jul 22 16:35:53 2012 -0700
+
+    doc: add two I/O talks to "Talks" section
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6422056
+
+ doc/docs.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

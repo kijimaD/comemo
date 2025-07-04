@@ -1,0 +1,23 @@
+commit a517c3422e808ae51533a0700e05d59e8a799136
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 5 12:17:30 2020 -0400
+
+    runtime: clean up runtime.call* frame sizes on ARM64
+    
+    ARM64 used to require that all assembly frame sizes were of the form
+    16*N+8 because ARM64 requires 16-byte SP alignment and the assembler
+    added an 8 byte LR slot. This made all of the runtime.call* frame
+    sizes wonky. The assembler now rounds up the frame size appropriately
+    after adding any additional slots it needs, so this is no longer
+    necessary.
+    
+    This CL cleans up the frame sizes of these functions so they look the
+    way you'd expect and match all other architectures.
+    
+    Change-Id: I47819092296b8983c43eadf2e66c7c1e0d518555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259448
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm64.s | 56 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 29 deletions(-)

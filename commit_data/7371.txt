@@ -1,0 +1,18 @@
+commit 6c5e4e18541d1e254de7bf26be849f09b2c1e8cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 4 14:33:08 2011 -0500
+
+    build: allow clean.bash to work on fresh checkout
+    
+    Must be invoked as ./clean.bash --gomake make
+    (or --gomake gmake, depending on the name of
+    GNU make).
+    
+    R=niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4023065
+
+ src/clean.bash     |  4 ++--
+ src/cmd/clean.bash |  7 ++++++-
+ src/pkg/Makefile   | 10 +++++-----
+ 3 files changed, 13 insertions(+), 8 deletions(-)

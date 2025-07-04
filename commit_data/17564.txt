@@ -1,0 +1,16 @@
+commit 6d47de2f408811304f2cc06d3debd2404b360f84
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 15:22:11 2013 -0400
+
+    cmd/5g, cmd/6g, cmd/8g: remove O(n) reset loop in copyprop
+    
+    Simpler version of CL 13084043.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13602045
+
+ src/cmd/5g/peep.c | 12 +++++++-----
+ src/cmd/6g/peep.c | 12 +++++++-----
+ src/cmd/8g/peep.c | 12 +++++++-----
+ 3 files changed, 21 insertions(+), 15 deletions(-)

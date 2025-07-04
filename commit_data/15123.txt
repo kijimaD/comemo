@@ -1,0 +1,14 @@
+commit 5fad7864521805c31d725ab156d02ac633610367
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 4 15:57:32 2013 +1100
+
+    regexp: update comment on (*Regexp).Longest
+    
+    Missed this review comment.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7229084
+
+ src/pkg/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

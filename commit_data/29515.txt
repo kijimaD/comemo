@@ -1,0 +1,16 @@
+commit 4966150af0139b5f26a943eb4c33fe5cb6758043
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Nov 12 17:01:08 2016 +0100
+
+    net: enable TestReadTimeoutUnblocksRead on Plan 9
+    
+    Deadlines have been implemented on Plan 9 in CL 31521.
+    
+    Fixes #17477.
+    
+    Change-Id: Icb742ac30933b6d2f9350fc4e6acbcd433c66c21
+    Reviewed-on: https://go-review.googlesource.com/33190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

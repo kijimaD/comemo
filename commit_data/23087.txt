@@ -1,0 +1,19 @@
+commit b3241912ff62ab64ec3c61bc8c198b6e12890a77
+Author: Alexander Zolotov <goldifit@gmail.com>
+Date:   Sat May 9 16:41:32 2015 +0300
+
+    cmd/go: run gofmt from current GOROOT
+    
+    The existing implementation executes `gofmt` binary from PATH
+    environment variable on invocation `go fmt` command.
+    Relying on PATH might lead to confusions for users with several Go installations.
+    It's more appropriate to run `gofmt` from GOBIN (if defined) or GOROOT.
+    
+    Fixes #10755
+    
+    Change-Id: I56d42a747319c766f2911508fab3994c3a366d12
+    Reviewed-on: https://go-review.googlesource.com/9900
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/fmt.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

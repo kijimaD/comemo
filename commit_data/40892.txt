@@ -1,0 +1,17 @@
+commit 01f15b62b3d91c0f7fed54eedeee4123eb04b533
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Fri Oct 25 06:19:23 2019 +0000
+
+    cmd/internal/obj/arm64: add NOOP description in Go assembly syntax
+    
+    This Patch describes NOOP in Go assembly syntax and gives Go assembly
+    example and corresponding GNU assembly example.
+    
+    Change-Id: I9db659cc5e3dc6b1f1450f2064255af8872d4b1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207400
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

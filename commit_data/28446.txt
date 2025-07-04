@@ -1,0 +1,16 @@
+commit c1bee49cac710af467f6450e104f920eafe344f7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Sep 18 15:28:41 2016 -0400
+
+    cmd/dist: fix internal linking check for mips64le
+    
+    Fix mips64le build.
+    
+    Change-Id: Icf1b4901655463f582b49054a88edfb06ad6c676
+    Reviewed-on: https://go-review.googlesource.com/29281
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

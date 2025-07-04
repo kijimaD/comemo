@@ -1,0 +1,21 @@
+commit 375129ab4c12ee9f04e20eb363c61460b8069290
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 28 17:12:41 2024 -0700
+
+    cmd/dist, internal/syslist: update UnixOS comments
+    
+    Update the comments about the list of Unix systems after CL 601357,
+    which moved one copy and eliminated another.
+    
+    Change-Id: I12f5b14a53ce6f8b3a41c9a10f947465c291e2b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623035
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/build.go           | 3 +--
+ src/internal/syslist/syslist.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

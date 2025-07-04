@@ -1,0 +1,12 @@
+commit dd29609244b72e57ebda3551eb84d4bed716f4bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Mar 4 11:53:07 2012 +1100
+
+    godoc: fix codewalks
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5732056
+
+ src/cmd/godoc/codewalk.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 26d9c804f837398eef1d09d6224de59e37d1cbca
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Aug 26 15:39:23 2011 -0400
+
+    8l: add openbsd
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4972043
+
+ src/cmd/8l/asm.c  | 9 ++++++++-
+ src/cmd/8l/doc.go | 2 ++
+ src/cmd/8l/obj.c  | 3 +++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 20819440fc65d28fabe8f7410ea8fe193cdc53c6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 15 18:04:08 2020 -0400
+
+    cmd/internal/objfile: correct file table reading for Go object file
+    
+    Apparently I never actually understood the new file table in Go
+    object files. The PC value stream actually encodes the file index
+    in the per-CU table. I thought it was indexing into a per-function
+    table, which then contains index to the per-CU table. Remove the
+    extra indirection.
+    
+    Change-Id: I0aea5629f7b3888ebe3a04fea437aa15ce89519e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262779
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/internal/objfile/goobj.go           |  4 +--
+ src/cmd/objdump/objdump_test.go             | 38 +++++++++++++++++++++++++++++
+ src/cmd/objdump/testdata/testfilenum/a.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/b.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/c.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/go.mod |  3 +++
+ 6 files changed, 63 insertions(+), 3 deletions(-)

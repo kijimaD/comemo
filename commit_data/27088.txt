@@ -1,0 +1,14 @@
+commit 3564ec52cda2a3c83aaf41159b26369ca4e7ecee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 22:13:50 2016 +0000
+
+    cmd/api: ignore vendored packages
+    
+    Fixes #15404
+    
+    Change-Id: I16f2a34a1e4c3457053a1fc2141f21747cfb22b4
+    Reviewed-on: https://go-review.googlesource.com/22386
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/api/goapi.go | 5 +++++
+ 1 file changed, 5 insertions(+)

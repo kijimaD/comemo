@@ -1,0 +1,22 @@
+commit ee1b90ad2c3cc97215c0f38f70e62396856eb0f2
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Mar 22 15:38:21 2016 +0200
+
+    cmd/vet: improve detecting printf-like format argument
+    
+    Previously format argument was detected via scanning func type args.
+    This didn't work when func type couldn't be determined if the func
+    is declared in the external package. Fall back to scanning for
+    the first string call argument in this case.
+    
+    Fixes #14754
+    
+    Change-Id: I571cc29684cc641bc87882002ef474cf1481e9e2
+    Reviewed-on: https://go-review.googlesource.com/21023
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 94 +++++++++++++++++++++++++------------------
+ src/cmd/vet/testdata/print.go | 22 ++++++++++
+ 2 files changed, 76 insertions(+), 40 deletions(-)

@@ -1,0 +1,19 @@
+commit d83688165aabfe31f3501a302f6a8b94393439f3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 29 22:58:26 2013 +0400
+
+    runtime: fix freebsd build
+    notetsleep: nosplit stack overflow
+            120     assumed on entry to notetsleep
+            80      after notetsleep uses 40
+            72      on entry to runtime.futexsleep
+            16      after runtime.futexsleep uses 56
+            8       on entry to runtime.printf
+            -16     after runtime.printf uses 24
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12047043
+
+ src/pkg/runtime/os_freebsd.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

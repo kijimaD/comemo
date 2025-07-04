@@ -1,0 +1,30 @@
+commit 5042317d6919d4c84557e04be35130430e8d1dd4
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Wed Nov 13 13:46:42 2019 +0100
+
+    runtime: add arenaBaseOffset on aix/ppc64
+    
+    On AIX, addresses returned by mmap are between 0x0a00000000000000
+    and 0x0afffffffffffff. The previous solution to handle these large
+    addresses was to increase the arena size up to 60 bits addresses,
+    cf CL 138736.
+    
+    However, with the new page allocator, the 60bit heap addresses are
+    causing huge memory allocations, especially by (s *pageAlloc).init. mmap
+    and munmap syscalls dealing with these allocations are reducing
+    performances of every Go programs.
+    
+    In order to avoid these allocations, arenaBaseOffset is set to
+    0x0a00000000000000 and heap addresses are on 48bit, as others operating
+    systems.
+    
+    Updates: #35451
+    
+    Change-Id: Ice916b8578f76703428ec12a82024147a7592bc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206841
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go |  6 +++++-
+ src/runtime/malloc.go      | 22 ++++++++++------------
+ 2 files changed, 15 insertions(+), 13 deletions(-)

@@ -1,0 +1,16 @@
+commit 2fedd335f00bfc084f9008fa3b2ffbfcad240f04
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:40:44 2022 +0800
+
+    cmd/go/internal/modindex: should omit comparison to bool constant
+    
+    Change-Id: Iea75d0475e1cc8f794a7bae864c6ce0e6e33cb6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436698
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/modindex/read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

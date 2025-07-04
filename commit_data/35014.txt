@@ -1,0 +1,21 @@
+commit a3df9c475509d92d2995bc33e10b987bc330dee8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 16 21:34:12 2018 +0000
+
+    os/user: fix osusergo build on Solaris
+    
+    Verified that on on Linux, with:
+    
+    CGO_ENABLED=1 GOOS=solaris go install --tags=osusergo
+    
+    ... it builds now.
+    
+    Updates #24841
+    Updates #24845
+    
+    Change-Id: I49f40532bc2a13a9d282771592fc8d7f116b1902
+    Reviewed-on: https://go-review.googlesource.com/107304
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/os/user/listgroups_solaris.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

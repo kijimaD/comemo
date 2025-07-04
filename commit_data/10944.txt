@@ -1,0 +1,13 @@
+commit 721e19c24c84ef130528901ed8abedfcb49259b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 10:17:37 2011 -0500
+
+    os/user: fix for arm (non-cgo)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5504056
+
+ src/pkg/os/user/lookup_stubs.go | 2 +-
+ src/pkg/os/user/lookup_unix.go  | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,35 @@
+commit 2cb103ff58aab6a02cf94cebdb7c20d1e518f1ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 09:57:01 2022 -0500
+
+    cmd/compile: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I084b324a20d5ecf733b2cb95f160947a7410a805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450696
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go          | 16 +++++++++++++---
+ src/cmd/compile/internal/dwarfgen/scope_test.go          |  3 +--
+ src/cmd/compile/internal/importer/gcimporter_test.go     |  3 +--
+ src/cmd/compile/internal/logopt/logopt_test.go           |  7 +++----
+ src/cmd/compile/internal/ssa/debug_lines_test.go         |  3 +--
+ src/cmd/compile/internal/ssa/debug_test.go               | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/fmahash_test.go             |  3 +--
+ src/cmd/compile/internal/test/clobberdead_test.go        |  3 +--
+ src/cmd/compile/internal/test/dep_test.go                |  3 +--
+ src/cmd/compile/internal/test/fixedbugs_test.go          |  3 +--
+ src/cmd/compile/internal/test/global_test.go             |  7 +++----
+ src/cmd/compile/internal/test/inl_test.go                |  7 +++----
+ src/cmd/compile/internal/test/inst_test.go               |  7 +++----
+ src/cmd/compile/internal/test/lang_test.go               |  3 +--
+ src/cmd/compile/internal/test/pgo_inl_test.go            |  3 +--
+ src/cmd/compile/internal/test/reproduciblebuilds_test.go |  5 ++---
+ src/cmd/compile/internal/test/ssa_test.go                |  9 ++++-----
+ src/cmd/compile/internal/typecheck/builtin_test.go       |  3 +--
+ 18 files changed, 49 insertions(+), 55 deletions(-)

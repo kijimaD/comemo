@@ -1,0 +1,27 @@
+commit efed6f99d262d15e0863950843cd6089d9034e03
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 21 16:35:09 2013 -0400
+
+    crypto/tls: advertise support for RSA+SHA1 in TLS 1.2 handshake.
+    
+    Despite SHA256 support being required for TLS 1.2 handshakes, some
+    servers are aborting handshakes that don't offer SHA1 support.
+    
+    This change adds support for signing TLS 1.2 ServerKeyExchange messages
+    with SHA1. It does not add support for signing TLS 1.2 client
+    certificates with SHA1 as that would require the handshake to be
+    buffered.
+    
+    Fixes #6618.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/15650043
+
+ src/pkg/crypto/tls/common.go                  |  15 +-
+ src/pkg/crypto/tls/handshake_client.go        |   2 +-
+ src/pkg/crypto/tls/handshake_client_test.go   | 282 +++++++++++++-------------
+ src/pkg/crypto/tls/handshake_messages_test.go |   2 +-
+ src/pkg/crypto/tls/handshake_server.go        |   2 +-
+ src/pkg/crypto/tls/key_agreement.go           |  72 ++++++-
+ 6 files changed, 218 insertions(+), 157 deletions(-)

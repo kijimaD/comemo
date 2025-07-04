@@ -1,0 +1,22 @@
+commit 157f069873c0fe2310e628ffd679caffa6e68b4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 15:07:08 2016 -0800
+
+    cmd/compile: call missing popdcl in various genxxx functions
+    
+    Not calling popdcl doesn't have an impact on generated code but
+    the result is a growing (rather than empty) stack of symbols,
+    possibly causing more data to remain alive than necessary.
+    
+    Also: minor cleanups.
+    
+    Change-Id: Ic4fdbcd8843637d69ab1aa15e896a7e6339bc990
+    Reviewed-on: https://go-review.googlesource.com/20554
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go    | 4 ++++
+ src/cmd/compile/internal/gc/go.go     | 9 +++++----
+ src/cmd/compile/internal/gc/parser.go | 4 ++--
+ src/cmd/compile/internal/gc/subr.go   | 2 ++
+ 4 files changed, 13 insertions(+), 6 deletions(-)

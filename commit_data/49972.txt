@@ -1,0 +1,29 @@
+commit 741ab7e819538ef84ce7a2e560730c6212e95161
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 19 15:55:01 2022 -0400
+
+    cmd/go: avoid passing testing.T to isCaseSensitive and goVersion
+    
+    The previous implementation of isCaseSensitive called t.Fatalf in the
+    wrong place, causing tests after the first to proceed past an error
+    determining case-sensitivity. That could lead to confusing errors.
+    
+    (Moreover, I would like to try to disentangle the script engine from
+    testing.T so that I can also use it to generate serving contents in
+    the replacement for vcs-test.golang.org.)
+    
+    The implementation of goVersion called ts.fatalf, which is probably
+    fine but prevents the script environment from being computed outside
+    of a test, as we might want to do for debugging and other scripting.
+    
+    For #27494.
+    
+    Change-Id: Ibfee0704523fdcd6174b544ff84267216435025b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419874
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)

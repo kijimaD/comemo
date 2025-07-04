@@ -1,0 +1,15 @@
+commit f752e909dc76653ef0a8075700cba6814479a4c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:29:29 2009 -0700
+
+    darwin ptrace constants
+    
+    R=austin
+    DELTA=42  (37 added, 5 deleted, 0 changed)
+    OCL=31618
+    CL=31633
+
+ src/pkg/syscall/types_darwin.c         | 16 +++++++++++++++-
+ src/pkg/syscall/ztypes_darwin_386.go   | 13 +++++++++++--
+ src/pkg/syscall/ztypes_darwin_amd64.go | 13 +++++++++++--
+ 3 files changed, 37 insertions(+), 5 deletions(-)

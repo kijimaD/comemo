@@ -1,0 +1,35 @@
+commit 4c51c937808ee2fb88d469cf89c85c8e700f665c
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Nov 28 22:05:08 2018 -0500
+
+    crypto/tls: prevent the test server from sending session tickets
+    
+    Since they are sent after the handshake in TLS 1.3, the client was not
+    actually consuming them, as it doesn't make any Read calls. They were
+    then sitting in the kernel receive buffer when the client would call
+    Close. The kernel would see that and send a RST, which would race the
+    closeNotify, causing errors.
+    
+    Also, we get to trim 600 lines of useless test data.
+    
+    Fixes #28852
+    
+    Change-Id: I7517feab77dabab7504bfc111098ba09ea07ae5e
+    Reviewed-on: https://go-review.googlesource.com/c/151659
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/tls/handshake_client_test.go            | 239 ++++++++-------
+ .../tls/testdata/Client-TLSv13-AES128-SHA256       | 170 +++++------
+ .../tls/testdata/Client-TLSv13-AES256-SHA384       | 174 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-ALPN         | 172 +++++------
+ .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 170 +++++------
+ .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 333 ++++++++-------------
+ .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 320 +++++++-------------
+ .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 324 +++++++-------------
+ src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 160 ++++------
+ .../testdata/Client-TLSv13-ExportKeyingMaterial    | 170 +++++------
+ .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 169 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 184 +++++-------
+ src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 172 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 168 +++++------
+ 14 files changed, 1162 insertions(+), 1763 deletions(-)

@@ -1,0 +1,22 @@
+commit a91931d69297d2ec2e4dda711db9ac938b2ab776
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 19:49:38 2023 +1000
+
+    runtime/cgo: rename crosscall_arm1 to crosscall1
+    
+    This reduces inconsistency with other architectures and will allow
+    for further code deduplication.
+    
+    Change-Id: Icf0d02f765546c3193cccaa22c79e632e12d6bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518616
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/gcc_arm.S         | 8 ++++----
+ src/runtime/cgo/gcc_freebsd_arm.c | 4 ++--
+ src/runtime/cgo/gcc_linux_arm.c   | 4 ++--
+ src/runtime/cgo/gcc_netbsd_arm.c  | 4 ++--
+ src/runtime/cgo/gcc_openbsd_arm.c | 4 ++--
+ 5 files changed, 12 insertions(+), 12 deletions(-)

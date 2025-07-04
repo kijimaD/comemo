@@ -1,0 +1,30 @@
+commit 2ba00e47545406b3dd11436e3f1acf841d4932c6
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 21 13:22:14 2020 +0100
+
+    doc: decrease prominence of GOROOT_BOOTSTRAP
+    
+    Go build scripts on UNIX (make.bash, all.bash) have not required
+    GOROOT_BOOTSTRAP since August 2017 (CL 57753). Windows build scripts
+    have followed suit since CL 96455. Most people building Go will have
+    a Go toolchain in their PATH and will not need to specify a different
+    toolchain.
+    
+    This CL removes the GOROOT_BOOTSTRAP mention from the contribution guide
+    (it was there for Windows only, but it's not required anymore). The guide
+    is meant to be light and clear for beginners and is not supposed to be
+    a reference, so there's not need to keep mentioning GOROOT_BOOTSTRAP.
+    
+    Also update install-source.html to reflect the current status quo,
+    where using the PATH is probably the first and most used default, and
+    GOROOT_BOOTSTRAP is just an option.
+    
+    Change-Id: Iab453e61b0c749c256aaaf81ea9b2ae58822cb89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224717
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/contribute.html     |  4 +---
+ doc/install-source.html | 22 ++++++++--------------
+ 2 files changed, 9 insertions(+), 17 deletions(-)

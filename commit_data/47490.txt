@@ -1,0 +1,30 @@
+commit 9efb6493f498f8fdcc5d34d4df4d5e9c620f861b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 21:12:33 2021 -0500
+
+    all: update vendored golang.org/x/tools
+    
+    Update the vendored x/tools to pick up the fix for #49597, using the
+    following commands:
+    
+      go get -d golang.org/x/tools@4adea5033c5c6f39a900d4b963c4b496448b1655
+      go mod tidy
+      go mod vendor
+    
+    Fixes #49597
+    
+    Change-Id: Ib1bc43aacbdc707b605194012134f048a336e176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363986
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/analysis/passes/composite/composite.go      |  21 +++-
+ .../x/tools/go/analysis/passes/shift/shift.go      |  20 +++-
+ .../go/analysis/passes/stringintconv/string.go     |  37 ++++--
+ .../x/tools/internal/typeparams/normalize.go       | 132 +++++++++------------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 7 files changed, 117 insertions(+), 101 deletions(-)

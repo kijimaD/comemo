@@ -1,0 +1,22 @@
+commit 8496060870f86b06f8f189c2a709769846b7554e
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Mar 8 20:00:28 2024 +0000
+
+    net/http: update bundled x/net/http2
+    
+    For #65785 #65927
+    
+    Change-Id: I21791d4e22ae3039144f6b105ac439877f8b01bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569819
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 19 ++++++++++++++-----
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 18 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit fbdbb595b6e7e30e31f83777c63c69336b6dd2d6
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Fri Aug 26 16:55:18 2011 -0400
+
+    mime: media type formatter
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4654069
+
+ src/pkg/mime/grammar.go   |  9 +++++++++
+ src/pkg/mime/mediatype.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

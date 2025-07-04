@@ -1,0 +1,17 @@
+commit 08d10f9af1429d19633722e36f7bfeda6c000aa5
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Aug 16 16:31:45 2018 -0400
+
+    doc: describe golang.org/x/go/packages in go1.11 release notes
+    
+    Also, rename an HTML element ID to avoid duplicate.
+    
+    Fixes golang/go#27038
+    
+    Change-Id: Icc064a1cc86ddc794fc085d98b4cde3effff8ad0
+    Reviewed-on: https://go-review.googlesource.com/129635
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
+
+ doc/go1.11.html | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

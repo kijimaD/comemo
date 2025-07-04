@@ -1,0 +1,13 @@
+commit cd54e44b50a97945f74d7d018a9b136e7278ddaa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 12 07:55:23 2012 -0800
+
+    doc: trivial comment typo fix
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5529080
+
+ doc/progs/defer.go  | 4 ++--
+ doc/progs/defer2.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

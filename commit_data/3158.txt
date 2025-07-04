@@ -1,0 +1,17 @@
+commit f0492f4e27601f493d7f29558bb39c1c546fe5bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:48:44 2009 -0700
+
+    elf file parser
+    
+    R=austin
+    DELTA=448  (447 added, 0 deleted, 1 changed)
+    OCL=34139
+    CL=34150
+
+ src/pkg/Make.deps                               |   2 +-
+ src/pkg/debug/elf/file.go                       | 324 ++++++++++++++++++++++++
+ src/pkg/debug/elf/file_test.go                  | 129 ++++++++++
+ src/pkg/debug/elf/testdata/gcc-386-freebsd-exec | Bin 0 -> 5742 bytes
+ src/pkg/debug/elf/testdata/gcc-amd64-linux-exec | Bin 0 -> 8844 bytes
+ 5 files changed, 454 insertions(+), 1 deletion(-)

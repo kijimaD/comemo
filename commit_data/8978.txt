@@ -1,0 +1,13 @@
+commit a852981d17cd4c46fbaf3da39b6bfc84134074d0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 8 15:22:05 2011 +1000
+
+    exp/template: allow fields and methods to be found in parent structs.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4657085
+
+ src/pkg/exp/template/exec.go      | 123 +++++++++++++++++++++++---------------
+ src/pkg/exp/template/exec_test.go |  24 +++++---
+ 2 files changed, 89 insertions(+), 58 deletions(-)

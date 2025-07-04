@@ -1,0 +1,12 @@
+commit e9546a01dcb4678476157c3bcdcf8c02a0688f54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 27 18:50:38 2013 -0700
+
+    math/rand: fix typo and add better crash message
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9000043
+
+ src/pkg/math/rand/zipf.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

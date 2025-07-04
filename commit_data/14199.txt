@@ -1,0 +1,21 @@
+commit 77e42e2108740eefb6eafb630a524dec019ea656
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 22 14:26:36 2012 +0800
+
+    lib9, cmd/dist, cmd/5l: embed GOARM into cmd/5l and auto detect GOARM
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6638043
+
+ include/libc.h         |  1 +
+ src/cmd/5l/obj.c       |  2 +-
+ src/cmd/dist/a.h       |  2 ++
+ src/cmd/dist/arm.c     | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/build.c   | 10 ++++++++++
+ src/cmd/dist/plan9.c   |  9 +++++++++
+ src/cmd/dist/unix.c    | 27 +++++++++++++++++++++++++++
+ src/cmd/dist/windows.c |  9 +++++++++
+ src/lib9/goos.c        |  6 ++++++
+ src/make.bat           |  2 +-
+ 10 files changed, 111 insertions(+), 2 deletions(-)

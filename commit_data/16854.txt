@@ -1,0 +1,12 @@
+commit ac94c06d1e57fb4e41b547ce7652a6d698cfcf17
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 24 10:54:33 2013 +1000
+
+    doc/go1.2.txt: document new function unicode.In
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/11745044
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 6334b499e84090fe0c7bbd64fad866463cae7c3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 2 14:00:32 2009 -0800
+
+    fix divide by zero in old glibc dynamic loader
+    
+    R=r
+    CC=iant
+    http://go/go-review/1018024
+
+ src/cmd/8l/asm.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

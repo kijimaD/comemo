@@ -1,0 +1,19 @@
+commit 93665c0d81c4e675e8c9b86b4e43654a9504edbc
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Mar 1 12:52:21 2018 -0600
+
+    crypto: remove hand encoded amd64 instructions
+    
+    Replace BYTE.. encodings with asm. This is possible due to asm
+    implementing more instructions and removal of
+    MOV $0, reg -> XOR reg, reg transformation from asm.
+    
+    Change-Id: I011749ab6b3f64403ab6e746f3760c5841548b57
+    Reviewed-on: https://go-review.googlesource.com/97936
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/elliptic/p256_asm_amd64.s |  4 ++--
+ src/hash/crc32/crc32_amd64.s         | 12 ++++--------
+ 2 files changed, 6 insertions(+), 10 deletions(-)

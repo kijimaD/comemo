@@ -1,0 +1,77 @@
+commit 718be3215ffd6f8d4bfd8fa836cb2799d3366501
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:52:55 2010 -0800
+
+    in C and asm, replace pkg·name with ·name
+    (eliminate assumption of package global name space,
+    make code easier to move between packages).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194072
+
+ src/pkg/big/arith_386.s             |  14 ++---
+ src/pkg/big/arith_amd64.s           |  14 ++---
+ src/pkg/big/arith_arm.s             |  28 +++++-----
+ src/pkg/bignum/arith_amd64.s        |   6 +-
+ src/pkg/bytes/asm_386.s             |   2 +-
+ src/pkg/bytes/asm_amd64.s           |   2 +-
+ src/pkg/bytes/asm_arm.s             |   4 +-
+ src/pkg/math/asin_386.s             |   4 +-
+ src/pkg/math/atan_386.s             |   2 +-
+ src/pkg/math/exp_386.s              |   2 +-
+ src/pkg/math/fabs_386.s             |   2 +-
+ src/pkg/math/floor_386.s            |   4 +-
+ src/pkg/math/log_386.s              |   4 +-
+ src/pkg/math/sin_386.s              |   4 +-
+ src/pkg/math/sqrt_386.s             |   2 +-
+ src/pkg/math/sqrt_amd64.s           |   2 +-
+ src/pkg/math/tan_386.s              |   2 +-
+ src/pkg/runtime/386/asm.s           |  12 ++--
+ src/pkg/runtime/386/closure.c       |   2 +-
+ src/pkg/runtime/386/traceback.c     |   8 +--
+ src/pkg/runtime/386/vlrt.c          |   8 +--
+ src/pkg/runtime/amd64/asm.s         |  50 ++++++++---------
+ src/pkg/runtime/amd64/closure.c     |   2 +-
+ src/pkg/runtime/amd64/traceback.c   |   8 +--
+ src/pkg/runtime/arm/asm.s           |  12 ++--
+ src/pkg/runtime/arm/closure.c       |   2 +-
+ src/pkg/runtime/arm/traceback.c     |   4 +-
+ src/pkg/runtime/arm/vlrt.c          |  12 ++--
+ src/pkg/runtime/cgocall.c           |  10 ++--
+ src/pkg/runtime/chan.c              | 106 +++++++++++++++++------------------
+ src/pkg/runtime/darwin/386/sys.s    |   2 +-
+ src/pkg/runtime/darwin/amd64/sys.s  |   8 +--
+ src/pkg/runtime/darwin/thread.c     |  16 +++---
+ src/pkg/runtime/freebsd/386/sys.s   |   2 +-
+ src/pkg/runtime/freebsd/amd64/sys.s |   8 +--
+ src/pkg/runtime/hashmap.c           |  74 ++++++++++++------------
+ src/pkg/runtime/hashmap.h           |   2 +-
+ src/pkg/runtime/iface.c             |  40 ++++++-------
+ src/pkg/runtime/linux/386/sys.s     |   2 +-
+ src/pkg/runtime/linux/amd64/sys.s   |  10 ++--
+ src/pkg/runtime/linux/arm/sys.s     |   2 +-
+ src/pkg/runtime/linux/thread.c      |  10 ++--
+ src/pkg/runtime/mingw/386/sys.s     |   4 +-
+ src/pkg/runtime/nacl/386/sys.s      |   2 +-
+ src/pkg/runtime/pchw/mem.c          |   2 +-
+ src/pkg/runtime/pchw/thread.c       |   4 +-
+ src/pkg/runtime/print.c             |  42 +++++++-------
+ src/pkg/runtime/proc.c              |  28 +++++-----
+ src/pkg/runtime/runtime.c           |  22 ++++----
+ src/pkg/runtime/runtime.h           |  36 ++++++------
+ src/pkg/runtime/sigqueue.cgo        |   4 +-
+ src/pkg/runtime/slice.c             | 108 ++++++++++++++++++------------------
+ src/pkg/runtime/string.cgo          |  12 ++--
+ src/pkg/sync/asm_386.s              |   2 +-
+ src/pkg/sync/asm_amd64.s            |   2 +-
+ src/pkg/sync/asm_arm.s              |   2 +-
+ src/pkg/syscall/asm_darwin_386.s    |   6 +-
+ src/pkg/syscall/asm_darwin_amd64.s  |   6 +-
+ src/pkg/syscall/asm_freebsd_386.s   |   6 +-
+ src/pkg/syscall/asm_freebsd_amd64.s |   6 +-
+ src/pkg/syscall/asm_linux_386.s     |  10 ++--
+ src/pkg/syscall/asm_linux_amd64.s   |   6 +-
+ src/pkg/syscall/asm_linux_arm.s     |   6 +-
+ src/pkg/syscall/asm_nacl_386.s      |   6 +-
+ 64 files changed, 416 insertions(+), 416 deletions(-)

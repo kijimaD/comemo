@@ -1,0 +1,17 @@
+commit ef87c0edae19d6437801cd74203f5a2c19ea6534
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 13 10:47:01 2012 -0400
+
+    crypto/rsa: reject PublicKey.E if it won't fit in a 32-bit int
+    
+    Right now we only have 32-bit ints so that's a no-op.
+    Took the opportunity to check for some other invalid values too.
+    Suggestions for additions or modifications welcome.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/6493112
+
+ src/pkg/crypto/rsa/pkcs1v15.go |  9 +++++++++
+ src/pkg/crypto/rsa/rsa.go      | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

@@ -1,0 +1,21 @@
+commit fc090a3a54d866c5cb65cb985443234571d7e73d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 13:19:29 2010 -0700
+
+    reflect: add Type.Bits method, add tags to prohibit conversions
+    gob: substitute slice for map
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1699045
+
+ src/pkg/fmt/print.go     |   8 +--
+ src/pkg/fmt/scan.go      |  23 +++++----
+ src/pkg/gob/decode.go    |  10 ++--
+ src/pkg/gob/encode.go    |  10 ++--
+ src/pkg/json/decode.go   |   2 +-
+ src/pkg/json/encode.go   |   2 +-
+ src/pkg/reflect/type.go  |  70 +++++++++++++++-----------
+ src/pkg/reflect/value.go | 128 ++++++++++++++---------------------------------
+ test/ken/cplx3.go        |   3 --
+ 9 files changed, 112 insertions(+), 144 deletions(-)

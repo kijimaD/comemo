@@ -1,0 +1,18 @@
+commit 6584fe8195a1a0afb65ffbea11a2a4fe760a2abd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 9 15:28:23 2024 -0700
+
+    cmd/dist: don't copy files ending in ~ to bootstrap directory
+    
+    They are editor backup files. They are ignored by .gitignore,
+    so they can never be real files in the Go repo.
+    
+    Change-Id: I58800e6e9f939e0bd21b086243b9260bcc8cd770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584675
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 ++
+ 1 file changed, 2 insertions(+)

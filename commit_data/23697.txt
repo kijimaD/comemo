@@ -1,0 +1,15 @@
+commit 47f22ab77557b41c918894e004a78dc5952ea58a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 15:02:38 2015 +1000
+
+    time: make it clearer how to format a fractional second
+    
+    Fixes #10963.
+    
+    Change-Id: I8d769b4d25b306f2df41f882ec01d97bbd63171d
+    Reviewed-on: https://go-review.googlesource.com/12221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/time/format.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

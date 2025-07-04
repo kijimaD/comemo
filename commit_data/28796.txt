@@ -1,0 +1,15 @@
+commit 90a750857c6146ce5d8d24cda5a1e70aa3d4cc58
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 15:10:15 2016 -0400
+
+    syscall: update darwin/amd64 for timespec change
+    
+    Change-Id: I74f47f519dfee10cd079ad9a4e09e36e8d74c6dc
+    Reviewed-on: https://go-review.googlesource.com/30937
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_darwin_arm64.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

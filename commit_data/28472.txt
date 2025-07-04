@@ -1,0 +1,19 @@
+commit f964810025ae58b623798a1944c39c06266fb45d
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Sep 19 20:36:45 2016 -0700
+
+    net/http/httptrace: fix bad tracing example
+    
+    Tracing happens at the http.Trace level. Fix the example to demostrate
+    tracing in the lifecycle of a RoundTrip.
+    
+    Updates #17152.
+    
+    Change-Id: Ic7d7bcc550176189206185482e8962dbf1504ff1
+    Reviewed-on: https://go-review.googlesource.com/29431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptrace/example_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

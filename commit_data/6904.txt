@@ -1,0 +1,14 @@
+commit e2da3b64986333af32592f49012ad9cb566804f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 9 10:11:57 2010 -0800
+
+    gofmt: simplify "x, _ = range y" to "x = range y"
+    
+    (inspired by CL 3529041 by hitchmanr@gmail.com)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3527042
+
+ src/cmd/gofmt/simplify.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

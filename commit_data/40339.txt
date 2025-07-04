@@ -1,0 +1,31 @@
+commit 7b58581a232829f29a26d6ebee9f4c3ca59b4771
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 14:29:16 2019 -0700
+
+    cmd/compile: recognize (*[Big]T)(ptr)[:n:m] pattern for -d=checkptr
+    
+    A common idiom for turning an unsafe.Pointer into a slice is to write:
+    
+        s := (*[Big]T)(ptr)[:n:m]
+    
+    This technically violates Go's unsafe pointer rules (rule #1 says T2
+    can't be bigger than T1), but it's fairly common and not too difficult
+    to recognize, so might as well allow it for now so we can make
+    progress on #34972.
+    
+    This should be revisited if #19367 is accepted.
+    
+    Updates #22218.
+    Updates #34972.
+    
+    Change-Id: Id824e2461904e770910b6e728b4234041d2cc8bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201839
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         |  2 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go            | 34 ++++++++++++++++++++++----
+ src/runtime/checkptr.go                        | 16 +++++++-----
+ 4 files changed, 41 insertions(+), 13 deletions(-)

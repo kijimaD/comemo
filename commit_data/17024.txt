@@ -1,0 +1,15 @@
+commit 6abbbcdc756fbcd22a7a5c118f5385c70207dcb8
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Aug 5 08:24:55 2013 -0700
+
+    misc/notepadplus: add Function List support
+    
+    Fixes #6045.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12463043
+
+ misc/notepadplus/README           | 22 ++++++++++++++++++++++
+ misc/notepadplus/functionList.xml | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

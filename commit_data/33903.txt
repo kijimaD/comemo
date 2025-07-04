@@ -1,0 +1,17 @@
+commit a4dfb2e55525d56e5e185dc0082ee70d9bf1c00a
+Author: David Chase <drchase@google.com>
+Date:   Fri Dec 15 15:56:51 2017 -0500
+
+    cmd/link: make inlining+locationlist test depend on GOARCH
+    
+    Location lists are only supported on x86 and amd64, so the
+    test expecting them failed everywhere else. Make that test
+    skip unless GOARCH is x86 or amd64.
+    
+    Change-Id: Id86b34d30c6a0b97e6fa0cd5aca31f51ed84f556
+    Reviewed-on: https://go-review.googlesource.com/84395
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

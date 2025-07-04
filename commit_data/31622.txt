@@ -1,0 +1,17 @@
+commit fd25fe60fac4014dfe09c364c8c73ff2c95251e5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 19 18:49:28 2017 +0900
+
+    internal/poll: implement RawControl of FD on Windows
+    
+    This is a followup to https://go-review.googlesource.com/37038.
+    
+    Updates #19435.
+    
+    Change-Id: If3d56bca0e8816d1a169f5cf97f27b20695a9955
+    Reviewed-on: https://go-review.googlesource.com/43692
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

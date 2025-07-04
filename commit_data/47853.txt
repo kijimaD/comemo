@@ -1,0 +1,29 @@
+commit 8cfcee1fffb9429e318549ad0a2cae2046798e48
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 22 11:43:06 2021 -0500
+
+    runtime: handle stray profiling signal better
+    
+    In c-archive mode, when we turn off profiling, we  restore the
+    previous handler for SIGPROF, and ignore SIGPROF signals if no
+    handler was installed. So if a pending signal lands after we
+    remove the Go signal handler, it will not kill the program.
+    
+    In the current code there is a small window, where we can still
+    receive signals but we are set to not handling the signal. If a
+    signal lands in this window (possibly on another thread), it will
+    see that we are not handling this signal and no previous handler
+    installed, and kill the program. To avoid this race, we set the
+    previous handler to SIG_IGN (ignoring the signal) when turning on
+    profiling. So when turning off profiling we'll ignore the signal
+    even if a stray signal lands in the small window.
+    
+    Fixes #43828.
+    
+    Change-Id: I304bc85a93ca0e63b0c0d8e902b097bfdc8e3f1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374074
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

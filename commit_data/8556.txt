@@ -1,0 +1,23 @@
+commit 9b82408f6df2dde74828f9c945112ef554f67397
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue May 31 20:52:21 2011 +0200
+
+    gc: elide call to runtime.closure for function literals called in-place.
+    
+    before:
+    runtime_test.BenchmarkCallClosure        5000000               499 ns/op
+    runtime_test.BenchmarkCallClosure1       5000000               681 ns/op
+    
+    after:
+    runtime_test.BenchmarkCallClosure       500000000                5 ns/op
+    runtime_test.BenchmarkCallClosure1       10000000              160 ns/op
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4515167
+
+ src/cmd/gc/closure.c            | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h                 |  1 +
+ src/cmd/gc/walk.c               |  9 ++++++++-
+ src/pkg/runtime/closure_test.go | 21 +++++++++++++++++++++
+ 4 files changed, 68 insertions(+), 1 deletion(-)

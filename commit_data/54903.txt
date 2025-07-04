@@ -1,0 +1,37 @@
+commit ff19f8e7636f0b5797f3b65cee69f41fb650b965
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Tue Nov 7 13:25:32 2023 +0000
+
+    net/http/cgi: eliminate use of Perl in tests
+    
+    Previously, a Perl script was used to test the net/http/cgi package.
+    This sometimes led to hidden failures as these tests were not run
+    on builders without Perl.
+    Also, this approach posed maintenance difficulties for those
+    unfamiliar with Perl.
+    
+    We have now replaced Perl-based tests with a Go handler to simplify
+    maintenance and ensure consistent testing environments.
+    It's part of our ongoing effort to reduce reliance on Perl throughout
+    the Go codebase (see #20032,#25586,#25669,#27779),
+    thus improving reliability and ease of maintenance.
+    
+    Fixes #63800
+    Fixes #63828
+    
+    Change-Id: I8d554af93d4070036cf0cc3aaa9c9b256affbd17
+    GitHub-Last-Rev: a8034083d824da7d68e5995a7997a1199d78de15
+    GitHub-Pull-Request: golang/go#63869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538861
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+
+ src/net/http/cgi/cgi_main.go         | 145 ++++++++++++++++++++++++++++
+ src/net/http/cgi/host_test.go        | 180 +++++++++++------------------------
+ src/net/http/cgi/integration_test.go |  67 +------------
+ src/net/http/cgi/testdata/test.cgi   |  95 ------------------
+ 4 files changed, 203 insertions(+), 284 deletions(-)

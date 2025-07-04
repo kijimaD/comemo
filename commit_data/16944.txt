@@ -1,0 +1,16 @@
+commit 27032fddee27dd3b02437b118e50c66586052830
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Wed Jul 31 16:58:28 2013 +1000
+
+    path/filepath: Panic in Match when parsing invalid character range.
+    
+    Fixes #5668.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/12001056
+
+ src/pkg/path/filepath/match.go      | 6 ++++++
+ src/pkg/path/filepath/match_test.go | 5 +++++
+ src/pkg/path/match_test.go          | 5 +++++
+ 3 files changed, 16 insertions(+)

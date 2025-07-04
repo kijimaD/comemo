@@ -1,0 +1,29 @@
+commit b54133d20039a20bfba25574b5f87e4a370a032e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 16:16:42 2009 -0800
+
+    make safe for new package local defaults
+    
+    R=r
+    DELTA=462  (9 added, 33 deleted, 420 changed)
+    OCL=22879
+    CL=22885
+
+ src/lib/fmt/format.go        |   8 +--
+ src/lib/math/Makefile        |  11 +--
+ src/lib/math/atan.go         |  50 +++++++-------
+ src/lib/math/const.go        |   9 +++
+ src/lib/math/log.go          |  37 +++++-----
+ src/lib/math/sin.go          |  36 +++++-----
+ src/lib/math/sinh.go         |  18 ++---
+ src/lib/reflect/tostring.go  |   2 +-
+ src/lib/reflect/type.go      |  42 ++++++------
+ src/lib/reflect/value.go     | 112 +++++++++++++++---------------
+ src/lib/strconv/atof.go      |   2 +-
+ src/lib/strconv/atof_test.go | 116 ++++++++++++++++----------------
+ src/lib/strconv/atoi_test.go | 154 +++++++++++++++++++++---------------------
+ src/lib/strconv/ftoa.go      |   6 +-
+ src/lib/strconv/ftoa_test.go | 157 +++++++++++++++++++++----------------------
+ src/lib/strconv/itoa_test.go |  68 +++++++++----------
+ src/lib/strconv/quote.go     |  13 ++--
+ 17 files changed, 422 insertions(+), 419 deletions(-)

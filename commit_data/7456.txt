@@ -1,0 +1,17 @@
+commit 858972c3f9cab92f13b1cdac823d8187df1eb73d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 15 05:42:16 2011 +1100
+
+    archive/zip: handle files with data descriptors
+    
+    Fixes #1471.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4183048
+
+ src/pkg/archive/zip/reader.go       |  39 ++++++++++++++++++++++++++++++++----
+ src/pkg/archive/zip/reader_test.go  |  31 +++++++++++++++++++---------
+ src/pkg/archive/zip/struct.go       |   1 +
+ src/pkg/archive/zip/testdata/dd.zip | Bin 0 -> 154 bytes
+ 4 files changed, 57 insertions(+), 14 deletions(-)

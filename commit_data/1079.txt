@@ -1,0 +1,12 @@
+commit ec81145565af06164c31bb83532eb11f48198a0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 15:05:19 2008 -0800
+
+    s/gins/gbranch/
+    
+    R=ken
+    OCL=18713
+    CL=18713
+
+ src/cmd/6g/gsubr.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 7989119d1765955319141003ae21c8ff36f80bfb
+Author: Aurélien Rainone <aurelien.rainone@gmail.com>
+Date:   Tue Oct 23 16:56:41 2018 +0200
+
+    path/filepath: add example for Match
+    
+    Change-Id: Id2df4895a95904a607e54dd9810bfe97f5e12a73
+    Reviewed-on: https://go-review.googlesource.com/c/144105
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/example_unix_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

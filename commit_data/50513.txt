@@ -1,0 +1,36 @@
+commit a2c396ce00df96f66246aab7a63f3ce5b7ad8753
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 30 22:18:01 2022 +0000
+
+    runtime: make the wait reason for a g blocked on a mutex more specific
+    
+    This change adds 3 new waitReasons that correspond to sync.Mutex.Lock,
+    sync.RWMutex.RLock, and sync.RWMutex.Lock that are plumbed down into
+    semacquire1 by exporting new functions to the sync package from the
+    runtime.
+    
+    Currently these three functions show up as "semacquire" in backtraces
+    which isn't very clear, though the stack trace itself should reveal
+    what's really going on. This represents a minor improvement to backtrace
+    readability, though blocking on an RWMutex.w.Lock will still show up as
+    blocking on a regular mutex (I suppose technically it is).
+    
+    This is a step toward helping the runtime identify when a goroutine is
+    blocked on a mutex of some kind.
+    
+    For #49881.
+    
+    Change-Id: Ia409b4d27e117fe4bfdc25fa541e9c58d6d587b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go          |  2 +-
+ src/runtime/pprof/pprof_test.go |  2 +-
+ src/runtime/runtime2.go         |  8 ++++++--
+ src/runtime/sema.go             | 22 ++++++++++++++++------
+ src/sync/runtime.go             |  8 +++++++-
+ src/sync/rwmutex.go             |  4 ++--
+ 6 files changed, 33 insertions(+), 13 deletions(-)

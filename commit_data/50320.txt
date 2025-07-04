@@ -1,0 +1,18 @@
+commit e2e69ec82a7360fa8e803c0e98964e223335fe4b
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Sep 1 14:43:39 2022 -0700
+
+    internal/syscall/unix: simplify KernelVersion
+    
+    Since values[2] elements are initialized with 0, the switch statement
+    doesn't do anything. Remove it.
+    
+    Change-Id: I41176692cdf0c01fe8e85315f0c0dc8b0f3d41fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427675
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/kernel_version_linux.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

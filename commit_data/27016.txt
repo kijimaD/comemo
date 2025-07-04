@@ -1,0 +1,22 @@
+commit 2244ae417312a59e722643f6ea2f1b8168c599c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 19 14:15:37 2016 -0700
+
+    cmd/compile/internal/gc: simplify typecheck's Efoo consts
+    
+    There's no need for Eiota, Eindir, Eaddr, or Eproc; the values are
+    threaded through to denote various typechecking contexts, but they
+    don't actually influence typechecking behavior at all.
+    
+    Also, while here, switch the Efoo const declarations to use iota.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5cea869ccd0755c481cf071978f863474bc9c1ed
+    Reviewed-on: https://go-review.googlesource.com/22271
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 48 +++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 29 deletions(-)

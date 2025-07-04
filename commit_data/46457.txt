@@ -1,0 +1,23 @@
+commit cfa233d76bcff00f46f5e5acdb17cb819a309d2b
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 12 12:21:48 2021 -0700
+
+    cmd/compile: remove unneeded early transforms, with dictionary change
+    
+    Now that we are computing the dictionary format on the instantiated
+    functions, we can remove the early transformation code that was needed
+    to create the implicit CONVIFACE nodes in the generic function.
+    
+    Change-Id: I1695484e7d59bccbfb757994f3e40e84288759a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349614
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go      | 38 -------------
+ src/cmd/compile/internal/noder/helpers.go   | 11 ----
+ src/cmd/compile/internal/noder/stmt.go      |  9 ----
+ src/cmd/compile/internal/noder/transform.go | 84 ++++++++---------------------
+ src/cmd/compile/internal/typecheck/subr.go  |  3 ++
+ 5 files changed, 26 insertions(+), 119 deletions(-)

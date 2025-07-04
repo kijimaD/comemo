@@ -1,0 +1,20 @@
+commit e1ee31400a4258985647a6d699c7df56a81d7a98
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jul 17 17:53:48 2015 -0700
+
+    internal/trace: fix fuzzer crashers
+    
+    Fixes #11766
+    Fixes #11769
+    Fixes #11767
+    Fixes #11770
+    
+    Change-Id: I441382af58f60deb46dcdd70076763b2c47738d4
+    Reviewed-on: https://go-review.googlesource.com/12378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/trace/parser.go      | 26 +++++++++++++++++++-------
+ src/internal/trace/parser_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 7 deletions(-)

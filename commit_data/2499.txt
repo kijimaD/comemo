@@ -1,0 +1,15 @@
+commit bede992dd3f949b766ea0a66e178887658bdde09
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 15:43:50 2009 -0700
+
+    set -e does not apply to ( ) blocks,
+    so implement the check manually.
+    sigh.
+    
+    R=r
+    DELTA=17  (6 added, 0 deleted, 11 changed)
+    OCL=30606
+    CL=30612
+
+ src/make.bash | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

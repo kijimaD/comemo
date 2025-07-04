@@ -1,0 +1,22 @@
+commit cbb9cd03f80c0487cee0adcfef9a2a5de9fe2cc1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 13 23:27:51 2023 -0800
+
+    cmd/compile: ensure FuncForPC works on closures that start with NOPs
+    
+    A 0-sized no-op shouldn't prevent us from detecting that the first
+    instruction is from an inlined callee.
+    
+    Update #58300
+    
+    Change-Id: Ic5f6ed108c54a32c05e9b2264b516f2cc17e4619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467977
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  2 +-
+ test/fixedbugs/issue58300b.go          | 35 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue58300b.out         |  2 ++
+ 3 files changed, 38 insertions(+), 1 deletion(-)

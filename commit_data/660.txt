@@ -1,0 +1,21 @@
+commit f7a506bf423554dc3ca4fe0c122d64fab7f85334
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 17 12:14:52 2008 -0700
+
+    tutorial code:
+    tweak a program or two
+    delete unused programs
+    add shell script to run them all
+    
+    R=gri
+    DELTA=213  (62 added, 147 deleted, 4 changed)
+    OCL=15435
+    CL=15437
+
+ doc/progs/235A.go        | 52 --------------------------------------
+ doc/progs/235B.go        | 48 -----------------------------------
+ doc/progs/235_gen.go     | 59 -------------------------------------------
+ doc/progs/helloworld3.go |  2 +-
+ doc/progs/run            | 65 ++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/progs/server1.go     |  6 ++---
+ 6 files changed, 69 insertions(+), 163 deletions(-)

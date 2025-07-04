@@ -1,0 +1,16 @@
+commit 8e8cc9db0fe3c30852d4fc9ad82c9922bff7d26f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 10 10:19:03 2018 -0400
+
+    runtime: use gList for gfree lists
+    
+    Change-Id: I3d21587e02264fe5da1cc38d98779facfa09b927
+    Reviewed-on: https://go-review.googlesource.com/129398
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go  |  25 ++++++-----
+ src/runtime/proc.go     | 117 ++++++++++++++++++++++--------------------------
+ src/runtime/runtime2.go |  16 ++++---
+ 3 files changed, 77 insertions(+), 81 deletions(-)

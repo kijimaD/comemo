@@ -1,0 +1,21 @@
+commit 59c2d787d30052afaa4eb627130475bae12fb831
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 18 12:16:43 2023 -0400
+
+    src/internal/godebugs: add a skip for missing godebug.md
+    
+    Currently android doesn't include godebug.md in its doc folder, and
+    TestAll in godebugs_test.go is failing because it can't open the file.
+    Add a skip in case the file is missing (except for linux so we can
+    catch the case where we stop generating the file).
+    
+    Change-Id: I37a711e49a494c33bc92bf3e31cf40471ea9d5b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485795
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/godebugs/godebugs_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

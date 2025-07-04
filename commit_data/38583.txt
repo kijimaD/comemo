@@ -1,0 +1,21 @@
+commit b2f19dad8bb2b942badcc1ea6f7147b11fed926e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 28 13:25:21 2019 +0100
+
+    runtime/cgo: remove threadentry functions specialized for android
+    
+    The specialized functions set up the g register using the pthread
+    API instead of setg_gcc, but the inittls functions have already
+    made sure setg_gcc works.
+    
+    Updates #29674
+    
+    Change-Id: Ie67c068d638af8b5823978ee839f6b61b2228996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_android_386.c   | 23 -----------------------
+ src/runtime/cgo/gcc_android_amd64.c | 23 -----------------------
+ src/runtime/cgo/gcc_linux_386.c     |  8 +-------
+ src/runtime/cgo/gcc_linux_amd64.c   |  7 +------
+ 4 files changed, 2 insertions(+), 59 deletions(-)

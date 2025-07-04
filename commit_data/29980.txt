@@ -1,0 +1,20 @@
+commit ea73649343b5d199d7f3d8525399e7a07a608543
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 09:32:29 2017 -0800
+
+    doc: update gccgo docs
+    
+    Update docs on correspondence between Go releases and GCC releases.
+    
+    Update C type that corresponds to Go type `int`.
+    
+    Drop out of date comments about Ubuntu and RTEMS.
+    
+    Change-Id: Ic1b5ce9f242789af23ec3b7e7a64c9d257d6913e
+    Reviewed-on: https://go-review.googlesource.com/35631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/gccgo_install.html | 63 ++++++++++++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 38 deletions(-)

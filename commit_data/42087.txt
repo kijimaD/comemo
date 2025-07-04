@@ -1,0 +1,16 @@
+commit d9d88dd27f31936e11dfa621937f09db9a23af36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 00:30:14 2020 -0700
+
+    cmd/compile: allow named values on RHS of rewrite rules
+    
+    Fixes #38621
+    
+    Change-Id: Idbffdcc70903290dc58e5abb4867718bd5449fe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229701
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

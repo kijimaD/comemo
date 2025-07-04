@@ -1,0 +1,26 @@
+commit 9bfd3c393716d70038788bac102518b901b0d209
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Sat Feb 2 22:52:29 2013 -0500
+
+    testing: add AllocsPerRun
+    
+    This CL also replaces similar loops in other stdlib
+    package tests with calls to AllocsPerRun.
+    
+    Fixes #4461.
+    
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7002055
+
+ src/pkg/encoding/gob/timing_test.go | 39 ++++++++++++++------------------
+ src/pkg/fmt/fmt_test.go             | 16 +++-----------
+ src/pkg/net/http/header_test.go     | 44 +++++++++++++++----------------------
+ src/pkg/net/rpc/server_test.go      | 18 +++++----------
+ src/pkg/path/filepath/path_test.go  | 17 ++++----------
+ src/pkg/path/path_test.go           | 18 ++++-----------
+ src/pkg/reflect/all_test.go         | 22 ++++++-------------
+ src/pkg/strconv/strconv_test.go     | 16 +++-----------
+ src/pkg/testing/allocs.go           | 41 ++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go           | 16 +++-----------
+ 10 files changed, 104 insertions(+), 143 deletions(-)

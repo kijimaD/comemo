@@ -1,0 +1,12 @@
+commit e8246569075c98c6cf13b158a11d0b968b1b6297
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 01:54:56 2012 +0800
+
+    test/run.go: use correct executable filename on Windows, fix build
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6624060
+
+ test/run.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

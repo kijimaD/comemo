@@ -1,0 +1,14 @@
+commit 2b1ec70d0fc3ebecfedcf529dcf232f6eebb6521
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 21 13:35:51 2009 -0700
+
+    implemented outstanding bit ops on negative integerts
+    
+    R=rsc
+    DELTA=195  (146 added, 1 deleted, 48 changed)
+    OCL=31895
+    CL=31931
+
+ src/pkg/bignum/bignum.go      | 133 +++++++++++++++++++++++++++++++-----------
+ src/pkg/bignum/bignum_test.go |  82 +++++++++++++++++++++++++-
+ 2 files changed, 180 insertions(+), 35 deletions(-)

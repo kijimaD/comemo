@@ -1,0 +1,12 @@
+commit a506c96ab2646ccbfcc3a9b37bbf58ed77ddc47f
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 17 18:00:32 2011 +1000
+
+    runtime/pprof: enable test on windows
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5047045
+
+ src/pkg/runtime/pprof/pprof_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

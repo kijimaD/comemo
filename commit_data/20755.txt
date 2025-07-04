@@ -1,0 +1,65 @@
+commit 7b9c5ec24b9c5e931544c1437eb7047c74549f58
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 20 10:43:43 2014 -0700
+
+    reflect: allocate correct type in assignTo and cvtT2I
+    
+    I came across this while debugging a GC problem in gccgo.
+    There is code in assignTo and cvtT2I that handles assignment
+    to all interface values.  It allocates an empty interface even
+    if the real type is a non-empty interface.  The fields are
+    then set for a non-empty interface, but the memory is recorded
+    as holding an empty interface.  This means that the GC has
+    incorrect information.
+    
+    This is extremely unlikely to fail, because the code in the GC
+    that handles empty interfaces looks like this:
+    
+    obj = nil;
+    typ = eface->type;
+    if(typ != nil) {
+            if(!(typ->kind&KindDirectIface) || !(typ->kind&KindNoPointers))
+                    obj = eface->data;
+    
+    In the current runtime the condition is always true--if
+    KindDirectIface is set, then KindNoPointers is clear--and we
+    always want to set obj = eface->data.  So the question is what
+    happens when we incorrectly store a non-empty interface value
+    in memory marked as an empty interface.  In that case
+    eface->type will not be a *rtype as we expect, but will
+    instead be a pointer to an Itab.  We are going to use this
+    pointer to look at a *rtype kind field.  The *rtype struct
+    starts out like this:
+    
+    type rtype struct {
+            size          uintptr
+            hash          uint32            // hash of type; avoids computation in hash tables
+            _             uint8             // unused/padding
+            align         uint8             // alignment of variable with this type
+            fieldAlign    uint8             // alignment of struct field with this type
+            kind          uint8             // enumeration for C
+    
+    An Itab always has at least two pointers, so on a
+    little-endian 64-bit system the kind field will be the high
+    byte of the second pointer.  This will normally be zero, so
+    the test of typ->kind will succeed, which is what we want.
+    
+    On a 32-bit system it might be possible to construct a failing
+    case by somehow getting the Itab for an interface with one
+    method to be immediately followed by a word that is all ones.
+    The effect would be that the test would sometimes fail and the
+    GC would not mark obj, leading to an invalid dangling
+    pointer.  I have not tried to construct this test.
+    
+    I noticed this in gccgo, where this error is much more likely
+    to cause trouble for a rather random reason: gccgo uses a
+    different layout of rtype, and in gccgo the kind field happens
+    to be the low byte of a pointer, not the high byte.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/155450044
+
+ src/reflect/value.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

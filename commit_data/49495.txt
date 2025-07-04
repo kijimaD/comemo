@@ -1,0 +1,17 @@
+commit 9e2f2897546c51863bf860c30622fbe9e3359391
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 17 12:34:30 2022 -0400
+
+    cmd/go/internal/work: log clearer detail for subprocess errors in (*Builder).toolID
+    
+    For #52647.
+    
+    Change-Id: Ic12123769d339c2df677500ed59f15a4ee5037d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412954
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/buildid.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

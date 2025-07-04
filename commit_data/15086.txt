@@ -1,0 +1,17 @@
+commit b396d1143b3e717eb2828a101feeb8eb6810891b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 21:01:46 2013 -0500
+
+    reflect: explain StructField.Anonymous field as 'embedded'
+    
+    The spec mostly uses the term embedded.
+    It's too late to change the field name but at least fix the docs.
+    
+    Fixes #4514.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7235080
+
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

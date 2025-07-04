@@ -1,0 +1,13 @@
+commit 123bd8f24b240771611c49504bca045313c03ef6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 14:09:48 2008 -0700
+
+    more simple test fixes
+    
+    R=r
+    OCL=18035
+    CL=18035
+
+ test/fixedbugs/bug056.go |  2 +-
+ test/golden.out          | 12 +-----------
+ 2 files changed, 2 insertions(+), 12 deletions(-)

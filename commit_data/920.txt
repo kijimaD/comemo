@@ -1,0 +1,13 @@
+commit 71d6cda6b2b93e19a6a10f12094a666ce50d4b5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 17:37:48 2008 -0700
+
+    - remove inconsistent directory from tests
+    
+    R=rsc
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=17514
+    CL=17514
+
+ usr/gri/pretty/test.sh | 1 -
+ 1 file changed, 1 deletion(-)

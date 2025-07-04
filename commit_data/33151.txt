@@ -1,0 +1,12 @@
+commit 5d168a90d907f872bd5dd6eaa11884035d19c328
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Oct 17 20:00:55 2017 -0300
+
+    os: add period at end of O_EXCL comment
+    
+    Change-Id: I9d723e49bf2cabf97a09e29e46fd2c426845fd1d
+    Reviewed-on: https://go-review.googlesource.com/71470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

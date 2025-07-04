@@ -1,0 +1,49 @@
+commit 19095e109d0ae037828c519dda0af307b8a01813
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 10 13:55:40 2022 -0700
+
+    go/types, types2: remove need for invalidAST prefix in error calls
+    
+    Since we already provide the error code, the prefix can be deduced
+    automatically.
+    
+    Except for the changes in errors.go, the updates were made with
+    regex find-and-replaces:
+    
+    check\.error\((.+), InvalidSyntaxTree, invalidAST\+    =>
+    check.error($1, InvalidSyntaxTree,
+    
+    check\.errorf\((.+), InvalidSyntaxTree, invalidAST\+    =>
+    check.errorf($1, InvalidSyntaxTree,
+    
+    Change-Id: Ia02fc56ac7a8524bdf0c404ff2696435408327e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441975
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go      |  2 +-
+ src/cmd/compile/internal/types2/errors.go    |  6 ++++--
+ src/cmd/compile/internal/types2/expr.go      | 12 ++++++------
+ src/cmd/compile/internal/types2/index.go     |  6 +++---
+ src/cmd/compile/internal/types2/interface.go |  2 +-
+ src/cmd/compile/internal/types2/labels.go    |  2 +-
+ src/cmd/compile/internal/types2/resolver.go  |  4 ++--
+ src/cmd/compile/internal/types2/signature.go |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go      | 16 ++++++++--------
+ src/cmd/compile/internal/types2/struct.go    |  4 ++--
+ src/cmd/compile/internal/types2/typexpr.go   |  2 +-
+ src/go/types/decl.go                         |  8 ++++----
+ src/go/types/errors.go                       |  9 ++++++---
+ src/go/types/expr.go                         |  6 +++---
+ src/go/types/index.go                        |  4 ++--
+ src/go/types/interface.go                    |  2 +-
+ src/go/types/labels.go                       |  2 +-
+ src/go/types/resolver.go                     |  2 +-
+ src/go/types/signature.go                    |  4 ++--
+ src/go/types/stmt.go                         | 28 ++++++++++++++--------------
+ src/go/types/struct.go                       |  4 ++--
+ src/go/types/typexpr.go                      |  2 +-
+ 22 files changed, 68 insertions(+), 63 deletions(-)

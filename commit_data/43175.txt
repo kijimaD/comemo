@@ -1,0 +1,22 @@
+commit 21eb3dcf93fc3698c9b8cd3ba83c9ddbef31e880
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 2 22:13:14 2020 +0200
+
+    doc/go1.16: announce netbsd/arm64 support
+    
+    netbsd/arm64 now complies with all the requirements for a port as
+    specified on https://golang.org/wiki/PortingPolicy
+    
+    Note that this was preliminarily announced in the Go 1.13 release notes
+    (CL 183637) but then removed again due to the port lacking a builder at
+    that time (CL 192997).
+    
+    Updates #30824
+    
+    Change-Id: I2f40fabc84fe9cb699282e6a9d13ed9b64478e36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259277
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

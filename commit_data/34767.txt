@@ -1,0 +1,22 @@
+commit 4b265fb74736ffaba2ad5cc96f43e442ae0d9850
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Thu Jan 11 13:11:12 2018 +0800
+
+    math: fix Ldexp when result is below ldexp(2, -1075)
+    
+    Before this change, the smallest result Ldexp can handle was
+    ldexp(2, -1075), which is SmallestNonzeroFloat64.
+    There are some numbers below it should also be rounded to
+    SmallestNonzeroFloat64. The change fixes this.
+    
+    Fixes #23407
+    
+    Change-Id: I76f4cb005a6e9ccdd95b5e5c734079fd5d29e4aa
+    Reviewed-on: https://go-review.googlesource.com/87338
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go | 4 ++++
+ src/math/ldexp.go    | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

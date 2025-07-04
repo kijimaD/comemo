@@ -1,0 +1,15 @@
+commit 9006f4913017627f4615f23bb2095e94dddee3b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 5 16:45:24 2009 -0700
+
+    comment tweaks; implement precise name
+    character sets.
+    
+    R=r
+    DELTA=339  (257 added, 1 deleted, 81 changed)
+    OCL=35344
+    CL=35346
+
+ src/pkg/xml/read.go |   2 +-
+ src/pkg/xml/xml.go  | 406 ++++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 332 insertions(+), 76 deletions(-)

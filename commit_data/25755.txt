@@ -1,0 +1,15 @@
+commit f997475129cb12924e34156a0529d88612695d22
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 17 10:46:30 2016 -0500
+
+    doc: mention multi-change branches in contribute.html
+    
+    Fixes #13651.
+    
+    Change-Id: I1d21b49e2b5bc6c507eb084d6d2553e5a9c607cf
+    Reviewed-on: https://go-review.googlesource.com/19552
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/contribute.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,33 @@
+commit 12254b6c0bc9d3f6689f12d64f7bd4cb4d20d53f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 19:11:01 2008 -0800
+
+    change naming convention for tests from
+            test*.go
+    to
+            *test.go
+    
+    R=rsc
+    DELTA=1747  (864 added, 855 deleted, 28 changed)
+    OCL=19666
+    CL=19666
+
+ src/cmd/gobuild/gobuild.c                             |  4 ++--
+ src/cmd/gotest/gotest                                 |  2 +-
+ src/lib/container/array/Makefile                      |  2 +-
+ .../container/array/{testarray.go => array_test.go}   |  0
+ src/lib/math/Makefile                                 |  2 +-
+ src/lib/reflect/Makefile                              |  2 +-
+ src/lib/reflect/test.bash                             | 12 ------------
+ src/lib/reflect/test.go                               | 19 ++++++++++---------
+ src/lib/regexp/Makefile                               |  2 +-
+ src/lib/strconv/Makefile                              |  6 +++---
+ src/lib/strconv/{testatof.go => atof_test.go}         |  0
+ src/lib/strconv/{testatoi.go => atoi_test.go}         |  0
+ src/lib/strconv/{testdecimal.go => decimal_test.go}   |  0
+ src/lib/strconv/{testfp.go => fp_test.go}             |  0
+ src/lib/strconv/{testftoa.go => ftoa_test.go}         |  0
+ src/lib/strconv/{testitoa.go => itoa_test.go}         |  0
+ src/lib/testing.go                                    |  3 +++
+ src/run.bash                                          |  2 +-
+ 18 files changed, 24 insertions(+), 32 deletions(-)

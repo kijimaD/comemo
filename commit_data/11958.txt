@@ -1,0 +1,14 @@
+commit 2f8d94fe4b583a3c94014740db77f6d0e9a69c3f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Feb 16 15:07:54 2012 +1100
+
+    net/url: regularise receiver names.
+    
+    Update #2946.
+    
+    R=golang-dev, bradfitz, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5674065
+
+ src/pkg/net/url/url.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,52 @@
+commit 1fdeb6b58a81a64659202d0a104cb61bdad44f0e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 14:18:56 2015 -0500
+
+    misc/ios: extra stdout check before run
+    
+    On one recent job I saw an unexpected SIGSTOP, which I suspect is
+    simply the job timeout. But the lack of other diagnostics suggests
+    lldb just didn't see the "run" command.
+    
+    -----
+    
+    process handle SIGHUP  --stop false --pass true --notify false
+    process handle SIGPIPE --stop false --pass true --notify false
+    process handle SIGUSR1 --stop false --pass true --notify false
+    process handle SIGSEGV --stop false --pass true --notify false
+    process handle SIGBUS  --stop false --pass true --notify false
+    breakpoint set -n getwd
+    run
+    (lldb) NAME        PASS   STOP   NOTIFY
+    ==========  =====  =====  ======
+    SIGHUP      true   false  false
+    (lldb) NAME        PASS   STOP   NOTIFY
+    ==========  =====  =====  ======
+    SIGPIPE     true   false  false
+    (lldb) NAME        PASS   STOP   NOTIFY
+    ==========  =====  =====  ======
+    SIGUSR1     true   false  false
+    (lldb) NAME        PASS   STOP   NOTIFY
+    ==========  =====  =====  ======
+    SIGSEGV     true   false  false
+    (lldb) NAME        PASS   STOP   NOTIFY
+    ==========  =====  =====  ======
+    SIGBUS      true   false  false
+    (lldb) Breakpoint 1: where = libsystem_c.dylib`getwd, address = 0x2f7f7294
+    (lldb) Process 23755 stopped
+    * thread #1: tid = 0x104c02, 0x1febb000 dyld`_dyld_start, stop reason = signal SIGSTOP
+        frame #0: 0x1febb000 dyld`_dyld_start
+    dyld`_dyld_start:
+    -> 0x1febb000:  mov    r8, sp
+       0x1febb004:  sub    sp, sp, #0x10
+       0x1febb008:  bic    sp, sp, #0x7
+       0x1febb00c:  ldr    r3, [pc, #112]            ; _dyld_start + 132
+    (lldb) go_darwin_arm_exec: timeout (stage br getwd)
+    FAIL    compress/gzip   359.226s
+    
+    Change-Id: Ifc2123f5ceaa6d3f9b31bb5cb6e77a2c8ec23818
+    Reviewed-on: https://go-review.googlesource.com/6613
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

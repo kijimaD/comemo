@@ -1,0 +1,32 @@
+commit 7c1aa5d9b02b99ba670794f86ec9dbeb90b17388
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Feb 2 10:09:10 2023 +0000
+
+    cmd/compile: replace os.MkdirTemp with T.TempDir
+    
+    Updates #45402
+    
+    Change-Id: Ieffd1c8b0b5e4e63024b5be2e1f910fb4411eb94
+    GitHub-Last-Rev: fa7418c8eb977b7214311e774f9df7a1220a3dfd
+    GitHub-Pull-Request: golang/go#57940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462896
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/dwarfgen/scope_test.go          | 16 ++--------------
+ src/cmd/compile/internal/importer/gcimporter_test.go     | 11 +----------
+ src/cmd/compile/internal/logopt/logopt_test.go           |  8 +-------
+ src/cmd/compile/internal/ssa/debug_test.go               |  6 +-----
+ src/cmd/compile/internal/ssa/fmahash_test.go             |  7 +------
+ src/cmd/compile/internal/test/fixedbugs_test.go          |  8 ++------
+ src/cmd/compile/internal/test/global_test.go             | 12 ++----------
+ src/cmd/compile/internal/test/inst_test.go               | 11 ++---------
+ src/cmd/compile/internal/test/lang_test.go               |  6 +-----
+ src/cmd/compile/internal/test/reproduciblebuilds_test.go |  6 +-----
+ src/cmd/compile/internal/test/ssa_test.go                | 16 +++-------------
+ 11 files changed, 17 insertions(+), 90 deletions(-)

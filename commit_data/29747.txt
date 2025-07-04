@@ -1,0 +1,12 @@
+commit 10f43a1f4f889795ab2ed2916199ee96459ff6a3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Dec 5 23:47:54 2016 -0500
+
+    doc/go1.8: remove mention of #16396
+    
+    Change-Id: I811e76c9f42505e974bea634d4ded2499e4893db
+    Reviewed-on: https://go-review.googlesource.com/33926
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

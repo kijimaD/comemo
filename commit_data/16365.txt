@@ -1,0 +1,12 @@
+commit 950fa9353126a784ce0f4cde8df1d1c16af0e6c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 18:43:28 2013 -0700
+
+    net/http: add another Hijacker test
+    
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/9570043
+
+ src/pkg/net/http/serve_test.go | 69 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 48 insertions(+), 21 deletions(-)

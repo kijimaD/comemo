@@ -1,0 +1,12 @@
+commit da7959d5dd1a230868d8eca9dbf11b4d54e8915a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 23 12:44:33 2012 +1100
+
+    misc/dist: make godoc shortcut work
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5877062
+
+ misc/dist/windows/installer.wxs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

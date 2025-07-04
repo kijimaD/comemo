@@ -1,0 +1,13 @@
+commit 2fa388e0630fb138466cb834390a5305bdd0820e
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Jun 1 16:21:34 2010 +0200
+
+    edit simple typos
+    
+    R=golang-dev, adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/1426042
+
+ doc/codelab/wiki/index.html | 6 +++---
+ doc/codelab/wiki/wiki.html  | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

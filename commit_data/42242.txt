@@ -1,0 +1,26 @@
+commit b8fd3cab3944d5dd5f2a50f3cc131b1048897ee1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 09:03:55 2020 -0700
+
+    net/http: remove badStringError, make some unexported structs non-comparable
+    
+    Reduces binary size by 4K, not counting the http2 changes (in CL
+    231119) that'll be bundled into this package in the future.
+    
+    Updates golang/go#38782
+    
+    Change-Id: Id360348707e076b8310a8f409e412d68dd2394b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/http.go          |  5 +++++
+ src/net/http/proxy_test.go    |  2 +-
+ src/net/http/request.go       | 13 ++++---------
+ src/net/http/response.go      |  8 ++++----
+ src/net/http/server.go        |  1 +
+ src/net/http/transfer.go      |  8 ++++----
+ src/net/http/transfer_test.go |  2 +-
+ src/net/http/transport.go     |  7 ++++++-
+ 8 files changed, 26 insertions(+), 20 deletions(-)

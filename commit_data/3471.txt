@@ -1,0 +1,45 @@
+commit c2874976e4519fafad3427504072aae8c218284e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 7 00:11:59 2009 -0700
+
+    factor portable object+library bits out of 5l/6l/8l into ld
+    
+    R=r
+    DELTA=3214  (904 added, 2260 deleted, 50 changed)
+    OCL=35425
+    CL=35427
+
+ src/cmd/5l/Makefile |   6 +-
+ src/cmd/5l/asm.c    |   1 +
+ src/cmd/5l/go.c     |  12 -
+ src/cmd/5l/l.h      |  32 +--
+ src/cmd/5l/list.c   |   1 +
+ src/cmd/5l/obj.c    | 659 +++------------------------------------------
+ src/cmd/5l/pass.c   |   1 +
+ src/cmd/5l/span.c   |   1 +
+ src/cmd/6l/Makefile |  10 +-
+ src/cmd/6l/asm.c    |   1 +
+ src/cmd/6l/elf.c    |   6 -
+ src/cmd/6l/go.c     |  10 -
+ src/cmd/6l/l.h      |  41 +--
+ src/cmd/6l/list.c   |   1 +
+ src/cmd/6l/macho.c  |   6 -
+ src/cmd/6l/obj.c    | 655 +-------------------------------------------
+ src/cmd/6l/pass.c   |   1 +
+ src/cmd/6l/span.c   |   1 +
+ src/cmd/8l/Makefile |   7 +-
+ src/cmd/8l/asm.c    |   8 +-
+ src/cmd/8l/elf.c    |   6 -
+ src/cmd/8l/go.c     |  10 -
+ src/cmd/8l/l.h      |  46 +---
+ src/cmd/8l/list.c   |   1 +
+ src/cmd/8l/macho.c  |   6 -
+ src/cmd/8l/obj.c    | 649 +-------------------------------------------
+ src/cmd/8l/pass.c   |   1 +
+ src/cmd/8l/span.c   |   1 +
+ src/cmd/ld/elf.c    |   4 +-
+ src/cmd/ld/go.c     |   3 +
+ src/cmd/ld/lib.c    | 761 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.h    |  87 ++++++
+ src/cmd/ld/macho.c  |   2 +
+ 33 files changed, 952 insertions(+), 2085 deletions(-)

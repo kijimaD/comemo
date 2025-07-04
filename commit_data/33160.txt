@@ -1,0 +1,22 @@
+commit 2c1d2e06afee98d0770427d8b6c29bd9971a0999
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 17:09:54 2017 -0400
+
+    cmd/compile, cmd/link: record compiler flags in DW_AT_producer
+    
+    This adds a whitelisted subset of compiler flags to the DW_AT_producer
+    DWARF attribute of each package compilation unit DIE. This is common
+    practice in DWARF and can help debuggers determine the quality of the
+    produced debugging information.
+    
+    Fixes #22168.
+    
+    Change-Id: I1b994ef2262aa9b88b68eb6e883695d1103acc58
+    Reviewed-on: https://go-review.googlesource.com/71430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 58 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/dwarf/dwarf.go     |  6 +++-
+ src/cmd/internal/objabi/flag.go     |  8 +++++
+ src/cmd/link/internal/ld/dwarf.go   | 10 +++++++
+ 4 files changed, 81 insertions(+), 1 deletion(-)

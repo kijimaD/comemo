@@ -1,0 +1,15 @@
+commit 9d6c711e3c7f16fd4dd2e812d855e881c6692f3e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 15:55:27 2022 -0700
+
+    runtime: use correct parameter name in comment
+    
+    Change-Id: If8713aca9d6b1f1c218e85f09c9ee016833b3faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396515
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/mbarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

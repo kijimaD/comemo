@@ -1,0 +1,34 @@
+commit 98b2d7062e64bd68973d104500d3a21880b23789
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 14:33:17 2010 -0500
+
+    libcgo: delete (replaced by runtime/cgo)
+    
+    Move unported files (freebsd*, windows*, nacl*) to runtime/cgo.
+    
+    Step toward fixing FreeBSD build.
+    
+    R=r
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/3497042
+
+ src/libcgo/386.S                                |  61 ----------
+ src/libcgo/Makefile                             |  53 ---------
+ src/libcgo/amd64.S                              |  73 ------------
+ src/libcgo/arm.S                                |   1 -
+ src/libcgo/darwin_386.c                         | 144 ------------------------
+ src/libcgo/darwin_amd64.c                       | 125 --------------------
+ src/libcgo/libcgo.h                             |  60 ----------
+ src/libcgo/linux_386.c                          |  60 ----------
+ src/libcgo/linux_amd64.c                        |  56 ---------
+ src/libcgo/linux_arm.c                          |  17 ---
+ src/libcgo/util.c                               |  46 --------
+ src/pkg/Makefile                                |   3 -
+ src/pkg/deps.bash                               |   2 +-
+ src/{libcgo => pkg/runtime/cgo}/freebsd_386.c   |   0
+ src/{libcgo => pkg/runtime/cgo}/freebsd_amd64.c |   0
+ src/{libcgo => pkg/runtime/cgo}/nacl_386.c      |   0
+ src/{libcgo => pkg/runtime/cgo}/windows_386.c   |   0
+ src/{libcgo => pkg/runtime/cgo}/windows_amd64.c |  26 ++---
+ 18 files changed, 14 insertions(+), 713 deletions(-)

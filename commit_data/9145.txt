@@ -1,0 +1,15 @@
+commit 102b5b34a7a0ecf86b35bf624d484dc8e1712199
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 20 14:28:55 2011 -0400
+
+    runtime: apply minor tweaks to channels
+    Remove complicated PRNG algorithm
+    (argument is limited by uint16 and can't be <= 1).
+    Do not require chansend/chanrecv selgen to be bumped with CAS.
+    
+    R=rsc, ken
+    CC=golang-dev
+    https://golang.org/cl/4816041
+
+ src/pkg/runtime/chan.c | 34 +++++++++-------------------------
+ 1 file changed, 9 insertions(+), 25 deletions(-)

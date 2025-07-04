@@ -1,0 +1,13 @@
+commit 91318dc76c726fac2100d33281af73fb572ec66a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 14 12:03:21 2015 +0200
+
+    cmd/go: refactor creation of top-level actions for -buildmode=shared
+    
+    Change-Id: I429402dd91243cd9415b054ee17bfebccc68ed57
+    Reviewed-on: https://go-review.googlesource.com/9197
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 110 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 63 insertions(+), 47 deletions(-)

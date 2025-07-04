@@ -1,0 +1,12 @@
+commit 27cb23ceb191074216f462b521dd67380eebed75
+Author: Jamie Wilkinson <jaq@spacepants.org>
+Date:   Fri Sep 13 13:18:02 2013 +1000
+
+    goyacc: Fix debug printing of the lexed token's ID and name, and add whitespace in the 'stateX saw' message.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13352048
+
+ src/cmd/yacc/yacc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

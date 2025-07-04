@@ -1,0 +1,13 @@
+commit 76d585e5af19d99b0d25a2c6114046b8f80368a8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 15:55:44 2009 -0700
+
+    delete silly TODO
+    
+    R=rsc
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=35685
+    CL=35687
+
+ src/pkg/sort/sort.go | 1 -
+ 1 file changed, 1 deletion(-)

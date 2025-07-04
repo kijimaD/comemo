@@ -1,0 +1,18 @@
+commit 5e31f78c8a4ed1b872ddc194f0cd1ae931b37d7e
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Sep 8 17:53:34 2023 +0800
+
+    internal/cpu: fix wrong cache line size of riscv64
+    
+    All of riscv CPU using 64B for cache-line size.
+    i.e. U540 of Hifive Unleashed (https://www.sifive.com/boards/hifive-unleashed)
+    
+    Change-Id: I0d72d88ac026f45383c3b3eb3a77233d3c2e4004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526659
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/cpu/cpu_riscv64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

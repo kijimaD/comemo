@@ -1,0 +1,70 @@
+commit dd448957fd6de66d5866d0d71095c5af02a535ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 21 15:53:39 2017 -0800
+
+    go/types: correctly compute method set of some recursive interfaces
+    
+    R=go1.11.
+    
+    The existing algorithm for type-checking interfaces breaks down in
+    complex cases of recursive types, e.g.:
+    
+            package issue21804
+    
+            type (
+                    _ interface{ m(B) }
+                    A interface{ a(D) }
+                    B interface{ A }
+                    C interface{ B }
+                    D interface{ C }
+            )
+    
+            var _ A = C(nil)
+    
+    The underlying problem is that the method set of C is computed by
+    following a chain of embedded interfaces at a point when the method
+    set for one of those interfaces is not yet complete. A more general
+    problem is largely avoided by topological sorting of interfaces
+    depending on their dependencies on embedded interfaces (but not
+    method parameters).
+    
+    This change fixes this problem by fundamentally changing how
+    interface method sets are computed: Instead of determining them
+    based on recursively type-checking embedded interfaces, the new
+    approach computes the method sets of interfaces separately,
+    based on syntactic structure and name resolution; and using type-
+    checked types only when readily available (e.g., for local types
+    which can at best refer to themselves, and imported interfaces).
+    
+    This approach avoids cyclic dependencies arising in the method
+    sets by separating the collection of embedded methods (which
+    fundamentally cannot have cycles in correct programs) and type-
+    checking of the method's signatures (which may have arbitrary
+    cycles).
+    
+    As a consequence, type-checking interfaces can rely on the
+    pre-computed method sets which makes the code simpler: Type-
+    checking of embedded interface types doesn't have to happen
+    anymore during interface construction since we already have
+    all methods and now is delayed to the end of type-checking.
+    Also, the topological sort of global interfaces is not needed
+    anymore.
+    
+    Fixes #18395.
+    
+    Change-Id: I0f849ac9568e87a32c9c27bbf8fab0e2bac9ebb1
+    Reviewed-on: https://go-review.googlesource.com/79575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go             |  26 ++-
+ src/go/types/check_test.go        |   1 +
+ src/go/types/decl.go              |  14 +-
+ src/go/types/interfaces.go        | 440 ++++++++++++++++++++++++++++++++++++++
+ src/go/types/ordering.go          | 123 -----------
+ src/go/types/resolver.go          |  21 +-
+ src/go/types/testdata/cycles.src  |   4 +-
+ src/go/types/testdata/cycles4.src |  12 --
+ src/go/types/testdata/cycles5.src | 117 ++++++++++
+ src/go/types/testdata/decls0.src  |   4 +-
+ src/go/types/typexpr.go           | 225 +++++++++----------
+ 11 files changed, 723 insertions(+), 264 deletions(-)

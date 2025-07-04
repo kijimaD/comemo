@@ -1,0 +1,19 @@
+commit a854c7f993f851ec0c5e240a08aa8331a4de9d68
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 17:11:11 2009 -0700
+
+    AES key setup and block ciphers.
+    AES mode wrappers not implemented, so no public interface yet.
+    
+    R=r
+    DELTA=918  (918 added, 0 deleted, 0 changed)
+    OCL=28848
+    CL=28863
+
+ src/lib/Makefile               |   2 +
+ src/lib/crypto/aes/Makefile    |  77 +++++++++
+ src/lib/crypto/aes/aes_test.go | 315 +++++++++++++++++++++++++++++++++++
+ src/lib/crypto/aes/block.go    | 162 ++++++++++++++++++
+ src/lib/crypto/aes/const.go    | 363 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/crypto/aes/modes.go    |   7 +
+ 6 files changed, 926 insertions(+)

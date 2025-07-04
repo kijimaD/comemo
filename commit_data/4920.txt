@@ -1,0 +1,13 @@
+commit 1a37656b7a5aa97b23ec837825c6b30622f11b2c
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Mon Feb 22 15:21:13 2010 -0800
+
+    xml: treat bool as value in Unmarshal
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/218050
+
+ src/pkg/xml/read.go     | 11 ++++++-----
+ src/pkg/xml/xml_test.go | 17 +++++++++++++----
+ 2 files changed, 19 insertions(+), 9 deletions(-)

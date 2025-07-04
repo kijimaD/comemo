@@ -1,0 +1,31 @@
+commit 0aedfc196bcf14df6325185f8992adbeb3f5a504
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Apr 13 20:52:53 2023 -0400
+
+    go/types: update TestStdlib to type-check concurrently
+    
+    In order to have some test coverage of concurrent use of the go/types
+    APIs, update the Stdlib test to type-check concurrently. In combination
+    with non-deterministic ordering, this should hopefully provide moderate
+    test coverage of concurrent use.
+    
+    Also, remove the arbitrary 10ms timeout in short mode, in favor of
+    simply not running.
+    
+    After this change, TestStdlib went from taking 16s on my laptop to 2s,
+    in part because of the parallelism and in part because we are no longer
+    type-checking twice (once for the import er, once for the test).
+    
+    Fixes golang/go#47729
+    
+    Change-Id: Ie49743947ab2d5aec051c3d09ce045acf5b94ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484540
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/self_test.go   |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go | 205 +++++++++++++++++++-----
+ src/go/types/self_test.go                      |   2 +-
+ src/go/types/stdlib_test.go                    | 209 +++++++++++++++++++------
+ 4 files changed, 334 insertions(+), 84 deletions(-)

@@ -1,0 +1,12 @@
+commit c526188fca341e64df763237dc3584fd4bbb8133
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 8 16:53:39 2011 +1100
+
+    CONTRIBUTORS: Andrea Spadaccini (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev, spadaccio
+    https://golang.org/cl/5460046
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

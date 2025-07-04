@@ -1,0 +1,15 @@
+commit 4b9ab7dd69453186a0e08757ba177b5d3ec25e7e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 17 23:17:15 2014 -0400
+
+    os: change return variable name for Getwd to avoid confusion
+    changed (pwd string) to (dir string), as some think pwd means passwd.
+    Fixes #7811.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/89100043
+
+ src/pkg/os/getwd.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

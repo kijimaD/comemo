@@ -1,0 +1,18 @@
+commit 087a34869ae66824ad83e8b160089c8f94f18807
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Nov 16 17:37:54 2011 -0500
+
+    syscall, os, time: fix Plan 9 build
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5371092
+
+ src/pkg/os/error_plan9.go             |  2 +-
+ src/pkg/os/file_plan9.go              | 14 +++++++-------
+ src/pkg/os/stat_plan9.go              |  2 +-
+ src/pkg/syscall/exec_plan9.go         | 16 ++++++++--------
+ src/pkg/syscall/syscall_plan9.go      | 36 +++++++++++++++++------------------
+ src/pkg/syscall/zsyscall_plan9_386.go | 36 +++++++++++++++++------------------
+ src/pkg/time/sys_plan9.go             |  5 -----
+ 7 files changed, 53 insertions(+), 58 deletions(-)

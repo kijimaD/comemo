@@ -1,0 +1,23 @@
+commit c84f3a4004076b0e3dcef0a17573d85eb90ef5fc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 8 10:41:56 2021 +0200
+
+    syscall: drop fallback to pipe in Pipe on linux/arm
+    
+    Follow-up for CL 346789
+    
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
+    fallback to use pipe in Pipe on linux/arm can be removed.
+    
+    For #45964
+    
+    Change-Id: I8b18244ca1f849f10e90565b4fef80ce777fef69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347349
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_arm.go | 4 ----
+ 1 file changed, 4 deletions(-)

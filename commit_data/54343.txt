@@ -1,0 +1,18 @@
+commit 96fe257a42e6ca3eac438bb3310ad653f4357c2a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 30 12:00:03 2023 +0000
+
+    encoding/gob: swap 'err, i' to correct verbs in decUint8Slice
+    
+    Change-Id: I76b2dd45179f65e9ed4f1d0f597ca59e49b59a85
+    GitHub-Last-Rev: b4171e6b836f948ff2973d91a19f0fd58cc8faea
+    GitHub-Pull-Request: golang/go#62374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

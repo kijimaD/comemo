@@ -1,0 +1,17 @@
+commit f6329700aee750e3eaded14cf64b2971ace839f6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Oct 18 10:45:19 2013 +0400
+
+    runtime: remove nomemprof
+    Nomemprof seems to be unneeded now, there is no recursion.
+    If the recursion will be re-introduced, it will break loudly by deadlocking.
+    Fixes #6566.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/14695044
+
+ src/pkg/runtime/mprof.goc | 10 ----------
+ src/pkg/runtime/proc.c    |  2 --
+ src/pkg/runtime/runtime.h |  1 -
+ 3 files changed, 13 deletions(-)

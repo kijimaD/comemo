@@ -1,0 +1,20 @@
+commit deb954772d08d27b7d261aa7214be98ccd58e5cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 6 10:37:33 2009 -0700
+
+    - ast.FilterExports: strips all non-exported nodes from an AST
+    - use FilterExports instead of the various predicates in printer.go and doc.go
+      which simplifies a lot of code and makes it easier to deal with complex cases
+    
+    R=rsc
+    DELTA=445  (197 added, 190 deleted, 58 changed)
+    OCL=31110
+    CL=31196
+
+ src/cmd/godoc/godoc.go        |  13 ++-
+ src/cmd/gofmt/gofmt.go        |   7 +-
+ src/pkg/go/ast/Makefile       |  15 ++-
+ src/pkg/go/ast/filter.go      | 134 +++++++++++++++++++++
+ src/pkg/go/doc/doc.go         |  50 ++------
+ src/pkg/go/printer/printer.go | 263 ++++++++++++------------------------------
+ 6 files changed, 245 insertions(+), 237 deletions(-)

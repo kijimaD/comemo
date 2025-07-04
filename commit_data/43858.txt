@@ -1,0 +1,30 @@
+commit f93ef07b1143abf3003555c4afcadc0e9842cbf8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 20 17:03:42 2020 -0500
+
+    cmd/go/internal/modload: remove the Reqs function
+    
+    The Reqs function returns an mvs.Reqs implemention for the global
+    build list. The API that it presents assumes that the build list is
+    globally consistent (problematic for #40775) and readily available
+    (problematic for #36460).
+    
+    Fortunately, it is no longer used outside of the modload package.
+    We can instead use individual instances of the unexported mvsReqs
+    struct, making the dependency on the global build list more explicit.
+    
+    For #36460
+    For #40775
+    
+    Change-Id: I8674442f2a86416b0bf9c3395cb591c1e724c9d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272129
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/init.go     |  4 ++--
+ src/cmd/go/internal/modload/load.go     |  4 ++--
+ src/cmd/go/internal/modload/mvs.go      | 11 -----------
+ src/cmd/go/internal/modload/mvs_test.go |  8 +++-----
+ 4 files changed, 7 insertions(+), 20 deletions(-)

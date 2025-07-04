@@ -1,0 +1,12 @@
+commit bd3d00e3109335bd66ec6dbede411c19f37df20f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 19 15:26:48 2016 -0700
+
+    doc: mention KeepAlive & input args change
+    
+    Change-Id: Icfb38f492ae71432858b7104fcba18a9ba835192
+    Reviewed-on: https://go-review.googlesource.com/29410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,70 @@
+commit 69c2c56453cdea1ad32d50fc82193f06b1b33f93
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Dec 4 07:58:18 2018 -0800
+
+    cmd/compile,runtime: redo mid-stack inlining tracebacks
+    
+    Work involved in getting a stack trace is divided between
+    runtime.Callers and runtime.CallersFrames.
+    
+    Before this CL, runtime.Callers returns a pc per runtime frame.
+    runtime.CallersFrames is responsible for expanding a runtime frame
+    into potentially multiple user frames.
+    
+    After this CL, runtime.Callers returns a pc per user frame.
+    runtime.CallersFrames just maps those to user frame info.
+    
+    Entries in the result of runtime.Callers are now pcs
+    of the calls (or of the inline marks), not of the instruction
+    just after the call.
+    
+    Fixes #29007
+    Fixes #28640
+    Update #26320
+    
+    Change-Id: I1c9567596ff73dc73271311005097a9188c3406f
+    Reviewed-on: https://go-review.googlesource.com/c/152537
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ misc/cgo/test/callback.go                      |   4 -
+ src/cmd/compile/internal/amd64/ggen.go         |   3 +-
+ src/cmd/compile/internal/arm/ggen.go           |   3 +-
+ src/cmd/compile/internal/arm64/ggen.go         |   3 +-
+ src/cmd/compile/internal/gc/fmt.go             |   4 +
+ src/cmd/compile/internal/gc/go.go              |   2 +-
+ src/cmd/compile/internal/gc/inl.go             |   9 +
+ src/cmd/compile/internal/gc/order.go           |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  12 ++
+ src/cmd/compile/internal/gc/syntax.go          |   2 +
+ src/cmd/compile/internal/gc/walk.go            |   3 +
+ src/cmd/compile/internal/mips/ggen.go          |   3 +-
+ src/cmd/compile/internal/mips64/ggen.go        |   3 +-
+ src/cmd/compile/internal/ppc64/ggen.go         |   9 +-
+ src/cmd/compile/internal/s390x/ggen.go         |   3 +-
+ src/cmd/compile/internal/ssa/deadcode.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   7 +
+ src/cmd/compile/internal/wasm/ssa.go           |   6 +-
+ src/cmd/compile/internal/x86/ggen.go           |   3 +-
+ src/cmd/internal/goobj/read.go                 |  10 +-
+ src/cmd/internal/obj/inl.go                    |  13 +-
+ src/cmd/internal/obj/link.go                   |  28 ++-
+ src/cmd/internal/obj/objfile.go                |   1 +
+ src/cmd/internal/obj/pcln.go                   |  16 ++
+ src/cmd/internal/obj/wasm/wasmobj.go           |   3 +-
+ src/cmd/internal/objabi/funcid.go              |  63 ++++++
+ src/cmd/link/internal/ld/pcln.go               |  52 ++---
+ src/cmd/link/internal/objfile/objfile.go       |   1 +
+ src/cmd/link/internal/sym/symbol.go            |  15 +-
+ src/runtime/extern.go                          |  24 +--
+ src/runtime/pprof/proto.go                     |  15 +-
+ src/runtime/pprof/proto_test.go                |   4 +-
+ src/runtime/pprof/protomem_test.go             |   6 +-
+ src/runtime/symtab.go                          | 288 +++++++------------------
+ src/runtime/traceback.go                       |  88 ++++----
+ test/fixedbugs/issue5856.go                    |   2 +-
+ test/inline_callers.go                         |  10 +-
+ 39 files changed, 341 insertions(+), 387 deletions(-)

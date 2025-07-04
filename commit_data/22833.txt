@@ -1,0 +1,15 @@
+commit fbb4c7454ba49e14557f58030e4793f3ca6fadfe
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri May 1 21:56:28 2015 -0400
+
+    nacltest.bash: remove syscall/fstest_nacl.go after test
+    
+    Fixes #9232.
+    
+    Change-Id: I11a7fb7691d9e7473620db1b7fa29fec359c73d3
+    Reviewed-on: https://go-review.googlesource.com/9642
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/nacltest.bash | 2 ++
+ 1 file changed, 2 insertions(+)

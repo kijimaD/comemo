@@ -1,0 +1,19 @@
+commit 4d2251967847cf9b710da09525c676a7e733113d
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jul 25 12:09:58 2012 +1000
+
+    exp/html: allow frameset if body contains whitespace
+    
+    If the body of an HTML document contains text, the <frameset> tag is
+    ignored. But not if the text is only whitespace.
+    
+    Pass 4 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6442043
+
+ src/pkg/exp/html/parse.go                           | 5 ++++-
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 4 ++--
+ src/pkg/exp/html/testlogs/tests19.dat.log           | 4 ++--
+ 3 files changed, 8 insertions(+), 5 deletions(-)

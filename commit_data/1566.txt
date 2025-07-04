@@ -1,0 +1,16 @@
+commit 3d4d5ad04cb44c2e0abd63aa9fedf3d73ae2173b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 26 17:48:27 2009 -0800
+
+    defer statement
+    
+    R=r
+    OCL=23542
+    CL=23542
+
+ usr/gri/pretty/parser.go    | 12 ++++++------
+ usr/gri/pretty/printer.go   |  4 +++-
+ usr/gri/pretty/scanner.go   |  2 ++
+ usr/gri/pretty/selftest2.go |  2 +-
+ usr/gri/pretty/test.sh      |  2 +-
+ 5 files changed, 13 insertions(+), 9 deletions(-)

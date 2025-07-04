@@ -1,0 +1,16 @@
+commit 0ce100dc9646eb9015e31502e184e45605df1393
+Author: Vladimir Mihailenco <vladimir.webdev@gmail.com>
+Date:   Thu Jun 23 07:42:22 2016 +0000
+
+    compress/flate: don't ignore dict in Reader.Reset
+    
+    Fixes #16162.
+    
+    Change-Id: I6f4ae906630079ef5fc29ee5f70e2e3d1c962170
+    Reviewed-on: https://go-review.googlesource.com/24390
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/inflate.go      |  2 +-
+ src/compress/flate/inflate_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

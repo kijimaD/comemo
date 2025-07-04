@@ -1,0 +1,16 @@
+commit 8d3458517199f5aa2be0ec0f316fd406c9ca6cbb
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 6 21:28:36 2020 -0500
+
+    doc/go1.16: announce openbsd/mips64 port
+    
+    Updates #40995.
+    For #40700.
+    
+    Change-Id: I4dced8d70e2f1fa2da98e2eb1a5f1f829f55bb6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275787
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,15 @@
+commit d80da19fc99d3e729c6497bf9bf9bb836ed9d9f6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 28 19:36:54 2021 -0400
+
+    cmd/link: update comment for PLT/GOT helper functions
+    
+    PLT and GOT are used more than on PE. Update the comment.
+    
+    Change-Id: Iaddb326680a7709a1442675a38c021331be32472
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314929
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/loader/loader.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

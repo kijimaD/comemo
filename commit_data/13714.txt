@@ -1,0 +1,17 @@
+commit e29659b3c30a79cdbd61ac6b68d5cead57ef2de7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 12:16:31 2012 -0400
+
+    net/http: add (*ServeMux).Handler method
+    
+    The Handler method makes the ServeMux dispatch logic
+    available to wrappers that enforce additional constraints
+    on requests.
+    
+    R=golang-dev, bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6450165
+
+ src/pkg/net/http/server.go      | 58 ++++++++++++++++---------
+ src/pkg/net/http/server_test.go | 95 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 20 deletions(-)

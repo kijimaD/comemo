@@ -1,0 +1,22 @@
+commit 75a22d0d107d291c2dbb78dce7017cffe6531b49
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 1 16:43:43 2016 -0700
+
+    cmd/compile: eliminate dead code in walkappend
+    
+    The IsStruct case is meant to handle cases like append(f()) where f's
+    result parameters are something like ([]int, int, int). However, at
+    this point in the compiler we've already rewritten append(f()) into
+    "tmp1, tmp2, tmp3 := f(); append(tmp1, tmp2, tmp3)".
+    
+    As further evidence, the t.Elem() is not a valid method call for a
+    struct type anyway, which would trigger the Fatalf call in Type.Elem
+    if this code was ever hit.
+    
+    Change-Id: Ia066f93df66ee3fadc9a9a0f687be7b5263af163
+    Reviewed-on: https://go-review.googlesource.com/21427
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 4 ----
+ 1 file changed, 4 deletions(-)

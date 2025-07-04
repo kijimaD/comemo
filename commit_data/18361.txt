@@ -1,0 +1,16 @@
+commit 96471b65d5cbff81d47288dad5fc49ec136ccc80
+Author: Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+Date:   Mon Jan 27 15:24:58 2014 -0800
+
+    httputil: in ReverseProxy, strip hop-by-hop headers from the backend response
+    
+    Fixes #5967.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/57370043
+
+ src/pkg/net/http/httputil/reverseproxy.go      |  4 ++++
+ src/pkg/net/http/httputil/reverseproxy_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

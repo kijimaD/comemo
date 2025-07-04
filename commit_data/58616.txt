@@ -1,0 +1,28 @@
+commit 51bf2cf7cfa999777697a9548d59d22c3716fbde
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Wed Jan 29 08:03:59 2025 -0800
+
+    Revert "cmd/go/internal/work: allow @ character in some -Wl, linker flags on darwin"
+    
+    This reverts CL 638075 (commit e3cd55e9d293d519e622e788e902f372dc30338a).
+    
+    This change introduced a security issue as @ flags are first resolved as
+    files by the darwin linker, before their meaning as flags, allowing the
+    flag filtering logic to be entirely bypassed.
+    
+    Thanks to Juho Forsén for reporting this issue.
+    
+    Fixes #71476
+    Fixes CVE-2025-22867
+    
+    Change-Id: I3a4b4a6fc534de105d930b8ed5b9900bc94b0c4e
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1900
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646996
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/security.go      | 22 +---------------
+ src/cmd/go/internal/work/security_test.go | 44 -------------------------------
+ 2 files changed, 1 insertion(+), 65 deletions(-)

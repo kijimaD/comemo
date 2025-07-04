@@ -1,0 +1,16 @@
+commit f0c383b833da7da435f7390631807868cf2cbd63
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 1 08:35:03 2019 -0700
+
+    cmd/dist: only build exec wrappers when cross compiling
+    
+    Updates #31722
+    
+    Change-Id: Ib44b46e628e364fff6eacda2b26541db2f0a4261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174701
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

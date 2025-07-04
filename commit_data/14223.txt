@@ -1,0 +1,12 @@
+commit 3c808164ad94884915f0ae4512eefadd944114e9
+Author: Patrick Smith <pat42smith@gmail.com>
+Date:   Sun Oct 28 10:07:59 2012 +1100
+
+    sort: Fixed a typo in the documentation for SearchStrings.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6777066
+
+ src/pkg/sort/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

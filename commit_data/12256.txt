@@ -1,0 +1,15 @@
+commit 250fa82122e1eca680c53f99e79dd08794001cc8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 29 07:34:28 2012 +1100
+
+    net/rpc: API changes, all documentation
+    except for hiding one type that is only used internally.
+    
+    Fixes #2944.
+    
+    R=golang-dev, rsc, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5707044
+
+ src/pkg/net/rpc/server.go | 39 +++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

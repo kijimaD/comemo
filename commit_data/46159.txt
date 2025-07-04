@@ -1,0 +1,19 @@
+commit 3d667671ad767d66bf792c5a8d623cb829f6366a
+Author: korzhao <korzhao95@gmail.com>
+Date:   Wed Aug 25 16:01:49 2021 +0800
+
+    cmd/compile: fix function contains no TParam in generic function
+    
+    Fixes #47948
+    
+    Change-Id: I446a9548265d195ae4d88aff6b1361474d1b6214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344910
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go |  3 ++-
+ test/typeparam/issue47948.go               | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

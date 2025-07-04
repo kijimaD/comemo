@@ -1,0 +1,18 @@
+commit f0b01092429a449313c9f54434417337ed26b20b
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 18 15:52:13 2024 -0800
+
+    cmd/compile: pull multiple adds out of an unsafe.Pointer<->uintptr conversion
+    
+    This came up in some swissmap code.
+    
+    Change-Id: I3c6705a5cafec8cb4953dfa9535cf0b45255cc83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629516
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 75 +++++++++++++++++++++++++
+ test/codegen/unsafe.go                          | 16 ++++++
+ 3 files changed, 94 insertions(+)

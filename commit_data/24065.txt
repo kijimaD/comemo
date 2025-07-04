@@ -1,0 +1,14 @@
+commit 47bdda649695052be099e3249977fc7e5e02cf81
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 25 05:43:54 2015 +1000
+
+    doc: remove mention of defunct golang-bugs mailing list
+    
+    Fixes #12299
+    
+    Change-Id: Id7b73d2935c9f7c0952f833613973ef455d02b0d
+    Reviewed-on: https://go-review.googlesource.com/13858
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 3 ---
+ 1 file changed, 3 deletions(-)

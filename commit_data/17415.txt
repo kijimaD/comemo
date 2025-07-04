@@ -1,0 +1,16 @@
+commit 916937274938adf506040b1118e1e20f990cf2b2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 29 13:21:21 2013 +1000
+
+    sort: use a very fast random generator for benchmarks
+    
+    Adapted from https://golang.org/cl/11564044.
+    
+    Fixes breakage of darwin-amd64-race builder.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13352045
+
+ src/pkg/sort/sort_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

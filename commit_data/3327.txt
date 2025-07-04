@@ -1,0 +1,17 @@
+commit 144580d69040fbda14432a2e48dba313ac4f9a95
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Sep 19 11:52:40 2009 -0700
+
+    - filter trailing whitespace
+    - removed some unused code
+    
+    R=rsc
+    DELTA=103  (84 added, 15 deleted, 4 changed)
+    OCL=34816
+    CL=34829
+
+ src/pkg/go/printer/printer.go                   | 107 +++++++++++++++++++-----
+ src/pkg/go/printer/testdata/declarations.golden |   2 +-
+ src/pkg/go/printer/testdata/expressions.golden  |   8 +-
+ src/pkg/go/printer/testdata/linebreaks.golden   |   4 +-
+ 4 files changed, 95 insertions(+), 26 deletions(-)

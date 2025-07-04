@@ -1,0 +1,28 @@
+commit cae9a9fd65cae6cbde0aacfea8f70e952e89f33e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 13 16:03:12 2020 +1100
+
+    doc: fix up some HTML issues in go_spec.html
+    
+    The HTML linter 'tidy' reports:
+    
+            go_spec.html:2556: Warning: unescaped & which should be written as &amp;
+            go_spec.html:3293: Warning: unescaped & or unknown entity "&s1"
+            go_spec.html:3293: Warning: unescaped & or unknown entity "&a"
+            go_spec.html:3294: Warning: unescaped & or unknown entity "&s2"
+            go_spec.html:3294: Warning: unescaped & or unknown entity "&a"
+            go_spec.html:2045: Warning: trimming empty <p>
+            go_spec.html:4526: Warning: trimming empty <ul>
+            go_spec.html:4533: Warning: trimming empty <ul>
+            go_spec.html:4539: Warning: trimming empty <ul>
+    
+    This CL fixes all but the <ul> ones, which I think should be fixed
+    but are defended by a comment.
+    
+    Change-Id: I0ca88f5e80755024801877ab1298025ecf8f10c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

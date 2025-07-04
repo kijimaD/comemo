@@ -1,0 +1,41 @@
+commit ea8b0acdac0c542a5cd9249861ddc1c43e9c71ba
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jul 31 13:13:39 2019 -0700
+
+    all: remove os.ErrTemporary
+    
+    As discussed in
+    https://github.com/golang/go/issues/32463#issuecomment-506833421
+    the classification of deadline-based timeouts as "temporary" errors is a
+    historical accident. I/O timeouts used to be duration-based, so they
+    really were temporary--retrying a timed-out operation could succeed. Now
+    that they're deadline-based, timeouts aren't temporary unless you reset
+    the deadline.
+    
+    Drop ErrTemporary from Go 1.13, since its definition is wrong. We'll
+    consider putting it back in Go 1.14 with a clear definition and
+    deprecate net.OpError.Temporary.
+    
+    Fixes #32463
+    
+    Change-Id: I70cda664590d8872541e17409a5780da76920891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188398
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ api/go1.13.txt                      |  1 -
+ src/context/context.go              |  2 +-
+ src/internal/oserror/errors.go      | 18 ------------------
+ src/internal/oserror/errors_test.go | 26 +++-----------------------
+ src/internal/poll/fd.go             |  2 +-
+ src/net/cgo_unix.go                 |  2 --
+ src/net/http/transport.go           |  4 +---
+ src/net/net.go                      |  4 ----
+ src/net/pipe.go                     |  2 +-
+ src/net/url/url.go                  | 14 ++++++++++----
+ src/os/error.go                     |  2 --
+ src/syscall/syscall_js.go           |  2 --
+ src/syscall/syscall_nacl.go         |  2 --
+ src/syscall/syscall_plan9.go        |  2 --
+ src/syscall/syscall_unix.go         |  2 --
+ src/syscall/syscall_windows.go      |  2 --
+ 16 files changed, 17 insertions(+), 70 deletions(-)

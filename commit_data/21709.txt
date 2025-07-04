@@ -1,0 +1,14 @@
+commit aff84b171c4188cc79bc23bffa3b284b6c02c2d7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 12:30:39 2015 -0800
+
+    cmd/asm: fix build for new aliases
+    
+    Missing leading A on names.
+    
+    Change-Id: I6f3a66bdd3a21220f45a898f0822930b6a7bfa38
+    Reviewed-on: https://go-review.googlesource.com/5801
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

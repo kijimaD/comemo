@@ -1,0 +1,22 @@
+commit c60d6c0b4367c047470ddd652f8c53e286481f96
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 16 18:13:13 2017 -0700
+
+    os: on OpenBSD implement Executable using Args[0]
+    
+    OpenBSD no longer has procfs.
+    
+    Based on a patch by Matthieu Sarter.
+    
+    Fixes #19453.
+    
+    Change-Id: Ia09d16f8a1cbef2f8cc1c5f49e9c61ec7d026a40
+    Reviewed-on: https://go-review.googlesource.com/46004
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable_path.go   | 104 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/executable_procfs.go |   4 +-
+ src/os/executable_test.go   |  11 +++--
+ 3 files changed, 112 insertions(+), 7 deletions(-)

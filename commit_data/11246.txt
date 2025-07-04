@@ -1,0 +1,12 @@
+commit f44304ee634ce8f97a0000b72dafba4fdbdf46b1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 19:05:53 2012 -0800
+
+    net/http: update the Client docs a bit
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/5557058
+
+ src/pkg/net/http/client.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

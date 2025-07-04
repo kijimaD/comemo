@@ -1,0 +1,18 @@
+commit 2989abc91efb7d64eb141b918bdc361975308e81
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 13 16:42:18 2019 -0400
+
+    cmd/dist: add a test in misc/reboot to verify that the toolchain can self-bootstrap
+    
+    Fixes #30758
+    
+    Change-Id: I8e49958602de9caa47bb5710828158e51744f375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167478
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/reboot/overlaydir_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++
+ misc/reboot/reboot_test.go     | 52 +++++++++++++++++++++++++++
+ src/cmd/dist/test.go           |  6 ++++
+ 3 files changed, 138 insertions(+)

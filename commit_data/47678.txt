@@ -1,0 +1,17 @@
+commit 06dbf6121ad77e9ea3288df99bfe4e94f8776f38
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:18:33 2021 -0500
+
+    doc/go1.18: remove some TODOs for changes we aren't mentioning
+    
+    Updates #47694
+    
+    Change-Id: I8fdbded4aaf974425ee317a1cdd940a5ac88c0b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368794
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 8 --------
+ 1 file changed, 8 deletions(-)

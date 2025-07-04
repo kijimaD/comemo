@@ -1,0 +1,46 @@
+commit eacdf76b93174484ffc526d9c45f4836f0738dee
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 20 20:03:39 2020 +0000
+
+    runtime: add bitmap-based markrootSpans implementation
+    
+    Currently markrootSpans, the scanning routine which scans span specials
+    (particularly finalizers) as roots, uses sweepSpans to shard work and
+    find spans to mark.
+    
+    However, as part of a future CL to change span ownership and how
+    mcentral works, we want to avoid having markrootSpans use the sweep bufs
+    to find specials, so in this change we introduce a new mechanism.
+    
+    Much like for the page reclaimer, we set up a per-page bitmap where the
+    first page for a span is marked if the span contains any specials, and
+    unmarked if it has no specials. This bitmap is updated by addspecial,
+    removespecial, and during sweeping.
+    
+    markrootSpans then shards this bitmap into mark work and markers iterate
+    over the bitmap looking for spans with specials to mark. Unlike the page
+    reclaimer, we don't need to use the pageInUse bits because having a
+    special implies that a span is in-use.
+    
+    While in terms of computational complexity this design is technically
+    worse, because it needs to iterate over the mapped heap, in practice
+    this iteration is very fast (we can skip over large swathes of the heap
+    very quickly) and we only look at spans that have any specials at all,
+    rather than having to touch each span.
+    
+    This new implementation of markrootSpans is behind a feature flag called
+    go115NewMarkrootSpans.
+    
+    Updates #37487.
+    
+    Change-Id: I8ea07b6c11059f6d412fe419e0ab512d989377b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221178
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go   |   8 +++
+ src/runtime/mgcmark.go  | 133 +++++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/mgcsweep.go |   4 ++
+ src/runtime/mheap.go    |  82 +++++++++++++++++++++--------
+ 4 files changed, 193 insertions(+), 34 deletions(-)

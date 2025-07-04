@@ -1,0 +1,17 @@
+commit 7996924c89a22efa3603fa6c181ea26aeccbdbd3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 15:08:03 2010 -0700
+
+    go/printer: do not remove parens around composite literals starting with a type name in control clauses
+    (even when they are nested inside an expression).
+    
+    Fixes #1243.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2817041
+
+ src/pkg/go/printer/nodes.go                   | 49 ++++++++++++++++++---------
+ src/pkg/go/printer/testdata/statements.golden | 30 ++++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 17 ++++++++++
+ 3 files changed, 80 insertions(+), 16 deletions(-)

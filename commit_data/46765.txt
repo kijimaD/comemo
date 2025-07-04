@@ -1,0 +1,25 @@
+commit 810b08b8ec28ea00bce4c008f7c1b48bc9f3e134
+Author: Ruslan Andreev <kels9009@gmail.com>
+Date:   Wed Jun 16 16:25:57 2021 +0000
+
+    cmd/compile: inline memequal(x, const, sz) for small sizes
+    
+    This CL adds late expanded memequal(x, const, sz) inlining for 2, 4, 8
+    bytes size. This PoC is using the same method as CL 248404.
+    This optimization fires about 100 times in Go compiler (1675 occurrences
+    reduced to 1574, so -6%).
+    Also, added unit-tests to codegen/comparisions.go file.
+    
+    Updates #37275
+    
+    Change-Id: Ia52808d573cb706d1da8166c5746ede26f46c5da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328291
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  20 ++++-
+ src/cmd/compile/internal/ssa/rewrite.go        |   5 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 100 +++++++++++++++++++++++++
+ test/codegen/comparisons.go                    |  62 +++++++++++++++
+ 4 files changed, 186 insertions(+), 1 deletion(-)

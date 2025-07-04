@@ -1,0 +1,14 @@
+commit e02168f6593db7f807a475b2bd4af0f3d7583e4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 15:01:26 2013 -0500
+
+    build: skip cgo test on arm
+    
+    Update #4961.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7451044
+
+ src/run.bash | 1 +
+ 1 file changed, 1 insertion(+)

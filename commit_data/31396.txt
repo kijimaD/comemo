@@ -1,0 +1,20 @@
+commit fcee3777fdb15eb6e34cb55925a8d5b0cd97e079
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 06:29:07 2017 -0700
+
+    cmd/compile: move addrescapes and moveToHeap to esc.go
+    
+    They were used only in esc.go. 100% code movement.
+    
+    Also, remove the rather outdated comment at the top of gen.go.
+    It's not really clear what gen.go is for any more.
+    
+    Change-Id: Iaedfe7015ef6f5c11c49f3e6721b15d779a00faa
+    Reviewed-on: https://go-review.googlesource.com/41971
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 152 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/gen.go | 155 -------------------------------------
+ 2 files changed, 152 insertions(+), 155 deletions(-)

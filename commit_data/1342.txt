@@ -1,0 +1,14 @@
+commit 8fb837d96dfee662580b5247072fe0a599fc8ae0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 15 08:56:17 2008 -0800
+
+    add test for once
+    
+    R=r
+    DELTA=31  (31 added, 0 deleted, 0 changed)
+    OCL=21043
+    CL=21175
+
+ src/lib/Makefile     |  1 +
+ src/lib/once_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

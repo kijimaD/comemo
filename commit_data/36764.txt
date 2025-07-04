@@ -1,0 +1,20 @@
+commit 1c8943bd59157878141faab0c93848f45d3d51d1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Sep 25 11:52:24 2018 +0200
+
+    cmd/link: move DIE of global variables to their compile unit
+    
+    The DIEs for global variables were all assigned to the first emitted
+    compile unit in debug_info, regardless of what it was. Move them
+    instead to their respective compile units.
+    
+    Change-Id: If794fa0ba4702f5b959c6e8c16119b16e7ecf6d8
+    Reviewed-on: https://go-review.googlesource.com/137235
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go |   3 +
+ src/cmd/internal/dwarf/dwarf.go                |  13 +++
+ src/cmd/link/dwarf_test.go                     |   3 +
+ src/cmd/link/internal/ld/dwarf.go              | 126 +++++++++++++------------
+ src/cmd/link/internal/objfile/objfile.go       |   2 +-
+ 5 files changed, 88 insertions(+), 59 deletions(-)

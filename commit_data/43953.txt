@@ -1,0 +1,17 @@
+commit 4de4480dc34fbe4f7b0ed97eada26aef7a7e2337
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 4 01:46:59 2020 +0100
+
+    doc/go1.16: cleanup crypto release notes
+    
+    For #40700
+    Fixes #42897
+    
+    Change-Id: Id3b87841a899818d6939dcc3edbaaa0bc183e913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275313
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.16.html | 108 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 53 insertions(+), 55 deletions(-)

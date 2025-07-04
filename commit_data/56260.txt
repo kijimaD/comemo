@@ -1,0 +1,27 @@
+commit 2dddc7ef881669276c96356ec44c4e46ec20b1e9
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 19:03:43 2024 +0000
+
+    cmd/link: move .dynamic and .got sections to relro if applicable
+    
+    This is the second of two CLs to roll forward the changes in CL
+    473495, which was subsequently reverted.
+    
+    In this patch we move the .dynamic and .got sections from the writable
+    data segment to the relro segment if the platform supports relro and
+    we're producing a PIE binary, and also moves .got.plt into relro if
+    eager binding is in effect (e.g. -bindnow or -Wl,-z,now).
+    
+    Updates #45681.
+    
+    Change-Id: I9f4fba6e825b96d1b5e27fb75844450dd0a650b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571417
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go            |  3 +-
+ src/cmd/link/internal/ld/elf.go             | 20 +++++--
+ src/cmd/link/internal/ld/elf_test.go        | 58 ++++++++++++++++++-
+ src/cmd/link/internal/sym/symkind.go        |  1 +
+ src/cmd/link/internal/sym/symkind_string.go | 89 +++++++++++++++--------------
+ 5 files changed, 121 insertions(+), 50 deletions(-)

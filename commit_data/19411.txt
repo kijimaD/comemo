@@ -1,0 +1,24 @@
+commit b28aa1f1ecfd54178e4074670a4f2fa708ef0cf0
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 20 10:56:50 2014 -0700
+
+    debug/plan9obj: cleanup api
+    
+    - Don't export Prog structure.
+    - Remove ProgHeader and ExecTable structures.
+    - Add Magic, Bss and Entry fields in FileHeader.
+    - Replace ?_MAGIC variables with constants.
+    - Ignore final EOF from ReadAt.
+    - Improve documentation.
+    
+    Fixes #7989.
+    
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/91400044
+
+ src/pkg/debug/plan9obj/file.go      | 107 +++++++++++++++---------------------
+ src/pkg/debug/plan9obj/file_test.go |   4 +-
+ src/pkg/debug/plan9obj/plan9obj.go  |  63 ++-------------------
+ 3 files changed, 49 insertions(+), 125 deletions(-)

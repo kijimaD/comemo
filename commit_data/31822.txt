@@ -1,0 +1,14 @@
+commit 071908f3d809245eda42bf6eab071c323c67b7d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 19:26:25 2017 +0000
+
+    net: clarify Listen on 0.0.0.0 behavior
+    
+    Fixes #17615
+    
+    Change-Id: I7f88c0c6579c79007492e765d1b5ca4f28d19575
+    Reviewed-on: https://go-review.googlesource.com/45771
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dial.go | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

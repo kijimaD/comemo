@@ -1,0 +1,12 @@
+commit b39329bff56abf35edc91537252782814a7a4f84
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Oct 28 08:58:26 2015 +1100
+
+    unicode/utf8: don't imply that the empty string is incorrect UTF-8
+    
+    Change-Id: Idd9523949ee4f2f304b12be39f8940ba34a420be
+    Reviewed-on: https://go-review.googlesource.com/16361
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/unicode/utf8/utf8.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

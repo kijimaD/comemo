@@ -1,0 +1,13 @@
+commit 4368a7875506bafcd751f1cad17098fa1e834281
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Aug 10 18:01:00 2010 +1000
+
+    gopack documentation: fixed typo
+    (Removed extraneous "program".)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1950041
+
+ src/cmd/gopack/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

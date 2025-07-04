@@ -1,0 +1,22 @@
+commit 041fc8bf96993d7405d938c7f4ad0b6ec474a91a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Oct 2 10:05:46 2012 +0400
+
+    race: gc changes
+    This is the first part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
+    This change makes gc compiler instrument memory accesses when supplied with -b flag.
+    
+    R=rsc, nigeltao, lvd
+    CC=golang-dev
+    https://golang.org/cl/6497074
+
+ src/cmd/gc/builtin.c  |   4 +
+ src/cmd/gc/doc.go     |   2 +
+ src/cmd/gc/go.h       |   6 +
+ src/cmd/gc/lex.c      |  16 +-
+ src/cmd/gc/pgen.c     |   4 +
+ src/cmd/gc/racewalk.c | 431 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/reflect.c  |   2 +
+ src/cmd/gc/runtime.go |   6 +
+ 8 files changed, 467 insertions(+), 4 deletions(-)

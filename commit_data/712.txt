@@ -1,0 +1,12 @@
+commit 1101d406ece37757350665a35e9db004f59a828c
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 23 14:16:41 2008 -0700
+
+    more on export
+    
+    R=r
+    OCL=15704
+    CL=15704
+
+ src/cmd/gc/export.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

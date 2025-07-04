@@ -1,0 +1,12 @@
+commit b388d6868fba8a0764d4dbd940a0bd249133923f
+Author: Julie <julie@golang.org>
+Date:   Wed Jun 12 13:54:51 2019 -0400
+
+    doc: add release notes for reflect
+    
+    Change-Id: I71a6816f54f8ad0f8531bb3f9de552fd136a0ed4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181943
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

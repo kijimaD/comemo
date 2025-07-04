@@ -1,0 +1,17 @@
+commit 8c20584a8206844be705c50efe8aabb6ab9c503e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 8 13:57:50 2021 -0800
+
+    bufio: document that NewWriter can return its argument
+    
+    Fixes #49446
+    
+    Change-Id: Ib0b53a7dd5d567a2dd0bdf29f53d276587b60afb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361921
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/bufio/bufio.go | 2 ++
+ 1 file changed, 2 insertions(+)

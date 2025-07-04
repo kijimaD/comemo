@@ -1,0 +1,21 @@
+commit 7d27e87d35b4c8948a498711cb34c1f73917535b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 29 10:39:44 2018 -0700
+
+    path/filepath: rewrite walkSymlinks
+    
+    Rather than try to work around Clean and Join on intermediate steps,
+    which can remove ".." components unexpectedly, just do everything in
+    walkSymlinks. Use a single loop over path components.
+    
+    Fixes #23444
+    
+    Change-Id: I4f15e50d0df32349cc4fd55e3d224ec9ab064379
+    Reviewed-on: https://go-review.googlesource.com/121676
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path_test.go |  14 +++
+ src/path/filepath/symlink.go   | 190 ++++++++++++++++++++++-------------------
+ 2 files changed, 117 insertions(+), 87 deletions(-)

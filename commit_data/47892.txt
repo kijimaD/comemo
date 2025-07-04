@@ -1,0 +1,15 @@
+commit 40afced8d74a58d66a4f0201c21eb187e50bf325
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 21:37:04 2022 -0800
+
+    spec: be more precise with rules on specific types
+    
+    Problem pointed out on golang-nuts mailing list.
+    
+    Change-Id: If1c9b22e1ed7b4ec7ebcaadc80fa450333e6856c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375799
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

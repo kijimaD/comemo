@@ -1,0 +1,17 @@
+commit 977e19d69fdca51a4a36f41124410a0240fe8206
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sun Dec 13 12:39:20 2009 -0800
+
+    8l: add support for PE output.
+    
+    R=rsc
+    https://golang.org/cl/166080
+
+ src/cmd/8l/Makefile |   2 +
+ src/cmd/8l/asm.c    |   9 +++
+ src/cmd/8l/obj.c    |  31 ++++++++++-
+ src/cmd/8l/pass.c   |  42 ++++++++++++--
+ src/cmd/cc/lex.c    |   5 +-
+ src/cmd/ld/pe.c     | 157 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/pe.h     |  91 ++++++++++++++++++++++++++++++
+ 7 files changed, 329 insertions(+), 8 deletions(-)

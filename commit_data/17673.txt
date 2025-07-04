@@ -1,0 +1,12 @@
+commit d00fb0a1ea881f43ef320c65ef606c9900a9df86
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 23 01:23:42 2013 -0400
+
+    doc/go1.2: document that godoc and vet will always be installed to their old locations (not $GOPATH/bin).
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13830043
+
+ doc/go1.2.html | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,48 @@
+commit 428c349552759dc1e11965d1d483a4749818ec11
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 9 06:20:44 2016 -0400
+
+    cmd/link, cmd/internal/obj: give Headtype a type
+    
+    Separate out windows/windowsgui properly so we are not encoding some
+    of the Headtype value in a separate headstring global.
+    
+    Remove one of the two copies of the variable from cmd/link.
+    
+    Remove duplicate string to headtype list.
+    
+    Change-Id: Ifa20fb9652a1dc95161e154aac11f15ad0f709d0
+    Reviewed-on: https://go-review.googlesource.com/28853
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go        |  67 ++++++++++++++++-
+ src/cmd/internal/obj/sym.go         |  39 +---------
+ src/cmd/internal/obj/x86/asm6.go    |  12 ++--
+ src/cmd/internal/obj/x86/obj6.go    |   8 +--
+ src/cmd/link/internal/amd64/asm.go  |  35 ++++-----
+ src/cmd/link/internal/amd64/obj.go  |  13 ++--
+ src/cmd/link/internal/arm/asm.go    |  10 +--
+ src/cmd/link/internal/arm/obj.go    |   8 +--
+ src/cmd/link/internal/arm64/asm.go  |  14 ++--
+ src/cmd/link/internal/arm64/obj.go  |  10 +--
+ src/cmd/link/internal/ld/data.go    |  48 ++++++-------
+ src/cmd/link/internal/ld/dwarf.go   |   6 +-
+ src/cmd/link/internal/ld/elf.go     |  32 ++++-----
+ src/cmd/link/internal/ld/go.go      |   8 +--
+ src/cmd/link/internal/ld/lib.go     |  53 +++++---------
+ src/cmd/link/internal/ld/link.go    |   1 -
+ src/cmd/link/internal/ld/main.go    | 115 +++--------------------------
+ src/cmd/link/internal/ld/pe.go      |   2 +-
+ src/cmd/link/internal/ld/sym.go     | 140 ++++++++++++++++++++++++------------
+ src/cmd/link/internal/ld/symtab.go  |   2 +-
+ src/cmd/link/internal/mips64/asm.go |   6 +-
+ src/cmd/link/internal/mips64/obj.go |   8 +--
+ src/cmd/link/internal/ppc64/asm.go  |   6 +-
+ src/cmd/link/internal/ppc64/obj.go  |   8 +--
+ src/cmd/link/internal/s390x/asm.go  |   2 +-
+ src/cmd/link/internal/s390x/obj.go  |   4 +-
+ src/cmd/link/internal/x86/asm.go    |  22 +++---
+ src/cmd/link/internal/x86/obj.go    |  13 ++--
+ 28 files changed, 328 insertions(+), 364 deletions(-)

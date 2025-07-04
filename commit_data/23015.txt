@@ -1,0 +1,19 @@
+commit 94934f843ee8b0a4a09dc336d4e2b57601b34206
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun May 10 20:22:32 2015 -0400
+
+    runtime: rewrite addb/subtractb to be simpler to compile; introduce add1, subtract1
+    
+    This reduces the depth of the inlining at a particular call site.
+    The inliner introduces many temporary variables, and the compiler can do
+    a better job with fewer. Being verbose in the bodies of these helper functions
+    seems like a reasonable tradeoff: the uses are still just as readable, and
+    they run faster in some important cases.
+    
+    Change-Id: I5323976ed3704d0acd18fb31176cfbf5ba23a89c
+    Reviewed-on: https://go-review.googlesource.com/9883
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 66 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 45 insertions(+), 21 deletions(-)

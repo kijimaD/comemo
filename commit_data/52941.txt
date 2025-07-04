@@ -1,0 +1,27 @@
+commit 5d76600cc01790c0eed9d0e2783ecf5bc7957993
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 9 15:55:45 2023 -0700
+
+    runtime: fix misaligned SP for libfuzzer entry
+    
+    libfuzzer is written in C and so requires by the C abi that SP be
+    aligned correctly mod 16. Normally CALLs need to have SP aligned to 0
+    mod 16, but because we're simulating a CALL (which pushes a return
+    address) with a JMP (which doesn't), we need to align to 8 mod 16
+    before JMPing.
+    
+    This is not causing any current problems that I know of. All the
+    functions called from this callsite that I checked don't rely on
+    correct alignment.  So this CL is just futureproofing.
+    
+    Update #49075
+    
+    Change-Id: I13fcbe9aaf2853056a6d44dc3aa64b7db689e144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494117
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/libfuzzer_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

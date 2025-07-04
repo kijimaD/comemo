@@ -1,0 +1,20 @@
+commit a9fc37525891e47b4277cde040a06db585e1780d
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri May 4 15:01:44 2018 +0300
+
+    runtime: fast clock_gettime on FreeBSD, always call getHPETTimecounter on systemstack
+    
+    CL 108095 goes to some length inorder to keep the stack usage of getHPETTimecounter code paths bellow a limit
+    being checked by the linker analysis. That limit is spurious, when running on the system or signal stack.
+    
+    In a similar scenario, cgocallback_gofunc performs an indirect call through AX to hide the call from the linker analysis.
+    Here instead, mark getHPETTimecounter //go:systemstack and call it appropriately.
+    
+    Change-Id: I80bec5e4974eee3c564d94f6e1142f322df88b2f
+    Reviewed-on: https://go-review.googlesource.com/111495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/vdso_freebsd_x86.go | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

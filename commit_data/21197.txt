@@ -1,0 +1,68 @@
+commit 43c87aa481f4e10777b05bf05edd15403853348f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 15:12:28 2014 -0800
+
+    cmd/6g, cmd/8g, liblink: improve handling of float constants
+    
+    * Enable basic constant propagation for floats.
+      The constant propagation is still not as aggressive as it could be.
+    * Implement MOVSS $(0), Xx and MOVSD $(0), Xx as XORPS Xx, Xx.
+    
+    Sample code:
+    
+    func f32() float32 {
+            var f float32
+            return f
+    }
+    
+    func f64() float64 {
+            var f float64
+            return f
+    }
+    
+    Before:
+    
+    "".f32 t=1 size=32 value=0 args=0x8 locals=0x0
+            0x0000 00000 (demo.go:3)        TEXT    "".f32+0(SB),4,$0-8
+            0x0000 00000 (demo.go:3)        FUNCDATA        $0,gclocals·a7a3692b8e27e823add69ec4239ba55f+0(SB)
+            0x0000 00000 (demo.go:3)        FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (demo.go:3)        MOVSS   $f32.00000000+0(SB),X0
+            0x0008 00008 (demo.go:4)        MOVSS   $f32.00000000+0(SB),X0
+            0x0010 00016 (demo.go:5)        MOVSS   X0,"".~r0+8(FP)
+            0x0016 00022 (demo.go:5)        RET     ,
+    "".f64 t=1 size=32 value=0 args=0x8 locals=0x0
+            0x0000 00000 (demo.go:8)        TEXT    "".f64+0(SB),4,$0-8
+            0x0000 00000 (demo.go:8)        FUNCDATA        $0,gclocals·a7a3692b8e27e823add69ec4239ba55f+0(SB)
+            0x0000 00000 (demo.go:8)        FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (demo.go:8)        MOVSD   $f64.0000000000000000+0(SB),X0
+            0x0008 00008 (demo.go:9)        MOVSD   $f64.0000000000000000+0(SB),X0
+            0x0010 00016 (demo.go:10)       MOVSD   X0,"".~r0+8(FP)
+            0x0016 00022 (demo.go:10)       RET     ,
+    
+    After:
+    
+    "".f32 t=1 size=16 value=0 args=0x8 locals=0x0
+            0x0000 00000 (demo.go:3)        TEXT    "".f32+0(SB),4,$0-8
+            0x0000 00000 (demo.go:3)        FUNCDATA        $0,gclocals·a7a3692b8e27e823add69ec4239ba55f+0(SB)
+            0x0000 00000 (demo.go:3)        FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (demo.go:3)        XORPS   X0,X0
+            0x0003 00003 (demo.go:5)        MOVSS   X0,"".~r0+8(FP)
+            0x0009 00009 (demo.go:5)        RET     ,
+    "".f64 t=1 size=16 value=0 args=0x8 locals=0x0
+            0x0000 00000 (demo.go:8)        TEXT    "".f64+0(SB),4,$0-8
+            0x0000 00000 (demo.go:8)        FUNCDATA        $0,gclocals·a7a3692b8e27e823add69ec4239ba55f+0(SB)
+            0x0000 00000 (demo.go:8)        FUNCDATA        $1,gclocals·3280bececceccd33cb74587feedb1f9f+0(SB)
+            0x0000 00000 (demo.go:8)        XORPS   X0,X0
+            0x0003 00003 (demo.go:10)       MOVSD   X0,"".~r0+8(FP)
+            0x0009 00009 (demo.go:10)       RET     ,
+    
+    Change-Id: Ie9eb65e324af4f664153d0a7cd22bb16b0fba16d
+    Reviewed-on: https://go-review.googlesource.com/2053
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/6g/gsubr.c |  1 -
+ src/cmd/6g/peep.c  |  4 ++--
+ src/cmd/8g/peep.c  |  2 +-
+ src/liblink/obj6.c | 28 ++++++++++++++++++++++++++--
+ src/liblink/obj8.c | 28 ++++++++++++++++++++++++++--
+ 5 files changed, 55 insertions(+), 8 deletions(-)

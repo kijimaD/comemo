@@ -1,0 +1,30 @@
+commit 0c68b79e9ce91ea471b2c1dcfa9da6a375300ad5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 25 11:28:56 2017 +0200
+
+    runtime/internal/sys: use boolean constants for sys.BigEndian
+    
+    The BigEndian constant is only used in boolean context so assign it
+    boolean constants.
+    
+    Change-Id: If19d61dd71cdfbffede1d98b401f11e6535fba59
+    Reviewed-on: https://go-review.googlesource.com/73270
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/atomic/atomic_test.go | 2 +-
+ src/runtime/internal/sys/arch_386.go       | 2 +-
+ src/runtime/internal/sys/arch_amd64.go     | 2 +-
+ src/runtime/internal/sys/arch_amd64p32.go  | 2 +-
+ src/runtime/internal/sys/arch_arm.go       | 2 +-
+ src/runtime/internal/sys/arch_arm64.go     | 2 +-
+ src/runtime/internal/sys/arch_mips.go      | 2 +-
+ src/runtime/internal/sys/arch_mips64.go    | 2 +-
+ src/runtime/internal/sys/arch_mips64le.go  | 2 +-
+ src/runtime/internal/sys/arch_mipsle.go    | 2 +-
+ src/runtime/internal/sys/arch_ppc64.go     | 2 +-
+ src/runtime/internal/sys/arch_ppc64le.go   | 2 +-
+ src/runtime/internal/sys/arch_s390x.go     | 2 +-
+ src/runtime/mstats.go                      | 4 ++--
+ 14 files changed, 15 insertions(+), 15 deletions(-)

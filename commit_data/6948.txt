@@ -1,0 +1,17 @@
+commit d110ae8dd0e9fbbd1af320d60818b9e650a71e19
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 14 11:52:42 2010 -0500
+
+    runtime: write only to standard error
+    
+    Will mail a warning to golang-nuts once this is submitted.
+    
+    R=r, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/3573043
+
+ src/pkg/runtime/print.c   | 36 ++++++++++++++++++------------------
+ src/pkg/runtime/proc.c    |  1 -
+ src/pkg/runtime/runtime.c |  3 ---
+ src/pkg/runtime/runtime.h |  1 -
+ 4 files changed, 18 insertions(+), 23 deletions(-)

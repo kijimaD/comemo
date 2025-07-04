@@ -1,0 +1,18 @@
+commit e6ca125f14d0f677205d3247f26da60ab8069b9c
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Dec 21 01:27:50 2012 +1100
+
+    cmd/[568]l: do not generate PT_TLS on openbsd
+    
+    The OpenBSD ld.so(1) does not currently support PT_TLS and refuses
+    to load ELF binaries that contain PT_TLS sections. Do not emit PT_TLS
+    sections - we will handle this appropriately in runtime/cgo instead.
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/6846064
+
+ src/cmd/5l/asm.c | 5 ++++-
+ src/cmd/6l/asm.c | 5 ++++-
+ src/cmd/8l/asm.c | 5 ++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

@@ -1,0 +1,48 @@
+commit 85e38cccb4d113862f4fd2c3c4d97927cd84420c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 20 15:41:37 2018 +0200
+
+    syscall: check faccessat flags parameter on Linux
+    
+    Port CL 119495 from golang.org/x/sys/unix to the syscall package.
+    
+    Currently Linux faccessat(2) syscall implementation doesn't support the
+    flags parameter. As per the discussion in #25845, permit the same flags
+    as glibc [1].
+    
+    [1] https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;h=ea42b2303ff4b2d2d6548ea04376fb265f773436;hb=HEAD
+    
+    Updates #25845
+    
+    Change-Id: I132b33275a9cc72b3a97acea5482806c7f47d7f7
+    Reviewed-on: https://go-review.googlesource.com/120015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go           | 12 +++++++++++-
+ src/syscall/syscall_linux_test.go      | 31 +++++++++++++++++++++++++++++++
+ src/syscall/types_linux.go             |  1 +
+ src/syscall/zsyscall_linux_386.go      | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_amd64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_arm.go      | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_arm64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips.go     | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips64.go   | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips64le.go | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mipsle.go   | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_ppc64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_ppc64le.go  | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_s390x.go    | 30 +++++++++++++++---------------
+ src/syscall/ztypes_linux_386.go        |  1 +
+ src/syscall/ztypes_linux_amd64.go      |  1 +
+ src/syscall/ztypes_linux_arm.go        |  1 +
+ src/syscall/ztypes_linux_arm64.go      |  1 +
+ src/syscall/ztypes_linux_mips.go       |  1 +
+ src/syscall/ztypes_linux_mips64.go     |  1 +
+ src/syscall/ztypes_linux_mips64le.go   |  1 +
+ src/syscall/ztypes_linux_mipsle.go     |  1 +
+ src/syscall/ztypes_linux_ppc64.go      |  1 +
+ src/syscall/ztypes_linux_ppc64le.go    |  1 +
+ src/syscall/ztypes_linux_s390x.go      |  1 +
+ 25 files changed, 219 insertions(+), 166 deletions(-)

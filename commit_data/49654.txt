@@ -1,0 +1,20 @@
+commit bb1749ba3bfaa6912d79904dad5e29e6ea624d29
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 09:41:14 2022 -0700
+
+    cmd/compile: improve GOAMD64=v1 violation test
+    
+    Add more opcodes that are only available in >v1 modes.
+    
+    This test will now correctly detect the regression in -race mode
+    for #53743.
+    
+    Change-Id: Icfbb1384e4333d7b4ff167c9ebcb6f4c7aeb6134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416477
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 31 ++++++++++++++++++++-----
+ 1 file changed, 25 insertions(+), 6 deletions(-)

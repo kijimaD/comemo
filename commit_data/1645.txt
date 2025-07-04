@@ -1,0 +1,15 @@
+commit 6506148850a8404979df82b4f1ca7620cd8e9c16
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 8 10:17:23 2009 -0800
+
+    a few small cleanups
+    
+    R=rsc
+    DELTA=21  (2 added, 2 deleted, 17 changed)
+    OCL=24638
+    CL=24654
+
+ doc/go_tutorial.txt      |  2 +-
+ src/lib/log_test.go      |  4 ++--
+ src/lib/regexp/regexp.go | 32 ++++++++++++++++----------------
+ 3 files changed, 19 insertions(+), 19 deletions(-)

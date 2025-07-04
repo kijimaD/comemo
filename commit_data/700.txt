@@ -1,0 +1,21 @@
+commit fb40f88c409da18ee69a7450e1b8f9528f3538ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 13:47:53 2008 -0700
+
+    test cleanup
+            - do not print tracebacks if $GOTRACEBACK=0
+            - set GOTRACEBACK=0 during tests
+            - filter out pc numbers in errors
+    
+    R=r
+    DELTA=70  (22 added, 30 deleted, 18 changed)
+    OCL=15618
+    CL=15642
+
+ src/runtime/rt1_amd64_darwin.c |  8 +++++---
+ src/runtime/rt1_amd64_linux.c  | 16 +++++++++-------
+ src/runtime/runtime.c          | 17 +++++++++++++++--
+ src/runtime/runtime.h          |  1 +
+ test/golden.out                | 40 +++++-----------------------------------
+ test/run                       |  4 ++++
+ 6 files changed, 39 insertions(+), 47 deletions(-)

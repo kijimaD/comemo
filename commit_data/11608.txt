@@ -1,0 +1,14 @@
+commit 83bb6ebe9e803ffdbc7009512234374975aab94c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 3 16:57:59 2012 -0800
+
+    go/printer: update documentation
+    
+    Fixes #2855.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5608057
+
+ src/pkg/go/printer/printer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

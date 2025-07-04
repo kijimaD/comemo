@@ -1,0 +1,18 @@
+commit edfe07834905809d687b30632ccb849b84ebd4f2
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Aug 31 22:25:51 2022 +0200
+
+    net/http: ignore ranges if the content is empty in serveContent
+    
+    Fixes #54794
+    
+    Change-Id: I6f2b7b86b82ea27b9d53cf989daa21cb8ace13da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427195
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/fs.go      | 146 ++++++++++++++++++++++++++----------------------
+ src/net/http/fs_test.go |  21 +++++++
+ 2 files changed, 101 insertions(+), 66 deletions(-)

@@ -1,0 +1,19 @@
+commit 49372957abb89df9616be4c5134febfa2aafd24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 14:08:14 2022 -0700
+
+    internal/types/errors: export error codes
+    
+    Adjust self-test accordingly.
+    
+    Change-Id: I69987a306760da9eaf832275af0e9a8b6131a349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439561
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/internal/types/errors/codes.go      | 584 ++++++++++++++++----------------
+ src/internal/types/errors/codes_test.go |  11 +-
+ 2 files changed, 295 insertions(+), 300 deletions(-)

@@ -1,0 +1,22 @@
+commit a30eaa12eb2ecb484d3ced8775fadeeb20a21569
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 17:12:31 2014 -0700
+
+    net/http: fix up Response.Write edge cases
+    
+    The Go HTTP server doesn't use Response.Write, but others do,
+    so make it correct. Add a bunch more tests.
+    
+    This bug is almost a year old. :/
+    
+    Fixes #5381
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/85740046
+
+ src/pkg/net/http/response.go           |  51 +++++++++++++++--
+ src/pkg/net/http/response_test.go      |   4 ++
+ src/pkg/net/http/responsewrite_test.go | 102 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 152 insertions(+), 5 deletions(-)

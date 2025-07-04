@@ -1,0 +1,22 @@
+commit 8598396d81035ed170581bfec894f6827b5db506
+Author: Minaev Mike <minaev.mike@gmail.com>
+Date:   Mon Aug 7 08:22:21 2017 +0000
+
+    net/mail: skip trailing comment while parsing email
+    
+    The existing implementation doesn't handle
+    comment constructions in email address.
+    So addresses that are consistent with RFC 5322
+    don't parse at all.
+    
+    Fixes #21257
+    
+    Change-Id: Iae3ba951dfb26b7cf0e1885a680bbceb9123d6d5
+    Reviewed-on: https://go-review.googlesource.com/53550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mail/message.go      | 49 ++++++++++++++++++++++++++++++++++++++++++--
+ src/net/mail/message_test.go | 44 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 81 insertions(+), 12 deletions(-)

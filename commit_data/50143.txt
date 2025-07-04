@@ -1,0 +1,19 @@
+commit a52f4952cbc03538cacea78a663ac5bf61af165e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 25 11:25:32 2022 +0700
+
+    runtime: remove gcCPULimiterState padding for atomic fields alignment
+    
+    assistTimePool and lastUpdate are now atomic.Int64, so they are
+    guaranteed to have 64-bit alignment, even on 32-bit platforms.
+    
+    Change-Id: Ib6062a47c3a92d46d43899e1ae9d119e7f5b8bb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425460
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mgclimit.go | 2 --
+ 1 file changed, 2 deletions(-)

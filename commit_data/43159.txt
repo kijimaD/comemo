@@ -1,0 +1,16 @@
+commit 75ea9953a812dcb2f64ea949054e529d9748d553
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 5 11:42:44 2020 -0400
+
+    cmd/compile: enable late expansion for address-of static calls
+    
+    passes run.bash and race.bash (on Darwin-amd64)
+    
+    Change-Id: I2abda9636b681d050e85e88fc357ebe5220d2ba2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246938
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

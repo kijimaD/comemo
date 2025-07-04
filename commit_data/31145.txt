@@ -1,0 +1,22 @@
+commit 3b6ecdf93463dd09506596872f5147a781b416b1
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri Apr 14 11:38:53 2017 +0200
+
+    vendor: update golang_org/x/crypto packages
+    
+    Update the poly1305 and curve25519 packages to the current state of /x/crypto.
+    
+    Updates #19967
+    
+    Change-Id: Ib71534f78040f31bfd5debb06f3c4a54a77955b3
+    Reviewed-on: https://go-review.googlesource.com/40711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../golang_org/x/crypto/curve25519/cswap_amd64.s   |  131 +-
+ .../golang_org/x/crypto/curve25519/curve25519.go   |   23 +-
+ .../x/crypto/curve25519/curve25519_test.go         |   10 +
+ .../golang_org/x/crypto/poly1305/poly1305_test.go  |   67 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_ref.go | 1634 ++------------------
+ 5 files changed, 261 insertions(+), 1604 deletions(-)

@@ -1,0 +1,19 @@
+commit ef891e1c8336243023abb1638a3225405d0e5d44
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 31 22:24:00 2019 -0700
+
+    math/big: implement Int.TrailingZeroBits
+    
+    Implemented via the underlying nat.trailingZeroBits.
+    
+    Fixes #29578
+    
+    Change-Id: If9876c5a74b107cbabceb7547bef4e44501f6745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160681
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/int.go      |  6 ++++++
+ src/math/big/int_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

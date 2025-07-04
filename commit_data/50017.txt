@@ -1,0 +1,17 @@
+commit 7dad1d24b2e596b2178c1f94fe877c9effa330cd
+Author: Julie Qiu <julie@golang.org>
+Date:   Fri Aug 19 12:08:15 2022 -0400
+
+    .github/ISSUE_TEMPLATE: add issue template for Go vulnerability management
+    
+    Change-Id: Ia8bdd7909e94f3ab7248e88f0947db85ac744d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424928
+    Run-TryBot: Julie Qiu <julieqiu@google.com>
+    Auto-Submit: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ .github/ISSUE_TEMPLATE/04-vuln.md | 51 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

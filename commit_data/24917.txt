@@ -1,0 +1,14 @@
+commit f2eb3de6360629657e20b4eaaf34fa6b32a255ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 14:03:06 2015 -0500
+
+    cmd/compile: document -trimpath
+    
+    Fixes #8999.
+    
+    Change-Id: I1390605bdf908f59b596975ea51eb04bd03bbae0
+    Reviewed-on: https://go-review.googlesource.com/16918
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

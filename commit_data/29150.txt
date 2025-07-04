@@ -1,0 +1,22 @@
+commit ac74225dcc64d40839f3842d306442d33a5c6253
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 15:25:20 2016 -0700
+
+    cmd/compile: remove redundant extension after shift
+    
+    var x uint64
+    uint8(x >> 56)
+    
+    We don't need to generate any code for the uint8().
+    
+    Update #15090
+    
+    Change-Id: Ie1ca4e32022dccf7f7bc42d531a285521fb67872
+    Reviewed-on: https://go-review.googlesource.com/28191
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  14 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 384 +++++++++++++++++++++++++
+ 2 files changed, 398 insertions(+)

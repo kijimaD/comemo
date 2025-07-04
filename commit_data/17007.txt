@@ -1,0 +1,18 @@
+commit f0291a8e10660205efb5fe8704a6a87b551973df
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 3 12:17:01 2013 +0900
+
+    net: make IP address selection work correctly on IPv6-only kernel
+    
+    Update #3610
+    Update #5267
+    Update #5707
+    
+    R=golang-dev, bradfitz, dave, fvbommel
+    CC=golang-dev
+    https://golang.org/cl/11958043
+
+ src/pkg/net/ipsock.go       | 49 +++++++++++++++++++++++++++++++++------------
+ src/pkg/net/ipsock_plan9.go |  8 ++++++++
+ src/pkg/net/ipsock_posix.go | 11 ++++++++++
+ 3 files changed, 55 insertions(+), 13 deletions(-)

@@ -1,0 +1,39 @@
+commit 51ff3a6965b3fc40aceebe90eaf15a8a1a00a452
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 30 15:56:01 2020 -0800
+
+    crypto/x509: rewrite certificate parser
+    
+    Replaces the encoding/asn1 certificate parser with a
+    x/crypto/cryptobyte based parser. This provides a significant increase
+    in performance, mostly due to a reduction of lots of small allocs,
+    as well as almost entirely removing reflection.
+    
+    Since this is a rather large rewrite only the certificate parser is
+    replaced, leaving the parsers for CSRs, CRLs, etc for follow-up work.
+    Since some of the functions that the other parsers use are replaced
+    with cryptobyte versions, they still get a not insignificant performance
+    boost.
+    
+    name                           old time/op    new time/op    delta
+    ParseCertificate/ecdsa_leaf-8    44.6µs ± 9%    12.7µs ± 4%  -71.58%  (p=0.000 n=20+18)
+    ParseCertificate/rsa_leaf-8      46.4µs ± 4%    13.2µs ± 2%  -71.49%  (p=0.000 n=18+19)
+    
+    name                           old allocs/op  new allocs/op  delta
+    ParseCertificate/ecdsa_leaf-8       501 ± 0%       164 ± 0%  -67.27%  (p=0.000 n=20+20)
+    ParseCertificate/rsa_leaf-8         545 ± 0%       182 ± 0%  -66.61%  (p=0.000 n=20+20)
+    
+    Fixes #21118
+    Fixes #44237
+    
+    Change-Id: Id653f6ae5e405c3cbf0c5c48abb30aa831e30107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274234
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/parser.go    | 1005 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509.go      |  672 ----------------------------
+ src/crypto/x509/x509_test.go |  179 ++++++++
+ 3 files changed, 1184 insertions(+), 672 deletions(-)

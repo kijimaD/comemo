@@ -1,0 +1,12 @@
+commit 3e80f9ce7bd102ff5b8ddb1c02bb1a5af9602452
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Nov 7 05:09:54 2012 +0800
+
+    cmd/go: invoke gcc -print-libgcc-file-name only once
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6741051
+
+ src/cmd/go/build.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

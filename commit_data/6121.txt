@@ -1,0 +1,13 @@
+commit da25964e9ee264559b53adbf09a783b23532dd9c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 28 07:52:22 2010 +1000
+
+    CLA: Add James Fysh
+    
+    R=gri
+    CC=James Fysh, golang-dev
+    https://golang.org/cl/2043042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

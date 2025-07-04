@@ -1,0 +1,14 @@
+commit 655c281303343030a0bf3297de1b514418ac2bd1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 8 14:20:04 2008 -0700
+
+    disambiguate typedefs in export blocks of .6 files
+    
+    SVN=126366
+
+ src/cmd/gc/dcl.c            |  6 +++---
+ src/lib/container/vector.go |  4 ++--
+ src/lib/fmt.go              | 44 ++++++++++++++++++++++----------------------
+ src/lib/math/main.go        |  5 +++--
+ test/golden.out             |  4 ++--
+ 5 files changed, 32 insertions(+), 31 deletions(-)

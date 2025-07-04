@@ -1,0 +1,14 @@
+commit 097b1e0b733dd425f77c5ad7ef410ed521f31e31
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 23:30:05 2015 +0300
+
+    test: add escape analysis tests for fields
+    
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I3027b6e0f5b48325e6169599400cc59e1394809f
+    Reviewed-on: https://go-review.googlesource.com/5431
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_field.go | 175 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 175 insertions(+)

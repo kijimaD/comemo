@@ -1,0 +1,18 @@
+commit 2df6c1abce8cfd3f47ed5eb5a45733d7cbb53b4b
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Wed Jul 27 09:02:17 2022 +0200
+
+    runtime: remove the started field from sweepdata
+    
+    This bool doesn't seem to be used anymore. Remove it.
+    
+    Change-Id: Ic73346a98513c392d89482c5e1d818a90d713516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419654
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/mgcsweep.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

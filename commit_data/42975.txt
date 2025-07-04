@@ -1,0 +1,24 @@
+commit a408139bb0166f6e0a5d9fd17fc934da960c354e
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Sep 14 10:24:59 2020 +0200
+
+    testing: fix panicking tests hang if Cleanup calls FailNow
+    
+    Previously, it was impossible to call FailNow in a Cleanup.
+    Because it can terminate a panicking goroutine and cause its
+    parent hangs on t.signal channel. This CL sends the signal
+    in a deferred call to prevent the hang.
+    
+    Fixes #41355
+    
+    Change-Id: I4552d3a7ea763ef86817bf9b50c0e37fb34bf20f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254637
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ .../go/testdata/script/test_cleanup_failnow.txt    | 33 ++++++++++++++++++++++
+ src/testing/testing.go                             | 12 +++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)

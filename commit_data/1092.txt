@@ -1,0 +1,17 @@
+commit a3b4a3c29d29ac6be1ed7e262e5694c4a717d5fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 7 18:30:58 2008 -0800
+
+    - steps towards "flexible tab stops" simulation in pretty
+      printing output
+    - not yet enabled
+    
+    R=r
+    OCL=18842
+    CL=18842
+
+ usr/gri/pretty/ast.go     |  12 +++-
+ usr/gri/pretty/parser.go  |   9 ++-
+ usr/gri/pretty/printer.go | 164 +++++++++++++++++++++++++++++++++++++++++-----
+ usr/gri/pretty/scanner.go |  20 +++---
+ 4 files changed, 179 insertions(+), 26 deletions(-)

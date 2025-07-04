@@ -1,0 +1,23 @@
+commit 0613c748e8919536c360cfc9be4e63a0b55d4286
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 15 11:36:23 2021 -0400
+
+    cmd/go: move 'go install cmd@version' code into internal/load
+    
+    'go run cmd@version' will use the same code.
+    
+    This changes error messages a bit.
+    
+    For #42088
+    
+    Change-Id: Iaed3997a3d27f9fc0e868013ab765f1fb638a0b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310410
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 187 +++++++++++++++++++++
+ src/cmd/go/internal/work/build.go                  | 144 ++--------------
+ .../go/testdata/script/mod_install_pkg_version.txt |  26 +--
+ 3 files changed, 210 insertions(+), 147 deletions(-)

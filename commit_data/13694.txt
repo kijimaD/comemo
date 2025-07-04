@@ -1,0 +1,23 @@
+commit 5e8de365dced2d35975361760c6df9e4357fd6b9
+Author: Tobias Columbus <tobias.columbus@gmail.com>
+Date:   Tue Aug 28 03:59:16 2012 +0800
+
+    misc/vim: fix for autocompletion
+    
+        Vim autocompletion respects the $GOPATH variable and does not
+        ignore dashes ('-'), dots ('.') and underscores ('_') like found
+        in many remote packages.
+        Environment variable $GOROOT is determined by calling
+        'go env GOROOT' instead of relying on the user's environment
+        variables.
+    
+        Fixes #3876
+        Fixes #3882
+    
+    R=golang-dev, franciscossouza, dsymonds, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6443151
+
+ misc/vim/autoload/go/complete.vim | 48 ++++++++++++++++++++++++++++-----------
+ misc/vim/plugin/godoc.vim         |  2 +-
+ 2 files changed, 36 insertions(+), 14 deletions(-)

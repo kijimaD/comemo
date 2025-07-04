@@ -1,0 +1,13 @@
+commit 64e70382915daee094c64189514d7366a91d242a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 10 14:28:25 2015 -0800
+
+    math/big: implemented Float.Int (truncation of Floats to Ints)
+    
+    Change-Id: Id98f7333fe6ae1b64e0469c6d01f02360c1f8f55
+    Reviewed-on: https://go-review.googlesource.com/4481
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 66 +++++++++++++++++++++++++++++++++++++---------
+ src/math/big/float_test.go | 43 +++++++++++++++++++++++++++++-
+ 2 files changed, 95 insertions(+), 14 deletions(-)

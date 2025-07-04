@@ -1,0 +1,12 @@
+commit 4bbe9d87d77d871fa36095882117ff1316e12936
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 20 17:44:36 2011 -0400
+
+    all-qemu.bash: cannot test go/build
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4633054
+
+ src/all-qemu.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 08b80ca880278b2eed519f6227cee12d87090f7f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 17:33:15 2015 -0500
+
+    runtime: note interactions between GC and MemProfile
+    
+    Change-Id: Icce28fc4937cc73c0712c054161222f034381c2f
+    Reviewed-on: https://go-review.googlesource.com/16876
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mprof.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

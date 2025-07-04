@@ -1,0 +1,15 @@
+commit 0ae57c3b0b95310dd86ac0e0251048136d5a2d99
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Oct 27 14:54:19 2015 +1300
+
+    test: add ability to run tests with dynamic linking
+    
+    This is a bit ugly but it's a useful test. Run go install -buildmode=shared std
+    and then go run run.go -linkshared (it passes on linux/amd64).
+    
+    Change-Id: I5684c79cd03817fa1fc399788b7320f8535c08da
+    Reviewed-on: https://go-review.googlesource.com/16343
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/run.go | 47 +++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 41 insertions(+), 6 deletions(-)

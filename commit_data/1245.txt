@@ -1,0 +1,32 @@
+commit a5433369aa6c1b0ca2380d34fd99b41529a613fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 09:23:36 2008 -0800
+
+    use pc/ln table to print source lines in traceback
+    
+    r45=; 6.out
+    oops
+    panic PC=0x400316
+    0x400316?zi /home/rsc/go/src/runtime/rt0_amd64_linux.s:83
+            main·g(4195177, 0, 4205661, ...)
+            main·g(0x400369, 0x402c5d, 0x403e49, ...)
+    0x40034c?zi /home/rsc/go/src/runtime/x.go:24
+            main·f(4205661, 0, 4210249, ...)
+            main·f(0x402c5d, 0x403e49, 0x1, ...)
+    0x400368?zi /home/rsc/go/src/runtime/x.go:37
+            main·main(4210249, 0, 1, ...)
+            main·main(0x403e49, 0x1, 0x7fff9d894bd8, ...)
+    0x402c5c?zi /home/rsc/go/src/runtime/rt0_amd64.s:70
+            mainstart(1, 0, 2643020760, ...)
+            mainstart(0x1, 0x7fff9d894bd8, 0x0, ...)
+    r45=;
+    
+    R=r
+    DELTA=251  (198 added, 25 deleted, 28 changed)
+    OCL=19965
+    CL=19979
+
+ src/runtime/rt2_amd64.c |   8 +-
+ src/runtime/runtime.h   |  11 ++-
+ src/runtime/symtab.c    | 248 ++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 220 insertions(+), 47 deletions(-)

@@ -1,0 +1,17 @@
+commit d8e47e257e40ab03c5eaf2316eaea4cb83e650c3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 23:14:30 2023 +0800
+
+    fmt: add available godoc link
+    
+    Change-Id: Ia7eaa654b44625983d09284d906a7b67ef589696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535082
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/fmt/doc.go   | 46 +++++++++++++++++++++++-----------------------
+ src/fmt/print.go | 16 ++++++++--------
+ src/fmt/scan.go  | 10 +++++-----
+ 3 files changed, 36 insertions(+), 36 deletions(-)

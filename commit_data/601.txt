@@ -1,0 +1,13 @@
+commit 667ef6c163a06e75cc4b801141af8164b9734451
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 10 13:00:32 2008 -0700
+
+    - incorporated bug fixes, todo's as suggested by rsc
+    
+    R=r
+    DELTA=32  (11 added, 2 deleted, 19 changed)
+    OCL=15087
+    CL=15093
+
+ doc/go_spec.txt | 53 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 31 insertions(+), 22 deletions(-)

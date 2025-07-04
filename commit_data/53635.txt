@@ -1,0 +1,25 @@
+commit 8b5fe5980cc116366b37ed8aa83569cadf5772d0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 28 23:15:35 2023 +0700
+
+    cmd/compile: handle min/max correctly in mayCall
+    
+    CL 500575 changed mayCall to return "false" for min/max builtin.
+    
+    However, with string or float, min/max requires runtime call, so mayCall
+    should return true instead. This's probably not a big problem, because
+    CL 506115 makes order pass handle min/max correctly. But it's still
+    better to do it the right way.
+    
+    Updates #60582
+    
+    Change-Id: I9779ca62bebd0f95e52ad5fa55b9160dc35b33aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506855
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/walk.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 319131f295fecb687787d89b1441a6ea9222d5e4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Oct 22 08:38:23 2012 +0200
+
+    cmd/gc: fix inlining bug for composite literals in if statements.
+    
+    Fixes #4230.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6640056
+
+ src/cmd/gc/fmt.c               | 10 ++++---
+ test/fixedbugs/bug465.dir/a.go | 61 ++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug465.dir/b.go | 17 ++++++++++++
+ test/fixedbugs/bug465.go       | 10 +++++++
+ 4 files changed, 94 insertions(+), 4 deletions(-)

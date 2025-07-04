@@ -1,0 +1,31 @@
+commit b1d144e1584ef6dbd8dfc2157133b15c48ebd6b9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 11 14:19:11 2015 -0400
+
+    go/constant: rename go/constants
+    
+    Change-Id: I4b1ce33253890de9bc64fee9b476fe52eec87fc0
+    Reviewed-on: https://go-review.googlesource.com/9920
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go                    | 6 +++---
+ src/go/{constants => constant}/go13.go       | 2 +-
+ src/go/{constants => constant}/go14.go       | 2 +-
+ src/go/{constants => constant}/value.go      | 4 ++--
+ src/go/{constants => constant}/value_test.go | 2 +-
+ src/go/internal/gcimporter/gcimporter.go     | 2 +-
+ src/go/types/api.go                          | 2 +-
+ src/go/types/builtins.go                     | 2 +-
+ src/go/types/check.go                        | 2 +-
+ src/go/types/conversions.go                  | 2 +-
+ src/go/types/decl.go                         | 2 +-
+ src/go/types/expr.go                         | 2 +-
+ src/go/types/object.go                       | 2 +-
+ src/go/types/operand.go                      | 2 +-
+ src/go/types/resolver.go                     | 2 +-
+ src/go/types/self_test.go                    | 2 +-
+ src/go/types/stmt.go                         | 2 +-
+ src/go/types/typexpr.go                      | 2 +-
+ src/go/types/universe.go                     | 2 +-
+ 19 files changed, 22 insertions(+), 22 deletions(-)

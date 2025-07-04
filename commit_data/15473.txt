@@ -1,0 +1,13 @@
+commit fbec8347cbdccbaafdde7e59631485731d0da153
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 14:42:53 2013 -0800
+
+    doc/effective_go.html: use correct name in Interface Checks section
+    Fixes #4897.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7377061
+
+ doc/effective_go.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

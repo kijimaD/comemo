@@ -1,0 +1,14 @@
+commit fc1793dde99c51ee98349810d396467972b56e6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:41:37 2016 -0500
+
+    doc: document release support policy
+    
+    Fixes #12790.
+    
+    Change-Id: I0f231d198c76632c23692fc1337b57cfeafaf4c7
+    Reviewed-on: https://go-review.googlesource.com/18338
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/devel/release.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

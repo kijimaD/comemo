@@ -1,0 +1,23 @@
+commit ec4ae29f52cee3f6e448d8279708ea47d553f35f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 22 16:36:24 2018 -0400
+
+    cmd/link: abstract DWARF metadata symbol lookup
+    
+    The compiler passes a lot of DWARF metadata about functions to the
+    linker via symbols whose names are derived from the function's own
+    symbol name. We look up these symbols in several places. This is about
+    to get slightly more complex as we introduce ABIs as symbol versions,
+    so abstract this lookup pattern into a helper function.
+    
+    For #27539.
+    
+    Change-Id: Ic71f6b5dc6608a5a5f5f515808981e6d6f5d728e
+    Reviewed-on: https://go-review.googlesource.com/c/146858
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

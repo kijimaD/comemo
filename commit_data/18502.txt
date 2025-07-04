@@ -1,0 +1,15 @@
+commit e8ecd9f67ad32008c973bba38b505d53373953e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 14:31:48 2014 -0500
+
+    runtime: update malloc comment for MSpan.needzero
+    
+    Missed this suggestion in CL 57680046.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63390043
+
+ src/pkg/runtime/malloc.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

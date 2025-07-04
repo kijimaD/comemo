@@ -1,0 +1,22 @@
+commit de69401b7513bd94d01061c01d9c5c8c8dfdfae2
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Feb 11 11:47:31 2013 +1100
+
+    exp/cookiejar: implementation of SetCookies
+    
+    This CL provides the rest of the SetCookies code as well as
+    some test infrastructure which will be used to test also
+    the Cookies method. This test infrastructure is optimized
+    for readability and tries to make it easy to review table
+    driven test cases.
+    
+    Tests for all the different corner cases of SetCookies
+    will be provided in a separate CL.
+    
+    R=nigeltao, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7306054
+
+ src/pkg/exp/cookiejar/jar.go      | 181 ++++++++++++++++++++-
+ src/pkg/exp/cookiejar/jar_test.go | 333 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 508 insertions(+), 6 deletions(-)

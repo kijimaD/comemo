@@ -1,0 +1,17 @@
+commit 4be93851c37281af977f1c1aaa2e2c65c8f40ce0
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Aug 13 11:04:09 2013 -0700
+
+    io: prevent write to PipeWriter after Close
+    
+    Return an ErrClosedPipe rather than allowing the write to proceed.
+    
+    Fixes #5330.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12541053
+
+ src/pkg/io/pipe.go      |  4 ++++
+ src/pkg/io/pipe_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,0 +1,19 @@
+commit 0e60804b4a65559613ceae03b8a61b959d0a1cba
+Author: John Beisley <huin@google.com>
+Date:   Fri Nov 18 12:56:57 2011 -0500
+
+    exp/ssh: Add support for (most) of the ciphers from RFC4253, RFC4344 and RFC4345.
+    
+    R=dave, agl, taruti, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5342057
+
+ src/pkg/exp/ssh/Makefile       |  1 +
+ src/pkg/exp/ssh/cipher.go      | 88 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/cipher_test.go | 62 +++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/client.go      |  7 +++-
+ src/pkg/exp/ssh/common.go      | 16 +++++++-
+ src/pkg/exp/ssh/messages.go    |  2 -
+ src/pkg/exp/ssh/server.go      | 11 ++++--
+ src/pkg/exp/ssh/transport.go   | 51 +++++++++++++-----------
+ 8 files changed, 206 insertions(+), 32 deletions(-)

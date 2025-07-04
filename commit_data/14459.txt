@@ -1,0 +1,30 @@
+commit 314fd624343eaa2d110f9b5b192a0a8f354d63ed
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Sat Nov 24 15:55:19 2012 +1100
+
+    runtime: implement runtime.SysUnused on FreeBSD
+    
+    madvise was missing so implement it in assembler. This change
+    needs to be extended to the other BSD variantes (Net and Open)
+    
+    Without this change the scavenger will attempt to pass memory back
+    to the operating system when it has become idle, but the memory is
+    not returned and for long running Go processes the total memory used
+    can grow until OOM occurs.
+    
+    I have only been able to test the code on FreeBSD AMD64. The ARM
+    platforms needs testing.
+    
+    R=golang-dev, mikioh.mikioh, dave, jgc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6850081
+
+ src/pkg/runtime/defs_freebsd.go      |  7 +++++--
+ src/pkg/runtime/defs_freebsd_386.h   |  1 +
+ src/pkg/runtime/defs_freebsd_amd64.h |  1 +
+ src/pkg/runtime/defs_freebsd_arm.h   |  1 +
+ src/pkg/runtime/mem_freebsd.c        |  4 +---
+ src/pkg/runtime/sys_freebsd_386.s    |  7 +++++++
+ src/pkg/runtime/sys_freebsd_amd64.s  | 11 +++++++++++
+ src/pkg/runtime/sys_freebsd_arm.s    |  9 +++++++++
+ 8 files changed, 36 insertions(+), 5 deletions(-)

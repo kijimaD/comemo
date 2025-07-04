@@ -1,0 +1,13 @@
+commit 21ea5103a4dab347baeb497675e0786424d6c974
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Aug 19 10:19:59 2013 -0700
+
+    cmd/gc, runtime: use type information to scan interface values
+    
+    R=golang-dev, rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12785045
+
+ src/cmd/gc/pgen.c      |  1 -
+ src/pkg/runtime/mgc0.c | 54 ++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 12 deletions(-)

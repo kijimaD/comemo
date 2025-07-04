@@ -1,0 +1,15 @@
+commit 97fe55720dcb7c8306edde1089c1293d23d5297a
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu May 28 07:41:23 2009 -0700
+
+    Change 5l to use Biobufs for IO.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=132  (16 added, 45 deleted, 71 changed)
+    OCL=29468
+    CL=29497
+
+ src/cmd/5l/l.h   |   2 +-
+ src/cmd/5l/obj.c | 189 +++++++++++++++++++++++--------------------------------
+ 2 files changed, 81 insertions(+), 110 deletions(-)

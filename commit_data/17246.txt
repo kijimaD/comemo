@@ -1,0 +1,14 @@
+commit 3b4da67ee3ed0ed370c92768d4052da553b9bbc2
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 14 16:28:40 2013 -0400
+
+    cmd/ld: Remove superfluous redundant iself check
+    
+            CL 12741044 added an extra iself condition to an if statement that already contained it. Remove it.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12949043
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

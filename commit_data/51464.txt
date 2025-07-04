@@ -1,0 +1,18 @@
+commit 78472603c6bac7a52d42d565558b9c0cb12c3f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 22 14:50:57 2022 -0800
+
+    reflect: correct tpoy in comment
+    
+    Change-Id: I75aef6bf957939fae8b680214f5923dc2713a5cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452935
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

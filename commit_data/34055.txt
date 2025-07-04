@@ -1,0 +1,24 @@
+commit 574fc66b17e25d34d59d69c01978e7cd32cb8f30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 8 15:55:27 2017 -0800
+
+    go/types: add lookup method to context and factor out LookupParent calls
+    
+    R=go1.11
+    
+    Also: Moved Checker.pos field into context where it belongs.
+    
+    This is a cleanup/code factoring.
+    
+    For #22992.
+    
+    Change-Id: If9d4f0af537cb181f73735e709ebc8258b2a1378
+    Reviewed-on: https://go-review.googlesource.com/83017
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/call.go       | 2 +-
+ src/go/types/check.go      | 8 +++++++-
+ src/go/types/interfaces.go | 4 ++--
+ src/go/types/stmt.go       | 2 +-
+ src/go/types/typexpr.go    | 2 ++
+ 5 files changed, 13 insertions(+), 5 deletions(-)

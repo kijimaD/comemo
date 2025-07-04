@@ -1,0 +1,21 @@
+commit 9369f22b8444d4e4afd791273ae13121d2ec7a6d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 24 14:09:02 2016 -0700
+
+    cmd/compile: testing harness for checking generated assembly
+    
+    Add a test which compiles a function and checks the
+    generated assembly to make sure certain patterns are present.
+    This test allows us to do white box tests of the compiler
+    to make sure optimizations don't regress.
+    
+    Added a few simple tests for now.  More to come.
+    
+    Change-Id: I4ab5ce5d95b9e04e7d0d9328ffae47b8d1f95e74
+    Reviewed-on: https://go-review.googlesource.com/23403
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 105 ++++++++++++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)

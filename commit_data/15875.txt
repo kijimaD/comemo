@@ -1,0 +1,20 @@
+commit 3be703665eab5cd2bac22e3c928820f58b590c57
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 16:59:16 2013 -0400
+
+    reflect: implement method values
+    
+    Fixes #1517.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7906043
+
+ src/pkg/reflect/all_test.go  | 302 +++++++++++++++++++++++++++++++++++++++----
+ src/pkg/reflect/asm_386.s    |  12 +-
+ src/pkg/reflect/asm_amd64.s  |  12 +-
+ src/pkg/reflect/asm_arm.s    |  12 +-
+ src/pkg/reflect/deepequal.go |   2 -
+ src/pkg/reflect/makefunc.go  |  57 +++++++-
+ src/pkg/reflect/value.go     | 232 +++++++++++++++++++++------------
+ 7 files changed, 512 insertions(+), 117 deletions(-)

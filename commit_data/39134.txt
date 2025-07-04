@@ -1,0 +1,19 @@
+commit 3def99a8a8e3dc9841132e7b3515187b51b6a528
+Author: Luka Zitnik <luka.zitnik@gmail.com>
+Date:   Sun Apr 7 16:41:11 2019 +0200
+
+    cmd/go: print finally FAIL if a test has failed in package list mode
+    
+    Fixes #30507
+    
+    Change-Id: Ic598e4d5f71c624fcde051982bf85533e2f18e8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170948
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                      |  5 ++++-
+ src/cmd/go/internal/base/base.go           |  4 ++++
+ src/cmd/go/internal/test/test.go           | 18 ++++++++++++++++--
+ src/cmd/go/testdata/script/test_status.txt | 18 ++++++++++++++++++
+ 4 files changed, 42 insertions(+), 3 deletions(-)

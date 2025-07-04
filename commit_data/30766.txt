@@ -1,0 +1,17 @@
+commit c65ceff125ded084c6f3b47f830050339e7cc74e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 21 06:34:35 2017 +0000
+
+    flag: validate Int and Uint values to be in range
+    
+    Fixes #19230
+    
+    Change-Id: I38df9732b88f0328506e74f1a46f52adf47db1e5
+    Reviewed-on: https://go-review.googlesource.com/38419
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/flag/flag.go      |  4 ++--
+ src/flag/flag_test.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

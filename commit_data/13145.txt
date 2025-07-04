@@ -1,0 +1,33 @@
+commit e947eba2914d707514ca54bebef3c9cd1e23c86a
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu May 24 10:35:31 2012 +1000
+
+    exp/html: update test data
+    
+    Import updated test data from the WebKit Subversion repository (SVN revision 118111).
+    
+    Some of the old tests were failing because we were HTML5 compliant, but the tests weren't.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6228049
+
+ .../html/testdata/webkit/pending-spec-changes.dat  |  24 +++++
+ .../exp/html/testdata/webkit/plain-text-unsafe.dat | Bin 86 -> 4166 bytes
+ src/pkg/exp/html/testdata/webkit/tables01.dat      |  15 +++
+ src/pkg/exp/html/testdata/webkit/tests16.dat       |  22 ++++
+ src/pkg/exp/html/testdata/webkit/tests19.dat       |  25 ++++-
+ src/pkg/exp/html/testdata/webkit/tests26.dat       | 118 +++++++++++++++++++++
+ .../exp/html/testdata/webkit/tests_innerHTML_1.dat |   8 ++
+ src/pkg/exp/html/testdata/webkit/webkit01.dat      |  11 +-
+ src/pkg/exp/html/testdata/webkit/webkit02.dat      |  55 ++++++++++
+ .../exp/html/testlogs/pending-spec-changes.dat.log |   1 +
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |  32 ++++++
+ src/pkg/exp/html/testlogs/tables01.dat.log         |   1 +
+ src/pkg/exp/html/testlogs/tests16.dat.log          |   2 +
+ src/pkg/exp/html/testlogs/tests19.dat.log          |   9 +-
+ src/pkg/exp/html/testlogs/tests26.dat.log          |   6 ++
+ .../exp/html/testlogs/tests_innerHTML_1.dat.log    |   1 +
+ src/pkg/exp/html/testlogs/webkit01.dat.log         |   6 +-
+ src/pkg/exp/html/testlogs/webkit02.dat.log         |   4 +
+ 18 files changed, 324 insertions(+), 16 deletions(-)

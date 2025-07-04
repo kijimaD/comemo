@@ -1,0 +1,18 @@
+commit 16edf0b1f7401df07e0d2f96c8b97516e50cffd9
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Sep 6 10:31:03 2017 +0100
+
+    crypto/cipher: panic when IV length does not equal block size in NewOFB
+    
+    Functions like NewCBCDecrypter, NewCBCEncrypter, NewCFBDecrypter,
+    NewCFBEncrypter and NewCTR all panic when IV length does not equal block size.
+    This commit changes NewOFB to panic too, instead of returning nil silently.
+    
+    Change-Id: Ic4d3ebfad79bb0cf4759fa1c1a400c1a8d043490
+    Reviewed-on: https://go-review.googlesource.com/61850
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/cipher/ofb.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

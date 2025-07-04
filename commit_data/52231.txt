@@ -1,0 +1,20 @@
+commit 2d93805171275a4199bf74fe0e47671fb2f9aea4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 28 09:13:56 2023 -0500
+
+    runtime: add a benchmark of Callers
+    
+    We're about to make major changes to tracebacks. We have benchmarks of
+    stack copying, but not of PC buffer filling, so add some that we can
+    track through these changes.
+    
+    For #54466.
+    
+    Change-Id: I3ed61d75144ba03b61517cd9834eeb71c99d74df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472956
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/callers_test.go | 91 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

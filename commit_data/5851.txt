@@ -1,0 +1,23 @@
+commit 8f9aeb5a66c0acbca2844cc98d71320711fb4a82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 20 09:29:31 2010 -0700
+
+    gofmt: fix some linebreak issues
+    
+    - don't lose empty lines after labels
+    - canonicalize number of line breaks
+    - gofmt src misc, fixes a couple of irregular breaks
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1843044
+
+ src/pkg/compress/flate/huffman_code.go        |  1 -
+ src/pkg/compress/flate/inflate.go             |  1 -
+ src/pkg/go/doc/comment.go                     |  1 -
+ src/pkg/go/printer/nodes.go                   | 68 ++++++++++++++-------------
+ src/pkg/go/printer/printer.go                 | 42 ++++++++++++-----
+ src/pkg/go/printer/testdata/statements.golden | 49 ++++++++++++++++++-
+ src/pkg/go/printer/testdata/statements.input  | 53 +++++++++++++++++++++
+ src/pkg/nntp/nntp_test.go                     |  1 -
+ 8 files changed, 168 insertions(+), 48 deletions(-)

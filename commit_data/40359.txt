@@ -1,0 +1,22 @@
+commit 5eec0a91eadd76a45197ee2588306bdc85570549
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 21 17:45:59 2019 -0700
+
+    reflect: fix unsafe conversions reported by -d=checkptr
+    
+    The code for generating gcdata was (technically) unsafe. It was also
+    rather repetitive. This CL refactors it a bit and abstracts use of
+    gcdata into a helper gcSlice method.
+    
+    Updates #34972.
+    
+    Change-Id: Ie86d7822eafe263f1d3d150eedf0ec66be1ec85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202582
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/export_test.go |  11 ++--
+ src/reflect/type.go        | 127 ++++++++++++++++++++-------------------------
+ 2 files changed, 62 insertions(+), 76 deletions(-)

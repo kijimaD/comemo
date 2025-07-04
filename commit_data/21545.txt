@@ -1,0 +1,13 @@
+commit e810a079eb737bf5a0f74c225f6989b5b34d8165
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 14 10:42:26 2015 +1100
+
+    runtime: simplify and comment some windows code
+    
+    Change-Id: I5cedd9e53f4e020aea74d498d0db88d79a95260c
+    Reviewed-on: https://go-review.googlesource.com/2718
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os1_windows.go | 47 +++++++++++++++++++++++++++-------------------
+ 1 file changed, 28 insertions(+), 19 deletions(-)

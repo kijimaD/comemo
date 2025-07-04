@@ -1,0 +1,13 @@
+commit cac006ae5a25ac333030b10b3430a4d47c8c9c19
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Aug 30 10:27:01 2014 -0700
+
+    spec: Fix indentation and remove trailing white space characters.
+    
+    LGTM=gri
+    R=golang-codereviews, bradfitz, gri
+    CC=golang-codereviews
+    https://golang.org/cl/133330043
+
+ doc/go_spec.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

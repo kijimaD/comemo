@@ -1,0 +1,13 @@
+commit 99080c4b6f29aa6ea988747c43475469e761c8a5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 17:19:56 2014 +0400
+
+    runtime: fix chan alignment on 32 bits
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/128700043
+
+ src/pkg/runtime/chan.h | 3 +++
+ 1 file changed, 3 insertions(+)

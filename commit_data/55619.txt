@@ -1,0 +1,38 @@
+commit cf52e709977d331a70df9463cf9e307024b6779f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 25 18:27:35 2023 +0200
+
+    runtime: use a high res timer to signal io completion ports on windows
+    
+    GetQueuedCompletionStatusEx has a ~16ms timeout resolution. Use a
+    WaitCompletionPacket associated with the I/O Completion Port (IOCP)
+    and a high resolution timer so the IOCP is signaled on timer expiry,
+    therefore improving the GetQueuedCompletionStatusEx timeout resolution.
+    
+    BenchmarkSleep from the time package shows an important improvement:
+    
+    goos: windows
+    goarch: amd64
+    pkg: time
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+             │   old.txt    │               new.txt               │
+             │    sec/op    │   sec/op     vs base                │
+    Sleep-12   1258.5µ ± 5%   250.7µ ± 1%  -80.08% (p=0.000 n=20)
+    
+    Fixes #44343.
+    
+    Change-Id: I79fc09e34dddfc49e0e23c3d1d0603926c22a11d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488675
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/netpoll_windows.go | 91 +++++++++++++++++++++++++++++++++++-------
+ src/runtime/nonwindows_stub.go |  2 +
+ src/runtime/os_windows.go      | 54 +++++++++++++++++++++++--
+ src/time/sleep_test.go         | 32 ++++++++++-----
+ src/time/time.go               |  5 ++-
+ 5 files changed, 154 insertions(+), 30 deletions(-)

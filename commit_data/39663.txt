@@ -1,0 +1,26 @@
+commit 0a778cf57d4b95a532a9f32e8b409ece051ca3cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 27 14:18:48 2019 -0400
+
+    cmd/go/internal/get: remove '--' separator from 'git ls-remote' command
+    
+    'git ls-remote' started recognizing the '--' separator at some point
+    after 2.7.4, but git defaults to version 2.7.4 on Ubuntu 16.04 LTS,
+    which remains supported by Ubuntu until April 2021.
+    
+    We added '--' tokens to most VCS commands as a defensive measure in
+    CL 181237, but it isn't strictly necessary here because the 'scheme'
+    argument to our template is chosen from a predefined list: we can
+    safely drop it to retain compatibility.
+    
+    Fixes #33836
+    Updates #26746
+    
+    Change-Id: Ibb53366b95f8029b587e0b7646a439330d759ac7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191978
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/get/vcs.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

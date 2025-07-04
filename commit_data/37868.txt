@@ -1,0 +1,17 @@
+commit 94d9a2045398b471c8aec0b701cad06536e049b3
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Thu Jan 10 05:14:40 2019 +0900
+
+    net: drop confusing comment
+    
+    On AIX, we don't need to be aware of any change on the protocol stack of
+    Linux kernel.
+    
+    Change-Id: Ib8b14fa930acddb3bc720d401271e8daf567b784
+    Reviewed-on: https://go-review.googlesource.com/c/157298
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/sockopt_aix.go | 2 --
+ 1 file changed, 2 deletions(-)

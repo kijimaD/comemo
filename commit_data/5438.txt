@@ -1,0 +1,29 @@
+commit b9caa4ac56f306e4195dcbf5db1afd831a6049fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 3 18:48:05 2010 -0700
+
+    big: completed set of Int division routines & cleanups
+    
+    - renamed Len -> BitLen, simplified implementation
+    - renamed old Div, Mod, DivMod -> Que, Rem, QuoRem
+    - implemented Div, Mod, DivMod (Euclidian definition, more
+      useful in a mathematical context)
+    - fixed a bug in Exp (-0 was possible)
+    - added extra tests to check normalized results everywhere
+    - uniformly set Int.neg flag at the end of computations
+    - minor cosmetic cleanups
+    - ran all tests
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1091041
+
+ src/pkg/big/int.go                  | 235 +++++++++++++++++++++++-------------
+ src/pkg/big/int_test.go             | 235 ++++++++++++++++++++++++------------
+ src/pkg/big/nat.go                  |   8 +-
+ src/pkg/bignum/integer.go           |   2 +-
+ src/pkg/crypto/rsa/pkcs1v15.go      |  10 +-
+ src/pkg/crypto/rsa/pkcs1v15_test.go |   2 +-
+ src/pkg/crypto/rsa/rsa.go           |   8 +-
+ test/bench/pidigits.go              |   4 +-
+ 8 files changed, 332 insertions(+), 172 deletions(-)

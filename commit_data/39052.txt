@@ -1,0 +1,26 @@
+commit 5c15ed64deaf71dd3b84470f3de8aae0b667d6ef
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 2 07:05:21 2019 +0000
+
+    runtime: split spans during allocation without treap removal
+    
+    Now that the treap is first-fit, we can make a nice optimization.
+    Mainly, since we know that span splitting doesn't modify the relative
+    position of a span in a treap, we can actually modify a span in-place
+    on the treap. The only caveat is that we need to update the relevant
+    metadata.
+    
+    To enable this optimization, this change introduces a mutate method on
+    the iterator which takes a callback that is passed the iterator's span.
+    The method records some properties of the span before it calls into the
+    callback and then uses those records to see what changed and update
+    treap metadata appropriately.
+    
+    Change-Id: I74f7d2ee172800828434ba0194d3d78d3942acf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174879
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go | 34 ++++++++++++++++++++++++++++
+ src/runtime/mheap.go    | 60 +++++++++++++++++++++++++++----------------------
+ 2 files changed, 67 insertions(+), 27 deletions(-)

@@ -1,0 +1,22 @@
+commit b4117995e3e01a669be737c36033c2393858d555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 23 17:10:18 2016 -0700
+
+    cmd/pprof: use DWARF info to lookup unknown PC addresses
+    
+    Test to follow in a separate CL that arranges for the runtime package to
+    store non-Go addresses in a CPU profile.
+    
+    Change-Id: I33ce1d66b77340b1e62b54505fc9b1abcec108a9
+    Reviewed-on: https://go-review.googlesource.com/21055
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objfile/elf.go      |  5 ++
+ src/cmd/internal/objfile/goobj.go    |  6 +++
+ src/cmd/internal/objfile/macho.go    |  5 ++
+ src/cmd/internal/objfile/objfile.go  |  8 +++
+ src/cmd/internal/objfile/pe.go       |  5 ++
+ src/cmd/internal/objfile/plan9obj.go |  6 +++
+ src/cmd/pprof/pprof.go               | 95 +++++++++++++++++++++++++++++++++---
+ 7 files changed, 123 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit f0aef42ea16741d9c1872653343c012f5173373e
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:25:50 2015 +0100
+
+    math, math/big: add support for GOARCH=arm64
+    
+    Change-Id: Ief12e1435a40dd2eaddc3f97f63be44c4dd2e050
+    Reviewed-on: https://go-review.googlesource.com/7144
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/math/abs_arm64.s       | 11 ++++++
+ src/math/big/arith_arm64.s | 44 ++++++++++++++++++++++
+ src/math/stubs_arm64.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 146 insertions(+)

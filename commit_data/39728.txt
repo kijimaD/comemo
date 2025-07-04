@@ -1,0 +1,25 @@
+commit 97bc039c9cf127bd1bee9442eb1bc23aa63bf4ff
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 30 00:42:38 2019 +0700
+
+    cmd/compile: emit error message for broken type
+    
+    The original report in #5172 was that cmd/compile was generating bogus
+    follow-on error messages when typechecking a struct failed. Instead of
+    fixing those follow-on error messages, golang.org/cl/9614044 suppress all
+    follow-on error messages after struct typecheck fails. We should
+    continue emitting error messages instead.
+    
+    While at it, also add the test case for original report.
+    
+    Fixes #33947
+    
+    Change-Id: I4a5c6878977128abccd704350a12df743631c7bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191944
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  7 +------
+ test/fixedbugs/issue5172.go              | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 8 deletions(-)

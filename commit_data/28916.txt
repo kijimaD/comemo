@@ -1,0 +1,14 @@
+commit e05d0140483e78c36cd03b3f6173e9f23e975645
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 11:00:00 2016 -0400
+
+    reflect: correct Type.FieldByNameFunc docs
+    
+    Fixes #16573.
+    
+    Change-Id: I5a26eaa8b258cb1861190f9690086725532b8a0d
+    Reviewed-on: https://go-review.googlesource.com/31354
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

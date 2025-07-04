@@ -1,0 +1,12 @@
+commit f142deee959dbc753b23efc23f60bd755498ec3d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Nov 23 19:29:22 2012 +0800
+
+    cmd/go: show -race if necessary when giving "go test -i" hint
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6851100
+
+ src/cmd/go/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit fdab2f92eab01e8aca980c76cba18c2361cb0fc7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 13 11:31:14 2015 -0400
+
+    misc/cgo/testcarchive: test -buildmode=c-archive
+    
+    Change-Id: I1668a6885c45180ff88fe673d04cec7eba395ee7
+    Reviewed-on: https://go-review.googlesource.com/8861
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/main.c             | 34 ++++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo/libgo.go | 24 ++++++++++++++++++++++
+ misc/cgo/testcarchive/src/p/p.go         | 10 ++++++++++
+ misc/cgo/testcarchive/test.bash          | 31 +++++++++++++++++++++++++++++
+ src/cmd/dist/test.go                     |  4 ++++
+ 5 files changed, 103 insertions(+)

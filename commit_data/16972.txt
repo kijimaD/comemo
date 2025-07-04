@@ -1,0 +1,15 @@
+commit 252c107f2fe3e1ba8a58e06ec0e63fa8c8f90bb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 31 23:38:32 2013 -0700
+
+    net/http: don't MIME sniff if handler set an empty string Content-Type
+    
+    Fixes #5953
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12117043
+
+ src/pkg/net/http/server.go     |  3 ++-
+ src/pkg/net/http/sniff_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

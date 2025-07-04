@@ -1,0 +1,42 @@
+commit 00f4cacb4994ba9004b79a1dd3329dd827785667
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 25 00:34:21 2017 +0100
+
+    cmd/compile: reduce allocs when appending to Node slices
+    
+    Rewrite Append function such that the *Node slice argument does not escape.
+    
+    Passes toolstash -cmp.
+    
+    name      old alloc/op    new alloc/op    delta
+    Template     40.8MB ± 0%     40.8MB ± 0%  -0.17%  (p=0.000 n=20+19)
+    Unicode      30.3MB ± 0%     30.2MB ± 0%  -0.11%  (p=0.000 n=19+20)
+    GoTypes       115MB ± 0%      115MB ± 0%  -0.20%  (p=0.000 n=20+20)
+    Compiler      492MB ± 0%      491MB ± 0%  -0.25%  (p=0.000 n=20+20)
+    SSA           858MB ± 0%      858MB ± 0%  -0.08%  (p=0.000 n=20+20)
+    Flate        26.2MB ± 0%     26.2MB ± 0%  -0.13%  (p=0.000 n=20+19)
+    GoParser     32.5MB ± 0%     32.4MB ± 0%  -0.14%  (p=0.000 n=20+20)
+    Reflect      80.6MB ± 0%     80.4MB ± 0%  -0.27%  (p=0.000 n=20+20)
+    Tar          27.3MB ± 0%     27.3MB ± 0%  -0.12%  (p=0.000 n=20+19)
+    XML          43.1MB ± 0%     43.0MB ± 0%  -0.14%  (p=0.000 n=20+20)
+    
+    name      old allocs/op   new allocs/op   delta
+    Template       400k ± 1%       397k ± 0%  -0.81%  (p=0.000 n=20+18)
+    Unicode        321k ± 1%       320k ± 0%  -0.43%  (p=0.000 n=20+20)
+    GoTypes       1.17M ± 0%      1.16M ± 0%  -0.89%  (p=0.000 n=20+20)
+    Compiler      4.59M ± 0%      4.54M ± 0%  -1.26%  (p=0.000 n=20+19)
+    SSA           7.68M ± 0%      7.65M ± 0%  -0.37%  (p=0.000 n=18+18)
+    Flate          242k ± 1%       240k ± 1%  -0.70%  (p=0.000 n=20+20)
+    GoParser       323k ± 1%       321k ± 1%  -0.64%  (p=0.000 n=20+20)
+    Reflect       1.01M ± 0%      1.00M ± 0%  -0.92%  (p=0.000 n=20+19)
+    Tar            258k ± 1%       256k ± 1%  -0.60%  (p=0.000 n=20+19)
+    XML            403k ± 1%       400k ± 0%  -0.78%  (p=0.000 n=20+20)
+    
+    Change-Id: Ie1eb603dc46f729574f6a76c08085b2619249be4
+    Reviewed-on: https://go-review.googlesource.com/37437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit 6dcf83d882a668894f4423045833e97f7e3c31cf
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Nov 9 01:23:02 2021 +0100
+
+    runtime: revert recent Windows crashdump changes
+    
+    Recent changes to runtime enabled crashdumps, which under some
+    circumstances apparently might result in memory being uploaded to
+    Microsoft. A change like this should go through the proper proposals
+    process where we can discuss how to gate it and what all of its
+    implications are.
+    
+    This reverts CL 307372 and its cleanup CL 360617.
+    
+    Change-Id: If2e74015899d746831da40546c82eacacdf739e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362454
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_windows.go     |  4 --
+ src/runtime/panic.go          | 11 ------
+ src/runtime/signal_windows.go | 87 +++++++++++--------------------------------
+ 3 files changed, 22 insertions(+), 80 deletions(-)

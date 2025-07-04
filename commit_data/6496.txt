@@ -1,0 +1,12 @@
+commit cd0a75f3d751946ed3c253dbb697c890ce30843d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 12 14:05:50 2010 +1100
+
+    exp/draw: unbreak build.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2448041
+
+ src/pkg/exp/draw/draw_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

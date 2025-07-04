@@ -1,0 +1,19 @@
+commit 0d8ed1452864d23fc9654e885d6f961ebae421b7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 17 22:03:13 2009 -0700
+
+    ZLIB reader for go.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=204  (204 added, 0 deleted, 0 changed)
+    OCL=33437
+    CL=33440
+
+ src/pkg/Make.deps                    |   1 +
+ src/pkg/Makefile                     |   2 +
+ src/pkg/compress/gzip/gunzip.go      |   1 +
+ src/pkg/compress/zlib/Makefile       |  11 ++++
+ src/pkg/compress/zlib/reader.go      |  87 ++++++++++++++++++++++++++++++
+ src/pkg/compress/zlib/reader_test.go | 102 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 204 insertions(+)

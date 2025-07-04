@@ -1,0 +1,17 @@
+commit 153d31da1629facdc855ad0e4e91369ec2124ac7
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jun 19 17:30:29 2016 -0700
+
+    doc/go1.7.html: net/http RFC 2616 conformation + timeoutHandler on empty body
+    
+    - Mention RFC 2616 conformation in which the server now only sends one
+    "Transfer-Encoding" header when "chunked" is explicitly set.
+    - Mention that a timeout handler now sends a 200 status code on
+    encountering an empty response body instead of sending back 0.
+    
+    Change-Id: Id45e2867390f7e679ab40d7a66db1f7b9d92ce17
+    Reviewed-on: https://go-review.googlesource.com/24250
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

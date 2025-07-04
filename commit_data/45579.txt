@@ -1,0 +1,18 @@
+commit f5423ea615b94455e4f6b9cbee491b492bf2e1fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 6 14:46:40 2021 -0700
+
+    cmd/compile/internal/types2: add test case for issue 45985
+    
+    This is a port of https://golang.org/cl/317471.
+    
+    Updates #45985.
+    
+    Change-Id: I539d0fa6f9a77eb2fc169a21c5db9921f8eceb03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317732
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go                   |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue45985.go2      | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

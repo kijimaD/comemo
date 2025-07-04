@@ -1,0 +1,24 @@
+commit 6130461149020d2b4b91fb183afa388a211cadc5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 9 20:41:18 2022 +0000
+
+    internal/testmath: add two-sample Welch's t-test for performance tests
+    
+    This CL copies code from github.com/aclements/go-moremath/stats and
+    github.com/aclements/go-moremath/mathx for Welch's t-test. Several
+    existing tests in the Go repository check performance and scalability,
+    and this import is part of a move toward a more rigorous measurement of
+    both.
+    
+    Note that the copied code is already licensed to Go Authors, so there's
+    no need to worry about additional licensing considerations.
+    
+    For #32986.
+    
+    Change-Id: I058630fab7216d1a589bb182b69fa2231e6f5475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411395
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/go/build/deps_test.go      |   5 +-
+ src/internal/testmath/ttest.go | 213 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 217 insertions(+), 1 deletion(-)

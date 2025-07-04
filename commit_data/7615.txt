@@ -1,0 +1,17 @@
+commit e7fa3079023694de85e20495ddad49bc6d4249f5
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 3 09:13:06 2011 -0500
+
+    bzip2: speed up decompression.
+    
+    This borrows a trick from the bzip2 source and effects a decent speed
+    up when decompressing highly compressed sources. Rather than unshuffle
+    the BTW block when performing the IBTW, a linked-list is threaded
+    through the array, in place. This improves cache hit rates.
+    
+    R=bradfitzgo, bradfitzwork, cw
+    CC=golang-dev
+    https://golang.org/cl/4247047
+
+ src/pkg/compress/bzip2/bzip2.go | 73 +++++++++++++++++++++++++----------------
+ 1 file changed, 45 insertions(+), 28 deletions(-)

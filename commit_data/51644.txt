@@ -1,0 +1,16 @@
+commit 4cc8d0eea93a83e36ad68e655d770f53d16253fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 16:01:56 2023 -0800
+
+    go/types: allow filename arguments to generator for easier manual use
+    
+    Change-Id: I96b25fae1dcbfae55f57c07de9529c6663ad28d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461602
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/types/generator.go | 64 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 23 deletions(-)

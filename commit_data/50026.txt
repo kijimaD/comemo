@@ -1,0 +1,20 @@
+commit 9e88773383f2d74e769f63fd6348a01aecf8a271
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 15:21:18 2022 -0700
+
+    go/types: remove machinery to select parsing mode (cleanup)
+    
+    All code may be generic. Remove machinery to select parsing
+    mode (generic vs non-generic) since the parser doesn't support
+    this anymore. Adjust tests to more closely match corresponding
+    types2 code.
+    
+    Change-Id: Id2398afe64d58714974ec96656fdf67c02ff5d04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424900
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/api_test.go | 162 ++++++++++++++++++++++-------------------------
+ 1 file changed, 74 insertions(+), 88 deletions(-)

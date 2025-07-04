@@ -1,0 +1,15 @@
+commit 50442290bb862c51e1a93a9fd712481423688206
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 4 17:26:01 2010 -0800
+
+    Simplified parser interface.
+    
+    R=rsc, r
+    CC=golang-dev, rog
+    https://golang.org/cl/183116
+
+ src/cmd/cgo/ast.go               |  2 +-
+ src/cmd/godoc/godoc.go           | 14 +++++++--
+ src/pkg/go/parser/interface.go   | 64 +++++++++++-----------------------------
+ src/pkg/go/parser/parser_test.go | 13 +++++---
+ 4 files changed, 39 insertions(+), 54 deletions(-)

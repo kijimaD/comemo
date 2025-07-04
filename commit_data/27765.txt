@@ -1,0 +1,20 @@
+commit b5aae1a2845f157a2565b856fb2d7773a0f7af25
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 30 22:11:22 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev b400c2e for https://golang.org/cl/24214,
+    "http2: add additional blacklisted ciphersuites"
+    
+    Both TLS_RSA_WITH_AES_128_GCM_SHA256 & TLS_RSA_WITH_AES_256_GCM_SHA384
+    are now blacklisted, per http://httpwg.org/specs/rfc7540.html#BadCipherSuites
+    
+    Change-Id: I8b9a7f4dc3c152d0675e196523ddd36111744984
+    Reviewed-on: https://go-review.googlesource.com/24684
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 44 +++++++++++++++++++++++---------------------
+ 1 file changed, 23 insertions(+), 21 deletions(-)

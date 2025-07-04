@@ -1,0 +1,12 @@
+commit b4a8b353c423b0a139a27fa6975685d79269054b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 17:47:38 2009 -0800
+
+    net: disable ipv6 test if we know kernel won't take it.
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/153048
+
+ src/pkg/net/dialgoogle_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

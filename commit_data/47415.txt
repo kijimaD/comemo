@@ -1,0 +1,20 @@
+commit f1935c52703e4482c5047b4b35276e965896df7c
+Author: hasheddan <georgedanielmangum@gmail.com>
+Date:   Thu Nov 11 10:02:13 2021 -0500
+
+    obj/riscv: fix link to risc-v dwarf register numbers
+    
+    The repository name and structure in the RISC-V GitHub org has been
+    modified, rendering the existing link invalid. This updates to point at
+    the new location of the RISC-V DWARF specification.
+    
+    Change occured in https://github.com/riscv-non-isa/riscv-elf-psabi-doc/pull/208
+    
+    Change-Id: I8ca4c390bee2d7ce20418cdd00e4945a426cf5f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/riscv/cpu.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

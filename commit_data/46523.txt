@@ -1,0 +1,20 @@
+commit 13aa0d8f578e9c293970fe462f79655899959093
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 17 16:21:43 2021 -0700
+
+    runtime: fix output for bad pcHeader
+    
+    With print, the output all runs together.
+    Take this opportunity to clean up and label all the fields.
+    Print pluginpath unilaterally; no reason not to.
+    Wrap long lines. Remove pointless newline from throw.
+    
+    Change-Id: I37af15dc8fcb3dbdbc6da8bbea2c0ceaf7b5b889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350734
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

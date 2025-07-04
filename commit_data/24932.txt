@@ -1,0 +1,19 @@
+commit ce8f49f42ff98a87a6766aa50efa0449c4525ce3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Oct 27 19:46:49 2015 -0400
+
+    runtime: android/arm64 support
+    
+    Not all tests passing yet, but a good chunk are.
+    
+    Change-Id: I5daebaeabf3aecb380674ece8830a86751a8d139
+    Reviewed-on: https://go-review.googlesource.com/16458
+    Reviewed-by: Rahul Chaudhry <rahulchaudhry@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/defs_linux_arm64.go                  |  9 +++++++
+ src/runtime/{os_android_arm.go => os_android.go} |  0
+ src/runtime/rt0_android_arm64.s                  | 13 ++++++++++
+ src/runtime/sys_linux_arm64.s                    | 33 ++++++++++++++++++++++++
+ src/runtime/tls_arm64.h                          |  6 +++++
+ 5 files changed, 61 insertions(+)

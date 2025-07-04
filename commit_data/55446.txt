@@ -1,0 +1,21 @@
+commit 5c7c24ce827b10982245951f6c2b1bbf0abc5aae
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 25 17:23:15 2024 +0000
+
+    internal/testenv: support the LUCI mobile builders in tests
+    
+    This change updates the testenv tests to correctly match on future LUCI
+    builder names for mobile builders. This isn't a problem today because
+    those haven't been set up yet, but the builder names are structured and
+    it's clear where the modifiers will appear. Might as well set them up
+    now.
+    
+    Change-Id: I244b88a62a90312c0f3ff2360527d58531070362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558597
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/testenv/testenv_test.go | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)

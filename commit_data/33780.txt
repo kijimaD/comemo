@@ -1,0 +1,17 @@
+commit bfa7a558bf08dfa17c3a59dd156dcb022b76a433
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 1 06:57:37 2017 -0800
+
+    cmd/cgo: for C bitfields use only valid Go integer types
+    
+    Fixes #22958
+    
+    Change-Id: Ib078a5f6e1105a2afca77c6d9a05f65ddf5d9010
+    Reviewed-on: https://go-review.googlesource.com/81435
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ misc/cgo/test/issue22958.go | 24 ++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  4 +++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

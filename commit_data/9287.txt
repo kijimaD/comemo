@@ -1,0 +1,12 @@
+commit bb8e36b4a12b16302abf557ccb7aba6965a3ddaf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Aug 4 16:22:22 2011 +1000
+
+    gob: avoid a couple of init-time allocations.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4806049
+
+ src/pkg/gob/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

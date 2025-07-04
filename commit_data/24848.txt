@@ -1,0 +1,27 @@
+commit 80d0b98d809361c862670bd7293fbca22055581f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 12:09:29 2015 -0500
+
+    runtime/internal/atomic: delete arch1_*.go files
+    
+    I made a copy of the per-arch _CacheLineSize definitons when checking in
+    runtime/internal/atomic. Now that runtime/internal/sys is checked in,
+    we can use the definition there.
+    
+    Change-Id: I7242f6b633e4164f033b67ff471416b9d71c64d2
+    Reviewed-on: https://go-review.googlesource.com/16847
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/deps.go                          |  2 +-
+ src/go/build/deps_test.go                     |  2 +-
+ src/runtime/internal/atomic/arch1_386.go      |  9 ---------
+ src/runtime/internal/atomic/arch1_amd64.go    |  9 ---------
+ src/runtime/internal/atomic/arch1_amd64p32.go | 14 --------------
+ src/runtime/internal/atomic/arch1_arm.go      |  9 ---------
+ src/runtime/internal/atomic/arch1_arm64.go    |  9 ---------
+ src/runtime/internal/atomic/arch1_mips64.go   |  9 ---------
+ src/runtime/internal/atomic/arch1_mips64le.go |  9 ---------
+ src/runtime/internal/atomic/arch1_ppc64.go    |  9 ---------
+ src/runtime/internal/atomic/arch1_ppc64le.go  |  9 ---------
+ src/runtime/internal/atomic/atomic_arm.go     |  7 +++++--
+ 12 files changed, 7 insertions(+), 90 deletions(-)

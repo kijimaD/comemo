@@ -1,0 +1,27 @@
+commit 85cae877f57e645a13e2c1799ffb1f6592c7474b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Nov 30 18:21:26 2010 +0100
+
+    runtime: parallel definitions in Go for all C structs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3308041
+
+ src/pkg/runtime/Makefile                |   7 ++
+ src/pkg/runtime/chan_defs.go            |  56 +++++++++
+ src/pkg/runtime/darwin/runtime_defs.go  |  23 ++++
+ src/pkg/runtime/extern.go               |  18 ---
+ src/pkg/runtime/freebsd/runtime_defs.go |  14 +++
+ src/pkg/runtime/hashmap_defs.go         |  51 ++++++++
+ src/pkg/runtime/iface_defs.go           |  18 +++
+ src/pkg/runtime/linux/runtime_defs.go   |  14 +++
+ src/pkg/runtime/malloc_defs.go          | 130 ++++++++++++++++++++
+ src/pkg/runtime/mheapmap32_defs.go      |  23 ++++
+ src/pkg/runtime/mheapmap64_defs.go      |  31 +++++
+ src/pkg/runtime/nacl/runtime_defs.go    |  14 +++
+ src/pkg/runtime/runtime_defs.go         | 204 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/tiny/runtime_defs.go    |  14 +++
+ src/pkg/runtime/type.go                 |   2 +
+ src/pkg/runtime/windows/runtime_defs.go |  20 ++++
+ 16 files changed, 621 insertions(+), 18 deletions(-)

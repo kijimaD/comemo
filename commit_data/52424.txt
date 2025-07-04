@@ -1,0 +1,22 @@
+commit 0393934fa49fce48986c8f48ff6e61971d6dbdc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 25 20:05:38 2023 -0700
+
+    net: don't assume that NOFILE rlimit fits in an int
+    
+    No test because a test requires a system on which we can set RLIMIT_NOFILE
+    to RLIM_INFINITY, which we normally can't.
+    
+    Fixes #59242
+    
+    Change-Id: I8fc30e4206bb2be46369b5342360de556ce75a96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479436
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/lookup_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

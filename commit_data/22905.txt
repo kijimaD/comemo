@@ -1,0 +1,22 @@
+commit 7165c9b30e36959dcf8d0a038c803b4d2d8be445
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 09:32:11 2015 -0700
+
+    net: always use cgo for DNS on Android
+    
+    Android has (had?) its own local DNS resolver daemon, also my fault:
+    
+    https://android.googlesource.com/platform/system/netd/+/007e987fee7e815e0c4bc820f434a632b7a69a9d
+    
+    And you access that via libc, not DNS.
+    
+    Fixes #10714
+    
+    Change-Id: Iaff752872ce19bb5c7771ab048fd50e3f72cb73c
+    Reviewed-on: https://go-review.googlesource.com/9793
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/conf.go      |  2 +-
+ src/net/conf_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

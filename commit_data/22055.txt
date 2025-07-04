@@ -1,0 +1,20 @@
+commit 861546543a9a69173d0c6a85bda9e207c2e8d459
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 22:41:48 2015 -0400
+
+    cmd/internal/obj: reimplement line history
+    
+    In addition to possibly being clearer code,
+    this replaces an O(n) lookup with an O(log n) lookup.
+    
+    Change-Id: I0a574c536a965a87f7ad6dcdcc30f737bc771cd5
+    Reviewed-on: https://go-review.googlesource.com/7623
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/lex.go        |  22 +-
+ src/cmd/internal/obj/line_test.go |  21 +-
+ src/cmd/internal/obj/link.go      |  20 +-
+ src/cmd/internal/obj/obj.go       | 489 +++++++++++++++++++-------------------
+ src/cmd/internal/obj/objfile.go   |   6 +-
+ src/cmd/internal/obj/sym.go       |   5 +-
+ 6 files changed, 287 insertions(+), 276 deletions(-)

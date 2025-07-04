@@ -1,0 +1,12 @@
+commit 3df1f00bfc0739cf2b6cf046b920221bdfa748e3
+Author: Xia Bin <snyh@snyh.org>
+Date:   Thu Jul 12 14:35:39 2018 +0800
+
+    doc: ArgsSizeUnknown it's defined in cmd/internal/objabi now
+    
+    Change-Id: I877c82788f3edbcb0b334b42049c1a06f36a6477
+    Reviewed-on: https://go-review.googlesource.com/123517
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

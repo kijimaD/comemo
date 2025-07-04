@@ -1,0 +1,25 @@
+commit fcc4be8c656cec635640f0c390101a33f65cdd7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 20 09:04:09 2009 -0700
+
+    Add base85, based on base64.
+    
+    Also add git version of base85,
+    which is what I really wanted but
+    didn't recognize as different until it
+    was too late.
+    
+    R=austin
+    DELTA=980  (972 added, 4 deleted, 4 changed)
+    OCL=35580
+    CL=35921
+
+ src/pkg/Make.deps             |   1 +
+ src/pkg/Makefile              |   1 +
+ src/pkg/base64/base64.go      |  12 +-
+ src/pkg/base85/Makefile       |  12 ++
+ src/pkg/base85/base85.go      | 307 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/base85/base85_test.go | 193 ++++++++++++++++++++++++++
+ src/pkg/base85/git.go         | 275 +++++++++++++++++++++++++++++++++++++
+ src/pkg/base85/git_test.go    | 183 +++++++++++++++++++++++++
+ 8 files changed, 976 insertions(+), 8 deletions(-)

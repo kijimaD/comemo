@@ -1,0 +1,17 @@
+commit 53e139c7a058c0491716e1fca96e33ee850ac15c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 21:24:14 2012 -0800
+
+    runtime: put lockorder before pollorder in Select memory block.
+    
+    Otherwise lockorder may be misaligned, since lockorder is a
+    list of pointers and pollorder is a list of uint16.
+    Discovered running gccgo (which uses a modified copy of this
+    code) on SPARC.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5655054
+
+ src/pkg/runtime/chan.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

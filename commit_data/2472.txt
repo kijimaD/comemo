@@ -1,0 +1,19 @@
+commit 380200953aabe163ab55ac53afdbd62435eb4aba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 16:31:02 2009 -0700
+
+    Forgot to check in 386/asm.h.
+    Rather than do that, fix build by
+    generating asm.h automatically.
+    
+    R=r
+    DELTA=97  (48 added, 36 deleted, 13 changed)
+    OCL=30449
+    CL=30452
+
+ src/pkg/runtime/Makefile    |  6 +++++-
+ src/pkg/runtime/amd64/asm.h | 26 -------------------------
+ src/pkg/runtime/amd64/asm.s | 10 +++++-----
+ src/pkg/runtime/mkasmh      | 47 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h   | 24 +++++++----------------
+ 5 files changed, 64 insertions(+), 49 deletions(-)

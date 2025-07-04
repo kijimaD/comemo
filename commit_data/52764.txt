@@ -1,0 +1,19 @@
+commit 5a10d8a2042224c77dc41e8efbbc124f10b26172
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 10:46:26 2023 -0400
+
+    internal/testenv: in HasExec, try to actually exec on ios and wasm platforms
+    
+    Some iOS environments may support exec. wasip1 and js do not, but
+    trying to exec on those platforms is inexpensive anyway and gives
+    better test coverage for the ios path.
+    
+    Change-Id: I4baffb2ef5dc7d81e6a260f69033bfb229f13d92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/exec.go | 56 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

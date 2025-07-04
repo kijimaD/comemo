@@ -1,0 +1,19 @@
+commit 60a4b5e4dbb86c04e42a7f012df724a816b3d65d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 6 19:53:44 2011 +1000
+
+    gc: enable building under clang/2.9
+    
+    To build under clang, pass the path to clang in CC when
+    calling ./make.bash
+    
+    CC=/opt/llvm/llvm-2.9/bin/clang ./make.bash
+    
+    Credit goes to jmhodges for suggestions.
+    
+    R=jeff, r, ality
+    CC=golang-dev
+    https://golang.org/cl/4527098
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 536531769b73fcc7517d9756a8b28b5f56ccd2df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 09:08:23 2011 -0700
+
+    CL 4291070: incorporating rsc's feedback
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4313054
+
+ src/cmd/govet/govet.go        | 4 ++--
+ src/pkg/go/printer/nodes.go   | 2 +-
+ src/pkg/go/printer/printer.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

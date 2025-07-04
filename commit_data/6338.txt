@@ -1,0 +1,15 @@
+commit 176364900e5218c7652386d153f6445e345af2b9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Sep 22 16:10:38 2010 +1000
+
+    fmt: support '*' for width or precision
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2237044
+
+ src/pkg/fmt/doc.go       |  4 +++-
+ src/pkg/fmt/fmt_test.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go     | 34 ++++++++++++++++++++++++++++++----
+ src/pkg/fmt/scan_test.go |  2 --
+ 4 files changed, 75 insertions(+), 7 deletions(-)

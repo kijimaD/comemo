@@ -1,0 +1,18 @@
+commit 56817040d53187abcd568af0eea27cc21379c0ad
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 10 21:09:16 2021 -0500
+
+    os: document error returned by pending I/O operations on Close
+    
+    Currently, File.Close only documents that "an" error will be returned
+    by pending I/O operations. Update the documentation to say that error
+    is specifically ErrClosed.
+    
+    Change-Id: Ica817c9196ad6cb570c826789d37a4ff15a5d13d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371015
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_plan9.go | 2 +-
+ src/os/file_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

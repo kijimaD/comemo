@@ -1,0 +1,21 @@
+commit f4f65941246bfee2ef742a5a4920f86d80ab4762
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Dec 11 13:59:18 2018 +0100
+
+    runtime: fix notetsleepg deadline on js/wasm
+    
+    A notetsleepg may get stuck if its timeout callback gets invoked
+    exactly on its deadline due to low precision of nanotime. This change
+    fixes the comparison so it also resolves the note if the timestamps are
+    equal.
+    
+    Updates #28975
+    
+    Change-Id: I045d2f48b7f41cea0caec19b56876e9de01dcd6c
+    Reviewed-on: https://go-review.googlesource.com/c/153558
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/lock_js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

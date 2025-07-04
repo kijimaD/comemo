@@ -1,0 +1,15 @@
+commit ce99bb2caf26d4c052636847c913906fb5974c34
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 26 08:20:10 2013 +0100
+
+    cmd/gc: fix nil pointer dereferences.
+    
+    Fixes #5119.
+    
+    R=golang-dev, dvyukov, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7838050
+
+ src/cmd/gc/dcl.c  | 8 ++++----
+ src/cmd/gc/subr.c | 8 +++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit 566a87c16b055872cb469d46cbccc2404dba9bb7
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 14 17:31:09 2021 -0700
+
+    time: add missing "os" import to zoneinfo_test.go
+    
+    Updates #45448
+    
+    Change-Id: I2e79ae6b9cf43a481aa703578712619ea344e421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310212
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/zoneinfo_test.go | 1 +
+ 1 file changed, 1 insertion(+)

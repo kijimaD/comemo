@@ -1,0 +1,16 @@
+commit 06a8f6840750132ba4836e579d4763b2e482ef66
+Author: Brandon Ryan <bjryan19@gmail.com>
+Date:   Thu Apr 25 20:31:44 2019 +0000
+
+    doc: clarify to use MinGW-W64 for amd64 systems
+    
+    Fixes #19686
+    
+    Change-Id: I5c2dd60636b521425647afd0725fdd7c18e7bbbe
+    GitHub-Last-Rev: a1c5f569409d8759d5d81da811eaf873073bfe39
+    GitHub-Pull-Request: golang/go#31682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

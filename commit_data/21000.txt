@@ -1,0 +1,12 @@
+commit 722f7d280b8c6829fbacd049c339b9c0edf75f12
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 18 11:42:25 2014 +1100
+
+    doc: use 'git-codereview' in contributor docs
+    
+    Change-Id: I63d5c81fdaf9aca2fc3da3defcc6e9c4094c690b
+    Reviewed-on: https://go-review.googlesource.com/1742
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/contribute.html | 47 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 24 insertions(+), 23 deletions(-)

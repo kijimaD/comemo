@@ -1,0 +1,16 @@
+commit 3d457f1a3669f8609018bfdc981de7da2f0e95d9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 11:53:22 2019 +0200
+
+    cmd/dist: add support for freebsd/arm64
+    
+    Updates #24715
+    
+    Change-Id: I110a10a5d5ed4a471f67f35cbcdcbea296c5dcaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198542
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

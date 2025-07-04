@@ -1,0 +1,16 @@
+commit 40d6bb59690e3375a0b78d84f038ea2ab346a593
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 20 15:32:20 2009 -0700
+
+    - book-keeping in the TODO section:
+      - removed closed, resolved, or off-the-table items
+      - consolidated remaining items
+    - no changes to the spec
+    
+    R=r
+    DELTA=116  (1 added, 102 deleted, 13 changed)
+    OCL=27596
+    CL=27640
+
+ doc/go_spec.html | 129 ++++++-------------------------------------------------
+ 1 file changed, 14 insertions(+), 115 deletions(-)

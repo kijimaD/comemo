@@ -1,0 +1,19 @@
+commit 5e8b9c614bed42da8cc2c16b705e491dcab693fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 9 18:10:21 2011 -0700
+
+    http: fix regression permitting io.Copy on HEAD response
+    
+    With the ReadFrom change in the sendfile CL, it became
+    possible to illegally send a response to a HEAD request if you
+    did it via io.Copy.
+    
+    Fixes #1939
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4584049
+
+ src/pkg/http/serve_test.go |  7 +++++++
+ src/pkg/http/server.go     | 15 +++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)

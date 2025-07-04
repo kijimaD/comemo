@@ -1,0 +1,19 @@
+commit 0f715f1ac9565a0e932acf69a69414e3964e38c8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 4 19:48:29 2022 +0000
+
+    runtime/internal/atomic: align 64-bit types to 8 bytes everywhere
+    
+    This change extends https://go.dev/cl/381317 to the
+    runtime/internal/atomic package in terms of aligning 64-bit types to 8
+    bytes, even on 32-bit platforms.
+    
+    Change-Id: Id8c45577d07b256e3144d88b31f201264295cfcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404096
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/types/size.go |  7 ++++---
+ src/runtime/internal/atomic/types.go   | 15 ++++++++++++++-
+ 2 files changed, 18 insertions(+), 4 deletions(-)

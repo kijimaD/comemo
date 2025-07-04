@@ -1,0 +1,14 @@
+commit 1a5cf867ce1b0c98e016ac4d4183ffd84c8fa291
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 3 10:33:48 2012 +1000
+
+    run.bat: do not run misc\cgo\stdio test on windows (fix build)
+    
+    It is enabled by mistake and should be part of CL 5847068 instead.
+    
+    R=golang-dev
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6488073
+
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

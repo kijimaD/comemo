@@ -1,0 +1,12 @@
+commit ac3d6a56c919d600af0fc0a548f7d44c755a03b0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 1 11:24:24 2013 +1000
+
+    C: add Dave Day (Google CLA).
+    
+    R=adg, djd
+    CC=golang-dev
+    https://golang.org/cl/14176043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

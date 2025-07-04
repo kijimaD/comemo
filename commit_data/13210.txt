@@ -1,0 +1,12 @@
+commit cb9759d067289fef850251c9425b56446086e24c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 10:26:59 2012 -0400
+
+    test/bench/go1: add mandelbrot for floating point
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6244063
+
+ test/bench/go1/mandel_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

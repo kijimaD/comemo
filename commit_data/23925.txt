@@ -1,0 +1,14 @@
+commit 4e0be154f7ac474f0768e0ca65612b5b111c2716
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 31 09:03:58 2015 +1000
+
+    doc: solaris info added to go1.5.html
+    
+    Fixes #11952.
+    
+    Change-Id: I548f9d75c6223bf79bdf654ef733f1568e3d5804
+    Reviewed-on: https://go-review.googlesource.com/12990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

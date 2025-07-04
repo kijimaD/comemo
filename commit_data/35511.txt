@@ -1,0 +1,19 @@
+commit 4fe688c6a49e59e852f0bfebbb4cf71366987ce7
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 28 13:03:08 2018 +1000
+
+    cmd/cover: fix sorting of profile segment boundaries
+    
+    If a span of coverable code is empty (e.g. an empty select clause)
+    then there will be two Boundary values with the same offset. In that
+    case, the starting Boundary needs to come first so that the generated
+    HTML output will open the <span> tag before it tries to close it.
+    
+    Change-Id: Ib44a8b7c36ae57757c18b6cceb7a88ffa4e95394
+    Reviewed-on: https://go-review.googlesource.com/114855
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/profile.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

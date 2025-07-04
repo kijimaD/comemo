@@ -1,0 +1,18 @@
+commit 9e481e2905f5ddacf603fa2c0d9fc555c211f71b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 26 09:56:57 2010 -0700
+
+    fix spelling of align
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/778041
+
+ src/cmd/5c/swt.c | 6 +++---
+ src/cmd/6c/swt.c | 2 +-
+ src/cmd/8a/l.s   | 2 +-
+ src/cmd/8c/swt.c | 4 ++--
+ src/cmd/cc/cc.h  | 2 +-
+ src/cmd/cc/cc.y  | 8 ++++----
+ src/cmd/cc/dcl.c | 4 ++--
+ 7 files changed, 14 insertions(+), 14 deletions(-)

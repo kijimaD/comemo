@@ -1,0 +1,25 @@
+commit 26f25692b8107f06a16dd103672ba4b5c3e4571f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 22 10:38:12 2023 -0500
+
+    debug/elf: define R_PPC64_REL24_P9NOTOC
+    
+    This relocation is not (yet?) defined in ELFv2, but has been added to
+    gnu gas a couple years ago. It is the same reloc as
+    R_PPC64_REL24_NOTOC, but hints power10 instructions should not be
+    emitted.
+    
+    See binutils commit 7aba54da426b9999085d8f84e7896b8afdbb9ca6.
+    
+    Fixes #60348
+    
+    Change-Id: Ie953cd7bf1ffc621b498d4dbebb5de1231833c8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496918
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ api/next/60348.txt   | 2 ++
+ src/debug/elf/elf.go | 2 ++
+ 2 files changed, 4 insertions(+)

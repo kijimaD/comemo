@@ -1,0 +1,14 @@
+commit 4a1756824fb609952c884b4210421ca9e315e1c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 29 14:18:52 2015 -0800
+
+    test/closure2.go: correctly "use" tmp
+    
+    cmd/go doesn't complain (this is an open issue), but go/types does
+    
+    Change-Id: I2caec1f7aec991a9500d2c3504c29e4ab718c138
+    Reviewed-on: https://go-review.googlesource.com/3541
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ test/closure2.go | 1 +
+ 1 file changed, 1 insertion(+)

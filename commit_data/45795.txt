@@ -1,0 +1,19 @@
+commit e2dc6dd5c9b6799c9bb987f3a4600fb0df686d09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 10 14:40:58 2021 -0700
+
+    doc/go1.17: clean up formatting of gofmt section
+    
+    It was the only h3 in <code>, and it lacked <p> around its content.
+    
+    It looked like it was part of the prior section:
+    
+        https://tip.golang.org/doc/go1.17#gofmt
+    
+    Change-Id: I7e9ef70e9a03474225833f44420aabd70dab3cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326774
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.17.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

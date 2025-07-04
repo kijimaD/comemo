@@ -1,0 +1,13 @@
+commit b301351df97cfd684f084543b3f9fb7dcca29e7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 12:54:30 2009 -0800
+
+    test/fixedbug: drop obsolete bug125, bug166
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/173044
+
+ test/fixedbugs/bug125.go | 15 ---------------
+ test/fixedbugs/bug166.go | 13 -------------
+ 2 files changed, 28 deletions(-)

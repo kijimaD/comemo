@@ -1,0 +1,25 @@
+commit 85a8e1786a669efe525fd4555edb77a60bac2ffe
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 23 17:36:21 2021 -0500
+
+    cmd/go: fix hang in workspaces
+    
+    golang.org/cl/365234 incorrectly had pruningForGoVersion always return
+    workspace pruning instead of just returning workspace pruning at the top
+    level, which broke the proper determination of pruning for dependency
+    packages. Fix that code, and also fix a hang that resulted because the
+    module loading code keeps loading dependencies until it reaches a pruned
+    module or an unpruned module it already saw, so it could get stuck in a
+    cycle.
+    
+    Change-Id: I8911f7d83aaee5870c43ef0355abbd439f15d4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366775
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go                |  6 +-
+ src/cmd/go/internal/modload/modfile.go             |  3 -
+ .../go/testdata/script/work_regression_hang.txt    | 71 ++++++++++++++++++++++
+ 3 files changed, 76 insertions(+), 4 deletions(-)

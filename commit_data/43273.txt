@@ -1,0 +1,50 @@
+commit 85f829deb8adfb7c0d73acabfdb458de969f6763
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 17:08:49 2020 -0400
+
+    cmd/asm: reject misplaced go:build comments
+    
+    We are converting from using error-prone ad-hoc syntax // +build lines
+    to less error-prone, standard boolean syntax //go:build lines.
+    The timeline is:
+    
+    Go 1.16: prepare for transition
+     - Builds still use // +build for file selection.
+     - Source files may not contain //go:build without // +build.
+     - Builds fail when a source file contains //go:build lines without // +build lines. <<<
+    
+    Go 1.17: start transition
+     - Builds prefer //go:build for file selection, falling back to // +build
+       for files containing only // +build.
+     - Source files may contain //go:build without // +build (but they won't build with Go 1.16).
+     - Gofmt moves //go:build and // +build lines to proper file locations.
+     - Gofmt introduces //go:build lines into files with only // +build lines.
+     - Go vet rejects files with mismatched //go:build and // +build lines.
+    
+    Go 1.18: complete transition
+     - Go fix removes // +build lines, leaving behind equivalent // +build lines.
+    
+    This CL provides part of the <<< marked line above in the Go 1.16 step:
+    rejecting files containing //go:build but not // +build.
+    
+    Reject any //go:build comments found after actual assembler code
+    (include #include etc directives), because the go command itself
+    doesn't read that far.
+    
+    For #41184.
+    
+    Change-Id: Ib460bfd380cce4239993980dd208afd07deff3f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240602
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go         | 11 +++++---
+ src/cmd/asm/internal/asm/parse.go                 | 31 ++++++++++++++++++++---
+ src/cmd/asm/internal/asm/testdata/buildtagerror.s |  8 ++++++
+ src/cmd/asm/internal/lex/input.go                 |  3 +++
+ src/cmd/asm/internal/lex/lex.go                   | 12 +++++----
+ src/cmd/asm/internal/lex/lex_test.go              |  3 +++
+ src/cmd/asm/internal/lex/tokenizer.go             | 11 +++++---
+ 7 files changed, 64 insertions(+), 15 deletions(-)

@@ -1,0 +1,19 @@
+commit 5a6db7c48fb8a1e7b6d8f59ba4e3b7ecb8c35fc7
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 09:45:15 2022 +0800
+
+    runtime: convert ncgocall to atomic type
+    
+    For #53821
+    
+    Change-Id: Ib0d62ee36487b3ed68e063976968f3cac6499e4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426075
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgocall.go | 2 +-
+ src/runtime/debug.go   | 2 +-
+ src/runtime/proc.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

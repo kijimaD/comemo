@@ -1,0 +1,14 @@
+commit d353d43d36003614ab192754c6e77a950b20fc00
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 4 15:28:09 2012 +1000
+
+          doc: fix typo in Concurrency Patterns article
+    
+    Fixes #3178.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6506064
+
+ doc/articles/concurrency_patterns.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

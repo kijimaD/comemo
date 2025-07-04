@@ -1,0 +1,53 @@
+commit e5c105033a757127089989717937776a7d0c57a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 16:03:44 2014 -0400
+
+    cmd/gc: disable link-time copying of un-Go-initialized globals
+    
+    If you write:
+    
+            var x = 3
+    
+    then the compiler arranges for x to be initialized in the linker
+    with an actual 3 from the data segment, rather than putting
+    x in the bss and emitting init-time "x = 3" assignment code.
+    
+    If you write:
+    
+            var y = x
+            var x = 3
+    
+    then the compiler is clever and treats this the same as if
+    the code said 'y = 3': they both end up in the data segment
+    with no init-time assignments.
+    
+    If you write
+    
+            var y = x
+            var x int
+    
+    then the compiler was treating this the same as if the
+    code said 'x = 0', making both x and y zero and avoiding
+    any init-time assignment.
+    
+    This copying optimization to avoid init-time assignment of y
+    is incorrect if 'var x int' doesn't mean 'x = 0' but instead means
+    'x is initialized in C or assembly code'. The program ends up
+    with 'y = 0' instead of 'y = the value specified for x in that other code'.
+    
+    Disable the propagation if there is no initializer for x.
+    
+    This comes up in some uses of cgo, because cgo generates
+    Go globals that are initialized in accompanying C files.
+    
+    Fixes #7665.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/93200044
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue7665.go | 25 +++++++++++++++++++++++++
+ src/cmd/gc/sinit.c         |  4 ++--
+ 3 files changed, 28 insertions(+), 2 deletions(-)

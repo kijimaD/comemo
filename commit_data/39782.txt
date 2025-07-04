@@ -1,0 +1,21 @@
+commit 663680b3d45a276fc2f246c61deeb79acf634591
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 1 17:48:46 2019 -0700
+
+    debug/dwarf: add new constants defined in DWARF 5
+    
+    Also add a few other missing constants.
+    
+    Also rerun current version of stringer.
+    
+    Change-Id: I004ef27f6b40fe2cab64c52d169255dfea43fa01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175137
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/debug/dwarf/attr_string.go  | 322 +++++++++++++++++++++++++++++++---------
+ src/debug/dwarf/class_string.go |  21 +++
+ src/debug/dwarf/const.go        | 196 ++++++++++++++++++++----
+ src/debug/dwarf/tag_string.go   |  81 +++++++++-
+ 4 files changed, 518 insertions(+), 102 deletions(-)

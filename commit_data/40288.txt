@@ -1,0 +1,19 @@
+commit 9b8079158488120a0586d79ec57e0505fe0ec3eb
+Author: Keith Randall <khr@google.com>
+Date:   Thu Oct 17 12:31:53 2019 -0700
+
+    regexp: skip long-running benchmarks if -short is specified
+    
+    This CL helps race.bash finish in a reasonable amount of
+    time. Otherwise the Match/Hard1/32M benchmark takes over 1200 seconds
+    to finish on arm64, triggering a timeout.  With this change the regexp
+    benchmarks as a whole take only about a minute.
+    
+    Change-Id: Ie2260ef9f5709e32a74bd76f135bc384b2d9853f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201742
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/exec_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 47df542fefc355d65659278761d06cb9d5eba235
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 31 16:40:14 2019 -0400
+
+    cmd/go: remove cross-package assembly reference discovery
+    
+    This removes the special case for finding assembly references to Go
+    symbols in runtime and runtime/internal/atomic. These are no longer
+    necessary because we've now marked all symbols in these packages that
+    must be accessible from assembly in other packages.
+    
+    Fixes #31230.
+    
+    Change-Id: I70c90b70e13b922a6669f3d46c53347f98d6fc3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179863
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go | 19 ----------------
+ src/cmd/go/internal/work/gc.go   | 49 ----------------------------------------
+ 2 files changed, 68 deletions(-)

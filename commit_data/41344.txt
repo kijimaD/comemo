@@ -1,0 +1,19 @@
+commit 1b47fde55c3899ee50e7fab35e151645aba96e9c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 22:18:30 2020 -0800
+
+    cmd/compile: clarify division bounds check optimization
+    
+    The name of the function should mention division.
+    Eliminate double negatives from the comment describing it.
+    
+    Change-Id: Icef1a5139b3a91b86acb930af97938f5160f7342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217001
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/amd64/ssa.go   | 2 +-
+ src/cmd/compile/internal/ssa/prove.go   | 8 +++++---
+ src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
+ src/cmd/compile/internal/x86/ssa.go     | 2 +-
+ 4 files changed, 9 insertions(+), 7 deletions(-)

@@ -1,0 +1,28 @@
+commit fffac8072e1854e73ad72c8aa39c20bbdabcfc3d
+Author: Andrei Vieru <euvieru@gmail.com>
+Date:   Thu Apr 15 09:50:37 2010 -0700
+
+    "godoc -src pkg_name" excludes duplicates entries
+    
+    $ godoc xml | grep Copy\(\)
+    func (c CharData) Copy() CharData
+    func (c Comment) Copy() Comment
+    func (d Directive) Copy() Directive
+    func (p ProcInst) Copy() ProcInst
+    func (e StartElement) Copy() StartElement
+    --------------------------------------------
+    $ godoc -src xml | grep Copy\(\)
+    func (c CharData) Copy() CharData
+    --------------------------------------------
+    $ godoc -src xml Copy
+    func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+    --------------------------------------------
+    The command "godoc -src pkg_name" should output the interface of the named package, but it excludes all duplicate entries. Also the command "godoc -src pkg_name method_name" will output the source code only for one method even if there are more of them with the same name in the same package. This patch set fixes this issue.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/883051
+
+ src/cmd/godoc/godoc.go   |  2 +-
+ src/pkg/go/ast/filter.go | 24 +++++++++++++++---------
+ 2 files changed, 16 insertions(+), 10 deletions(-)

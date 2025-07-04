@@ -1,0 +1,30 @@
+commit c15593197453b8bf90fc3a9080ba2afeaf7934ea
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Nov 21 17:44:04 2020 +0100
+
+    internal/cpu: add darwin/arm64 CPU feature detection support
+    
+    Fixes #42747
+    
+    Change-Id: I6b1679348c77161f075f0678818bb003fc0e8c86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271989
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/cpu/cpu_android.go                    |  7 --
+ src/internal/cpu/cpu_arm64.go                      | 97 +---------------------
+ .../cpu/{cpu_linux.go => cpu_arm64_android.go}     |  6 +-
+ src/internal/cpu/cpu_arm64_darwin.go               | 34 ++++++++
+ src/internal/cpu/cpu_arm64_freebsd.go              | 45 ++++++++++
+ src/internal/cpu/cpu_arm64_hwcap.go                | 63 ++++++++++++++
+ .../cpu/{cpu_other.go => cpu_arm64_linux.go}       |  8 +-
+ src/internal/cpu/cpu_arm64_other.go                | 17 ++++
+ src/internal/cpu/cpu_freebsd.go                    |  7 --
+ src/internal/cpu/cpu_test.go                       |  7 +-
+ src/runtime/os_darwin.go                           | 12 +++
+ src/runtime/sys_darwin.go                          | 10 ++-
+ src/runtime/sys_darwin_amd64.s                     | 20 ++++-
+ src/runtime/sys_darwin_arm64.s                     | 18 +++-
+ 14 files changed, 223 insertions(+), 128 deletions(-)

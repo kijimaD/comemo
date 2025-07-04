@@ -1,0 +1,18 @@
+commit 17dc7b487f2406261d638350e4652fc5df224cc2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 6 14:25:34 2022 -0700
+
+    cmd/compile: update README.md
+    
+    This CL updates the description of the frontend packages of the
+    compiler, which I'm more familiar with.
+    
+    Updates #30074.
+    
+    Change-Id: Ic279007f6102b21072d6558fa9035f0fcc267d93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404694
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/README.md | 86 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 63 insertions(+), 23 deletions(-)

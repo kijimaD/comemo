@@ -1,0 +1,13 @@
+commit 915f176f7f57b931d90f1b86f254fd7ddc9e15d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 18:09:13 2009 -0700
+
+    - fixing (internal) capitalization
+    
+    R=rsc
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=26080
+    CL=26080
+
+ src/lib/tabwriter/tabwriter.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

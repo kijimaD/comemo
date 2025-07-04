@@ -1,0 +1,15 @@
+commit 253fd30e667efc34f25be4e65ac0f451b712da5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 30 13:27:08 2010 -0700
+
+    gc: bug271
+    
+    Fixes #662.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/978043
+
+ src/cmd/gc/walk.c        | 15 +++++++--------
+ test/fixedbugs/bug271.go | 20 ++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 8 deletions(-)

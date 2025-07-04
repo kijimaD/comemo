@@ -1,0 +1,18 @@
+commit 5bcb9707b63c12bbd6ab6dd8f0913b2518b83531
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Dec 27 11:45:03 2012 +1100
+
+    log/syslog: add stub for Plan 9
+    
+    Proper local system log semantics still need to be
+    created for Plan 9. In the meantime, the test suite
+    (viz., exp/gotype) expects there to be some Go
+    source for each import path. Thus, here is a stub,
+    equivalent to syslog_windows, for this purpose.
+    
+    R=golang-dev, rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7000062
+
+ src/pkg/log/syslog/syslog_plan9.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

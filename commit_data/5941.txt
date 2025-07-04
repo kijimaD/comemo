@@ -1,0 +1,12 @@
+commit 311973ea5679e460cecf04193e80e8baf4bbc324
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 3 13:03:40 2010 -0700
+
+    arm: remove old qemu dependency from gotest
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1678063
+
+ src/cmd/gotest/gotest | 6 ------
+ 1 file changed, 6 deletions(-)

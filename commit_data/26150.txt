@@ -1,0 +1,12 @@
+commit 1afacd0e329a08279a6b417a4f92c97967eeed5e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 26 14:35:42 2016 +1100
+
+    doc: update issue template
+    
+    Change-Id: Iaa23d27043e6a050075b40072e466623418ba977
+    Reviewed-on: https://go-review.googlesource.com/19878
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ .github/ISSUE_TEMPLATE | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

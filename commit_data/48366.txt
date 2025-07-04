@@ -1,0 +1,15 @@
+commit 3c2e73c8c3323887e6b95f72adb6242b8727ba8b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 11 08:20:55 2022 +0100
+
+    runtime/pprof: use syscall.RUSAGE_SELF
+    
+    Change-Id: Idc37429de5a48e708eda868ca7fa26b28620bac0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391854
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_rusage.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

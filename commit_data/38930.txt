@@ -1,0 +1,39 @@
+commit 096ab3c21b88ccc7d411379d09fe6274e3159467
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Apr 27 11:36:40 2019 +0200
+
+    cmd/link/internal/ld,syscall: drop $INODE64 suffixes on simulators
+    
+    Some libc functions are suffixed with "$INODE64" on macOS.
+    Unfortunately, the iOS simulator doesn't have the suffixes, so we can't
+    use GOARCH to distinguish the two platform.
+    
+    Add linker support for adding the suffix, using the macho platform
+    to determine whether it is needed.
+    
+    While here, add the correct suffix for fdopendir on 386. It's
+    "$INODE64$UNIX2003", believe it or not. Without the suffix,
+    
+    GOARCH=386 go test -short syscall
+    
+    crashes on my Mojave machine.
+    
+    Fixes #31447
+    
+    Change-Id: I9bd3de40ece7df62f744bc24cd00909e56b00b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174199
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/macho.go    | 21 +++++++++++++++++++++
+ src/syscall/mksyscall.pl             |  4 ----
+ src/syscall/syscall_darwin.go        | 14 ++++++++++++++
+ src/syscall/syscall_darwin_386.go    | 14 --------------
+ src/syscall/syscall_darwin_amd64.go  | 14 --------------
+ src/syscall/syscall_darwin_arm.go    | 14 --------------
+ src/syscall/syscall_darwin_arm64.go  | 14 --------------
+ src/syscall/zsyscall_darwin_386.go   |  2 +-
+ src/syscall/zsyscall_darwin_amd64.go |  2 +-
+ src/syscall/zsyscall_darwin_arm.s    | 12 ++++++------
+ src/syscall/zsyscall_darwin_arm64.s  | 12 ++++++------
+ 11 files changed, 49 insertions(+), 74 deletions(-)

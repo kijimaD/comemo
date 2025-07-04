@@ -1,0 +1,15 @@
+commit c799e4a577e325d4ef3fd74ebd5415994096cd16
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 00:25:24 2016 +0000
+
+    net/http/pprof: stop profiling if client's connection closes
+    
+    Fixes #13833
+    
+    Change-Id: If0bd5f7dcfc39d34680d11eb998050f0900d5a26
+    Reviewed-on: https://go-review.googlesource.com/18283
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

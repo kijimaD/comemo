@@ -1,0 +1,103 @@
+commit 25813f9f91c4090f0cd98cd2e79fdeddde6b273d
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Apr 18 15:35:44 2018 -0500
+
+    cmd/compile/internal/ssa: tweak branchelim cost model on amd64
+    
+    Currently branchelim is too aggressive in converting branches to
+    conditinal movs. On most x86 cpus resulting cmov* are more expensive than
+    most simple instructions, because they have a latency of 2, instead of 1,
+    So by teaching branchelim to limit number of CondSelects and consider possible
+    need to recalculate flags, we can archive huge speed-ups (fix big regressions).
+    In package strings:
+    
+    ToUpper/#00-6                              10.9ns ± 1%  11.8ns ± 1%   +8.29%  (p=0.000 n=10+10)
+    ToUpper/ONLYUPPER-6                        27.9ns ± 0%  27.8ns ± 1%     ~     (p=0.106 n=9+10)
+    ToUpper/abc-6                              90.3ns ± 2%  90.3ns ± 1%     ~     (p=0.956 n=10+10)
+    ToUpper/AbC123-6                            110ns ± 1%   113ns ± 2%   +3.19%  (p=0.000 n=10+10)
+    ToUpper/azAZ09_-6                           109ns ± 2%   110ns ± 1%     ~     (p=0.174 n=10+10)
+    ToUpper/longStrinGwitHmixofsmaLLandcAps-6   228ns ± 1%   233ns ± 2%   +2.11%  (p=0.000 n=10+10)
+    ToUpper/longɐstringɐwithɐnonasciiⱯchars-6   907ns ± 1%   709ns ± 2%  -21.85%  (p=0.000 n=10+10)
+    ToUpper/ɐɐɐɐɐ-6                             793ns ± 2%   562ns ± 2%  -29.06%  (p=0.000 n=10+10)
+    
+    In fmt:
+    
+    SprintfQuoteString-6   272ns ± 2%   195ns ± 4%  -28.39%  (p=0.000 n=10+10)
+    
+    And in archive/zip:
+    
+    CompressedZipGarbage-6       4.00ms ± 0%    4.03ms ± 0%   +0.71%  (p=0.000 n=10+10)
+    Zip64Test-6                  27.5ms ± 1%    24.2ms ± 0%  -12.01%  (p=0.000 n=10+10)
+    Zip64TestSizes/4096-6        10.4µs ±12%    10.7µs ± 8%     ~     (p=0.068 n=10+8)
+    Zip64TestSizes/1048576-6     79.0µs ± 3%    70.2µs ± 2%  -11.14%  (p=0.000 n=10+10)
+    Zip64TestSizes/67108864-6    4.64ms ± 1%    4.11ms ± 1%  -11.43%  (p=0.000 n=10+10)
+    
+    As far as I can tell, no cases with significant gain from cmov have regressed.
+    
+    On go1 it looks like most changes are unrelated, but I've verified that
+    TimeFormat really switched from cmov to branch in a hot spot.
+    Fill results below:
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-6              4.42s ± 1%     4.44s ± 1%    ~     (p=0.075 n=10+10)
+    Fannkuch11-6                4.23s ± 0%     4.18s ± 0%  -1.16%  (p=0.000 n=8+10)
+    FmtFprintfEmpty-6          67.5ns ± 2%    67.5ns ± 0%    ~     (p=0.950 n=10+7)
+    FmtFprintfString-6          117ns ± 2%     119ns ± 1%  +1.07%  (p=0.045 n=9+10)
+    FmtFprintfInt-6             122ns ± 0%     123ns ± 2%    ~     (p=0.825 n=8+10)
+    FmtFprintfIntInt-6          188ns ± 1%     187ns ± 1%  -0.85%  (p=0.001 n=10+10)
+    FmtFprintfPrefixedInt-6     223ns ± 1%     226ns ± 1%  +1.40%  (p=0.000 n=9+10)
+    FmtFprintfFloat-6           380ns ± 1%     379ns ± 0%    ~     (p=0.350 n=9+7)
+    FmtManyArgs-6               784ns ± 0%     790ns ± 1%  +0.81%  (p=0.000 n=10+9)
+    GobDecode-6                10.7ms ± 1%    10.8ms ± 0%  +0.68%  (p=0.000 n=10+10)
+    GobEncode-6                8.95ms ± 0%    8.94ms ± 0%    ~     (p=0.436 n=10+10)
+    Gzip-6                      378ms ± 0%     378ms ± 0%    ~     (p=0.696 n=8+10)
+    Gunzip-6                   60.5ms ± 0%    60.9ms ± 0%  +0.73%  (p=0.000 n=8+10)
+    HTTPClientServer-6          109µs ± 3%     111µs ± 2%  +2.53%  (p=0.000 n=10+10)
+    JSONEncode-6               20.2ms ± 0%    20.2ms ± 0%    ~     (p=0.382 n=8+8)
+    JSONDecode-6               85.9ms ± 1%    84.5ms ± 0%  -1.59%  (p=0.000 n=10+8)
+    Mandelbrot200-6            6.89ms ± 0%    6.85ms ± 1%  -0.49%  (p=0.000 n=9+10)
+    GoParse-6                  5.49ms ± 0%    5.40ms ± 0%  -1.63%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_32-6       126ns ± 1%     129ns ± 1%  +2.14%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_1K-6       320ns ± 1%     317ns ± 2%    ~     (p=0.089 n=10+10)
+    RegexpMatchEasy1_32-6       119ns ± 2%     121ns ± 4%    ~     (p=0.591 n=10+10)
+    RegexpMatchEasy1_1K-6       544ns ± 1%     541ns ± 0%  -0.67%  (p=0.020 n=8+8)
+    RegexpMatchMedium_32-6      184ns ± 1%     184ns ± 1%    ~     (p=0.360 n=10+10)
+    RegexpMatchMedium_1K-6     57.7µs ± 2%    58.3µs ± 1%  +1.12%  (p=0.022 n=10+10)
+    RegexpMatchHard_32-6       2.72µs ± 5%    2.70µs ± 0%    ~     (p=0.166 n=10+8)
+    RegexpMatchHard_1K-6       80.2µs ± 0%    81.0µs ± 0%  +1.01%  (p=0.000 n=8+10)
+    Revcomp-6                   607ms ± 0%     601ms ± 2%  -1.00%  (p=0.006 n=8+10)
+    Template-6                 93.1ms ± 1%    92.6ms ± 0%  -0.56%  (p=0.000 n=9+9)
+    TimeParse-6                 472ns ± 0%     470ns ± 0%  -0.28%  (p=0.001 n=9+9)
+    TimeFormat-6                546ns ± 0%     511ns ± 0%  -6.41%  (p=0.001 n=7+7)
+    [Geo mean]                 76.4µs         76.3µs       -0.12%
+    
+    name                     old speed      new speed      delta
+    GobDecode-6              71.5MB/s ± 1%  71.1MB/s ± 0%  -0.68%  (p=0.000 n=10+10)
+    GobEncode-6              85.8MB/s ± 0%  85.8MB/s ± 0%    ~     (p=0.425 n=10+10)
+    Gzip-6                   51.3MB/s ± 0%  51.3MB/s ± 0%    ~     (p=0.680 n=8+10)
+    Gunzip-6                  321MB/s ± 0%   318MB/s ± 0%  -0.73%  (p=0.000 n=8+10)
+    JSONEncode-6             95.9MB/s ± 0%  96.0MB/s ± 0%    ~     (p=0.367 n=8+8)
+    JSONDecode-6             22.6MB/s ± 1%  22.9MB/s ± 0%  +1.62%  (p=0.000 n=10+8)
+    GoParse-6                10.6MB/s ± 0%  10.7MB/s ± 0%  +1.64%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_32-6     252MB/s ± 1%   247MB/s ± 1%  -2.22%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_1K-6    3.19GB/s ± 1%  3.22GB/s ± 2%    ~     (p=0.105 n=10+10)
+    RegexpMatchEasy1_32-6     267MB/s ± 2%   264MB/s ± 4%    ~     (p=0.481 n=10+10)
+    RegexpMatchEasy1_1K-6    1.88GB/s ± 1%  1.89GB/s ± 0%  +0.62%  (p=0.038 n=8+8)
+    RegexpMatchMedium_32-6   5.41MB/s ± 2%  5.43MB/s ± 0%    ~     (p=0.339 n=10+8)
+    RegexpMatchMedium_1K-6   17.8MB/s ± 1%  17.6MB/s ± 1%  -1.12%  (p=0.029 n=10+10)
+    RegexpMatchHard_32-6     11.8MB/s ± 5%  11.8MB/s ± 0%    ~     (p=0.163 n=10+8)
+    RegexpMatchHard_1K-6     12.8MB/s ± 0%  12.6MB/s ± 0%  -1.06%  (p=0.000 n=7+10)
+    Revcomp-6                 419MB/s ± 0%   423MB/s ± 2%  +1.02%  (p=0.006 n=8+10)
+    Template-6               20.9MB/s ± 0%  21.0MB/s ± 0%  +0.53%  (p=0.000 n=8+8)
+    [Geo mean]               77.0MB/s       77.0MB/s       +0.05%
+    
+    diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+    
+    Change-Id: Ibdffa9ea9b4c72668617ce3202ec4a83a1cd59be
+    Reviewed-on: https://go-review.googlesource.com/107936
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/branchelim.go | 38 ++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

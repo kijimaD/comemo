@@ -1,0 +1,18 @@
+commit e66d04ea59117e4b981d905ccb453b38589a2c51
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 14 17:35:58 2015 -0700
+
+    A+C: update for release
+    
+    This is an automated update for the main branch of the main repo.
+    Some special cases and other repos will follow.
+    
+    Updates #10639
+    
+    Change-Id: I4b149c037e9292b7e323a9f4c009092ce6b70ce5
+    Reviewed-on: https://go-review.googlesource.com/12159
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ AUTHORS      | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 161 insertions(+), 1 deletion(-)

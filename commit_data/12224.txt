@@ -1,0 +1,14 @@
+commit cc7e11c91ebb9d30b260cf92e66e94f3217b45e6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 14:34:16 2012 +1100
+
+    doc/go1: mention that regexp has changed
+    Also restore alphabetical order.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5701053
+
+ doc/go1.html | 64 ++++++++++++++++++++++++++++++++++++------------------------
+ doc/go1.tmpl | 64 ++++++++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 78 insertions(+), 50 deletions(-)

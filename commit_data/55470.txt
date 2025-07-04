@@ -1,0 +1,42 @@
+commit 0c64be46ac292ea5b387c6cda49b07f4a366c404
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 22 17:50:44 2024 -0500
+
+    runtime: disable use of runnext on wasm
+    
+    When readying a goroutine, the scheduler typically places the readied
+    goroutine in pp.runnext, which will typically be the next goroutine to
+    run in the schedule.
+    
+    In order to prevent a set of ping-pong goroutines from simply switching
+    back and forth via runnext and starving the rest of the run queue, a
+    goroutine scheduled via runnext shares a time slice (pp.schedtick) with
+    the previous goroutine.
+    
+    sysmon detects "long-running goroutines", which really means Ps using
+    the same pp.schedtick for too long, and preempts them to allow the rest
+    of the run queue to run. Thus this avoids starvation via runnext.
+    
+    However, wasm has no threads, and thus no sysmon. Without sysmon to
+    preempt, the possibility for starvation returns. Avoid this by disabling
+    runnext entirely on wasm. This means that readied goroutines always go
+    on the end of the run queue and thus cannot starve via runnext.
+    
+    Note that this CL doesn't do anything about single long-running
+    goroutines. Without sysmon to preempt them, a single goroutine that
+    fails to yield will starve the run queue indefinitely.
+    
+    For #65178.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
+    Change-Id: I7dffe1e72c6586474186b72f8068cff77b661eae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557437
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/net_fake.go    | 17 -----------------
+ src/runtime/proc.go    | 23 +++++++++++++++++++++--
+ src/time/sleep_test.go |  5 -----
+ 3 files changed, 21 insertions(+), 24 deletions(-)

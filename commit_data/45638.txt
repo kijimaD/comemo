@@ -1,0 +1,34 @@
+commit d137b745398e8313c0f086d4d044751295be6163
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri May 14 09:59:20 2021 +1200
+
+    cmd/go: fix spacing in help text of -overlay flag
+    
+    There was a space missing in the first line shown below, and an extra
+    space in the second line shown. Thanks Peter Bourgon for noting this.
+    
+    BEFORE:
+    $ go help build | grep -A1 'has some limitations'
+    has some limitations:importantly, cgo files included from outside the
+    include path must be  in the same directory as the Go package they are
+    
+    AFTER:
+    $ go help build | grep -A1 'has some limitations'
+    has some limitations: importantly, cgo files included from outside the
+    include path must be in the same directory as the Go package they are
+    
+    Note that I edited alldocs.go by hand here, as the mkalldocs.sh script
+    produces a lot more changes, for example adding the -insecure flag
+    documentation in. Not sure what's wrong there.
+    
+    Change-Id: I303f6d6b42b0e24cec0748a949dc23beec64b917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319949
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

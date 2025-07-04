@@ -1,0 +1,20 @@
+commit 746441f97f9d96c5c0b72dc514f1eee777303060
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 12 20:01:25 2017 +0200
+
+    cmd/link: skip TestRuntimeTypeDIEs on Plan 9
+    
+    TestRuntimeTypeDIEs has been added in CL 38350. This
+    test is failing on Plan 9 because executables don't
+    have a DWARF symbol table.
+    
+    Fixes #19944.
+    
+    Change-Id: I121875bfd5f9f02ed668f8fb0686a0edffa2a99d
+    Reviewed-on: https://go-review.googlesource.com/40452
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

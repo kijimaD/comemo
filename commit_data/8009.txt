@@ -1,0 +1,15 @@
+commit cf3323f511e1cf4d07258b54fd982252f0313753
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Apr 7 13:17:28 2011 -0400
+
+    ld: fix Mach-O bss bug
+    
+    Fixes #1559.
+    
+    R=rsc
+    CC=golang-dev, peterGo, rog
+    https://golang.org/cl/4356046
+
+ src/cmd/ld/data.c    | 2 +-
+ src/cmd/ld/ldmacho.c | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

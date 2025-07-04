@@ -1,0 +1,21 @@
+commit 0f99a91bb56dd01dfd4e5ce4344e6006e3463ade
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 21:02:36 2014 -0400
+
+    runtime: let stack copier update Panic structs for us
+    
+    It already is updating parts of them; we're just getting lucky
+    retraversing them and not finding much to do.
+    Change argp to a pointer so that it will be updated too.
+    Existing tests break if you apply the change to adjustpanics
+    without also updating the type of argp.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/139380043
+
+ src/runtime/panic.go  |  6 +++---
+ src/runtime/runtime.h |  2 +-
+ src/runtime/stack.c   | 20 +++++++++-----------
+ 3 files changed, 13 insertions(+), 15 deletions(-)

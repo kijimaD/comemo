@@ -1,0 +1,17 @@
+commit 691b6ca3de2cd601f274ae41b32d83e08e5b0e2d
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Jun 1 06:13:46 2023 -0700
+
+    doc: remove relnote TODO by merging with another section
+    
+    This change was already described in the linker section.
+    
+    Change-Id: I3e36dbd66b3b53c5f0063b0d67d8773383f1f77f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499817
+    Auto-Submit: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

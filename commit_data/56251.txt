@@ -1,0 +1,23 @@
+commit 2ff89341f643920f827e4c45db8e4b507fedd9f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 2 19:27:21 2024 -0800
+
+    reflect: omit anonymous field name from StructOf type string
+    
+    This makes the reflect package match the compiler for StructOf
+    with an embedded field.
+    
+    Fixes #24781
+    
+    Change-Id: Ice64b167cbe0b9d30a953c5d8e2a86f3ad1158bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567897
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 14 ++++++++++++++
+ src/reflect/type.go     |  5 +++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)

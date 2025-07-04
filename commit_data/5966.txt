@@ -1,0 +1,13 @@
+commit e96b6835a9f7d8873af715183f04898d1c87e158
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 6 09:42:55 2010 +1000
+
+    fix windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1890045
+
+ src/pkg/net/fd_windows.go        | 2 --
+ src/pkg/time/zoneinfo_windows.go | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

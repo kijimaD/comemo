@@ -1,0 +1,25 @@
+commit 0f545d9ab22034dffa468367d44aceb257e1048e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jan 6 23:38:38 2013 +0100
+
+    go/types: less closure creations in gcimporter.
+    
+    Closures are incredibly expensive on linux/arm due to
+    repetitive flush of instruction cache.
+    
+    go test -short on ODROID-X:
+    
+    Before:
+    ok      exp/gotype      17.091s
+    ok      go/types        2.225s
+    
+    After:
+    ok      exp/gotype      7.193s
+    ok      go/types        1.143s
+    
+    R=dave, minux.ma, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/7062045
+
+ src/pkg/go/types/gcimporter.go | 45 ++++++++++++++----------------------------
+ 1 file changed, 15 insertions(+), 30 deletions(-)

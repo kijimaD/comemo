@@ -1,0 +1,22 @@
+commit 144252d2e64c9f375760f98d6a04d20601b6d3a0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 18 10:48:50 2023 -0400
+
+    cmd/go: make pkg-config check less picky
+    
+    CL 529219 tweaked the list_pkgconfig_error script test currently to
+    expect pkg-config to fail with "Package .* not found$", but on several
+    OSes (at least OpenBSD, AIX, and Solaris), pkg-config prints "Package
+    libnot-a-valid-cgo-library was not found in the pkg-config search
+    path". Fix the test on these OSes by dropping the "$" so the test
+    doesn't require the line to end with "not found".
+    
+    Change-Id: I40c577521f34c360a1d62355596958f6f969eb54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536195
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/list_pkgconfig_error.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

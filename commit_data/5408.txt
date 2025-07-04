@@ -1,0 +1,13 @@
+commit b94ae2607394b23c969c07ac8a5fe85456bca8c3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 30 12:46:46 2010 -0700
+
+    syscall: handle EOF on pipe - special case on Windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/962046
+
+ src/pkg/syscall/syscall_windows.go     | 4 ++++
+ src/pkg/syscall/zerrors_windows_386.go | 1 +
+ 2 files changed, 5 insertions(+)

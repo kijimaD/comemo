@@ -1,0 +1,19 @@
+commit 2d84fbbad8e939ccf82be1b9addf26f73f39f2dc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 18:11:06 2023 +0100
+
+    net: correct TestIPConnSpecificMethods comment after CL 476217
+    
+    As suggested by Cherry in
+    https://go-review.googlesource.com/c/go/+/476217/5/src/net/protoconn_test.go#171
+    
+    Change-Id: I4ce3c034b44953720c543a87639fd173f86af7dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476535
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/protoconn_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

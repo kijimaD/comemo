@@ -1,0 +1,18 @@
+commit 3651eff74efcd80519372d58eb06a0fe3f3f2808
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 20:08:32 2021 -0400
+
+    cmd/link: delete CompilationUnit.Pkg field
+    
+    It is never used. It is actually CompilationUnit.Lib.Pkg that
+    contains the package path.
+    
+    Change-Id: I18189644ea080080868d144e81dfee02f4549133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306710
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/sym/compilation_unit.go | 1 -
+ 1 file changed, 1 deletion(-)

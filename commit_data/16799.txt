@@ -1,0 +1,12 @@
+commit 9094941a40d8e9322f0ec90b7b44ecc1093bfad2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jul 18 10:11:43 2013 +1000
+
+    cmd/ld: trivial: fix unused parameter pedantry
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/11436043
+
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,27 @@
+commit 605148c0fbf68b6942d62813bdaac9fb35f6159b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 22 20:45:53 2022 -0700
+
+    go/types, types2: uniformly use "cannot convert X to type T"
+    
+    This matches current compiler behavior.
+    
+    For #55326.
+    
+    Change-Id: I660bd15f13a8d9eb00fafa937f8261e664b0e065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433276
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go     | 24 ++++++-----------
+ src/cmd/compile/internal/types2/expr.go            |  2 +-
+ src/go/types/conversions.go                        | 24 ++++++-----------
+ src/go/types/expr.go                               |  2 +-
+ src/internal/types/testdata/check/builtins0.go     |  4 +--
+ .../types/testdata/fixedbugs/issue49247.go         |  4 +--
+ .../types/testdata/fixedbugs/issue49296.go         |  6 ++---
+ src/internal/types/testdata/spec/conversions.go    | 30 +++++++++++-----------
+ 8 files changed, 40 insertions(+), 56 deletions(-)

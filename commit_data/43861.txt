@@ -1,0 +1,20 @@
+commit d902791b509b641683d4ec58b282180c56918aec
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Nov 21 15:53:18 2020 +0100
+
+    sync: use 386 instead of x86-32 to refer to the 32 bit x86 architecture
+    
+    This aligns the naming with GOARCH using 386 as a build target for
+    this architecture and makes it more easily found when searching
+    for documentation related to the build target.
+    
+    Change-Id: I393bb89dd2f71e568124107b13e1b288fbd0c76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271988
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sync/atomic/doc.go | 11 +++++------
+ src/sync/once.go       |  2 +-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

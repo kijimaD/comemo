@@ -1,0 +1,14 @@
+commit 184b02ea9f057d0932e7182b14956568d5a10cfd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 1 07:48:21 2013 +0200
+
+    runtime: fix arm build.
+    
+    More functions needs to be marked as no stack split.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11963044
+
+ src/pkg/runtime/vlrt_arm.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

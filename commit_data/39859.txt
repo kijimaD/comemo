@@ -1,0 +1,34 @@
+commit 904f046e2ba812e04230c6e5252b3ca87c41e0e1
+Author: Yuichi Nishiwaki <yuichi.nishiwaki@gmail.com>
+Date:   Wed Sep 11 02:26:02 2019 +0000
+
+    runtime: fix crash during VDSO calls on arm
+    
+    As discussed in #32912, a crash occurs when go runtime calls a VDSO function (say
+    __vdso_clock_gettime) and a signal arrives to that thread.
+    Since VDSO functions temporarily destroy the G register (R10),
+    Go functions asynchronously executed in that thread (i.e. Go's signal
+    handler) can try to load data from the destroyed G, which causes
+    segmentation fault.
+    
+    To fix the issue a guard is inserted in front of sigtrampgo, so that the control escapes from
+    signal handlers without touching G in case the signal occurred in the VDSO context.
+    The test case included in the patch is take from discussion in a relevant thread on github:
+    https://github.com/golang/go/issues/32912#issuecomment-517874531.
+    This patch not only fixes the issue on AArch64 but also that on 32bit ARM.
+    
+    Fixes #32912
+    
+    Change-Id: I657472e54b7aa3c617fabc5019ce63aa4105624a
+    GitHub-Last-Rev: 28ce42c4a02a060f08c1b0dd1c9a392123fd2ee9
+    GitHub-Pull-Request: golang/go#34030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192937
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go             |  9 ++++++
+ src/runtime/signal_unix.go            | 27 +++++++++++++----
+ src/runtime/testdata/testprog/vdso.go | 55 +++++++++++++++++++++++++++++++++++
+ src/runtime/vdso_linux.go             |  1 +
+ 4 files changed, 86 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 343098edaaea0bcf6ca2422a20aa8b488e4e801c
+Author: Jongmin Kim <atomaths@gmail.com>
+Date:   Tue Jan 17 09:47:34 2012 -0800
+
+    doc: I have modified the broken links.
+    
+    R=golang-dev, duperray.olivier, r
+    CC=adg, golang-dev
+    https://golang.org/cl/5542054
+
+ doc/go1.html | 4 ++--
+ doc/go1.tmpl | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

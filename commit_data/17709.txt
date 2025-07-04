@@ -1,0 +1,15 @@
+commit 48da6754e201373227bb977cab6b884b51a2c765
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Sep 27 15:38:39 2013 +1000
+
+    encoding/json: Tweak documentation for Encoder.Encode.
+    
+    The documentation for the Encoder type calls it a stream,
+    not a connection.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/14015044
+
+ src/pkg/encoding/json/stream.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

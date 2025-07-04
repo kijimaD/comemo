@@ -1,0 +1,17 @@
+commit c583104ee6331a6d006b493e85e0881d35164c93
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri May 10 15:32:24 2019 +0700
+
+    errors: remove useless condition checking in Is
+    
+    golang.org/cl/175260 fixed Is panics if target is uncomparable. It did
+    add an useless condition checking whether target is comparable. Just
+    remove that condition.
+    
+    Change-Id: I0a317056479638d209b0a0cbc7010c153558c087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176497
+    Reviewed-by: Joan Lopez de la Franca Beltran <joanjan14@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

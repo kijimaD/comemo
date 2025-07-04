@@ -1,0 +1,12 @@
+commit b6866f1945dc385fe08ec77899659f81a5f0221a
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Mon Sep 9 09:36:39 2013 +1000
+
+    misc/dist: Specify a version for the darwin package.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13383045
+
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

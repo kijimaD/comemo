@@ -1,0 +1,22 @@
+commit 7ece3a7b17ff637755dbe9e5687af22fd5f82168
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jan 21 18:24:55 2021 -0800
+
+    net/http: fix flaky TestDisableKeepAliveUpgrade
+    
+    This test hijacks a connection. It was reading from the net.Conn
+    returned by Hijack, not the bufio.ReadWriter, causing flaky failures
+    when a read-ahead byte was held in the read buffer.
+    
+    Fixes #43073.
+    
+    Change-Id: Ic3e7f704fba9635fd851cb3c0c0c74e312b75f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285596
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Anmol Sethi <nhooyr@gmail.com>
+
+ src/net/http/serve_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

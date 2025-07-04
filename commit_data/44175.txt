@@ -1,0 +1,20 @@
+commit 66ee8b158f0a9e9fdc6cc2118926cb4bea497128
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 23 06:18:30 2021 +1100
+
+    runtime: restore cgo_import_dynamic for libc.so on openbsd
+    
+    This was removed in change 285692, however we need to explicitly pull libc.so
+    in when libpthread.so is being used. The current code works on openbsd/amd64
+    since we pull libc.so in via runtime/sys_openbsd2.go, however openbsd/arm64
+    does not do this currently.
+    
+    Change-Id: Ibe93d936a22e69e2fe12620f6d27ccca7a91dba5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285912
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/sys_openbsd.go | 1 +
+ 1 file changed, 1 insertion(+)

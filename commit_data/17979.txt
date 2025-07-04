@@ -1,0 +1,12 @@
+commit c0946afb9c6281987692da33679d021ca2487339
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 18:54:48 2013 -0800
+
+    reflect: correct function name in panic string
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/36840045
+
+ src/pkg/reflect/makefunc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

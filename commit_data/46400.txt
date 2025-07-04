@@ -1,0 +1,17 @@
+commit b32209d22d0418594bd60af152b0f2c90c677941
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 15:55:05 2021 -0700
+
+    cmd/compile: fix test case for unified IR (fix build)
+    
+    For #48301.
+    
+    Change-Id: Ie5f57dcce86773c06c5140abf13a6cfff79eb323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348743
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/issue48301.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

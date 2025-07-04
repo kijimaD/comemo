@@ -1,0 +1,31 @@
+commit e76ae8af9279ad3efc9c25ff7bb220114b70de80
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 19 13:46:48 2017 +0900
+
+    all: drop support for FreeBSD 9 or below
+    
+    This change drops the support for FreeBSD 9 or below and simplifies
+    platform-dependent code for the sake of maintenance.
+    
+    Updates #7187.
+    Fixes #11412.
+    Updates #16064.
+    Updates #18854.
+    Fixes #19072.
+    
+    Change-Id: I9129130aafbfc7d0d7e9b674b6fc6cb31b7381be
+    Reviewed-on: https://go-review.googlesource.com/64910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install.html                      |  4 ++--
+ src/net/platform_test.go              |  2 --
+ src/net/sock_bsd.go                   |  4 +++-
+ src/os/pipe_freebsd.go                | 16 +---------------
+ src/os/sys_freebsd.go                 | 17 ++---------------
+ src/os/wait_wait6.go                  |  5 -----
+ src/syscall/exec_freebsd.go           | 18 +-----------------
+ src/syscall/syscall_freebsd.go        |  9 +--------
+ src/syscall/zsyscall_freebsd_386.go   | 12 ------------
+ src/syscall/zsyscall_freebsd_amd64.go | 12 ------------
+ src/syscall/zsyscall_freebsd_arm.go   | 12 ------------
+ 11 files changed, 10 insertions(+), 101 deletions(-)

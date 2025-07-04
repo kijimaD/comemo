@@ -1,0 +1,28 @@
+commit f5eb0a7a5aa3880c02dd887d5ded4b7395a91005
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 17:24:40 2022 -0800
+
+    cmd/compile/internal/types: remove TTYPEPARAM and TUNION types
+    
+    These were used by the nounified frontend for representing
+    uninstantiated generic types; however, the unified frontend only needs
+    types1 to represent instantiated types.
+    
+    Updates #57410.
+    
+    Change-Id: Iac417fbf2b86f4e08bd7fdd26ae8ed17395ce833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458621
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/helpers.go       |  14 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  10 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |   6 -
+ src/cmd/compile/internal/typecheck/subr.go      |  14 +-
+ src/cmd/compile/internal/types/fmt.go           |  21 ---
+ src/cmd/compile/internal/types/kind_string.go   |  24 ++--
+ src/cmd/compile/internal/types/size.go          |  15 ---
+ src/cmd/compile/internal/types/type.go          | 167 ++----------------------
+ 8 files changed, 23 insertions(+), 248 deletions(-)

@@ -1,0 +1,16 @@
+commit 240834374a3543a0e4e0071e1300cf884601ae35
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 13 19:05:22 2012 +0800
+
+    io/ioutil: use pathname instead of name in docs to avoid confusion
+    caller of ioutil.TempFile() can use f.Name() to get "pathname"
+    of the temporary file, instead of just the "name" of the file.
+    
+    Also remove an out-of-date comment about random number state.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6649054
+
+ src/pkg/io/ioutil/tempfile.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

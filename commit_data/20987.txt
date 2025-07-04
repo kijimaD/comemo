@@ -1,0 +1,14 @@
+commit 324f38a222cc48439a11a5545c85cb8614385987
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Dec 14 09:43:40 2014 -0500
+
+    runtime: shrink initial arena if reservation fails
+    
+    Fixes #9311
+    
+    Change-Id: I2f142e65a54c0391084316d79a42714ba42dd8b9
+    Reviewed-on: https://go-review.googlesource.com/1514
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc1.go | 81 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 47 insertions(+), 34 deletions(-)

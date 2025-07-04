@@ -1,0 +1,13 @@
+commit 87b315a78f91447f072a1a37a4b40ebb38475d01
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 5 15:13:03 2012 +1100
+
+    net: add missing close socket code
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6868067
+
+ src/pkg/net/fd_windows.go   | 5 +++--
+ src/pkg/net/timeout_test.go | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 520d5db4d3b803ee5ec15211a2093b4ffaee379e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 2 13:32:02 2010 +1000
+
+    Add various items to the Go Resources page.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1674045
+
+ doc/go_learning.html | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

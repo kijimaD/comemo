@@ -1,0 +1,14 @@
+commit 38c232fe37bbc58ba7b0a52348fa83993ab99a82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 11 15:09:15 2009 -0800
+
+    - language for embedded interfaces (as discussed this morning)
+    - fixed a syntax error
+    
+    R=r
+    DELTA=17  (15 added, 0 deleted, 2 changed)
+    OCL=24876
+    CL=24889
+
+ doc/go_spec.txt | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

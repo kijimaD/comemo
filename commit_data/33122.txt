@@ -1,0 +1,22 @@
+commit eb695819a51b839626be08180d4a739aa74072cd
+Author: soluchok <isoluchok@gmail.com>
+Date:   Tue Aug 29 21:35:42 2017 +0300
+
+    net/http: fix panic when status without description for proxied HTTPS responses
+    
+    Check to ensure that Status is set
+    when parsing a proxied HTTPS response
+    that a CONNECT proxy-authorization.
+    
+    Fixes #21701
+    
+    Change-Id: Id91700b83425420101e0b0d46e12aaf5d20fd3a3
+    Reviewed-on: https://go-review.googlesource.com/59990
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/transport.go      |  3 ++
+ src/net/http/transport_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

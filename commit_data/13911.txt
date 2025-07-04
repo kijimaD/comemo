@@ -1,0 +1,14 @@
+commit 5d50dbc55ae5fa7240d94068ffc466b2327ebae3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 24 12:48:19 2012 +1000
+
+    net/http: use r.Body.Close to close connection during TestServeFileFromCWD
+    
+    Fixes #3917.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6553061
+
+ src/pkg/net/http/fs_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

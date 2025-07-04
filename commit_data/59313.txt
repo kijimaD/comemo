@@ -1,0 +1,23 @@
+commit 2cb9e7f68f90ea9119fd4172fc61630279d79d67
+Author: najeira <najeira@gmail.com>
+Date:   Tue Sep 14 04:47:41 2021 +0000
+
+    crypto/cipher: use AEAD.NonceSize to make nonce in the example
+    
+    The existing example uses hard-coded constant to make nonce buffer.
+    Using AEAD.NonceSize makes it a more portable and appropriate example.
+    
+    Fixes: #48372
+    
+    Change-Id: I7c7a38ed48aff46ca11ef4f5654c778eac13dde6
+    GitHub-Last-Rev: 03ccbb16df4ca9cbd4a014836aee0f54b2ff3002
+    GitHub-Pull-Request: golang/go#48373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349603
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/cipher/example_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

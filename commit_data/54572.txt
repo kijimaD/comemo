@@ -1,0 +1,24 @@
+commit 0ba8ef4702a8b9fea83c22322174c5ab6c5873c0
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Sep 28 08:10:04 2023 +0000
+
+    net: set IsNotFound for unknown services in LookupPort
+    
+    Change-Id: I9d5f0ea5edd2c121179e3d2f8d4a890fa25a3fa9
+    GitHub-Last-Rev: 48a13fe5f51b8208784bd38de3fc14f0997c8ff7
+    GitHub-Pull-Request: golang/go#63160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530415
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/unix/net_darwin.go |  1 +
+ src/net/cgo_unix.go                     |  4 +++-
+ src/net/cgo_unix_cgo.go                 |  1 +
+ src/net/cgo_unix_syscall.go             |  1 +
+ src/net/lookup.go                       |  3 ++-
+ src/net/lookup_plan9.go                 | 10 ++++++----
+ src/net/lookup_test.go                  |  8 ++++++++
+ src/net/lookup_windows.go               | 15 ++++++++++-----
+ 8 files changed, 32 insertions(+), 11 deletions(-)

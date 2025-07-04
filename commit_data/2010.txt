@@ -1,0 +1,15 @@
+commit e21d981a2fdf36b9c126ef53569a175db5513e79
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 01:12:20 2009 -0700
+
+    add type in not-found error messages.
+    delay indirection so that values passed to
+    formatters preserve pointer-ness.
+    
+    R=r
+    OCL=27410
+    CL=27414
+
+ src/lib/template/template.go      | 59 ++++++++++++++++-----------------------
+ src/lib/template/template_test.go | 14 ++++++----
+ 2 files changed, 32 insertions(+), 41 deletions(-)

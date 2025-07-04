@@ -1,0 +1,15 @@
+commit 61e2b75a2f9856e06e05e64603c95809be21ba29
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 2 16:56:09 2018 -0400
+
+    go/build: add go1.12 release tag
+    
+    Change-Id: I82e3f9140e5d14f02beef64c474a3ae88fe256e1
+    Reviewed-on: https://go-review.googlesource.com/c/147219
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

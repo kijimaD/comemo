@@ -1,0 +1,22 @@
+commit 50bc3d5bbc6710663c082aa72c8ba4f9ee515ab3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 15 14:39:28 2014 -0800
+
+    runtime: fix deadlock in runtime.Stack
+    
+    It shouldn't semacquire() inside an acquirem(), the runtime
+    thinks that means deadlock.  It actually isn't a deadlock, but it
+    looks like it because acquirem() does m.locks++.
+    
+    Candidate for inclusion in 1.4.1.  runtime.Stack with all=true
+    is pretty unuseable in GOMAXPROCS>1 environment.
+    
+    fixes #9321
+    
+    Change-Id: Iac6b664217d24763b9878c20e49229a1ecffc805
+    Reviewed-on: https://go-review.googlesource.com/1600
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mprof.go        | 14 +++++---------
+ test/fixedbugs/issue9321.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 9 deletions(-)

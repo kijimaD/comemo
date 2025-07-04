@@ -1,0 +1,19 @@
+commit 02d581ef53e9b9b1eeaa22330ec655028a7bb2af
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Sep 6 17:09:35 2023 +0800
+
+    cmd/link/internal/loong64: correct the glibc dynamic linker path.
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_program_interpreter_path
+    
+    Change-Id: Ic2598110cc091362cb09f877b6b86433cacf32c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526535
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/loong64/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

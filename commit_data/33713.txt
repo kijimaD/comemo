@@ -1,0 +1,21 @@
+commit 4f6d8a59eae73f3ce4e67e8e42a2bc25e7216ec3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 15:25:59 2017 -0500
+
+    net/rpc: wait for responses to be written before closing Codec
+    
+    If there are no more requests being made, wait to shut down
+    the response-writing codec until the pending requests are all
+    answered.
+    
+    Fixes #17239.
+    
+    Change-Id: Ie62c63ada536171df4e70b73c95f98f778069972
+    Reviewed-on: https://go-review.googlesource.com/79515
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/rpc/server.go      | 14 ++++++++++---
+ src/net/rpc/server_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 3 deletions(-)

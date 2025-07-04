@@ -1,0 +1,12 @@
+commit 7cfe782a693456346d92376e230dbb3b72cd6184
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Dec 20 16:05:12 2008 -0800
+
+    LEAQ bug
+    
+    R=r
+    OCL=21684
+    CL=21684
+
+ src/cmd/6g/gen.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

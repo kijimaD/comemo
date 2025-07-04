@@ -1,0 +1,14 @@
+commit 82ee4e7f78bf34da31e1d050529ab82dc03cf13a
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Mon May 20 18:15:05 2019 +0300
+
+    context: document CancelFunc to be safe for simultaneous use by multiple goroutines
+    
+    Fixes #32145
+    
+    Change-Id: If4c9dd3a2af748974141ad6e571f80efcbaad772
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177899
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go | 1 +
+ 1 file changed, 1 insertion(+)

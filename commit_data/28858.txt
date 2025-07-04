@@ -1,0 +1,20 @@
+commit 6f4a6faf86238285fd02d2d04cbf3aeb51eb9d37
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Oct 17 14:09:40 2016 -0400
+
+    cmd/dist: disable math/big assembly when using the bootstrap compiler
+    
+    The assembly in math/big may contain instructions that the bootstrap
+    compiler does not support. Disable it using the math_big_pure_go
+    build tag.
+    
+    Fixes #17484.
+    
+    Change-Id: I766cab6a888721ab4ed76ebdbfc87ad4e919ec41
+    Reviewed-on: https://go-review.googlesource.com/31142
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

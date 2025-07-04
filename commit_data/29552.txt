@@ -1,0 +1,17 @@
+commit 26069e1981ba8500baf35ff5aec79531e4882543
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 16 14:28:12 2016 +0000
+
+    cmd/compile: remove some unused code
+    
+    The use of these has been removed in recent commits.
+    
+    Change-Id: Iff36a3ee4dcdfe39c40e93e2601f44d3c59f7024
+    Reviewed-on: https://go-review.googlesource.com/33274
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go  |  3 ---
+ src/cmd/compile/internal/gc/walk.go | 37 -------------------------------------
+ 2 files changed, 40 deletions(-)

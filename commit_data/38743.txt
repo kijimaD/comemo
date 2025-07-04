@@ -1,0 +1,18 @@
+commit a6e892d26d6ee59799f55bc50521605ebf75ea67
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Apr 13 14:35:23 2019 +0300
+
+    cmd/dist: enable VFPv3 on freebsd/arm
+    
+    Since CL 165799 was merged, VFP detection should work properly on FreeBSD.
+    
+    Updates #27619
+    
+    Change-Id: I386e856ceb54f0bf6e6bf83bf2d1e19154ba53f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171728
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/dist/util.go | 4 ----
+ 1 file changed, 4 deletions(-)

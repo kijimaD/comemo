@@ -1,0 +1,16 @@
+commit f8555ea6fdbbfc32e26f351ac16138fad31a2d62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 13:14:30 2016 -0700
+
+    spec: update language on type switches to match implementations
+    
+    See the issue below for details.
+    
+    Fixes #16794.
+    
+    Change-Id: I7e338089fd80ddcb634fa80bfc658dee2772361c
+    Reviewed-on: https://go-review.googlesource.com/27356
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

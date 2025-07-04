@@ -1,0 +1,14 @@
+commit 38ff98b4c671dfe237a1737308af0a9de871c8c3
+Author: Michael Shields <mshields@google.com>
+Date:   Tue Jan 3 12:22:02 2012 +1100
+
+    encoding/xml: use strings.Reader in tests.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5502083
+
+ src/pkg/encoding/xml/embed_test.go | 13 +++++----
+ src/pkg/encoding/xml/read_test.go  | 11 ++++----
+ src/pkg/encoding/xml/xml_test.go   | 54 +++++++++-----------------------------
+ 3 files changed, 27 insertions(+), 51 deletions(-)

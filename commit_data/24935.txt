@@ -1,0 +1,18 @@
+commit f4a9bd87ba84ce900dd2ba97974c48a0f4a01047
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Mon Nov 16 11:43:22 2015 -0400
+
+    net: don't require recursion be available in DNS responses
+    
+    Fixes #12778
+    
+    Change-Id: I2ca53180d46180b951749abe453fd560d0f1d9d6
+    Reviewed-on: https://go-review.googlesource.com/16950
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient.go      |  2 +-
+ src/net/dnsclient_test.go | 23 +++++++++++++++++++++++
+ src/net/dnsclient_unix.go |  6 +++++-
+ 3 files changed, 29 insertions(+), 2 deletions(-)

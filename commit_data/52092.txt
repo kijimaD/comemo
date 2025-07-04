@@ -1,0 +1,25 @@
+commit 5e4e2acc8e53022f57398c4b0f3892f8113687f6
+Author: Xiangdong Ji <jixiangdong@bytedance.com>
+Date:   Thu Feb 9 17:31:14 2023 +0800
+
+    cmd/compile/internal/pgo: fix RedirectEdges
+    
+    'RedirectEdges' may range over an out-edge slice under modification, leading to out-of-index
+    panic, and reuse an IREdge object by mistake if there are multiple inlining call-sites.
+    
+    Fix by rewriting part of the redirecting operation.
+    
+    Remove 'redirectEdges' as it's not used now and not working as expected in case of multiple
+    inlining call-sites.
+    
+    Fixes #58437.
+    
+    Change-Id: Ic344d4c262df548529acdc9380636cb50835ca51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 41 ++++++++++++++++-----------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)

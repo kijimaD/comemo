@@ -1,0 +1,12 @@
+commit 13508ceabef7e885a6a1d61b6d9c5cf5bf17eb88
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 15 11:49:34 2008 -0700
+
+    bug is fixed
+    
+    R=ken
+    OCL=17208
+    CL=17208
+
+ test/{bugs => fixedbugs}/bug110.go | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

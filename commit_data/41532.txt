@@ -1,0 +1,20 @@
+commit ab7ecea0c8dff908dfcad8c9091b71c6051bb94a
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Feb 29 11:23:29 2020 +0800
+
+    cmd/compile: add intrinsics for runtime/internal/math on MIPS64x
+    
+    name              old time/op  new time/op  delta
+    MulUintptr/small  8.42ns ± 0%  5.93ns ± 0%  -29.66%  (p=0.000 n=9+10)
+    MulUintptr/large  11.1ns ± 0%   7.4ns ± 0%  -33.17%  (p=0.000 n=10+9)
+    
+    Change-Id: I6659a886389660461fc2c90bd248243f6e7c29d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210897
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go            |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 41 +++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)

@@ -1,0 +1,32 @@
+commit 29674d87e697e10b658d5676a2f547d555c2c534
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue Oct 25 23:18:45 2022 +0000
+
+    flag: clarify that the main func at pkg.go.dev is part of a testing suite
+    
+    flag.Example() has this comment:
+    
+        ... one must execute, typically at the start of main (not init!):
+          flag.Parse()
+        We don't run it here because this is not a main function
+    
+    This example function will be renamed to "main" at pkg.go.dev, which
+    makes the comment confusing.
+    See https://pkg.go.dev/flag#example-package.
+    
+    This change modify the comment to clarify this situation.
+    
+    Change-Id: I17357fdaaefe54791fff8fbbf6a33003af207f88
+    GitHub-Last-Rev: eeea8ce39cda3321d51c6cfe29fbcb2444fbf9cd
+    GitHub-Pull-Request: golang/go#56411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/flag/example_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

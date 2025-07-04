@@ -1,0 +1,35 @@
+commit 2049649e8bf582bd1ee19d2e565e4e3bc3f466ea
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 5 13:46:15 2022 -0400
+
+    cmd/link: fix handling of visibility hidden symbols
+    
+    There is a TODO comment that checking hidden visibility is
+    probably not the right thing to do. I think it is indeed not. Here
+    we are not referencing symbols across DSO boundaries, just within
+    an executable binary. The hidden visibility is for references from
+    another DSO. So it doesn't actually matter.
+    
+    This makes cgo internal linking tests work on ARM64 with newer
+    GCC. It failed and was disabled due to a visibility hidden symbol
+    in libgcc.a that we didn't handle correctly. Specifically, the
+    problem is that we didn't mark visibility hidden symbol references
+    SXREF, which caused the loader to not think it is an unresolved
+    external symbol, which in turn made it not loading an object file
+    from the libgcc.a archive which contains the actual definition.
+    Later stage when we try to resolve the relocation, we couldn't
+    resolve it. Enable the test as it works now.
+    
+    Fixes #39466.
+    
+    Change-Id: I2759e3ae15e7a7a1ab9a820223b688ad894509ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404296
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go                   | 8 ++------
+ src/cmd/link/internal/amd64/asm.go     | 4 +---
+ src/cmd/link/internal/arm64/asm.go     | 6 ++----
+ src/cmd/link/internal/loadelf/ldelf.go | 4 +---
+ 4 files changed, 6 insertions(+), 16 deletions(-)

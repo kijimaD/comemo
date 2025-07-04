@@ -1,0 +1,13 @@
+commit 7210753f1f1b951817c71ceb0af5cefff9c69c31
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 1 08:30:51 2014 +1000
+
+    doc: document go1.3.3
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/149280044
+
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,20 @@
+commit 36b09f334f4d6ca96573b275118bd45db80f3727
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:50:07 2019 +0100
+
+    strconv: remove use of DeepEqual for testing errors
+    
+    Comparing errors using DeepEqual breaks if frame information
+    is added as proposed in Issue #29934.
+    
+    Updates #29934.
+    
+    Change-Id: I0372883288f974998138f95f6c7c79a60f922a3e
+    Reviewed-on: https://go-review.googlesource.com/c/162177
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/strconv/atoi_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

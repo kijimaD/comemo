@@ -1,0 +1,64 @@
+commit 8b8f926fc3f0e8f002d0a8e97aab9500e4db83a7
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 6 20:46:31 2020 -0700
+
+    runtime: bit parallel implementation of findBitRange64
+    
+    Use a bit-parallel implementation of findBitRange64.
+    It uses a repeated shift-'N-and technique to erase all the
+    free marks that are too small for the allocation.
+    
+    Also some small improvements to find1.
+    
+    name                                             old time/op  new time/op  delta
+    FindBitRange64/Pattern00Size2-16                 4.19ns ± 0%  2.26ns ± 0%   -46.04%  (p=0.000 n=10+8)
+    FindBitRange64/Pattern00Size8-16                 4.19ns ± 0%  2.12ns ± 0%   -49.35%  (p=0.000 n=9+10)
+    FindBitRange64/Pattern00Size32-16                4.20ns ± 0%  2.12ns ± 0%   -49.49%  (p=0.000 n=10+8)
+    FindBitRange64/PatternFFFFFFFFFFFFFFFFSize2-16   2.13ns ± 0%  2.27ns ± 0%    +6.28%  (p=0.000 n=10+10)
+    FindBitRange64/PatternFFFFFFFFFFFFFFFFSize8-16   2.13ns ± 0%  4.46ns ± 0%  +109.39%  (p=0.000 n=10+9)
+    FindBitRange64/PatternFFFFFFFFFFFFFFFFSize32-16  2.13ns ± 1%  5.58ns ± 0%  +162.37%  (p=0.000 n=10+9)
+    FindBitRange64/PatternAASize2-16                 22.2ns ± 0%   2.3ns ± 0%   -89.82%  (p=0.000 n=9+8)
+    FindBitRange64/PatternAASize8-16                 22.2ns ± 0%   2.1ns ± 1%   -90.41%  (p=0.000 n=9+10)
+    FindBitRange64/PatternAASize32-16                22.2ns ± 0%   2.1ns ± 1%   -90.43%  (p=0.000 n=10+10)
+    FindBitRange64/PatternAAAAAAAAAAAAAAAASize2-16    156ns ± 1%     2ns ± 0%   -98.54%  (p=0.000 n=10+10)
+    FindBitRange64/PatternAAAAAAAAAAAAAAAASize8-16    155ns ± 1%     2ns ± 0%   -98.63%  (p=0.000 n=10+8)
+    FindBitRange64/PatternAAAAAAAAAAAAAAAASize32-16   155ns ± 0%     2ns ± 1%   -98.63%  (p=0.000 n=8+10)
+    FindBitRange64/Pattern80000000AAAAAAAASize2-16   81.2ns ± 0%   2.3ns ± 1%   -97.21%  (p=0.000 n=10+10)
+    FindBitRange64/Pattern80000000AAAAAAAASize8-16   81.1ns ± 0%   2.1ns ± 0%   -97.39%  (p=0.000 n=10+9)
+    FindBitRange64/Pattern80000000AAAAAAAASize32-16  81.1ns ± 0%   2.1ns ± 0%   -97.38%  (p=0.000 n=10+10)
+    FindBitRange64/PatternAAAAAAAA00000001Size2-16   76.8ns ± 1%   2.3ns ± 0%   -97.05%  (p=0.000 n=10+10)
+    FindBitRange64/PatternAAAAAAAA00000001Size8-16   76.6ns ± 0%   2.1ns ± 0%   -97.23%  (p=0.000 n=8+10)
+    FindBitRange64/PatternAAAAAAAA00000001Size32-16  76.7ns ± 0%   2.1ns ± 0%   -97.23%  (p=0.000 n=9+9)
+    FindBitRange64/PatternBBBBBBBBBBBBBBBBSize2-16   2.13ns ± 0%  2.27ns ± 0%    +6.57%  (p=0.000 n=8+8)
+    FindBitRange64/PatternBBBBBBBBBBBBBBBBSize8-16   76.7ns ± 0%   2.9ns ± 0%   -96.20%  (p=0.000 n=9+10)
+    FindBitRange64/PatternBBBBBBBBBBBBBBBBSize32-16  76.7ns ± 0%   2.9ns ± 0%   -96.20%  (p=0.000 n=10+10)
+    FindBitRange64/Pattern80000000BBBBBBBBSize2-16   2.12ns ± 0%  2.27ns ± 1%    +6.74%  (p=0.000 n=10+10)
+    FindBitRange64/Pattern80000000BBBBBBBBSize8-16   44.8ns ± 0%   2.9ns ± 0%   -93.49%  (p=0.000 n=9+10)
+    FindBitRange64/Pattern80000000BBBBBBBBSize32-16  44.9ns ± 0%   2.9ns ± 0%   -93.49%  (p=0.000 n=10+8)
+    FindBitRange64/PatternBBBBBBBB00000001Size2-16   4.20ns ± 1%  2.27ns ± 1%   -46.02%  (p=0.000 n=10+10)
+    FindBitRange64/PatternBBBBBBBB00000001Size8-16   44.9ns ± 0%   2.9ns ± 1%   -93.51%  (p=0.000 n=10+9)
+    FindBitRange64/PatternBBBBBBBB00000001Size32-16  44.9ns ± 0%   2.9ns ± 0%   -93.51%  (p=0.000 n=10+9)
+    FindBitRange64/PatternCCCCCCCCCCCCCCCCSize2-16   4.19ns ± 0%  2.26ns ± 0%   -46.10%  (p=0.000 n=10+10)
+    FindBitRange64/PatternCCCCCCCCCCCCCCCCSize8-16   76.5ns ± 0%   2.9ns ± 0%   -96.19%  (p=0.000 n=8+7)
+    FindBitRange64/PatternCCCCCCCCCCCCCCCCSize32-16  76.5ns ± 0%   2.9ns ± 0%   -96.19%  (p=0.000 n=10+8)
+    FindBitRange64/Pattern4444444444444444Size2-16   76.4ns ± 0%   2.3ns ± 0%   -97.04%  (p=0.000 n=8+10)
+    FindBitRange64/Pattern4444444444444444Size8-16   76.5ns ± 0%   2.1ns ± 0%   -97.23%  (p=0.000 n=9+10)
+    FindBitRange64/Pattern4444444444444444Size32-16  76.5ns ± 0%   2.1ns ± 0%   -97.23%  (p=0.000 n=8+10)
+    FindBitRange64/Pattern4040404040404040Size2-16   40.3ns ± 0%   2.3ns ± 0%   -94.38%  (p=0.000 n=7+10)
+    FindBitRange64/Pattern4040404040404040Size8-16   40.2ns ± 0%   2.1ns ± 0%   -94.75%  (p=0.000 n=10+10)
+    FindBitRange64/Pattern4040404040404040Size32-16  40.2ns ± 0%   2.1ns ± 0%   -94.76%  (p=0.000 n=10+6)
+    FindBitRange64/Pattern4000400040004000Size2-16   22.2ns ± 0%   2.2ns ± 0%   -89.86%  (p=0.001 n=8+9)
+    FindBitRange64/Pattern4000400040004000Size8-16   22.2ns ± 0%   2.1ns ± 0%   -90.52%  (p=0.000 n=8+10)
+    FindBitRange64/Pattern4000400040004000Size32-16  22.2ns ± 1%   2.1ns ± 0%   -90.50%  (p=0.000 n=10+10)
+    
+    The cases that slow down aren't really that slow, and those inputs
+    never actually occur (there's a short circuit before the call to
+    findBitRange64 for that case).
+    
+    Change-Id: I50fae62915098032d8ce7fa57ef29eee9deb01ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241279
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mpallocbits.go      | 41 ++++++++++++++++++++++++++++++-----------
+ src/runtime/mpallocbits_test.go | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 61 insertions(+), 13 deletions(-)

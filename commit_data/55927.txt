@@ -1,0 +1,19 @@
+commit 303aa921c59017b521c9f077a8bd6687a2d81465
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 13:55:01 2024 +0000
+
+    Revert "net/http: remove superfluous newline on redirects"
+    
+    This reverts commit 2b58355ef624239dbe32185dc8dfc9d1074615c6.
+    
+    Reason for revert: This breaks tons of tests for no real reason.
+    
+    Change-Id: I89773f48cf983c0b6346e46c37a0ebbe2620e3b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571675
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/serve_test.go | 2 +-
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

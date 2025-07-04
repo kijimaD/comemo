@@ -1,0 +1,12 @@
+commit 1cb3b7d124cf86aefc3353b8c3ef962505ee5181
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 22:38:09 2009 -0700
+
+    panicln: emit just one newline
+    
+    R=ken
+    OCL=27537
+    CL=27545
+
+ src/cmd/gc/walk.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

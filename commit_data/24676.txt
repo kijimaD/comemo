@@ -1,0 +1,15 @@
+commit b41a920792e1fda6c3f5ca666c5e702a06a1bf9c
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Oct 30 18:16:47 2015 +0100
+
+    syscall: correct parameter name of Setgid on linux
+    
+    Change parameter name from uid to gid, to fix an obvious copy-paste
+    error.
+    
+    Change-Id: Iba13a45c87fde9625b82976a7d7901af4b705230
+    Reviewed-on: https://go-review.googlesource.com/16474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

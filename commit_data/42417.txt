@@ -1,0 +1,29 @@
+commit 6ad5f4e334a7b2cecf319d7f4aecfaa8d790395e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 8 11:57:44 2020 -0400
+
+    go/build: move build constraint docs to 'go help buildconstraint'
+    
+    CL 228017 added a new help page 'go help buildconstraint' which
+    summarized the information on build constraints in the go/build
+    documentation. The summary was almost as long as the go/build
+    documentation, since there's very little that can be left out.
+    
+    This CL moves the original go/build documentation to
+    'go help buildconstraint' to eliminate redundnancy. The text
+    describing enabled tags is slightly different (targeting command-line
+    users more than go/build users), but the rest of the documentation is
+    unchanged.
+    
+    Fixes #37018
+    
+    Change-Id: Ic0ed4c6fdae2395dd58852e1600c701247c9c4cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232981
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 103 ++++++++++++++++++++++++------------
+ src/cmd/go/internal/help/helpdoc.go | 103 ++++++++++++++++++++++++------------
+ src/go/build/doc.go                 |  98 +++-------------------------------
+ 3 files changed, 145 insertions(+), 159 deletions(-)

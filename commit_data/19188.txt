@@ -1,0 +1,16 @@
+commit 1d2b71ce83ac66c268985a6a9ddf8f062e71821f
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Apr 16 22:42:09 2014 -0400
+
+    cmd/gc: fewer errors for wrong argument count
+    
+    Fixes #7675
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85040044
+
+ src/cmd/gc/typecheck.c      | 55 +++++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue7675.go | 24 ++++++++++++++++++++
+ 2 files changed, 79 insertions(+)

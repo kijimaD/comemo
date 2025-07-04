@@ -1,0 +1,20 @@
+commit ebdc0b8d68e04ad383088c8b3ab963de4a9b5c5d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 26 20:19:11 2018 +0000
+
+    bytes, strings: add ReplaceAll
+    
+    Credit to Harald Nordgren for the proposal in
+    https://golang.org/cl/137456 and #27864.
+    
+    Fixes #27864
+    
+    Change-Id: I80546683b0623124fe4627a71af88add2f6c1c27
+    Reviewed-on: https://go-review.googlesource.com/137855
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go          | 9 +++++++++
+ src/bytes/bytes_test.go     | 6 ++++++
+ src/strings/strings.go      | 9 +++++++++
+ src/strings/strings_test.go | 6 ++++++
+ 4 files changed, 30 insertions(+)

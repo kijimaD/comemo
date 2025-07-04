@@ -1,0 +1,29 @@
+commit 0e0bff840e3cd041aa9d103c6135862faae9c03f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Sep 13 15:45:18 2019 +0100
+
+    cmd/compiler: skip some go/printer work in rulegen
+    
+    We use go/format on the final output, so don't bother with the added
+    tabwriter work to align comments when using go/printer.
+    
+            name     old time/op         new time/op         delta
+            Rulegen          2.53s ± 2%          2.48s ± 1%  -2.20%  (p=0.032 n=5+5)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          11.2s ± 1%          10.8s ± 0%  -3.72%  (p=0.008 n=5+5)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          218ms ±17%          207ms ±19%    ~     (p=0.548 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen          184MB ± 3%          175MB ± 4%    ~     (p=0.056 n=5+5)
+    
+    Change-Id: I53bad2ab15cace67415f2171fffcd13ed596e62b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195219
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

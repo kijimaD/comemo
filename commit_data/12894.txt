@@ -1,0 +1,13 @@
+commit 3180137b86fa0fd529bbaeb9bcd873331e0fb183
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Apr 15 21:50:21 2012 +0800
+
+    text/template/parse: fix doc comment
+        Fixes #3529.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6037046
+
+ src/pkg/text/template/parse/parse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

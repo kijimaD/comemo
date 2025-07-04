@@ -1,0 +1,19 @@
+commit 49a00631b118834010e4d0124ccc04eeaf2cd7ac
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:42:51 2021 -0400
+
+    go/types: report cause for failing const conversions
+    
+    This is a port of CL 360795 to go/types. Error messages were adjusted
+    accordingly, with a TODO to fix the discrepancy.
+    
+    Change-Id: Ifd7d8248fa11a31fde391021f3c5f1840877892f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360937
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/conversions.go                | 11 +++++++++--
+ src/go/types/testdata/spec/conversions.go2 | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

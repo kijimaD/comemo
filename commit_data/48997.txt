@@ -1,0 +1,22 @@
+commit 209942fa88ef49e98a0f36dbbfa74c936a8d0fad
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon Feb 14 12:16:22 2022 -0800
+
+    runtime/pprof: add race annotations for goroutine profiles
+    
+    The race annotations for goroutine label maps covered the special type
+    of read necessary to create CPU profiles. Extend that to include
+    goroutine profiles. Annotate the copy involved in creating new
+    goroutines.
+    
+    Fixes #50292
+    
+    Change-Id: I10f69314e4f4eba85c506590fe4781f4d6b8ec2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385660
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mprof.go            |  4 +++
+ src/runtime/pprof/pprof_test.go | 59 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/proc.go             |  5 ++++
+ 3 files changed, 67 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 0e62c75b9d6e96a24c5a0a933c6a634a4595d62a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 30 17:14:03 2011 -0500
+
+    undo CL 5436056 / 03560deae933
+    
+    Remove the accidentally exported net.Listener
+    
+    ««« original CL description
+    exp/ssh: remove unused forwarding methods in Server Listener
+    
+    R=agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/5436056
+    
+    »»»
+    
+    R=agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/5437090
+
+ src/pkg/exp/ssh/server.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

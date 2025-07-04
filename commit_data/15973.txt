@@ -1,0 +1,15 @@
+commit 611e8dbf52a10cd8a4340545e1f6296b671f1fcc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 27 15:14:28 2013 -0700
+
+    cmd/godoc: emit id's for constants and variables
+    
+    Fixes #5077.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/8021044
+
+ src/cmd/godoc/linkify.go | 92 ++++++++++++++++++++++++++++++------------------
+ src/cmd/godoc/main.go    |  2 +-
+ 2 files changed, 59 insertions(+), 35 deletions(-)

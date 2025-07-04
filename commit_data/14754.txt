@@ -1,0 +1,21 @@
+commit d0428379e79d8a3a868fda9509963563e73e10b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 28 10:40:36 2012 -0800
+
+    exp/types: resolve composite literal keys
+    
+    The parser/resolver cannot accurately resolve
+    composite literal keys that are identifiers;
+    it needs type information.
+    Instead, try to resolve them but leave final
+    judgement to the type checker.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/6994047
+
+ src/pkg/exp/types/check.go           |  2 ++
+ src/pkg/exp/types/expr.go            | 23 ++++++++++++--------
+ src/pkg/exp/types/testdata/expr3.src | 18 ++++++++++++++++
+ src/pkg/go/parser/parser.go          | 42 ++++++++++++++++++++++++++++++------
+ 4 files changed, 69 insertions(+), 16 deletions(-)

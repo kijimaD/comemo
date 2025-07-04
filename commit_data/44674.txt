@@ -1,0 +1,19 @@
+commit 661f3f15d5c96704a2fe9e91c6c40f73ff896606
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Mar 15 23:10:21 2021 +0100
+
+    net: fix BenchmarkWriteToReadFromUDP on Windows
+    
+    Using 0.0.0.0 for ListenUDP listens on all addresses. Calling LocalAddr
+    on that Conn returns 0.0.0.0. Sending to 0.0.0.0 doesn't seem to work on
+    Windows. See #22827.
+    
+    Change-Id: I4a48fbabe65a63e07600a65309977cec08a9c1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301850
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
+
+ src/net/udpsock_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

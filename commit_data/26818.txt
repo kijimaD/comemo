@@ -1,0 +1,14 @@
+commit a44c4256ae958b0aacecd5fd0b0e7f1156f8bcf4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 10 14:51:07 2016 +0000
+
+    html: fix typo in UnescapeString string docs
+    
+    Fixes #15221
+    
+    Change-Id: I9e927a2f604213338b4572f1a32d0247c58bdc60
+    Reviewed-on: https://go-review.googlesource.com/21798
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/html/escape.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

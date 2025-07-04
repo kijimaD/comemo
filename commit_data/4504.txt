@@ -1,0 +1,13 @@
+commit 1f5511560e6aa8a43ae1e4a6a5a2bb13bf5f29c0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 29 14:03:12 2009 +1100
+
+    remove all references to gobType() from the decoder.
+    Fixes #470.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183074
+
+ src/pkg/gob/decode.go | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

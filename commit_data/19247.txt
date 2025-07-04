@@ -1,0 +1,13 @@
+commit 573cfe95615faac43b9fc0841f13b74640584305
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 28 12:45:00 2014 -0400
+
+    runtime: heapdump - make sure spans are swept before dumping.
+    
+    LGTM=rsc
+    R=golang-codereviews, adonovan, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/90440043
+
+ src/pkg/runtime/heapdump.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

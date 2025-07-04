@@ -1,0 +1,14 @@
+commit 756ea30eb05357b02af1ac512920ed647d4ee350
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 22 11:27:32 2016 -0800
+
+    runtime: simplify stack copying in ThreadCreateProfile
+    
+    Change-Id: I7414d2fab18ae6e7e7c50f8697ec64d38290f409
+    Reviewed-on: https://go-review.googlesource.com/19817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mprof.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

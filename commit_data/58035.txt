@@ -1,0 +1,29 @@
+commit bb2a5f0556fd6bb4dbbce5eef2d6317d20796ade
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 21 21:07:32 2024 -0700
+
+    cmd: change from sort functions to slices functions
+    
+    Doing this because the slices functions are slightly faster and
+    slightly easier to use. It also removes one dependency layer.
+    
+    We did this outside of bootstrap tools in CL 587655.
+    Now that the bootstrap compiler is 1.22, we can do this in more code.
+    
+    Change-Id: I9ed2dd473758cacd14f76a0639368523ccdff72f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626038
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/api/api_test.go                         |  4 ++--
+ src/cmd/api/main_test.go                        | 18 +++++++++---------
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  2 +-
+ src/cmd/compile/internal/types/size.go          | 19 +++++++++----------
+ src/cmd/compile/internal/types/sort.go          | 16 ----------------
+ src/cmd/compile/internal/types/sym.go           | 25 +++++++++++++++----------
+ src/cmd/compile/internal/types/sym_test.go      |  6 +++---
+ src/cmd/compile/internal/types/type.go          |  5 +++++
+ 9 files changed, 45 insertions(+), 52 deletions(-)

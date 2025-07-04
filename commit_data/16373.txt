@@ -1,0 +1,12 @@
+commit a3393e1750e88c7f6209936815b51173775a38e5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 23 02:46:07 2013 +0800
+
+    cmd/go: use "go get" instead of "go install" to install vet
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9662043
+
+ src/cmd/go/tool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

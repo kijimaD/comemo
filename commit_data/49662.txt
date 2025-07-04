@@ -1,0 +1,19 @@
+commit 2ff563a00e45308fad74f1f86d816f4f636584a0
+Author: jacobishao <shaojacobi@gmail.com>
+Date:   Sun Jul 24 12:38:48 2022 +0000
+
+    cmd/compile/internal/noder: correct spelling errors for instantiation
+    
+    Change-Id: I8091b3181e6dd0c335763c411a6a64026fe5a651
+    GitHub-Last-Rev: 505c6caa9cd4538f76dde4287b9266e8947e395e
+    GitHub-Pull-Request: golang/go#54024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419315
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

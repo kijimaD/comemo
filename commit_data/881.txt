@@ -1,0 +1,17 @@
+commit 3c9b8172578177fe5d2137db942c488cdfd343d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 14:25:23 2008 -0700
+
+    snapshot:
+    - typeguards, var decls, several printing bug fixed
+    - now fully idempotent on many files (which are accepted by 6g afterwards)
+    - still some detail issues
+    
+    R=r
+    OCL=17310
+    CL=17310
+
+ usr/gri/pretty/Makefile   | 11 -------
+ usr/gri/pretty/parser.go  | 19 ++++++------
+ usr/gri/pretty/printer.go | 77 +++++++++++++++++++++++++++--------------------
+ 3 files changed, 54 insertions(+), 53 deletions(-)

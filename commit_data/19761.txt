@@ -1,0 +1,19 @@
+commit ec5d7ba95c4ae49517f832644979ecbefdf657cc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jul 18 16:30:38 2014 +1000
+
+    runtime: add throwgo
+    
+    Fixes #8380.
+    
+    Also update hashmap.go to use throwgo rather than panic.
+    
+    LGTM=khr
+    R=khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/115860045
+
+ src/pkg/runtime/hashmap.go | 28 +++++++++++++---------------
+ src/pkg/runtime/panic.c    | 12 ++++++++++++
+ src/pkg/runtime/stubs.go   |  4 ++++
+ 3 files changed, 29 insertions(+), 15 deletions(-)

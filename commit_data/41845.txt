@@ -1,0 +1,22 @@
+commit 656f27ebf86e415c59de421643a35c98238b0ff5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 4 18:36:58 2020 +1100
+
+    cmd/compile: enable -d=checkptr even on windows
+    
+    CL 201783 enable -d=checkptr when -race or -msan is specified
+    everywhere but windows.
+    
+    But, now that all unsafe pointer conversions in the standard
+    library are fixed, enable -d=checkptr even on windows.
+    
+    Updates #34964
+    Updates #34972
+    
+    Change-Id: Id912fa83b0d5b46c6f1c134c742fd94d2d185835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227003
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

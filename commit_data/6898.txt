@@ -1,0 +1,12 @@
+commit 14804a412b30d561ee63a15735ef21c75c77df89
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 8 17:12:25 2010 -0500
+
+    event.go: another print glitch from gocheck.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3524041
+
+ src/pkg/exp/nacl/av/event.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

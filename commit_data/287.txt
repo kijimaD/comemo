@@ -1,0 +1,11 @@
+commit 81b325db1b0577a46e00316de30531a62424b844
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 3 17:41:05 2008 -0700
+
+            a,b := fun()
+    
+    SVN=125998
+
+ src/cmd/gc/subr.c | 2 --
+ src/cmd/gc/walk.c | 3 +--
+ 2 files changed, 1 insertion(+), 4 deletions(-)

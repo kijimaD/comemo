@@ -1,0 +1,18 @@
+commit b225396f935737cbd64164b67aeb8f1bb8ac08be
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Apr 8 13:16:26 2017 +0900
+
+    mime: re-accept empty encoded-text
+    
+    https://go-review.googlesource.com/37812 prohibits empty encoded-text.
+    This CL accepts it again for backward compatibility.
+    
+    Change-Id: I0e0840b501927f147160b999bb59d2d029ea314c
+    Reviewed-on: https://go-review.googlesource.com/40051
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/encodedword.go      | 7 ++++---
+ src/mime/encodedword_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

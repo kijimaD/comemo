@@ -1,0 +1,15 @@
+commit adcb50835974cb7c9ad7cdc9bbf6eea64475e567
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 13:19:39 2012 +1100
+
+    godoc: fix vet warnings for untagged struct literals
+    
+    src/cmd/godoc/filesystem.go:337:10: os.PathError struct literal uses untagged fields
+    src/cmd/godoc/filesystem.go:355:10: os.PathError struct literal uses untagged fields
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5820046
+
+ src/cmd/godoc/filesystem.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

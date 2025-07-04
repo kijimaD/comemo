@@ -1,0 +1,12 @@
+commit b3a4d58ba8e0acf23199fa986a872270626e26a7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 23:07:32 2011 -0400
+
+    syscall: fix typo in mmap comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4377043
+
+ src/pkg/syscall/syscall_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

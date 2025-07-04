@@ -1,0 +1,29 @@
+commit bf237f534cc2a5ed23ae7ffa7deb38cbee64cae6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 13 13:51:23 2017 +0200
+
+    syscall: correct type for timeout argument to Select on linux/{arm64,mips64x}
+    
+    syscall.Select uses SYS_PSELECT6 on arm64 and mipx64x, however this
+    syscall expects its 5th argument to be of type Timespec (with seconds
+    and nanoseconds) instead of type Timeval (with seconds and microseconds)
+    This leads to the timeout being too short by a factor of 1000.
+    
+    This CL fixes this by adjusting the timeout argument accordingly,
+    similarly to how glibc does it for architectures where neither
+    SYS_SELECT nor SYS__NEWSELECT are available.
+    
+    Fixes #22246
+    
+    Change-Id: I33a183b0b87c2dae4a77a2d00f8615169fad48dd
+    Reviewed-on: https://go-review.googlesource.com/70590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_arm64.go     | 12 +++++++++++-
+ src/syscall/syscall_linux_mips64x.go   | 12 +++++++++++-
+ src/syscall/zsyscall_linux_arm64.go    | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_mips64.go   | 22 +++++++++++-----------
+ src/syscall/zsyscall_linux_mips64le.go | 22 +++++++++++-----------
+ 5 files changed, 55 insertions(+), 35 deletions(-)

@@ -1,0 +1,32 @@
+commit 286e3e61aa9310bb8fd333adac6d06cfb2fcc95b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 25 11:10:44 2022 -0800
+
+    go/types, types2: report an error for x.sel where x is a built-in
+    
+    In case of a selector expression x.sel where x is a built-in
+    we didn't report an error because the type of built-ins is
+    invalid and we surpress errors on operands of invalid types,
+    assuming that an error has been reported before.
+    
+    Add a corresponding check for this case.
+    
+    Review all places where we call Checker.exprOrType to ensure
+    (invalid) built-ins are reported.
+    
+    Adjusted position for index error in types2.
+    
+    Fixes #51360.
+    
+    Change-Id: I24693819c729994ab79d31de8fa7bd370b3e8469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388054
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go                     |  6 +++++-
+ src/cmd/compile/internal/types2/index.go                    |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue51360.go        | 13 +++++++++++++
+ src/go/types/call.go                                        |  7 ++++++-
+ src/go/types/index.go                                       |  1 +
+ src/go/types/testdata/fixedbugs/issue51360.go               | 13 +++++++++++++
+ 6 files changed, 39 insertions(+), 3 deletions(-)

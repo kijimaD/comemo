@@ -1,0 +1,15 @@
+commit ba5175401edee538e127f14e7b03cba96223fc56
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 9 14:28:56 2010 +1000
+
+    runtime: fix bug in tracebacks
+    Need to correct for deferproc's extra 2 words of stack or in some
+    cases (such as memory profiling) traceback can cause a crash.
+    Also bulletproof the closure test.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2138047
+
+ src/pkg/runtime/amd64/traceback.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

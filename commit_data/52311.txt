@@ -1,0 +1,46 @@
+commit f594a3ec85a3bdeaa3d22bf0deb5f9d6d70d3af1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 15:37:26 2023 -0700
+
+    cmd/go/testdata/script: consistently set GOCACHE in fuzz tests
+    
+    The fuzzing cache for interesting inputs is shared across all
+    invocations of scripts by default. When 'go clean -fuzzcache' is called,
+    or fuzz targets in different scripts have the same names, we can get
+    race-y unexpected behavior.
+    
+    Since there isn't a easy way to set just the fuzz cache directory (test
+    has the flag -test.fuzzcachedir, but it requires setting it on each call
+    to 'go test'), instead we just consistently set GOCACHE to point to a
+    directory in the WORK dir. As a byproduct this also prevents usage of a
+    shared build cache, so we see an increase in build time for these tests.
+    
+    Updates #59062
+    
+    Change-Id: Ie78f2943b94f3302c5bdf1f8a1e93b207853666a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476755
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz.txt                  | 2 ++
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt           | 1 +
+ src/cmd/go/testdata/script/test_fuzz_cleanup.txt          | 1 +
+ src/cmd/go/testdata/script/test_fuzz_cov.txt              | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_deadline.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_dup_cache.txt        | 1 +
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt         | 3 +--
+ src/cmd/go/testdata/script/test_fuzz_io_error.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt  | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_match.txt            | 2 ++
+ src/cmd/go/testdata/script/test_fuzz_multiple.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt     | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt      | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt          | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt   | 1 +
+ src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt | 1 +
+ src/cmd/go/testdata/script/test_fuzz_parallel.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_setenv.txt           | 1 +
+ src/cmd/go/testdata/script/test_fuzz_test_race.txt        | 1 +
+ 19 files changed, 21 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit fb036824df95f5d127064b3897e3e74fb9691b29
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 11:05:54 2012 -0800
+
+    go/build: allow colon in #cgo flags
+    
+    This makes it possible to say -I c:/foo on Windows.
+    
+    Fixes #2683 comment #3.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5540043
+
+ src/pkg/go/build/dir.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

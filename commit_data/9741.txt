@@ -1,0 +1,17 @@
+commit 7ca406396f33d69fbe922ee9e8d305c61f6d4394
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 13:11:24 2011 -0400
+
+    gc: disallow invalid map keys
+    
+    The algtype-based test broke when algtype
+    got a bit more fine-grained, so replace with
+    an explicit check for the invalid key types.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5071041
+
+ src/cmd/gc/subr.c | 14 +++++++++-----
+ test/map1.go      | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 5 deletions(-)

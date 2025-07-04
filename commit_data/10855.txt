@@ -1,0 +1,13 @@
+commit 76a078332173ab49e0a9d3fad4854960ee0b1c50
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Dec 17 13:14:59 2011 +1100
+
+    goinstall: only suggest -fix for bad imports when appropriate
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5495073
+
+ src/cmd/goinstall/download.go | 14 +++++++++-----
+ src/cmd/goinstall/main.go     |  4 ++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

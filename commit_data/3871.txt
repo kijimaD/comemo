@@ -1,0 +1,12 @@
+commit 8910e427bda2c9586922ad4f39c78bbb83136dc8
+Author: Vish Subramanian <vish@google.com>
+Date:   Fri Nov 6 17:08:47 2009 -0800
+
+    Contribute code instructions to use "hg codereview-login" did not work for me. I had to use
+    "hg code-login".
+    
+    R=r, rsc
+    http://go/go-review/1024012
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

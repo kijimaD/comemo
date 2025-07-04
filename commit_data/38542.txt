@@ -1,0 +1,13 @@
+commit 501632339f36e7e836ec94958351cee51ee76461
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Mon Mar 25 14:05:31 2019 -0400
+
+    net: add missing period in conn.File documentation
+    
+    Change-Id: Ie873d7ed595c91cee4c1aa6c22fa44b61b6190ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169138
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

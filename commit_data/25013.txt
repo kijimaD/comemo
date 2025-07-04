@@ -1,0 +1,19 @@
+commit 2221bc35cf5b133071feea7013b4c6509ae3b563
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sat Nov 21 17:09:08 2015 -0800
+
+    html/template: Add missing error check to package example.
+    
+    This appears to be an unintended omission. The check func is declared
+    just above, and the err value from template.Parse is captured rather
+    than discarded via blank identifier. All following calls that similarly
+    return err are checked, so it can't be that this example elides error
+    checking for brevity. Finally, if you look at Example_autoescaping,
+    it does check err from template.Parse and its code is very similar.
+    
+    Change-Id: I076e1846302d5f2cdb1d027ed85ca0db85e33ace
+    Reviewed-on: https://go-review.googlesource.com/17170
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

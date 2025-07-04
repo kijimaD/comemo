@@ -1,0 +1,14 @@
+commit 776b51850b7cb4b1f24f9c4c4de329d4f439d1e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 05:02:41 2013 -0800
+
+    runtime/cgo: fix crosscall2 on arm
+    
+    This time for sure.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7449045
+
+ src/pkg/runtime/cgo/asm_arm.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

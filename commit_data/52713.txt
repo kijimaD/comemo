@@ -1,0 +1,29 @@
+commit d93f02010cbaa83916eecb4fb23dfc4153694dc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 16:43:11 2023 -0700
+
+    cmd/compile/internal/types2: only mark variables as used if they are
+    
+    Marking variables in erroneous variable declarations as used is
+    convenient for tests but doesn't necessarily hide follow-on errors
+    in real code: either the variable is not supposed to be declared in
+    the first place and then we should get an error if it is not used,
+    or it is there because it is intended to be used, and the we expect
+    an error it if is not used.
+    
+    This brings types2 closer to go/types.
+    
+    Change-Id: If7ee1298fc770f7ad0cefe7e968533fd50ec2343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486175
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go             | 14 --------------
+ src/internal/types/testdata/fixedbugs/issue59371.go |  7 ++-----
+ test/fixedbugs/issue30085.go                        |  2 +-
+ test/fixedbugs/issue30087.go                        |  2 +-
+ test/rename1.go                                     |  2 +-
+ 5 files changed, 5 insertions(+), 22 deletions(-)

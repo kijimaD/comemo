@@ -1,0 +1,15 @@
+commit 80b5482ab2f26cf568d0fbcfc12b5a70faa63a22
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 14 15:20:30 2009 -0700
+
+    fix abstract unix domain sockets
+    
+    R=rsc
+    DELTA=5  (3 added, 0 deleted, 2 changed)
+    OCL=28845
+    CL=28849
+
+ src/lib/net/net_linux.go             | 1 +
+ src/lib/syscall/socket_linux.go      | 3 ++-
+ src/lib/syscall/types_amd64_linux.go | 3 ++-
+ 3 files changed, 5 insertions(+), 2 deletions(-)

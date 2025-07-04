@@ -1,0 +1,17 @@
+commit 47fe18bf3677d4eb34080be771d5d62d7124a527
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 29 13:31:53 2009 -0700
+
+    Fix godoc deadlock.
+    
+    The code was already careful not to use malloc/free
+    for stack growth during calls to malloc.
+    Avoid them during calls to free too.
+    
+    R=r
+    DELTA=9  (7 added, 0 deleted, 2 changed)
+    OCL=29606
+    CL=29610
+
+ src/runtime/malloc.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

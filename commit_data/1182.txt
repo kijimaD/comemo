@@ -1,0 +1,14 @@
+commit 572cad871961eed816a4935806ed65c53b1e0d03
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 11:50:58 2008 -0800
+
+    gotest, via testing.go, should warn you if you failed to create any tests.
+    when chatty, it should tell you how many there are.
+    
+    R=rsc
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=19590
+    CL=19590
+
+ src/lib/testing.go | 5 +++++
+ 1 file changed, 5 insertions(+)

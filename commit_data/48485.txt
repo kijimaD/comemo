@@ -1,0 +1,19 @@
+commit 96567fb3ccdc8d8c052606112db7b39abd725b59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 20 09:32:00 2022 -0700
+
+    os: skip TestOpenFileLimit on openbsd/mips64
+    
+    For #46279
+    For #51713
+    
+    Change-Id: I444f309999bf5576449a46a9808b23cf6537e7dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394094
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/os/rlimit_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 1c09b4dde645b63b34673d0b2c93f4371f7f19df
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 6 18:22:19 2016 +0000
+
+    time: document that calendrical calculations are with no leap seconds
+    
+    Fixes #15247
+    
+    Change-Id: I942fb2eacd1b54bab66cc147a6b047a3ffce0b84
+    Reviewed-on: https://go-review.googlesource.com/30595
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/time/time.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

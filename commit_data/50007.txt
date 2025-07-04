@@ -1,0 +1,18 @@
+commit f324355d1f482362b87ec4f95ceac00d4b4de797
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 19 18:35:42 2022 +0700
+
+    runtime: remove pageAlloc.scav padding for atomic field alignment
+    
+    CL 404096 makes atomic.Int64 8 bytes aligned everywhere.
+    
+    Change-Id: I5a676f646260d6391bb071f9376cbdb1553e6e6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424925
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mpagealloc.go | 2 --
+ 1 file changed, 2 deletions(-)

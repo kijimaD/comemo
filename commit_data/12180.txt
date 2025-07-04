@@ -1,0 +1,15 @@
+commit c05c3a9d1180e6d449049d9ed96c46b65837bb29
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Feb 24 11:32:33 2012 +1100
+
+    html/template: make doctype check case-insensitive
+    
+    Fixes #3094.
+    
+    R=golang-dev, rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5687065
+
+ src/pkg/html/template/escape.go      | 2 +-
+ src/pkg/html/template/escape_test.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

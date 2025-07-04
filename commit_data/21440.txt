@@ -1,0 +1,28 @@
+commit 67a03fd6a2c6d13154d7f27c464023422b83c05d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 09:09:56 2015 -0500
+
+    runtime: use 2*regSize for saved frame pointer check
+    
+    Previously, we checked for a saved frame pointer by looking for a
+    2*ptrSize gap between the argument pointer and the locals pointer.
+    The intent of this check was to look for a two stack slot gap (caller
+    IP and saved frame pointer), but stack slots are regSize, not ptrSize.
+    
+    Correct this by checking instead for a 2*regSize gap.
+    
+    On most platforms, this made no difference because ptrSize==regSize.
+    However, on amd64p32 (nacl), the saved frame pointer check incorrectly
+    fired when there was no saved frame pointer because the one stack slot
+    for the caller IP left an 8 byte gap, which is 2*ptrSize (but not
+    2*regSize) on amd64p32.
+    
+    Fixes #9760.
+    
+    Change-Id: I6eedcf681fe5bf2bf924dde8a8f2d9860a4d758e
+    Reviewed-on: https://go-review.googlesource.com/3781
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack1.go    | 3 ++-
+ src/runtime/traceback.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit b794ca64d29f3e584cbdf49bde7141d3c12dd2ab
+Author: Charles Kenney <charlesc.kenney@gmail.com>
+Date:   Mon Sep 3 07:02:03 2018 +0000
+
+    runtime/trace: fix syntax errors in NewTask doc example
+    
+    Fixes #27406
+    
+    Change-Id: I9c6f5bac5b26558fa7628233c74a62faf676e811
+    GitHub-Last-Rev: 29d19f719316b486224a15a50556465811985edf
+    GitHub-Pull-Request: golang/go#27437
+    Reviewed-on: https://go-review.googlesource.com/132775
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/trace/annotation.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

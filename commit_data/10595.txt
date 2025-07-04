@@ -1,0 +1,16 @@
+commit 8a8445ba71b18f9a4dcdd7e50a6e821afcbfe2ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 13:11:30 2011 -0500
+
+    spec: pointer to array can be sliced
+    
+    This has always been true, but we lost it from the spec
+    somewhere along the way, probably when we disallowed
+    the general 'pointer to anything sliceable' slice case.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5437121
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

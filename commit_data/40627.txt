@@ -1,0 +1,16 @@
+commit 6ce4384fd6621454a1d58a4ab46f92da8d8567ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 14:49:56 2019 -0800
+
+    runtime: mark testSetPanicOnFault as go:nocheckptr
+    
+    The test deliberately constructs an invalid pointer, so don't check it.
+    
+    Fixes #35379
+    
+    Change-Id: Ifeff3484740786b0470de3a4d2d4103d91e06f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205717
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/runtime_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

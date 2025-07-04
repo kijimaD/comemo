@@ -1,0 +1,13 @@
+commit f305d0494361ebe581a3229c10fd0b328996afef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 29 15:41:02 2009 -0700
+
+    Bug: 6g accepts fallthrough in type switch.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1016006
+
+ test/bugs/bug213.go | 16 ++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 19 insertions(+)

@@ -1,0 +1,12 @@
+commit c357ca663fce810cfd34dcf482158e4a04aab51a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 15 16:39:17 2011 +1000
+
+    go/build: remove crud in cgotest/_obj
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4584060
+
+ src/pkg/go/build/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

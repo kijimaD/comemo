@@ -1,0 +1,14 @@
+commit d6be71c788680b078925637cc418f35321ab0f13
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 21 11:27:08 2011 -0400
+
+    gopprof: update list of memory allocators
+    
+    Also import new weblist command from Google version.
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4650048
+
+ src/cmd/prof/gopprof | 287 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 242 insertions(+), 45 deletions(-)

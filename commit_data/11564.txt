@@ -1,0 +1,12 @@
+commit 7dca24ee7e5c0c5acba35a1a0b9a23f1761098e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 2 11:53:28 2012 -0800
+
+    codereview: explain how to get hgpatch in error message
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5623045
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

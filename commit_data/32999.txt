@@ -1,0 +1,20 @@
+commit da4d740fc84bfbbfe24956725f864fecdc89002d
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Oct 6 18:04:10 2017 +0200
+
+    cmd/link/internal/loadmacho: reduce scope of local declarations
+    
+    Move some local declarations closer to their use, reducing their
+    respective lifetimes, also improve few error messages.
+    Follow up of CL 67370.
+    
+    Updates #22095
+    
+    Change-Id: I6131159ae8de571015ef5459b33d5c186e543a37
+    Reviewed-on: https://go-review.googlesource.com/69110
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/loadmacho/ldmacho.go | 137 ++++++++++++-----------------
+ 1 file changed, 56 insertions(+), 81 deletions(-)

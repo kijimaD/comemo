@@ -1,0 +1,14 @@
+commit 8b6d50170463e402e94eab9f260c5e09fa8b0146
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 23 07:39:43 2013 +0900
+
+    net: fix documentation for UnixAddr
+    
+    Also simplifies ResolveUnixAddr.
+    
+    R=golang-dev, dave, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7510047
+
+ src/pkg/net/unixsock.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

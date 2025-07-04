@@ -1,0 +1,25 @@
+commit 747a158ef314bb458b90da95f3e3d67aa4140622
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Aug 8 16:02:09 2016 +0200
+
+    runtime: speed up StartTrace with lots of blocked goroutines
+    
+    In StartTrace we emit EvGoCreate for all existing goroutines.
+    This includes stack unwind to obtain current stack.
+    Real Go programs can contain hundreds of thousands of blocked goroutines.
+    For such programs StartTrace can take up to a second (few ms per goroutine).
+    
+    Obtain current stack ID once and use it for all EvGoCreate events.
+    
+    This speeds up StartTrace with 10K blocked goroutines from 20ms to 4 ms
+    (win for StartTrace called from net/http/pprof hander will be bigger
+    as stack is deeper).
+    
+    Change-Id: I9e5ff9468331a840f8fdcdd56c5018c2cfde61fc
+    Reviewed-on: https://go-review.googlesource.com/25573
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/trace.go | 61 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 38 insertions(+), 23 deletions(-)

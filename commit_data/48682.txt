@@ -1,0 +1,18 @@
+commit 4aacb7ff0f103d95a724a91736823f44aa599634
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 2 11:01:18 2022 -0800
+
+    crypto/x509: add CertPool.Equal
+    
+    Fixes #46057
+    
+    Change-Id: Id3af101c54108d6fd5b65946c4358872358eefcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388915
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/x509/cert_pool.go      | 13 +++++++++
+ src/crypto/x509/cert_pool_test.go | 58 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

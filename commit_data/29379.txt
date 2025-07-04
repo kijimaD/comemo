@@ -1,0 +1,26 @@
+commit 3440c7bc4c238e1d75d728536ca8f5efe883dbe6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 20:53:05 2016 +0000
+
+    net/http: tweak the new Client 307/308 redirect behavior a bit
+    
+    This CL tweaks the new (unreleased) 307/308 support added in
+    https://golang.org/cl/29852 for #10767.
+    
+    Change 1: if a 307/308 response doesn't have a Location header in its
+    response (as observed in the wild in #17773), just do what we used to
+    do in Go 1.7 and earlier, and don't try to follow that redirect.
+    
+    Change 2: don't follow a 307/308 if we sent a body on the first
+    request and the caller's Request.GetBody func is nil so we can't
+    "rewind" the body to send it again.
+    
+    Updates #17773 (will be fixed more elsewhere)
+    
+    Change-Id: I183570f7346917828a4b6f7f1773094122a30406
+    Reviewed-on: https://go-review.googlesource.com/32595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go      | 28 +++++++++++++++++++++++++
+ src/net/http/client_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+)

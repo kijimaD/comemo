@@ -1,0 +1,28 @@
+commit af0882247b06700c5d9af240dfa4a7e57dba65da
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Dec 4 19:30:06 2019 -0500
+
+    src/go.mod: sync golang.org/x/net with h2_bundle.go
+    
+    CL 209077 updated bundled http2 to x/net git rev ef20fe5d7 without
+    bumping the go.mod version.
+    
+    Identified with the new go/packages based cmd/bundle from CL 189818.
+    
+    $ go get golang.org/x/net@ef20fe5d7
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate -run bundle std # with CL 189818
+    
+    Updates #32031
+    
+    Change-Id: I581d35f33e2adafb588b2b0569648039187234a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209901
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go.mod             | 2 +-
+ src/go.sum             | 4 ++--
+ src/vendor/modules.txt | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

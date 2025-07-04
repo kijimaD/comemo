@@ -1,0 +1,22 @@
+commit 3b0d28808df261747d7561badf91498bbb5d3e3e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 18 21:01:37 2021 -0400
+
+    cmd/go: assume Go 1.16 instead of Go 1.11 for dependencies that lack explicit 'go' directives
+    
+    Fixes #45109
+    Updates #44976
+    Updates #36876
+    
+    Change-Id: Icb00f8b6e0d4e076d82da1697e7058b9e7603916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303229
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html                                    | 12 +++++++
+ src/cmd/go/internal/modload/init.go                | 42 ++++++++++++++++++----
+ src/cmd/go/internal/work/gc.go                     | 10 +++++-
+ .../go/testdata/script/mod_go_version_vendor.txt   | 36 +++++++++++++++++++
+ 4 files changed, 92 insertions(+), 8 deletions(-)

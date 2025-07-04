@@ -1,0 +1,15 @@
+commit 55203c7dd5a1f25ae898c5dfc1e8aeb3daeb9f1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 28 23:12:21 2015 -0400
+
+    cmd/compile: allow unnamed constants to set line number
+    
+    Fixes #8836.
+    
+    Change-Id: Idda9f4a987e03b3bdf5e8fdb984fe56d6f84aa59
+    Reviewed-on: https://go-review.googlesource.com/11672
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  8 +++++++-
+ test/fixedbugs/issue8836.go         | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

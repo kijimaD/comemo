@@ -1,0 +1,16 @@
+commit fbfd38c575b594eb49ba9c8c38e295b99b299561
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 17:52:34 2018 -0700
+
+    misc/cgo/test: skip Test18146 in short mode
+    
+    Fixes #21219
+    
+    Change-Id: I1a2ec1afe06586ed33a3a855b77536490cac3a38
+    Reviewed-on: https://go-review.googlesource.com/121115
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue18146.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

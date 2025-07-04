@@ -1,0 +1,21 @@
+commit 6262902070569201f220a40d7abbbf88795ad47d
+Author: Kato Kazuyoshi <kato.kazuyoshi@gmail.com>
+Date:   Tue Dec 16 08:22:17 2014 -0800
+
+    os: handle the sticky bit separately for *BSD and Solaris
+    
+    open(2) and mkdir(2) won't set the sticky bit on *BSD and Solaris.
+    This behavior is mentioned on sticky(8).
+    see also: https://github.com/dotcloud/docker/pull/6587
+    
+    Fixes #8383.
+    
+    Change-Id: Ic4733700f9926b9fc2b6fd1f998acec34e518764
+    Reviewed-on: https://go-review.googlesource.com/1673
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go          |  6 ++++++
+ src/os/file_unix.go     | 12 ++++++++++++
+ src/os/sticky_bsd.go    | 11 +++++++++++
+ src/os/sticky_notbsd.go | 14 ++++++++++++++
+ 4 files changed, 43 insertions(+)

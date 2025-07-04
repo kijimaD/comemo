@@ -1,0 +1,22 @@
+commit 40bdcbb483548c0b660503c3ba80f9676b98fd5f
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Fri Nov 11 23:23:19 2022 +0000
+
+    archive/zip: don't read directories containing file data
+    
+    Fixes #54801
+    
+    Change-Id: I3d03516792975ddb09835b2621c57e12e7cbad35
+    GitHub-Last-Rev: 4faa7e14dcc48c05d707f1e137d915da24133e14
+    GitHub-Pull-Request: golang/go#56714
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/archive/zip/reader.go      | 19 +++++++++++++++++++
+ src/archive/zip/reader_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

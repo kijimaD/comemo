@@ -1,0 +1,13 @@
+commit 801f6e6367e923ce320276adb279b5f0b1ec9bef
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 20 23:29:29 2012 +0400
+
+    sync: add Once test with panic
+    Tests behavior of Once when initialization function panics.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6554047
+
+ src/pkg/sync/once_test.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

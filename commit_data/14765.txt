@@ -1,0 +1,16 @@
+commit c2d2bfcc4908ca7ab94abf5479f28694b2d1efa8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jan 1 21:47:42 2013 +1100
+
+    runtime: fix freebsd/arm instruction cache flush
+    
+    sysarch requires arguments to be passed on the stack, not in registers.
+    
+    Credit to Shenghou Ma (minux) for the fix.
+    
+    R=minux.ma, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/7037043
+
+ src/pkg/runtime/sys_freebsd_arm.s | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

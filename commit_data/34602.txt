@@ -1,0 +1,12 @@
+commit 7d4d2cb686d2068a9a07dbde9f2a72c237c1f4a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 14 11:19:42 2018 -0700
+
+    math/big: add comment about internal assumptions on nat values
+    
+    Change-Id: I7ed40507a019c0bf521ba748fc22c03d74bb17b7
+    Reviewed-on: https://go-review.googlesource.com/100719
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/nat.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

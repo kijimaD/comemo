@@ -1,0 +1,24 @@
+commit 985d3d307c3669094f77b52caffef60157b7d648
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 29 09:09:14 2016 -0700
+
+    net: make proto and port lookups fall back to baked-in maps on Windows
+    
+    In https://golang.org/cl/28951 I cleaned up the lookupProtocol and
+    lookupPort paths to be consistently case-insensitive across operating
+    systems and to share the same baked-in maps of port & proto values
+    that can be relied on to exist on any platform.
+    
+    I missed the fallback to the baked-in maps on Windows, though, which
+    broke Windows XP. This should fix it.
+    
+    Fixes #17175
+    
+    Change-Id: Iecd434fb684304137ee27f5521cfaa8c351a1bde
+    Reviewed-on: https://go-review.googlesource.com/29968
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_windows.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

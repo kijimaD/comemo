@@ -1,0 +1,12 @@
+commit 80cb47b706b81fd85d8141455af9e62b5683bc35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 17:07:10 2012 +1100
+
+    doc: fix download link on front page
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5730053
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

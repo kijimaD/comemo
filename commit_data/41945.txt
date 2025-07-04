@@ -1,0 +1,21 @@
+commit 34e38ac99f025549599ea7e1ad2e80026ae16174
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Apr 12 23:38:36 2020 +0700
+
+    cmd/compile: remove "special return in disguise" case
+    
+    ascompatee does not generate 'x = x' during return, so we don't have to
+    check for samelist and disguising special return anymore.
+    
+    While at it, also remove samelist, as this is the only place it's used.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I41c7b077d562aadb5916a61e2ab6229bae3cdef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227807
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

@@ -1,0 +1,14 @@
+commit d222c65477e0c3215a8902eecfb3530687325cd8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 6 10:29:17 2008 -0700
+
+    Introduced forward declaration of types per discussion with ken.
+    A forward-declared (or not yet fully defined) type must be used
+    to construct (mutually) recursive type declarations. This simplifies
+    the compiler and resolves the issue at which scope the forward-
+    declared type is to be declared.
+    
+    SVN=117770
+
+ doc/go_lang.txt | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

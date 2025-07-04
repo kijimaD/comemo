@@ -1,0 +1,15 @@
+commit 5c4d6ebb118bc541647b9b15af5a19502570d0dd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 7 23:15:55 2012 +0100
+
+    cmd/go: support -compiler for go list, fix isStale for gccgo.
+    
+    Fixes #3228.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5784044
+
+ src/cmd/go/list.go | 1 +
+ src/cmd/go/pkg.go  | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

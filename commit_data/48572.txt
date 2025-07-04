@@ -1,0 +1,20 @@
+commit 63169c8bdf3e7ac5006c8976b0631b281eb49394
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Mar 26 14:44:09 2022 +0800
+
+    cmd/link: zero elf addr for debug sections
+    
+    The Addr should be zero if SHF_ALLOC is not set.
+    
+    Update #51939
+    
+    Change-Id: I030f6243d05efabe6b9ebf558e9c0201f7922d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395919
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/elf_test.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go |  8 +++++---
+ 2 files changed, 33 insertions(+), 3 deletions(-)

@@ -1,0 +1,38 @@
+commit 666d736ecb8afbe1aeb1d15f3958b70af2173510
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 19:11:52 2022 -0700
+
+    cmd/compile: do branch/label checks only once
+    
+    The previous change implemented the missing fallthrough checking
+    in the parser. Therefore we can now disable the duplicate check
+    in the type checker:
+    
+    - rename (types2.Config.)IngoreLabels to IgnoreBranches to more
+      accurately reflect its functionality
+    
+    - now also ignore break/continue/fallthroughs, not just labels
+    
+    The IgnoreBranches flag only exists for types2, for use with
+    the compiler. There's no need to port this code to go/types.
+    
+    Note: An alternative (and perhaps better) approach would be
+    to not use the the parser's CheckBranches mode and instead
+    enable (i.e. not disable) the branch/label checking in the
+    type checker. However, this requires a bit more work because
+    the type checker's error messages about goto's jumping over
+    variables don't have access to the variable names, which are
+    desired in the error messages.
+    
+    Fixes #51456.
+    
+    Change-Id: Ib2e71e811d4e84e4895b729646e879fd43b12dcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414135
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go |  2 +-
+ src/cmd/compile/internal/noder/noder.go |  4 +---
+ src/cmd/compile/internal/types2/api.go  |  5 ++---
+ src/cmd/compile/internal/types2/stmt.go | 17 ++++++-----------
+ 4 files changed, 10 insertions(+), 18 deletions(-)

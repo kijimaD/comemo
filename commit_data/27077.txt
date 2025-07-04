@@ -1,0 +1,24 @@
+commit 5833d843de4d774f6b76e982b170f42b8e94a198
+Author: Chris Zou <chriszou@ca.ibm.com>
+Date:   Mon Apr 18 19:30:17 2016 -0400
+
+    hash/crc32: use vector instructions on s390x
+    
+    The input buffer is aligned to a doubleword boundary to
+    improve performance of the vector instructions. The pure
+    Go implementation is used to align the input data, and is
+    also used when the vector instructions are not available
+    or the data length is less than 64 bytes.
+    
+    Change-Id: Ie259a5f2f1562bcc17961c99e5776c99091d6bed
+    Reviewed-on: https://go-review.googlesource.com/22201
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc32/crc32_generic.go |   2 +-
+ src/hash/crc32/crc32_s390x.go   | 101 +++++++++++++++++
+ src/hash/crc32/crc32_s390x.s    | 245 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 347 insertions(+), 1 deletion(-)

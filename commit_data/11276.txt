@@ -1,0 +1,16 @@
+commit ee09a8cd9fee2f38fd100bd27451c4284f7e9d96
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 20 09:26:17 2012 +1100
+
+    gc: don't emit pkgpath for error type.
+    
+    Fixes #2660.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5557060
+
+ src/cmd/gc/reflect.c        |  2 +-
+ src/pkg/reflect/all_test.go | 15 +++++++++++++--
+ src/pkg/reflect/type.go     |  2 +-
+ 3 files changed, 15 insertions(+), 4 deletions(-)

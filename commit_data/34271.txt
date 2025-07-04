@@ -1,0 +1,18 @@
+commit 4dc25ceda4a0a96aeef8bf5cb38a194221afcf8b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Dec 13 16:38:02 2017 -0600
+
+    cmd/internal/obj/x86: small refactoring
+    
+    Replace some ints with bool and use arrays istead of slices where
+    possible.
+    
+    Change-Id: I510bdaec48f9c437685e72c4a3291cffeb7ef5fc
+    Reviewed-on: https://go-review.googlesource.com/83859
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go       | 28 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/vex_optabs.go |  2 +-
+ 2 files changed, 15 insertions(+), 15 deletions(-)

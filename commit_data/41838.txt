@@ -1,0 +1,16 @@
+commit d78639519df17bf7fb5a7facef007e90d6c0283c
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Apr 3 20:01:25 2020 +0300
+
+    run.bat: check go.exe instead of go
+    
+    Windows requires checking with the .exe extension.
+    
+    Change-Id: I8e2fe83df81b92f04967bafb28f8effde999f597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227157
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

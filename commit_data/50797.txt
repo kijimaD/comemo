@@ -1,0 +1,21 @@
+commit c318f191e45e3496f8afe0a456337e9f76d7f7b4
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jun 14 16:13:51 2022 -0500
+
+    cmd/link: optimize PPC64 inline plt sequences if local
+    
+    Indirect branches are much more expensive than direct. If the call is
+    known to be local, we can replace most of the operations with a nop,
+    and call directly.
+    
+    Updates #53345
+    
+    Change-Id: Icfff9ec1f6c7f8e4181f0f28976033308d2f53eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412715
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 70 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 58 insertions(+), 12 deletions(-)

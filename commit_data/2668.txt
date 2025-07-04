@@ -1,0 +1,18 @@
+commit f7ac313629d59093ea534b75a22603a89962c96a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 10 16:06:40 2009 -0700
+
+    - mark actual EBNF with pre-formatted class "ebnf" instead of "grammar"
+    - make real productions for Unicode char classes so that they can be parsed
+    - use `` for tokens that contain "'s or \'s so that they can be parsed
+    - added a missing '.'
+    
+    This version of the spec passes through ebnflint (forthcoming) without errors.
+    
+    R=r,rsc
+    DELTA=74  (3 added, 1 deleted, 70 changed)
+    OCL=31464
+    CL=31466
+
+ doc/go_spec.html | 135 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 67 insertions(+), 68 deletions(-)

@@ -1,0 +1,19 @@
+commit 0bd8de10486ec14762e9531fd62e780c2ab5180c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 12:37:05 2015 -0400
+
+    sync/atomic: reenable TestNilDeref everywhere
+    
+    There is absolutely no information about how this was failing.
+    If we reenable the test then at least we can get a build log from
+    darwin/arm.
+    
+    There are not even freebsd/arm or netbsd/arm builders,
+    so not too worried about those. (That is another problem.)
+    
+    Change-Id: I0e739a4dd2897adbe110aa400d720d8fa02ae65f
+    Reviewed-on: https://go-review.googlesource.com/12920
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/sync/atomic/atomic_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

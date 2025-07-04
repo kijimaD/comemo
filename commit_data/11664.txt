@@ -1,0 +1,14 @@
+commit 97ef43721274dab8a88b60e362d37eea077b66be
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 11:00:13 2012 +1100
+
+    path/filepath: repair and simplify the symlink test
+    I hate symlinks.
+    Fixes #2787.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5638043
+
+ src/pkg/path/filepath/path_test.go | 61 ++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 29 deletions(-)

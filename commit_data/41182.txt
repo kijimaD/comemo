@@ -1,0 +1,19 @@
+commit 212c0bf24c299616f24880401a621a31c9099b8c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 29 05:30:19 2020 +1100
+
+    test: disable the live test on riscv64
+    
+    This test expects that open-coded defers are enabled, which is not currently
+    the case on riscv64.
+    
+    Updates issue #27532 and #36786.
+    
+    Change-Id: I94bb558c5b0734b4cfe5ae12873be81026009bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/live.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

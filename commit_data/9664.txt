@@ -1,0 +1,13 @@
+commit efea5d0fb9aa738029a2a40b901fffec41b32448
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Sep 13 12:51:48 2011 +0200
+
+    exp/norm: Added regression test tool for the standard Unicode test set.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4973064
+
+ src/pkg/exp/norm/Makefile       |   9 +-
+ src/pkg/exp/norm/normregtest.go | 296 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 304 insertions(+), 1 deletion(-)

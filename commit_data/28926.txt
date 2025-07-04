@@ -1,0 +1,14 @@
+commit 4c1995f95b9786006c71537e34609e356efafb4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 11:01:54 2016 -0400
+
+    reflect: document DeepEqual(nil map, empty non-nil map) behavior
+    
+    Fixes #16531.
+    
+    Change-Id: I41ec8123f2d3fbe063fd3b09a9366e69722793e5
+    Reviewed-on: https://go-review.googlesource.com/31355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/deepequal.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

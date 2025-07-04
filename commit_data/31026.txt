@@ -1,0 +1,15 @@
+commit 5c850cc207a8916073415bf406d002ef12173e3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 6 20:13:04 2017 -0700
+
+    cmd/compile: move sizeof tests for types structs to package types
+    
+    Change-Id: I04cd4dd0ed55b88247a056b429fc496539cd0985
+    Reviewed-on: https://go-review.googlesource.com/39910
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sizeof_test.go    | 16 ---------
+ src/cmd/compile/internal/types/sizeof_test.go | 51 +++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 16 deletions(-)

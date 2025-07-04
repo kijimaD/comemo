@@ -1,0 +1,14 @@
+commit e378aef1def490cec4b86e2d341a287b5286d01f
+Author: Brian Dellisanti <briandellisanti@gmail.com>
+Date:   Wed Feb 20 15:38:35 2013 +1100
+
+    windows: fix syscall.SidTypeUser so following consts have correct values.
+    
+    Fixes #4844.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7366043
+
+ src/pkg/syscall/security_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

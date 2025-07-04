@@ -1,0 +1,36 @@
+commit 89b7a08aea13d750f0bb48d88fea7dc867c9295c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 14 15:08:32 2017 -0800
+
+    runtime: fix gctrace STW CPU time and CPU fraction
+    
+    The CPU time reported in the gctrace for STW phases is simply
+    work.stwprocs times the wall-clock duration of these phases. However,
+    work.stwprocs is set to gcprocs(), which is wrong for multiple
+    reasons:
+    
+    1. gcprocs is intended to limit the number of Ms used for mark
+       termination based on how well the garbage collector actually
+       scales, but the gctrace wants to report how much CPU time is being
+       stolen from the application. During STW, that's *all* of the CPU,
+       regardless of how many the garbage collector can actually use.
+    
+    2. gcprocs assumes it's being called during STW, so it limits its
+       result to sched.nmidle+1. However, we're not calling it during STW,
+       so sched.nmidle is typically quite small, even if GOMAXPROCS is
+       quite large.
+    
+    Fix this by setting work.stwprocs to min(ncpu, GOMAXPROCS). This also
+    fixes the overall GC CPU fraction, which is based on the computed CPU
+    times.
+    
+    Fixes #22725.
+    
+    Change-Id: I64b5ce87e28dbec6870aa068ce7aecdd28c058d1
+    Reviewed-on: https://go-review.googlesource.com/77710
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

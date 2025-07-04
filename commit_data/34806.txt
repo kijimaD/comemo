@@ -1,0 +1,32 @@
+commit da02dcda0296b12811a8ee772c6f1cb146292637
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sun Apr 1 00:58:48 2018 +0300
+
+    cmd/link/internal/ld: make Thearch unexported
+    
+    s/Thearch/thearch/
+    
+    This reduces the amount of exported global variables,
+    which in turn could make it easier to refactor them later.
+    
+    Also updated somewhat vague comment about ld.Thearch.
+    There is no need for Thearch to be exported as Archinit is
+    called by ld.Main.
+    
+    Updates #22095
+    
+    Change-Id: I266b291f6eac0165f70c51964738206e066cea08
+    Reviewed-on: https://go-review.googlesource.com/103878
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/data.go  | 24 ++++++++++++------------
+ src/cmd/link/internal/ld/dwarf.go | 14 +++++++-------
+ src/cmd/link/internal/ld/elf.go   | 16 ++++++++--------
+ src/cmd/link/internal/ld/lib.go   |  4 ++--
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ src/cmd/link/internal/ld/main.go  |  8 ++++----
+ src/cmd/link/internal/ld/pe.go    |  2 +-
+ src/cmd/link/main.go              |  2 +-
+ 8 files changed, 36 insertions(+), 36 deletions(-)

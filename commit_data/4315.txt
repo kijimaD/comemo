@@ -1,0 +1,13 @@
+commit 3b858fb808ea34b6ffd6567cc70cb32fddd3cd7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 22:19:55 2009 -0800
+
+    net: turn off empty packet test by default
+    
+    Fixes #374.
+    
+    R=r
+    https://golang.org/cl/166053
+
+ src/pkg/net/server_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

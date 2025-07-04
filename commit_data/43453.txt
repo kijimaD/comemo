@@ -1,0 +1,23 @@
+commit cdb19b4dba58c0e3cabde8b728156dfe273707b3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 16 16:34:52 2020 -0400
+
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on ARM64
+    
+    These are identical to And8 and Or8, just using LDAXRW/STLXRW instead of
+    LDAXRB/STLXRB.
+    
+    Change-Id: I5308832ae165064550bee4bb245809ab952f4cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263148
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        | 18 ++++++++----
+ src/cmd/compile/internal/gc/ssa.go           |  4 +--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 38 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 42 ++++++++++++++++++++++++++++
+ 6 files changed, 103 insertions(+), 11 deletions(-)

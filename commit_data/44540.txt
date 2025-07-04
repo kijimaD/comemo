@@ -1,0 +1,32 @@
+commit d85083911d6ea742901933a544467dad55bb381f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 23 15:05:37 2020 -0500
+
+    runtime: encapsulate access to allgs
+    
+    Correctly accessing allgs is a bit hairy. Some paths need to lock
+    allglock, some don't. Those that don't are safest using atomicAllG, but
+    usage is not consistent.
+    
+    Rather than doing this ad-hoc, move all access* through forEachG /
+    forEachGRace, the locking and atomic versions, respectively. This will
+    make it easier to ensure safe access.
+    
+    * markroot is the only exception, as it has a far-removed guarantee of
+    safe access via an atomic load of allglen far before actual use.
+    
+    Change-Id: Ie1c7a8243e155ae2b4bc3143577380c695680e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279994
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/heapdump.go  |  7 ++++---
+ src/runtime/mgc.go       |  8 +++-----
+ src/runtime/mgcmark.go   | 32 +++++++++++++++++++-------------
+ src/runtime/mprof.go     | 35 +++++++++++++++++++----------------
+ src/runtime/proc.go      | 40 +++++++++++++++++++++++++++++-----------
+ src/runtime/trace.go     |  5 +++--
+ src/runtime/traceback.go | 21 +++++++++------------
+ 7 files changed, 86 insertions(+), 62 deletions(-)

@@ -1,0 +1,22 @@
+commit 9d4ae0ae5cab63013aac9f7682292324f1951666
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 21:07:00 2012 -0200
+
+    gofix: handle xml.Unmarshal in xmlapi fix
+    
+    This improves the handling of xml.Unmarshal in
+    the xmlapi fix by guessing some of the common
+    types used on it.
+    
+    This also fixes a bug in the partial typechecker.
+    In an expression such as f(&a), it'd mark a as
+    having &T rather than *T.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5572058
+
+ src/cmd/gofix/typecheck.go   |  2 +-
+ src/cmd/gofix/xmlapi.go      | 27 +++++++++++++++++++++------
+ src/cmd/gofix/xmlapi_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 64 insertions(+), 9 deletions(-)

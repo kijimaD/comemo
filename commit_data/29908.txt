@@ -1,0 +1,25 @@
+commit b03dce927b30db5dc36747d009ffeb435eea9c20
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Jan 4 19:21:13 2017 -0700
+
+    cmd/compile: avoid n.Right nil dereference on non-existent interface methods
+    
+    Fixes #18392.
+    
+    Avoid nil dereferencing n.Right when dealing with non-existent
+    self referenced interface methods e.g.
+    type A interface{
+      Fn(A.Fn)
+    }
+    
+    Instead, infer the symbol name from n.Sym itself.
+    
+    Change-Id: I60d5f8988e7318693e5c8da031285d8d7347b771
+    Reviewed-on: https://go-review.googlesource.com/34817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue18392.go             | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

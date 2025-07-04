@@ -1,0 +1,14 @@
+commit 750b6c63f9e3c81d055ac73395c82381a5e0281e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 21 16:01:29 2011 -0700
+
+    http: close underlying gzip Reader too
+    
+    Fixes #1724
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4443056
+
+ src/pkg/http/transport.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

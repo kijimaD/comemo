@@ -1,0 +1,18 @@
+commit eda49f331f3350c1c3c2fb8bd843a88b2704d460
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:18:46 2009 -0700
+
+    new included Make.pkg for handwritten package makefiles.
+    gobuild is obsolete; don't build it (will delete eventually).
+    
+    revised gotest for whole-package compilation.
+    
+    R=r
+    DELTA=102  (68 added, 6 deleted, 28 changed)
+    OCL=33067
+    CL=33098
+
+ src/Make.pkg          | 57 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/gotest/gotest | 75 ++++++++++++++++++++++++++++-----------------------
+ src/make.bash         |  2 +-
+ 3 files changed, 100 insertions(+), 34 deletions(-)

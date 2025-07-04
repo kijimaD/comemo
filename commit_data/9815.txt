@@ -1,0 +1,25 @@
+commit 260991ad5f1cd73ff9f993bb389ac6d7e56fb509
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 27 22:08:14 2011 -0700
+
+    exp/template/html: do not escape the RHS of assignments
+    
+    In
+    
+      {{$x := . | foo}}
+      {{$x}}
+    
+    the first action is a variable assignment that contributes
+    nothing to the output while the first is a use that needs
+    to be escaped.
+    
+    This CL fixes escapeAction to distinguish assignments from
+    interpolations and to only modify interpolations.
+    
+    R=nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/5143048
+
+ src/pkg/exp/template/html/escape.go      |  4 ++++
+ src/pkg/exp/template/html/escape_test.go | 12 +++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

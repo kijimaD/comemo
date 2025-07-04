@@ -1,0 +1,14 @@
+commit 3ad9df0422213468e22078bf5957fcc2fcafc391
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Jun 10 20:20:49 2014 -0400
+
+    nacltest.bash, misc/nacl/README: update NaCl docs.
+    
+    LGTM=rsc
+    R=dave, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/105030043
+
+ misc/nacl/README  | 10 ++++------
+ src/nacltest.bash |  8 +++++++-
+ 2 files changed, 11 insertions(+), 7 deletions(-)

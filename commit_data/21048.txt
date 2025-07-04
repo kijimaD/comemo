@@ -1,0 +1,16 @@
+commit a48e789635788d4cab23f76b4adc74e5fa343d24
+Author: Stan Schwertly <stan@schwertly.com>
+Date:   Thu Dec 18 19:32:40 2014 +0000
+
+    encoding/binary: check for unsigned integers in intDataSize.
+    
+    intDataSize ignores unsigned integers, forcing reads/writes to miss the fast path.
+    
+    Fixes #8956
+    
+    Change-Id: Ie79b565b037db3c469aa1dc6d0a8a5a9252d5f0a
+    Reviewed-on: https://go-review.googlesource.com/1777
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/binary/binary.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

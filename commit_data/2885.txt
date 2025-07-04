@@ -1,0 +1,20 @@
+commit 26097317369afbf66fbf2e53180bd2889c047d21
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 02:33:30 2009 -0700
+
+    delay range processing.  old2new is gone
+    
+    R=ken
+    OCL=32780
+    CL=32780
+
+ src/cmd/gc/Makefile    |   1 +
+ src/cmd/gc/dcl.c       |  61 +++++------
+ src/cmd/gc/go.h        |   9 +-
+ src/cmd/gc/go.y        |  39 ++------
+ src/cmd/gc/range.c     | 216 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/select.c    |  26 -----
+ src/cmd/gc/subr.c      |  18 ++--
+ src/cmd/gc/typecheck.c |  12 ++-
+ src/cmd/gc/walk.c      | 267 ++-----------------------------------------------
+ 9 files changed, 286 insertions(+), 363 deletions(-)

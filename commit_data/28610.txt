@@ -1,0 +1,16 @@
+commit d166a369a89ef2d81efdc5d49fa782ee1c0186c4
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Sat Oct 1 10:13:52 2016 -0400
+
+    bufio: remove redundant Writer.flush method
+    
+    Fixes #17232
+    
+    Change-Id: I34df86f79b643dce9f054c6df6782e6037c06910
+    Reviewed-on: https://go-review.googlesource.com/30158
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bufio/bufio.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

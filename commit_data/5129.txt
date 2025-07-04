@@ -1,0 +1,18 @@
+commit 729ccb575134b82e01dc1ebc9e4d3147c527ce72
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Wed Mar 24 21:59:21 2010 -0700
+
+    syscall: bring generated files zsyscall_darwin_*.go
+    up to date.
+    
+    No functional change, but when these files are regenerated
+    they change, leading to noisy diffs when working in the
+    syscall package.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/705043
+
+ src/pkg/syscall/zsyscall_darwin_386.go   | 12 ++++++------
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

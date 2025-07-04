@@ -1,0 +1,15 @@
+commit fd56942fe3725feaa53bed67daf7412742e4f2ab
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 30 17:16:51 2020 -0400
+
+    runtime: add a comment about thread pointer alignment on darwin/arm64
+    
+    Address a review comment in CL 266373.
+    
+    Change-Id: Ic21bd5c4f87fd0c7dc594155a10fe23602698187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266777
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/race_arm64.s | 3 +++
+ 1 file changed, 3 insertions(+)

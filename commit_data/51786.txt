@@ -1,0 +1,17 @@
+commit ea6d4b0eaf20da4d2d9a88b995314eeeac614ef3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 26 13:44:30 2023 +0100
+
+    internal/syscall/unix: use atomic.Bool for getrandomUnsupported
+    
+    Change-Id: I50522ed782dd963f445419fc45495f6608909c47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463124
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/syscall/unix/getrandom.go         | 6 +++---
+ src/internal/syscall/unix/getrandom_netbsd.go  | 8 ++++----
+ src/internal/syscall/unix/getrandom_solaris.go | 6 +++---
+ 3 files changed, 10 insertions(+), 10 deletions(-)

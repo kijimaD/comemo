@@ -1,0 +1,12 @@
+commit 11779ef420a78e4b4ea5d585577b83d4b8e60854
+Author: Joe Shaw <joe@joeshaw.org>
+Date:   Mon Dec 22 15:27:46 2014 -0500
+
+    syscall: update go.sys doc reference to golang.org/x/sys
+    
+    Change-Id: Ie5a36dbcd809fc165f4198d47641d5a95878460c
+    Reviewed-on: https://go-review.googlesource.com/2000
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/syscall.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

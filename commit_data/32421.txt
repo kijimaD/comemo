@@ -1,0 +1,17 @@
+commit 61043d467115365dbbc0937510c9b91fa4a28f1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 21 09:51:35 2017 -0700
+
+    runtime: use add in mapdelete*
+    
+    This better matches the style of the rest of the runtime.
+    
+    Change-Id: I6abb755df50eb3d9086678629c0d184177e1981f
+    Reviewed-on: https://go-review.googlesource.com/57610
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go      | 2 +-
+ src/runtime/hashmap_fast.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit b4f370ca57ca440506998bdb5f51f13e4243eea5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 8 13:26:39 2013 +1000
+
+    regexp/syntax: make it clearer that \b and \B are ASCII-defined
+    Fixes #5896.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12645043
+
+ src/pkg/regexp/syntax/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

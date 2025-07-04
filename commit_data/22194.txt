@@ -1,0 +1,14 @@
+commit 2f34e606faa8cf676010fba04c5c3ca355a9cc84
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 26 09:47:24 2015 +1100
+
+    image/color: have YCbCr.RGBA work in 16-bit color, per the Color
+    interface.
+    
+    Change-Id: Ie025753df08ae93e7a5095a3426aff15fa2016fd
+    Reviewed-on: https://go-review.googlesource.com/8073
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/color.go |  4 +--
+ src/image/color/ycbcr.go | 83 ++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 62 insertions(+), 25 deletions(-)

@@ -1,0 +1,26 @@
+commit b7662047aedc5f2c512911eb59d514ce75b16e18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 14:19:47 2022 -0800
+
+    net: change resolverConfig.dnsConfig to an atomic.Pointer
+    
+    We were using a RWMutex RLock around a single memory load,
+    which is not a good use of a RWMutex--it introduces extra work
+    for the RLock but contention around a single memory load is unlikely.
+    And, the tryUpdate method was not acquiring the mutex anyhow.
+    
+    The new atomic.Pointer type is type-safe and easy to use correctly
+    for a simple use-case like this.
+    
+    Change-Id: Ib3859c03414c44d2e897f6d15c92c8e4b5c81a11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451416
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go      | 19 +++++++------------
+ src/net/dnsclient_unix_test.go | 13 +++----------
+ 2 files changed, 10 insertions(+), 22 deletions(-)

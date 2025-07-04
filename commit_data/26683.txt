@@ -1,0 +1,21 @@
+commit 386c0e6598eadab18e01d3fa60f8e21872cbe70c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 3 22:58:10 2016 +0000
+
+    cmd/compile: give ChanDir a type
+    
+    Change-Id: I03621db79637b04982e1f0e7b4268c4ed2db6d22
+    Reviewed-on: https://go-review.googlesource.com/21484
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/go.go        | 12 +++++++++---
+ src/cmd/compile/internal/gc/parser.go    | 12 ++++++------
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/type.go      |  6 +++---
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ 8 files changed, 27 insertions(+), 21 deletions(-)

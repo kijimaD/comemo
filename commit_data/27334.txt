@@ -1,0 +1,26 @@
+commit aeecee8ce4cf1821dcb6b5e37e20f40696278498
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon May 9 15:11:24 2016 +0200
+
+    runtime/race: deflake test
+    
+    The test sometimes fails on builders.
+    The test uses sleeps to establish the necessary goroutine
+    execution order. If sleeps undersleep/oversleep
+    the race is still reported, but it can be reported when the
+    main test goroutine returns. In such case test driver
+    can't match the race with the test and reports failure.
+    
+    Wait for both test goroutines to ensure that the race
+    is reported in the test scope.
+    
+    Fixes #15579
+    
+    Change-Id: I0b9bec0ebfb0c127d83eb5325a7fe19ef9545050
+    Reviewed-on: https://go-review.googlesource.com/22951
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/testdata/chan_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

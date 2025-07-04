@@ -1,0 +1,12 @@
+commit a96a98360642c7d87cb2ad7e26310c7f5b7dbd90
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon May 7 11:40:43 2012 -0400
+
+    C: correct entry: jmeurin, not jme.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, jme, jmeurin
+    https://golang.org/cl/6192057
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 17021f48f3ae9a41da06eb5d0ba516755115e5b4
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 6 09:05:19 2009 -0800
+
+    Fix add-back division test so that it triggers the add-back case on
+    both 64 and 32 bit platforms.
+    
+    Also, uncomment some tests that were still commented out from
+    debugging.
+    
+    R=gri, rsc
+    CC=go-dev
+    http://go/go-review/1026003
+
+ src/pkg/big/int_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

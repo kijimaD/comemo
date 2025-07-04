@@ -1,0 +1,15 @@
+commit cd0f5f39b7ae57d24b2e748d82ad667ce74fc190
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri May 24 15:04:28 2019 +0000
+
+    image/draw: change argument type to be consistent with other args
+    
+    Change-Id: Ic5b01c0a6912d87e812331d6525939df8f525cca
+    GitHub-Last-Rev: b6ffefcf8f2ec1ed7ee13f36e8fef6af965ba332
+    GitHub-Pull-Request: golang/go#29993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/draw/draw.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

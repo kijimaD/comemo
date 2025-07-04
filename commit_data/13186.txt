@@ -1,0 +1,22 @@
+commit 14ad411407e539c7ebf478673f0afd9bf904af3c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 01:42:36 2012 +0900
+
+    undo CL 6248054 / 0f418a63cdf9
+    
+    breaks public API document style
+    
+    ««« original CL description
+    net: fix comment on FileListener
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6248054
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6242066
+
+ src/pkg/net/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

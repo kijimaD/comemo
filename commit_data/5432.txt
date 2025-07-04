@@ -1,0 +1,12 @@
+commit 371b77ad20a1a88820d6b75d184a36c1156f3003
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 15:02:32 2010 -0700
+
+    gc: error for nested functions, one semicolon problem
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1046042
+
+ src/cmd/gc/go.errors | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 090f9fc3ef532597c33f0702dfd541ca95529efd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 23 02:02:01 2012 +0800
+
+    sync/atomic: use cas64 to implement {Load,Store,Add}{Uint,Int}64 on Linux/ARM
+            Now with GOARM=5 our all.bash should pass on ARMv5 systems.
+            Fixes #3331.
+    
+    R=golang-dev, rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6210071
+
+ src/pkg/sync/atomic/64bit_linux_arm.go | 36 ++++++++++++++++++++++++++++++++++
+ src/pkg/sync/atomic/asm_linux_arm.s    | 20 +++++++++----------
+ 2 files changed, 46 insertions(+), 10 deletions(-)

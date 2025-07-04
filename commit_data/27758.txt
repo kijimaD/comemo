@@ -1,0 +1,19 @@
+commit e0c8af090ea1ccc32d06ae75b653446d2a9d6f87
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 17:01:10 2016 -0700
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev 8e573f40 for https://golang.org/cl/24600,
+    "http2: merge multiple GOAWAY frames' contents into error message"
+    
+    Fixes #14627 (more)
+    
+    Change-Id: I5231607c2c9e0d854ad6199ded43c59e59f62f52
+    Reviewed-on: https://go-review.googlesource.com/24612
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

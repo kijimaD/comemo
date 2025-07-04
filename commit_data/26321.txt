@@ -1,0 +1,18 @@
+commit d7cedc4b74f902a3a1b429fb27f85380f6955a6f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 14 13:51:23 2016 -0400
+
+    runtime: perform gcMarkRootCheck during STW in checkmark mode
+    
+    gcMarkRootCheck is too expensive to do during mark termination.
+    However, since it's a useful check and it complements checkmark mode
+    nicely, enable it during mark termination is checkmark is enabled.
+    
+    Change-Id: Icd9039e85e6e9d22747454441b50f1cdd1412202
+    Reviewed-on: https://go-review.googlesource.com/20663
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit f9bbfe4a093144e48a4774d1388c1e99be64673b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 20 16:51:03 2016 +0200
+
+    net/http: remove workaround in TestTransportClosesBodyOnError on Plan 9
+    
+    This issue has been fixed in CL 31390.
+    
+    Fixes #9554.
+    
+    Change-Id: Ib8ff4cb1ffcb7cdbf117510b98b4a7e13e4efd2b
+    Reviewed-on: https://go-review.googlesource.com/31520
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)

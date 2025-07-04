@@ -1,0 +1,16 @@
+commit 8e2d0e1c4c967ce1f9e689b9f7c73a1764d90a9d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 6 01:49:00 2015 -0700
+
+    hash/fnv: fix wiki url
+    
+    The URL is shown on go docs and is an eye-sore.
+    
+    For go1.6.
+    
+    Change-Id: I8b8ea3751200d06ed36acfe22f47ebb38107f8db
+    Reviewed-on: https://go-review.googlesource.com/13282
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/fnv/fnv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

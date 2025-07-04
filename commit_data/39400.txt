@@ -1,0 +1,13 @@
+commit 7119f4b03045b4d062765a5863553c16aff3663d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 18 17:40:09 2019 -0700
+
+    doc/go1.13: add release notes for language changes
+    
+    Change-Id: I17b156e77f279e1387ad27ab0e41ae8f50c9a325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182857
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.13.html | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 59 insertions(+), 3 deletions(-)

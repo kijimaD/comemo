@@ -1,0 +1,14 @@
+commit 66e346433eaf931ed66d599f100cacad892d001b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 12 11:03:16 2013 -0700
+
+    runtime: Fix plan9 aes hash initialization.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7593045
+
+ src/pkg/runtime/env_plan9.c    |  2 +-
+ src/pkg/runtime/os_plan9.h     |  3 ---
+ src/pkg/runtime/thread_plan9.c | 13 ++++++++++---
+ 3 files changed, 11 insertions(+), 7 deletions(-)

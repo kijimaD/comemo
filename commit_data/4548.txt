@@ -1,0 +1,12 @@
+commit fce5d60b38d4656383d893bf5bfa7564448b0204
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 7 13:29:43 2010 +1100
+
+    add a standard interface that wraps ReadByte, io.ReadByter
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181163
+
+ src/pkg/io/io.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

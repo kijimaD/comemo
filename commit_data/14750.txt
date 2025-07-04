@@ -1,0 +1,16 @@
+commit 6535eb3a6d318fa420b4ae471ac7af4ae9791701
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Dec 28 15:32:24 2012 +1100
+
+    cmd/ld: fix valgrind warning in strnput
+    
+    Fixes #4592.
+    
+    Thanks to minux for the suggestion.
+    
+    R=minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/7017048
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

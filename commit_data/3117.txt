@@ -1,0 +1,13 @@
+commit 646a27bd279ac314cc698aa14505995be4e7ffeb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Aug 28 02:27:32 2009 -0700
+
+    Build fix: fix typo in sort pkg.
+    
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=34016
+    CL=34022
+
+ src/pkg/sort/sort.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

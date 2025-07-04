@@ -1,0 +1,19 @@
+commit de1abf76fb69739c6cad463454a55fe9c33f63ac
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 11:21:28 2021 +1100
+
+    cmd/go: stamp Fossil VCS status into binaries
+    
+    For #37475
+    
+    Change-Id: I09fa1344051088ce37727176d9ec6b38891d1a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357955
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go                     | 55 +++++++++++++
+ .../go/testdata/script/version_buildvcs_fossil.txt | 90 ++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

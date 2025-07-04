@@ -1,0 +1,16 @@
+commit ecda69e66716582ef7ae341e22d21e24f541c7a0
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Sep 25 20:48:03 2011 -0300
+
+    archive/zip: read and write unix file modes
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5124044
+
+ src/pkg/archive/zip/reader.go      |  2 +-
+ src/pkg/archive/zip/reader_test.go | 18 ++++++++++++
+ src/pkg/archive/zip/struct.go      | 19 +++++++++++++
+ src/pkg/archive/zip/writer.go      |  4 +--
+ src/pkg/archive/zip/writer_test.go | 58 ++++++++++++++++++++++++++++++--------
+ 5 files changed, 86 insertions(+), 15 deletions(-)

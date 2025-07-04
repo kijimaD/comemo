@@ -1,0 +1,18 @@
+commit 5d80f8a82b1fc3261bb4279f1426a9767b654e92
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Sun Apr 11 13:13:11 2021 +0300
+
+    runtime: replace outdated documentation link in Windows' nanotime
+    
+    Fixes #45498
+    
+    Change-Id: I89365f3517bc84376f0f580c64a57f38aaba0cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/sys_windows_386.s   | 4 +++-
+ src/runtime/sys_windows_amd64.s | 4 +++-
+ src/runtime/sys_windows_arm.s   | 4 +++-
+ src/runtime/sys_windows_arm64.s | 4 +++-
+ 4 files changed, 12 insertions(+), 4 deletions(-)

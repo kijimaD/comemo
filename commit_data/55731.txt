@@ -1,0 +1,30 @@
+commit b847d4cd2c2293d025720d4ae57b2e9578831d29
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 21 18:50:11 2024 +0700
+
+    cmd/compile: fix early deadcode with label statement
+    
+    CL 517775 moved early deadcode into unified writer. with new way to
+    handle dead code with label statement involved: any statements after
+    terminating statement will be considered dead until next label
+    statement.
+    
+    However, this is not safe, because code after label statement may still
+    refer to dead statements between terminating and label statement.
+    
+    It's only safe to remove statements after terminating *and* label one.
+    
+    Fixes #65593
+    
+    Change-Id: Idb630165240931fad50789304a9e4535f51f56e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/writer.go | 15 +++++++++++----
+ test/fixedbugs/issue65593.go             | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 4 deletions(-)

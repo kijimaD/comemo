@@ -1,0 +1,21 @@
+commit 1e1cc4eb570aa6fec645ff4faf13431847b99db8
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 27 12:03:53 2009 -0800
+
+    defer
+    
+    R=r
+    OCL=23592
+    CL=23592
+
+ src/cmd/6g/gen.c        | 71 ++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/6g/gg.h         |  4 ++-
+ src/cmd/gc/go.h         |  3 ++-
+ src/cmd/gc/go.y         |  7 ++++-
+ src/cmd/gc/lex.c        |  4 +--
+ src/cmd/gc/subr.c       |  7 ++---
+ src/cmd/gc/walk.c       |  3 +++
+ src/runtime/proc.c      | 37 +++++++++++++++++++++++++-
+ src/runtime/rt0_amd64.s | 12 ++++++++-
+ src/runtime/runtime.h   | 23 +++++++++++++---
+ 10 files changed, 141 insertions(+), 30 deletions(-)

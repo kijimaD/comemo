@@ -1,0 +1,18 @@
+commit 0a4fc122de2d0c5da7e89feb7c079e602612a2fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 30 19:53:36 2013 -0400
+
+    lib9: restore printing of signed integers
+    
+    A casualty of https://golang.org/cl/10195044.
+    
+    If x is an 32-bit int and u is a 64-bit ulong,
+            u = (uint)x // converts to uint before extension, so zero fills
+            u = (ulong)x // sign-extends
+    
+    TBR=iant, r
+    CC=golang-dev
+    https://golang.org/cl/10814043
+
+ src/lib9/fmt/dofmt.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,10 @@
+commit 3adcf6fa0e8c9983e46bde2d1f077186b3c15b85
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 4 15:08:59 2008 -0700
+
+    touch to make later modified date
+    
+    SVN=121172
+
+ src/cmd/gc/sysimport.c | 94 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 93 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit d20ad1c75aa1223d6fc0a2468f342a3d0e0cffee
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 11 15:28:43 2010 -0700
+
+    gc: change -u to require imports to be marked safe
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1597043
+
+ src/cmd/gc/export.c    |  5 ++++-
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/go.y        | 13 ++++++++++++-
+ src/cmd/gc/lex.c       |  1 +
+ src/cmd/gc/typecheck.c |  5 ++++-
+ 5 files changed, 22 insertions(+), 3 deletions(-)

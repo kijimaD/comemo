@@ -1,0 +1,13 @@
+commit 9415cd1d79c8222330b1321e6e280fdab649ed42
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 13 16:10:12 2011 +1000
+
+    C+A: Bobby Powers <bobbypowers@gmail.com>
+    
+    R=golang-dev, dsymonds
+    CC=bobbypowers, golang-dev
+    https://golang.org/cl/4695050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

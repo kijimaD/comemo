@@ -1,0 +1,14 @@
+commit 0ba1db7475258d7e8bd43f507c209eee8c7fdb54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 11 15:38:22 2008 -0700
+
+    - fixed missing return issues
+    
+    R=r
+    OCL=15168
+    CL=15168
+
+ src/pkg/integer.go       | 2 +-
+ usr/gri/gosrc/parser.go  | 9 +++++++--
+ usr/gri/gosrc/scanner.go | 2 ++
+ 3 files changed, 10 insertions(+), 3 deletions(-)

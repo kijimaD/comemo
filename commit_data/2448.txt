@@ -1,0 +1,33 @@
+commit a893db8767e0857fffe3d8ae64d2b4b2dd2c22fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 16:23:16 2009 -0700
+
+    gofmt (final resting place TBD):
+    - replacement for pretty; app to format a single .go file
+    
+    printer.go (pkg/go/printer):
+    - replacement for astprinter.go; implements AST printing
+    - also replaces pkg/go/ast/format.go for now
+    
+    cleanups:
+    - removed/saved away old code
+    
+    R=r,rsc,iant
+    DELTA=2833  (1183 added, 1628 deleted, 22 changed)
+    OCL=30226
+    CL=30306
+
+ src/pkg/Make.deps             |    3 +-
+ src/pkg/Makefile              |    1 +
+ src/pkg/go/ast/Makefile       |   10 +-
+ src/pkg/go/ast/format.go      |  123 ----
+ src/pkg/go/printer/Makefile   |   60 ++
+ src/pkg/go/printer/printer.go | 1019 +++++++++++++++++++++++++++++++++
+ usr/gri/pretty/Makefile       |   24 +-
+ usr/gri/pretty/astprinter.go  | 1269 -----------------------------------------
+ usr/gri/pretty/godoc.go       |   58 +-
+ usr/gri/pretty/gofmt.go       |  107 ++++
+ usr/gri/pretty/pretty.go      |  123 ----
+ usr/gri/pretty/test.sh        |    4 +-
+ usr/gri/pretty/untab.go       |   58 --
+ 13 files changed, 1211 insertions(+), 1648 deletions(-)

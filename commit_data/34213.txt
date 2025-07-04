@@ -1,0 +1,22 @@
+commit b3cb740be5f9901f2a9051f4f6c584cf729f6af7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Feb 6 09:36:13 2018 -0500
+
+    compiler: honor //line directives in DWARF variable file/line attrs
+    
+    During DWARF debug generation, the DW_AT_decl_line / DW_AT_decl_file
+    attributes for variable DIEs were being computed without taking into
+    account the possibility of "//line" directives. Fix things up to use
+    the correct src.Pos methods to pick up this info.
+    
+    Fixes #23704.
+    
+    Change-Id: I88c21a0e0a9602392be229252d856a6d665868e2
+    Reviewed-on: https://go-review.googlesource.com/92255
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go    | 12 +++++-----
+ src/cmd/link/internal/ld/dwarf_test.go | 44 +++++++++++++++++++++-------------
+ 2 files changed, 33 insertions(+), 23 deletions(-)

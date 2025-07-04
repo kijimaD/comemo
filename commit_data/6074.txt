@@ -1,0 +1,52 @@
+commit aafe474ec9af1e0e8677df3eac3ef2c92fb946e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 20:00:33 2010 -0400
+
+    build: $GOBIN defaults to $GOROOT/bin
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1982049
+
+ bin/~place-holder~            |  4 ++++
+ src/Make.ccmd                 | 36 ++++++++++++++++++++++++++++++++++++
+ src/Make.cmd                  |  9 ++-------
+ src/Make.common               | 17 -----------------
+ src/Make.conf                 | 22 ----------------------
+ src/{Make.inc.in => Make.inc} | 29 +++++++++++++++++++++++++----
+ src/Make.pkg                  | 36 +++++++++++++++---------------------
+ src/all.bash                  |  2 +-
+ src/cmd/5a/Makefile           | 22 ++++------------------
+ src/cmd/5c/Makefile           | 21 ++++++---------------
+ src/cmd/5g/Makefile           | 20 +++++++-------------
+ src/cmd/5l/Makefile           | 19 ++++++-------------
+ src/cmd/6a/Makefile           | 23 ++++-------------------
+ src/cmd/6c/Makefile           | 21 ++++++---------------
+ src/cmd/6g/Makefile           | 21 ++++++---------------
+ src/cmd/6l/Makefile           | 19 ++++++-------------
+ src/cmd/8a/Makefile           | 23 ++++-------------------
+ src/cmd/8c/Makefile           | 21 ++++++---------------
+ src/cmd/8g/Makefile           | 21 ++++++---------------
+ src/cmd/8l/Makefile           | 19 ++++++-------------
+ src/cmd/cc/Makefile           | 21 +++++----------------
+ src/cmd/clean.bash            |  4 +---
+ src/cmd/cov/Makefile          | 13 ++++++-------
+ src/cmd/ebnflint/Makefile     |  2 +-
+ src/cmd/gc/Makefile           | 23 +++++++----------------
+ src/cmd/gc/mkbuiltin          |  6 ++----
+ src/cmd/godefs/Makefile       | 14 +++-----------
+ src/cmd/gofmt/test.sh         |  4 +---
+ src/cmd/goinstall/main.go     |  4 ++--
+ src/cmd/gopack/Makefile       | 13 +++++--------
+ src/cmd/gotest/Makefile       |  3 +--
+ src/cmd/gotest/gotest         |  2 +-
+ src/cmd/make.bash             |  8 +++-----
+ src/cmd/nm/Makefile           | 18 ++++++------------
+ src/cmd/prof/Makefile         | 17 ++++++-----------
+ src/env.bash                  | 27 +++++++++++----------------
+ src/lib9/Makefile             | 38 +++++++++-----------------------------
+ src/libbio/Makefile           | 20 +++-----------------
+ src/libmach/Makefile          | 18 +++---------------
+ src/make.bash                 |  8 ++++++--
+ src/run.bash                  |  7 ++++++-
+ 41 files changed, 238 insertions(+), 437 deletions(-)

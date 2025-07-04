@@ -1,0 +1,12 @@
+commit 25f15d5f22ef27a4452dd7924159e85d17f75648
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 6 17:50:11 2012 -0800
+
+    doc: add note about import . to Go 1 compatibility notes
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5752065
+
+ doc/go1compat.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

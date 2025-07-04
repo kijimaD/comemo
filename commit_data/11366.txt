@@ -1,0 +1,23 @@
+commit 66599c40709cb74da2e3ae243e1f42ac9bacf263
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 24 21:51:15 2012 -0200
+
+    encoding/xml: remove Marshaler support
+    
+    Marshaler has a number of open areas that need
+    further thought (e.g. it doesn't handle attributes,
+    it's supposed to handle tag names internally but has
+    no information to do so, etc).
+    
+    We're removing it now and will bring it back with an
+    interface that covers these aspects, after Go 1.
+    
+    Related to issue 2771, but doesn't fix it.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5574057
+
+ src/pkg/encoding/xml/marshal.go      | 20 --------------------
+ src/pkg/encoding/xml/marshal_test.go | 13 -------------
+ 2 files changed, 33 deletions(-)

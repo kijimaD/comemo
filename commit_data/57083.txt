@@ -1,0 +1,17 @@
+commit c61ff290dbfa6dab4928c0b273db18fddb10df37
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Fri Aug 2 14:50:23 2024 +0000
+
+    mime: add available godoc link
+    
+    Change-Id: Ic5454758c87e9f84a829aed8a72b5ad977878585
+    GitHub-Last-Rev: 2eb8ced71286a3bc3b53b35c809164b07ef28a16
+    GitHub-Pull-Request: golang/go#68605
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601295
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/mime/encodedword.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

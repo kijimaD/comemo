@@ -1,0 +1,13 @@
+commit 7843a14df1b53d3500b9ef61d53ccf7d64f40921
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 8 09:45:42 2009 -0800
+
+    Remove duplicate typedef declarations.
+    
+    R=rsc
+    DELTA=7  (0 added, 7 deleted, 0 changed)
+    OCL=22267
+    CL=22281
+
+ src/runtime/malloc.h | 7 -------
+ 1 file changed, 7 deletions(-)

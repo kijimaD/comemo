@@ -1,0 +1,18 @@
+commit c6a2dada0df8c2d75cf3ae599d7caed77d416fa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 2 11:20:30 2022 -0400
+
+    net: disable TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion [sic] on DragonflyBSD
+    
+    Like OpenBSD, DragonflyBSD does not do IPv4-in-IPv6 mapping.
+    
+    For #52264.
+    
+    Change-Id: Id41606e75652e684f2e0e98c6459156641aec9b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/udpsock_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

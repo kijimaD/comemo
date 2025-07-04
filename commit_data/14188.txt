@@ -1,0 +1,15 @@
+commit 772decbc809ff29bd254f3d80f13e25443d80fc5
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun Oct 21 17:02:10 2012 -0400
+
+    reflect: make Index and Slice accept strings
+    
+    Fixes #3284.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6643043
+
+ src/pkg/reflect/all_test.go | 24 +++++++++++++++++++++++-
+ src/pkg/reflect/value.go    | 28 ++++++++++++++++++++++++++--
+ 2 files changed, 49 insertions(+), 3 deletions(-)

@@ -1,0 +1,10 @@
+commit 2d7eecbbf4cba0aa820ebe4e0997a0360fbb4e14
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 9 17:15:10 2008 -0700
+
+    bug in offsets in imported struct fields
+    
+    SVN=126591
+
+ src/cmd/gc/export.c | 2 ++
+ 1 file changed, 2 insertions(+)

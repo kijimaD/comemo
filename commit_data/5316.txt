@@ -1,0 +1,13 @@
+commit 7295b61cdb6cd020783b85b1da32abb554933371
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 17:02:08 2010 -0700
+
+    reflect: implement Set(nil), SetValue(nil) for PtrValue and MapValue
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/823048
+
+ src/pkg/reflect/all_test.go | 26 ++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 24 ++++++++++++++++++++++--
+ 2 files changed, 48 insertions(+), 2 deletions(-)

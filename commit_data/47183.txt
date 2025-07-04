@@ -1,0 +1,24 @@
+commit 629ffebd451613b32e6b9578ff4c807791197b38
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 1 10:28:52 2021 -0700
+
+    cmd/go: disallow profile flags when using -fuzz
+    
+    Disallow the usage of coverprofile, blockprofile, cpuprofile, memprofile,
+    mutexprofile, and trace when fuzzing, since these currently do not work
+    as the user would expect.
+    
+    Fixes #48178
+    
+    Change-Id: Ibe6dfaef9b28a91c60c26fcad38c33a2a959d869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360395
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/test/test.go                   |  6 ++++
+ .../go/testdata/script/test_fuzz_profile_flags.txt | 38 ++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

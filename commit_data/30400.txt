@@ -1,0 +1,19 @@
+commit a6b480bc07e400cee109eda90caddb20c2cc7e82
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Fri Feb 24 17:03:06 2017 -0500
+
+    cmd/go: implement -buildmode=plugin for s390x
+    
+    Simple change to allow plugins for linux on s390x
+    
+    Change-Id: I5c262ab81aac10d1dcb03381a48e5b9694b7a87a
+    Reviewed-on: https://go-review.googlesource.com/37451
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go               | 2 +-
+ src/cmd/go/internal/work/build.go  | 2 +-
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/s390x/asm.go | 6 ++++--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

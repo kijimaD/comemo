@@ -1,0 +1,12 @@
+commit f29b091110e56fc5cf34eb02fa39824006fa17bc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 22 14:22:55 2013 -0700
+
+    encoding/gob: delete dead code.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7834047
+
+ src/pkg/encoding/gob/codec_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

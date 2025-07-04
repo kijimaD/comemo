@@ -1,0 +1,19 @@
+commit 77d9252ddfc6b3e2e48916240340ea5470b005a6
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Mon May 23 23:20:00 2022 +0000
+
+    runtime: fix inline assembly trampoline for arm64
+    
+    Use the program counter to compute the address of the first instruction
+    of the ret sled. The ret sled is located after 5 instructions from the
+    MOVD instruction saving the value of the program counter.
+    
+    Change-Id: Ie7ae7a0807785d6fea035cf7a770dba7f37de0ec
+    GitHub-Last-Rev: 2719208c6a3b049e0f394e5311ce3282b58f8516
+    GitHub-Pull-Request: golang/go#53039
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/runtime/libfuzzer_arm64.s | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

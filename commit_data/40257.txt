@@ -1,0 +1,20 @@
+commit 2c87be436bddd9b49f11959adee1ae817cb48ee1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 14 17:33:36 2019 +0000
+
+    runtime: call goready in wakeScavenger instead of ready
+    
+    This changes fixes an oversight in wakeScavenger which would cause ready
+    to be called off of the system stack. This change makes it so that
+    wakeScavenger calls goready, which switches to the system stack before
+    calling ready.
+    
+    Fixes #34773.
+    
+    Change-Id: Icb13f180b4d8fdd47c921eac1b896e3dd49e43b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200999
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

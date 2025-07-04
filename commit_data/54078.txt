@@ -1,0 +1,33 @@
+commit 6a1182027c5d715e372417a85e451b19029ac7e7
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 11 05:11:26 2023 +0800
+
+    internal/sysinfo: print cpu type from cpuinfo when internal cpu name is empty on Linux
+    
+    Supports all linux operating systems. currently tested on x86, mips64le and loong64.
+    
+    Example output:
+    $ go test -bench=.*
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+    BenchmarkSemTable/OneAddrCollision/n=1000                  19261             62302 ns/op
+        ...
+    
+    Change-Id: I02db12d70c11327e4625bb6e59f30dfaf37c2db0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508735
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/metadata/main.go     |  2 +-
+ src/go/build/deps_test.go             |  2 +-
+ src/internal/sysinfo/cpuinfo_linux.go | 77 +++++++++++++++++++++++++++++++++++
+ src/internal/sysinfo/cpuinfo_stub.go  | 11 +++++
+ src/internal/sysinfo/sysinfo.go       | 22 ++++++----
+ src/testing/benchmark.go              |  4 +-
+ 6 files changed, 105 insertions(+), 13 deletions(-)

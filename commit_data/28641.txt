@@ -1,0 +1,15 @@
+commit f239196b9e1c0d58ab2067630bd1db7210eb7f6a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 4 09:49:33 2016 -0700
+
+    cmd/compile: remove duplicate statement list function
+    
+    Probably a holdover from linked list vs. slice.
+    
+    Change-Id: Ib2540b08ef0ae48707d44a5d57bc23f8d65c760d
+    Reviewed-on: https://go-review.googlesource.com/30256
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

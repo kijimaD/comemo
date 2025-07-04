@@ -1,0 +1,27 @@
+commit 516f0d1c906b841d33ecd185cda0257dfa7e2210
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon May 11 10:31:24 2015 +0100
+
+    net/http: silence race detector on client header timeout test
+    
+    When running the client header timeout test, there is a race between
+    us timing out and waiting on the remaining requests to be serviced. If
+    the client times out before the server blocks on the channel in the
+    handler, we will be simultaneously adding to a waitgroup with the
+    value 0 and waiting on it when we call TestServer.Close().
+    
+    This is largely a theoretical race. We have to time out before we
+    enter the handler and the only reason we would time out if we're
+    blocked on the channel. Nevertheless, make the race detector happy
+    by turning the close into a channel send. This turns the defer call
+    into a synchronization point and we can be sure that we've entered
+    the handler before we close the server.
+    
+    Fixes #10780
+    
+    Change-Id: Id73b017d1eb7503e446aa51538712ef49f2f5c9e
+    Reviewed-on: https://go-review.googlesource.com/9905
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

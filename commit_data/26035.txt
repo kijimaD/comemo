@@ -1,0 +1,18 @@
+commit 686fbdb3b0c228f4c990dbb6b2f2dbe1df4c7cfd
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 3 09:53:03 2016 -0800
+
+    cmd/compile: make compilation deterministic, fixes toolstash
+    
+    Make sure we don't depend on map iterator order.
+    
+    Fixes #14600
+    
+    Change-Id: Iac0e0c8689f3ace7a4dc8e2127e2fd3c8545bd29
+    Reviewed-on: https://go-review.googlesource.com/20158
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/print.go    |  4 ++--
+ src/cmd/compile/internal/ssa/regalloc.go | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

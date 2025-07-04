@@ -1,0 +1,14 @@
+commit 25706fec195939846c75c3b2e4fb601c0d58c382
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 1 15:07:20 2009 -0700
+
+    Fix a doc typo.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=30967
+    CL=30990
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

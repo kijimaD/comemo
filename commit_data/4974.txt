@@ -1,0 +1,18 @@
+commit 305f5433f36db3fe637bb6faf9bfafcc9287d6c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 2 17:23:07 2010 -0800
+
+    gofmt: fix alignment of multi-line var declarations
+    - gofmt -w src misc
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/223101
+
+ src/cmd/godoc/godoc.go                          | 10 +++---
+ src/pkg/exp/ogle/rruntime.go                    | 14 ++++----
+ src/pkg/go/printer/nodes.go                     | 45 ++++++++++++++-----------
+ src/pkg/go/printer/testdata/declarations.golden | 22 ++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 21 +++++++++++-
+ src/pkg/http/response.go                        |  4 +--
+ 6 files changed, 82 insertions(+), 34 deletions(-)

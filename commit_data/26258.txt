@@ -1,0 +1,27 @@
+commit 4f753e77f1cee1aaca5a2166ef38c47a61b142a4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 14:24:22 2016 -0700
+
+    cmd/all: stop generating ADATA Progs
+    
+    The only remaining place that generated ADATA
+    Prog was the assembler. Stop, and delete some
+    now-dead code.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I26578ff1b4868e98562b44f69d909c083e96f8d5
+    Reviewed-on: https://go-review.googlesource.com/20646
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go      | 27 ++++++++++-------
+ src/cmd/compile/internal/arm/peep.go |  1 -
+ src/cmd/compile/internal/gc/gsubr.go |  2 +-
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/internal/obj/data.go         | 59 ------------------------------------
+ src/cmd/internal/obj/link.go         |  4 +--
+ src/cmd/internal/obj/objfile.go      |  4 ---
+ src/cmd/internal/obj/util.go         |  2 +-
+ src/cmd/internal/obj/x86/asm6.go     |  1 -
+ 9 files changed, 21 insertions(+), 81 deletions(-)

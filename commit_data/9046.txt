@@ -1,0 +1,12 @@
+commit d360e0213d65239ccb9eea02c7a3ea32ddfeab82
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jul 13 16:53:02 2011 +1000
+
+    html: update section references in comments to the latest HTML5 spec.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4699048
+
+ src/pkg/html/parse.go | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)

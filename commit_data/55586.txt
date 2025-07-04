@@ -1,0 +1,20 @@
+commit 1b541502c2aaaf3be073e79a9ea211a147c2e006
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Nov 14 14:58:49 2023 -0600
+
+    cmd/internal/obj/ppc64: rename and remove aliased optab classifiers
+    
+    Rename C_LCON, C_SCON, C_ADDCON, C_ANDCON into their aliased names
+    and remove them.
+    
+    Change-Id: I8f67cc973f8059e65b81669d91a44500fc136b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563097
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/ppc64/a.out.go |   6 -
+ src/cmd/internal/obj/ppc64/asm9.go  | 248 ++++++++++++++++++------------------
+ 2 files changed, 124 insertions(+), 130 deletions(-)

@@ -1,0 +1,23 @@
+commit 1d3efd6533773138ac7c9d8ca1314459636d55d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 16 22:43:05 2013 -0400
+
+    net: limit number of concurrent cgo calls
+    
+    The limit is 500. There is no way to change it.
+    This primarily affects name resolution.
+    If a million goroutines try to resolve DNS names,
+    only 500 will get to execute cgo calls at a time.
+    But in return the operating system will not crash.
+    
+    Fixes #5625.
+    
+    R=golang-dev, dan.kortschak, r, dvyukov
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/13038043
+
+ src/pkg/net/cgo_unix.go        |  6 ++++++
+ src/pkg/net/dialgoogle_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/net/lookup_windows.go  | 25 +++++++++++++++++++++++++
+ src/pkg/net/net.go             | 16 ++++++++++++++++
+ 4 files changed, 71 insertions(+)

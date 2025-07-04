@@ -1,0 +1,18 @@
+commit 92309ff771be5daa113acb85ad22e8783188ca67
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 2 16:12:37 2025 -0700
+
+    doc/next: fix link
+    
+    It was rendering incorrectly at https://tip.golang.org/doc/go1.25
+    
+    Change-Id: I2f66c95414ac5d71b9b02b91bcdc0d0a87b3f605
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/next/6-stdlib/99-minor/net/56025.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 8a45917f3d8011b231c4524f42a34732717e0027
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 11:12:04 2009 -0700
+
+    len and cap on chans
+    
+    R=ken
+    OCL=33599
+    CL=33599
+
+ doc/go_spec.html       |  4 ----
+ src/cmd/6g/cgen.c      | 26 ++++++++++++++++++++++++--
+ src/cmd/8g/cgen.c      | 24 +++++++++++++++++++++++-
+ src/cmd/gc/align.c     |  5 ++---
+ src/pkg/runtime/chan.c |  4 ++--
+ test/chancap.go        | 27 +++++++++++++++++++++++++++
+ 6 files changed, 78 insertions(+), 12 deletions(-)

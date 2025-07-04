@@ -1,0 +1,25 @@
+commit 90fdc45585bc18386d5a2d90a062bf86863e917d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Sep 27 13:36:54 2017 +0200
+
+    net: bump TestDialerDualStackFDLeak timeout on iOS
+    
+    On an iPhone 6 running iOS 11, the TestDialerDualStackFDLeak test
+    started failing with dial durations just above the limit:
+    
+    FAIL: TestDialerDualStackFDLeak (0.21s)
+    
+            dial_test.go:90: got 101.154ms; want <= 95ms
+    
+    Bump the timeout on iOS.
+    
+    For the iOS builder.
+    
+    Change-Id: Id42b471e7cf7d0c84f6e83ed04b395fa1a2d449d
+    Reviewed-on: https://go-review.googlesource.com/66491
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

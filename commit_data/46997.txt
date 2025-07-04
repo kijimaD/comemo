@@ -1,0 +1,19 @@
+commit b0f7eb6c0dee68c91d622cc5fcba1074626753b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 22 16:57:58 2021 -0700
+
+    cmd/go: update test script for reformatted error message (fix long builds)
+    
+    TBR=iant
+    
+    Change-Id: Ic72af52e5ff8d28f8102c07b03e4930df61445ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358115
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 04923042bd402def7f48663a165d759d1fdbf15d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 22 13:55:33 2014 -0500
+
+    image/jpeg: handle Read returning n > 0, err != nil in d.fill
+    
+    Fixes #9127.
+    
+    LGTM=r
+    R=bradfitz, r
+    CC=golang-codereviews, nigeltao
+    https://golang.org/cl/178120043
+
+ src/image/jpeg/reader.go      |  3 +++
+ src/image/jpeg/reader_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

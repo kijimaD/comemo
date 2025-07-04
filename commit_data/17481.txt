@@ -1,0 +1,15 @@
+commit 8a70b50b1f486319a3e6c1707d49bd90192f32d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 6 12:01:01 2013 -0700
+
+    cmd/api: include constant values
+    
+    Update #5935
+    
+    R=golang-dev, rsc, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/13261050
+
+ src/cmd/api/goapi.go                       | 5 +----
+ src/cmd/api/testdata/src/pkg/p1/golden.txt | 8 ++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit 9d0239771a2ddd77be0ba64c2782e1328a378190
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 30 16:13:39 2015 +1100
+
+    cmd/go: always link external test packages first when using gccgo
+    
+    This CL is an amagamation of several fixes Canonical have made on their
+    fork of the cmd/go tool (packaged as gccgo-go.deb on Ubuntu 14.04+).
+    
+    Additionally this CL brings gccgoToolchain.ldi() up to date with the version
+    that will ship in gccgo-5.0. As gccgo is most likely to be used with its
+    own version of the go tool that it supples it makes good sense that the libgo
+    version should dictate the contents of gccgotoolchain.ld()
+    
+    Please see https://codereview.appspot.com/222890043/ for more details on the
+    issues fixed.
+    
+    Change-Id: Icf7deb43f8e80b424757f1673e6bca7a0aa2a1ac
+    Reviewed-on: https://go-review.googlesource.com/8250
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 40 ++++++++++++++++++++++------------------
+ src/cmd/go/pkg.go   |  1 +
+ src/cmd/go/test.go  |  9 +++++----
+ 3 files changed, 28 insertions(+), 22 deletions(-)

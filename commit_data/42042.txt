@@ -1,0 +1,25 @@
+commit 65f46486a1f27017bc991e132725e8d939d069dd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Apr 21 11:29:51 2020 -0400
+
+    cmd/go/internal/load: load imports for all package data errors
+    
+    go/build.Import can return errors for many different reasons like
+    inconsistent package clauses or errors parsing build constraints.
+    It will still return a *build.Package with imports from files it was
+    able to process. Package.load should load these imports, even after an
+    unknown error.
+    
+    There is already a special case for scanner.ErrorList (parse
+    error). This CL expands that behavior for all errors.
+    
+    Fixes #38568
+    
+    Change-Id: I871827299c556f1a9a5b12e7755b221e9d8c6e0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229243
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go              | 12 +----
+ src/cmd/go/internal/load/test.go             |  4 +-
+ src/cmd/go/testdata/script/list_load_err.txt | 79 ++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 13 deletions(-)

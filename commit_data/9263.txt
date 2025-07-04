@@ -1,0 +1,14 @@
+commit ffccc026cb027136234be4ed5d58906f88d5034c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jul 30 18:02:09 2011 -0700
+
+    exp/norm: correct package doc comment
+    
+    Fixes #2118.
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/4815073
+
+ src/pkg/exp/norm/normalize.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

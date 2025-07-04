@@ -1,0 +1,13 @@
+commit 6b2aabeecc1db46d030b9c5c5553c4e0fabba0cf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 17 12:50:56 2014 -0700
+
+    sync: fix typo in benchmark name
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/118860043
+
+ src/pkg/sync/pool_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

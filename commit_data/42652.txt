@@ -1,0 +1,16 @@
+commit 20254c02b38055c1bb6d5ac8aba70bb7b8d638ef
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 14 17:29:27 2020 -0400
+
+    cmd/go: add rudimentary tracing support.
+    
+    Updates #38714
+    
+    Change-Id: I14da982d405074d65ccf5521d431df1bf1734f9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230378
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/trace/trace.go | 139 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 139 insertions(+)

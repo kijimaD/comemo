@@ -1,0 +1,14 @@
+commit 750d0e33fbb6d04e46fec6864b02b83798125320
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 20 14:56:49 2011 -0500
+
+    sql: more driver docs & tests; no functional changes
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5415055
+
+ src/pkg/exp/sql/driver/driver.go | 29 ++++++++++++++++++---
+ src/pkg/exp/sql/fakedb_test.go   | 14 +++++++++++
+ src/pkg/exp/sql/sql_test.go      | 54 +++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 93 insertions(+), 4 deletions(-)

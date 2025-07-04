@@ -1,0 +1,14 @@
+commit 62e26e75117c55dfd67226460669010959b4b23d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 01:53:54 2016 -0800
+
+    cmd/compile: simplify Eqtype
+    
+    Change-Id: I443f997ed53f965ef5b33734351ab8a07a09746b
+    Reviewed-on: https://go-review.googlesource.com/20213
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 63 +++++++++++++------------------------
+ 1 file changed, 22 insertions(+), 41 deletions(-)

@@ -1,0 +1,25 @@
+commit b9edee32e15eb2ea66fe96563088520fff6f2535
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 9 17:41:37 2019 -0400
+
+    cmd/go: check for source files in relative paths before attempting to determine the package path
+    
+    This is a more minimial fix for the immediate symptom of 32917 and
+    30590, but does not improve 'list -e' behavior or error
+    messages resulting from other package loading issues.
+    
+    Fixes #32917
+    Fixes #30590
+    
+    Change-Id: I6088d14d864410159ebf228d9392d186322fd2a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185417
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go                | 66 ++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_dot.txt             | 36 ++++++++++++
+ src/cmd/go/testdata/script/mod_fs_patterns.txt     |  4 +-
+ src/cmd/go/testdata/script/mod_list_dir.txt        |  5 +-
+ .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
+ 5 files changed, 96 insertions(+), 17 deletions(-)

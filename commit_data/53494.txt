@@ -1,0 +1,27 @@
+commit c48228312e7fdd9580078f58f5f4a287ce1185d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 15 12:13:25 2023 -0400
+
+    cmd/cgo: error out if the source path used in line directives would contain a newline
+    
+    cmd/cgo uses '//line' directives to map generated source
+    files back to the original source file and line nmubers.
+    
+    The line directives have no way to escape newline characters,
+    so cmd/cgo must not be used if the line directives would contain
+    such characters.
+    
+    Updates #60167.
+    
+    Change-Id: I8581cea74d6c08f82e86ed87127e81252e1bf78c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501576
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/ast.go                               |  5 +++++
+ src/cmd/cgo/main.go                              |  6 ++++++
+ src/cmd/cgo/out.go                               |  5 +++++
+ src/cmd/go/testdata/script/build_cwd_newline.txt | 17 +++++++++++++++++
+ 4 files changed, 33 insertions(+)

@@ -1,0 +1,17 @@
+commit 4304529a16774719687ff09f18a04e27aa8894c2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Feb 22 12:09:56 2023 -0500
+
+    cmd/link: make Exitf panic under -h
+    
+    If the -h flag is specified, currently it makes Errorf panic, but
+    not Exitf. Do so for Exitf as well.
+    
+    Change-Id: I3e8d8899fd439f7299be3f9e9a63993b04852a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470297
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/util.go | 3 +++
+ 1 file changed, 3 insertions(+)

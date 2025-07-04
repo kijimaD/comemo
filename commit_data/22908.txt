@@ -1,0 +1,28 @@
+commit c4931a84332cd9528138651f9c12ab6d63921c68
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 1 18:08:44 2015 -0400
+
+    runtime: dispose gcWork caches before updating controller state
+    
+    Currently, we only flush the per-P gcWork caches in gcMark, at the
+    beginning of mark termination. This is necessary to ensure that no
+    work is held up in these caches.
+    
+    However, this flush happens after we update the GC controller state,
+    which depends on statistics about marked heap size and scan work that
+    are only updated by this flush. Hence, the controller is missing the
+    bulk of heap marking and scan work. This bug was introduced in commit
+    1b4025f, which introduced the per-P gcWork caches.
+    
+    Fix this by flushing these caches before we update the GC controller
+    state. We continue to flush them at the beginning of mark termination
+    as well to be robust in case any write barriers happened between the
+    previous flush and entering mark termination, but this should be a
+    no-op.
+    
+    Change-Id: I8f0f91024df967ebf0c616d1c4f0c339c304ebaa
+    Reviewed-on: https://go-review.googlesource.com/9646
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

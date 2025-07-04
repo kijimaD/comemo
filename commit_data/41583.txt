@@ -1,0 +1,16 @@
+commit b5c66de0892d0e9f3f59126eeebc31070e79143b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 4 07:24:56 2020 -0800
+
+    cmd/compile: make ssa.Edge a stringer
+    
+    To aid in debugging.
+    
+    Change-Id: I2330499b5f2ecbeb02f7e3bc0b17ded755d5c685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222617
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/block.go | 3 +++
+ 1 file changed, 3 insertions(+)

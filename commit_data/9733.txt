@@ -1,0 +1,12 @@
+commit 03178bb4ad968391c1d5f1d16affac101cd1235c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 19 10:32:11 2011 -0400
+
+    exp/ssh: fix constant in package documentation
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/5030054
+
+ src/pkg/exp/ssh/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

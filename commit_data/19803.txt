@@ -1,0 +1,24 @@
+commit 8b20e7bb7e843cb19538de23dbab572f0b023021
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 23 17:36:10 2014 +0400
+
+    cmd/gc: mark auxiliary symbols as containing no pointers
+    They do not, but pretend that they do.
+    The immediate need is that it breaks the new GC because
+    these are weird symbols as if with pointers but not necessary
+    pointer aligned.
+    
+    LGTM=rsc
+    R=golang-codereviews, dave, josharian, khr, rsc
+    CC=golang-codereviews, iant, khr, rlh
+    https://golang.org/cl/116060043
+
+ src/cmd/5g/gsubr.c   |  7 ++-----
+ src/cmd/6g/gsubr.c   |  7 ++-----
+ src/cmd/8g/gsubr.c   |  7 ++-----
+ src/cmd/gc/go.h      |  2 +-
+ src/cmd/gc/obj.c     |  9 +++++----
+ src/cmd/gc/plive.c   |  3 ++-
+ src/cmd/gc/reflect.c | 15 +++++++++------
+ src/cmd/gc/walk.c    |  3 ++-
+ 8 files changed, 25 insertions(+), 28 deletions(-)

@@ -1,0 +1,23 @@
+commit 95d06ab6c982f58b127b14a52c3325acf0bd3926
+Author: Wil Selwood <wselwood@gmail.com>
+Date:   Thu Aug 2 20:29:38 2018 +0100
+
+    testing: try to Log through parent if test has completed
+    
+    If the test has already completed when a go routine with a panic
+    handler reports an error the location of the error call is lost.
+    
+    Added logDepth to be able to log location of failure at different
+    depths down the stack.
+    
+    Fixes #26720
+    
+    Change-Id: I8b7789ddae757ef6f4bd315cb20356709f4fadec
+    Reviewed-on: https://go-review.googlesource.com/c/127596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/sub_test.go | 23 +++++++++++++++++++++++
+ src/testing/testing.go  | 22 +++++++++++++++++++---
+ 2 files changed, 42 insertions(+), 3 deletions(-)

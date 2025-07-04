@@ -1,0 +1,13 @@
+commit ae03a192e0fa02145bbace8b094e1f9d5fc9f301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 10 15:45:37 2011 +1000
+
+    timing.log: significant improvements after custom algorithms
+    See https://golang.org/cl/4815087
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4849050
+
+ test/bench/timing.log | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,0 +1,24 @@
+commit 8bbd8294d01b66bf47514dee94d3c4341566e357
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 19 13:26:51 2020 -0500
+
+    cmd/go/internal/work: remove a redundant call to modload.LoadedModules
+    
+    The modload.EditBuildList call added in CL 270980 already ensures that
+    installMod does not require a newer version of itself, so the condition
+    that this loop is checking for is redundant.
+    
+    (I had meant for this change to be included in CL 270980, but
+    apparently somehow reverted it prior to mailing.)
+    
+    For #36460
+    
+    Change-Id: I4dd746b927f7012d950187cac9c510cd6fec8fd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271646
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/build.go | 5 -----
+ 1 file changed, 5 deletions(-)

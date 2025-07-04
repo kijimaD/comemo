@@ -1,0 +1,13 @@
+commit 7c189a84171fccfebede6ab34a50b3e0ada5d6d1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 21:29:46 2011 -0800
+
+    sync: tidy a couple of comments.
+    no semantic change.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4128048
+
+ src/pkg/sync/rwmutex.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

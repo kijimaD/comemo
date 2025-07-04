@@ -1,0 +1,17 @@
+commit 8e7d156237cc1409aa6b955cf4307d2c4992ab29
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Feb 14 19:41:58 2013 +1100
+
+    exp/cookiejar: implement Cookies and provided tests
+    
+    This CL provides the implementation of Cookies and
+    the complete test suite. Several tests have been ported
+    from the Chromium project as a cross check.
+    
+    R=nigeltao, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7311073
+
+ src/pkg/exp/cookiejar/jar.go      |  76 ++++-
+ src/pkg/exp/cookiejar/jar_test.go | 566 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 613 insertions(+), 29 deletions(-)

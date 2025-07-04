@@ -1,0 +1,12 @@
+commit 0bbbb44e997b3a61576ed8fc4b1c021134c27c4c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 18 15:22:48 2011 +1100
+
+    doc: link to Chinese translation of A Tour of Go
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5415046
+
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,25 @@
+commit a887579976c0f581ca0eb52094b2c5c63893dcdf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon May 2 11:40:57 2022 -0700
+
+    compress/flate: move idempotent close logic to compressor
+    
+    The compressor methods already have logic for handling a sticky error.
+    Merge the logic from CL 136475 into that.
+    
+    This slightly changes the error message to be more sensible
+    in the situation where it's returned by Flush.
+    
+    Updates #27741
+    
+    Change-Id: Ie34cf3164d0fa6bd0811175ca467dbbcb3be1395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/compress/flate/deflate.go      | 44 +++++++++++---------------------------
+ src/compress/flate/deflate_test.go |  4 ++--
+ 2 files changed, 14 insertions(+), 34 deletions(-)

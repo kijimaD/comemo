@@ -1,0 +1,16 @@
+commit 64193fcaa2f7351e83f3bc7fd40ac8def2148834
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Aug 10 16:27:54 2009 -0700
+
+    Implement switch statement.  Can now extract effects from
+    non-addressable expressions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=241  (202 added, 15 deleted, 24 changed)
+    OCL=32790
+    CL=32995
+
+ usr/austin/eval/expr.go |  73 ++++++++++++-------
+ usr/austin/eval/stmt.go | 184 +++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 222 insertions(+), 35 deletions(-)

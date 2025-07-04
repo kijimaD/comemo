@@ -1,0 +1,18 @@
+commit 470829d474fb5ae1125c81bdfb10375373c881d5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Oct 7 13:42:49 2020 -0400
+
+    doc/go1.16: document GO386=387 and GO386=softfloat
+    
+    Also add a few more TODOs as found by the relnote command.
+    It's an incomplete list due to #41849.
+    
+    For #40700.
+    
+    Change-Id: Id17a9be86d3338e1fcb281d26e7298ff26e92864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

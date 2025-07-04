@@ -1,0 +1,20 @@
+commit ff15e5c00f7fe3fcec1277f932fbca381fd2d2ad
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Feb 24 19:48:06 2014 +0100
+
+    cmd/go: Plan 9 compatible "env" output
+    
+    Fixes the output of go env so that variables can be set
+    more accurately when using Plan 9's rc shell. Specifically,
+    GOPATH may have multiple components and the current
+    representation is plain wrong. In practice, we probably
+    ought to change os. Getenv to produce the right result, but
+    that requires considerably more thought.
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/66600043
+
+ src/cmd/go/env.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 1f11ece67f8b4d329dcf98ca0b214e4da515e446
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 15:20:19 2010 -0800
+
+    nacl: fix build, finally fixed 8l convergence bug
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/199042
+
+ src/all-nacl.bash          |  4 +++
+ src/cmd/8l/l.h             |  1 +
+ src/cmd/8l/span.c          | 13 ++++++---
+ src/cmd/ld/pe.c            |  2 +-
+ src/pkg/runtime/nacl/mem.c | 28 ++++++++++++++++++
+ test/nacl-pass.txt         | 72 ++++++++++++++++++++++++++++++++++++++++++++--
+ test/run-nacl              |  7 ++++-
+ 7 files changed, 119 insertions(+), 8 deletions(-)

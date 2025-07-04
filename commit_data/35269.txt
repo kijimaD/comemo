@@ -1,0 +1,58 @@
+commit 98409a44d5e971f4ffd485dfb130a8521caa7355
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu May 3 21:47:01 2018 +0700
+
+    cmd/vet: better align print warnings with fmt
+    
+    fmt's %d, %x, and %X all accept pointer arguments. However, in cmd/vet's
+    printVerbs table, they were defined as if they did not accept pointer
+    arguments.
+    
+    This inconsistency with fmt did not manifest to users since the vet
+    codebase worked around it. In particular, pointer arguments were usually
+    allowed for verbs that accepted integers, as the *types.Pointer argument
+    type case read the following:
+    
+            t&(argInt|argPointer) != 0
+    
+    As a result, using the %q verb with a pointer resulted in a bug in
+    cmd/vet:
+    
+            $ go run f.go
+            %!q(*int=0xc000014140)
+            $ go vet f.go
+            [no warning]
+    
+    As documented, fmt's %q verb only accepts runes (integers), strings, and
+    byte slices. It should not accept pointers, and it does not. But since
+    vet mixed integers and pointers, it wasn't properly warning about the
+    misuse of fmt.
+    
+    This patch surfaced another bug with fmt.Printf("%p", nil):
+    
+            $ go run f.go
+            %!p(<nil>)
+            $ go vet f.go
+            [no warning]
+    
+    As documented, fmt's %p verb only accepts pointers, and untyped nil is
+    not a valid pointer. But vet did not warn about it, which is another
+    inconsistency with fmt's documented rules. Fix that too, with a test,
+    also getting rid of the TODO associated with the code.
+    
+    As a result of those changes, fix a wrong use of the fmt format verbs in
+    the standard library, now correctly spotted by vet.
+    
+    Fixes #25233.
+    
+    Change-Id: Id0ad31fbc25adfe1c46c6b6879b8d02b23633b3a
+    Reviewed-on: https://go-review.googlesource.com/111284
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/print.go          | 6 +++---
+ src/cmd/vet/testdata/print.go | 4 +++-
+ src/cmd/vet/types.go          | 6 +++---
+ src/time/zoneinfo_test.go     | 2 +-
+ 4 files changed, 10 insertions(+), 8 deletions(-)

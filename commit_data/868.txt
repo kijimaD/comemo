@@ -1,0 +1,16 @@
+commit 1bf38484d1763a9ba1e31e6e72b3a0f4129fe153
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 15 17:08:10 2008 -0700
+
+    interface on arbitrary types
+    global signatures for basic types
+    
+    R=r
+    OCL=17238
+    CL=17240
+
+ src/cmd/gc/const.c  | 28 ++++++++++++++---
+ src/cmd/gc/go.h     |  2 ++
+ src/cmd/gc/subr.c   | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/iface.c | 41 ++++++++++++++++++++++---
+ 4 files changed, 146 insertions(+), 12 deletions(-)

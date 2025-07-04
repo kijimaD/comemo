@@ -1,0 +1,13 @@
+commit a11e74daf7e42fa811378f5f38fb0dfdf6480f3a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jun 14 22:43:15 2012 +0800
+
+    crypto/elliptic: fix doc typo
+            Fixes #3735.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/6301083
+
+ src/pkg/crypto/elliptic/elliptic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,70 @@
+commit 30eda6715c6578de2086f03df36c4a8def838ec2
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Tue Aug 21 16:12:36 2018 +0200
+
+    crypto/rc4: remove assembler implementations
+    
+    This CL removes the RC4 assembler implementations.
+    RC4 is broken and should not be used for encryption
+    anymore. Therefore it's not worth maintaining
+    platform-specific assembler implementations.
+    
+    The native Go implementation may be slower
+    or faster depending on the CPU:
+    
+    name       old time/op   new time/op   delta
+    RC4_128-4    256ns ± 0%    196ns ± 0%  -23.78%  (p=0.029 n=4+4)
+    RC4_1K-4    2.38µs ± 0%   1.54µs ± 0%  -35.22%  (p=0.029 n=4+4)
+    RC4_8K-4    19.4µs ± 1%   12.0µs ± 0%  -38.35%  (p=0.029 n=4+4)
+    
+    name       old speed     new speed     delta
+    RC4_128-4  498MB/s ± 0%  654MB/s ± 0%  +31.12%  (p=0.029 n=4+4)
+    RC4_1K-4   431MB/s ± 0%  665MB/s ± 0%  +54.34%  (p=0.029 n=4+4)
+    RC4_8K-4   418MB/s ± 1%  677MB/s ± 0%  +62.18%  (p=0.029 n=4+4)
+    
+    vendor_id       : GenuineIntel
+    cpu family      : 6
+    model           : 142
+    model name      : Intel(R) Core(TM) i5-7Y54 CPU @ 1.20GHz
+    stepping        : 9
+    microcode       : 0x84
+    cpu MHz         : 800.036
+    cache size      : 4096 KB
+    
+    name       old time/op   new time/op   delta
+    RC4_128-4    235ns ± 1%    431ns ± 0%  +83.00%  (p=0.000 n=10+10)
+    RC4_1K-4    1.74µs ± 0%   3.41µs ± 0%  +96.74%  (p=0.000 n=10+10)
+    RC4_8K-4    13.6µs ± 1%   26.8µs ± 0%  +97.58%   (p=0.000 n=10+9)
+    
+    name       old speed     new speed     delta
+    RC4_128-4  543MB/s ± 0%  297MB/s ± 1%  -45.29%  (p=0.000 n=10+10)
+    RC4_1K-4   590MB/s ± 0%  300MB/s ± 0%  -49.16%  (p=0.000 n=10+10)
+    RC4_8K-4   596MB/s ± 1%  302MB/s ± 0%  -49.39%   (p=0.000 n=10+9)
+    
+    vendor_id       : GenuineIntel
+    cpu family      : 6
+    model           : 63
+    model name      : Intel(R) Xeon(R) CPU @ 2.30GHz
+    stepping        : 0
+    microcode       : 0x1
+    cpu MHz         : 2300.000
+    cache size      : 46080 KB
+    
+    Fixes #25417
+    
+    Change-Id: I4124037154aaaa8e48d300c23974f125b6055a1c
+    Reviewed-on: https://go-review.googlesource.com/130397
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/rc4/rc4.go         |   9 +-
+ src/crypto/rc4/rc4_386.s      |  53 ------------
+ src/crypto/rc4/rc4_amd64.s    | 179 ---------------------------------------
+ src/crypto/rc4/rc4_amd64p32.s | 192 ------------------------------------------
+ src/crypto/rc4/rc4_arm.s      |  62 --------------
+ src/crypto/rc4/rc4_asm.go     |  26 ------
+ src/crypto/rc4/rc4_ref.go     |  13 ---
+ src/crypto/rc4/rc4_test.go    |  19 +----
+ 8 files changed, 7 insertions(+), 546 deletions(-)

@@ -1,0 +1,18 @@
+commit d2a80f3fb5b44450e0b304ac5a718f99c053d82a
+Author: Luca Spiller <luca@stackednotion.com>
+Date:   Tue Oct 6 08:12:45 2020 +0000
+
+    crypto/tls: fix typo in spelling of permanentError
+    
+    Change-Id: I819c121ff388460ec348af773ef94b44416a2ea9
+    GitHub-Last-Rev: 98dd8fb25cecb73e88d107e0a35e3e63a53dfd09
+    GitHub-Pull-Request: golang/go#41785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259517
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/crypto/tls/conn.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

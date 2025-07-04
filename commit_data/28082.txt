@@ -1,0 +1,16 @@
+commit 57331b79da3920ba579a07a20827ee4499cf1c7e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 26 23:39:50 2016 +0000
+
+    Revert "cmd/compile: use printer in typefmt, Tconv"
+    
+    This reverts commit 8fb0893307b0d4ab4a115a6151ee8d344d3c1d74.
+    
+    Broke go/ast tests.
+    
+    Change-Id: I5c314cb29731d4bc3a0873af8ebfe376f5faba8a
+    Reviewed-on: https://go-review.googlesource.com/27923
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 133 +++++++++++++++++++------------------
+ 1 file changed, 67 insertions(+), 66 deletions(-)

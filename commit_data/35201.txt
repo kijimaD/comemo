@@ -1,0 +1,23 @@
+commit 3bdbb5df7692142c13cf93f6d80b2a907e3f396b
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Apr 27 17:50:05 2018 +0200
+
+    syscall: enable some nacl code to be shared with js/wasm
+    
+    This commit only moves code in preparation for the following commit
+    which adds the js/wasm architecture to the os package. There are no
+    semantic changes in this commit.
+    
+    Updates #18892
+    
+    Change-Id: Ia44484216f905c25395c565c34cfe6996c305ed6
+    Reviewed-on: https://go-review.googlesource.com/109976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../poll/{fd_poll_nacl.go => fd_poll_nacljs.go}    |   2 +
+ src/syscall/fd_nacl.go                             | 244 --------------------
+ src/syscall/fd_nacljs.go                           | 254 +++++++++++++++++++++
+ src/syscall/{tables_nacl.go => tables_nacljs.go}   |   2 +
+ 4 files changed, 258 insertions(+), 244 deletions(-)

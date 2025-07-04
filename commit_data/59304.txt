@@ -1,0 +1,17 @@
+commit fcd73b0ac307c2a639bd28939b0f5ea4b6bb3c6c
+Author: Lin Lin <linlin152@foxmail.com>
+Date:   Thu Mar 27 04:21:01 2025 +0000
+
+    cmd/compile/internal/importer: correct a matching error
+    
+    Change-Id: I2499d6ef1df0cc6bf0be8903ce64c03e1f296d19
+    GitHub-Last-Rev: 1f759d89be7b40c7fe72b920fc004de3fed8d057
+    GitHub-Pull-Request: golang/go#73064
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660978
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/importer/gcimporter_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

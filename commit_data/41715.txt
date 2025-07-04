@@ -1,0 +1,21 @@
+commit 7af6a31b48c5cb4d8cc9ca346949d1143ece76ca
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 18 18:46:04 2020 +0000
+
+    runtime: add countAlloc benchmark
+    
+    This change adds a small microbenchmark for (*mspan).countAlloc, which
+    we're about to replace. Admittedly this isn't a critical piece of code,
+    but the benchmark was useful in understanding the performance change.
+    
+    Change-Id: Iea93c00f571ee95534a42f2ef2ab026b382242b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224438
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go |  8 ++++++++
+ src/runtime/gc_test.go     | 19 +++++++++++++++++++
+ 2 files changed, 27 insertions(+)

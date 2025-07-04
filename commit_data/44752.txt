@@ -1,0 +1,27 @@
+commit 9f2a71b6e7b418182dd0467e7d054ccf8130c026
+Author: Dilyn Corner <dilyn.corner@gmail.com>
+Date:   Fri Mar 19 18:18:18 2021 +0000
+
+    make.bash: this change modifies Go to correctly select a dyamic linker
+    
+    Alpine Linux is not the only musl-based Linux distribution. Checking for
+    /etc/alpine-release excludes many other distributions (Oasis, KISS,
+    Sabotage, sta.li). Not having the correct GO_LDSO set during go builds will
+    result in the wrong linker/loader on nonalpine musl systems for pie builds.
+    Instead, the dynamic loader should be checked for every system and set. This
+    results in the correct dynamic linker being found on glibc systems
+    (/lib/ld-linux-x86-64.so.2) and musl systems (/lib/ld-musl-x84_64.so.1).
+    
+    Fixes #45034
+    
+    Change-Id: I4c9389abc759aa34431dc6c781022636b81d6910
+    GitHub-Last-Rev: e17b9eb10693bfce7c9ce03af3b15bd0e56e8dbe
+    GitHub-Pull-Request: golang/go#45036
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301989
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ src/make.bash | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

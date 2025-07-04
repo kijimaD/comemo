@@ -1,0 +1,77 @@
+commit 9eb4590ad224d4e30e1935e30a5f46e33ddf06d5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 26 20:56:03 2018 -0700
+
+    cmd/compile: simplify shifts using bounds from prove pass
+    
+    The prove pass sometimes has bounds information
+    that later rewrite passes do not.
+    
+    Use this information to mark shifts as bounded,
+    and then use that information to generate better code on amd64.
+    It may prove to be helpful on other architectures, too.
+    
+    While here, coalesce the existing shift lowering rules.
+    
+    This triggers 35 times building std+cmd. The full list is below.
+    
+    Here's an example from runtime.heapBitsSetType:
+    
+                            if nb < 8 {
+                                    b |= uintptr(*p) << nb
+                                    p = add1(p)
+                            } else {
+                                    nb -= 8
+                            }
+    
+    We now generate better code on amd64 for that left shift.
+    
+    Updates #25087
+    
+    vendor/golang_org/x/crypto/curve25519/mont25519_amd64.go:48:20: Proved Rsh8Ux64 bounded
+    runtime/mbitmap.go:1252:22: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1265:16: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1275:28: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1645:25: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1663:25: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1808:41: Proved Lsh64x64 bounded
+    runtime/mbitmap.go:1831:49: Proved Lsh64x64 bounded
+    syscall/route_bsd.go:227:23: Proved Lsh32x64 bounded
+    syscall/route_bsd.go:295:23: Proved Lsh32x64 bounded
+    syscall/route_darwin.go:40:23: Proved Lsh32x64 bounded
+    compress/bzip2/bzip2.go:384:26: Proved Lsh64x16 bounded
+    vendor/golang_org/x/net/route/address.go:370:14: Proved Lsh64x64 bounded
+    compress/flate/inflate.go:201:54: Proved Lsh64x64 bounded
+    math/big/prime.go:50:25: Proved Lsh64x64 bounded
+    vendor/golang_org/x/crypto/cryptobyte/asn1.go:464:43: Proved Lsh8x8 bounded
+    net/ip.go:87:21: Proved Rsh8Ux64 bounded
+    cmd/internal/goobj/read.go:267:23: Proved Lsh64x64 bounded
+    cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go:534:27: Proved Lsh32x32 bounded
+    cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go:544:27: Proved Lsh32x32 bounded
+    cmd/internal/obj/arm/asm5.go:1044:16: Proved Lsh32x64 bounded
+    cmd/internal/obj/arm/asm5.go:1065:10: Proved Lsh32x32 bounded
+    cmd/internal/obj/mips/obj0.go:1311:21: Proved Lsh32x64 bounded
+    cmd/compile/internal/syntax/scanner.go:352:23: Proved Lsh64x64 bounded
+    go/types/expr.go:222:36: Proved Lsh64x64 bounded
+    crypto/x509/x509.go:1626:9: Proved Rsh8Ux64 bounded
+    cmd/link/internal/loadelf/ldelf.go:823:22: Proved Lsh8x64 bounded
+    net/http/h2_bundle.go:1470:17: Proved Lsh8x8 bounded
+    net/http/h2_bundle.go:1477:46: Proved Lsh8x8 bounded
+    net/http/h2_bundle.go:1481:31: Proved Lsh64x8 bounded
+    cmd/compile/internal/ssa/rewriteARM64.go:18759:17: Proved Lsh64x64 bounded
+    cmd/compile/internal/ssa/sparsemap.go:70:23: Proved Lsh32x64 bounded
+    cmd/compile/internal/ssa/sparsemap.go:73:45: Proved Lsh32x64 bounded
+    
+    Change-Id: I58bb72f3e6f12f6ac69be633ea7222c245438142
+    Reviewed-on: https://go-review.googlesource.com/109776
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   86 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  103 +--
+ src/cmd/compile/internal/ssa/opGen.go          |   48 ++
+ src/cmd/compile/internal/ssa/prove.go          |   27 +
+ src/cmd/compile/internal/ssa/rewrite.go        |    6 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1008 ++++++++++++++++++++++--
+ 6 files changed, 1122 insertions(+), 156 deletions(-)

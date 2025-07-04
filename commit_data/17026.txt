@@ -1,0 +1,17 @@
+commit 20a2b960898a37e646bf76dcf0e3fd067a387c5f
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Aug 5 14:31:58 2013 -0400
+
+    crypto/cipher: add GCM mode.
+    
+    GCM is Galois Counter Mode, an authenticated encryption mode that is,
+    nearly always, used with AES.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12375043
+
+ src/pkg/crypto/cipher/gcm.go      | 350 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/gcm_test.go | 175 +++++++++++++++++++
+ src/pkg/go/build/deps_test.go     |  14 +-
+ 3 files changed, 530 insertions(+), 9 deletions(-)

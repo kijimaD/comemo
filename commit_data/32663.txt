@@ -1,0 +1,14 @@
+commit 7758abf3b609528eea2dbad647ddeac6301340ec
+Author: Adrian Hesketh <adrianhesketh@hushmail.com>
+Date:   Sat Sep 2 12:30:37 2017 +0100
+
+    time: add a number of new examples
+    
+    Change-Id: I14d19a3951fcae24e2c2ce2eb76312851e050fdd
+    Reviewed-on: https://go-review.googlesource.com/61033
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 159 insertions(+)

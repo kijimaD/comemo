@@ -1,0 +1,13 @@
+commit 5bd5242bcced5238b7c13580336565e1ef15e222
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 9 17:30:38 2009 -0700
+
+    Fixing comment.
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=25956
+    CL=25960
+
+ src/lib/go/scanner.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

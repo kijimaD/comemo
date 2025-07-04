@@ -1,0 +1,20 @@
+commit 5a75f7c0b0789fe04ea4879a524cc95dbe734636
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 6 11:16:34 2020 -0800
+
+    net/http: fix Server.Shutdown race where it could miss an active connection
+    
+    Wait for Listeners to drop to zero too, not just conns.
+    
+    Fixes #33313
+    
+    Change-Id: I09350ae38087990d368dcf9302fbde3e95c02fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213442
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hasit Bhatt <hasit.p.bhatt@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 7 +++++--
+ src/net/http/server.go     | 9 +++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

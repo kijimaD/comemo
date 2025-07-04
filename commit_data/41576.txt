@@ -1,0 +1,19 @@
+commit 2b0f481278cc093e9f61945592257e6d651a169c
+Author: Stefan Baebler <sbaebler@outbrain.com>
+Date:   Fri Mar 6 08:21:26 2020 +0000
+
+    doc/go1.14: document that unparsable URL in net/url.Error is now quoted
+    
+    Fixes #37614
+    Updates #36878
+    Updates #29384
+    Updates #37630
+    
+    Change-Id: I63dad8b554353197ae0f29fa2a84f17bffa58557
+    GitHub-Last-Rev: 5297df32200ea5b52b2e7b52c8ee022d37e44111
+    GitHub-Pull-Request: golang/go#37661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222037
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

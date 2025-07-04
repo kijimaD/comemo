@@ -1,0 +1,33 @@
+commit 24a297286a3032223c432a830a53ebf102e08de4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 25 16:17:42 2016 -0400
+
+    crypto/sha512: add s390x assembly implementation
+    
+    Renames block to blockGeneric so that it can be called when the
+    assembly feature check fails. This means making block a var on
+    platforms without an assembly implementation (similar to the sha1
+    package).
+    
+    Also adds a test to check that the fallback path works correctly
+    when the feature check fails.
+    
+    name        old speed      new speed       delta
+    Hash8Bytes  7.13MB/s ± 2%  19.89MB/s ± 1%  +178.82%   (p=0.000 n=9+10)
+    Hash1K       121MB/s ± 1%    661MB/s ± 1%  +444.54%   (p=0.000 n=10+9)
+    Hash8K       137MB/s ± 0%    918MB/s ± 1%  +569.29%  (p=0.000 n=10+10)
+    
+    Change-Id: Id65dd6e943f14eeffe39a904dc88065fc6a60179
+    Reviewed-on: https://go-review.googlesource.com/22402
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha512/fallback_test.go       | 37 ++++++++++++++++++++++++++++++++
+ src/crypto/sha512/sha512_test.go         | 13 +++++++++++
+ src/crypto/sha512/sha512block.go         |  4 +---
+ src/crypto/sha512/sha512block_decl.go    |  2 +-
+ src/crypto/sha512/sha512block_generic.go |  9 ++++++++
+ src/crypto/sha512/sha512block_s390x.go   | 12 +++++++++++
+ src/crypto/sha512/sha512block_s390x.s    | 34 +++++++++++++++++++++++++++++
+ 7 files changed, 107 insertions(+), 4 deletions(-)

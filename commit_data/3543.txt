@@ -1,0 +1,14 @@
+commit c7f837be0062880bf10ac6972bf57b9d6d614e3f
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Oct 14 21:46:50 2009 -0700
+
+    disable ken/complit for arm
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=35753
+    CL=35755
+
+ test/arm-pass.txt | 1 -
+ 1 file changed, 1 deletion(-)

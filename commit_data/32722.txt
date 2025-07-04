@@ -1,0 +1,22 @@
+commit 814d92230a6befef18084fdf62431a9e0ecab7d4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 15:14:05 2017 -0400
+
+    misc/cgo/errors: fix erroneous regexp detection
+    
+    I had passed 1 instead of 2 to the SplitAfterN call in
+    errorstest.check, so all of the cases were erroneously falling through
+    to the non-regexp case (and passing even if the actual error didn't
+    match).
+    
+    Now, we use bytes.HasSuffix to check for the non-regexp case, so we
+    will not incorrectly match a regexp comment to the non-regexp case.
+    
+    updates #13467
+    
+    Change-Id: Ia6be928a495425f2b7bae5001bd01346e115dcfa
+    Reviewed-on: https://go-review.googlesource.com/63692
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/errors_test.go | 33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)

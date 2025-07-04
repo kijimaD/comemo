@@ -1,0 +1,15 @@
+commit a0368180a7853f6ada2cea6c41bed2bb2fb2de15
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jul 30 12:33:40 2010 +0300
+
+    arm: disable another flaky test.
+    
+    these tests work fine on n1 and gumstix. it's unclear
+    why they keep failing on the godashboard build.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1664056
+
+ test/arm-pass.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 6a2fb15475b2868815bc9b76518795839793af95
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Nov 14 09:56:49 2024 -0500
+
+    runtime: implement Stop for AddCleanup
+    
+    This change adds the implementation for AddCleanup.Stop. It allows the
+    caller to cancel the call to execute the cleanup. Cleanup will not be
+    stopped if the cleanup has already been queued for execution.
+    
+    For #67535
+    
+    Change-Id: I494b77d344e54d772c41489d172286773c3814e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/mcleanup.go      |  71 +++++++++++++++++++++++----
+ src/runtime/mcleanup_test.go | 112 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go         |  16 ++++++-
+ 3 files changed, 188 insertions(+), 11 deletions(-)

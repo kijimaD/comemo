@@ -1,0 +1,16 @@
+commit 1b4e37a43c2cb70d8158fd9b94fdac5485d23326
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 12 12:05:24 2012 -0400
+
+    spec: make bitwise operators stand out
+    
+    The (and not) arguably sounds like it is trying to say something - and not what?.
+    
+    Just an idea, won't be hurt if it gets rejected.
+    
+    R=gri, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/6498115
+
+ doc/go_spec.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,25 @@
+commit 346efc28508dc358cba7e246adeb40bde99cfb2a
+Author: Rob Findley <rfindley@google.com>
+Date:   Sun Jul 12 16:57:01 2020 -0400
+
+    go/types: better error when converting untyped values in assignments
+    
+    The error returned by convertUntyped is 'cannot convert _ to _', which
+    can be misleading in contexts where an explicit conversion would be
+    allowed.
+    
+    Arguably the error message from convertUntyped should just be 'cannot
+    use _ as _', as 'convert' has an explicit meaning within the spec.
+    Making that change caused a large number of test failures, so for now we
+    just fix this for assignments by interpreting the error.
+    
+    For #22070
+    
+    Change-Id: I4eed6f39d1a991e8df7e035ec301d28a05150eb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242083
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/assignments.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

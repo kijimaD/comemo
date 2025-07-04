@@ -1,0 +1,55 @@
+commit 25da594c6a7c167c46d226dae9fb614f1dff88b3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 1 07:54:01 2015 +0000
+
+    cmd/{5,6,8,9}g, cmd/internal/gc: use bools for is* and okfor*
+    
+    No functional changes.
+    
+    This diff was generated as follows:
+    
+    * Manually edit cmd/internal/gc/go.go to update types and group variables.
+    * Manually edit initialization in cmd/internal/gc/align.go--localized s/1/true.
+    * Manually fix the handling of sign in cmd/internal/gc/walk.go in func bounded (near line 4000).
+    * Manually update go.y and regenerate y.go.
+    * Run gofmt -r many times to do the rest, using https://gist.github.com/josharian/0f61dbb2dff81f938e70.
+    
+    toolstash -cmp on the stdlib comes back green.
+    
+    Change-Id: I19766ed551714e51b325133e7138818d117b3a9a
+    Reviewed-on: https://go-review.googlesource.com/6530
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5g/cgen.go               |  20 +++---
+ src/cmd/5g/ggen.go               |  10 +--
+ src/cmd/5g/gsubr.go              |   2 +-
+ src/cmd/6g/cgen.go               |  26 ++++----
+ src/cmd/6g/ggen.go               |  12 ++--
+ src/cmd/6g/gsubr.go              |   6 +-
+ src/cmd/8g/cgen.go               |  20 +++---
+ src/cmd/8g/ggen.go               |  14 ++---
+ src/cmd/8g/gsubr.go              |  10 +--
+ src/cmd/9g/cgen.go               |  22 +++----
+ src/cmd/9g/ggen.go               |  10 +--
+ src/cmd/9g/gsubr.go              |   2 +-
+ src/cmd/internal/gc/align.go     | 132 +++++++++++++++++++--------------------
+ src/cmd/internal/gc/closure.go   |   4 +-
+ src/cmd/internal/gc/const.go     |  40 ++++++------
+ src/cmd/internal/gc/cplx.go      |   6 +-
+ src/cmd/internal/gc/dcl.go       |  16 ++---
+ src/cmd/internal/gc/export.go    |   4 +-
+ src/cmd/internal/gc/fmt.go       |   6 +-
+ src/cmd/internal/gc/gen.go       |   2 +-
+ src/cmd/internal/gc/go.go        |  60 ++++++++----------
+ src/cmd/internal/gc/go.y         |   2 +-
+ src/cmd/internal/gc/inl.go       |   2 +-
+ src/cmd/internal/gc/pgen.go      |   2 +-
+ src/cmd/internal/gc/range.go     |   2 +-
+ src/cmd/internal/gc/reflect.go   |  12 ++--
+ src/cmd/internal/gc/sinit.go     |   2 +-
+ src/cmd/internal/gc/subr.go      |  48 +++++++-------
+ src/cmd/internal/gc/swt.go       |   4 +-
+ src/cmd/internal/gc/typecheck.go |  54 ++++++++--------
+ src/cmd/internal/gc/walk.go      |  44 ++++++-------
+ src/cmd/internal/gc/y.go         |   2 +-
+ 32 files changed, 294 insertions(+), 304 deletions(-)

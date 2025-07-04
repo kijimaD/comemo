@@ -1,0 +1,18 @@
+commit 404ab866d1522fbe4c5596fe9889d61aec84fabe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 16 15:51:49 2018 -0800
+
+    cmd/go: packages that use SWIG depend on "unsafe"
+    
+    Fixes #28834
+    
+    Change-Id: I95d6874e62d36974415f43843881a4ae85b3c7ce
+    Reviewed-on: https://go-review.googlesource.com/c/149964
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/go/internal/load/pkg.go | 1 +
+ 1 file changed, 1 insertion(+)

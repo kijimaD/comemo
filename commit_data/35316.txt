@@ -1,0 +1,20 @@
+commit 6428c892c04831fda8529973b7031caf60768866
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 13 13:01:36 2018 +0100
+
+    cmd/compile: use nodl in zeroResults
+    
+    Use nodl instead of nod to avoid setting and resetting lineo.
+    
+    Passes toolstash-check.
+    
+    Updates #19683
+    
+    Change-Id: I6a47a7ba43a11352767029eced29f08dff8501a2
+    Reviewed-on: https://go-review.googlesource.com/100335
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

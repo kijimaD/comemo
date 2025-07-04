@@ -1,0 +1,12 @@
+commit 66b797a4f93903d00862298f9f4b80f2d1f20f41
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 15:07:10 2013 +0900
+
+    net: close TCPListener in example
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/8073044
+
+ src/pkg/net/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

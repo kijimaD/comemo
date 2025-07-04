@@ -1,0 +1,47 @@
+commit 17b2fb1b656a275906b5071c562439d50a27f167
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 12 17:22:09 2022 -0500
+
+    runtime: fix net poll races
+    
+    The netpoll code was written long ago, when the
+    only multiprocessors that Go ran on were x86.
+    It assumed that an atomic store would trigger a
+    full memory barrier and then used that barrier
+    to order otherwise racy access to a handful of fields,
+    including pollDesc.closing.
+    
+    On ARM64, this code has finally failed, because
+    the atomic store is on a value completely unrelated
+    to any of the racily-accessed fields, and the ARMv8
+    hardware, unlike x86, is clever enough not to do a
+    full memory barrier for a simple atomic store.
+    We are seeing a constant background rate of trybot
+    failures where the net/http tests deadlock - a netpollblock
+    has clearly happened after the pollDesc has begun to close.
+    
+    The code that does the racy reads is netpollcheckerr,
+    which needs to be able to run without acquiring a lock.
+    This CL fixes the race, without introducing unnecessary
+    inefficiency or deadlock, by arranging for every updater
+    of the relevant fields to publish a summary as a single
+    atomic uint32, and then having netpollcheckerr use a
+    single atomic load to fetch the relevant bits and then
+    proceed as before.
+    
+    Fixes #45211 (until proven otherwise!).
+    
+    Change-Id: Ib6788c8da4d00b7bda84d55ca3fdffb5a64c1a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378234
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go         | 157 +++++++++++++++++++++++++++++------------
+ src/runtime/netpoll_aix.go     |   5 +-
+ src/runtime/netpoll_epoll.go   |   5 +-
+ src/runtime/netpoll_kqueue.go  |   5 +-
+ src/runtime/netpoll_solaris.go |   2 +-
+ src/runtime/runtime2.go        |   2 +
+ 6 files changed, 119 insertions(+), 57 deletions(-)

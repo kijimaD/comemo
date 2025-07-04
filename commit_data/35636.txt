@@ -1,0 +1,40 @@
+commit afae876b3189711c49f9d2cb197081f41c9f3979
+Author: philhofer <phofer@umich.edu>
+Date:   Wed Jun 6 12:05:36 2018 -0700
+
+    runtime: fix pprof livelock on arm
+    
+    On 32-bit architectures without native 64-bit atomic instructions,
+    64-bit atomics are emulated using spinlocks. However,
+    the sigprof handling code expects to be able to perform
+    64-bit atomic operations in signal handlers. Spinning on an
+    acquired spinlock in a signal handler leads to a livelock.
+    This is issue #20146.
+    
+    The original fix for #20146 did not include arm in
+    the list of architectures that need to work around portability
+    issues in the sigprof handler code. The unit test designed to
+    catch this issue does not fail on arm builds because arm uses
+    striped spinlocks, and thus the livelock takes many minutes
+    to reproduce. This is issue #24260. (This patch doesn't completely
+    fix #24260 on go1.10.2 due to issue #25785, which is probably
+    related to the arm cas kernel helpers. Those have been removed
+    at tip.)
+    
+    With this patch applied, I was able to run the reproducer for
+    issue #24260 for more than 90 minutes without reproducing the
+    livelock. Without this patch, the livelock took as little as
+    8 minutes to reproduce.
+    
+    Fixes #20146
+    Updates #24260
+    
+    Change-Id: I64bf53a14d53c4932367d919ac55e17c99d87484
+    Reviewed-on: https://go-review.googlesource.com/117057
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

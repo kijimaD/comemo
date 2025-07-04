@@ -1,0 +1,19 @@
+commit 90066bf06a9b10b3b222a289934b93723bb788d6
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Sat Jul 21 01:37:21 2018 +0800
+
+    cmd/go/internal/modfetch: run git log with "-c log.showsignature=false"
+    
+    The old version git not support "--no-show-signature", git add this from
+    v2.10.0.
+    
+    Fixes golang/go#26501.
+    
+    Change-Id: Ia6b54488651e8687b08a4d40e092822bf960c4fe
+    Reviewed-on: https://go-review.googlesource.com/125315
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

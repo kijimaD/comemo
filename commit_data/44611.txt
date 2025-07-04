@@ -1,0 +1,23 @@
+commit bbf79793bdeda04d520377406024d7bb66aa62dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:32:38 2021 -0800
+
+    io/fs: clarify additional File interface docs
+    
+    Emphasize ReadDirFile. It isn't really optional,
+    and all filesystems have at least one directory (".").
+    
+    The remaining two additional interfaces are optimizations.
+    Call them that.
+    
+    Fully qualify package package io identifiers.
+    
+    Change-Id: Ibc425a5dfd27e08c2c10c353f780e4a6304cfd87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296390
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/fs/fs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

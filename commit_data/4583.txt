@@ -1,0 +1,18 @@
+commit 46206c52e3ee0ed476aa8eb1831ecbe9d933189c
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Jan 11 21:28:02 2010 -0800
+
+    math: special cases for Ceil, Exp, Floor, Log, Log10
+    
+    Added special case tests to all_test.go. Added tests to Floor,
+    in-lined tests in Exp and Log.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/184081
+
+ src/pkg/math/all_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/math/exp.go      |  6 ++--
+ src/pkg/math/floor.go    | 13 +++++++
+ src/pkg/math/log.go      | 11 +++---
+ 4 files changed, 108 insertions(+), 10 deletions(-)

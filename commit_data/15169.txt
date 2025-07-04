@@ -1,0 +1,14 @@
+commit 45636db01bdf4bd50426067af72afbde3900ceb9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 8 19:05:19 2013 +0400
+
+    runtime: fix integer overflow
+    The problem happens when end=0, then end-1 is very big number.
+    Observed with the new scheduler.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7307073
+
+ src/pkg/runtime/parfor.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

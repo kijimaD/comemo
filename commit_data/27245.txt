@@ -1,0 +1,12 @@
+commit 097e2c0a8a759819dde3c9b169058b2fb55b0de3
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun May 1 17:18:18 2016 -0600
+
+    net/http: fix typo in comment in main_test
+    
+    Change-Id: I22d4b5a0d5c146a65d4ef77a32e23f7780ba1d95
+    Reviewed-on: https://go-review.googlesource.com/22684
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/main_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

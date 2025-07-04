@@ -1,0 +1,18 @@
+commit e6c0546c54f6f3fa7c6cb5002ecc839bc89d5d20
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Jun 27 18:04:56 2022 -0700
+
+    crypto/x509/pkix: move crl deprecation message
+    
+    There was a deprecation message on RevokedCertificate which was
+    intended to be on CertificateList.
+    
+    Change-Id: Ia378935afc75c36702e64cf33ea5c8a24c1488ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414754
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+
+ src/crypto/x509/pkix/pkix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit caedc603d4e015baa35c2dadf85e1a541885d2f3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 10 16:46:06 2012 +1000
+
+    test/bench/shootout: update timing.log to Go 1
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5989063
+
+ test/bench/shootout/timing.log | 93 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)

@@ -1,0 +1,32 @@
+commit 5a267c840ae16c1cc7352caa14da5f500d03d338
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri May 29 02:17:38 2020 -0700
+
+    cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines
+    
+    Add "go/analysis/passes/testinggoroutine" from x/tools and vendor its source in.
+    This pass will catch misuses of:
+    * testing.T.Fail*
+    * testing.T.Fatal*
+    * testing.T.Skip*
+    inside goroutines explicitly started by the go keyword.
+    
+    The pass was implemented in CL 212920.
+    
+    While here, found 2 misuses in:
+    * database/sql/sql_test.go
+    * runtime/syscall_windows_test.go
+    and fixed them in CL 235527.
+    
+    Fixes #5746
+    
+    Change-Id: I1740ad3f1d677bb5d78dc5d8d66bac6ec287a2b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235677
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ .../passes/testinggoroutine/testinggoroutine.go    | 154 +++++++++++++++++++++
+ src/cmd/vet/main.go                                |   2 +
+ 2 files changed, 156 insertions(+)

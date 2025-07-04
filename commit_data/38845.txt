@@ -1,0 +1,31 @@
+commit fe1afe8d4ca06c56f583a9296282697f39d27d97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 25 00:24:20 2018 +0000
+
+    encoding/json: avoid work when unquoting strings
+    
+    We can work out how many bytes can be unquoted trivially in
+    rescanLiteral, which already iterates over a string's bytes.
+    
+    Removing the extra loop in unquoteBytes simplifies the function and
+    speeds it up, especially when decoding simple strings, which are common.
+    
+    While at it, we can remove unnecessary checks like len(s)<2 and
+    s[0]=='"'. Add a comment explaining why.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-8    11.2ms ± 0%    11.1ms ± 1%  -1.63%  (p=0.000 n=9+10)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-8   173MB/s ± 0%   175MB/s ± 1%  +1.66%  (p=0.000 n=9+10)
+    
+    Updates #28923.
+    
+    Change-Id: I2436a3a7f8148a2f7a6a4cdbd7dec6b32ef5e20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151157
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go | 68 ++++++++++++++++++++++-----------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

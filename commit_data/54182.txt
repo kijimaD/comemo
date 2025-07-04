@@ -1,0 +1,21 @@
+commit aa0ba4dcaff56b1e44ad0165516db36b71f99e50
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 23 11:22:04 2023 +0200
+
+    net: use internal/bytealg.CountString
+    
+    On platforms that provide a native implementation this might be slightly
+    faster. On other platforms it is equivalent to the count func.
+    
+    Change-Id: If46cc65598993e64084cc98533cb8c1e9679a6fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522136
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/dnsclient_unix.go |  3 ++-
+ src/net/ipsock.go         |  4 ++--
+ src/net/parse.go          | 11 -----------
+ 3 files changed, 4 insertions(+), 14 deletions(-)

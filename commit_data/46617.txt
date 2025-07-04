@@ -1,0 +1,27 @@
+commit a80cbc25bddfa1e6be76cf539ae9276d41b5108f
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 24 14:55:06 2021 -0700
+
+    runtime: elide instantiated types in tracebacks
+    
+    They tend to be things like ".shape.int" which are noisy, if not
+    otherwise confusing.
+    
+    It would be nice to somehow print the real instantiations here, but that
+    requires keeping track of the dictionary argument so the instantiating
+    types could be found. One day, maybe, but not today.
+    
+    Fixes #48578
+    
+    Change-Id: I0968d24e110b6d47c9468c45372a6979575a8d29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352118
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/link/internal/ld/pcln.go              | 30 +++++++++++++++++++++++++--
+ src/cmd/link/internal/loader/loader.go        | 16 --------------
+ src/cmd/link/internal/loader/symbolbuilder.go | 10 +++++++++
+ 3 files changed, 38 insertions(+), 18 deletions(-)

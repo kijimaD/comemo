@@ -1,0 +1,16 @@
+commit c9f8a6cdd7303b91bbc3e2e6314e7439255b94bf
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 9 23:00:39 2017 -0700
+
+    time: remove extra space in docstring
+    
+    Probably went unnoticed because HTML normalizes multiple space
+    characters into one, unless you explicitly ask for them with &nbsp;.
+    
+    Change-Id: I3f97b24a111da3f0f28894f1246388018beb084e
+    Reviewed-on: https://go-review.googlesource.com/54570
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

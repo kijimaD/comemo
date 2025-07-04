@@ -1,0 +1,17 @@
+commit 6718bb22fe36db9f58d4b4263ed9ffa182ca0c1b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 18 17:33:49 2019 -0500
+
+    crypto/tls: send a "handshake failure" alert if the RSA key is too small
+    
+    Fixes #29779
+    
+    Change-Id: I7eb8b4db187597e07d8ec7d3ff651f008e2ca433
+    Reviewed-on: https://go-review.googlesource.com/c/158639
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_server_test.go  | 43 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server_tls13.go |  8 +++++-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

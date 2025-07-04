@@ -1,0 +1,23 @@
+commit 3cc702ba60587aaefbc953e93eedbe1f9dd9166e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Apr 19 21:17:27 2009 -0700
+
+    Initial cut at an "exported variables" (exvar) package.
+    
+    This handles integer-valued vars in a singleton struct, and exports functions
+    for incrementing, setting and getting those vars, as well as rendering all the
+    vars in a standard format.
+    
+    Demonstrate the use of the exvar package in the http/triv server.
+    
+    R=dcross,r
+    APPROVED=r
+    DELTA=122  (122 added, 0 deleted, 0 changed)
+    OCL=27617
+    CL=27622
+
+ src/lib/Makefile      |  3 +++
+ src/lib/exvar.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/exvar_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/http/triv.go  | 10 +++++++++
+ 4 files changed, 127 insertions(+)

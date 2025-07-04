@@ -1,0 +1,20 @@
+commit 273f4497833add6bec4a0b550caf23c0b3d9b0ec
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Mon Apr 17 04:16:55 2017 +0200
+
+    cmd/go/internal/work: clean up after TestRespectGroupSticky
+    
+    Use our own tempdir, to avoid having to Init (and somehow teardown)
+    Builder.  This way we don't leave behind any temp files.
+    
+    Also, don't create a hardcoded path inside a testcase.
+    
+    Followup to golang/go#18878.
+    Fixes golang/go#19449.
+    
+    Change-Id: Ieb1ebeab24ae8a74a6fa058d9c23f72b3fc1c444
+    Reviewed-on: https://go-review.googlesource.com/40912
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build_test.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

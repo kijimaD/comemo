@@ -1,0 +1,29 @@
+commit 6ef92b6e3bce369feeb114dd3267a3f18038fc8c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 18 07:46:41 2017 +0100
+
+    os: remove incorrect detection of O_CLOEXEC flag on darwin
+    
+    The below range loop will not stop when encountering
+    the first '.' character in a Darwin version string like "15.6.0".
+    
+    for i = range osver {
+       if osver[i] != '.' {
+             continue
+          }
+       }
+    }
+    
+    Therefore, the condition i > 2 was always satisfied and
+    supportsCloseOnExec was always set to true.
+    
+    Since the minimum supported version of OSX for go is currently 10.8
+    and O_CLOEXEC is implemented from OSX 10.7 on the detection code
+    can be removed and support for O_CLOEXEC is always assumed to exist.
+    
+    Change-Id: Idd10094d8385dd4adebc8d7a6d9e9a8f29455867
+    Reviewed-on: https://go-review.googlesource.com/37193
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/sys_darwin.go | 26 +++-----------------------
+ 1 file changed, 3 insertions(+), 23 deletions(-)

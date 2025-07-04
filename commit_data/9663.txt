@@ -1,0 +1,17 @@
+commit 40d85fb097c2186a9fd58934c5fa973a986e8bcb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 13 13:05:33 2011 +1000
+
+    net: add a LookupTXT function.
+    
+    This CL only supports Unix, not Plan 9 or Windows.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4996048
+
+ src/pkg/net/lookup_plan9.go   |  5 +++++
+ src/pkg/net/lookup_test.go    | 18 ++++++++++++++++++
+ src/pkg/net/lookup_unix.go    | 21 +++++++++++++++++----
+ src/pkg/net/lookup_windows.go |  4 ++++
+ 4 files changed, 44 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 9216d3e34476d2ae521d8e99ed9076a822fd0624
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Nov 16 20:14:50 2015 -0800
+
+    test: remove dead branch from run.go
+    
+    It relates to an obsolete notion of 'skipped-but-okay' tests.
+    
+    Fixes #12394
+    
+    Change-Id: Ib7e6444dc8565e1390bd42d65d30fac136593f78
+    Reviewed-on: https://go-review.googlesource.com/17000
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+
+ test/run.go | 3 ---
+ 1 file changed, 3 deletions(-)

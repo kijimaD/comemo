@@ -1,0 +1,23 @@
+commit 70308d1375414d6224752214d2dbf4517e0c7632
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 11:22:53 2023 -0700
+
+    internal/fuzz: improve debugging messages
+    
+    Also enable debugging information in TestScript/test_fuzz_cov, which
+    hits a deadlock on builders, but I am unable to trigger locally. This
+    should make it somewhat easier to track down where the issue actually
+    is.
+    
+    Updates #51484
+    
+    Change-Id: I98124f862242798f2d9eba15cacefbd02924cfe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476595
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_cov.txt |  5 +-
+ src/internal/fuzz/fuzz.go                    | 68 ++++++++++++++++++----------
+ 2 files changed, 47 insertions(+), 26 deletions(-)

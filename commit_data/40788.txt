@@ -1,0 +1,26 @@
+commit e762378c42b786233ea13affa1cc2ee132ceefaf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 12 17:22:28 2019 -0800
+
+    runtime: acquire timersLocks around moveTimers
+    
+    In the discussion of CL 171828 we decided that it was not necessary to
+    acquire timersLock around the call to moveTimers, because the world is
+    stopped. However, that is not correct, as sysmon runs even when the world
+    is stopped, and it calls timeSleepUntil which looks through the timers.
+    timeSleepUntil acquires timersLock, but that doesn't help if moveTimers
+    is running at the same time.
+    
+    Updates #6239
+    Updates #27707
+    Updates #35462
+    
+    Change-Id: I346c5bde594c4aff9955ae430b37c2b6fc71567f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206938
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 9 ++++++++-
+ src/runtime/time.go | 4 ++--
+ 2 files changed, 10 insertions(+), 3 deletions(-)

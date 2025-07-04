@@ -1,0 +1,14 @@
+commit 06eeea210b0fd764cda8d86b555343fcfac6e194
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 16:51:26 2016 -0700
+
+    cmd/compile: permit use of %S (short) and %L (long) instead of %1v and %2v
+    
+    First step towards cleaning up format use. Not yet enabled.
+    
+    Change-Id: Ia8d76bf02fe05882fffb9d17c9a30dc38d28bf81
+    Reviewed-on: https://go-review.googlesource.com/28784
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 91 ++++++++++++++++++--------------------
+ 1 file changed, 43 insertions(+), 48 deletions(-)

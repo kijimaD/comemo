@@ -1,0 +1,24 @@
+commit 76811213d7f927c15220c91b4c47af7028af4f47
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Nov 3 00:04:46 2015 +0530
+
+    cmd/go: check if destination is a regular file
+    
+    builder.copyFile ensures that the destination is an object file.  This
+    wouldn't be true if we are not writing to a regular file and the copy
+    fails.  Check if the destination is an object file only if we are
+    writing to a regular file.  While removing the file, ensure that it is a
+    regular file so that device files and such aren't removed when running
+    as a user with suggicient privileges.
+    
+    Fixes #12407
+    
+    Change-Id: Ie86ce9770fa59aa56fc486a5962287859b69db3d
+    Reviewed-on: https://go-review.googlesource.com/16585
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go   | 16 +++++++++++++---
+ src/cmd/go/go_test.go |  8 ++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

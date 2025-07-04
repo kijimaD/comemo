@@ -1,0 +1,32 @@
+commit e92c0f846c54d88f479b1c48f0dbc001d2ff53e9
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 24 09:57:58 2023 -0700
+
+    crypto/tls: QUIC: fix panics when processing post-handshake messages
+    
+    The check for fragmentary post-handshake messages in QUICConn.HandleData
+    was reversed, resulting in a potential panic when HandleData receives
+    a partial message.
+    
+    In addition, HandleData wasn't checking the size of buffered
+    post-handshake messages. Produce an error when a post-handshake
+    message is larger than maxHandshake.
+    
+    TestQUICConnectionState was using an onHandleCryptoData hook
+    in runTestQUICConnection that was never being called.
+    (I think it was inadvertently removed at some point while
+    the CL was in review.) Fix this test while making the hook
+    more general.
+    
+    Fixes #62266
+    
+    Change-Id: I210b70634e50beb456ab3977eb11272b8724c241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522595
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/quic.go      | 10 ++++--
+ src/crypto/tls/quic_test.go | 80 +++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 74 insertions(+), 16 deletions(-)

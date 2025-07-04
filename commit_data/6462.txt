@@ -1,0 +1,14 @@
+commit a0a7768b214cb5c10829ccec7775426f69f56b6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 11:54:53 2010 -0400
+
+    net: comment pedantry
+    
+    Fixes #1167.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2290044
+
+ src/pkg/net/dnsclient.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 4f40182240e6af76dcb2fbc307d69133e58cea19
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 21 17:22:30 2016 +0900
+
+    net: fix TestLookupDotsWithLocalSource
+    
+    Fixes #14050.
+    
+    Change-Id: I2d9c32213b0da35703edf28f92ed3efb23325921
+    Reviewed-on: https://go-review.googlesource.com/18792
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

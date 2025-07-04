@@ -1,0 +1,26 @@
+commit 44ab8d95d36819c9115388153deff3ef224c0691
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Nov 17 14:21:29 2014 +1100
+
+    undo CL 176900044 / 561398621ba7
+    
+    Turns out it *is* needed because the cmd/link tests expect to find their own files.
+    
+    ««« original CL description
+    misc/nacl: exclude cmd/link from the test zip.
+    
+    It does not appear to be necessary, and cmd/link does not appear in release branches.
+    
+    LGTM=rsc
+    R=adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/176900044
+    »»»
+    
+    TBR=rsc
+    R=adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175870045
+
+ misc/nacl/testzip.proto | 3 +++
+ 1 file changed, 3 insertions(+)

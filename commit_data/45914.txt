@@ -1,0 +1,23 @@
+commit ab4085ce84f8378b4ec2dfdbbc44c98cb92debe5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jul 9 17:34:07 2021 +0000
+
+    runtime/pprof: call runtime.GC twice in memory profile test
+    
+    This change fixes #46500 by working around #45315 which may cause freed
+    objects to get missed in the heap profile published for the test.
+    
+    By calling runtime.GC one more time this change ensures that all freed
+    objects are accounted for.
+    
+    Fixes #46500.
+    
+    Change-Id: Iedcd0b37dbaffa688b0ff8631a8b79f7a1169634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333549
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/pprof/mprof_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

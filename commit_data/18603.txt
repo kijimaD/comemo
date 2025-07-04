@@ -1,0 +1,16 @@
+commit f6d18c5ee93c6711b12e932c79a7e1a8374c7d45
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 18:12:46 2014 +0400
+
+    runtime/race: fix finalizer tests
+    After "runtime: combine small NoScan allocations" finalizers
+    for small objects run more non deterministically.
+    TestRaceFin episodically fails on my darwin/amd64.
+    
+    LGTM=khr
+    R=golang-codereviews, khr, dave
+    CC=golang-codereviews
+    https://golang.org/cl/56970043
+
+ src/pkg/runtime/race/testdata/finalizer_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

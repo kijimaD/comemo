@@ -1,0 +1,21 @@
+commit bc0b198bd75a8eef45d0965531ba6fa127d0e8ec
+Author: Tiwei Bie <tiwei.btw@antgroup.com>
+Date:   Thu Oct 15 01:43:51 2020 +0000
+
+    runtime: dump the status of lockedg on error
+    
+    The dumpgstatus() will dump current g's status anyway. When lockedg's
+    status is bad, it's more helpful to dump lockedg's status as well than
+    dumping current g's status twice.
+    
+    Change-Id: If5248cb94b9cdcbf4ceea07562237e1d6ee28489
+    GitHub-Last-Rev: da814c51ff42f56fb28582f088f4d72b500061fe
+    GitHub-Pull-Request: golang/go#40248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243097
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

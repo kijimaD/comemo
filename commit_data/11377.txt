@@ -1,0 +1,12 @@
+commit 6e3af46e7dbc74b44fa13ae0149bef4393efcacb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 08:58:41 2012 -0800
+
+    gofmt: fix test.sh
+    
+    R=adg, iant
+    CC=golang-dev
+    https://golang.org/cl/5573062
+
+ src/cmd/gofmt/test.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

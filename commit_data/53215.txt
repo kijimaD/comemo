@@ -1,0 +1,24 @@
+commit 4e679e26a3282e71d8dcb8af53bc21a9c1b1efe4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 23 10:39:43 2023 +0700
+
+    test: remove *_unified.go variants
+    
+    CL 415241 and CL 411935 break tests into unified/nounified variants, for
+    compatibility with old frontend while developing unified IR. Now the old
+    frontend was gone, so moving those tests back to the original files.
+    
+    Change-Id: Iecdcd4e6ee33c723f6ac02189b0be26248e15f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497275
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/escape_iface.go         | 10 ++++++++++
+ test/escape_iface_unified.go | 22 ----------------------
+ test/inline.go               | 12 ++++++++++++
+ test/inline_unified.go       | 19 -------------------
+ 4 files changed, 22 insertions(+), 41 deletions(-)

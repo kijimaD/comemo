@@ -1,0 +1,32 @@
+commit de16b3223375235a823658ab4e84716d7fb62dc4
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Tue Aug 21 14:50:04 2018 -0600
+
+    crypto/tls: make ConnectionState.ExportKeyingMaterial a method
+    
+    The unexported field is hidden from reflect based marshalers, which
+    would break otherwise. Also, make it return an error, as there are
+    multiple reasons it might fail.
+    
+    Fixes #27125
+    
+    Change-Id: I92adade2fe456103d2d5c0315629ca0256953764
+    Reviewed-on: https://go-review.googlesource.com/130535
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.11.txt                                     |  2 +-
+ doc/go1.11.html                                    |  3 +-
+ src/crypto/tls/common.go                           | 15 ++--
+ src/crypto/tls/conn.go                             |  6 +-
+ src/crypto/tls/handshake_client_test.go            | 18 +++++
+ src/crypto/tls/handshake_server_test.go            | 18 +++++
+ src/crypto/tls/prf.go                              | 16 ++--
+ src/crypto/tls/prf_test.go                         | 12 +--
+ .../testdata/Client-TLSv10-ExportKeyingMaterial    | 89 +++++++++++++++++++++
+ .../testdata/Client-TLSv12-ExportKeyingMaterial    | 84 ++++++++++++++++++++
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    | 92 ++++++++++++++++++++++
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    | 92 ++++++++++++++++++++++
+ src/crypto/tls/tls_test.go                         |  9 +++
+ 13 files changed, 432 insertions(+), 24 deletions(-)

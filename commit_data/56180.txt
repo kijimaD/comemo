@@ -1,0 +1,24 @@
+commit 890179d949da55aaa09d60c4fe2c25397d2ce906
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sun Apr 7 09:27:11 2024 -0700
+
+    misc/wasm: drop wasmtime < 14 support
+    
+    For Go 1.23, we decided to no longer support the old CLI interface
+    exposed by wasmtime. This removes the extra logic included to support
+    both the new and the old CLI interface. Now only versions of wasmtime
+    14 and newer are supported.
+    
+    Fixes #63718
+    
+    Change-Id: Iea31388dc41bc8d73caa923c7e4acae2228bf515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577135
+    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/next/7-ports.md           |  6 ++++++
+ misc/wasm/go_wasip1_wasm_exec | 10 +---------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

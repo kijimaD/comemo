@@ -1,0 +1,25 @@
+commit 22a204dd0fd9003ae51318f5f67f43937b59ee87
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 14 12:37:26 2015 -0800
+
+    cmd/compile: change dead code into assert
+    
+    After fixing #13587, I noticed that the "OAS2FUNC in disguise" block
+    looked like it probably needed write barriers too.  However, testing
+    revealed the multi-value "return f()" case was already being handled
+    correctly.
+    
+    It turns out this block is dead code due to "return f()" already being
+    transformed into "t1, t2, ..., tN := f(); return t1, t2, ..., tN" by
+    orderstmt when f is a multi-valued function.
+    
+    Updates #13587.
+    
+    Change-Id: Icde46dccc55beda2ea5fd5fcafc9aae26cec1552
+    Reviewed-on: https://go-review.googlesource.com/17759
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

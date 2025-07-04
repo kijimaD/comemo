@@ -1,0 +1,25 @@
+commit efb0ac4ce6a95435f8fba8c7f77becf083e8eaad
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 02:51:54 2020 +1100
+
+    cmd/compile: provide Add/Cas/Exchange atomic intrinsics on riscv64
+    
+    Provide Add32, Add64, Cas32, Cas64, Exchange32 and Exchange64 atomic
+    intrinsics on riscv64.
+    
+    Updates #36765
+    
+    Change-Id: I9a3b7d2ce3d49f699171fd76a0fed891d149a6bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223559
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             |  14 ++--
+ src/cmd/compile/internal/riscv64/ssa.go        |  92 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |   9 +++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  42 +++++++++-
+ src/cmd/compile/internal/ssa/opGen.go          | 108 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  18 +++++
+ 6 files changed, 273 insertions(+), 10 deletions(-)

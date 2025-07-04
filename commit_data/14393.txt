@@ -1,0 +1,14 @@
+commit 0eb42fa6e45b09e650a0abca24da7916a3e23384
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 13 09:59:46 2012 -0800
+
+    cmd/api: use one token.FileSet for all contexts
+    
+    Prep for future CL.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6843048
+
+ src/cmd/api/goapi.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

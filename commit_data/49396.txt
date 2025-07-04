@@ -1,0 +1,21 @@
+commit d43ddc1f3fb25b4338433435caae7e6f4b3138a9
+Author: 90364136+butterfly1924@users.noreply.github.com <90364136+butterfly1924@users.noreply.github.com>
+Date:   Mon Jun 6 05:10:38 2022 +0000
+
+    strconv: fix typo in atof.go
+    
+    strings for 'NaN' -> string for 'NaN'
+    
+    Change-Id: Ia415644a1b651e6ef9996ad24dd9708a60e57dfc
+    GitHub-Last-Rev: 877f1c3eb1dc885915ae75385c5d38ee6f5fd9b1
+    GitHub-Pull-Request: golang/go#53246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410494
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/strconv/atof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

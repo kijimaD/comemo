@@ -1,0 +1,21 @@
+commit 971c7154b04d8dd00da932a26ecb6bb8d8fc133d
+Author: Drew Richardson <drewrichardson@gmail.com>
+Date:   Thu Apr 1 17:05:24 2021 -0700
+
+    io/fs: implement subFS.Sub
+    
+    Calling fs.Sub with the result of fs.Sub multiple times creates a deep
+    call stack for Open and other methods. Enhance the fs.FS returned by
+    fs.Sub to implement fs.SubFS and reduce the call stack.
+    
+    Fixes #45349
+    
+    Change-Id: I10e10501e030176e10e2ae5ad260212e5c784bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306769
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/fs/sub.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

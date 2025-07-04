@@ -1,0 +1,13 @@
+commit a494c2003257edcb5e9177a4c8c0dc2240ae0d24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 17:21:58 2011 -0700
+
+    http: only recognize application/x-www-form-urlencoded in ParseForm
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5322070
+
+ src/pkg/net/http/request.go      |  2 +-
+ src/pkg/net/http/request_test.go | 19 ++++++-------------
+ 2 files changed, 7 insertions(+), 14 deletions(-)

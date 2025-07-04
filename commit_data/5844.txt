@@ -1,0 +1,21 @@
+commit 9929ee92e736a5a0b22e8cb9a0987bd309255bd2
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jul 19 11:11:40 2010 -0400
+
+            asn1: Enumerated, Flag and GeneralizedTime support.
+    
+            Add support for ASN.1 ENUMERATED types.
+    
+            Add a magic type, asn1.Flag, for the cases where the presence of an
+            empty explicit tag is semantically meaningful.
+    
+            Add support for GeneralizedTime.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1684055
+
+ src/pkg/asn1/asn1.go      | 176 +++++++++++++++++++++-------------------------
+ src/pkg/asn1/asn1_test.go |  39 +++++++---
+ src/pkg/asn1/common.go    |   4 ++
+ 3 files changed, 115 insertions(+), 104 deletions(-)

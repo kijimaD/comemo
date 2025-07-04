@@ -1,0 +1,18 @@
+commit 8d51c330122a88a7f6644580c6907ca634357f16
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 9 18:14:00 2013 -0800
+
+    net: evaluate the timeout dial opt's deadline at dial time
+    
+    Previously it was evaluated once, so re-using the timeout option
+    repeatedly would always generate the same deadine.
+    
+    Also switch to doing just one pass over the options, making
+    the private interface actually useful.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7608045
+
+ src/pkg/net/dial.go | 88 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 41 deletions(-)

@@ -1,0 +1,17 @@
+commit 7a9aa06902540803773f22cd868bc5809dddad02
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 7 15:50:16 2016 -0800
+
+    cmd/compile: remove FmtFlag save and restore
+    
+    It is unnecessary.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I7c03523b6110c3d9bd5ba2b37d9a1e17a7ae570e
+    Reviewed-on: https://go-review.googlesource.com/38145
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

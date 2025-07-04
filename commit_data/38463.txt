@@ -1,0 +1,21 @@
+commit 205d62d58b16afbb4e6232a0591e3e8f4153a591
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:14:46 2019 +0100
+
+    runtime: disable pprof test with cgo on aix/ppc64
+    
+    This commit disables new cgo pprof tests and adds an handler in sigtramp
+    to refuse SIGPROF signal.
+    
+    Updates #28555
+    
+    Change-Id: I152a871f8636e93328d411329104c6f023bd1691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164013
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go   |  3 +++
+ src/runtime/pprof/proto_test.go |  4 ++++
+ src/runtime/sys_aix_ppc64.s     | 17 +++++++++++++++++
+ 3 files changed, 24 insertions(+)

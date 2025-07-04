@@ -1,0 +1,15 @@
+commit e18ed3c111cfeeb6dd6664e9f47cb4a6f935befd
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 01:32:01 2013 +1000
+
+    cmd/5l,cmd/8l: unbreak arm and 386 linkers
+    
+    Add dragonflydynld to 5l and 8l so that they compile again.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12739048
+
+ src/cmd/5l/asm.c | 1 +
+ src/cmd/8l/asm.c | 1 +
+ 2 files changed, 2 insertions(+)

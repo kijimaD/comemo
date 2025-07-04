@@ -1,0 +1,17 @@
+commit ddcf8d402a0f8b7556dad49005ff578244baa11c
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Mar 3 23:53:39 2016 +0530
+
+    net/http: redirect if the URL path is a dir & doesn't end in a slash
+    
+    Fixes #13996
+    
+    Change-Id: I9b2c7fba0705900aca9a70bc6a2687667a9a976c
+    Reviewed-on: https://go-review.googlesource.com/20128
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      |  9 +++++++++
+ src/net/http/fs_test.go | 18 ++++++++++++++++++
+ 2 files changed, 27 insertions(+)

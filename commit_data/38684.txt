@@ -1,0 +1,20 @@
+commit 23d4c6cdd6712ba45ea4ec784bcb99cb883ab0ea
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 31 16:57:29 2019 +0000
+
+    runtime: merge codepaths in scavengeLargest
+    
+    This change just makes the code in scavengeLargest easier to reason
+    about by reducing the number of exit points to the method. It should
+    still be correct either way because the condition checked at the end
+    (released > nbytes) will always be false if we return, but this just
+    makes the code a little easier to maintain.
+    
+    Change-Id: If60da7696aca3fab3b5ddfc795d600d87c988238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160617
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

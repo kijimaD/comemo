@@ -1,0 +1,14 @@
+commit b37841cc0659f07bccea5ff7d601934ccc26e964
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 11:44:54 2012 -0500
+
+    runtime/pprof: disable test on Leopard 64-bit
+    
+    Fixes #3234.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5756078
+
+ src/pkg/runtime/pprof/pprof_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

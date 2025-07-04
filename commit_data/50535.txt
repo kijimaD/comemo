@@ -1,0 +1,24 @@
+commit d8e6ed32622b692c79a4db42e878921e1d3f16a8
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Feb 3 10:00:30 2022 +0000
+
+    time: implement Compare method
+    
+    Fixes #50770.
+    
+    Change-Id: If0104883bb409ec85827fa5b570f68099ad4fd1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382734
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/50770.txt    |  1 +
+ src/time/mono_test.go | 19 ++++++++++++++++++-
+ src/time/time.go      | 23 ++++++++++++++++++++++-
+ src/time/time_test.go |  1 +
+ 4 files changed, 42 insertions(+), 2 deletions(-)

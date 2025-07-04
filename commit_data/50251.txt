@@ -1,0 +1,22 @@
+commit cb357835d9c62232e70f7bf0eb7b105a2901bd1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 16:40:31 2022 -0700
+
+    cmd/compile/internal/types2: match go/types error for invalid instantiations
+    
+    Also: add a missing test.
+    
+    For #54511.
+    
+    Change-Id: Ie9828c6ba5186feb5a79db0d58beb2cda2beae56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426478
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/signature.go          |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue48827.go  | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go            | 16 +++++++++++-----
+ 3 files changed, 31 insertions(+), 6 deletions(-)

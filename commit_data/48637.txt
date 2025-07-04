@@ -1,0 +1,17 @@
+commit bb2b16d15ead9c5b6b9e2b699aed8bdfcf7e9518
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 3 18:01:09 2021 +0800
+
+    reflect, runtime: add reflect support for regabi on riscv64
+    
+    This CL adds regabi support needed for reflect and reimplement
+    of CL 360994, which is reverted.
+    
+    Change-Id: I140673f09109dd9f72eff70aad64c0aa00d6857a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396077
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: mzh <mzh@golangcn.org>
+
+ src/reflect/asm_riscv64.s | 54 ++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/stack.go      |  3 ++-
+ 2 files changed, 48 insertions(+), 9 deletions(-)

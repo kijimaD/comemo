@@ -1,0 +1,17 @@
+commit 9f193fbe31d7ffa5f6e71a6387cbcf4636306660
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Sat Jun 30 18:12:24 2018 +0200
+
+    encoding/json: use isSpace in stateEndTop
+    
+    This change makes stateEndTop use isSpace instead of specifically
+    recreating the same functionality.
+    
+    Change-Id: I81f8f51682e46e7f8e2b9fed423a968457200625
+    Reviewed-on: https://go-review.googlesource.com/c/121797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 770f2a17d28ae9311331692ff5e7e5950ec2c267
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Apr 11 09:09:39 2019 -0700
+
+    syscall: enforce minimum buffer size to call ReadDirent
+    
+    freebsd and netbsd require a minimum buffer size of 1K.
+    
+    Note this doesn't quite fix freebsd, it has other bugs,
+    I'll file a separate issue.
+    
+    Fixes #31403
+    
+    Change-Id: I9d7e78f6d30859b34715afadc4b8bd3b1ecc606b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171757
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/dirent_bsd_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

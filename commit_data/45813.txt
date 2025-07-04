@@ -1,0 +1,24 @@
+commit cf4e3e3d3b3a713ec4df7e995d5bf5caef045a09
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Jun 12 12:25:12 2021 -0700
+
+    reflect: explain why convertible or comparable types may still panic
+    
+    Conversions of slices to arrays may panic since the slice is too short.
+    Comparibility of interfaces may panic since the underlying value is incomparable.
+    
+    This is a follow-up to CL 301652
+    
+    Change-Id: Ia5d84a6e556a7b82c39add4be93ed7463e63cc8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327589
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/type.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,24 @@
+commit d5e5b143057921721061c3f39f14061370e4a732
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jun 5 16:12:49 2024 -0500
+
+    cmd/compile/ssa: fix (MOVWZreg (RLWINM)) folding on PPC64
+    
+    RLIWNM does not clear the upper 32 bits of the target register if
+    the mask wraps around (e.g 0xF000000F). Don't elide MOVWZreg for
+    such masks. All other usage clears the upper 32 bits.
+    
+    Fixes #67844.
+    
+    Change-Id: I11b89f1da9ae077624369bfe2bf25e9b7c9b79bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590896
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go       | 10 ++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  |  8 ++++----
+ test/codegen/bits.go                          |  5 ++++-
+ 4 files changed, 19 insertions(+), 6 deletions(-)

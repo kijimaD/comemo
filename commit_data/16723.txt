@@ -1,0 +1,15 @@
+commit 4fdc81d001b02918728f8c8bcac99323c6a83b22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 10 12:01:07 2013 -0700
+
+    go/parser: more tolerant parsing of const and var decls
+    
+    Instead, rely on the type checker.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/10826044
+
+ src/pkg/go/parser/parser.go     | 5 +++--
+ src/pkg/go/parser/short_test.go | 1 -
+ 2 files changed, 3 insertions(+), 3 deletions(-)

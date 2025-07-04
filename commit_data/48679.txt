@@ -1,0 +1,24 @@
+commit 5c4ed73f1c3f2052d8f60ce5ed45d9d4f9686331
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 13:22:57 2022 -0400
+
+    internal/goexperiment: add GOEXPERIMENT=boringcrypto
+    
+    Not hooked up to everything else yet.
+    
+    Copy of CL 395880, for setting up GOEXPERIMENT=boringcrypto
+    builder ahead of merge.
+    
+    For #51940.
+    
+    Change-Id: If842761f77d07329d88748990b95f4b39c2f153a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397895
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/goexperiment/exp_boringcrypto_off.go | 9 +++++++++
+ src/internal/goexperiment/exp_boringcrypto_on.go  | 9 +++++++++
+ src/internal/goexperiment/flags.go                | 1 +
+ 3 files changed, 19 insertions(+)

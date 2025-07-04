@@ -1,0 +1,15 @@
+commit bcdcf395e519e88a667c8e1e46782c2943f6b96c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon May 17 12:23:48 2010 -0700
+
+    Add Error member to yyLexer type (yyError
+    has no access to yylex)
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/813047
+
+ src/cmd/goyacc/doc.go    |  2 ++
+ src/cmd/goyacc/goyacc.go |  7 ++++---
+ src/cmd/goyacc/units.y   | 10 +++++-----
+ 3 files changed, 11 insertions(+), 8 deletions(-)

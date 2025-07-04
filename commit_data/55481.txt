@@ -1,0 +1,21 @@
+commit 702d609a31f02007b471c072b633fa4238554022
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Tue Jan 30 16:05:21 2024 +0000
+
+    log/slog: add missing test in value_test.go
+    
+    TestValueEqual: Added test cases for DurationValue, StringValue, and TimeValue types.
+    
+    TestValueAny: Added a test case for string values.
+    
+    Change-Id: I74ef15bcfcacd0bf5d990debd24846283edf1ecd
+    GitHub-Last-Rev: 6adb9f6f3147f0c655789b3bc86336a5c89a1b44
+    GitHub-Pull-Request: golang/go#65303
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558755
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/log/slog/value_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

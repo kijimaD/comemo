@@ -1,0 +1,14 @@
+commit 0d9db86f74aa58efed564963d64684252a7e94ea
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Aug 14 21:24:48 2013 +0200
+
+    cmd/5g, cmd/6g, cmd/8g: restore occurrences of R replaced by nil in comments.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12842043
+
+ src/cmd/5g/peep.c | 10 +++++-----
+ src/cmd/6g/peep.c |  6 +++---
+ src/cmd/8g/peep.c |  6 +++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)

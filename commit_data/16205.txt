@@ -1,0 +1,14 @@
+commit 8b29f158add964b788cea61ad608f042238f52ba
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 20 17:20:14 2013 -0700
+
+    net/http: fix a panic in Redirect
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/8721045
+
+ src/pkg/net/http/client_test.go |  2 +-
+ src/pkg/net/http/server.go      |  4 ++--
+ src/pkg/net/http/server_test.go | 35 ++++++++++++++++++++++-------------
+ 3 files changed, 25 insertions(+), 16 deletions(-)

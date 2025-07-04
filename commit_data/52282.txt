@@ -1,0 +1,20 @@
+commit 574c6209019f1efbca2a058b576b227c2e7b5e61
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jul 25 15:30:53 2022 +0800
+
+    runtime: refactor the linux/loong64 entrypoint
+    
+    Remove the meaningless jump, and add the missing NOFRAME flag to _rt0_loong64_linux.
+    
+    Change-Id: I1aec68c556615b42042684bd176dfc2a8af094d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420977
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/runtime/rt0_linux_loong64.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

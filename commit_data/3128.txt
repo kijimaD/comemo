@@ -1,0 +1,12 @@
+commit 47c568880de60b38d09dad5203fa5cf22f1b666e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 28 13:32:09 2009 -0700
+
+    bug in sliceslice
+    
+    R=rsc
+    OCL=34047
+    CL=34047
+
+ src/cmd/6g/ggen.c | 37 ++++++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

@@ -1,0 +1,20 @@
+commit b17bf6dde52446a3eebbf667735367566288b97f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 19 19:01:54 2024 -0500
+
+    net: remove an unused sync.Map in the fake net implementation
+    
+    I added this map in CL 526117, but it is apparently unused.
+    I assume that I removed all uses of it while revising that change.
+    
+    Updates #59718.
+    Updates #50216.
+    
+    Change-Id: I8cdac39f4764d1fcc31566408304c850cf0f9374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557176
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/net_fake.go | 1 -
+ 1 file changed, 1 deletion(-)

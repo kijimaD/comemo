@@ -1,0 +1,22 @@
+commit 707e5acd713702ca1067a48fe792aec53aef7a04
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Oct 12 13:42:04 2011 -0700
+
+    updates: append(y,[]byte(z)...) -> append(y,z...)"
+    
+    (more are possible but omitted for now as they are part of
+    specific tests where rather than changing what is there we
+    should probably expand the tests to cover the new case)
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5247058
+
+ src/pkg/bytes/bytes_test.go         | 2 +-
+ src/pkg/exp/norm/normregtest.go     | 2 +-
+ src/pkg/exp/norm/readwriter_test.go | 4 ++--
+ src/pkg/exp/ssh/messages.go         | 4 ++--
+ src/pkg/json/scanner_test.go        | 2 +-
+ src/pkg/os/dir_plan9.go             | 2 +-
+ src/pkg/os/env.go                   | 4 ++--
+ 7 files changed, 10 insertions(+), 10 deletions(-)

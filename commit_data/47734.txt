@@ -1,0 +1,24 @@
+commit 34573aeb9717cf20d768e640c263b294df5318a4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 7 22:51:46 2021 +0000
+
+    Revert "build: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4"
+    
+    This reverts https://golang.org/cl/369914.
+    
+    Reason for revert: Breaking previously working toolchain builds.
+    
+    For #44505.
+    
+    Change-Id: I09ae20e50109a600d036358118077d27669df39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370138
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 13 +------------
+ src/make.bash             |  9 +--------
+ src/make.bat              |  2 --
+ src/make.rc               |  3 ---
+ 4 files changed, 2 insertions(+), 25 deletions(-)

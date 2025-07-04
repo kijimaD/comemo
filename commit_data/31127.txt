@@ -1,0 +1,15 @@
+commit b0e5a0c93ccf5166dab30864df7e5632a5973447
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 16:10:09 2017 -0700
+
+    spec: clarify size hint for make of maps
+    
+    For #19903.
+    
+    Change-Id: Ib28d08d45bfad653bcc1446f160b7b4a485529af
+    Reviewed-on: https://go-review.googlesource.com/40393
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

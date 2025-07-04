@@ -1,0 +1,18 @@
+commit ee4d32249b0ccd1475a20ee9e4c5caf4a39e36c4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Jan 7 16:28:35 2021 +0800
+
+    io/fs: minor corrections to Glob release date
+    
+    io/fs is introduced in 2020, not 2009 nor 2010
+    
+    Change-Id: I7d63aae17b1f8c3af1ded2f639e3fb76ff2aea81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282232
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/fs/glob.go      | 2 +-
+ src/io/fs/glob_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

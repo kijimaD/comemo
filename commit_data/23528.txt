@@ -1,0 +1,21 @@
+commit 258bf65d8b157bfe311ce70c93dd854022a25c9d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 23 21:40:33 2015 +0900
+
+    net: relax IP interface address determination on linux
+    
+    Linux allows to have a peer IP address on IP interface over ethernet
+    link encapsulation, though it only installs a static route with the peer
+    address as an on-link nexthop.
+    
+    Fixes #11338.
+    
+    Change-Id: Ie2583737e4c7cec39baabb89dd732463d3f10a61
+    Reviewed-on: https://go-review.googlesource.com/11352
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/interface_bsd_test.go   |  4 +---
+ src/net/interface_linux.go      | 14 ++++++-------
+ src/net/interface_linux_test.go | 28 +++++++++++++++----------
+ src/net/interface_unix_test.go  | 45 +++++++++++++++++++++++++++++------------
+ 4 files changed, 56 insertions(+), 35 deletions(-)

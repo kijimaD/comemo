@@ -1,0 +1,15 @@
+commit 679fd5b4479e0b9936344a33e07a0d1f904c362b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 11 12:04:30 2015 -0700
+
+    cmd/go: do not permit importing a main package
+    
+    Fixes #4210.
+    
+    Change-Id: Id981814a6e55a57403ce7a8ac45ab3ba081a3a86
+    Reviewed-on: https://go-review.googlesource.com/10925
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 18 ++++++++++++++++++
+ src/cmd/go/pkg.go     | 10 ++++++++++
+ 2 files changed, 28 insertions(+)

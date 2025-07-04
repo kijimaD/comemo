@@ -1,0 +1,13 @@
+commit 5649c23c8c79c766a19bae209c22074fe333da61
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 10 16:49:01 2008 -0700
+
+    fixed op=, ++ and -- on maps (bug060)
+    
+    R=r
+    DELTA=22  (21 added, 0 deleted, 1 changed)
+    OCL=14049
+    CL=14049
+
+ src/cmd/gc/walk.c | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

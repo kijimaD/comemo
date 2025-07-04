@@ -1,0 +1,15 @@
+commit f980577064181bf8d24fe514c739305fce052968
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Thu Dec 9 13:41:24 2010 -0500
+
+    gc: syntax error for incomplete chan type
+    
+    Fixes #932.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3515041
+
+ src/cmd/gc/go.errors |  9 +++++++++
+ test/syntax/chan.go  | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+)

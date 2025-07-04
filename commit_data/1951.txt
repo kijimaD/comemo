@@ -1,0 +1,22 @@
+commit 416b27548ed2c6ac89c28c192880900cbc2ffa6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 18:32:57 2009 -0700
+
+    use _f007·filename for func literals.
+    this avoids problems people have run into with
+    multiple closures in the same package.
+    
+    when preparing filename, only cut off .go, not .anything.
+    this fixes a bug tgs ran into with foo.pb.go and foo.go
+    in the same package.
+    
+    also turn bad identifier chars from filename into
+    underscores: a-b.pb.go => a_b_pb
+    
+    R=ken
+    OCL=27050
+    CL=27050
+
+ src/cmd/gc/dcl.c |  2 +-
+ src/cmd/gc/lex.c | 12 ++++++++++--
+ 2 files changed, 11 insertions(+), 3 deletions(-)

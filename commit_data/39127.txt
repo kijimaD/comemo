@@ -1,0 +1,18 @@
+commit c2f7dd182ea54d53897b16bbab231a59e2a29ba0
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Sun May 5 11:25:46 2019 +0800
+
+    doc: use consistent path in example code
+    
+    Previous section of documentation said that if GOPATH is not set then
+    it will be default to "$HOME/go", not "$HOME/work".
+    
+    This change fix the path in example code to "$HOME/go", and while at it
+    fix the output of git command after commit.
+    
+    Change-Id: Ifedca6c3997efd07e865c27b7321d755acad0254
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175258
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/code.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 83aa040c450a6f1af22a61c2691e42e481b87beb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 1 11:41:32 2012 +1000
+
+    misc/dashboard/codereview: de-dup LGTMs.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6127066
+
+ misc/dashboard/codereview/dashboard/cl.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

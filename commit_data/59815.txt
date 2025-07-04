@@ -1,0 +1,18 @@
+commit 62deaf4fb839a6e152fc832c2c71325215e55831
+Author: yuuji.yaginuma <yuuji.yaginuma@gmail.com>
+Date:   Mon Jun 16 22:15:04 2025 +0000
+
+    doc: fix links to runtime Environment Variables
+    
+    Change-Id: I9e8ecc5e4f4cba0b09008b2b0d9d3f8842687ec3
+    GitHub-Last-Rev: e0ddaaed3875761a1ff3692af49c0ec2622a5e20
+    GitHub-Pull-Request: golang/go#74180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681516
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+
+ doc/godebug.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

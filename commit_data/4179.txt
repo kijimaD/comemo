@@ -1,0 +1,16 @@
+commit aa4c638b7baf1f3a0e0fd3ab10bd7c8de74869b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 11:42:28 2009 -0800
+
+    x[y:] for strings
+    
+    R=ken2
+    https://golang.org/cl/157114
+
+ src/cmd/gc/builtin.c.boot  |  1 +
+ src/cmd/gc/const.c         |  2 +-
+ src/cmd/gc/runtime.go      |  1 +
+ src/cmd/gc/walk.c          | 14 ++++++++++----
+ src/pkg/runtime/string.cgo | 18 ++++++++++++++++++
+ test/ken/string.go         |  2 +-
+ 6 files changed, 32 insertions(+), 6 deletions(-)

@@ -1,0 +1,41 @@
+commit 9a81702b974f9d6e5569f069baaad58a0829c63a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 28 12:57:38 2021 -0400
+
+    cmd/go: enable lazy loading
+    
+    This change activates the dormant “lazy loading” codepaths added in CL
+    265777 and its predecessors. Dependencies of modules that declare 'go
+    1.17' or higher are loaded lazily, and the dependencies in the go.mod
+    file maintain additional invariants to support more efficient lazy
+    loading for downstream dependent modules.
+    
+    See https://golang.org/design/36460-lazy-module-loading for the
+    detailed design.
+    
+    For #36460
+    
+    Change-Id: Ic12ee7842aef9580357fcf8909d87654fcb2ad12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314634
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.17.html                                    | 17 +++-
+ src/cmd/go.mod                                     |  3 +
+ src/cmd/go/internal/modload/modfile.go             |  2 +-
+ src/cmd/go/testdata/script/mod_all.txt             | 54 +++++++++----
+ .../go/testdata/script/mod_get_missing_ziphash.txt |  2 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |  4 +-
+ src/cmd/go/testdata/script/mod_lazy_downgrade.txt  | 56 ++++++++++---
+ .../go/testdata/script/mod_lazy_import_allmod.txt  | 36 ++++++---
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt | 56 ++++++++++++-
+ .../go/testdata/script/mod_lazy_test_horizon.txt   | 16 ++--
+ .../testdata/script/mod_lazy_test_of_test_dep.txt  | 94 ++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_list_sums.txt       | 35 ++++++++
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt |  4 +-
+ .../go/testdata/script/mod_tidy_convergence.txt    | 16 +++-
+ .../testdata/script/mod_tidy_convergence_loop.txt  | 59 +++++++++++++-
+ src/cmd/vendor/modules.txt                         |  3 +
+ 16 files changed, 396 insertions(+), 61 deletions(-)

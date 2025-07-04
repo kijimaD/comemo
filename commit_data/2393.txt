@@ -1,0 +1,20 @@
+commit a52fb815e47503126b2a8d9c0907e9c9e6d01193
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 21:09:06 2009 -0700
+
+    386-related fixes and guards
+    
+    R=r
+    DELTA=44  (19 added, 1 deleted, 24 changed)
+    OCL=29912
+    CL=29915
+
+ src/lib/reflect/type.go  |  4 ++--
+ src/lib/reflect/value.go | 13 ++++++++++---
+ src/runtime/386/asm.s    |  2 +-
+ src/runtime/hashmap.h    |  6 +++---
+ src/runtime/iface.c      |  6 +++---
+ src/runtime/malloc.c     | 11 ++++++++---
+ src/runtime/runtime.c    | 22 ++++++++++++++--------
+ src/runtime/runtime.h    |  8 ++++----
+ 8 files changed, 45 insertions(+), 27 deletions(-)

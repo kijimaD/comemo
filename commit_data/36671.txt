@@ -1,0 +1,15 @@
+commit 83c605fb96b694455ca3c7c3d69bc6e4f526268e
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Sat Sep 15 18:31:49 2018 +0200
+
+    internal/poll: improve Splice comments
+    
+    Clarify the behavior of splice on older kernels, merge comments so
+    control flow becomes more obvious, as discussed in CL 133575.
+    
+    Change-Id: I95855991bd0b1fa1c78a900b39c4382f65d83468
+    Reviewed-on: https://go-review.googlesource.com/135436
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/splice_linux.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

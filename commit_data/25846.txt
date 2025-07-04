@@ -1,0 +1,18 @@
+commit 5583e8a4213467d3401710873f67403cb2de22f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 10:42:06 2016 -0800
+
+    spec: fix EBNF for slice syntax
+    
+    The () parentheses grouped wrongly. Removed them completely in
+    favor of separate 2- and 3-index slice alternatives which is
+    clearer.
+    
+    Fixes #14477.
+    
+    Change-Id: I0b7521ac912130d9ea8740b8793b3b88e2609418
+    Reviewed-on: https://go-review.googlesource.com/19853
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

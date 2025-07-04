@@ -1,0 +1,18 @@
+commit c586630d993f6136d3166837669b26f4210a79d5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Dec 8 23:21:48 2016 -0800
+
+    doc: update go1.8.html
+    
+    Made many minor changes so that the document is consistent with itself.
+    
+    Some more noticeable changes:
+    * CL/34141: Revert "testing: add T.Context method"
+    * CL/33630: net/http: document restrictions on ETag as expected by ServeContent
+    
+    Change-Id: I39ae5e55c56e374895c115e6852998c940beae35
+    Reviewed-on: https://go-review.googlesource.com/34243
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 260 +++++++++++++++++++++++++++------------------------------
+ 1 file changed, 125 insertions(+), 135 deletions(-)

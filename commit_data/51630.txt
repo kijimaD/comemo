@@ -1,0 +1,23 @@
+commit 3af3810a3eeef49890b3cffb8d3f2a491f1b1b35
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 8 11:26:11 2022 -0800
+
+    go/types, types2: avoid sorting all errors when matching errors
+    
+    Sorting is only needed if there are multiple matching errors on
+    the same line. Instead, in that rare case, select the error that
+    is closest.
+    
+    Follow-up on CL 456137.
+    
+    Change-Id: Ia2056b21c629f3a42495e32de89607fbefb82fa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456335
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 39 +++++++++++-----------
+ src/go/types/check_test.go                    | 48 ++++++++++++---------------
+ 2 files changed, 41 insertions(+), 46 deletions(-)

@@ -1,0 +1,13 @@
+commit c918c41c589f476d5aba557d55993efac2724528
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 18:23:41 2010 -0800
+
+    add doc/devel/index.html, linked from nav bar
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181156
+
+ doc/devel/index.html | 7 +++++++
+ lib/godoc/godoc.html | 9 +++------
+ 2 files changed, 10 insertions(+), 6 deletions(-)

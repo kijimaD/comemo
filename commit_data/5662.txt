@@ -1,0 +1,14 @@
+commit 177746ba31e4b4648bdaabfc8d0cd5370eb8aa2b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 14 17:42:31 2010 -0700
+
+    fmt.Printf: write tests for %T.
+    Fix a bug that caused it to ignore field widths.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1704041
+
+ src/pkg/fmt/fmt_test.go | 6 ++++++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit f774e6a1f85aa7e2bbdd20b7ef475ed8adbe7bfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 27 16:18:35 2015 -0400
+
+    runtime/race: stop listening to external network addresses
+    
+    This makes the OS X firewall box pop up.
+    Not run during all.bash so hasn't been noticed before.
+    
+    Change-Id: I78feb4fd3e1d3c983ae3419085048831c04de3da
+    Reviewed-on: https://go-review.googlesource.com/9401
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/race/testdata/io_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

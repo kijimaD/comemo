@@ -1,0 +1,15 @@
+commit a96c2b8c1afd8fbf7a16ed2f4e5f647c5f8cc17a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 1 19:55:55 2012 -0400
+
+    cmd/gc: fix PkgPath of byte, rune types
+    
+    Fixes #3853.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6492071
+
+ src/cmd/gc/reflect.c        |  6 ++++++
+ src/pkg/reflect/all_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

@@ -1,0 +1,15 @@
+commit c929ac5f7e731e7251251b161241a6847f373363
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Sep 6 16:55:30 2013 -0400
+
+    cmd/gc: add missing typecheck for walk-generated constants.
+    
+    Fixes #6131.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/12800045
+
+ src/cmd/gc/walk.c           |  2 ++
+ test/fixedbugs/issue6131.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

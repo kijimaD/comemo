@@ -1,0 +1,19 @@
+commit 2a5745d81e9a5b3af1f0b42f5cbc0d6ba4ba6ec2
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Jun 17 14:07:13 2015 +0200
+
+    compress/lzw: mention relation between litWidth and input bytes
+    
+    Add sentences to the docs explaining the limit on input
+    bytes implicit in the choice of litWidth, and the fact that
+    compress and decompress litWidth must match.
+    
+    Fixes #11142.
+    
+    Change-Id: I20cfb4df35739f7bfeb50b92c78249df3d47942c
+    Reviewed-on: https://go-review.googlesource.com/11063
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/lzw/reader.go | 3 ++-
+ src/compress/lzw/writer.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

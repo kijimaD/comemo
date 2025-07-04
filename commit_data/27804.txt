@@ -1,0 +1,47 @@
+commit 664c4a1f87fb48d7af6880fd9e4b504049c37b9b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 15 01:39:00 2016 +0900
+
+    os: consolidate files
+    
+    Code movement only.
+    
+    If someone finds function 'foo' in "foo_linux.go",
+    they will expect that the Window version of 'foo' exists in "foo_windows.go".
+    
+    Current code doesn't follow this manner.
+    
+    For example, 'sameFile' exists in "file_unix.go",
+    "stat_plan9.go" and "types_windows.go".
+    
+    The CL address that problem by following rules:
+    
+    * readdir family => dir.go, dir_$GOOS.go
+    * stat family => stat.go, stat_$GOOS.go
+    * path-functions => path_$GOOS.go
+    * sameFile => types.go, types_$GOOS.go
+    * process-functions => exec.go, exec_$GOOS.go
+    * hostname => sys.go, sys_$GOOS.go
+    
+    Change-Id: Ic3c64663ce0b2a364d7a414351cd3c772e70187b
+    Reviewed-on: https://go-review.googlesource.com/27035
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/dir.go          |  46 ++++++++++++++++
+ src/os/dir_unix.go     |  22 ++++++++
+ src/os/dir_windows.go  |  64 +++++++++++++++++++++++
+ src/os/doc.go          | 139 -------------------------------------------------
+ src/os/exec.go         |  87 +++++++++++++++++++++++++++++++
+ src/os/file_unix.go    |  85 ------------------------------
+ src/os/file_windows.go |  98 ----------------------------------
+ src/os/path_unix.go    |  18 +++++++
+ src/os/path_windows.go | 113 ++++++++++++++++++++++++++++++++++++++++
+ src/os/stat_plan9.go   |   6 ---
+ src/os/stat_unix.go    |  52 ++++++++++++++++++
+ src/os/stat_windows.go |  74 --------------------------
+ src/os/sys.go          |  10 ++++
+ src/os/types_plan9.go  |  11 +++-
+ src/os/types_unix.go   |   4 ++
+ 15 files changed, 426 insertions(+), 403 deletions(-)

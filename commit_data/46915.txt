@@ -1,0 +1,25 @@
+commit 680caf15355057ca84857a2a291b6f5c44e73329
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Sep 3 21:58:57 2021 +0200
+
+    misc/wasm: expect environment to provide polyfills
+    
+    The list of environments to support with wasm_exec.js was becoming too
+    large to maintain. With this change, wasm_exec.js expects that the
+    environment provides all necessary polyfills.
+    
+    The standardized "globalThis" is used for accessing the environment.
+    wasm_exec.js now only provides stub fallbacks for globalThis.fs and
+    globalThis.process.
+    
+    All code specific to Node.js is now in a separate file.
+    
+    Change-Id: I076febbd94d4d7845260faad972f450f74a7b983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347353
+    Trust: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/wasm/go_js_wasm_exec   |   2 +-
+ misc/wasm/wasm_exec.js      | 115 ++++++--------------------------------------
+ misc/wasm/wasm_exec_node.js |  49 +++++++++++++++++++
+ 3 files changed, 66 insertions(+), 100 deletions(-)

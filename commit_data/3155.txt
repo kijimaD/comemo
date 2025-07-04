@@ -1,0 +1,19 @@
+commit a843b4541a8bf268d03f6a4c8320e2f84b7bf180
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:38:30 2009 -0700
+
+    fmt: add verbs:
+            %E - upper case %e
+            %G - upper case %g
+            %#v - Go syntax
+    
+    R=r
+    DELTA=332  (238 added, 47 deleted, 47 changed)
+    OCL=34091
+    CL=34145
+
+ src/pkg/fmt/fmt_test.go |  57 +++++++++--
+ src/pkg/fmt/format.go   |  20 ++++
+ src/pkg/fmt/print.go    | 244 ++++++++++++++++++++++++++++++++++++------------
+ src/pkg/strconv/ftoa.go |  20 ++--
+ 4 files changed, 266 insertions(+), 75 deletions(-)

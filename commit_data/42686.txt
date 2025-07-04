@@ -1,0 +1,17 @@
+commit cf9b4f63a57b4360be700831781885fc6cf5a0b1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 5 03:15:58 2020 +1000
+
+    runtime: use riscv64 RDTIME instruction
+    
+    Use the actual RDTIME instruction, rather than a WORD.
+    Generated code is the same.
+    
+    Change-Id: I6f6f5a1836eae2d05af34d4a22db2ede4fdcb458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231997
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

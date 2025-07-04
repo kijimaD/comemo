@@ -1,0 +1,17 @@
+commit a330ca5c541e99e4561420c852b14df63574a065
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 12:14:58 2022 -0700
+
+    cmd/compile/internal/syntax: more tolerant parsing of import declarations
+    
+    Change-Id: I114548640d51bf69833259578609901fa1602510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427156
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go          | 25 +++++++++++++---------
+ .../types2/testdata/fixedbugs/issue43190.go        | 12 +++++++++--
+ 2 files changed, 25 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit 89996e1fb1b3834746340570c2d1b48ef9fc1b9b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 2 17:03:47 2008 -0800
+
+    truncating of float constants when
+    used in float64 or float32 contexts
+    
+    R=r
+    OCL=20297
+    CL=20297
+
+ src/cmd/gc/const.c    | 53 ++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/gc/mparith3.c | 15 ++++++++++-----
+ 2 files changed, 46 insertions(+), 22 deletions(-)

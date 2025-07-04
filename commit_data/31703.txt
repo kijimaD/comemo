@@ -1,0 +1,12 @@
+commit b547429a2573969a7883fa5142771c2f2a84091f
+Author: Filippo Valsorda <filippo@cloudflare.com>
+Date:   Fri Jun 2 13:01:30 2017 -0700
+
+    C: add Filippo Valsorda's cloudflare.com email (Cloudflare CLA)
+    
+    Change-Id: I98d265bfa4f5944360d0258d2cb6bbc78010c708
+    Reviewed-on: https://go-review.googlesource.com/44731
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

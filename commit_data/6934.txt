@@ -1,0 +1,12 @@
+commit 88cf5564fcc295f05df6fc1b28f4b03533cb1139
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 15:26:52 2010 -0500
+
+    ld: missing prototype
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3620041
+
+ src/cmd/ld/macho.h | 1 +
+ 1 file changed, 1 insertion(+)

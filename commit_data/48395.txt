@@ -1,0 +1,38 @@
+commit 95395fdbe3e76778a9035d9478f52513fc34a97b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jan 7 12:13:31 2022 -0500
+
+    syscall: call ABIInternal entersyscall on register ABI platforms
+    
+    Currently, when register ABI is used, syscall.Syscall calls
+    entersyscall via a wrapper, so the actual entersyscall records the
+    caller PC and SP of the wrapper. At the point of the actual
+    syscall, the wrapper frame is gone, so the recorded PC and SP are
+    technically invalid. Furthermore, in some functions on some
+    platforms (e.g. Syscall9 on NetBSD/AMD64), that frame is
+    overwritten. If we unwind the stack from the recorded syscallpc
+    and syscallsp, it may go wrong. Fix this by calling the
+    ABIInternal function directly.
+    
+    exitsyscall calls are changed as well. It doesn't really matter,
+    just changed for consistency.
+    
+    Change-Id: Iead8dd22cf32b05e382414fef664b7c4c1719b7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376356
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/syscall/asm9_unix2_amd64.s  |  6 +++---
+ src/syscall/asm_darwin_amd64.s  | 18 +++++++++---------
+ src/syscall/asm_darwin_arm64.s  | 18 +++++++++---------
+ src/syscall/asm_freebsd_arm64.s | 18 +++++++++---------
+ src/syscall/asm_linux_amd64.s   | 12 ++++++------
+ src/syscall/asm_linux_arm64.s   | 12 ++++++------
+ src/syscall/asm_linux_ppc64x.s  | 12 ++++++------
+ src/syscall/asm_netbsd_amd64.s  |  6 +++---
+ src/syscall/asm_netbsd_arm64.s  | 19 +++++++++----------
+ src/syscall/asm_plan9_amd64.s   | 12 ++++++------
+ src/syscall/asm_unix_amd64.s    | 12 ++++++------
+ 11 files changed, 72 insertions(+), 73 deletions(-)

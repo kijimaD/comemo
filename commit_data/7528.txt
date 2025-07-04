@@ -1,0 +1,102 @@
+commit d9fd11443ca0a6e421cb8f68b533eb2af136e81f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 17:40:40 2011 -0500
+
+    ld: detect stack overflow due to NOSPLIT
+    
+    Fix problems found.
+    
+    On amd64, various library routines had bigger
+    stack frames than expected, because large function
+    calls had been added.
+    
+    runtime.assertI2T: nosplit stack overflow
+            120     assumed on entry to runtime.assertI2T
+            8       after runtime.assertI2T uses 112
+            0       on entry to runtime.newTypeAssertionError
+            -8      on entry to runtime.morestack01
+    
+    runtime.assertE2E: nosplit stack overflow
+            120     assumed on entry to runtime.assertE2E
+            16      after runtime.assertE2E uses 104
+            8       on entry to runtime.panic
+            0       on entry to runtime.morestack16
+            -8      after runtime.morestack16 uses 8
+    
+    runtime.assertE2T: nosplit stack overflow
+            120     assumed on entry to runtime.assertE2T
+            16      after runtime.assertE2T uses 104
+            8       on entry to runtime.panic
+            0       on entry to runtime.morestack16
+            -8      after runtime.morestack16 uses 8
+    
+    runtime.newselect: nosplit stack overflow
+            120     assumed on entry to runtime.newselect
+            56      after runtime.newselect uses 64
+            48      on entry to runtime.printf
+            8       after runtime.printf uses 40
+            0       on entry to vprintf
+            -8      on entry to runtime.morestack16
+    
+    runtime.selectdefault: nosplit stack overflow
+            120     assumed on entry to runtime.selectdefault
+            56      after runtime.selectdefault uses 64
+            48      on entry to runtime.printf
+            8       after runtime.printf uses 40
+            0       on entry to vprintf
+            -8      on entry to runtime.morestack16
+    
+    runtime.selectgo: nosplit stack overflow
+            120     assumed on entry to runtime.selectgo
+            0       after runtime.selectgo uses 120
+            -8      on entry to runtime.gosched
+    
+    On arm, 5c was tagging functions NOSPLIT that should
+    not have been, like the recursive function printpanics:
+    
+    printpanics: nosplit stack overflow
+            124     assumed on entry to printpanics
+            112     after printpanics uses 12
+            108     on entry to printpanics
+            96      after printpanics uses 12
+            92      on entry to printpanics
+            80      after printpanics uses 12
+            76      on entry to printpanics
+            64      after printpanics uses 12
+            60      on entry to printpanics
+            48      after printpanics uses 12
+            44      on entry to printpanics
+            32      after printpanics uses 12
+            28      on entry to printpanics
+            16      after printpanics uses 12
+            12      on entry to printpanics
+            0       after printpanics uses 12
+            -4      on entry to printpanics
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4188061
+
+ src/cmd/5c/txt.c           |   4 +-
+ src/cmd/5l/l.h             |   5 ++
+ src/cmd/5l/list.c          |   4 +
+ src/cmd/5l/noop.c          |  24 +++++-
+ src/cmd/5l/obj.c           |   2 +-
+ src/cmd/6l/l.h             |   4 +-
+ src/cmd/6l/obj.c           |   2 +-
+ src/cmd/6l/pass.c          |   8 +-
+ src/cmd/8l/l.h             |   3 +
+ src/cmd/8l/obj.c           |   1 -
+ src/cmd/8l/pass.c          |   2 +
+ src/cmd/ld/lib.c           | 180 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.h           |   2 +-
+ src/pkg/runtime/arm/asm.s  |  10 +--
+ src/pkg/runtime/cgocall.c  |   3 +-
+ src/pkg/runtime/chan.c     |  44 +++++++++--
+ src/pkg/runtime/iface.c    |  33 +++++----
+ src/pkg/runtime/malloc.goc |   3 +-
+ src/pkg/runtime/proc.c     |  24 +++---
+ src/pkg/runtime/runtime.c  |   1 +
+ src/pkg/runtime/runtime.h  |  82 ++-------------------
+ src/pkg/runtime/stack.h    |  86 ++++++++++++++++++++++
+ 22 files changed, 400 insertions(+), 127 deletions(-)

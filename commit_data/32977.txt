@@ -1,0 +1,27 @@
+commit 31a3b719a008205d4465a9e93dc7d29edc485e37
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 4 11:42:37 2017 -0700
+
+    cmd/compile: cleanup genwrapper slightly
+    
+    ORETJMP doesn't need an ONAME if we just set the target method on Sym
+    instead of Left. Conveniently, this is where fmt.go was looking for it
+    anyway.
+    
+    Change the iface parameter and global compiling_wrappers to bool.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5333f8bcb4e06bf8161808041125eb95c439aafe
+    Reviewed-on: https://go-review.googlesource.com/68252
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/go.go        |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  8 +++-----
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ 5 files changed, 14 insertions(+), 16 deletions(-)

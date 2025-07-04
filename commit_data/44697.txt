@@ -1,0 +1,31 @@
+commit 7a1e963058460d4136603b86386f2bae6fe0d5f2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 23:21:09 2021 -0500
+
+    cmd/compile, cmd/link: dynamically export writable static tmps
+    
+    Static tmps are private to a package, but with plugins a package
+    can be shared among multiple DSOs. They need to have a consistent
+    view of the static tmps, especially for writable ones. So export
+    them. (Read-only static tmps have the same values anyway, so it
+    doesn't matter. Also Mach-O doesn't support dynamically exporting
+    read-only symbols anyway.)
+    
+    Fixes #44956.
+    
+    Change-Id: I921e25b7ab73cd5d5347800eccdb7931e3448779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301793
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testplugin/plugin_test.go                 |  7 ++++
+ .../testplugin/testdata/issue44956/base/base.go    |  7 ++++
+ misc/cgo/testplugin/testdata/issue44956/main.go    | 47 ++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/issue44956/plugin1.go |  9 +++++
+ misc/cgo/testplugin/testdata/issue44956/plugin2.go | 11 +++++
+ src/cmd/compile/internal/staticinit/sched.go       |  1 -
+ src/cmd/compile/internal/walk/complit.go           |  3 +-
+ src/cmd/link/internal/ld/symtab.go                 |  9 ++++-
+ 8 files changed, 91 insertions(+), 3 deletions(-)

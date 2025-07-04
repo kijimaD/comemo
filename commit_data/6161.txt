@@ -1,0 +1,14 @@
+commit 8d7ae528bfe295cce6a7a72eee9eb187ad28c23d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:21:11 2010 -0400
+
+    http: add Date to server, Last-Modified and If-Modified-Since to file server
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2051041
+
+ src/pkg/http/fs.go     | 14 ++++++++++----
+ src/pkg/http/server.go |  7 +++++++
+ src/pkg/http/triv.go   | 23 +++--------------------
+ 3 files changed, 20 insertions(+), 24 deletions(-)

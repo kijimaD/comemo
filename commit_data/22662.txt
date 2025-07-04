@@ -1,0 +1,21 @@
+commit 43618e62ca387faf2272308a46fed9378fa36a87
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 22 16:27:59 2015 -0400
+
+    log/syslog: make the BUG notes visible on golang.org
+    
+    It was only visible when you run godoc with explicit GOOS=windows,
+    which is less useful for people developing portable application on
+    non-windows platforms.
+    
+    Also added a note that log/syslog is not supported on NaCl.
+    
+    Change-Id: I81650445fb2a5ee161da7e0608c3d3547d5ac2a6
+    Reviewed-on: https://go-review.googlesource.com/9245
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/syslog/doc.go            | 18 ++++++++++++++++++
+ src/log/syslog/syslog.go         |  7 -------
+ src/log/syslog/syslog_plan9.go   |  8 --------
+ src/log/syslog/syslog_windows.go |  8 --------
+ 4 files changed, 18 insertions(+), 23 deletions(-)

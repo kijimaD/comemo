@@ -1,0 +1,15 @@
+commit 262b524a1171b42f0507043b1fa068a9bcc5ef3a
+Author: Ahmed W <oneofone@gmail.com>
+Date:   Fri Feb 16 18:33:15 2018 +0000
+
+    A+C: update my name and spelling
+    
+    GitHub-Last-Rev: ff68319f4c46271ddb927d176756962a3a2b4332
+    GitHub-Pull-Request: golang/go#23874
+    Change-Id: I7242c5cc35f04e23d807f5e91180c4ef510e7d1a
+    Reviewed-on: https://go-review.googlesource.com/94840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

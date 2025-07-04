@@ -1,0 +1,13 @@
+commit da8c5e7239d7c1e7238605c2b7f9a954dd8a2997
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 16:17:49 2011 -0400
+
+    os/inotify: use _test for test files, not _obj
+    
+    R=golang-dev, r, iant2
+    CC=golang-dev
+    https://golang.org/cl/4408043
+
+ src/pkg/os/inotify/inotify_linux.go      | 2 +-
+ src/pkg/os/inotify/inotify_linux_test.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

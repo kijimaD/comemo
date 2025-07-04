@@ -1,0 +1,21 @@
+commit e019d01d98cd4f42279b43c77c1a6c2a901a690f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 16:34:29 2023 -0700
+
+    encoding/csv: correct Column docs
+    
+    For #44221
+    Fixes #62147
+    
+    Change-Id: Ibcc0d11c8253f51a8f5771791ea4173a38a61950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520917
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/csv/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

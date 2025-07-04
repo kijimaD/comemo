@@ -1,0 +1,16 @@
+commit ce39b34f36c5cd2655a4b1eba80c7e3b2610f021
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 17:01:13 2014 -0700
+
+    time: change formatting of microseconds duration to SI modifier
+    'u' is not micro, µ (U+00B5) is.
+    
+    LGTM=gri, bradfitz
+    R=golang-codereviews, bradfitz, gri
+    CC=golang-codereviews
+    https://golang.org/cl/105030046
+
+ src/pkg/time/example_test.go |  4 ++--
+ src/pkg/time/time.go         | 19 +++++++++----------
+ src/pkg/time/time_test.go    |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit 6731063e42e6c9831a19e1cc7b79658bd663ad9b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 13 17:19:33 2015 +0300
+
+    runtime/race: fix test in preparation for new race runtime
+    
+    New race runtime is more scrupulous about env flags format.
+    
+    Change-Id: I2828bc737a8be3feae5288ccf034c52883f224d8
+    Reviewed-on: https://go-review.googlesource.com/4811
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/race_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

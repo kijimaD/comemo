@@ -1,0 +1,29 @@
+commit 023668638298d0abf81090dd44464d3c8b724aa7
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jul 29 08:27:21 2023 +0000
+
+    os: fix test failure when Workstation service is not enabled
+    
+    TestNetworkSymbolicLink needs to enable the Workstation service, otherwise it will fail.
+    
+    This CL avoids failure by skipping testing when the Workstation service is not enabled.
+    
+    Fixes #61467
+    
+    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
+    
+    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
+    GitHub-Last-Rev: 7f089d1dff3ca939915fc8b3e49eba3908f15180
+    GitHub-Pull-Request: golang/go#61564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512736
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/syscall_windows.go  | 19 ++++++++++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 29 ++++++++++++++++++++++++
+ src/os/os_windows_test.go                        | 23 +++++++++++++++++++
+ 3 files changed, 71 insertions(+)

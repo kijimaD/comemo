@@ -1,0 +1,15 @@
+commit 8f037fa1ab223f48750117219cd4fff8c6575970
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 21:55:09 2015 -0400
+
+    runtime: fix TestLFStack on 386
+    
+    The new(uint64) was moving to the stack, which may not be aligned.
+    
+    Change-Id: Iad070964202001b52029494d43e299fed980f939
+    Reviewed-on: https://go-review.googlesource.com/9787
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/lfstack_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

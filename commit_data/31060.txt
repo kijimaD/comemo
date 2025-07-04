@@ -1,0 +1,17 @@
+commit 221541ec8c4ec1b0ed0c6f26f5e13ca128e2a3cd
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Apr 6 18:47:01 2017 -0700
+
+    testing: consider a test failed after race errors
+    
+    Fixes #19851.
+    
+    Change-Id: I5ee9533406542be7d5418df154f6134139e75892
+    Reviewed-on: https://go-review.googlesource.com/39890
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/race/output_test.go | 2 ++
+ src/testing/testing.go          | 5 +++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

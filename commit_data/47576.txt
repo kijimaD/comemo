@@ -1,0 +1,19 @@
+commit 8f559bcb4666b2358c227aa1bd3a82f3b806d45a
+Author: Bharath Kumar Uppala <uppala.bharath@gmail.com>
+Date:   Sun Nov 21 02:15:39 2021 +0530
+
+    testing: mention that TB also covers the new type F
+    
+    Fixes #48146
+    
+    Change-Id: I7c667a7915db81558514bc9fada6898c565eb0fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365894
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

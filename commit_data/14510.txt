@@ -1,0 +1,23 @@
+commit e781b20ac9c0d5ec7658f4f6a2b8041b3706e1c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 27 10:29:49 2012 -0800
+
+    go/format: Package format implements standard formatting of Go source.
+    
+    Package format is a utility package that takes care of
+    parsing, sorting of imports, and formatting of .go source
+    using the canonical gofmt formatting parameters.
+    
+    Use go/format in various clients instead of the lower-level components.
+    
+    R=r, bradfitz, dave, rogpeppe, rsc
+    CC=golang-dev
+    https://golang.org/cl/6852075
+
+ src/cmd/fix/main.go              |  21 +---
+ src/cmd/godoc/godoc.go           |   5 +-
+ src/cmd/godoc/play.go            |  31 +-----
+ src/cmd/godoc/template.go        |   8 +-
+ src/pkg/go/format/format.go      | 200 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/format/format_test.go | 125 ++++++++++++++++++++++++
+ 6 files changed, 338 insertions(+), 52 deletions(-)

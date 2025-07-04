@@ -1,0 +1,18 @@
+commit 03f42934c126d732db2c1f22c2b53fe507f8b4d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 17:21:02 2010 -0700
+
+    gofmt/go/parser: strengthen syntax checks
+    
+    - don't allow parenthesized receiver base types or anonymous fields
+    - fixed a couple of other omissions
+    - adjusted gofmt test script
+    - removed several TODOs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1897043
+
+ src/cmd/gofmt/test.sh       |   2 +-
+ src/pkg/go/parser/parser.go | 128 ++++++++++++++++++++++----------------------
+ 2 files changed, 66 insertions(+), 64 deletions(-)

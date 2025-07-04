@@ -1,0 +1,12 @@
+commit 1f133e2b8ecfc2d26ed480eba266f1b86647dc5c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 7 12:05:59 2012 +1100
+
+    net: run TestDialTimeout on windows
+    
+    R=golang-dev, rsc
+    CC=bradfitz, golang-dev, mikioh.mikioh
+    https://golang.org/cl/5616066
+
+ src/pkg/net/dial_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

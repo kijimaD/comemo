@@ -1,0 +1,26 @@
+commit bc1d71ff64b01ac912cb0fa28c0f6dd5904fcd56
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Jun 15 15:09:11 2023 -0400
+
+    cmd/compile: add a 'Tips' section to README to help new contributors
+    
+    This CL adds a new 'Tips' section to the cmd/compile README.
+    
+    The primary intent is to help new-ish contributors.
+    
+    It includes some basics on getting started, testing changes,
+    viewing coverage, juggling different compiler versions,
+    some links to additional tools, and so on.
+    
+    Updates #30074
+    
+    Change-Id: I393bf1137db9d2bb851f7e254b08455273ccad8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/README.md | 170 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 170 insertions(+)

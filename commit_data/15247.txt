@@ -1,0 +1,15 @@
+commit ac1015e7f3ef68be5d1c0721d76296ad84fe6768
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:49:04 2013 -0500
+
+    cmd/8g: fix sse2 compare code gen
+    
+    Fixes #4785.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7300109
+
+ src/cmd/8g/ggen.c           | 20 --------------------
+ test/fixedbugs/issue4785.go | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 20 deletions(-)

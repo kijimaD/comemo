@@ -1,0 +1,20 @@
+commit 954e2c0b062d21f4914f04f0eb1aa7c5197ee92c
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jan 6 12:59:07 2025 -0500
+
+    sync: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    This changes the use of finalizers to the cleanup implementation in
+    tests.
+    
+    Updates #70907
+    
+    Change-Id: I7d7289999a83fa53f538698f34294f7d9651c921
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640735
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sync/map_test.go      | 10 ++++------
+ src/sync/oncefunc_test.go |  4 +---
+ src/sync/pool_test.go     | 10 ++++------
+ 3 files changed, 9 insertions(+), 15 deletions(-)

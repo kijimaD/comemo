@@ -1,0 +1,25 @@
+commit eeff8fa4536abcc2ad717aeea58c126ad23fce3f
+Author: David Chase <drchase@google.com>
+Date:   Mon May 14 16:12:59 2018 -0400
+
+    cmd/compile: remove now-irrelevant test
+    
+    This test measures "line churn" which was minimized to help
+    improve the debugger experience.  With proper is_stmt markers,
+    this is no longer necessary, and it is more accurate (for
+    profiling) to allow line numbers to vary willy-nilly.
+    
+    "Debugger experience" is now better measured by
+    cmd/compile/internal/ssa/debug_test.go
+    
+    This CL made the obsoleting change:
+    https://go-review.googlesource.com/c/go/+/102435
+    
+    Change-Id: I874ab89f3b243b905aaeba7836118f632225a667
+    Reviewed-on: https://go-review.googlesource.com/113155
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue18902.go  | 141 ------------------------------------
+ test/fixedbugs/issue18902b.go | 161 ------------------------------------------
+ 2 files changed, 302 deletions(-)

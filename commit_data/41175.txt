@@ -1,0 +1,20 @@
+commit 74d366f4844026494e777638caffaf94255166dc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jan 27 15:29:29 2020 -0500
+
+    doc/go1.14: go command behavior with GO111MODULE=on outside modules
+    
+    Hopefully this won't affect many people, but it's a substantial change
+    in behavior for a specific case, so it's probably worth mentioning.
+    
+    Updates #32027
+    
+    Change-Id: I61cd50e93d0199e94b011cc90150e072b6bb10ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216597
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

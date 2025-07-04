@@ -1,0 +1,13 @@
+commit 5edeef214d571057e360d4a51f3a9cab9b635e85
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 2 10:28:00 2011 +1000
+
+    exp/template/html: non-semantics changing tweaks to js{,_test}.go
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4962049
+
+ src/pkg/exp/template/html/js.go      |  6 ++----
+ src/pkg/exp/template/html/js_test.go | 10 +++++++---
+ 2 files changed, 9 insertions(+), 7 deletions(-)

@@ -1,0 +1,29 @@
+commit 55c517a8b330710e6aaf6cc7133a9c7759bbb1d1
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 26 17:52:53 2021 -0700
+
+    cmd/compile: fix handling of ir.CurFunc during stenciling
+    
+    The transform functions (specifically transformArgs, which is used from
+    transformCall/transformReturn) require that ir.CurFunc is set correctly.
+    Since transformCall() is used on the call of an instantiated generic
+    function, we need to set ir.CurFunc correctly in stencil(). Also,
+    correctly save/restore ir.CurFunc in genericSubst().
+    
+    Without this fix, ir.CurFunc can be nil when we call TransformCall()
+    from stencil(), which leads to some temp variables being added
+    incorrectly to ir.TodoFunc (which leads to the fatal panic in the
+    issue).
+    
+    Fixes #45722
+    
+    Change-Id: Iddf4a67d28f2100dde8cde5dbc9ca1e00dad6089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313869
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  8 +++++++-
+ test/typeparam/issue45722.go              | 34 +++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 658d5213585d651b01b9b0e41a32b936093493d5
+Author: Vinu Rajashekhar <vinutheraj@gmail.com>
+Date:   Tue Jul 20 00:06:20 2010 -0700
+
+    gccgo_install.html: Description of the port to RTEMS added.
+    
+    R=iant, r
+    CC=gofrontend-dev, golang-dev, joel.sherrill
+    https://golang.org/cl/1846047
+
+ doc/gccgo_install.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

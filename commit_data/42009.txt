@@ -1,0 +1,24 @@
+commit 1f0738c1577a55a6b7229b821ddfe762b84771d0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 31 21:24:20 2019 -0800
+
+    runtime/pprof: speed up CPU profiling shutdown
+    
+    The core CPU profiling loop contains a 100ms sleep.
+    This is important to reduce overhead.
+    
+    However, it means that it takes 200ms to shutting down a program
+    with CPU profiling enabled. When trying to collect many samples
+    by running a short-lived program many times, this adds up.
+    
+    This change cuts the shutdown penalty in half by skipping
+    the sleep whenever possible.
+    
+    Change-Id: Ic3177f8e1a2d331fe1a1ecd7c8c06f50beb42535
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228886
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/pprof/pprof.go | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)

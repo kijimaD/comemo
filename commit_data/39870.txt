@@ -1,0 +1,17 @@
+commit 85c60bd0f3b375448dd38579acbaafdddc20b42f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Sep 9 03:17:43 2019 +1000
+
+    cmd/internal/obj/riscv: fix up instruction groupings
+    
+    Some of the instructions were incorrectly grouped - untangle this and
+    separate the RV64I instructions, which are under separate sections of
+    the RISC-V specification.
+    
+    Change-Id: I232962ab4054bf0b4745887506f51e74ea73f73d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/anames.go | 60 ++++++++++++++++----------------
+ src/cmd/internal/obj/riscv/cpu.go    | 67 +++++++++++++++++++-----------------
+ 2 files changed, 66 insertions(+), 61 deletions(-)

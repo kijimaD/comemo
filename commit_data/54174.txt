@@ -1,0 +1,26 @@
+commit 556e9c5f3e28d0398001384508a3c51143adcff8
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 18 12:44:37 2023 -0700
+
+    cmd/compile: allow non-pointer writes in the middle of a write barrier
+    
+    This lets us combine more write barriers, getting rid of some of the
+    test+branch and gcWriteBarrier* calls.
+    With the new write barriers, it's easy to add a few non-pointer writes
+    to the set of values written.
+    
+    We allow up to 2 non-pointer writes between pointer writes. This is enough
+    for, for example, adjacent slice fields.
+    
+    Fixes #62126
+    
+    Change-Id: I872d0fa9cc4eb855e270ffc0223b39fde1723c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521498
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 14 +++++++
+ test/codegen/writebarrier.go                 | 55 ++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

@@ -1,0 +1,29 @@
+commit 5ebb374f96da366d2c44b2fae7d9b3d0af7825dd
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 2 15:41:44 2015 -0800
+
+    archive/tar: properly parse GNU base-256 encoding
+    
+    Motivation:
+    * Previous implementation did not detect integer overflow when
+    parsing a base-256 encoded field.
+    * Previous implementation did not treat the integer as a two's
+    complement value as specified by GNU.
+    
+    The relevant GNU specification says:
+    <<<
+    GNU format uses two's-complement base-256 notation to store values
+    that do not fit into standard ustar range.
+    >>>
+    
+    Fixes #12435
+    
+    Change-Id: I4639bcffac8d12e1cb040b76bd05c9d7bc6c23a8
+    Reviewed-on: https://go-review.googlesource.com/17424
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go      | 38 ++++++++++++++++++++----
+ src/archive/tar/reader_test.go | 67 +++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 96 insertions(+), 9 deletions(-)

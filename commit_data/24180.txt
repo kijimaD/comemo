@@ -1,0 +1,15 @@
+commit ace303297f0a8364b67da3d2e2ede4a1154d1ea7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 4 16:56:45 2015 -0700
+
+    cmd/compile/internal/gc: fix go.y (rename of Fatal -> Fatalf)
+    
+    Also go generate to update generated files.
+    
+    Change-Id: I049708db93455f0030ba5afc6f218fde6220958d
+    Reviewed-on: https://go-review.googlesource.com/14331
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/compile/internal/gc/go.y | 2 +-
+ src/cmd/compile/internal/gc/y.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

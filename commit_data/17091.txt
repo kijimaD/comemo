@@ -1,0 +1,15 @@
+commit 547f1a6fe7915193d6c28dac21648f08e2f67bd9
+Author: Dmitriy Shelenin <deemok@googlemail.com>
+Date:   Thu Aug 8 10:40:51 2013 -0700
+
+    encoding/xml: allow attributes stored in pointers to be marshaled.
+    
+    Fixes #5334.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/8653047
+
+ src/pkg/encoding/xml/marshal.go      | 11 ++++++++++-
+ src/pkg/encoding/xml/marshal_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

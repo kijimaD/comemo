@@ -1,0 +1,21 @@
+commit e5ad363fff6e602bf72ce7bf5084297c0d1a2e51
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 18:09:24 2021 -0400
+
+    cmd/link: correct type..importpath symbol handling
+    
+    The linker specially handles go.importpath symbols. But the
+    compiler doesn't actually generate such symbols. Instead, it
+    generates type..importpath symbols. It is already in the type
+    section as the name starts with "type.". Also set its alignment
+    to 1, as it is string data.
+    
+    Change-Id: I771f5529a0ff41a5bb476b3a02c8cc75729792de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353489
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/symtab.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

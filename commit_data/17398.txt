@@ -1,0 +1,14 @@
+commit 2f81dfd53f5f0b422b038793f514cbf4ce58e573
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Aug 27 08:41:43 2013 -0700
+
+    sort: harden limit in stable test
+    
+    Reduce the number of allowed swap operations during stable sort. 
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12907045
+
+ src/pkg/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

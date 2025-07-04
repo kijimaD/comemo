@@ -1,0 +1,14 @@
+commit 5ce78b7cd281b187a06dcdb9ea9d1de8419db297
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 15 14:33:26 2013 -0400
+
+    spec: &x panics if x does
+    
+    See golang.org/s/go12nil for the extended version.
+    
+    R=golang-dev, r, adonovan
+    CC=golang-dev
+    https://golang.org/cl/12964043
+
+ doc/go_spec.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

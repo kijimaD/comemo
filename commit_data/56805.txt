@@ -1,0 +1,20 @@
+commit fe36ce669c1a452d2b0e81108a7e07674b50692a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 7 08:35:32 2024 -0400
+
+    iter: add doc comment from proposal
+    
+    Add the doc comment from the proposal, lightly edited.
+    The edits are to drop mention of value-error Seq2 usage
+    and to adjust for the bool result changes.
+    
+    Fixes #61897.
+    
+    Change-Id: Iaffbaa301064b2f8739956d602ca5fa23c89a269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591096
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/iter/iter.go | 194 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 190 insertions(+), 4 deletions(-)

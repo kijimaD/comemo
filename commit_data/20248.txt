@@ -1,0 +1,13 @@
+commit a19e638db27d6e03c9f0c0220a547f7ebd9e599a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 1 23:06:22 2014 -0400
+
+    runtime/pprof: adjust cpuHogger so that tests pass on windows builders
+    
+    LGTM=rsc
+    R=dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/140110043
+
+ src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

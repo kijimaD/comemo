@@ -1,0 +1,16 @@
+commit 0175064e697d3e072573b32173299b7edbda7360
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 2 19:57:11 2019 -0800
+
+    net: skip TestUDPZeroBytePayload on Darwin
+    
+    Updates #29225
+    
+    Change-Id: I4c9b7a108861ce5c9ab84f7324ced3da51e7bf2a
+    Reviewed-on: https://go-review.googlesource.com/c/156119
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/udpsock_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

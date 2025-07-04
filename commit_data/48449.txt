@@ -1,0 +1,18 @@
+commit cc2e7f36bad66c24eecf7868e7ac35c74455b212
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:40:10 2022 -0500
+
+    cmd/go: diagnose unset GOROOT when built with -trimpath
+    
+    For #51483
+    
+    Change-Id: I4546c20cf968b595020a1eba888fe1d9a1c6cfc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391811
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                       |  5 ++++-
+ src/cmd/go/main.go                                   |  4 ++++
+ src/cmd/go/script_test.go                            | 12 ++++++++++++
+ src/cmd/go/testdata/script/build_trimpath_goroot.txt |  9 +++++++--
+ 4 files changed, 27 insertions(+), 3 deletions(-)

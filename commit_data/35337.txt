@@ -1,0 +1,14 @@
+commit c1492b6bd0735505d65a93016bb172f41b7a1924
+Author: Hana Kim <hakim@google.com>
+Date:   Tue May 8 16:37:59 2018 -0400
+
+    runtime/trace: delete functions replaced by cl/108296
+    
+    Change-Id: I9bd4e13aafce14f76606b0f96496f621232c9e37
+    Reviewed-on: https://go-review.googlesource.com/112198
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/trace/annotation.go | 19 +------------------
+ 1 file changed, 1 insertion(+), 18 deletions(-)

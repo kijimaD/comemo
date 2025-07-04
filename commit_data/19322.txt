@@ -1,0 +1,19 @@
+commit 20aa947c56bd34d2c87b616bffbc4535a62ab778
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 12 17:00:57 2014 +1000
+
+    cmd/objdump: works with windows pe executables now
+    
+    Most code is copy from addr2line change 01dd67e5827f
+    
+    Update #7406
+    Fixes #7937
+    
+    LGTM=iant
+    R=golang-codereviews, iant, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/95090044
+
+ src/cmd/objdump/main.go         |  48 +++++++++++++++---
+ src/cmd/objdump/objdump_test.go | 109 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 149 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit e4eaf4c24e844fbade904d56404427ff72b03b18
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Sep 18 19:09:29 2009 -0700
+
+    expanded arm regression testing. will go away once 5g is compliant
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=300  (297 added, 0 deleted, 3 changed)
+    OCL=34813
+    CL=34821
+
+ src/all-arm.bash  |  15 +++-
+ test/arm-pass.txt | 207 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/run-arm      |  81 +++++++++++++++++++++
+ 3 files changed, 300 insertions(+), 3 deletions(-)

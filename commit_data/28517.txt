@@ -1,0 +1,27 @@
+commit 159a90b93a962cb942688f099b42d00d164e436f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 23 22:05:51 2016 -0700
+
+    runtime: merge Unix sighandler functions
+    
+    Replace all the Unix sighandler functions with a single instance.
+    Push the relatively small amount of processor-specific code into five
+    methods on sigctxt: sigpc, sigsp, siglr, fault, preparePanic.
+    (Some processors already had a fault method.)
+    
+    Change-Id: Ib459412ff8f7e0f5ad06bfd43eb827c8b196fc32
+    Reviewed-on: https://go-review.googlesource.com/29752
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/signal_386.go          | 178 ++++++++-------------------------
+ src/runtime/signal_amd64x.go       | 199 ++++++++-----------------------------
+ src/runtime/signal_arm.go          | 163 ++++++------------------------
+ src/runtime/signal_arm64.go        | 163 ++++++------------------------
+ src/runtime/signal_darwin_amd64.go |  20 ++++
+ src/runtime/signal_linux_s390x.go  | 165 +++++++-----------------------
+ src/runtime/signal_mips64x.go      | 163 ++++++------------------------
+ src/runtime/signal_ppc64x.go       | 166 +++++++------------------------
+ src/runtime/signal_sighandler.go   | 133 +++++++++++++++++++++++++
+ 9 files changed, 398 insertions(+), 952 deletions(-)

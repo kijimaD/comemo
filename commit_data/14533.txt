@@ -1,0 +1,18 @@
+commit 253ed02918f2909de500ca36d4867a87877666f6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Nov 30 11:41:50 2012 -0800
+
+    net: update docs and sync API for Plan 9
+    
+    R=golang-dev, dave, mikioh.mikioh, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6674043
+
+ src/pkg/net/file_plan9.go      |  4 +--
+ src/pkg/net/iprawsock_plan9.go | 64 ++---------------------------------------
+ src/pkg/net/net.go             | 12 ++++++++
+ src/pkg/net/sock_posix.go      | 12 --------
+ src/pkg/net/tcpsock_plan9.go   |  4 +--
+ src/pkg/net/udpsock_plan9.go   | 11 +++----
+ src/pkg/net/unixsock_plan9.go  | 65 ++----------------------------------------
+ 7 files changed, 27 insertions(+), 145 deletions(-)

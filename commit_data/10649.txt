@@ -1,0 +1,50 @@
+commit 2f2cc24cd8e930b26c220f75b96606abf2bebcbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:03:05 2011 -0500
+
+    regexp: avoid allocation of input interface
+    
+    Matters most for small inputs, because there is no real work
+    to amortize the allocation effort against.
+    
+    benchmark                                old ns/op    new ns/op    delta
+    BenchmarkLiteral                               613          473  -22.84%
+    BenchmarkNotLiteral                           4981         4931   -1.00%
+    BenchmarkMatchClass                           7289         7122   -2.29%
+    BenchmarkMatchClass_InRange                   6618         6663   +0.68%
+    BenchmarkReplaceAll                           7843         7233   -7.78%
+    BenchmarkAnchoredLiteralShortNonMatch          329          228  -30.70%
+    BenchmarkAnchoredLiteralLongNonMatch           322          228  -29.19%
+    BenchmarkAnchoredShortMatch                    838          715  -14.68%
+    BenchmarkAnchoredLongMatch                     824          715  -13.23%
+    
+    benchmark                                 old MB/s     new MB/s  speedup
+    BenchmarkMatchEasy0_32                      119.73       196.61    1.64x
+    BenchmarkMatchEasy0_1K                      540.58       538.33    1.00x
+    BenchmarkMatchEasy0_32K                     732.57       714.00    0.97x
+    BenchmarkMatchEasy0_1M                      726.44       708.36    0.98x
+    BenchmarkMatchEasy0_32M                     707.77       691.45    0.98x
+    BenchmarkMatchEasy1_32                      102.12       136.11    1.33x
+    BenchmarkMatchEasy1_1K                      298.31       307.04    1.03x
+    BenchmarkMatchEasy1_32K                     273.56       274.43    1.00x
+    BenchmarkMatchEasy1_1M                      268.42       269.23    1.00x
+    BenchmarkMatchEasy1_32M                     266.15       267.34    1.00x
+    BenchmarkMatchMedium_32                       2.53         3.38    1.34x
+    BenchmarkMatchMedium_1K                       9.37         9.57    1.02x
+    BenchmarkMatchMedium_32K                      9.29         9.67    1.04x
+    BenchmarkMatchMedium_1M                       9.42         9.66    1.03x
+    BenchmarkMatchMedium_32M                      9.41         9.62    1.02x
+    BenchmarkMatchHard_32                         6.66         6.75    1.01x
+    BenchmarkMatchHard_1K                         6.81         6.85    1.01x
+    BenchmarkMatchHard_32K                        6.79         6.85    1.01x
+    BenchmarkMatchHard_1M                         6.82         6.83    1.00x
+    BenchmarkMatchHard_32M                        6.80         6.80    1.00x
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5453076
+
+ src/pkg/regexp/exec.go      | 40 ++++++++++++++++++++++++++--
+ src/pkg/regexp/exec_test.go | 65 ++++++++++++++-------------------------------
+ src/pkg/regexp/regexp.go    | 50 +++++++++++-----------------------
+ 3 files changed, 74 insertions(+), 81 deletions(-)

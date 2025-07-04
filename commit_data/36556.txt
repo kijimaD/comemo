@@ -1,0 +1,18 @@
+commit 8a2b5f1f39152e45e6cfe6264612f00891d0327e
+Author: Dina Garmash <dgrmsh@gmail.com>
+Date:   Thu Aug 30 16:59:29 2018 -0400
+
+    doc: fix os.Pipe() call in the example.
+    
+    Short variable declarations example passes an fd argument to os.Pipe call.
+    However, os.Pipe() takes no arguments and returns 2 Files and an error:
+    https://golang.org/src/os/pipe_linux.go?s=319:360#L1
+    
+    Fixes: #27384
+    
+    Change-Id: I0a709f51e0878c57185d901b899d209f001dfcce
+    Reviewed-on: https://go-review.googlesource.com/132284
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

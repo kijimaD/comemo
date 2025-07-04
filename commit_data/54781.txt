@@ -1,0 +1,23 @@
+commit 2d9e8ded9464932b8a296164506b64f58908c6cf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 9 13:34:51 2023 -0700
+
+    cmd/compile: reorganize compiler type descriptor generation
+    
+    Use the new rttype mechanism to share internal/abi types between
+    the compiler and runtime.
+    
+    Change-Id: I2bbba4d8090c6f7ff20dca15b7b665f5d04e5bfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534936
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 335 +++++++++++++-----------
+ src/cmd/compile/internal/rttype/rttype.go       | 241 ++++++++++-------
+ src/cmd/compile/internal/types/type.go          |  15 ++
+ src/cmd/compile/internal/walk/switch.go         |   2 +-
+ src/internal/abi/compiletype.go                 | 133 ----------
+ 5 files changed, 354 insertions(+), 372 deletions(-)

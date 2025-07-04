@@ -1,0 +1,20 @@
+commit 5cf5a6fc5eca5e05ab7cd189a19196e73c5408c4
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon Jul 15 06:32:40 2019 +0200
+
+    os: return an error when the argument of Mkdir on Windows is os.DevNull
+    
+    Test added.
+    
+    Fixes #24556
+    
+    Change-Id: I4d1cd4513142edeea1a983fbfde46c2fccecab2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186139
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/file.go            | 21 +++++++++++++++++++++
+ src/os/os_windows_test.go | 16 ++++++++++++++++
+ src/os/stat_windows.go    | 22 ++--------------------
+ 3 files changed, 39 insertions(+), 20 deletions(-)

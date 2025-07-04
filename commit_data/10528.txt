@@ -1,0 +1,17 @@
+commit c8d2544b269bb4ece49d4804845c3e64b32cd7e5
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Nov 28 13:04:52 2011 -0800
+
+    math: update special-conditions comments to use ± symbol
+    
+    R=rsc, golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5445046
+
+ src/pkg/math/abs.go    | 3 +--
+ src/pkg/math/asinh.go  | 3 +--
+ src/pkg/math/floor.go  | 9 +++------
+ src/pkg/math/gamma.go  | 3 +--
+ src/pkg/math/modf.go   | 3 +--
+ src/pkg/math/sincos.go | 3 +--
+ 6 files changed, 8 insertions(+), 16 deletions(-)

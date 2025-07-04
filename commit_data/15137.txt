@@ -1,0 +1,12 @@
+commit e7fe1944acb96de2fce832c11a1577a9e8e7a80a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Feb 5 15:39:55 2013 +1100
+
+    archive/tar: small simplification using FileMode.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7305043
+
+ src/pkg/archive/tar/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

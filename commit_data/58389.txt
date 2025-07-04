@@ -1,0 +1,24 @@
+commit 38e9a671d7648227f4f5b133e2e6452491cccebf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 14:07:13 2024 -0800
+
+    syscall: on freebsd-386 only update written for certain errors
+    
+    Testing on the freebsd-386 gomote seems to show that sendfile returns
+    a non-zero number of bytes written even when it returns EINVAL.
+    This confuses the caller. Change the Go code to only return non-zero
+    on success or EINTR or EAGAIN, which are the only cases where the
+    man page says that sendfile updates the number of bytes.
+    
+    For #70763
+    
+    Change-Id: Icc04e6286b5b29a2029237711d50fe4973234f0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_freebsd_386.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

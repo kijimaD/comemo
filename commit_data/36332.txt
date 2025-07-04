@@ -1,0 +1,16 @@
+commit d05f31a3c5677467525241d4bacdb287f485d370
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Mon Jun 4 17:10:43 2018 +0530
+
+    internal/poll: Avoid evaluating condition for an unreachable branch
+    
+    Change-Id: I868dcaf84767d631bc8f1b6ef6bcb3ec18047259
+    Reviewed-on: https://go-review.googlesource.com/116135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/sendfile_bsd.go     | 3 +--
+ src/internal/poll/sendfile_linux.go   | 3 +--
+ src/internal/poll/sendfile_solaris.go | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

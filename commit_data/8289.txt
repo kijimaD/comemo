@@ -1,0 +1,26 @@
+commit f985638b94bb72c80e5e27c284d37eabe7d09aea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 13:55:51 2011 -0400
+
+    misc/cgo/test: run tests
+    
+    The new gotest ignores Test functions outside *_test.go files
+    (the old shell script allowed them), so replace one clumsy hack
+    with another.
+    
+    The root problem is that the package makefiles only know
+    how to run cgo for source files in the package proper, not
+    for test files.  Making it work for test files is probably more
+    trouble than it's worth.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4452060
+
+ misc/cgo/test/align.go     |  2 +-
+ misc/cgo/test/basic.go     | 10 +++++-----
+ misc/cgo/test/callback.go  | 14 +++++++-------
+ misc/cgo/test/cgo_test.go  | 28 +++++++++++++++++++++++++---
+ misc/cgo/test/issue1328.go |  2 +-
+ misc/cgo/test/issue1560.go |  2 +-
+ 6 files changed, 40 insertions(+), 18 deletions(-)

@@ -1,0 +1,15 @@
+commit 49d6e490876a9bbfa5dfa27a4377b822edbf656c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 11 11:06:27 2012 -0700
+
+    exp/types: testing resolution of qualified identifiers
+    
+    Also: fix a bug with exp/types/GcImport.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6302060
+
+ src/pkg/exp/types/gcimporter.go    |  26 ++++----
+ src/pkg/exp/types/resolver_test.go | 130 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 143 insertions(+), 13 deletions(-)

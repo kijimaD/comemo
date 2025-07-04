@@ -1,0 +1,14 @@
+commit 77525dc866fdfc21b7612f11d9af08a4e5753aa6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 16 17:48:43 2010 -0800
+
+    install: Added gcc, build-essential to apt-get command line.
+    
+    Mercury now requires build tools to install.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/210042
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

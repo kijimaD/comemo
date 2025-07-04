@@ -1,0 +1,39 @@
+commit 8b8ab2584d52c96ed84207208f13a37272cab217
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 29 17:16:02 2025 +0000
+
+    internal/trace: merge event and tracev2 packages
+    
+    These two packages were historically separate in an attempt to provide a
+    unified description of trace v1 and trace v2 formats. In practice this
+    turned out to be pointless, since it made more sense to keep the trace
+    v1 parser in a self-contained bubble with a converter to v2. Future
+    trace wire format migrations should probably just follow the same
+    general strategy, if there's a substantial change. (Minor changes can be
+    handled more organically.)
+    
+    Change-Id: Ic765df62065fe53cfae59b505297527c3fa42dfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645395
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/main.go                              |   6 +-
+ src/go/build/deps_test.go                          |   8 +-
+ src/internal/trace/base.go                         |   5 +-
+ src/internal/trace/batch.go                        |  19 ++--
+ src/internal/trace/batchcursor.go                  |   3 +-
+ src/internal/trace/event.go                        |   3 +-
+ src/internal/trace/generation.go                   |  25 ++---
+ src/internal/trace/internal/testgen/trace.go       |  13 +--
+ src/internal/trace/internal/tracev1/parser.go      | 121 +++++++++++----------
+ src/internal/trace/order.go                        |  13 +--
+ src/internal/trace/raw/event.go                    |   4 +-
+ src/internal/trace/raw/reader.go                   |   6 +-
+ src/internal/trace/raw/textreader.go               |   8 +-
+ src/internal/trace/raw/writer.go                   |   4 +-
+ src/internal/trace/tracev1.go                      |   3 +-
+ src/internal/trace/tracev2/{event.go => events.go} |  72 +++++++++---
+ .../trace/tracev2/{event/event.go => spec.go}      |  24 ++--
+ src/internal/trace/version/version.go              |   7 +-
+ 18 files changed, 190 insertions(+), 154 deletions(-)

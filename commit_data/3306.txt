@@ -1,0 +1,14 @@
+commit 803a73c4318e833144c11d6f8bd84eda6ca1e94a
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Sep 17 19:24:07 2009 -0700
+
+    floating point constants and symbol export fix.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=16  (0 added, 1 deleted, 15 changed)
+    OCL=34753
+    CL=34769
+
+ src/cmd/5g/gobj.c | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

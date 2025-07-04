@@ -1,0 +1,12 @@
+commit 6e2deaa1e132d726ef3a73ec63285a1445d3b03a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:40:46 2016 +0100
+
+    encoding/binary: don't assume b.N > 0
+    
+    Change-Id: I9e887a0b32baf0adc85fa9e4b85b319e8ef333e9
+    Reviewed-on: https://go-review.googlesource.com/20853
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/binary/binary_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit be560e040175a654b98c45910dd4e174821574b2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 16 11:01:21 2011 -0800
+
+    reflect: add a couple of sentences explaining how Methods operate.
+    
+    R=rsc, gri, rsc1, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/4183053
+
+ src/pkg/reflect/type.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

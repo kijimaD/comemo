@@ -1,0 +1,16 @@
+commit d8675d25e58eaefd5f4924e20a9cf6e89bda6304
+Author: Amrut Joshi <amrut.joshi@gmail.com>
+Date:   Thu Feb 18 23:32:55 2010 -0800
+
+    xml: allow unquoted attribute values in non-Strict mode
+    
+    HTML4 standard supports unquoted attibute values in certain cases
+    (http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/207095
+
+ src/pkg/xml/xml.go      | 43 +++++++++++++++++++++++++++++++++++--------
+ src/pkg/xml/xml_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 8 deletions(-)

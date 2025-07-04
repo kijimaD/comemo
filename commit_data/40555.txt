@@ -1,0 +1,16 @@
+commit fb29e2252c543892501b79b4e65a98f86be07bab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 3 10:57:00 2019 -0800
+
+    misc/cgo/testcarchive: add missing exit(0) in main7.c
+    
+    Fixes #35327
+    
+    Change-Id: I3726bfad24851a0bef8891014f7c5a7c48352307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/testdata/main7.c | 1 +
+ 1 file changed, 1 insertion(+)

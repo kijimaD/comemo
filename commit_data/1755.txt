@@ -1,0 +1,15 @@
+commit 8a7eb77880e8db4021b56731243008271d35a1eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 13:35:45 2009 -0800
+
+    misc doc
+    
+    R=r
+    DELTA=50  (28 added, 0 deleted, 22 changed)
+    OCL=25763
+    CL=25770
+
+ src/lib/exec.go          | 42 ++++++++++++++++++++++++++++++++++--------
+ src/lib/exec_test.go     |  8 ++++----
+ src/lib/regexp/regexp.go | 22 ++++++++++++----------
+ 3 files changed, 50 insertions(+), 22 deletions(-)

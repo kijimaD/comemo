@@ -1,0 +1,14 @@
+commit c628d83ec5309cd679e16c734456fed1b9a85806
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 1 18:52:52 2016 -0700
+
+    go1.7rc4
+    
+    Change-Id: Icf861dd28bfe29a2e4b90529e53644b43b6f7969
+    Reviewed-on: https://go-review.googlesource.com/25368
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

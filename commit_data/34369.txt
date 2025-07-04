@@ -1,0 +1,90 @@
+commit 3a9e4440fddbd4fb81704fcbfb0235f213c08719
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 20 17:16:19 2018 -0800
+
+    cmd/compile: tighten after lowering
+    
+    Moving tighten after lowering benefits from the removal of values by
+    lowering and lowered CSE. It lets us make better decisions about
+    which values are rematerializable and which generate flags.
+    Empirically, it lowers stack usage (by avoiding spills)
+    and generates slightly smaller and faster binaries.
+    
+    
+    Fixes #19853
+    Fixes #21041
+    
+    name        old time/op       new time/op       delta
+    Template          195ms ± 4%        193ms ± 4%  -1.33%  (p=0.000 n=92+97)
+    Unicode          94.1ms ± 9%       92.5ms ± 8%  -1.66%  (p=0.002 n=97+95)
+    GoTypes           572ms ± 5%        566ms ± 7%  -0.92%  (p=0.001 n=95+98)
+    Compiler          2.56s ± 4%        2.52s ± 3%  -1.41%  (p=0.000 n=94+97)
+    SSA               6.52s ± 2%        6.47s ± 3%  -0.82%  (p=0.000 n=96+94)
+    Flate             117ms ± 5%        116ms ± 7%  -0.72%  (p=0.018 n=97+97)
+    GoParser          148ms ± 6%        146ms ± 4%  -0.97%  (p=0.002 n=98+95)
+    Reflect           370ms ± 7%        363ms ± 6%  -1.79%  (p=0.000 n=99+98)
+    Tar               175ms ± 6%        173ms ± 6%  -1.11%  (p=0.001 n=94+95)
+    XML               204ms ± 6%        201ms ± 5%  -1.49%  (p=0.000 n=97+96)
+    [Geo mean]        363ms             359ms       -1.22%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          251ms ± 5%        245ms ± 5%  -2.40%  (p=0.000 n=97+93)
+    Unicode           131ms ±10%        128ms ± 9%  -1.93%  (p=0.001 n=100+99)
+    GoTypes           760ms ± 4%        752ms ± 4%  -0.96%  (p=0.000 n=97+95)
+    Compiler          3.51s ± 3%        3.48s ± 2%  -1.04%  (p=0.000 n=96+95)
+    SSA               9.57s ± 4%        9.52s ± 2%  -0.50%  (p=0.004 n=97+96)
+    Flate             149ms ± 6%        147ms ± 6%  -1.46%  (p=0.000 n=98+96)
+    GoParser          184ms ± 5%        181ms ± 7%  -1.84%  (p=0.000 n=98+97)
+    Reflect           469ms ± 6%        461ms ± 6%  -1.69%  (p=0.000 n=100+98)
+    Tar               219ms ± 8%        217ms ± 7%  -0.90%  (p=0.035 n=96+96)
+    XML               255ms ± 5%        251ms ± 6%  -1.48%  (p=0.000 n=98+98)
+    [Geo mean]        476ms             469ms       -1.42%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         37.8MB ± 0%       37.8MB ± 0%  -0.17%  (p=0.000 n=100+100)
+    Unicode          28.8MB ± 0%       28.8MB ± 0%  -0.02%  (p=0.000 n=100+95)
+    GoTypes           112MB ± 0%        112MB ± 0%  -0.20%  (p=0.000 n=100+97)
+    Compiler          466MB ± 0%        464MB ± 0%  -0.27%  (p=0.000 n=100+100)
+    SSA              1.49GB ± 0%       1.49GB ± 0%  -0.08%  (p=0.000 n=100+99)
+    Flate            24.4MB ± 0%       24.3MB ± 0%  -0.25%  (p=0.000 n=98+99)
+    GoParser         30.7MB ± 0%       30.6MB ± 0%  -0.26%  (p=0.000 n=99+100)
+    Reflect          76.4MB ± 0%       76.4MB ± 0%    ~     (p=0.253 n=100+100)
+    Tar              38.9MB ± 0%       38.8MB ± 0%  -0.20%  (p=0.000 n=100+97)
+    XML              41.5MB ± 0%       41.4MB ± 0%  -0.19%  (p=0.000 n=100+98)
+    [Geo mean]       77.5MB            77.4MB       -0.16%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           381k ± 0%         381k ± 0%  -0.15%  (p=0.000 n=100+100)
+    Unicode            342k ± 0%         342k ± 0%  -0.01%  (p=0.000 n=100+98)
+    GoTypes           1.19M ± 0%        1.18M ± 0%  -0.24%  (p=0.000 n=100+100)
+    Compiler          4.52M ± 0%        4.50M ± 0%  -0.29%  (p=0.000 n=100+100)
+    SSA               12.3M ± 0%        12.3M ± 0%  -0.11%  (p=0.000 n=100+100)
+    Flate              234k ± 0%         234k ± 0%  -0.26%  (p=0.000 n=99+96)
+    GoParser           318k ± 0%         317k ± 0%  -0.21%  (p=0.000 n=99+100)
+    Reflect            974k ± 0%         974k ± 0%  -0.03%  (p=0.000 n=100+100)
+    Tar                392k ± 0%         391k ± 0%  -0.17%  (p=0.000 n=100+99)
+    XML                404k ± 0%         403k ± 0%  -0.24%  (p=0.000 n=99+99)
+    [Geo mean]         794k              792k       -0.17%
+    
+    name        old object-bytes  new object-bytes  delta
+    Template          393kB ± 0%        392kB ± 0%  -0.19%  (p=0.008 n=5+5)
+    Unicode           207kB ± 0%        207kB ± 0%    ~     (all equal)
+    GoTypes          1.23MB ± 0%       1.22MB ± 0%  -0.11%  (p=0.008 n=5+5)
+    Compiler         4.34MB ± 0%       4.33MB ± 0%  -0.15%  (p=0.008 n=5+5)
+    SSA              9.85MB ± 0%       9.85MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    Flate             235kB ± 0%        234kB ± 0%  -0.59%  (p=0.008 n=5+5)
+    GoParser          297kB ± 0%        296kB ± 0%  -0.22%  (p=0.008 n=5+5)
+    Reflect          1.03MB ± 0%       1.03MB ± 0%  -0.00%  (p=0.008 n=5+5)
+    Tar               332kB ± 0%        331kB ± 0%  -0.15%  (p=0.008 n=5+5)
+    XML               413kB ± 0%        412kB ± 0%  -0.19%  (p=0.008 n=5+5)
+    [Geo mean]        728kB             727kB       -0.17%
+    
+    Change-Id: I9b5cdb668ed102a001897a05e833105acba220a2
+    Reviewed-on: https://go-review.googlesource.com/95995
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go |  4 +---
+ src/cmd/compile/internal/ssa/tighten.go | 17 ++++++++---------
+ 2 files changed, 9 insertions(+), 12 deletions(-)

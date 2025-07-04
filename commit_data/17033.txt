@@ -1,0 +1,19 @@
+commit 49da9a8e44fecbf9b3287472b6554419840b03b5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Aug 5 22:09:53 2013 +0200
+
+    cmd/gc: fix inlining of unnamed structs with embedded fields.
+    
+    Update #5910.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/11373044
+
+ src/cmd/gc/go.y                      |    4 +-
+ src/cmd/gc/y.tab.c                   | 1260 +++++++++++++++++++++++++---------
+ src/cmd/gc/y.tab.h                   |   46 +-
+ test/fixedbugs/issue5910.dir/a.go    |   17 +
+ test/fixedbugs/issue5910.dir/main.go |    8 +
+ test/fixedbugs/issue5910.go          |   10 +
+ 6 files changed, 992 insertions(+), 353 deletions(-)

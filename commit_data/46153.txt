@@ -1,0 +1,17 @@
+commit d37b8dedf7f96d88c7280f6afadb09b100380f93
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 21 12:40:25 2021 -0700
+
+    test: add test case that gofrontend miscompiled
+    
+    For #47771
+    
+    Change-Id: I99dfdd48def756bde68445b50741afd6d86b6cf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344169
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/issue47771.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

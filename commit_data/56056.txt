@@ -1,0 +1,20 @@
+commit 2b5e99455d4fba77a2fa79aed53f36fcc9cf8d1f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 25 13:53:07 2024 -0700
+
+    runtime,hash/maphash: make tests use less memory
+    
+    Use a list + sorting instead of a map to keep track of collisions.
+    Should save a fair amount of memory.
+    
+    Change-Id: I7b48cdb5f7060d12ebbb950d56b5c479f131c027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/hash/maphash/smhasher_test.go | 23 ++++++++++++++++-------
+ src/runtime/hash_test.go          | 23 ++++++++++++++++-------
+ 2 files changed, 32 insertions(+), 14 deletions(-)

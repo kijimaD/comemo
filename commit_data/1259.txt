@@ -1,0 +1,14 @@
+commit b0192ea1a592f0f7069fc35c4279d2516739f046
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 1 17:27:57 2008 -0800
+
+    bug: constants should not be redeclarable
+    
+    R=rsc
+    DELTA=9  (9 added, 0 deleted, 0 changed)
+    OCL=20187
+    CL=20187
+
+ test/bugs/bug126.go | 10 ++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 13 insertions(+)

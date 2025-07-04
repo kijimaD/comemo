@@ -1,0 +1,17 @@
+commit 7a9f6c2b56bd87ff7f9296344c9e63cc46194428
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 23 13:09:12 2016 -0700
+
+    cmd/compile: benchmark needs dominator tree
+    
+    Now that CSE uses dom tree to order partitions, we need the
+    dom tree computed before benchmarking CSE.
+    
+    Fixes #15801
+    
+    Change-Id: Ifa4702c7b75250f34de185e69a880b3f3cc46a12
+    Reviewed-on: https://go-review.googlesource.com/23361
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/passbm_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

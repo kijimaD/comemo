@@ -1,0 +1,21 @@
+commit 59a47732dd2273f7077cb717d4aedf8c3d64aa5a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 12:12:51 2011 -0500
+
+    exec: use custom error for LookPath
+    
+    Make the error message and the needed action more obvious
+    when a command isn't found to obtain the source code
+    of a project.  Users seem to strugle with the existing
+    wording in practice.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4058047
+
+ src/cmd/goinstall/main.go  |  3 +--
+ src/pkg/exec/exec.go       | 11 +++++++++++
+ src/pkg/exec/lp_test.go    | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/exec/lp_unix.go    |  4 ++--
+ src/pkg/exec/lp_windows.go |  4 ++--
+ 5 files changed, 49 insertions(+), 6 deletions(-)

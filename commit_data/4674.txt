@@ -1,0 +1,14 @@
+commit 531e6b77c888caf22ac7c63503a4ef74064c9a77
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:31:35 2010 -0800
+
+    eliminate package global name space
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/194071
+
+ src/cmd/gc/go.y  | 11 +++++------
+ src/cmd/gc/lex.c |  4 +---
+ src/cmd/ld/go.c  | 15 +++++++++++----
+ 3 files changed, 17 insertions(+), 13 deletions(-)

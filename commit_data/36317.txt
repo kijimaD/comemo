@@ -1,0 +1,17 @@
+commit 18034e6b9f0f623335e6358e0a4634a4eec04dd1
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Jul 24 15:17:54 2018 -0700
+
+    debug/pe: support windows/arm
+    
+    Enable 'go tool objdump' to disassemble windows/arm images.
+    
+    Updates #26148
+    
+    Change-Id: I7d11226f01d92288061f8e25980334b9bd82c41f
+    Reviewed-on: https://go-review.googlesource.com/125649
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/pe/file.go | 2 +-
+ src/debug/pe/pe.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

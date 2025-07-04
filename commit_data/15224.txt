@@ -1,0 +1,16 @@
+commit d6331b447fea50eca7ea6bd06370d0e028bdfdbf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 13:52:00 2013 -0800
+
+    io: document and test new CopyN return behavior
+    
+    Changed accidentally in 28966b7b2f0c (CopyN using Copy).
+    Updating docs to be consistent with 29bf5ff5064e (ReadFull & ReadAtLeast)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7314069
+
+ src/pkg/io/io.go      |  8 +++++---
+ src/pkg/io/io_test.go | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 3 deletions(-)

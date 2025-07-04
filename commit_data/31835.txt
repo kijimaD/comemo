@@ -1,0 +1,17 @@
+commit 90b7058ec4b73fe1da0e94ccd80d78835b6e32cb
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 14 17:39:03 2017 -0700
+
+    cmd/pprof: restore printing descriptive errors from net/http/pprof endpoints
+    
+    Restores functionality added in https://golang.org/cl/35564/ which was
+    lost in https://golang.org/cl/36798/ by the addition of the custom
+    fetcher to src/cmd/pprof/pprof.go. The custom fetcher overrides the
+    upstream default.
+    
+    Change-Id: Ic71e5e475d043276d916298ab5acb5c9b9ad063e
+    Reviewed-on: https://go-review.googlesource.com/45812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/pprof/pprof.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

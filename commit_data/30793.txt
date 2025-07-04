@@ -1,0 +1,22 @@
+commit 352e19c92c780e0c5592f1ddaa0b81b1ea1a66af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 11:31:56 2017 -0700
+
+    cmd/compile: eliminate Gins and Naddr
+    
+    Preparation for eliminating Prog-related globals.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ia199fcb282cc3a84903a6e92a3ce342c5faba79c
+    Reviewed-on: https://go-review.googlesource.com/38409
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go          |  1 -
+ src/cmd/compile/internal/gc/gsubr.go | 52 ------------------------------------
+ src/cmd/compile/internal/gc/pgen.go  | 20 +++++++-------
+ 3 files changed, 10 insertions(+), 63 deletions(-)

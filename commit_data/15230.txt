@@ -1,0 +1,16 @@
+commit 0c8ed71079b4ba7a234192c9b0996115c505b981
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 18:47:25 2013 -0800
+
+    database/sql: fix doc references to old package name
+    
+    It used to be package "db" but was long ago renamed
+    to be "sql".
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7322075
+
+ src/pkg/database/sql/doc.txt          | 2 +-
+ src/pkg/database/sql/driver/driver.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

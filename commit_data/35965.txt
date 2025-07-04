@@ -1,0 +1,12 @@
+commit c19f86fbfba484695b7785bd7bdcc1a43adbf505
+Author: Xia Bin <snyh@snyh.org>
+Date:   Thu Jul 12 18:34:34 2018 +0800
+
+    runtime: fix reference to funcdata.go in comment
+    
+    Change-Id: I6c8699cd71b41cf8d178a0af3a745a19dcf60905
+    Reviewed-on: https://go-review.googlesource.com/123536
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/funcdata.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

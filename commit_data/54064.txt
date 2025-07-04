@@ -1,0 +1,20 @@
+commit aaa384cf3a510a1f1945010e2c0e2ba8d0282f91
+Author: chanxuehong <chanxuehong@gmail.com>
+Date:   Thu Aug 17 01:58:22 2023 +0000
+
+    math/big, math/rand: use the built-in max function
+    
+    Change-Id: I71a38dd20bfaf2b1aed18892d54eeb017d3d7d66
+    GitHub-Last-Rev: 8da43b2cbd563ed123690709e519c9f84272b332
+    GitHub-Pull-Request: golang/go#61955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518595
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+
+ src/math/big/nat.go        | 7 -------
+ src/math/rand/rand_test.go | 7 -------
+ 2 files changed, 14 deletions(-)

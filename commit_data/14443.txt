@@ -1,0 +1,17 @@
+commit 54b9c2015194b68135098c4eae564a122a4bccf6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 20 16:24:12 2012 +1100
+
+    net/http/cgi: another attempt to fix windows tests
+    
+    Also enables TestDirWindows test on windows.
+    
+    Fixes #4401.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev, krautz
+    https://golang.org/cl/6847072
+
+ src/pkg/net/http/cgi/host_test.go      |  5 ++-
+ src/pkg/net/http/cgi/testdata/test.cgi | 77 ++++++++++------------------------
+ 2 files changed, 25 insertions(+), 57 deletions(-)

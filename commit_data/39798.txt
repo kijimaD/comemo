@@ -1,0 +1,18 @@
+commit 6719d889e1a333989c6f461a66090d5583eeaedf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 11:51:06 2019 -0400
+
+    cmd/go/internal/get: avoid panic in metaImportsForPrefix if web.Get fails
+    
+    Fixes #34049
+    
+    Change-Id: I817b83ee2d0ca6d01ec64998f14bc4f32e365d66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193259
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/get/vcs.go                           |  4 ++--
+ src/cmd/go/testdata/script/get_insecure_redirect.txt     |  5 ++---
+ src/cmd/go/testdata/script/mod_get_insecure_redirect.txt | 13 +++++++++++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

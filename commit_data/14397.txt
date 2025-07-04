@@ -1,0 +1,24 @@
+commit 56bcef02fca3299bfd162fea1c647754cd071714
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 13 22:38:25 2012 -0800
+
+    net/http: add missing error checking reading trailers
+    
+    This is a simplified version of earlier versions of this CL
+    and now only fixes obviously incorrect things, without
+    changing the locking on bodyEOFReader.
+    
+    I'd like to see if this is sufficient before changing the
+    locking.
+    
+    Update #4191
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6739055
+
+ src/pkg/net/http/client_test.go   |  8 +++++++-
+ src/pkg/net/http/transfer.go      | 13 ++++++++++++-
+ src/pkg/net/http/transfer_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/transport.go     |  8 +++-----
+ 4 files changed, 59 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 33357270f1e0673641c9eb28498c9c6e2b9bac72
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Dec 25 03:33:14 2019 +0000
+
+    runtime: refine netpollunblock by removing unreachable 'if' condition
+    
+    Change-Id: I58ac10013cadd78618124cb7ff134384d158ea4f
+    GitHub-Last-Rev: 2dfff0d3d3d18ecb196d5357cdfec196424d9e3b
+    GitHub-Pull-Request: golang/go#36276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212557
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

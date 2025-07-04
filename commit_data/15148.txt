@@ -1,0 +1,12 @@
+commit fe51d09bbe83f1ff42c8e428f4c2a7ce1817bc4e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 6 18:32:54 2013 +0800
+
+    doc/articles/error_handling: no more os.Error
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7304053
+
+ doc/progs/error4.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

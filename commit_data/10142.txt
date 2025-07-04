@@ -1,0 +1,17 @@
+commit c0a0fd6cf4f71dad402ee2c66407dbb18161dd05
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 20:20:59 2011 -0700
+
+    gob: split uses of gobError, remove unnecessary embedding
+    
+    Will make gofix for error run more smoothly.
+    The overloading of gobError appears to be unintentional.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5308060
+
+ src/pkg/gob/codec_test.go | 2 +-
+ src/pkg/gob/decoder.go    | 2 +-
+ src/pkg/gob/error.go      | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,29 @@
+commit 2517f4946b42b8deedb864c884f1b41311d45850
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 14 17:18:27 2020 -0400
+
+    runtime: remove debugCachedWork
+    
+    debugCachedWork and all of its dependent fields and code were added to
+    aid in debugging issue #27993. Now that the source of the problem is
+    known and mitigated (via the extra work check after STW in gcMarkDone),
+    these extra checks are no longer required and simply make the code more
+    difficult to follow.
+    
+    Remove it all.
+    
+    Updates #27993
+    
+    Change-Id: I594beedd5ca61733ba9cc9eaad8f80ea92df1a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262350
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl_test.go |   2 +-
+ src/runtime/mgc.go                      | 121 +++++++-------------------------
+ src/runtime/mgcwork.go                  |  74 -------------------
+ src/runtime/mwbbuf.go                   |  32 +--------
+ src/runtime/panic.go                    |   9 ---
+ 5 files changed, 27 insertions(+), 211 deletions(-)

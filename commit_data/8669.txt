@@ -1,0 +1,14 @@
+commit 439694125f980fc0c96e99b347fa9742633f4757
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Thu Jun 9 16:49:47 2011 -0400
+
+    runtime: improve memmove
+    check memory overlap
+    
+    R=rsc, r, ken, edsrzf
+    CC=golang-dev
+    https://golang.org/cl/4602047
+
+ src/pkg/runtime/386/memmove.s   | 12 ++++++++++--
+ src/pkg/runtime/amd64/memmove.s | 12 ++++++++++--
+ 2 files changed, 20 insertions(+), 4 deletions(-)

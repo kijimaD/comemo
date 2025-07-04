@@ -1,0 +1,16 @@
+commit 94817890c221b8abdbb24f52e92e5a7882c3f870
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Fri Apr 16 23:30:59 2021 +0800
+
+    runtime: remove useless nFlushCacheRoots
+    
+    Change-Id: I70cb8f8e9a0eec68ea11f22ca8699aa7e0c91ede
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310710
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/mgc.go     |  2 --
+ src/runtime/mgcmark.go | 10 ++--------
+ 2 files changed, 2 insertions(+), 10 deletions(-)

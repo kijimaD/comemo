@@ -1,0 +1,20 @@
+commit 7427f2c4bdf45fcf2288395d0e70c0c2fbe7ebcf
+Author: Michel Lespinasse <walken@google.com>
+Date:   Fri Mar 18 16:20:20 2016 -0700
+
+    cmd/compile: optimize convT2I as a two-word copy when T is pointer-shaped
+    
+    See #14874
+    
+    This change adds a compiler optimization for pointer shaped convT2I.
+    Since itab symbols are now emitted by the compiler, the itab address can
+    be directly moved into the iface structure.
+    
+    Change-Id: I311483af544519ca682c5f872960717ead772f26
+    Reviewed-on: https://go-review.googlesource.com/20901
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 10 ++++++++--
+ src/cmd/compile/internal/gc/walk.go    | 16 +++++++++-------
+ 2 files changed, 17 insertions(+), 9 deletions(-)

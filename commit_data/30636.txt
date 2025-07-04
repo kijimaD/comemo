@@ -1,0 +1,59 @@
+commit 4e0c7c3f61475116c4ae8d11ef796819d9c404f0
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Fri Mar 3 10:57:53 2017 -0800
+
+    cmd/compile: de-virtualize interface calls
+    
+    With this change, code like
+    
+        h := sha1.New()
+        h.Write(buf)
+        sum := h.Sum()
+    
+    gets compiled into static calls rather than
+    interface calls, because the compiler is able
+    to prove that 'h' is really a *sha1.digest.
+    
+    The InterCall re-write rule hits a few dozen times
+    during make.bash, and hundreds of times during all.bash.
+    
+    The most common pattern identified by the compiler
+    is a constructor like
+    
+        func New() Interface { return &impl{...} }
+    
+    where the constructor gets inlined into the caller,
+    and the result is used immediately. Examples include
+    {sha1,md5,crc32,crc64,...}.New, base64.NewEncoder,
+    base64.NewDecoder, errors.New, net.Pipe, and so on.
+    
+    Some existing benchmarks that change on darwin/amd64:
+    
+    Crc64/ISO4KB-8        2.67µs ± 1%    2.66µs ± 0%  -0.36%  (p=0.015 n=10+10)
+    Crc64/ISO1KB-8         694ns ± 0%     690ns ± 1%  -0.59%  (p=0.001 n=10+10)
+    Adler32KB-8            473ns ± 1%     471ns ± 0%  -0.39%  (p=0.010 n=10+9)
+    
+    On architectures like amd64, the reduction in code size
+    appears to contribute more to benchmark improvements than just
+    removing the indirect call, since that branch gets predicted
+    accurately when called in a loop.
+    
+    Updates #19361
+    
+    Change-Id: Ia9d30afdd5f6b4d38d38b14b88f308acae8ce7ed
+    Reviewed-on: https://go-review.googlesource.com/37751
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/main.go            |  4 ++
+ src/cmd/compile/internal/gc/reflect.go         | 82 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go             |  4 ++
+ src/cmd/compile/internal/gc/subr.go            | 10 +++-
+ src/cmd/compile/internal/ssa/config.go         |  6 ++
+ src/cmd/compile/internal/ssa/export_test.go    | 31 +++++-----
+ src/cmd/compile/internal/ssa/gen/generic.rules |  7 +++
+ src/cmd/compile/internal/ssa/rewrite.go        | 20 +++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 48 +++++++++++++++
+ test/devirt.go                                 | 64 ++++++++++++++++++++
+ 10 files changed, 259 insertions(+), 17 deletions(-)

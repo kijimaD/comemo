@@ -1,0 +1,16 @@
+commit de90a7d4aaee921b95c3d906dd8864ed3e3740a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 16:54:51 2010 -0800
+
+    runtime: fix FreeBSD build
+    
+    stab in the dark but plausible: the kernel does try to
+    return time zone information.
+    http://fxr.watson.org/fxr/source/kern/kern_time.c?v=FREEBSD8#L421
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/206053
+
+ src/pkg/runtime/freebsd/amd64/sys.s | 1 +
+ 1 file changed, 1 insertion(+)

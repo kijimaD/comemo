@@ -1,0 +1,15 @@
+commit cb16d26bd674bc7a43c6af118aca67838d5f692e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 15:59:29 2020 -0500
+
+    doc: fill in 'go mod download' section of module documentation
+    
+    Updates #33637
+    
+    Change-Id: I963c04639201b32e0513a235306a03eae51222b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214380
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

@@ -1,0 +1,13 @@
+commit 844ec6bbe3753c8142fe3b45cf288749ffa9493a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 6 10:30:02 2014 -0400
+
+    cmd/8g: fix liveness for 387 build (including plan9)
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/84570045
+
+ src/cmd/8g/prog.c  | 15 ++++++++++-----
+ src/cmd/gc/plive.c | 10 +++++++++-
+ 2 files changed, 19 insertions(+), 6 deletions(-)

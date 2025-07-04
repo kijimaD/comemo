@@ -1,0 +1,22 @@
+commit dd71e3fef4a2845ae33c493e7fcdd7702812669d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:40:56 2018 -0700
+
+    cmd/compile: refactor how declarations are imported
+    
+    This CL moves all of the logic for wiring up imported declarations
+    into export.go, so that it can be reused by the indexed importer
+    code. While here, increase symmetry across routines.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1ccec5c3999522b010e4d04ed56b632fd4d712d9
+    Reviewed-on: https://go-review.googlesource.com/107621
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go |  39 +++-------
+ src/cmd/compile/internal/gc/export.go  | 125 +++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/main.go    |   7 +-
+ 3 files changed, 84 insertions(+), 87 deletions(-)

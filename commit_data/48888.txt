@@ -1,0 +1,39 @@
+commit 9717e8f80f973e747a6c6e4a938c7f2a091a9b50
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 22 07:04:35 2022 +0000
+
+    runtime: support for debugger function calls on linux/arm64
+    
+    This CL adds support for debugger function calls on linux arm64
+    platform. The protocol is basically the same as in CL 109699, except for
+    the following differences:
+    1, The abi difference which affect parameter passing and frame layout.
+    2, Stores communication information in R20.
+    3, The closure register is R26.
+    4, Use BRK 0 instruction to generate a breakpoint. The saved PC in
+    sigcontext is the PC where the signal occurred, not the next PC.
+    
+    In addition, this CL refactors the existing code (which is dedicated to
+    amd64) for easier multi-arch scaling.
+    
+    Fixes #50614
+    
+    Change-Id: I06b14e345cc89aab175f4a5f2287b765da85a86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395754
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/asm_arm64.s                         | 198 ++++++++++++++++++++++++
+ src/runtime/debug_test.go                       |   2 +-
+ src/runtime/debugcall.go                        |   2 +-
+ src/runtime/export_debug_amd64_test.go          | 132 ++++++++++++++++
+ src/runtime/export_debug_arm64_test.go          | 135 ++++++++++++++++
+ src/runtime/export_debug_regabiargs_off_test.go |  15 --
+ src/runtime/export_debug_regabiargs_on_test.go  |  45 ------
+ src/runtime/export_debug_test.go                |  68 ++------
+ src/runtime/signal_amd64.go                     |   7 +-
+ src/runtime/signal_arm64.go                     |   5 +-
+ src/runtime/traceback.go                        |   2 +-
+ 11 files changed, 492 insertions(+), 119 deletions(-)

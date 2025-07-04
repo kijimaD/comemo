@@ -1,0 +1,28 @@
+commit e5eeadb2d8e08fa43099a52a067893d6f30bbc09
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Wed Jan 10 11:02:14 2024 -0800
+
+    net/mail: properly handle special characters in phrase and obs-phrase
+    
+    Fixes a couple of misalignments with RFC 5322 which introduce
+    significant diffs between (mostly) conformant parsers.
+    
+    This change reverts the changes made in CL50911, which allowed certain
+    special RFC 5322 characters to appear unquoted in the "phrase" syntax.
+    It is unclear why this change was made in the first place, and created
+    a divergence from comformant parsers. In particular this resulted in
+    treating comments in display names incorrectly.
+    
+    Additionally properly handle trailing malformed comments in the group
+    syntax.
+    
+    Fixes #65083
+    
+    Change-Id: I00dddc044c6ae3381154e43236632604c390f672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555596
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/mail/message.go      | 30 +++++++++++++++++-------------
+ src/net/mail/message_test.go | 40 +++++++++++++++++++++++++++++-----------
+ 2 files changed, 46 insertions(+), 24 deletions(-)

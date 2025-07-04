@@ -1,0 +1,13 @@
+commit 63c6b3c482ffdd1c75530c619fd75b7adc1009c8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 29 22:10:45 2012 +1100
+
+    A+C: Andrey Radev (individual CLA).
+    
+    R=golang-dev, bradfitz
+    CC=andrey.radev, golang-dev
+    https://golang.org/cl/6775067
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

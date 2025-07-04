@@ -1,0 +1,20 @@
+commit e7561de09af6ffc3b3fa6cbc83d92ed945098cd8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 14:31:43 2010 -0700
+
+    spec: index of non-addressable array is not addressable
+    
+    Motivated by:
+    
+    func f() []int
+    func g() [10]int
+    
+    f()[1] = 1  // ok
+    g()[1] = 1 // ERROR
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1278041
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

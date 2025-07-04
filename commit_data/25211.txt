@@ -1,0 +1,19 @@
+commit 2fb931d08f8b65ca36ba8deefff080f839e0ed74
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 9 12:53:57 2015 +1100
+
+    path/filepath: remove code working around Join bug
+    
+    EvalSymlinks code assumes that Join has a bug
+    (see issue #11551 for details). But issue #11551 has
+    been fixed. Remove the workaround so it does not
+    confuses us when we read code next time.
+    
+    Change-Id: I06bea20189f01f9922237c05516847353d8e4736
+    Reviewed-on: https://go-review.googlesource.com/17620
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/symlink.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit b8615a0931b05c37c7d8cf3c0e11a858888483de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 16:23:00 2012 -0800
+
+    go: add ... patterns in import path arguments
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5530058
+
+ src/cmd/go/help.go |   7 ++++
+ src/cmd/go/main.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 110 insertions(+), 15 deletions(-)

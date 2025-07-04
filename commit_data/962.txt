@@ -1,0 +1,20 @@
+commit 22a6747999cc25291d2cad0481c95b0cf4d71ab8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 24 22:40:32 2008 -0700
+
+    Per discussion earlier today with r and gri: when an interface
+    object has a value of type "int", it should not automatically
+    convert to type "int32".  That is, the type alias "int" should
+    be regarded as having been defined as though "type int int32"
+    appeared outside of the package, and as therefore being a
+    different type from "int32".
+    
+    R=ken
+    DELTA=21  (20 added, 0 deleted, 1 changed)
+    OCL=17587
+    CL=17842
+
+ test/bugs/bug113.go    | 20 ++++++++++++++++++++
+ test/golden.out        |  3 +++
+ test/ken/interbasic.go |  3 ++-
+ 3 files changed, 25 insertions(+), 1 deletion(-)

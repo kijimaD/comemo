@@ -1,0 +1,21 @@
+commit bf36219cdd1d354d58107ed8903679f538948154
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jul 18 16:02:37 2019 -0400
+
+    bytes/hash: add hashing package for bytes and strings
+    
+    Fixes #28322
+    
+    R=go1.14
+    
+    RELNOTE=yes
+    
+    Change-Id: Ic29f8b587c8c77472260836a5c3e13edaded13fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186877
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/bytes/hash/hash.go          | 185 ++++++++++++++++
+ src/bytes/hash/hash_test.go     |  66 ++++++
+ src/bytes/hash/smhasher_test.go | 461 ++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go       | 102 ++++-----
+ 4 files changed, 764 insertions(+), 50 deletions(-)

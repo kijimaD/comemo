@@ -1,0 +1,15 @@
+commit 830143fa3dd344a72d5c00643983ab62abb88a72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 26 05:28:20 2016 -0800
+
+    time: fix comment about use of Location.cacheEnd
+    
+    Fixes #14099.
+    
+    Change-Id: I122e918bdc55fb185f4a4a797489b160219542d2
+    Reviewed-on: https://go-review.googlesource.com/18943
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

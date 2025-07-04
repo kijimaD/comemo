@@ -1,0 +1,16 @@
+commit be8b4d943ff5fc9c169b91410ce11a377c8aa6b9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 10 14:44:37 2011 +1100
+
+    html: add a Render function.
+    
+    R=mikesamuel, andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5218041
+
+ src/pkg/html/Makefile       |   1 +
+ src/pkg/html/escape.go      |  14 ++--
+ src/pkg/html/parse_test.go  |  23 +++++--
+ src/pkg/html/render.go      | 159 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/render_test.go | 111 +++++++++++++++++++++++++++++++
+ 5 files changed, 300 insertions(+), 8 deletions(-)

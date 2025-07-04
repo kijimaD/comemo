@@ -1,0 +1,14 @@
+commit 7dc2b3cbd1ecc4d703a403924a77d01c8d01bd5a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 29 10:40:45 2014 -0700
+
+    text/template/parse: restore pointer-only receivers for Type on Dot and Nil
+    Needless except that the api tool complains. We could fix that issue instead.
+    
+    TBR=bradfitz
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/133290043
+
+ src/pkg/text/template/parse/node.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

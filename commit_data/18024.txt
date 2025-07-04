@@ -1,0 +1,12 @@
+commit e9895d92e0b55b2abede9779cb3c8443affb3d7b
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Dec 17 14:21:11 2013 -0800
+
+    container/list: Add missing period to doc comment for Front
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/38540046
+
+ src/pkg/container/list/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

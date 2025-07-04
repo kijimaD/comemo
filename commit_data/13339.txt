@@ -1,0 +1,12 @@
+commit f4240666be0a267b4e5c793b795e9af11b080e9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 10:29:06 2012 -0700
+
+    math/big: fix binaryGCD
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6297085
+
+ src/pkg/math/big/int.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

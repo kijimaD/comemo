@@ -1,0 +1,18 @@
+commit c4aae23d6426442402b3de0e5f7de1ef8da3842a
+Author: Mikhail Faraponov <11322032+moredure@users.noreply.github.com>
+Date:   Tue Nov 16 19:41:43 2021 +0000
+
+    net: optimize ctxDone usage
+    
+    Change-Id: I6db6fcf0ebe36da77af062114b5264405f15fee8
+    GitHub-Last-Rev: 80a97262bb220bb3958c94016eadf385cdf915e8
+    GitHub-Pull-Request: golang/go#49620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364514
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/fd_unix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

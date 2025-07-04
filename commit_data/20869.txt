@@ -1,0 +1,14 @@
+commit 68e2dbe8b7748ba4e9adcad61627da32e1f2141a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:13:04 2014 +1100
+
+    cmd/api: use golang.org/x/... import paths
+    
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/169000043
+
+ src/cmd/api/goapi.go | 2 +-
+ src/cmd/api/run.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,31 @@
+commit dfbb2a95bfdc6ddff22b8f197371b7abffe7d507
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 20 14:02:57 2014 -0400
+
+    undo CL 84040045 / 5302b4c58aa0
+    
+    This idea was rejected in CL 5731059. We should fix the
+    runtime docs instead.
+    
+    ««« original CL description
+    cmd/dist: reflect local changes to tree in goversion
+    
+    runtime.Version() requires a trailing "+" when
+    tree had local modifications at time of build.
+    
+    Fixes #7701
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84040045
+    
+    »»»
+    
+    LGTM=rsc, mra
+    R=iant, rsc, mra
+    CC=golang-codereviews
+    https://golang.org/cl/100520043
+
+ src/cmd/dist/build.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

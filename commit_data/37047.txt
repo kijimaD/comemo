@@ -1,0 +1,23 @@
+commit 7c2718b12a33180b3f6099e321c25af35c67f6fd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 22 14:04:18 2018 +1100
+
+    doc: tweak example in Effective Go
+    
+    A prior attempt at addressing the issue got bogged down in an
+    endless conversation around the subtleties of Read semantics.
+    Let's not go there.
+    
+    Instead, we put the issue to bed, perhaps not in perfect comfort
+    but well enough, by moving a line of the example so that even
+    if there is a "benign" error as the issue suggests, the loop
+    terminates with n and err correctly set.
+    
+    Fixes #27818
+    
+    Change-Id: I4a32d56c9e782f17578565d90b22ce531e3d8667
+    Reviewed-on: https://go-review.googlesource.com/c/143677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

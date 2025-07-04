@@ -1,0 +1,15 @@
+commit e900964e0f2709fe9ac5d4c8f760c3398ec0bbbd
+Author: Andrew Z Allen <me@andrewzallen.com>
+Date:   Thu Apr 18 00:30:03 2019 -0600
+
+    testing/quick: clarify that Config.MaxCount is from a flag
+    
+    Document that the default quickcheck configuration is to run 100 times
+    and that there is a flag that configures it called "quickchecks".
+    
+    Change-Id: I46fdab9d572e132ccc23ef907f9cc6b2d06b37c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172698
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/quick/quick.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

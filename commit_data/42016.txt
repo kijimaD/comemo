@@ -1,0 +1,19 @@
+commit c9af5523f324a031b23c6f1dcf448c051c994c00
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Jan 24 07:29:56 2020 -0800
+
+    database/sql: on Tx rollback, retain connection if driver can reset session
+    
+    Previously the Tx would drop the connection after rolling back from
+    a context cancel. Now if the driver can reset the session,
+    keep the connection.
+    
+    Change-Id: Ie6a3124275632787629844d91a06bb2e70cc060b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216241
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 27 ++++++++++++++++++++-------
+ src/database/sql/sql_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 7 deletions(-)

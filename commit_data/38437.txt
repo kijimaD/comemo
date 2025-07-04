@@ -1,0 +1,21 @@
+commit 64b1889e2d98e336160cad337a7781c720696290
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 15 13:58:21 2019 -0400
+
+    test: new test for issue 30862
+    
+    New test case, inspired by gccgo issue 30862.
+    
+    Updates #30862.
+    
+    Change-Id: I5e494b877e4fd142b8facb527471fe1fdef39c61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167744
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue30862.dir/a.go    | 15 +++++++++++++++
+ test/fixedbugs/issue30862.dir/b.go    | 29 +++++++++++++++++++++++++++++
+ test/fixedbugs/issue30862.dir/main.go | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue30862.go          | 14 ++++++++++++++
+ 4 files changed, 86 insertions(+)

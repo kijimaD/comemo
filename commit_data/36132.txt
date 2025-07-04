@@ -1,0 +1,42 @@
+commit d970519086765367f545186d860080059c69fad8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 27 10:48:18 2018 -0700
+
+    syscall: support Faccessat flags argument
+    
+    The Linux kernel faccessat system call does not take a flags parameter.
+    The flag parameter to the C library faccessat function is implemented in C.
+    The syscall.Faccessat function takes a flags parameter. In older releases
+    we have passed the flags parameter to the kernel, which ignored it.
+    In CL 120015 we started returning an error if any flags were set.
+    That seems clearly better than ignoring them, but it turns out that some
+    code was using the flags. The code was previously subtly broken.
+    Now it is obviously broken. That is better, but we can do better still:
+    we can implement the flags as the C library does. That is what this CL does.
+    
+    Change-Id: I259bd6f240c3951e939b81c3032dead3d9c567b4
+    Reviewed-on: https://go-review.googlesource.com/126415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux.go           | 66 ++++++++++++++++++++++++++++++++--
+ src/syscall/syscall_linux_386.go       |  1 +
+ src/syscall/syscall_linux_arm.go       |  1 +
+ src/syscall/syscall_linux_arm64.go     |  1 +
+ src/syscall/syscall_linux_mips64x.go   |  1 +
+ src/syscall/syscall_linux_mipsx.go     |  1 +
+ src/syscall/syscall_linux_ppc64x.go    |  1 +
+ src/syscall/syscall_linux_s390x.go     |  1 +
+ src/syscall/syscall_linux_test.go      | 40 ++++++++++++++++-----
+ src/syscall/zsyscall_linux_386.go      | 15 ++++++++
+ src/syscall/zsyscall_linux_arm.go      | 15 ++++++++
+ src/syscall/zsyscall_linux_arm64.go    | 15 ++++++++
+ src/syscall/zsyscall_linux_mips.go     | 15 ++++++++
+ src/syscall/zsyscall_linux_mips64.go   | 15 ++++++++
+ src/syscall/zsyscall_linux_mips64le.go | 15 ++++++++
+ src/syscall/zsyscall_linux_mipsle.go   | 15 ++++++++
+ src/syscall/zsyscall_linux_ppc64.go    | 15 ++++++++
+ src/syscall/zsyscall_linux_ppc64le.go  | 15 ++++++++
+ src/syscall/zsyscall_linux_s390x.go    | 15 ++++++++
+ 19 files changed, 252 insertions(+), 11 deletions(-)

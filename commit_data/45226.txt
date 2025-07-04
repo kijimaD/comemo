@@ -1,0 +1,27 @@
+commit b3a5640397e887514a860b9eb73e125c2b650f7b
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 8 23:38:42 2021 -0500
+
+    go/types: remove the concept of finals
+    
+    Checker.finals and the corresponding atEnd were added in CL 191418 as a
+    mechanism to postpone interface type comparison until after all
+    interfaces were complete. In the intervening CL 195837 we've adopted a
+    convention of ensuring that interfaces are complete before comparing
+    them. Since then we've also added the additional case of expansion for
+    lazily resolving syntax.
+    
+    Checker.later defers resolution of types until points in the checking
+    pass where all reachable types can be fully type checked, so the concept
+    of finals should no longer be necessary.
+    
+    Change-Id: I58818c1a6b605dccc9b0ecb3a1f6859c138175d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299590
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go   | 21 ---------------------
+ src/go/types/typexpr.go | 12 ++++++------
+ 2 files changed, 6 insertions(+), 27 deletions(-)

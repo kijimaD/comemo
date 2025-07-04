@@ -1,0 +1,19 @@
+commit ac5093fc2251cbe0bd77fd10603d347957af41cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 18 10:41:26 2009 -0700
+
+    fix 386 build:
+    - implememted empty stubs for 386 assembly routines
+    - removed assembly code operating on single words (except for one)
+    - adjusted tests
+    
+    R=rsc
+    DELTA=126  (46 added, 67 deleted, 13 changed)
+    OCL=33461
+    CL=33461
+
+ src/pkg/big/arith.go      |  6 ++--
+ src/pkg/big/arith_386.s   | 32 ++++++++++++++++++++
+ src/pkg/big/arith_amd64.s | 75 +++++++++--------------------------------------
+ src/pkg/big/arith_test.go | 20 +++++--------
+ 4 files changed, 56 insertions(+), 77 deletions(-)

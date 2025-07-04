@@ -1,0 +1,23 @@
+commit e3769299cd3484e018e0e2a6e1b95c2b18ce4f41
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Apr 28 17:39:46 2021 -0700
+
+    strconv: add QuotedPrefix
+    
+    QuotedPrefix is similar to Unquote, but returns the quoted string verbatim
+    and ignores any data after the quoted string.
+    
+    Fixes #45033
+    
+    Change-Id: I9f69fe9e3e45cbe9e63581cf1b457facb625045d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314775
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/strconv/bytealg.go           |   6 +-
+ src/strconv/bytealg_bootstrap.go |   8 +-
+ src/strconv/quote.go             | 161 ++++++++++++++++++++++++++-------------
+ src/strconv/quote_test.go        |  63 ++++++++-------
+ 4 files changed, 153 insertions(+), 85 deletions(-)

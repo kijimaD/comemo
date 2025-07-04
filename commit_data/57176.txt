@@ -1,0 +1,58 @@
+commit 970b1c042cddb5f944d3db1cc2c3d87a3ffabe52
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Aug 13 19:11:58 2024 +0800
+
+    os: increase the amount of data transfer for sendfile(2) to reduce syscalls
+    
+    For the moment, Go calls sendfile(2) to transfer at most 4MB at a time
+    while sendfile(2) actually allows a larger amount of data on one call.
+    To reduce system calls of sendfile(2) during data copying, we should
+    specify the number of bytes to copy as large as possible.
+    
+    This optimization is especially advantageous for bulky file-to-file copies,
+    it would lead to a performance boost, the magnitude of this performance
+    increase may not be very exciting, but it can also cut down the CPU overhead
+    by decreasing the number of system calls.
+    
+    This is also how we've done in sendfile_windows.go with TransmitFile.
+    
+    goos: linux
+    goarch: amd64
+    pkg: os
+    cpu: DO-Premium-AMD
+               │    old     │                new                │
+               │   sec/op   │   sec/op    vs base               │
+    SendFile-8   1.135 ± 4%   1.052 ± 3%  -7.24% (p=0.000 n=10)
+    
+               │     old      │                 new                 │
+               │     B/s      │     B/s       vs base               │
+    SendFile-8   902.5Mi ± 4%   973.0Mi ± 3%  +7.81% (p=0.000 n=10)
+    
+               │    old     │              new               │
+               │    B/op    │    B/op     vs base            │
+    SendFile-8   272.0 ± 0%   272.0 ± 0%  ~ (p=1.000 n=10) ¹
+    ¹ all samples are equal
+    
+               │    old     │              new               │
+               │ allocs/op  │ allocs/op   vs base            │
+    SendFile-8   20.00 ± 0%   20.00 ± 0%  ~ (p=1.000 n=10) ¹
+    ¹ all samples are equal
+    
+    Change-Id: Ib4d4c6bc693e23db24697363b29226f0c9776bb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/internal/poll/sendfile_bsd.go     |  5 +++-
+ src/internal/poll/sendfile_linux.go   |  5 +++-
+ src/internal/poll/sendfile_solaris.go |  5 +++-
+ src/os/readfrom_linux_test.go         | 12 ++++----
+ src/os/readfrom_sendfile_test.go      | 55 +++++++++++++++++++++++++++++++++++
+ src/os/readfrom_solaris_test.go       | 12 ++++----
+ src/os/readfrom_unix_test.go          | 16 +++++-----
+ 7 files changed, 89 insertions(+), 21 deletions(-)

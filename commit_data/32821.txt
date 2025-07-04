@@ -1,0 +1,14 @@
+commit 6171d055dc39b316fbc051a43ce7473798bb5561
+Author: Shawn Smith <shawnpsmith@gmail.com>
+Date:   Sat Sep 23 17:43:16 2017 +0900
+
+    cmd/vet: remove extraneous "//" in dead.go so its comment does not
+    
+    appear at the top of vet's godoc output
+    
+    Change-Id: I2593d294b0497aeb9e8c54a4dad052b5c33ecaee
+    Reviewed-on: https://go-review.googlesource.com/65630
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/dead.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit af7fc752b1c0fe409ad59480aa6f7b290410c92b
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Tue Feb 20 08:42:11 2018 +0900
+
+    text/template: avoid assiging unnecessary variable
+    
+    This follows up CL95235
+    
+    Change-Id: I62652654e5bb46d2f8f37af468e1fbcc1835bb8a
+    Reviewed-on: https://go-review.googlesource.com/95295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/template.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

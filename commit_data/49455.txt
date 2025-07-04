@@ -1,0 +1,22 @@
+commit 7eeec1f6e4b9359381e9aeffdb87c59308ecbb7e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 11 01:33:11 2022 +0700
+
+    cmd/compile: fix missing dict pass for type assertions
+    
+    For type assertions, if either src or dst type has shape, we must
+    convert them to dynamic type assertions.
+    
+    Fixes #53309
+    
+    Change-Id: Ia3362fa67c011febcbdb5b26f856d081b5c366de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |  4 +--
+ test/fixedbugs/issue53309.go              | 42 +++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

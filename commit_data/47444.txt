@@ -1,0 +1,28 @@
+commit 429d1e01557f95bba29837f2190441696484fd41
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Nov 11 10:28:17 2021 -0800
+
+    cmd/compile: add missing method info for method with correct name except for case
+    
+    When being used by the compiler, augment the types2 missing method
+    message with extra info, if a method is missing, but a method with the
+    correct name except for case (i.e. equal via string.EqualFold()) is
+    present. In that case, print out the wanted method and the method that
+    is present (that has the wrong case).
+    
+    In the 1.17 compiler, we don't do this case-folding check when assigning
+    an interface to an interface, so I didn't add that check, but we could
+    add that.
+    
+    Fixes #48471
+    
+    Change-Id: Ic54549c1f66297c9221d979d49c1daa719aa66cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363437
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/lookup.go | 48 ++++++++++++++++++++++++-------
+ test/fixedbugs/issue48471.go              |  4 +--
+ 2 files changed, 40 insertions(+), 12 deletions(-)

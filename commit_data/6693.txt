@@ -1,0 +1,18 @@
+commit 396228a6525b211e0c368f255724eeefef264062
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 10:38:07 2010 -0700
+
+    go/scanner: removed scanner/internal-only uses of token.Position
+    
+    First step towards a more light-weight implementation of token.Position:
+    - only use token.Position for reporting token and error position
+    - use offsets only for scanner control
+    - no interface changes yet
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2825041
+
+ src/pkg/go/scanner/scanner.go      | 225 +++++++++++++++++++++----------------
+ src/pkg/go/scanner/scanner_test.go |  20 ++--
+ 2 files changed, 141 insertions(+), 104 deletions(-)

@@ -1,0 +1,32 @@
+commit f71f3d1b861de2fcc907221931cf13679c0092dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 12 14:41:33 2022 -0400
+
+    misc/cgo/testshared: run tests only in GOPATH mode
+    
+    -buildmode=shared installs shared libraries into GOROOT
+    and expects to reuse them across builds.
+    Builds in module mode, however, each have their own set of
+    dependencies (determined by the module's requirements), so in general
+    cannot share dependencies with a single GOROOT.
+    
+    Ideally in the long term we would like to eliminate -buildmode=shared
+    entirely (see #47788), but first we need a replacement for the subset
+    of use-cases where it still works today.
+    
+    In the meantime, we should run these tests only in GOPATH mode.
+    Non-main packages in module mode should not be installed to
+    GOPATH/pkg, but due to #37015 they were installed there anyway,
+    and this test heavily relies on installing non-main packages.
+    
+    For #37015.
+    
+    Change-Id: I7c5d90b4075d6f33e3505d6a8f12752309ae5c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417194
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ misc/cgo/testshared/shared_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

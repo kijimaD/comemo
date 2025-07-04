@@ -1,0 +1,36 @@
+commit 5ba1c3f290ef8f3c373c560d3608325b07f44f7a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 17 23:16:30 2020 -0500
+
+    cmd/go/internal/modload: remove SetBuildList
+    
+    For the last remaining call site (in cmd/go/internal/work, added for
+    the new 'go install pkg@version' codepath in CL 254365), use
+    EditBuildList instead.
+    
+    SetBuildList assumes that the caller has enough information to produce
+    a complete, coherent build list. With lazy loading, producing a
+    complete, coherent build list is no longer quite so trivial.
+    
+    In CL 263267, I rewrote the main caller of SetBuildList (the 'go get'
+    command), and in the process added a more targeted modload hook
+    (EditBuildList). That hook also suffices for 'go install pkg@version'.
+    The resulting error messages are perhaps not as smooth as they ought
+    to be, but if they are too awkward we should probably fix them for
+    'go get' too, and the commands can continue to share the edit hook.
+    
+    For #36460
+    Updates #40276
+    
+    Change-Id: I698a9dcd2efe6378a4d91f21362880aa8e50001b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270980
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/buildlist.go               |  9 +--------
+ src/cmd/go/internal/modload/mvs.go                     |  2 +-
+ src/cmd/go/internal/work/build.go                      | 10 ++++++----
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt |  2 +-
+ 4 files changed, 9 insertions(+), 14 deletions(-)

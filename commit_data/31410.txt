@@ -1,0 +1,14 @@
+commit 4fcceca192b0379d068cbda75e120d9bd51719fa
+Author: Tommy Schaefer <tommy.schaefer@teecom.com>
+Date:   Thu Apr 27 23:53:58 2017 -0500
+
+    syscall: fix typo in documentation for StringToUTF16Ptr
+    
+    Fixes #20133
+    
+    Change-Id: Ic1a6eb35de1f9ddac9527335eb49bf0b52963b6a
+    Reviewed-on: https://go-review.googlesource.com/41992
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

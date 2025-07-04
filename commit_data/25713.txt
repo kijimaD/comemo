@@ -1,0 +1,14 @@
+commit beceea733970b5267e61cd301507b78fc05d8d48
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 2 17:34:48 2016 +0000
+
+    runtime/pprof: mark dragonfly and solaris as bad at pprof
+    
+    Updates #13841
+    
+    Change-Id: I121bce054e2756c820c76444e51357f474b7f3d6
+    Reviewed-on: https://go-review.googlesource.com/19161
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,27 @@
+commit 9d1540b77c3965f1cbaaab753d09974ad7330380
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jul 7 19:07:14 2018 +0100
+
+    encoding/json: simplify some pieces of the encoder
+    
+    Some WriteByte('\\') calls can be deduplicated.
+    
+    fillField is used in two occasions, but it is unnecessary when adding
+    fields to the "next" stack, as those aren't used for the final encoding.
+    Inline the func with its only remaining call.
+    
+    Finally, unindent a default-if block.
+    
+    The performance of the encoder is unaffected:
+    
+    name           old time/op    new time/op    delta
+    CodeEncoder-4    6.65ms ± 1%    6.65ms ± 0%   ~     (p=0.662 n=6+5)
+    
+    Change-Id: Ie55baeab89abad9b9f13e9f6ca886a670c30dba9
+    Reviewed-on: https://go-review.googlesource.com/122461
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go | 34 +++++++++++-----------------------
+ 1 file changed, 11 insertions(+), 23 deletions(-)

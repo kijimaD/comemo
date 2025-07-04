@@ -1,0 +1,32 @@
+commit ddf807fce821c26da32f653a2483bb7d96b20e26
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Feb 3 04:55:34 2017 -0500
+
+    cmd/compile: fix type propagation through s390x SSA rules
+    
+    This CL fixes two issues:
+    
+    1. Load ops were initially always lowered to unsigned loads, even
+       for signed types. This was fine by itself however LoadReg ops
+       (used to re-load spilled values) were lowered to signed loads
+       for signed types. This meant that spills could invalidate
+       optimizations that assumed the original unsigned load.
+    
+    2. Types were not always being maintained correctly through rules
+       designed to eliminate unnecessary zero and sign extensions.
+    
+    Fixes #18906.
+    
+    Change-Id: I95785dcadba03f7e3e94524677e7d8d3d3b9b737
+    Reviewed-on: https://go-review.googlesource.com/36256
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/s390x/ssa.go        |   7 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 109 ++++-----
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go        |  28 +++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 316 ++++++++++++++-------------
+ test/fixedbugs/issue18906.go                 |  36 +++
+ 6 files changed, 297 insertions(+), 202 deletions(-)

@@ -1,0 +1,24 @@
+commit bace9523eed9bc695310cd327b19ecdf7aa44612
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 27 15:11:12 2014 +0400
+
+    runtime: smarter slice grow
+    When growing slice take into account size of the allocated memory block.
+    Also apply the same optimization to string->[]byte conversion.
+    Fixes #6307.
+    
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkAppendGrowByte        4541036      4434108   -2.35%
+    BenchmarkAppendGrowString     59885673     44813604  -25.17%
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, iant, rsc
+    https://golang.org/cl/53340044
+
+ src/pkg/runtime/append_test.go | 19 +++++++++++++++++
+ src/pkg/runtime/malloc.h       |  1 +
+ src/pkg/runtime/msize.c        | 15 ++++++++++++++
+ src/pkg/runtime/slice.c        | 46 +++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/string.goc     | 18 +++++++++++++----
+ 5 files changed, 86 insertions(+), 13 deletions(-)

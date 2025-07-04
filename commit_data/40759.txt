@@ -1,0 +1,17 @@
+commit 0ee22d97ad1d1d40df1a58b0efae022e4f82f1b5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon May 6 19:03:01 2019 -0400
+
+    crypto/tls: add CipherSuites, InsecureCipherSuites and CipherSuiteName
+    
+    Fixes #30325
+    
+    Change-Id: I497110224bb73ecfcc4655698a794e7aa4a66925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175517
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/cipher_suites.go | 92 ++++++++++++++++++++++++++++++++++++++++-
+ src/crypto/tls/tls_test.go      | 84 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 175 insertions(+), 1 deletion(-)

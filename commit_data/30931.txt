@@ -1,0 +1,27 @@
+commit 361af94d5d4df310a90d924b4ce3dd4e3c96ee38
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 29 15:14:55 2017 +1100
+
+    cmd/internal/obj, cmd/link: remove Hwindowsgui everywhere
+    
+    Hwindowsgui has the same meaning as Hwindows - build PE
+    executable. So use Hwindows everywhere.
+    
+    Change-Id: I2cae5777f17c7bc3a043dfcd014c1620cc35fc20
+    Reviewed-on: https://go-review.googlesource.com/38761
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go       |  5 -----
+ src/cmd/internal/obj/x86/asm6.go   |  4 ++--
+ src/cmd/internal/obj/x86/obj6.go   |  7 +++----
+ src/cmd/link/internal/amd64/asm.go | 15 ++++++---------
+ src/cmd/link/internal/amd64/obj.go |  2 +-
+ src/cmd/link/internal/ld/data.go   | 18 +++++++++---------
+ src/cmd/link/internal/ld/lib.go    |  8 ++++----
+ src/cmd/link/internal/ld/main.go   |  4 ++--
+ src/cmd/link/internal/ld/sym.go    |  2 +-
+ src/cmd/link/internal/x86/asm.go   |  8 ++++----
+ src/cmd/link/internal/x86/obj.go   |  2 +-
+ 11 files changed, 33 insertions(+), 42 deletions(-)

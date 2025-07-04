@@ -1,0 +1,15 @@
+commit 1874d4a883805056727e7c2fec01dbb7bf30fc6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 16:55:05 2017 -0800
+
+    cmd/internal/obj, cmd/compile: rip off some toolstash bandaids
+    
+    Change-Id: I402383e893223facae451adbd640113126d5edd9
+    Reviewed-on: https://go-review.googlesource.com/37873
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 6 ------
+ src/cmd/internal/obj/objfile.go     | 8 +-------
+ 2 files changed, 1 insertion(+), 13 deletions(-)

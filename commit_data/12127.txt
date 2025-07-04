@@ -1,0 +1,14 @@
+commit 8d29a09707877185d0a19fe2d68459cf2f833bff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 15:02:31 2012 +1100
+
+    doc: move styles to style.css
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5685075
+
+ doc/go1.html  | 6 ------
+ doc/go1.tmpl  | 6 ------
+ doc/style.css | 3 +++
+ 3 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,25 @@
+commit 7d03d0ec6b00c91988de99c64673a57b6f762fc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 21 06:49:56 2010 -0700
+
+    syscall: Use vsyscall for syscall.Gettimeofday and .Time on linux amd64.
+    
+    Regenerate zsyscall_linux_*.go files with recent changes to
+    mksyscall.sh.
+    
+    Add socketpair to syscall_linux_amd64.go; for some reason it
+    was in the generated file but not in the source file.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2190044
+
+ src/pkg/syscall/asm_linux_amd64.s       |  23 +++++++
+ src/pkg/syscall/syscall_linux.go        |   2 -
+ src/pkg/syscall/syscall_linux_386.go    |   4 ++
+ src/pkg/syscall/syscall_linux_amd64.go  |   4 ++
+ src/pkg/syscall/syscall_linux_arm.go    |   4 ++
+ src/pkg/syscall/zsyscall_linux_386.go   |  92 ++++++++++++++--------------
+ src/pkg/syscall/zsyscall_linux_amd64.go |  91 ++++++++++++----------------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 104 ++++++++++++++++----------------
+ 8 files changed, 172 insertions(+), 152 deletions(-)

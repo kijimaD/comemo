@@ -1,0 +1,17 @@
+commit 33a7bcf315ab676071e44f9291bd78fc17ad93df
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 19 21:58:16 2009 -0700
+
+    getcallerpc and setcallerpc
+    
+    go/test: passes 87% (303/345)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=19  (5 added, 6 deleted, 8 changed)
+    OCL=35903
+    CL=35906
+
+ src/pkg/runtime/arm/asm.s | 18 +++++++-----------
+ test/arm-pass.txt         |  7 +++++--
+ 2 files changed, 12 insertions(+), 13 deletions(-)

@@ -1,0 +1,21 @@
+commit 60b8908588eb60b7e0d2053e52d191987a868c74
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 3 20:45:00 2015 -0500
+
+    cmd/internal/ld: fix symbol visibility for external linking
+    
+    The original C code is: (x->type & SHIDDEN) ? 2 : 0, however when
+    cleaning up the code for c2go, the ternary operator is rewritten in
+    the exact opposite way.
+    
+    We need a test for this, and that's being tracked as #10070.
+    
+    Fixes #10067.
+    
+    Change-Id: I24a5e021597d8bc44218c6e75bab6446513b76cf
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/6730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

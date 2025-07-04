@@ -1,0 +1,20 @@
+commit 2f4d5c3b791b9b78c32ad587a70adfc1b46f29e0
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Nov 2 21:07:46 2022 +0800
+
+    net/http: add Transport.OnProxyConnectResponse
+    
+    Fixes #54299
+    
+    Change-Id: I3a29527bde7ac71f3824e771982db4257234e9ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next/54299.txt             |  1 +
+ src/net/http/transport.go      | 14 ++++++
+ src/net/http/transport_test.go | 97 +++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 111 insertions(+), 1 deletion(-)

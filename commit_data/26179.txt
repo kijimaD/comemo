@@ -1,0 +1,27 @@
+commit f91b832ab5324f6a10c3dd18b1b51e590704ede4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 20:54:59 2016 -0800
+
+    cmd/compile: rename Recv->Recvs and Recv0->Recv
+    
+    Change-Id: Ice3aa807169f4fec85745a3991b1084a9f85c1b5
+    Reviewed-on: https://go-review.googlesource.com/20499
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  4 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/esc.go       |  4 ++--
+ src/cmd/compile/internal/gc/export.go    |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 +++---
+ src/cmd/compile/internal/gc/lex.go       |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 10 +++++-----
+ src/cmd/compile/internal/gc/type.go      | 15 +++++++--------
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ 15 files changed, 42 insertions(+), 43 deletions(-)

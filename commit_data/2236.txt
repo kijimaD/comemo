@@ -1,0 +1,14 @@
+commit 6b942c68cc5f25ee6b3fe113fe9707a23a974aaa
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon May 18 12:11:46 2009 -0700
+
+    rewrote initialization to save space.
+    fixed bug in seeding. top 11 bits were
+    not changed by different seeds.
+    
+    R=r
+    OCL=28998
+    CL=28998
+
+ src/lib/rand/rand.go | 785 +++++++++++----------------------------------------
+ 1 file changed, 164 insertions(+), 621 deletions(-)

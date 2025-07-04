@@ -1,0 +1,29 @@
+commit bcb89fc17a0ff8b588a8d413fa120cc89e053561
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Feb 28 18:04:20 2022 -0500
+
+    doc: start draft of go1.19 release notes, move go1.18 to x/website
+    
+    This template is based on CL 342070 and previous ones like it.
+    Continue to eagerly include often-used sections, and clarify that
+    the TODO is about completing the section, or removing if it turns
+    out not to be needed.
+    
+    Move the Go 1.18 release notes to x/website, since that's the new
+    home for past Go release notes as of CL 291711. They're added to
+    x/website in CL 388556.
+    
+    For #51400
+    Updates #47694
+    
+    Change-Id: I7b5213e039ad6e14a7ff7ad486311efcecc06824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388515
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html | 1364 -------------------------------------------------------
+ doc/go1.19.html |   61 +++
+ 2 files changed, 61 insertions(+), 1364 deletions(-)

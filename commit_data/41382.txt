@@ -1,0 +1,21 @@
+commit b0863ce0e6fbcf3e39f25cdd0b9380b3710507ba
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun Feb 23 17:28:56 2020 +0000
+
+    Revert "time: add Ticker.Reset"
+    
+    This reverts CL 217362 (6e5652bebede2d53484a872f6d1dfeb498b0b50c.)
+    
+    Reason for revert: Causing failures on arm64 bots. See #33184 for more info
+    
+    Change-Id: I72ba40047e4138767d95aaa68842893c3508c52f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220638
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next.txt          |  1 -
+ doc/go1.15.html       | 10 ----------
+ src/runtime/time.go   |  8 +-------
+ src/time/sleep.go     |  1 -
+ src/time/tick.go      |  9 ---------
+ src/time/tick_test.go | 29 ++---------------------------
+ 6 files changed, 3 insertions(+), 55 deletions(-)

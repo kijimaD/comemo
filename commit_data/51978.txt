@@ -1,0 +1,27 @@
+commit 7180a097453b037d7f4e6d45013e83c49ee86695
+Author: Frederic Branczyk <fbranczyk@gmail.com>
+Date:   Wed Feb 8 17:59:27 2023 +0000
+
+    cmd/compile/internal/pgo: fix hard-coded PGO sample data position
+    
+    This patch detects at which index position profiling samples that have
+    the value-type samples count are, instead of the previously hard-coded
+    position of index 1. Runtime generated profiles always generate CPU
+    profiling data with the 0 index being CPU nanoseconds, and samples count
+    at index 1, which is why this previously hasn't come up.
+    
+    This is a redo of CL 465135, now allowing empty profiles. Note that
+    preprocessProfileGraph will already cause pgo.New to return nil for
+    empty profiles.
+    
+    Fixes #58292
+    
+    Change-Id: Ia6c94f0793f6ca9b0882b5e2c4d34f38e600c1e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466675
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/irgraph.go       | 23 ++++++++-
+ src/cmd/compile/internal/test/pgo_inl_test.go | 68 +++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 1 deletion(-)

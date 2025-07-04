@@ -1,0 +1,20 @@
+commit 550b7ccf77b0484aae10275ab7b9e7c510f8e7e1
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 16:01:50 2015 +0200
+
+    cmd/link/internal/ld: removed some uses of stringsCompare
+    
+    Only one use of stringsCompare is left. Cannot simply be replaced by
+    strings.Compare for bootstrapping reasons I guess.
+    Moving the function away from util.go to the actual destination data.go
+    also would not help much. So I left this one unchanged for readability and convenience.
+    
+    Change-Id: I60d22fec0be8f8c47c80586436f9a550af59194e
+    Reviewed-on: https://go-review.googlesource.com/14953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/macho.go |  4 ++--
+ src/cmd/link/internal/ld/pe.go    | 20 +++++---------------
+ 2 files changed, 7 insertions(+), 17 deletions(-)

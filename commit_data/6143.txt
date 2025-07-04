@@ -1,0 +1,18 @@
+commit 9bd6b0afa4b08e23796c98a305b3c391a2327caf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 31 17:38:11 2010 -0700
+
+    test: Recognize gccgo error messages.
+    
+    bug255.go:11: error: array bound truncated to integer
+    bug255.go:12: error: array bound is not numeric
+    bug255.go:13: error: array bound is not numeric
+    bug255.go:14: error: array bound is not constant
+    bug255.go:15: error: array bound overflows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2091042
+
+ test/fixedbugs/bug255.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

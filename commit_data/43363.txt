@@ -1,0 +1,26 @@
+commit 06839e3c9a014da580c2cdcd11263e2b08991b74
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 17 14:00:35 2020 -0400
+
+    cmd/link: run generator functions along with symbol writing
+    
+    Like we do for applying relocations, for generator symbols, run
+    the generator function along with symbol writing. This will
+    probably have better locality and parallelism.
+    
+    Linking cmd/compile,
+    
+    Asmb          29.9ms ± 5%    19.1ms ±12%  -36.18%  (p=0.000 n=10+9)
+    TotalTime      351ms ± 3%     339ms ± 2%   -3.51%  (p=0.000 n=11+10)
+    
+    Change-Id: I9cda6718bf70b3bcf1b7a501a845d6136234d2ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263640
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go |  3 +++
+ src/cmd/link/internal/ld/main.go | 12 ------------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 701f6a27b5c2499c1e84c28a3761eb2f1bf6fd7e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 11 12:56:09 2019 -0500
+
+    cmd/go/internal/modcmd: use replaced paths to break cycles in 'go mod tidy'
+    
+    Fixes #30166
+    
+    Change-Id: I4704b57ed48197f512cd1b818e1f7d2fffc0d9ce
+    Reviewed-on: https://go-review.googlesource.com/c/161898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/tidy.go              |  4 ++-
+ src/cmd/go/testdata/script/mod_tidy_replace.txt | 39 +++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit d46980995be7a88713b27f829fb9f2cd9b307fa7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 4 20:57:56 2018 +0100
+
+    internal/cpu: remove platform specific prefix from cpu hwcap variables
+    
+    Go runtime currently only populates hwcap for ppc64 and arm64.
+    While the interpretation of hwcap is platform specific the hwcap
+    information is generally available on linux.
+    
+    Changing the runtime variable name to cpu_hwcap for cpu.hwcap makes it
+    consistent with the general naming of runtime variables that are linked
+    to other packages.
+    
+    Change-Id: I1e1f932a73ed624a219b9298faafbb6355e47ada
+    Reviewed-on: https://go-review.googlesource.com/94757
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/cpu/cpu_arm64.go  | 52 +++++++++++++++++++++---------------------
+ src/internal/cpu/cpu_ppc64x.go | 26 ++++++++++-----------
+ src/runtime/os_linux_arm64.go  |  4 ++--
+ src/runtime/os_linux_ppc64x.go |  5 ++--
+ 4 files changed, 44 insertions(+), 43 deletions(-)

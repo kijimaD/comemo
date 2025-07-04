@@ -1,0 +1,12 @@
+commit e94eb38975ecdb3d4ed0a200671b6470c0b791a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 10:19:50 2011 -0400
+
+    gc: typo
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4539086
+
+ src/cmd/gc/sinit.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

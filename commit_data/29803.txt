@@ -1,0 +1,16 @@
+commit 4284edb999716c408c99e9b5dc56734c31e4dcd5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 8 15:57:48 2016 -0800
+
+    cmd/link: explain how to find the name to use for -X
+    
+    Doc change only.
+    
+    Fixes #18246.
+    
+    Change-Id: I2c7b181bcec81e124d30702f6fac5aa43bb57c04
+    Reviewed-on: https://go-review.googlesource.com/34230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

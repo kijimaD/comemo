@@ -1,0 +1,19 @@
+commit 9abedf482752cac0a29c56804f7d34698aa044f2
+Author: cui <cuiweixie@gmail.com>
+Date:   Mon Apr 5 12:38:12 2021 +0000
+
+    cmd/compile/internal/ssagen: conditon not need
+    
+     n.Op() == ir.OFOR so n.Op() != ir.OFORUNTIL is always true
+    
+    Change-Id: I97191783c1fb31ef76e0601f626b45af1e8d316e
+    GitHub-Last-Rev: f68f9fecfb7adf37af060afb77d6615839aabc6e
+    GitHub-Pull-Request: golang/go#45389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307251
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

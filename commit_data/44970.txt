@@ -1,0 +1,25 @@
+commit 93466cc1b697836200e73bb103522324d38e894f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 15:15:56 2021 -0700
+
+    cmd/compile/internal/types2: review of pos.go and move into syntax package
+    
+    This moves the two helper functions startPos and endPos into
+    the syntax package where they belong. Export the functions and
+    adjust dependent code.
+    
+    Change-Id: I8170faeadd7cfa8f53009f81fcffd50ec0fc6a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305578
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../{types2/pos.go => syntax/positions.go}         | 230 ++++++++++-----------
+ src/cmd/compile/internal/types2/assignments.go     |   2 +-
+ src/cmd/compile/internal/types2/decl.go            |   4 +-
+ src/cmd/compile/internal/types2/errors.go          |   4 +-
+ src/cmd/compile/internal/types2/expr.go            |   2 +-
+ src/cmd/compile/internal/types2/labels.go          |   2 +-
+ src/cmd/compile/internal/types2/resolver.go        |   2 +-
+ src/cmd/compile/internal/types2/stmt.go            |  10 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   4 +-
+ 9 files changed, 128 insertions(+), 132 deletions(-)

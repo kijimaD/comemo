@@ -1,0 +1,17 @@
+commit c20bcb64882d1134770683d663ee9f82fea715e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 7 16:24:40 2021 -0700
+
+    runtime: remove out-of-date comments about frame skipping
+    
+    skipPleaseUseCallersFrames was removed in CL 152537.
+    
+    Change-Id: Ide47feec85a33a6fb6882e16baf9e21492521640
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325949
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/traceback.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

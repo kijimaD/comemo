@@ -1,0 +1,21 @@
+commit 06dc4e78c4c925f0e3763241b9695e6f3a36d8d6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 16 22:17:38 2014 -0400
+
+    cmd/nm: windows pe handling fixes
+    
+    - output absolute addresses, not relative;
+    - accept negative section numbers.
+    
+    Update #6936
+    Fixes #7738
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, ruiu, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85240046
+
+ src/cmd/nm/doc.go     |  1 +
+ src/cmd/nm/nm_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/nm/pe.go      | 34 ++++++++++++++++++++++++++++++++--
+ 3 files changed, 73 insertions(+), 2 deletions(-)

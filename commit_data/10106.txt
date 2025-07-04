@@ -1,0 +1,25 @@
+commit c945f77f41fc69b652dc359e52a32f031ca5c730
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:26:12 2011 -0700
+
+    exp/norm: use rune
+    
+    Nothing terribly interesting here. (!)
+    
+    Since the public APIs are all in terms of UTF-8,
+    the changes are all internal only.
+    
+    R=mpvl, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5309042
+
+ src/pkg/exp/norm/composition.go      | 24 +++++++-------
+ src/pkg/exp/norm/composition_test.go | 62 ++++++++++++++++++------------------
+ src/pkg/exp/norm/maketables.go       | 54 +++++++++++++++----------------
+ src/pkg/exp/norm/maketesttables.go   |  2 +-
+ src/pkg/exp/norm/normalize_test.go   |  8 ++---
+ src/pkg/exp/norm/normregtest.go      | 20 ++++++------
+ src/pkg/exp/norm/trie_test.go        | 12 +++----
+ src/pkg/exp/norm/triedata_test.go    |  2 +-
+ src/pkg/exp/norm/triegen.go          |  4 +--
+ 9 files changed, 94 insertions(+), 94 deletions(-)

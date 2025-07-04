@@ -1,0 +1,16 @@
+commit c5cdda401e483a3a4dae7cc61eb78521ab953b04
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Mar 7 09:03:40 2017 -0800
+
+    encoding/base64, html/template: fix grammar mistakes
+    
+    Replace 'does not contains' with 'does not contain' where it appears
+    in the source code.
+    
+    Change-Id: Ie7266347c429512c8a41a7e19142afca7ead3922
+    Reviewed-on: https://go-review.googlesource.com/37887
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base64/base64.go    | 2 +-
+ src/html/template/escape_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

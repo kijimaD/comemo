@@ -1,0 +1,14 @@
+commit 6c8b85273c2a38cd72fa3f21e947c61503bb7113
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 9 18:06:59 2010 +1000
+
+    exp/draw: rename Context to Window, and add a Close method.
+    exp/draw/x11: allow clean shutdown when the user closes the window.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2134045
+
+ src/pkg/exp/draw/event.go    | 18 ++++++---
+ src/pkg/exp/draw/x11/conn.go | 94 +++++++++++++++++++++++---------------------
+ 2 files changed, 62 insertions(+), 50 deletions(-)

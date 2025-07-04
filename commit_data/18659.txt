@@ -1,0 +1,13 @@
+commit deaf89b8f1b62239cacfc9102b6ef27fb9a52951
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 08:28:26 2014 -0800
+
+    runtime: remove unnecessary cast in alg.goc
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/68650045
+
+ src/pkg/runtime/alg.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 80b31c05e6ae37c09162406590b9e3b99f0fff9b
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Jun 27 21:38:04 2016 +0200
+
+    time: load time zones from the system tzdata file on Android
+    
+    Android timezones are in a packed format, different from the separate
+    files of a regular Unix system. This CL contain the necessary code to
+    parse the packed tzdata file and extract time zones from it. It also
+    adds a basic test to ensure the new parser works.
+    
+    Fixes #13581
+    
+    Change-Id: Idebe73726c3d4c2de89dd6ae1d7d19f975207500
+    Reviewed-on: https://go-review.googlesource.com/24494
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/export_android_test.go   |  12 ++++
+ src/time/zoneinfo_android.go      | 119 ++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_android_test.go |  18 ++++++
+ src/time/zoneinfo_unix.go         |   2 +-
+ 4 files changed, 150 insertions(+), 1 deletion(-)

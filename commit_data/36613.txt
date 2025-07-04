@@ -1,0 +1,16 @@
+commit 9facf35592457f0cdd1a9da665fd946002123007
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Wed Sep 5 13:40:29 2018 +0700
+
+    fmt: add example for Fprint
+    
+    Updates #27376
+    
+    Change-Id: I0ceb672a9fcd7bbf491be1577d7f135ef35b2561
+    Reviewed-on: https://go-review.googlesource.com/133455
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

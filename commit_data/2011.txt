@@ -1,0 +1,20 @@
+commit ca9765d83a159b25514b8d0810c3eadb5b753ccd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 14 06:46:01 2009 -0700
+
+    Make the reflection library match the reflection string which
+    6g generates for functions: expect the keyword "func".  The
+    older reflection syntax, without the "func", is still
+    recognized for simplicity in parsing interface reflection
+    strings.
+    
+    R=r,rsc
+    DELTA=66  (31 added, 8 deleted, 27 changed)
+    OCL=27396
+    CL=27422
+
+ src/lib/reflect/all_test.go | 31 ++++++++++++++++++++-----------
+ src/lib/reflect/tostring.go | 19 ++++++++++++-------
+ src/lib/reflect/type.go     | 32 +++++++++++++++++++-------------
+ src/lib/reflect/value.go    |  7 +++++--
+ 4 files changed, 56 insertions(+), 33 deletions(-)

@@ -1,0 +1,25 @@
+commit e6d8b05a61e3977f5769e8e896d24d2d26dcb23c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 26 17:52:28 2022 +0000
+
+    Revert "reflect: deprecate (Slice|String)Header"
+    
+    This reverts CL 401434.
+    
+    Reason for revert: We should't deprecate these without a replacement.
+    
+    Fixes #53079
+    
+    Change-Id: I5515b03e39787d4e528a98c733cdb643b86b17ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html      | 5 -----
+ src/reflect/value.go | 6 ------
+ 2 files changed, 11 deletions(-)

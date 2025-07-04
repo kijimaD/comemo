@@ -1,0 +1,22 @@
+commit aeec6dbfe009f371021bddba13e2eb18e5d1a469
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 22 12:07:14 2021 +0700
+
+    spec: add example for method value in case of embedded method
+    
+    So it's clear to the reader that if "M" is a promoted method from
+    embedded field "T", then "x.M" will be expanded to "x.T.M" during the
+    evaluation of the method value.
+    
+    Fixes #47863
+    
+    Change-Id: Id3b82127a2054584b6842c487f6e15c3102dc9fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344209
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

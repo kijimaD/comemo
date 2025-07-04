@@ -1,0 +1,13 @@
+commit 5361712ab4f582fda6c098a45d270278b7907404
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Mar 13 10:00:43 2012 -0400
+
+    go/build: fix match
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5801043
+
+ src/pkg/go/build/build.go      | 6 +++---
+ src/pkg/go/build/build_test.go | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit dc8c447689557f9384b3b7724d5de4af40c0451d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 12:38:50 2009 -0700
+
+    post-submit tweaks to previous cl
+    
+    R=rsc
+    DELTA=5  (4 added, 1 deleted, 0 changed)
+    OCL=31690
+    CL=31692
+
+ src/pkg/rpc/client.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

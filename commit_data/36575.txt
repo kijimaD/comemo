@@ -1,0 +1,18 @@
+commit db3f52db8edfa51c76d1e3e1a417d46b85528132
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Sun Sep 2 16:53:03 2018 +0000
+
+    go/types: correct misspelling in function doc
+    
+    The indirectType function comment uses the phrase 'layed out'. In the
+    context of that phrase, where something is being placed or sprawled,
+    the word should be 'laid'. 'Layed' is a misspelling of 'laid'.
+    
+    Change-Id: I05ecb97637276e2252c47e92a0bd678130714889
+    GitHub-Last-Rev: 6ee67371b42c12ceaf4c6c245319748008ac7e7b
+    GitHub-Pull-Request: golang/go#27444
+    Reviewed-on: https://go-review.googlesource.com/132779
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/typexpr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

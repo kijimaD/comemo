@@ -1,0 +1,21 @@
+commit 67e6542467321099c0ffcf77ee660e28ec211588
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 15:21:29 2022 +0800
+
+    go/ast: add Range token.Pos to RangeStmt
+    
+    For #50429
+    
+    Change-Id: Idb027244f901d9f482c894b5b979a054d0f07de5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426091
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ api/next/50429.txt           |  1 +
+ src/go/ast/ast.go            |  1 +
+ src/go/parser/parser.go      |  1 +
+ src/go/parser/parser_test.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 33 insertions(+)

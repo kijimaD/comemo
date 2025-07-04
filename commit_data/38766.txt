@@ -1,0 +1,17 @@
+commit b39d0eab902cb6b90aa99bcf11ca622c00219c7c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Apr 16 14:19:18 2019 +0200
+
+    syscall: move helper handler before AIX handler in TestPassFD
+    
+    The AIX special handler which skips this test if unix network isn't
+    supported, doesn't need to be called inside the helper process.
+    
+    Change-Id: I7ff2c4e6b20eceb977380294858cae63034ffe0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172160
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_unix_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

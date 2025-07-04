@@ -1,0 +1,19 @@
+commit 16df2ccdedec47d0be940702bb064f656091bd28
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 06:11:36 2017 -0700
+
+    cmd/compile: emit string symbols during walk
+    
+    This avoids needing a mutex to protect stringsym,
+    and preserves a consistent ctxt.Data ordering
+    in the face of a concurrent backend.
+    
+    Updates #15756
+    
+    Change-Id: I775daae11db5db1269533a00f5249e3a03086ffc
+    Reviewed-on: https://go-review.googlesource.com/40509
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

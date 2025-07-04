@@ -1,0 +1,21 @@
+commit 080fc4cf87c4de796b2c5dc14eb9b94f6ec7a35a
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Tue Feb 20 02:58:00 2024 +0000
+
+    net/netip: introduce parsePrefixError for better error handling
+    
+    Refactor ParsePrefix to return a parsePrefixError containing the input
+    string and a detailed message on failure, improving error context and
+    maintaining consistent error formatting within the netip package.
+    
+    Change-Id: I8d9fb2f833b0f96f43a14622e66e225b54440410
+    GitHub-Last-Rev: e17bec3afa4efd6c52463bb93e8f694b42c0c2b7
+    GitHub-Pull-Request: golang/go#65798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565275
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/netip/netip.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

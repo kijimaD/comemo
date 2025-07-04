@@ -1,0 +1,18 @@
+commit dddd1dd481c98c85c1e2b05ff51679db4338d6e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 12 07:11:53 2017 -0700
+
+    cmd/go: fix TestExecutableGOROOT on Windows
+    
+    On Windows the drive letter is sometime "c:" and sometimes "C:".
+    
+    Fixes #20336.
+    
+    Change-Id: I38c86999af9522c51470d60016729d41cfec6b25
+    Reviewed-on: https://go-review.googlesource.com/43390
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

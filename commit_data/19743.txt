@@ -1,0 +1,17 @@
+commit 74c9cc8394049f68f711e25df413a813dc21f174
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 16 18:26:50 2014 +0000
+
+    cmd/ld: use count, not upper bound, in type of array
+    DWARF says only one is necessary.
+    The count is preferable because it admits 0-length arrays.
+    Update debug/dwarf to handle either form.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/111230044
+
+ src/cmd/ld/dwarf.c          |  9 +++++----
+ src/pkg/debug/dwarf/type.go | 14 ++++++++++----
+ 2 files changed, 15 insertions(+), 8 deletions(-)

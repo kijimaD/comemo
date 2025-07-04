@@ -1,0 +1,20 @@
+commit 8fcdc70c5ebf9c8d160b85e9402e7db5f4bf0793
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 21:53:31 2014 -0400
+
+    runtime: add GODEBUG invalidptr setting
+    
+    Fixes #8861.
+    Fixes #8911.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/165780043
+
+ src/runtime/extern.go | 6 ++++++
+ src/runtime/mgc0.c    | 4 ++--
+ src/runtime/runtime.c | 4 ++++
+ src/runtime/runtime.h | 2 ++
+ src/runtime/stack.c   | 4 ++--
+ 5 files changed, 16 insertions(+), 4 deletions(-)

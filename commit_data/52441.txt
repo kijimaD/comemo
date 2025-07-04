@@ -1,0 +1,22 @@
+commit c52069361a3730f81c7be63251fa2064986cf867
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Mar 27 11:44:05 2023 +0800
+
+    runtime: clean atomic_loong64.s of unnecessary package references
+    
+    The symbols are all defined within the same file, no need
+    to reference through package names.
+    
+    Change-Id: I81c27831e85666ebd26d346aeb8f023e52d98acc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479497
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/runtime/internal/atomic/atomic_loong64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

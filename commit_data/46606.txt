@@ -1,0 +1,15 @@
+commit 078247a4075650aa4eaf9b9e7fab3b4b70b27a5f
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Fri Sep 24 10:07:44 2021 +0800
+
+    bytes: add example for (*Buffer).Next
+    
+    Change-Id: Ic0a97fd7bb89865448e436e5c092415a29d8badf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352009
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/bytes/example_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

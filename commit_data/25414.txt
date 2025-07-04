@@ -1,0 +1,12 @@
+commit b80ea5320084741510b0890d9df8aee981fba036
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 4 17:21:05 2016 -0800
+
+    os: remove unused import to fix build
+    
+    Change-Id: Ia8c1c77590115a5ffda144962436d489ed77a423
+    Reviewed-on: https://go-review.googlesource.com/18227
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/pipe_test.go | 1 -
+ 1 file changed, 1 deletion(-)

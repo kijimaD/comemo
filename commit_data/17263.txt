@@ -1,0 +1,12 @@
+commit 826a73965862c29fa1ce1fd413a3a07701cd139d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 15 10:31:18 2013 +0200
+
+    doc: update go1.2.txt
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12960043
+
+ doc/go1.2.txt | 2 ++
+ 1 file changed, 2 insertions(+)

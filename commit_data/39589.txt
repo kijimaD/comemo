@@ -1,0 +1,18 @@
+commit 362625209b6cd2bc059b6b0a67712ddebab312d9
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Aug 9 14:37:39 2019 +0530
+
+    doc/install-source.html: add new GOOS and GOARCHes
+    
+    And also insert new paragraphs between GOOS and GOARCH listings
+    for better readability.
+    
+    Fixes #28142
+    Fixes #26513
+    
+    Change-Id: Ie92e98dbfd924e80032a12afbfa02f30e3a6f916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189578
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/install-source.html | 46 ++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 42 insertions(+), 4 deletions(-)

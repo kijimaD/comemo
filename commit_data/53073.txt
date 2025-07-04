@@ -1,0 +1,21 @@
+commit 2f35a655e73837a95941eeda00f56c799ee64591
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 20:36:08 2023 +0000
+
+    runtime: capture per-m trace state in a type
+    
+    More tightening up of the tracer's interface.
+    
+    While we're here, clarify why waittraceskip isn't included by explaining
+    what the wait* fields in the M are really for.
+    
+    Change-Id: I0e7b4cac79fb77a7a0b3ca6b6cc267668e3610bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494190
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime2.go | 10 +++++++---
+ src/runtime/trace.go    | 19 ++++++++++++-------
+ 2 files changed, 19 insertions(+), 10 deletions(-)

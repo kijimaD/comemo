@@ -1,0 +1,17 @@
+commit 03c8164849f2dc2af3ba1839bedbbf7819031d38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 15:55:44 2015 -0500
+
+    cmd/compile: fix magic multiply smashing AX
+    
+    Fixes #12411.
+    
+    Change-Id: I2202a754c7750e3b2119e3744362c98ca0d2433e
+    Reviewed-on: https://go-review.googlesource.com/17818
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go | 19 ++++++++++---------
+ src/cmd/compile/internal/x86/ggen.go   | 21 ++++++++++-----------
+ test/fixedbugs/issue12411.go           | 24 ++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 20 deletions(-)

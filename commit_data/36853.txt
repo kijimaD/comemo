@@ -1,0 +1,25 @@
+commit d397d4bffc0fa917fa53970ded4b4d3524f88a5b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 3 15:47:16 2018 -0700
+
+    cmd/compile: handle TPTR32 like TPTR64 in smallintconst
+    
+    In preparation for followup CL merging TPTR32 and TPTR64, move TPTR32
+    from the small-types fast path to the generic 64-bit fallback code so
+    that it's in the same case clause as TPTR64.
+    
+    This should be safe, but theoretically it could change semantics
+    because TPTR32 used to always be assumed to be "small", whereas now it
+    will only be considered small for values less than 1<<31.
+    
+    This change is done in a separate CL so that it's more easily
+    identified by git bisection in case it does introduce regressions.
+    
+    Change-Id: I6c7bb253d4e4d95c530a6e05a1147905674b55ca
+    Reviewed-on: https://go-review.googlesource.com/c/139517
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

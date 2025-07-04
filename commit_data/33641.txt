@@ -1,0 +1,15 @@
+commit 225a2e12fe1930702bc0c522918b2c71471ffdaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 21 10:09:05 2017 -0500
+
+    time: rename internal type data to dataIO
+    
+    This allows LoadTimezoneFromTZData to have a parameter named data.
+    
+    Change-Id: I11c115745c7f697244f806bcd654f697dab73de1
+    Reviewed-on: https://go-review.googlesource.com/79017
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_read.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

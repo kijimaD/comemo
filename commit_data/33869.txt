@@ -1,0 +1,22 @@
+commit 13bf4ada8075d9365c40b03ecf6641473b2af926
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 12 11:13:49 2017 -0800
+
+    cmd/compile: remove broken inlining accounting code
+    
+    We can't currently inline functions that contain closures anyway, so
+    just delete this budgeting code for now. Re-enable once we can (if
+    ever) inline functions with nested closures.
+    
+    Updates #15561.
+    Fixes #23093.
+    
+    Change-Id: Idc5f8e042ccfcc8921022e58d3843719d4ab821e
+    Reviewed-on: https://go-review.googlesource.com/83538
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 23 ++---------------------
+ test/fixedbugs/issue23093.go       |  9 +++++++++
+ 2 files changed, 11 insertions(+), 21 deletions(-)

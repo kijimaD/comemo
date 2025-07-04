@@ -1,0 +1,20 @@
+commit df08c9a82152fd6f2b2811db03b40fea8b6e5e9e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 15 11:52:01 2022 -0400
+
+    cmd/link: preserve symbol attributes when cloning to external
+    
+    There are some symbol attributes that are encoded in the object
+    file. Currently, they are lost when cloning a symbol to external.
+    Copy them over.
+    
+    Also delete CopyAttributes as it is no longer called anywhere.
+    
+    Change-Id: I1497e3223a641704bf35aa3e904dd0eda2f8ec3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400574
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/loader/loader.go | 29 ++++-------------------------
+ 1 file changed, 4 insertions(+), 25 deletions(-)

@@ -1,0 +1,19 @@
+commit 22f337656d8e4b244e45bc27c21ed3379be58e3d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 16:17:08 2015 -0800
+
+    cmd/go, make: remove ccflags
+    
+    cc is no more.
+    
+    Change-Id: I8d1bc0d2e471cd9357274204c9bc1fa67cbc272d
+    Reviewed-on: https://go-review.googlesource.com/3833
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/build.go    | 5 -----
+ src/cmd/go/doc.go      | 2 --
+ src/cmd/go/testflag.go | 6 ------
+ src/make.bash          | 7 ++-----
+ src/make.rc            | 7 ++-----
+ 5 files changed, 4 insertions(+), 23 deletions(-)

@@ -1,0 +1,19 @@
+commit eed2bb71d235e2c8b6d6eae57af83fbff23d420e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Nov 2 13:11:56 2016 -0400
+
+    cmd/vet: fix go vet on s390x assembly
+    
+    Test adapted from the mips64 test.
+    
+    Fixes #15454.
+    
+    Change-Id: If890c2d18a4a03a08faaa2e674edd7223af60290
+    Reviewed-on: https://go-review.googlesource.com/22472
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/asmdecl.go      |  13 +++
+ src/cmd/vet/testdata/asm6.s | 193 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 206 insertions(+)

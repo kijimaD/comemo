@@ -1,0 +1,14 @@
+commit 9809d73868229ff100787dbc7099cc4fff1b384b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 7 16:07:34 2009 -0700
+
+    - print comments associated with declarations
+    - fix a bug w/ optional semicolons
+    
+    R=rsc
+    DELTA=46  (24 added, 0 deleted, 22 changed)
+    OCL=31306
+    CL=31311
+
+ src/pkg/go/printer/printer.go | 64 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 44 insertions(+), 20 deletions(-)

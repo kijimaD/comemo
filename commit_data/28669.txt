@@ -1,0 +1,17 @@
+commit f15f1ff46f94c70b55903963a32dfccdcbe1efe5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Oct 5 11:24:07 2016 -0400
+
+    runtime/testdata/testprogcgo: add explicit return value to signalThread
+    
+    Should fix the clang builder.
+    
+    Change-Id: I3ee34581b6a7ec902420de72a8a08a2426997782
+    Reviewed-on: https://go-review.googlesource.com/30363
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprogcgo/racesig.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

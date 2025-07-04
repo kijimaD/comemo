@@ -1,0 +1,13 @@
+commit 64f9e5a12079da37bdcf8f23b0c725f98225a184
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 14:05:44 2011 -0500
+
+    A+C: Chris Dollin (individual CLA)
+    
+    R=r, r2, gri
+    CC=ehog.hedge, golang-dev
+    https://golang.org/cl/4240043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

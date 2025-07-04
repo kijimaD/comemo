@@ -1,0 +1,101 @@
+commit c8332198f42d0c5eb4e6345fe3fc935283dd5a9d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 9 10:43:15 2012 +1000
+
+    go: fix the import path "./..." not matching ".".
+    
+    Tested manually.
+    
+    Fixes #3554.
+    
+    Before:
+    $ cd $GOROOT/src/pkg
+    $ go list io
+    io
+    $ go list io/...
+    io
+    io/ioutil
+    $ cd $GOROOT/src/pkg/io
+    $ go list .
+    io
+    $ go list ./...
+    io/ioutil
+    
+    After:
+    $ cd $GOROOT/src/pkg
+    $ go list io
+    io
+    $ go list io/...
+    io
+    io/ioutil
+    $ cd $GOROOT/src/pkg/io
+    $ go list .
+    io
+    $ go list ./...
+    io
+    io/ioutil
+    $ go list ././...
+    io
+    io/ioutil
+    $ go list ././.././io/...
+    io
+    io/ioutil
+    $ go list ../image
+    image
+    $ go list ../image/...
+    image
+    image/color
+    image/draw
+    image/gif
+    image/jpeg
+    image/png
+    $ go list ../.../template
+    html/template
+    text/template
+    $ cd $GOROOT/src/pkg
+    $ go list ./io
+    io
+    $ go list ./io/...
+    io
+    io/ioutil
+    $ go list ./.../pprof
+    net/http/pprof
+    runtime/pprof
+    $ go list ./compress
+    can't load package: package compress: no Go source files in /home/nigeltao/go/src/pkg/compress
+    $ go list ./compress/...
+    compress/bzip2
+    compress/flate
+    compress/gzip
+    compress/lzw
+    compress/zlib
+    $ cd $GOROOT/src/pkg/code.google.com
+    $ go list ./p/leveldb-go/...
+    code.google.com/p/leveldb-go/leveldb
+    code.google.com/p/leveldb-go/leveldb/crc
+    code.google.com/p/leveldb-go/leveldb/db
+    code.google.com/p/leveldb-go/leveldb/memdb
+    code.google.com/p/leveldb-go/leveldb/memfs
+    code.google.com/p/leveldb-go/leveldb/record
+    code.google.com/p/leveldb-go/leveldb/table
+    code.google.com/p/leveldb-go/manualtest/filelock
+    $ go list ./p/.../truetype
+    code.google.com/p/freetype-go/example/truetype
+    code.google.com/p/freetype-go/freetype/truetype
+    $ go list ./p/.../example
+    warning: "./p/.../example" matched no packages
+    $ go list ./p/.../example/...
+    code.google.com/p/freetype-go/example/freetype
+    code.google.com/p/freetype-go/example/gamma
+    code.google.com/p/freetype-go/example/raster
+    code.google.com/p/freetype-go/example/round
+    code.google.com/p/freetype-go/example/truetype
+    code.google.com/p/x-go-binding/example/imgview
+    code.google.com/p/x-go-binding/example/xgb
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6194056
+
+ src/cmd/go/main.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

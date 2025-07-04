@@ -1,0 +1,15 @@
+commit db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 16 16:58:16 2015 +0000
+
+    Revert "fmt: add a few more reflect.Value tests"
+    
+    This reverts commit 3e6b7f35de96414a3a393f0ad25326f411101776.
+    
+    Change-Id: Icad2b235b9880729fbdf80d7dfd71e56df4b1231
+    Reviewed-on: https://go-review.googlesource.com/8944
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/fmt_test.go | 8 --------
+ src/fmt/print.go    | 2 --
+ 2 files changed, 10 deletions(-)

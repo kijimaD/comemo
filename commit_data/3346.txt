@@ -1,0 +1,14 @@
+commit 9e7f3a46d3682c3206202e3421d5034193feb2f7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 22 14:53:48 2009 -0700
+
+    restore the old algorithm. the new one is more memory efficient in large cases
+    but too slow across the board.
+    
+    R=rsc
+    DELTA=315  (50 added, 219 deleted, 46 changed)
+    OCL=34868
+    CL=34902
+
+ src/pkg/bytes/buffer.go | 355 +++++++++++++-----------------------------------
+ 1 file changed, 93 insertions(+), 262 deletions(-)

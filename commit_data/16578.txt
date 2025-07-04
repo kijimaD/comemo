@@ -1,0 +1,14 @@
+commit f84cbd0950bd05209df7a18e79c1be6b3d31811a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 17 15:41:17 2013 +0400
+
+    runtime: fix test for new closure representation
+    I've hit it several times already.
+    Currently it crashes with nil deref.
+    
+    R=golang-dev, daniel.morsing, r
+    CC=golang-dev
+    https://golang.org/cl/10317045
+
+ src/pkg/runtime/stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit 9bac9d23d3098d692b8ac8b1991ba476afeb5cd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 00:26:02 2010 -0700
+
+    gc: index bounds tests and fixes
+    move constant index checking to front end
+    x[2:1] is a compile-time error now too
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1848056
+
+ src/cmd/5g/cgen.c         |   7 --
+ src/cmd/5g/ggen.c         |  27 ++++++
+ src/cmd/5g/gsubr.c        |  13 ---
+ src/cmd/6g/cgen.c         |  35 ++++----
+ src/cmd/6g/ggen.c         |  52 +++++++----
+ src/cmd/6g/gsubr.c        |  33 +++----
+ src/cmd/8g/cgen.c         |   7 --
+ src/cmd/8g/ggen.c         |  47 ++++++++--
+ src/cmd/gc/builtin.c.boot |   6 +-
+ src/cmd/gc/const.c        |   6 ++
+ src/cmd/gc/mparith2.c     |   2 +-
+ src/cmd/gc/runtime.go     |   6 +-
+ src/cmd/gc/typecheck.c    |   6 +-
+ src/cmd/gc/walk.c         |  72 +++++++++++----
+ src/pkg/runtime/slice.c   |  12 +--
+ test/index.go             | 224 ++++++++++++++++++++++++++++++++++++++++++++++
+ test/recover2.go          |   4 +-
+ 17 files changed, 447 insertions(+), 112 deletions(-)

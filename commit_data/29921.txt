@@ -1,0 +1,19 @@
+commit 1fbdae5c3ad9aaaf827bed14a5e1e4cbd547a37c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Jan 6 15:09:10 2017 -0800
+
+    cmd/go: add link to env varible guide to set custom GOPATH
+    
+    Also moves the GOPATH env variable guide to
+    golang.org/wiki/SettingGOPATH.
+    
+    Fixes #18294.
+    
+    Change-Id: I88a2ce550df7466f8d2388d86bc8476dcf3c2ad6
+    Reviewed-on: https://go-review.googlesource.com/34918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/code.html         | 2 +-
+ src/cmd/go/alldocs.go | 2 ++
+ src/cmd/go/help.go    | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

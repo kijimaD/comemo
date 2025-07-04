@@ -1,0 +1,18 @@
+commit 22dafc9bc5c8b339628a64c9f786491a60031005
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 14 11:20:21 2011 -0800
+
+    http: fix failing Transport HEAD request with gzip-looking response
+    
+    We only want to attempt to un-gzip if there's a body (not in
+    response to a HEAD)
+    
+    This was accidentally passing before, but revealed to be broken
+    when c3c6e72d7cc went in.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5477093
+
+ src/pkg/net/http/transport.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

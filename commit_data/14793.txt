@@ -1,0 +1,20 @@
+commit 62dfa9c47d33368400cfa1f0b4fade7d047992ee
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jan 4 11:02:49 2013 -0500
+
+    cmd/5g, cmd/5l, cmd/ld: Small adjustments for the Plan 9 native tools
+    
+    A few USED(xxx) additions and a couple of deletions of variable
+    initialisations that go unused.  One questionable correction,
+    mirrored in 8l/asm.c, where the result of invocation of a function
+    shouldn't be used.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6736054
+
+ src/cmd/5g/ggen.c | 1 +
+ src/cmd/5g/reg.c  | 1 -
+ src/cmd/5l/asm.c  | 1 +
+ src/cmd/ld/pe.c   | 1 +
+ 4 files changed, 3 insertions(+), 1 deletion(-)

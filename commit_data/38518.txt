@@ -1,0 +1,43 @@
+commit d923309a17d1b7eeacc75798cdca905d5b143681
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 21 09:20:11 2019 -0400
+
+    cmd/link: add optional sanity checking for duplicate symbols
+    
+    Introduce a new linker command line option "-strictdups", which
+    enables sanity checking of "ok to duplicate" symbols, especially
+    DWARF info symbols. Acceptable values are 0 (no checking) 1 (issue
+    warnings) and 2 (issue a fatal error checks fail).
+    
+    Currently if we read a DWARF symbol (such as "go.info.PKG.FUNCTION")
+    from one object file, and then encounter the same symbol later on
+    while reading another object file, we simply discard the second one
+    and move on with the link, since the two should in theory be
+    identical.
+    
+    If as a result of a compiler bug we wind up with symbols that are not
+    identical, this tends to (silently) result in incorrect DWARF
+    generation, which may or may not be discovered depending on who is
+    consuming the DWARF and what's being done with it.
+    
+    When this option is turned on, at the point where a duplicate
+    symbol is detected in the object file reader, we check to make sure
+    that the length/contents of the symbol are the same as the previously
+    read symbol, and print a descriptive warning (or error) if not.
+    
+    For the time being this can be used for one-off testing to find
+    problems; at some point it would be nice if we can enable it by
+    default.
+    
+    Updates #30908.
+    
+    Change-Id: I64c4e07c326b4572db674ff17c93307e2eec607c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168410
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/lib.go          | 13 +++++++++-
+ src/cmd/link/internal/ld/main.go         |  1 +
+ src/cmd/link/internal/objfile/objfile.go | 44 +++++++++++++++++++++++++++++++-
+ 3 files changed, 56 insertions(+), 2 deletions(-)

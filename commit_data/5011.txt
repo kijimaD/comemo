@@ -1,0 +1,25 @@
+commit 8ddd6c4181ca29c455cdfc3cf92a6d0219ecad23
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 8 14:15:44 2010 -0800
+
+    runtime: clock garbage collection on bytes allocated, not pages in use
+    This keeps fragmentation from delaying
+    garbage collections (and causing more fragmentation).
+    
+    Cuts fresh godoc (with indexes) from 261M to 166M (120M live).
+    Cuts toy wc program from 50M to 8M.
+    
+    Fixes #647.
+    
+    R=r, cw
+    CC=golang-dev
+    https://golang.org/cl/257041
+
+ src/pkg/runtime/extern.go  |  1 +
+ src/pkg/runtime/malloc.cgo |  6 +++---
+ src/pkg/runtime/malloc.h   | 12 +++++++-----
+ src/pkg/runtime/mcache.c   | 19 +++++++++++++++++++
+ src/pkg/runtime/mcentral.c |  4 ++--
+ src/pkg/runtime/mgc0.c     | 17 +++++++++++++----
+ src/pkg/runtime/mheap.c    | 15 ++++++++++++---
+ 7 files changed, 57 insertions(+), 17 deletions(-)

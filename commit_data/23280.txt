@@ -1,0 +1,14 @@
+commit d64cdde3577e9478da6d25047eccac63f95c49d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 11:44:31 2015 -0700
+
+    go/types: remove unused return value
+    
+    Port of https://go-review.googlesource.com/10773 from x/tools.
+    
+    Change-Id: I6aba6a63a5448b8fcbcc7f072c627c27965dbe20
+    Reviewed-on: https://go-review.googlesource.com/10774
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/typexpr.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

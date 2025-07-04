@@ -1,0 +1,13 @@
+commit 6d1face5bad19dc101d4b05ed0cd3b1116952186
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 27 15:46:27 2012 -0700
+
+    A+C: add Brian Dellisanti (individual CLA)
+    
+    R=golang-dev, bsiegert, r
+    CC=golang-dev
+    https://golang.org/cl/6127056
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit 9f84df7f0179d74fca6f05cd88639d9237af7093
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 6 11:31:58 2023 +0200
+
+    cmd/go: remove unused (*testgoData).mustHaveContent test helper
+    
+    It's unused since CL 214382.
+    
+    Change-Id: I83a860938f87a7c4d2bdb966689c17ba29066639
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537596
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/go_test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

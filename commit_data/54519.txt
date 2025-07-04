@@ -1,0 +1,36 @@
+commit 8b727f856ebc812225f2a68c3b284dfabf6472a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 09:52:44 2023 -0400
+
+    cmd/compile, go/types: typechecking of range over int, func
+    
+    Add type-checking logic for range over integers and functions,
+    behind GOEXPERIMENT=range.
+    
+    For proposal #61405 (but behind a GOEXPERIMENT).
+    For #61717.
+    
+    Change-Id: Ibf78cf381798b450dbe05eb922df82af2b009403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510537
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go   |  19 ++
+ src/cmd/compile/internal/types2/stdlib_test.go  |   3 +
+ src/cmd/compile/internal/types2/stmt.go         | 139 ++++++++----
+ src/go/build/deps_test.go                       |   8 +-
+ src/go/types/check_test.go                      |  19 ++
+ src/go/types/stdlib_test.go                     |   3 +
+ src/go/types/stmt.go                            | 268 +++++++++++++++---------
+ src/internal/goexperiment/exp_newinliner_off.go |   4 -
+ src/internal/goexperiment/exp_newinliner_on.go  |   4 -
+ src/internal/goexperiment/exp_range_off.go      |   9 +
+ src/internal/goexperiment/exp_range_on.go       |   9 +
+ src/internal/goexperiment/flags.go              |   3 +
+ src/internal/types/errors/codes.go              |   8 +-
+ src/internal/types/testdata/check/stmt0.go      |  12 +-
+ src/internal/types/testdata/spec/range.go       | 157 ++++++++++++++
+ test/range2.go                                  |  24 +++
+ 16 files changed, 523 insertions(+), 166 deletions(-)

@@ -1,0 +1,16 @@
+commit e982ecacd1920d4314c84ecfca316a9bf0698fd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 12:50:44 2013 -0400
+
+    cmd/ld: add tmpdir flag to preserve temp files
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7497044
+
+ src/cmd/5l/obj.c |  1 +
+ src/cmd/6l/obj.c |  3 ++-
+ src/cmd/8l/obj.c |  1 +
+ src/cmd/ld/lib.c | 11 +++++------
+ src/cmd/ld/lib.h |  4 ++--
+ 5 files changed, 11 insertions(+), 9 deletions(-)

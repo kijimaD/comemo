@@ -1,0 +1,17 @@
+commit 1e679ae2aafc3bc16417da4851c36c4a0722a3aa
+Author: Florin Patan <florinpatan@gmail.com>
+Date:   Wed Nov 22 01:10:59 2017 +0000
+
+    doc: rename Gogland to GoLand
+    
+    This updates the name of the IDE and the capability it has.
+    
+    Fixes #22784
+    
+    Change-Id: Ief261324c86bc77a03071629f496f4d4d9df1b44
+    Reviewed-on: https://go-review.googlesource.com/79255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/editors.html                        |   8 ++++----
+ doc/editors/{gogland.png => goland.png} | Bin
+ 2 files changed, 4 insertions(+), 4 deletions(-)

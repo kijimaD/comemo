@@ -1,0 +1,23 @@
+commit ff2376dbe3b1a65fdb6855b1f831228d1e54b71f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 15 20:41:33 2024 +0100
+
+    os: add and use ignoringEINTR2
+    
+    Copy ignoringEINTR2 from internal/poll and make use of it to remove
+    open-coded implementations.
+    
+    Change-Id: I8802862f2012980f2af445b75eb45bb5a97bcc2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627479
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/file_plan9.go   |  4 ++++
+ src/os/file_posix.go   | 10 ++++++++++
+ src/os/file_unix.go    | 19 ++++++-------------
+ src/os/getwd.go        |  7 +------
+ src/os/removeall_at.go | 19 +++++--------------
+ 5 files changed, 26 insertions(+), 33 deletions(-)

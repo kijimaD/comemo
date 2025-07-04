@@ -1,0 +1,38 @@
+commit 2cb6fcf63f9f7f87ffa78b86a23bf33fc19e76ad
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Jan 9 21:37:46 2012 +0900
+
+    syscall: Linux-only support for parent death signal
+    
+    As discussed in this thread:
+    
+    https://groups.google.com/group/golang-dev/browse_thread/thread/5b76b7700265a787
+    
+    I've tried to come up with a solution that is minimally invasive for the platforms that don't support "parent death signal", without splitting up exec_unix.go.
+    
+    See also: http://www.win.tue.nl/~aeb/linux/lk/lk-5.html#ss5.8
+    
+    R=rsc, dave, borman, iant, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5487061
+
+ src/buildscript_darwin_386.sh          |   2 +-
+ src/buildscript_darwin_amd64.sh        |   2 +-
+ src/buildscript_freebsd_386.sh         |   2 +-
+ src/buildscript_freebsd_amd64.sh       |   2 +-
+ src/buildscript_linux_386.sh           |   2 +-
+ src/buildscript_linux_amd64.sh         |   2 +-
+ src/buildscript_linux_arm.sh           |   2 +-
+ src/buildscript_netbsd_386.sh          |   2 +-
+ src/buildscript_netbsd_amd64.sh        |   2 +-
+ src/buildscript_openbsd_386.sh         |   2 +-
+ src/buildscript_openbsd_amd64.sh       |   2 +-
+ src/pkg/syscall/Makefile               |   5 +
+ src/pkg/syscall/exec_bsd.go            | 220 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/exec_linux.go          | 231 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/exec_unix.go           | 209 -----------------------------
+ src/pkg/syscall/mkerrors.sh            |   3 +-
+ src/pkg/syscall/zerrors_linux_386.go   |  58 +++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go |  58 +++++++++
+ src/pkg/syscall/zerrors_linux_arm.go   |  58 +++++++++
+ 19 files changed, 643 insertions(+), 221 deletions(-)

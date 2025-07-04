@@ -1,0 +1,18 @@
+commit 81737a9a512cc0a52857d7c9d8137faa6ba7e5c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 12 11:10:25 2013 +0900
+
+    net: make TestDialFailPDLeak shorter
+    
+    Reduces a number of trials but it still can detect memory leak
+    when we make blunders in runtime-integarted network poller work,
+    like just forgetting to call runtime_pollClose in code paths.
+    
+    Also disables the test on windows/386.
+    
+    R=alex.brainman, r
+    CC=golang-dev
+    https://golang.org/cl/13022046
+
+ src/pkg/net/dial_test.go | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)

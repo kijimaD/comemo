@@ -1,0 +1,36 @@
+commit ab9aaf46ee5585317b5c796d6fb7e31383385eeb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 19 15:52:53 2021 -0700
+
+    cmd/compile/internal/syntax: add PosBase.Trimmed
+    
+    With types2, some syntax.PosBases need to be constructed from export
+    data, which must only contain "trimmed" filenames (i.e., that they've
+    already been made absolute and undergone -trimpath processing).
+    However, it's not safe to apply trimming to a filename multiple times,
+    and in general we can't distinguish trimmed from untrimmed filenames.
+    
+    This CL resolves this by adding a PosBase.Trimmed boolean so we can
+    distinguish whether the associated filename has been trimmed yet. This
+    is a bit hacky, but is the least bad solution I've come up with so
+    far.
+    
+    This unblocks enabling -G=3 by default.
+    
+    Change-Id: I7383becfb704680a36f7603e3246af38b21f100b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343731
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/importer/iimport.go |  2 +-
+ src/cmd/compile/internal/noder/noder.go      | 26 ++++++++++++++++++--------
+ src/cmd/compile/internal/noder/posmap.go     |  6 ++++--
+ src/cmd/compile/internal/noder/reader.go     |  7 +++----
+ src/cmd/compile/internal/noder/reader2.go    |  5 ++---
+ src/cmd/compile/internal/noder/writer.go     |  6 +-----
+ src/cmd/compile/internal/syntax/parser.go    |  4 +++-
+ src/cmd/compile/internal/syntax/pos.go       | 19 ++++++++++++++++---
+ 8 files changed, 48 insertions(+), 27 deletions(-)

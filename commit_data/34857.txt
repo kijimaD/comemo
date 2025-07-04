@@ -1,0 +1,15 @@
+commit 8e351ae3043bf7c7bbe3911496df40ae6a9582d1
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Apr 5 16:15:52 2018 -0400
+
+    cmd/trace: include taskless spans in /usertasks.
+    
+    Change-Id: Id4e3407ba497a018d5ace92813ba8e9653d0ac7d
+    Reviewed-on: https://go-review.googlesource.com/104976
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/annotations.go      | 17 +++++++++--------
+ src/cmd/trace/annotations_test.go | 24 +++++++++++++++++++++---
+ 2 files changed, 30 insertions(+), 11 deletions(-)

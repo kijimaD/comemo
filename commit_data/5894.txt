@@ -1,0 +1,12 @@
+commit 88fc337fa2ae0f3de4616fac46d8e9fc7e22026d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 27 15:03:30 2010 +1000
+
+    spec: add recover to predeclared identifiers list
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1894043
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

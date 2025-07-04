@@ -1,0 +1,31 @@
+commit 45c06b27a44a65c219a7445278b129c868332a6c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 9 12:44:27 2015 +1300
+
+    cmd/internal/obj, runtime: add NOFRAME flag to suppress stack frame set up on ppc64x
+    
+    Replace the confusing game where a frame size of $-8 would suppress the
+    implicit setting up of a stack frame with a nice explicit flag.
+    
+    The code to set up the function prologue is still a little confusing but better
+    than it was.
+    
+    Change-Id: I1d49278ff42c6bc734ebfb079998b32bc53f8d9a
+    Reviewed-on: https://go-review.googlesource.com/15670
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/test/issue9400/asm_ppc64x.s |  2 +-
+ src/cmd/internal/obj/ppc64/asm9.go   |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go   | 40 ++++++++++++++++++--------
+ src/cmd/internal/obj/textflag.go     |  5 ++++
+ src/runtime/asm_ppc64x.s             | 52 +++++++++++++++++-----------------
+ src/runtime/atomic_ppc64x.s          |  8 +++---
+ src/runtime/cgo/asm_ppc64x.s         |  6 ++--
+ src/runtime/duff_ppc64x.s            |  2 +-
+ src/runtime/memclr_ppc64x.s          |  2 +-
+ src/runtime/memmove_ppc64x.s         |  2 +-
+ src/runtime/mkduff.go                |  4 +--
+ src/runtime/sys_linux_ppc64x.s       | 54 ++++++++++++++++++------------------
+ src/runtime/textflag.h               |  4 +++
+ src/runtime/tls_ppc64x.s             |  4 +--
+ 14 files changed, 107 insertions(+), 80 deletions(-)

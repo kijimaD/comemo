@@ -1,0 +1,23 @@
+commit 57bb7be4b171a0c7ebf80467306c91e5ed8b2e84
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 1 14:54:00 2019 -0500
+
+    sync: internal dynamically sized lock-free queue for sync.Pool
+    
+    This adds a dynamically sized, lock-free, single-producer,
+    multi-consumer queue that will be used in the new Pool stealing
+    implementation. It's built on top of the fixed-size queue added in the
+    previous CL.
+    
+    For #22950, #22331.
+    
+    Change-Id: Ifc0ca3895bec7e7f9289ba9fb7dd0332bf96ba5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166958
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/sync/export_test.go |  17 +++++++
+ src/sync/pool_test.go   |   9 +++-
+ src/sync/poolqueue.go   | 132 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 153 insertions(+), 5 deletions(-)

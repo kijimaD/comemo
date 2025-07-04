@@ -1,0 +1,14 @@
+commit 14e545b60a8c78aa6609d807b4f50e54e9bfe1eb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 12 11:36:18 2016 -0700
+
+    archive/tar: reduce allocations in formatOctal
+    
+    Change-Id: I9ddb7d2a97d28aba7a107b65f278993daf7807fa
+    Reviewed-on: https://go-review.googlesource.com/30960
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/strconv.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 4f43201e51f36e7db909ff3c3a86104dada5161b
+Author: Ewan Chou <coocood@gmail.com>
+Date:   Wed Mar 6 15:21:19 2013 -0500
+
+    strings: remove allocations in Split(s, "")
+    
+    BenchmarkSplit1     77984460     24131380  -69.06%
+    
+    R=golang-dev, rsc, minux.ma, dave, extemporalgenome
+    CC=golang-dev
+    https://golang.org/cl/7458043
+
+ src/pkg/strings/strings.go      |  6 +++++-
+ src/pkg/strings/strings_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

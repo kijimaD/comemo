@@ -1,0 +1,21 @@
+commit 4d5bf3cca559851e3a36a47e6ca3abcca05277af
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 17 22:59:51 2018 -0400
+
+    cmd/go: convert more module tests to scripts
+    
+    Change-Id: I8a36fad061bdf9a19f40531511f3f5717db13b60
+    Reviewed-on: https://go-review.googlesource.com/124697
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/mod_test.go                             | 131 ---------------------
+ src/cmd/go/script_test.go                          |  65 +++++++++-
+ src/cmd/go/testdata/script/README                  |  21 ++--
+ src/cmd/go/testdata/script/mod_domain_root.txt     |  12 ++
+ src/cmd/go/testdata/script/mod_query_exclude.txt   |  26 ++++
+ src/cmd/go/testdata/script/mod_require_exclude.txt |  33 ++++++
+ src/cmd/go/testdata/script/mod_sync_quote.txt      |  26 ++++
+ src/cmd/go/testdata/script/mod_vendor_nodeps.txt   |   9 ++
+ src/cmd/go/testdata/script/mod_version_nomod.txt   |   4 +
+ 9 files changed, 182 insertions(+), 145 deletions(-)

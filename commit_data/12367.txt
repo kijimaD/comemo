@@ -1,0 +1,16 @@
+commit a347fdb035898f6c3344e112416a3eb9d0fb9cff
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Mon Mar 5 10:02:30 2012 -0500
+
+    encoding/binary: improve package comment.
+    
+    The current package comment doesn't mention varints and
+    protocol buffers. Also, the first sentence is incomprehensible
+    without further context as "fixed-size values" is undefined.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5715048
+
+ src/pkg/encoding/binary/binary.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 48974f553ddd70b55622c5c3a42d5e2217c9b237
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 30 13:32:39 2009 -0700
+
+    change 6l library directory flag to -L,
+    to match traditional c linkers.
+    
+    R=r
+    DELTA=42  (8 added, 12 deleted, 22 changed)
+    OCL=28101
+    CL=28115
+
+ src/cmd/6l/l.h        |  2 +-
+ src/cmd/6l/obj.c      | 46 +++++++++++++++++++++-------------------------
+ src/cmd/6l/span.c     | 14 +++++++-------
+ src/cmd/gotest/gotest |  2 +-
+ 4 files changed, 30 insertions(+), 34 deletions(-)

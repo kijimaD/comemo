@@ -1,0 +1,15 @@
+commit 2dba9a66e28c8ea5f7239e37a103e90c010af1a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 3 15:47:30 2008 -0800
+
+    - fixed a bug with import printing (missing separator between alias and string)
+    - rewrote declaration printing - was unreadable before
+    - no semicolons after closing "}" for types
+    
+    R=r
+    OCL=20379
+    CL=20379
+
+ usr/gri/pretty/printer.go   | 93 +++++++++++++++++++++++++++------------------
+ usr/gri/pretty/selftest2.go |  6 +++
+ 2 files changed, 62 insertions(+), 37 deletions(-)

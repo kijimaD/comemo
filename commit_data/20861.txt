@@ -1,0 +1,25 @@
+commit 9b5444420cec4b576aff179f632ec60be64fd7f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Nov 6 15:14:08 2014 -0500
+
+    test: move linkx and sinit to run.go
+    
+    The remaining run-only tests will be migrated to run.go in another CL.
+    
+    This CL will break the build due to issues 8746 and 8806.
+    
+    Update #4139
+    Update #8746
+    Update #8806
+    
+    LGTM=rsc
+    R=rsc, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144630044
+
+ test/linkx.go     | 14 ++++----------
+ test/linkx_run.go | 32 ++++++++++++++++++++++++++++++++
+ test/run.go       |  2 --
+ test/sinit.go     | 34 +++++++++++++++++-----------------
+ test/sinit_run.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 92 insertions(+), 29 deletions(-)

@@ -1,0 +1,22 @@
+commit 97055dc1f16ef430b85fb6f8d2bd07a2695afa69
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 8 22:13:44 2015 +1300
+
+    cmd/compile, cmd/internal/obj: centralize knowledge of size of fixed part of stack
+    
+    Shared libraries on ppc64le will require a larger minimum stack frame (because
+    the ABI mandates that the TOC pointer is available at 24(R1)). Part 2a of
+    preparing for that is to have all bits of arch-independent and ppc64-specific
+    codegen that need to know call a function to find out.
+    
+    Change-Id: I55899f73037e92227813c491049a3bd6f30bd41f
+    Reviewed-on: https://go-review.googlesource.com/15524
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go    | 56 ++++++----------------------------
+ src/cmd/compile/internal/gc/gsubr.go   |  4 +--
+ src/cmd/compile/internal/ppc64/ggen.go |  6 ++--
+ src/cmd/internal/obj/link.go           | 13 ++++++++
+ src/cmd/internal/obj/ppc64/asm9.go     |  4 +--
+ src/cmd/internal/obj/ppc64/obj9.go     |  6 ++--
+ 6 files changed, 32 insertions(+), 57 deletions(-)

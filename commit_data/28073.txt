@@ -1,0 +1,29 @@
+commit fba8f4deba81b8c5d903ec2f52dcb151f13a147b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 17:17:50 2016 -0700
+
+    go/internal/gcimporter: fail gracefully on export format skew
+    
+    Port of changes made to compiler in
+    https://go-review.googlesource.com/27814.
+    
+    Correctly handle export format version 0 (we only do this
+    in x/tools/gcimporter15 at the moment - this is a backport
+    of that code for struct fields).
+    
+    Added tests for version handling and detection of corrupted
+    export data.
+    
+    Fixes #16881.
+    
+    Change-Id: I246553c689c89ef5c7fedd1e43717504c2838804
+    Reviewed-on: https://go-review.googlesource.com/27816
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/bimport.go              |  94 +++++++++++++++------
+ src/go/internal/gcimporter/gcimporter.go           |   4 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |  65 ++++++++++++++
+ .../internal/gcimporter/testdata/versions/test.go  |  25 ++++++
+ .../gcimporter/testdata/versions/test_go1.7_0.a    | Bin 0 -> 1862 bytes
+ .../gcimporter/testdata/versions/test_go1.7_1.a    | Bin 0 -> 2316 bytes
+ 6 files changed, 158 insertions(+), 30 deletions(-)

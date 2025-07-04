@@ -1,0 +1,39 @@
+commit 45b641ce15159e29fa4494b837493042d1e10384
+Author: Nick Revin <n@nrvn.cc>
+Date:   Mon Feb 26 19:54:41 2024 +0000
+
+    cmd/link: add option to enable full RELRO for ELF
+    
+    -bindnow linker option enables full RELRO on ELF targets.
+    
+    This options defaults to false and preserves
+    current behavior - partial relro for buildmode=pie.
+    
+    Also, the following changes were made to align
+    internal linker's behavior with external ELF linkers:
+    - GNU_RELRO segment is marked Read-only
+    - .dynamic is a relro section for partial and full RELRO
+    - .got is a relro section for partial and full RELRO
+    - .got.plt is a relro section for full RELRO only
+    
+    Supersedes #45681 (golang.org/cl/312509)
+    
+    Change-Id: I51c4ef07b14beceb7cd6fd989f323e45f89a63ca
+    GitHub-Last-Rev: bc6826441065395b80a2b66cde67466c4d9bce2e
+    GitHub-Pull-Request: golang/go#58869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/security.go      |   3 +-
+ src/cmd/go/internal/work/security_test.go |   4 +
+ src/cmd/link/doc.go                       |   2 +
+ src/cmd/link/internal/ld/elf.go           |  32 +++++--
+ src/cmd/link/internal/ld/elf_test.go      | 150 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/ld/main.go          |   1 +
+ src/internal/testenv/testenv.go           |   9 ++
+ 8 files changed, 198 insertions(+), 11 deletions(-)

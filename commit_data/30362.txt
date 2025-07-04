@@ -1,0 +1,19 @@
+commit 6694a01016e2fb842ee6d8ae053b9c87f56185ff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 21 17:00:10 2017 -0800
+
+    cmd/dist: fix negative test filtering
+    
+    std and race bench tests fail to check against t.runRxWant, so what
+    should be negative filters act as positive filters.
+    
+    Fixes #19239
+    
+    Change-Id: Icf02b2192bcd806a162fca9fb0af68a27ccfc936
+    Reviewed-on: https://go-review.googlesource.com/37336
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

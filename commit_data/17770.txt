@@ -1,0 +1,15 @@
+commit cb309173874e3dd0dca19c904fd368b59e373906
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 08:44:47 2013 -0700
+
+    runtime/cgo: mark callback functions as NOSPLIT
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/14448044
+
+ misc/cgo/test/callback.go       | 14 ++++++++++++++
+ misc/cgo/test/callback_c.c      | 14 ++++++++++++++
+ misc/cgo/test/cgo_test.go       |  1 +
+ src/pkg/runtime/cgo/callbacks.c |  3 +++
+ 4 files changed, 32 insertions(+)

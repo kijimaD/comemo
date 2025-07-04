@@ -1,0 +1,12 @@
+commit a5c29da313e7e76ce893ad0abd9a045cd7afc126
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 10:09:20 2010 -0800
+
+    remove absolute paths from search results
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/216053
+
+ lib/godoc/search.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

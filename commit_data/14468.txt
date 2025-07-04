@@ -1,0 +1,17 @@
+commit c8fa7dcc25cc7655abf55b541149ad248c9830f2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 25 09:04:13 2012 -0800
+
+    bytes, strings: fix Reader WriteTo return value on 0 bytes copied
+    
+    Fixes #4421
+    
+    R=golang-dev, dave, minux.ma, mchaten, rsc
+    CC=golang-dev
+    https://golang.org/cl/6855083
+
+ src/pkg/bytes/reader.go        |  2 +-
+ src/pkg/bytes/reader_test.go   | 36 ++++++++++++++++++++++++++++++++----
+ src/pkg/strings/reader.go      |  2 +-
+ src/pkg/strings/reader_test.go |  4 ++--
+ 4 files changed, 36 insertions(+), 8 deletions(-)

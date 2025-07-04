@@ -1,0 +1,38 @@
+commit 3036b76df0ae748856e3e0008b67241cc580e263
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Jun 13 00:06:49 2020 +0800
+
+    cmd/asm: Add SHA3 hardware instructions for ARM64
+    
+    Armv8.2-SHA introduced four SHA3-related instructions
+    
+    EOR3 <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
+    RAX1 <Vd>.2D, <Vn>.2D, <Vm>.2D
+    XAR <Vd>.2D, <Vn>.2D, <Vm>.2D, #<imm6>
+    BCAX <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
+    
+    We convert them into Go asm style as:
+    
+    VEOR3 <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
+    VRAX1 <Vm>.D2, <Vn>.D2, <Vd>.D2
+    VXAR $imm6, <Vm>.D2, <Vn>.D2, <Vd>.D2
+    VBCAX <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
+    
+    Armv8 Reference Manual:
+    * EOR3 (Three-way Exclusive OR) on C7.2.42
+    * RAX1 (Rotate and Exclusive OR) on C7.2.217
+    * XAR (Exclusive OR and Rotate) on C7.2.401
+    * BCAX (Bit Clear and Exclusive OR) on C7.2.12
+    
+    Change-Id: I9a5d1b5ad508ed8fd5289d535906c54d9a63ca5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180757
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  4 ++
+ src/cmd/internal/obj/arm64/a.out.go       |  4 ++
+ src/cmd/internal/obj/arm64/anames.go      |  4 ++
+ src/cmd/internal/obj/arm64/asm7.go        | 73 ++++++++++++++++++++++++++++++-
+ 4 files changed, 83 insertions(+), 2 deletions(-)

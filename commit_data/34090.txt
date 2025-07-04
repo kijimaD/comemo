@@ -1,0 +1,22 @@
+commit 8c8bb96b9285cabe126f5b59ba96198f3c6d36ee
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 29 11:28:17 2018 +1100
+
+    cmd/asm: fix crash on bad symbol for TEXT
+    
+    Was missing a check in validSymbol.
+    
+    Fixes #23580.
+    
+    Can wait for go1.11. Probably safe but the crash is only for
+    invalid input, so not worth the risk.
+    
+    Change-Id: I51f88c5be35a8880536147d1fe5c5dd6798c29de
+    Reviewed-on: https://go-review.googlesource.com/90398
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go         | 2 +-
+ src/cmd/asm/internal/asm/pseudo_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

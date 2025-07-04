@@ -1,0 +1,14 @@
+commit af015b1f21949c6ef40989f4746431919c7df6e7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 4 12:06:23 2017 +1100
+
+    runtime: skip flaky TestWindowsStackMemoryCgo
+    
+    Updates #22575
+    
+    Change-Id: I1f848768934b7024d2ef01db13b9003e9ca608a0
+    Reviewed-on: https://go-review.googlesource.com/76030
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/crash_cgo_test.go | 1 +
+ 1 file changed, 1 insertion(+)

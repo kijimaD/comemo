@@ -1,0 +1,20 @@
+commit f52b8fa83f00b70215e9980b2d7fc0c52c873c3b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 13:34:48 2023 -0800
+
+    go/types: generate infer.go
+    
+    Also, remove pos parameter from inferB (was unused).
+    
+    Change-Id: I050f64d9fe916628499a55ca46f15c1f58ed4d1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461691
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go |  6 ++---
+ src/go/types/generator.go                | 44 ++++++++++++++++++++++++++++++++
+ src/go/types/infer.go                    | 34 ++++++++++++------------
+ 3 files changed, 64 insertions(+), 20 deletions(-)

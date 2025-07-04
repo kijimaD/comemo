@@ -1,0 +1,14 @@
+commit f2380a81d707c40e4f8950a2a01bd28a9f004b12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 4 17:02:08 2013 -0700
+
+    cmd/dist: don't print misleading warning when using GOROOT_FINAL
+    
+    Fixes #5240.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13546044
+
+ src/cmd/dist/build.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

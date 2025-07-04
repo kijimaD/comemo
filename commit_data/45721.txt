@@ -1,0 +1,16 @@
+commit bbda92359289ae5992bbd8da9ce37932e531adda
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 17:30:08 2021 -0700
+
+    doc/go1.17: mention new Windows SysProcAttr fields
+    
+    For #44011
+    For #44513
+    
+    Change-Id: I512466f2e775e36098eb36ca7ef82333cd9e632a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323352
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

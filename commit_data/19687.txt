@@ -1,0 +1,39 @@
+commit 3e801416ceadd622ad9703d52ac12065dba5eaf8
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Jul 9 13:17:27 2014 +1000
+
+    cmd/go: fix build -o panic when import path pattern matches 0 pkgs
+    
+    Fixes #8165.
+    
+    After this change, the panic is replaced by a message:
+    
+            $ go build -o out ...doesntexist
+            warning: "...doesntexist" matched no packages
+            no packages to build
+    
+    The motivation to return 1 exit error code is to allow -o flag
+    to be used to guarantee that the output binary is written to
+    when exit status is 0. If someone uses an import path pattern
+    to specify a single package and suddenly that matches no packages,
+    it's better to return exit code 1 instead of silently doing nothing.
+    This is consistent with the case when -o flag is given and multiple
+    packages are matched.
+    It's also somewhat consistent with the current behavior with the
+    panic, except that gave return code 2. But it's similar in
+    that it's also non-zero (indicating failure).
+    I've changed the language to be similar to output of go test
+    when an import path pattern matches no packages (it also has a return status of
+    1):
+    
+            $ go test ...doesntexist
+            warning: "...doesntexist" matched no packages
+            no packages to test
+    
+    LGTM=adg
+    R=golang-codereviews, josharian, gobot, adg
+    CC=golang-codereviews
+    https://golang.org/cl/107140043
+
+ src/cmd/go/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

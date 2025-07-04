@@ -1,0 +1,30 @@
+commit 443990742ec6dd128fab41d4afaa8668e665eadd
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Dec 13 09:31:21 2018 -0800
+
+    cmd/compile: ignore out-of-bounds reads from readonly constants
+    
+    Out-of-bounds reads of globals can happen in dead code. For code
+    like this:
+    
+    s := "a"
+    if len(s) == 3 {
+       load s[0], s[1], and s[2]
+    }
+    
+    The out-of-bounds loads are dead code, but aren't removed yet
+    when lowering. We need to not panic when compile-time evaluating
+    those loads. This can only happen for dead code, so the result
+    doesn't matter.
+    
+    Fixes #29215
+    
+    Change-Id: I7fb765766328b9524c6f2a1e6ab8d8edd9875097
+    Reviewed-on: https://go-review.googlesource.com/c/154057
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
+ test/fixedbugs/issue29215.go            | 18 ++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,0 +1,29 @@
+commit 1820cca7d735574b4ac9647d3a8b996b5f97f3cc
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Oct 1 13:01:44 2019 +0000
+
+    Revert "cmd/link: load symbols from .syso in external link mode"
+    
+    This reverts CL 186417.
+    
+    Reason for revert: Broke darwin (10_14), linux (ppc), aix (ppc)
+    
+    Updates #33139
+    
+    Change-Id: I8bf3c817a96a0e57e45754a097cea7062b2fcdfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198177
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .../go/testdata/script/link_syso_issue33139.txt    | 29 ----------------------
+ src/cmd/link/internal/arm/asm.go                   |  2 +-
+ src/cmd/link/internal/ld/data.go                   | 13 +---------
+ src/cmd/link/internal/ld/go.go                     | 18 --------------
+ src/cmd/link/internal/ld/lib.go                    |  2 +-
+ src/cmd/link/internal/ld/macho.go                  |  4 +--
+ src/cmd/link/internal/ld/pe.go                     |  2 +-
+ src/cmd/link/internal/ld/symtab.go                 |  2 +-
+ src/cmd/link/internal/sym/symkind.go               |  1 -
+ src/cmd/link/internal/sym/symkind_string.go        | 19 +++++++-------
+ 10 files changed, 16 insertions(+), 76 deletions(-)

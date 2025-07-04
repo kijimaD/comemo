@@ -1,0 +1,32 @@
+commit 74903553bc91cef8f31067ad69ef2aa7d60ceb00
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 22 17:21:10 2021 -0500
+
+    doc: start draft go1.17 release notes, move go1.16 to x/website
+    
+    This template is based on CL 248198 and previous ones like it.
+    Continue to eagerly include often-used sections, and clarify that
+    the TODO is about completing the section, or removing if it turns
+    out not to be needed.
+    
+    Move the Go 1.16 release notes to x/website, since that's the new
+    home for past Go release notes as of CL 291711. They're added to
+    x/website in CL 295249.
+    
+    'relnote -html' does not report any CLs with RELNOTE annotations
+    since 2021/02/01.
+    
+    For #44513.
+    Updates #40700.
+    
+    Change-Id: Idd389335500ec4dec2764cbbaa385918cc8a79ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295209
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.16.html | 1220 -------------------------------------------------------
+ doc/go1.17.html |   84 ++++
+ 2 files changed, 84 insertions(+), 1220 deletions(-)

@@ -1,0 +1,12 @@
+commit 9c9b96f028bd354f3b2e0869960300fe3936a54d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 14:06:38 2012 +1100
+
+    go/doc: update golden file to fix build
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5683046
+
+ src/pkg/go/doc/testdata/testing.1.golden | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

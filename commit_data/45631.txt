@@ -1,0 +1,37 @@
+commit cde2d857fe1f13ade269e3f7d58c6c2379a53c50
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 6 14:01:20 2021 -0400
+
+    cmd/go: be less strict about go version syntax in dependency go.mod files
+    
+    It is unclear what the future holds for the go line in go.mod files.
+    Perhaps at some point we will switch to semver numbering.
+    Perhaps at some point we will allow specifying minor versions
+    or even betas and release candidates.
+    Those kinds of changes are difficult today because the go line
+    is parsed in dependency modules, meaning that older
+    versions of the Go toolchain need to understand newer go lines.
+    
+    This CL makes that case - parsing a go line in a dependency's
+    go.mod file - a bit more lax about how to find the version.
+    It allows a leading v and any trailing non-digit-prefixed string
+    after the MAJOR.MINOR section.
+    
+    There are no concrete plans to make use of any of these changes,
+    but if in the future we want to make them, having a few Go releases
+    under out belt that will accept the syntax in dependencies will
+    make any changes significantly easier.
+    
+    Change-Id: I79bb84bba4b769048ac4b14d5c275eb9a3f270c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317690
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 +-
+ src/cmd/go/testdata/script/badgo.txt            | 50 +++++++++++++++++++++++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 14 ++++++-
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 5 files changed, 66 insertions(+), 6 deletions(-)

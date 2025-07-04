@@ -1,0 +1,18 @@
+commit 52fcac3b7cf8a8d660b4d73188238ac9e7974ee4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 18 15:03:38 2018 -0800
+
+    cmd/compile/internal/syntax: implement regression test harness for syntax errors
+    
+    R=go1.11
+    
+    Fixes #20800.
+    
+    Change-Id: Ifea273521d42a543a43da2f655ace7c295650e30
+    Reviewed-on: https://go-review.googlesource.com/88335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go                        |   1 +
+ src/cmd/compile/internal/syntax/error_test.go      | 191 +++++++++++++++++++++
+ .../compile/internal/syntax/testdata/sample.src    |  33 ++++
+ 3 files changed, 225 insertions(+)

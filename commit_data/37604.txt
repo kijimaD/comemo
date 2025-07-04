@@ -1,0 +1,12 @@
+commit 02a0827d7960d0c828fad57b11c02794dec50552
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 5 16:33:56 2018 -0500
+
+    doc: 1.12 release notes for cmd/go
+    
+    Change-Id: I1a0bedc9fbd42e138eb68af8365115339e377856
+    Reviewed-on: https://go-review.googlesource.com/c/152742
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 72 +++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 60 insertions(+), 12 deletions(-)

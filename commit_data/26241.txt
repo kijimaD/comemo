@@ -1,0 +1,17 @@
+commit 40bfec0022c027545f8b3e68050e7778dec7f7ce
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Mar 11 20:03:17 2016 -0600
+
+    cmd/compile: reuse auto symbols during ssa construction
+    
+    Reuse auto symbols so cse can eliminate OpAddrs that refer to
+    them.
+    
+    Change-Id: I69e6a3f77a3a33946459cf8c6eccf223f6125048
+    Reviewed-on: https://go-review.googlesource.com/20569
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

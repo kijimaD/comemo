@@ -1,0 +1,16 @@
+commit 23dcee64643fef66663272cd123dc7b42dfa67c9
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Jun 1 16:20:32 2020 -0400
+
+    crypto/tls: test that Clone copies session ticket key fields
+    
+    Updates #25256
+    
+    Change-Id: If16c42581f1cf3500fd7fd01c915e487f8025e55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235922
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/tls_test.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

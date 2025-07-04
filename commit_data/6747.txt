@@ -1,0 +1,12 @@
+commit bd8913f791d1c19a202d5cec7f44a923f59446b1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 10 14:24:16 2010 -0800
+
+    release part 2
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2986042
+
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

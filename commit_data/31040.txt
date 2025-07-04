@@ -1,0 +1,13 @@
+commit dc243f257bc5b9aff59782abae35a2868d593947
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 7 10:53:40 2017 -0700
+
+    cmd/compile/internal/types: don't return *Sym from Pushdcl (it's never used)
+    
+    Change-Id: Ib55f7ea3f7dcd9d02f6027121663870a65cb886c
+    Reviewed-on: https://go-review.googlesource.com/39924
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go    | 2 +-
+ src/cmd/compile/internal/types/scope.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit f5806a900712313d0e7fcb6b9846530a4500ae3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 15:37:23 2013 -0400
+
+    doc: update go1.2.txt
+    
+    Will submit once I can fill in the CL XXX number.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12912044
+
+ doc/go1.2.txt | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

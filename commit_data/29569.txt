@@ -1,0 +1,14 @@
+commit fbf92436b95d91151ce6717f40c46614ee68d487
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 11:23:53 2016 -0800
+
+    doc: add FAQ: why no conversion from []T1 to []T2?
+    
+    Fixes #16934.
+    
+    Change-Id: I725704e4c4aae7023fd89edc42af7ba0d242fec8
+    Reviewed-on: https://go-review.googlesource.com/33327
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,0 +1,24 @@
+commit 399ad79fa6606c9754e2345a23536ccb15502083
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 19 16:50:24 2022 -0500
+
+    cmd/dist: add map of broken ports and -force flag
+    
+    It's empty so far. The next CL adds linux/sparc64.
+    
+    Also add -force flag to the bootstrap.bash script
+    so that it's possible to use it with broken ports.
+    
+    For #56679.
+    
+    Change-Id: I09c733d0df0a68df34fb808eae29be010a6da461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458515
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/bootstrap.bash    | 10 ++++++++--
+ src/cmd/dist/build.go | 20 +++++++++++++++++---
+ 2 files changed, 25 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit 37b85971781c6474f17c6b99bf4d40765497afd3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 24 22:05:26 2015 -0500
+
+    runtime: remove unnecessary gcworkdone resetting loop
+    
+    The loop in gcMark is redundant with the gcworkdone resetting
+    performed by markroot, which called a few lines later in gcMark.
+    
+    Change-Id: Ie0a826a614ecfa79e6e6b866e8d1de40ba515856
+    Reviewed-on: https://go-review.googlesource.com/5880
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 6 ------
+ 1 file changed, 6 deletions(-)

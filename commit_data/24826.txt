@@ -1,0 +1,12 @@
+commit d58081cf0a2fecb3917a3032d8c2fff9e312b0b8
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 08:08:48 2015 -0400
+
+    sync/atomic: added support for mips64{,le}
+    
+    Change-Id: Ibe6c345afd4cbae7e2542a350043fbb6b81d5678
+    Reviewed-on: https://go-review.googlesource.com/14450
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/sync/atomic/asm_mips64x.s | 181 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 181 insertions(+)

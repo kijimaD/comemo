@@ -1,0 +1,25 @@
+commit 5be33e95437d72f5ece5f7d5cc6f9773030e024e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:20:20 2011 -0700
+
+    godoc, exp/ebnf, exp/types, go/scanner, scanner: use rune
+    
+    API question: is a scanner token an int or a rune?
+    
+    Since the rune is the common case and the token values
+    are the special (negative) case, I chose rune.  But it could
+    easily go the other way.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5301049
+
+ src/cmd/godoc/dirtrees.go       |  2 +-
+ src/cmd/godoc/spec.go           |  4 ++--
+ src/pkg/exp/ebnf/ebnf.go        |  2 +-
+ src/pkg/exp/ebnf/parser.go      |  4 ++--
+ src/pkg/exp/types/gcimporter.go | 10 ++++-----
+ src/pkg/go/scanner/scanner.go   | 22 ++++++++++----------
+ src/pkg/scanner/scanner.go      | 46 ++++++++++++++++++++---------------------
+ src/pkg/scanner/scanner_test.go | 12 +++++------
+ 8 files changed, 51 insertions(+), 51 deletions(-)

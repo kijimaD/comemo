@@ -1,0 +1,12 @@
+commit b379b32f31b13381308887fcf02ca52b937a0f07
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 15:25:15 2013 -0700
+
+    cmd/api: add a benchmark over the standard library
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/12603045
+
+ src/cmd/api/goapi_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

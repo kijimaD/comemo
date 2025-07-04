@@ -1,0 +1,25 @@
+commit 601eb78de263023fc068c978858e2774faa915c0
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 16:14:29 2023 +0800
+
+    text: add available godoc link
+    
+    Change-Id: Idbc110cfc4fd6bbbc8b79807ac14abf7b30e0e65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539855
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/text/scanner/scanner.go      | 36 ++++++++++++++++++------------------
+ src/text/tabwriter/tabwriter.go  | 18 +++++++++---------
+ src/text/template/exec.go        |  6 +++---
+ src/text/template/funcs.go       |  6 +++---
+ src/text/template/helper.go      | 10 +++++-----
+ src/text/template/parse/node.go  |  6 +++---
+ src/text/template/parse/parse.go |  4 ++--
+ src/text/template/template.go    |  6 +++---
+ 8 files changed, 46 insertions(+), 46 deletions(-)

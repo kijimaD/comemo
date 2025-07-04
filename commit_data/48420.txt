@@ -1,0 +1,18 @@
+commit 3d7392a08f00a7328af45c877dc0b3a431780c5b
+Author: fangguizhen <1297394526@qq.com>
+Date:   Thu May 27 16:11:52 2021 +0000
+
+    net/rpc: reduce the execution of reflect and decode
+    
+    Change-Id: Ief4b5e1c2d1002392901124c0694afe58c271573
+    GitHub-Last-Rev: e3b8a60377becfc9c30178d7ae6131d7a4b82dde
+    GitHub-Pull-Request: golang/go#46421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323014
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/net/rpc/server.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

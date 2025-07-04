@@ -1,0 +1,12 @@
+commit f4f1b14ab497539bc2fd326965c8a4b40bbae49d
+Author: Hidetatsu Yaginuma <ygnmhdtt@gmail.com>
+Date:   Sun Dec 30 16:03:53 2018 +0900
+
+    strconv: add missing package name into doc.go(godoc overview)
+    
+    Change-Id: I336ad707a85bf0c81b6c2230c90452c0b3b92924
+    Reviewed-on: https://go-review.googlesource.com/c/155998
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

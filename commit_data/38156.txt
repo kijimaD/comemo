@@ -1,0 +1,37 @@
+commit db2b6e15667f9001bbd1ef133ce64328cd329166
+Author: Alex Tokarev <aleksator@gmail.com>
+Date:   Fri Nov 23 13:45:51 2018 +0700
+
+    cmd/link: remove unused flag -D (FlagDataAddr)
+    
+    FlagDataAddr is a vestige from git commit 0cafb9e (2008;
+    no Gerrit CL number).
+    
+    It was never used but unfortunately setting it would
+    cause a spurious warning:
+    
+      warning: -D<value> is ignored because of -R0x1000
+    
+    yet if -R was unset e.g. -R=0, the linker would crash
+    with a divide by zero runtime panic.
+    
+    Fixes #28921
+    
+    Change-Id: Ia910399bc269337a9a860f3a26cd48fae6e62724
+    Reviewed-on: https://go-review.googlesource.com/c/151021
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go  | 19 +------------------
+ src/cmd/link/internal/arm/obj.go    | 19 +------------------
+ src/cmd/link/internal/arm64/obj.go  | 17 -----------------
+ src/cmd/link/internal/ld/main.go    |  3 +--
+ src/cmd/link/internal/ld/pe.go      |  6 ------
+ src/cmd/link/internal/ld/xcoff.go   |  2 --
+ src/cmd/link/internal/mips/obj.go   |  8 --------
+ src/cmd/link/internal/mips64/obj.go | 14 --------------
+ src/cmd/link/internal/ppc64/obj.go  | 15 ---------------
+ src/cmd/link/internal/s390x/obj.go  |  8 --------
+ src/cmd/link/internal/x86/obj.go    | 19 +------------------
+ 11 files changed, 4 insertions(+), 126 deletions(-)

@@ -1,0 +1,21 @@
+commit c14050646f621db5f54c1a300b80c65f99fbd03b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Sep 24 16:59:23 2016 +0200
+
+    runtime: fix newextram PC passed to race detector
+    
+    PC passed to racegostart is expected to be a return PC
+    of the go statement. Race runtime will subtract 1 from the PC
+    before symbolization. Passing start PC of a function is wrong.
+    Add sys.PCQuantum to the function start PC.
+    
+    Update #17190
+    
+    Change-Id: Ia504c49e79af84ed4ea360c2aea472b370ea8bf5
+    Reviewed-on: https://go-review.googlesource.com/29712
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

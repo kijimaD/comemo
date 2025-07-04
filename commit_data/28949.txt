@@ -1,0 +1,15 @@
+commit 9cefbe9d03918c07451e5512cc4c227fb0d6885a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 20 08:59:07 2016 +0200
+
+    lib/time: update to IANA release 2016g (September 2016)
+    
+    Change-Id: Ie6258602554c5bb6685c9de42ccda84d297af1e2
+    Reviewed-on: https://go-review.googlesource.com/31515
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 364741 -> 363948 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

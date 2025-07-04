@@ -1,0 +1,22 @@
+commit d965bb613086cd780cf73418bcdeaef50a9afc55
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 20 11:37:54 2020 -0400
+
+    runtime: use divRoundUp
+    
+    There are a handful of places where the runtime wants to round up the
+    result of a division. We just introduced a helper to do this. This CL
+    replaces all of the hand-coded round-ups (that I could find) with this
+    helper.
+    
+    Change-Id: I465d152157ff0f3cad40c0aa57491e4f2de510ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224385
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/malloc.go      | 4 ++--
+ src/runtime/mgcmark.go     | 2 +-
+ src/runtime/mgcsweepbuf.go | 2 +-
+ src/runtime/msize.go       | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

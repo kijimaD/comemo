@@ -1,0 +1,17 @@
+commit 08a68b73a4843dfe8c4896cace3242b895342511
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Feb 27 12:47:39 2023 +0800
+
+    os: skip zero-copy attempts with copy_file_range(2)/splice(2) for target files with O_APPEND flag
+    
+    Change-Id: I6cccac9295ab4a9bf7f7a33382a34f31b1c4a000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471496
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+
+ src/os/readfrom_linux.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

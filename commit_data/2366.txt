@@ -1,0 +1,22 @@
+commit aa3222d88f3812135008fb4c6d40bdcc946b263b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:02:12 2009 -0700
+
+    32-bit fixes in lessstack.
+    
+    avoid tight coupling between deferreturn and jmpdefer.
+    before, jmpdefer knew the exact frame size of deferreturn
+    in order to pop it off the stack.  now, deferreturn passes
+    jmpdefer a pointer to the frame above it explicitly.
+    that avoids a magic constant and should be less fragile.
+    
+    R=r
+    DELTA=32  (6 added, 3 deleted, 23 changed)
+    OCL=29801
+    CL=29804
+
+ src/runtime/386/asm.s   | 12 +++++++-----
+ src/runtime/amd64/asm.s | 14 ++++++++------
+ src/runtime/proc.c      | 25 ++++++++++++-------------
+ src/runtime/runtime.h   |  2 +-
+ 4 files changed, 28 insertions(+), 25 deletions(-)

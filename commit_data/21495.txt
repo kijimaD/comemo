@@ -1,0 +1,23 @@
+commit 8581d48c150a5f0197a591bf8ef8b1ece7218585
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Tue Feb 3 10:52:18 2015 -0800
+
+    test: check for build constraints only upto the first blank line
+    
+    The main issue is that the misc/cgo/{stdio,life} tests are silently
+    getting skipped when invoked from run.bash.
+    
+    run.go should ignore any build tags after the first blank line in
+    source file. It already checks for test actions only upto the first
+    blank line. Build tags must be specified in the same block.
+    
+    See http://golang.org/cl/3675 for background.
+    
+    Change-Id: Id8abf000119e3335f7250d8ef34aac7811fc9dff
+    Reviewed-on: https://go-review.googlesource.com/3812
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/gc2.go     | 3 +--
+ test/nosplit.go | 3 +--
+ test/run.go     | 6 ++----
+ 3 files changed, 4 insertions(+), 8 deletions(-)

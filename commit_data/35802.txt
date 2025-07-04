@@ -1,0 +1,19 @@
+commit 3c586d4483b0cf59cd57adec150317c497065845
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 25 20:24:37 2018 +0000
+
+    cmd/dist: increase timeout scale to 3 for windows
+    
+    cmd/go can sometimes take up to 400s on windows due
+    to various issues (disk I/O on builders being the
+    latest cause). Increase the timeout scale to account
+    for this.
+    
+    Change-Id: I1fd4964472a70fb0f33cf6ed73298c034b9c1fb0
+    Reviewed-on: https://go-review.googlesource.com/120762
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

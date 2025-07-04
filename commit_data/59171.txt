@@ -1,0 +1,28 @@
+commit 0095b5d09885390505e679aafee8f3e525b33c9d
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Mar 17 15:56:12 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VSHUF4I.{B/H/W/D} instructions support
+    
+    Go asm syntax:
+             VSHUF4I{B/H/W/V}       $1, V1, V2
+            XVSHUF4I{B/H/W/V}       $2, X1, X2
+    
+    Equivalent platform assembler syntax:
+             vshuf4i.{b/h/w/d}      v2, v1, $1
+            xvshuf4i.{b/h/w/d}      x2, x1, $2
+    
+    Change-Id: I6a847ccbd2c93432d87bd1390b5cf1508da06496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658376
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go        |  4 +++
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s  | 26 +++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/loong64error.s |  7 +++++
+ src/cmd/internal/obj/loong64/a.out.go            |  9 ++++++
+ src/cmd/internal/obj/loong64/anames.go           |  8 +++++
+ src/cmd/internal/obj/loong64/asm.go              | 37 ++++++++++++++++++++++++
+ 6 files changed, 91 insertions(+)

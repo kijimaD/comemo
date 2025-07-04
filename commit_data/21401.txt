@@ -1,0 +1,15 @@
+commit a99369fdb5137862cf12469afcd96a47852916b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 28 22:39:57 2015 -0500
+
+    liblink: fix error message on linux for unknown TLS base
+    
+    headstr(Hlinux) was reporting "android",
+    making for some confusing error messages.
+    
+    Change-Id: I437095bee7cb2143aa37c91cf786f3a3581ae7b9
+    Reviewed-on: https://go-review.googlesource.com/3513
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/liblink/sym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

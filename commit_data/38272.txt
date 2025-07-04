@@ -1,0 +1,22 @@
+commit 1650f1ba0b964a06a242c3318e85b3b46f010614
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 6 14:24:29 2019 -0500
+
+    cmd/go: drop support for binary-only packages
+    
+    Fixes #28152
+    
+    Change-Id: I98db923bdf8de7acf2df452313427bfea43b63c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165746
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                      | 11 +------
+ src/cmd/go/go_test.go                      | 51 +++++-------------------------
+ src/cmd/go/internal/help/helpdoc.go        |  9 ------
+ src/cmd/go/internal/list/list.go           |  2 +-
+ src/cmd/go/internal/work/exec.go           | 18 ++---------
+ src/cmd/go/testdata/script/binary_only.txt | 12 -------
+ src/go/build/doc.go                        | 24 ++++++++------
+ 7 files changed, 27 insertions(+), 100 deletions(-)

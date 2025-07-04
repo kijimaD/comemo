@@ -1,0 +1,23 @@
+commit 9ae3c560b977a8ca719f9e2955388907952766e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 15:15:48 2015 -0400
+
+    cmd/link: implement -buildid for non-ELF binaries
+    
+    Non-ELF binary formats are much less flexible and typically do not
+    have a good place to store the build ID.
+    
+    We store it as raw bytes at the beginning of the text segment.
+    
+    The only system I know of that will be upset about this is NaCl,
+    and NaCl is an ELF system and does not use this.
+    
+    For #11048.
+    
+    Change-Id: Iaa7ace703c4cf36392e752eea9b55e2ce49e9826
+    Reviewed-on: https://go-review.googlesource.com/10708
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 24 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/pobj.go |  1 +
+ 2 files changed, 25 insertions(+)

@@ -1,0 +1,21 @@
+commit c55c33af52c5ed97c93ec67bf7373d095bcb957d
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Sep 14 02:11:02 2016 -0700
+
+    os/exec: add examples for CombinedOutput, StdinPipe, StderrPipe
+    
+    Updates #16360.
+    
+    Adds examples for:
+    + CombinedOutput
+    + StdinPipe
+    + StderrPipe
+    
+    Change-Id: I19293e64b34ed9268da00e0519173a73bfbc2c10
+    Reviewed-on: https://go-review.googlesource.com/29150
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/os/exec/example_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

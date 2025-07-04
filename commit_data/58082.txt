@@ -1,0 +1,35 @@
+commit f174c31f3e9a0524edf504f70947237780d9b7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 15 12:54:37 2024 -0500
+
+    cmd/go/internal/fsys: minor cleanup
+    
+    Rename canonicalize to abs.
+    Rename IsDirWithGoFiles to IsGoDir.
+    Remove Init argument.
+    Split OverlayPath into Actual and Renamed.
+    Clean up doc comments.
+    Other minor cleanups.
+    
+    Preparation for larger changes.
+    
+    Change-Id: Ida022588149a1618a63acc91e3800b09df873b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628697
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go      |   2 +-
+ src/cmd/go/internal/fsys/fsys.go       | 248 ++++++++++++++++-----------------
+ src/cmd/go/internal/fsys/fsys_test.go  |  56 ++++----
+ src/cmd/go/internal/modfetch/fetch.go  |   6 +-
+ src/cmd/go/internal/modindex/read.go   |   6 +-
+ src/cmd/go/internal/modload/import.go  |   6 +-
+ src/cmd/go/internal/modload/init.go    |   6 +-
+ src/cmd/go/internal/modload/modfile.go |  12 +-
+ src/cmd/go/internal/work/buildid.go    |   3 +-
+ src/cmd/go/internal/work/exec.go       |  12 +-
+ src/cmd/go/internal/work/gc.go         |  26 ++--
+ src/cmd/go/internal/work/gccgo.go      |  10 +-
+ src/cmd/go/internal/work/init.go       |   2 +-
+ 13 files changed, 193 insertions(+), 202 deletions(-)

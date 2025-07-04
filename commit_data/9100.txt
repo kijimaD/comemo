@@ -1,0 +1,13 @@
+commit 50d90451ff9eb9fc74b52cbf02518164d57f93ed
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 18 11:34:13 2011 +1000
+
+    reflect: panic if Method index is out of range for a type.
+    Makes the code agree with the documentation.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4759050
+
+ src/pkg/reflect/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

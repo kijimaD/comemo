@@ -1,0 +1,18 @@
+commit ef12bbfc9ddbb168fcd2ab0ad0bd364e40a1ab7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 12:26:47 2013 -0400
+
+    runtime: disable preemption during deferreturn
+    
+    Deferreturn is synthesizing a new call frame.
+    It must not be interrupted between copying the args there
+    and fixing up the program counter, or else the stack will
+    be in an inconsistent state, one that will confuse the
+    garbage collector.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11522043
+
+ src/pkg/runtime/panic.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

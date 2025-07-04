@@ -1,0 +1,16 @@
+commit 222450addb95c1b9264be28d77cc9da8a73b5647
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 22 13:55:45 2011 +1000
+
+    exp/template: add globbing helpers to load groups of files into sets.
+    Also make the Set.Parse methods variadic so you can parse static lists of files without loops.
+    
+    R=rsc, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4802051
+
+ src/pkg/exp/template/helper.go           | 96 ++++++++++++++++++++++++++------
+ src/pkg/exp/template/set_test.go         | 42 ++++++++++++++
+ src/pkg/exp/template/testdata/file1.tmpl |  2 +
+ src/pkg/exp/template/testdata/file2.tmpl |  2 +
+ 4 files changed, 126 insertions(+), 16 deletions(-)

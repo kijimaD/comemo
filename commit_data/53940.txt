@@ -1,0 +1,23 @@
+commit 6d8d88a70716bd35708748ba4e0110bdcd9520f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 12:37:15 2023 -0700
+
+    database/sql: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: Ib05ba3d456b22f7370459037b3d263c4b3ebe3b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514975
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/database/sql/convert.go      |  2 +-
+ src/database/sql/driver/types.go |  2 +-
+ src/database/sql/fakedb_test.go  | 28 ++++++++++++++--------------
+ src/database/sql/sql.go          |  2 +-
+ 4 files changed, 17 insertions(+), 17 deletions(-)

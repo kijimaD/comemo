@@ -1,0 +1,19 @@
+commit 822f832d29c5fe8d0fac3f36028c0b4ffa7eec80
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 19 15:58:40 2017 +0900
+
+    cmd/nm: add test case for go archives
+    
+    Also, rename some test cases, check (*os.File).Close
+    
+    For #21706
+    
+    Change-Id: Ie60c4d345b2259736c823dc6001c08affcdd86e7
+    Reviewed-on: https://go-review.googlesource.com/64510
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/nm/nm_cgo_test.go |  18 +++----
+ src/cmd/nm/nm_test.go     | 117 ++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 117 insertions(+), 18 deletions(-)

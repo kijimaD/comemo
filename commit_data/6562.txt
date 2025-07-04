@@ -1,0 +1,15 @@
+commit a3bcf4b6640450ab249cbd4e074a05c274812bc7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 20 09:43:27 2010 +1100
+
+    nntp: remove nntp package from the standard library.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2470045
+
+ src/pkg/Makefile          |   1 -
+ src/pkg/nntp/Makefile     |  11 -
+ src/pkg/nntp/nntp.go      | 707 ----------------------------------------------
+ src/pkg/nntp/nntp_test.go | 240 ----------------
+ 4 files changed, 959 deletions(-)

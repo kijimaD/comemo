@@ -1,0 +1,49 @@
+commit fec7fa8b9deb5f0c08c546ad2ba121d78e104163
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 13:34:25 2012 -0500
+
+    build: delete make paraphernalia
+    
+    As a convenience to people working on the tools,
+    leave Makefiles that invoke the go dist tool appropriately.
+    They are not used during the build.
+    
+    R=golang-dev, bradfitz, n13m3y3r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5636050
+
+ src/Make.ccmd            |  48 -------------
+ src/Make.clib            |  37 ----------
+ src/Make.cmd             |  33 ---------
+ src/Make.common          |  22 ------
+ src/Make.ctool           |  48 -------------
+ src/Make.dist            |  15 ++++
+ src/Make.inc             | 177 -----------------------------------------------
+ src/all-qemu.bash        |  16 -----
+ src/buildinfo.sh         |  40 -----------
+ src/cmd/5a/Makefile      |  25 ++-----
+ src/cmd/5c/Makefile      |  33 +--------
+ src/cmd/5g/Makefile      |  35 +---------
+ src/cmd/5l/Makefile      |  42 +----------
+ src/cmd/6a/Makefile      |  25 ++-----
+ src/cmd/6c/Makefile      |  35 +---------
+ src/cmd/6g/Makefile      |  34 +--------
+ src/cmd/6l/Makefile      |  47 +------------
+ src/cmd/8a/Makefile      |  25 ++-----
+ src/cmd/8c/Makefile      |  36 +---------
+ src/cmd/8g/Makefile      |  35 +---------
+ src/cmd/8l/Makefile      |  48 +------------
+ src/cmd/Makefile         |  60 ----------------
+ src/cmd/cc/Makefile      |  36 ++--------
+ src/cmd/cov/Makefile     |  40 +----------
+ src/cmd/gc/Makefile      |  67 ++----------------
+ src/cmd/nm/Makefile      |  14 +---
+ src/cmd/pack/Makefile    |  11 +--
+ src/cmd/prof/Makefile    |  37 +---------
+ src/lib9/Makefile        | 121 +-------------------------------
+ src/libbio/Makefile      |  54 ++-------------
+ src/libmach/Makefile     |  67 ++----------------
+ src/pkg/unicode/Makefile |   2 -
+ src/quietgcc.bash        |  44 ------------
+ src/version.bash         |  50 -------------
+ 34 files changed, 76 insertions(+), 1383 deletions(-)

@@ -1,0 +1,13 @@
+commit d080a1cf147b9377edc25b108d28fad4ced46e31
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 11 17:00:19 2011 -0400
+
+    compress/zlib: actually use provided dictionary.
+    
+    R=rsc, bradfitz, bradfitzgoog
+    CC=golang-dev
+    https://golang.org/cl/4518056
+
+ src/pkg/compress/zlib/writer.go      |  2 +-
+ src/pkg/compress/zlib/writer_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

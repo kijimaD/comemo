@@ -1,0 +1,12 @@
+commit 44670373533d47a48fb7c9abe045c004bfa4b2b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 14:10:25 2010 -0700
+
+    rpc documentation cleanup: remove ;'s from code in documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/624042
+
+ src/pkg/rpc/server.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

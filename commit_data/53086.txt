@@ -1,0 +1,19 @@
+commit 8c822ac7e8e136f079359be1772c1ba3f06399e6
+Author: David Chase <drchase@google.com>
+Date:   Wed May 17 10:37:18 2023 -0400
+
+    cmd/link, internal/abi: minor follow-up cleanups
+    
+    these address comments on CLs in the large refactoring stack
+    recently submitted.
+    
+    Change-Id: Ic9023c32aafe4dda953b42c9a36834d3ab3432eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495835
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/decodesym.go | 4 ++--
+ src/internal/abi/type.go              | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

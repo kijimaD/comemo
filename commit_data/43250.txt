@@ -1,0 +1,37 @@
+commit 9e2acf94fe1baa8bdffb21c2d54e0186ac88b68b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 12:30:10 2020 -0400
+
+    hash/maphash: adjust package comment
+    
+    Add note about using per-use seeds.
+    
+    Delete "collision-resistant but" in:
+    > The hash functions are collision-resistant but not cryptographically secure.
+    
+    "Collision-resistant" has a precise cryptographic meaning that is
+    incompatible with "not cryptographically secure".
+    All that is really meant by it here here is "it's a good hash function",
+    which should be established already.
+    
+    Also delete:
+    > The hash value of a given byte sequence is consistent within a
+    > single process, but will be different in different processes.
+    
+    This was added for its final clause in response to #37040,
+    but "The hash value of a given byte sequence" is by design not a
+    concept in this package. Only "... of a given seed and byte sequence".
+    And seeds cannot be shared between processes, so again by design
+    you can't even set up the appropriate first half of the sentence
+    to say the second half.
+    
+    Change-Id: I2c02bee0e804ef3b120cb4752bf89e60f3f5ff5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255968
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/hash/maphash/maphash.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

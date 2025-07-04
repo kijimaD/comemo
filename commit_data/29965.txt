@@ -1,0 +1,28 @@
+commit c1730ae424449f38ea4523207a56c23b2536a5de
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 17 21:58:10 2017 -0500
+
+    runtime: force workers out before checking mark roots
+    
+    Currently we check that all roots are marked as soon as gcMarkDone
+    decides to transition from mark 1 to mark 2. However, issue #16083
+    indicates that there may be a race where we try to complete mark 1
+    while a worker is still scanning a stack, causing the root mark check
+    to fail.
+    
+    We don't yet understand this race, but as a simple mitigation, move
+    the root check to after gcMarkDone performs a ragged barrier, which
+    will force any remaining workers to finish their current job.
+    
+    Updates #16083. This may "fix" it, but it would be better to
+    understand and fix the underlying race.
+    
+    Change-Id: I1af9ce67bd87ade7bc2a067295d79c28cd11abd2
+    Reviewed-on: https://go-review.googlesource.com/35353
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

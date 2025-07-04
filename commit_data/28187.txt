@@ -1,0 +1,19 @@
+commit 38abd43b6a4d215375901d137a3eac9d0d3393a5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 31 14:39:41 2016 +1000
+
+    cmd/compile/internal/gc: clean up sinit.go
+    
+    The ctxt parameter is always set to 0 on entry into anylit so make this
+    parameter a literal constant, and where possibly remove ctxt as a parameter
+    where it is known to be a constant zero.
+    
+    Change-Id: I3e76e06456d7b1a1ea875ffeb2efefa4a1ff5a7e
+    Reviewed-on: https://go-review.googlesource.com/28221
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 83 +++++++++++++-----------------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 31 insertions(+), 54 deletions(-)

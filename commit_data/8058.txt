@@ -1,0 +1,18 @@
+commit 328aac3a499a71360e8b966ba422273147b603fa
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Apr 13 10:34:35 2011 +1000
+
+    godashboard: Show packages at launchpad.net
+    
+    The changes were not tested for real in an App Engine environment,
+    so extra care should be taken.  That said, some static testing
+    was done with pyflakes, and a few existent problems were fixed on
+    the way.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4378053
+
+ misc/dashboard/godashboard/gobuild.py |  4 +---
+ misc/dashboard/godashboard/package.py | 21 ++++++++++++---------
+ 2 files changed, 13 insertions(+), 12 deletions(-)

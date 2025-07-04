@@ -1,0 +1,35 @@
+commit e3c58bbeb8c76fa3abc0f7153edbab72208c1f88
+Author: Antonio Huete Jimenez <tuxillo@quantumachine.net>
+Date:   Wed Oct 28 11:44:26 2020 +0000
+
+    os: do not use procfs for os.Executable in dragonfly
+    
+      procfs(5) is not always mounted in DragonFly BSD, for example during
+      the binary package build with synth. os.Executable() consumers
+      will then fail, we've spotted this when trying to build tinygo:
+    
+        [...]
+    
+        copying source files
+        ./build/tinygo build-builtins -target=armv6m-none-eabi [...]
+        panic: could not get executable path: readlink /proc/curproc/file:
+        no such file or directory
+    
+        [...]
+    
+      Use KERN_PROC_PATHNAME as FreeBSD does.
+    
+    Change-Id: Ic65bea02cd0309fb24dec8ba8d2b151d1acde67b
+    GitHub-Last-Rev: 083120a43b3158bb45d7e1a66fa32e3335a2d407
+    GitHub-Pull-Request: golang/go#36826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216622
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable_dragonfly.go | 12 ++++++++++++
+ src/os/executable_freebsd.go   | 33 ++++++---------------------------
+ src/os/executable_procfs.go    |  4 +---
+ src/os/executable_sysctl.go    | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 54 insertions(+), 30 deletions(-)

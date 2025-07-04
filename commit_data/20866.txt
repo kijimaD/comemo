@@ -1,0 +1,15 @@
+commit 1340c6d59303e0acaab6a50cb39a7c978e25f11b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 7 08:19:19 2014 -0800
+
+    cmd/go: disable warnings from cmd/cc when building for SWIG
+    
+    Fixes #9065.
+    
+    LGTM=rsc
+    R=rsc, misch
+    CC=golang-codereviews
+    https://golang.org/cl/171270043
+
+ src/cmd/go/build.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit e8b7133e9bb210c8f8901421db0bb9c30e934a16
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 13:49:36 2015 -0400
+
+    runtime: darwin/arm64 c-archive entry point
+    
+    Change-Id: Ib227aa3e14d01a0ab1ad9e53d107858e045d1c42
+    Reviewed-on: https://go-review.googlesource.com/8984
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_darwin_arm64.s | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

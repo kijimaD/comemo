@@ -1,0 +1,16 @@
+commit 74b62b48644acffd20ca5de9111048dd731c3a06
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 1 11:18:11 2014 +1000
+
+    runtime: implement monotonic clocks on windows
+    
+    Update #6007.
+    
+    LGTM=minux, dvyukov
+    R=golang-codereviews, dvyukov, patrick, aram.h, minux
+    CC=golang-codereviews
+    https://golang.org/cl/108700045
+
+ src/pkg/runtime/os_windows.c | 46 ++++++++++++++++++++++++++++++++++----------
+ src/pkg/time/sleep_test.go   | 22 ++++++++++++++++++---
+ 2 files changed, 55 insertions(+), 13 deletions(-)

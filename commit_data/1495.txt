@@ -1,0 +1,24 @@
+commit 2c8d9a5619e21bf69eb08b2e3775d68c59c80e90
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 19:11:32 2009 -0800
+
+    redo and clean up math.
+    
+    R=r
+    DELTA=243  (60 added, 72 deleted, 111 changed)
+    OCL=22909
+    CL=22912
+
+ src/lib/math/Makefile    | 16 +++++++--------
+ src/lib/math/all_test.go | 35 ++++++++++++++++----------------
+ src/lib/math/asin.go     |  9 ++------
+ src/lib/math/atan.go     | 47 ++++++++++++++++++++----------------------
+ src/lib/math/atan2.go    | 15 ++++----------
+ src/lib/math/const.go    | 17 +++++++++++++++-
+ src/lib/math/exp.go      | 31 +++++++++++++---------------
+ src/lib/math/log.go      | 53 ++++++++++++++++++++++--------------------------
+ src/lib/math/pow10.go    | 15 +++++++-------
+ src/lib/math/sin.go      | 43 ++++++++++++++++++---------------------
+ src/lib/math/sinh.go     | 32 ++++++++++++++---------------
+ src/lib/math/tan.go      | 35 ++++++++++++++++----------------
+ 12 files changed, 168 insertions(+), 180 deletions(-)

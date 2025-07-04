@@ -1,0 +1,15 @@
+commit f3fa0bbd1f011c7436f21a18ee08f719a15b02b8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 8 08:57:18 2014 +1000
+
+    flag: mention -h in docs
+    
+    Fixes #8314.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/125820043
+
+ src/pkg/flag/flag.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

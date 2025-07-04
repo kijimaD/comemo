@@ -1,0 +1,33 @@
+commit bd77d6e24048e5a8b7b07d2d0b7cf552d21905f5
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Feb 8 14:51:41 2022 -0800
+
+    runtime/pprof: check if PC is reused for inlining
+    
+    When describing call stacks that include inlined function calls, the
+    runtime uses "fake" PCs to represent the frames that inlining removed.
+    Those PCs correspond to real NOP instructions that the compiler inserts
+    for this purpose.
+    
+    Describing the call stack in a protobuf-formatted profile requires the
+    runtime/pprof package to collapse any sequences of fake call sites back
+    into single PCs, removing the NOPs but retaining their line info.
+    
+    But because the NOP instructions are part of the function, they can
+    appear as leaf nodes in a CPU profile. That results in an address that
+    should sometimes be ignored (when it appears as a call site) and that
+    sometimes should be present in the profile (when it is observed
+    consuming CPU time).
+    
+    When processing a PC address, consider it first as a fake PC to add to
+    the current inlining deck, and then as a previously-seen (real) PC.
+    
+    Fixes #50996
+    
+    Change-Id: I80802369978bd7ac9969839ecfc9995ea4f84ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384239
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/proto.go | 50 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 1 deletion(-)

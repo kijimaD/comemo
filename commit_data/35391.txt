@@ -1,0 +1,20 @@
+commit 218650fac887ca9198d481b6ff5f4bb04089691b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon May 14 20:34:34 2018 +0200
+
+    cmd/compile: skip TestStmtLines on Plan 9
+    
+    TestStmtLines has been added in CL 102435.
+    This test is failing on Plan 9 because executables
+    don't have a DWARF symbol table.
+    
+    Fixes #25387.
+    
+    Change-Id: I6ae7cba0e8ad4ab569a29ea8920b7849acfb9846
+    Reviewed-on: https://go-review.googlesource.com/113115
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

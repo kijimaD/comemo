@@ -1,0 +1,12 @@
+commit aff7a573d10cc544536a9e562e06984adebab548
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 9 12:10:10 2015 +0900
+
+    net: disable dualstack listener tests on dragonfly
+    
+    Change-Id: Ia7914156e4369113dea7c17b3aa51096e25f1901
+    Reviewed-on: https://go-review.googlesource.com/10834
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/listen_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

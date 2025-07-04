@@ -1,0 +1,20 @@
+commit 02ad116bf1fa7c324390f03974f5879a2f06495e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:48:10 2017 -0700
+
+    runtime: unify cases in mapiternext
+    
+    The preceding cleanup made it clear that two cases
+    (have golden data, unreachable key) are handled identically.
+    Simplify the control flow to reflect that.
+    
+    Simplifies the code and generates shorter machine code.
+    
+    Change-Id: Id612e0da6679813e855506f47222c58ea6497d70
+    Reviewed-on: https://go-review.googlesource.com/55093
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 40 ++++++++++++++++------------------------
+ 1 file changed, 16 insertions(+), 24 deletions(-)

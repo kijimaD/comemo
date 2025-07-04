@@ -1,0 +1,24 @@
+commit b941d2b6d8bd9663abec7761de366b09a2be7445
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Jan 23 14:34:46 2025 -0500
+
+    crypto/internal/fips140test: add cSHAKE ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-185 cSHAKE-128 and cSHAKE-256
+    algorithms based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-xof.html
+    
+    Updates #69642
+    
+    Change-Id: I4a6ef9a99dfe520f3177e0e7c258326475690f5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ .../internal/fips140test/acvp_capabilities.json    |  2 +
+ .../internal/fips140test/acvp_test.config.json     |  2 +
+ src/crypto/internal/fips140test/acvp_test.go       | 93 +++++++++++++++++++++-
+ 3 files changed, 96 insertions(+), 1 deletion(-)

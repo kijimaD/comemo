@@ -1,0 +1,14 @@
+commit 1e093043e731435b37644cde80451298a514faef
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 28 15:07:19 2017 +0900
+
+    cmd/link: remove dead code
+    
+    Change-Id: I8a54235c8b7bf1010f19d0d358cd4f76fc911d28
+    Reviewed-on: https://go-review.googlesource.com/59416
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/go.go | 4 ----
+ 1 file changed, 4 deletions(-)

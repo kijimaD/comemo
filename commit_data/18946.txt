@@ -1,0 +1,13 @@
+commit 4ffa021965ac5a307cee497feefc834b2a1e041e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 26 10:21:22 2014 +0900
+
+    runtime: slience warning on 32-bit platforms
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/80250043
+
+ src/pkg/runtime/heapdump.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

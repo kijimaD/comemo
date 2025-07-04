@@ -1,0 +1,22 @@
+commit 6bf2eea62a3425c57f3d908ec32047a9ae41c025
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 27 11:37:00 2020 -0400
+
+    cmd/compile: always use StackMapDontCare as register map index when reg map is not used
+    
+    When go115ReduceLiveness is true (so we don't emit actual
+    register maps), use StackMapDontCare consistently for the
+    register map index, so RegMapValid is always false.
+    
+    This fixes a compiler crash when doing -live=2 debug print.
+    
+    Fixes #39251.
+    
+    Change-Id: Ice087af491fa69c413f8ee59f923b72d592c0643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235418
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

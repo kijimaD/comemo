@@ -1,0 +1,76 @@
+commit dca5f2e9b3212ef6df7e08ebd818b804ad27db91
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 13:48:09 2015 -0500
+
+    cmd/5l etc: replace C code with Go code
+    
+    mv cmd/new5l cmd/5l and so on.
+    
+    Minimal changes to cmd/dist and cmd/go to keep things building.
+    More can be deleted in followup CLs.
+    
+    Change-Id: I1449eca7654ce2580d1f413a56dc4a75f3d4618b
+    Reviewed-on: https://go-review.googlesource.com/6361
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/5l/Makefile                |    5 -
+ src/cmd/5l/asm.c                   |  749 -----------
+ src/cmd/{new5l => 5l}/asm.go       |    0
+ src/cmd/5l/doc.go                  |   15 -
+ src/cmd/{new5l => 5l}/l.go         |    0
+ src/cmd/5l/l.h                     |   66 -
+ src/cmd/5l/obj.c                   |  167 ---
+ src/cmd/{new5l => 5l}/obj.go       |    0
+ src/cmd/6l/Makefile                |    5 -
+ src/cmd/6l/asm.c                   |  795 ------------
+ src/cmd/{new6l => 6l}/asm.go       |    0
+ src/cmd/6l/doc.go                  |   15 -
+ src/cmd/{new6l => 6l}/l.go         |    0
+ src/cmd/6l/l.h                     |   67 -
+ src/cmd/6l/obj.c                   |  191 ---
+ src/cmd/{new6l => 6l}/obj.go       |    0
+ src/cmd/{new6l => 6l}/z.go         |    0
+ src/cmd/8l/Makefile                |    5 -
+ src/cmd/8l/asm.c                   |  707 ----------
+ src/cmd/{new8l => 8l}/asm.go       |    0
+ src/cmd/8l/doc.go                  |   15 -
+ src/cmd/{new8l => 8l}/l.go         |    0
+ src/cmd/8l/l.h                     |   66 -
+ src/cmd/8l/obj.c                   |  175 ---
+ src/cmd/{new8l => 8l}/obj.go       |    0
+ src/cmd/9l/Makefile                |    5 -
+ src/cmd/9l/asm.c                   |  814 ------------
+ src/cmd/{new9l => 9l}/asm.go       |    0
+ src/cmd/9l/doc.go                  |   16 -
+ src/cmd/{new9l => 9l}/l.go         |    0
+ src/cmd/9l/l.h                     |   65 -
+ src/cmd/9l/obj.c                   |  151 ---
+ src/cmd/{new9l => 9l}/obj.go       |    0
+ src/cmd/dist/build.go              |   57 +-
+ src/cmd/dist/buildtool.go          |    8 +-
+ src/cmd/go/build.go                |    2 +-
+ src/cmd/go/pkg.go                  |    8 +-
+ src/cmd/ld/Makefile                |    5 -
+ src/cmd/ld/data.c                  | 1460 ---------------------
+ src/cmd/ld/decodesym.c             |  251 ----
+ src/cmd/ld/doc.go                  |  100 --
+ src/cmd/ld/dwarf.c                 | 2498 ------------------------------------
+ src/cmd/ld/dwarf.h                 |   25 -
+ src/cmd/ld/dwarf_defs.h            |  504 --------
+ src/cmd/ld/elf.c                   | 1685 ------------------------
+ src/cmd/ld/elf.h                   |  857 -------------
+ src/cmd/ld/go.c                    |  864 -------------
+ src/cmd/ld/ldelf.c                 |  958 --------------
+ src/cmd/ld/ldmacho.c               |  853 ------------
+ src/cmd/ld/ldpe.c                  |  504 --------
+ src/cmd/ld/lib.c                   | 1636 -----------------------
+ src/cmd/ld/lib.h                   |  328 -----
+ src/cmd/ld/macho.c                 |  785 -----------
+ src/cmd/ld/macho.h                 |   98 --
+ src/cmd/ld/pcln.c                  |  347 -----
+ src/cmd/ld/pe.c                    |  759 -----------
+ src/cmd/ld/pe.h                    |  189 ---
+ src/cmd/ld/pobj.c                  |  198 ---
+ src/cmd/ld/symtab.c                |  449 -------
+ src/{cmd/ld => runtime}/textflag.h |   13 -
+ 60 files changed, 11 insertions(+), 19524 deletions(-)

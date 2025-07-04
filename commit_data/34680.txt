@@ -1,0 +1,19 @@
+commit 946af1b658c319d70e2a6f0d0d6aedc972c3acc6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 23 13:12:07 2018 -0700
+
+    cmd/link: make sure we're hashing __.PKGDEF in genhash
+    
+    This is currently always the case because loadobjfile complains if
+    it's not, but that will be changed soon.
+    
+    Updates #24512.
+    
+    Change-Id: I262daca765932a0f4cea3fcc1cc80ca90de07a59
+    Reviewed-on: https://go-review.googlesource.com/102280
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++++
+ 1 file changed, 4 insertions(+)

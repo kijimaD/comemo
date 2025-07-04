@@ -1,0 +1,22 @@
+commit 1e91ffc897efb1ed298753c08f086fbc8f725025
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 26 09:17:23 2022 -0400
+
+    cmd/go: avoid internal errors on "go test -testwork"
+    
+    Fix up the package test harness to avoid errors of the form
+    
+      go_test.go:NNN: internal testsuite error: path(".") with no tempdir
+    
+    when the "-testwork" flag is passed when running "go test".
+    
+    Fixes #55874.
+    
+    Change-Id: I76cc39902f51a62cb4cd0da8794b97d620fb4873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434455
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit f9197a7043e48b6d2caa5ea1b0a969495f998d48
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 17 10:22:39 2020 -0400
+
+    run.{bash,bat,rc}: use ../bin/go instead of the go binary in $PATH
+    
+    https://golang.org/doc/contribute.html#quick_test currently suggests
+    running 'make.bash' and 'run.bash' separately, but 'run.bash'
+    potentially uses a 'go' command resolved from the wrong GOROOT,
+    which in turn sets the wrong GOROOT for further commands.
+    
+    Updates #32674
+    Updates #17896
+    
+    Change-Id: I4925d478d0fc7351c4f6d40830ab17d4d688348d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223741
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/run.bash | 11 ++++++++---
+ src/run.bat  |  9 +++++++--
+ src/run.rc   |  9 +++++++--
+ 3 files changed, 22 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit 20834d644f72a327b440cb76120f020c98297024
+Author: Kevin Ballard <kevin@sb.org>
+Date:   Thu Feb 25 09:15:52 2010 -0800
+
+    path: Fix bug in Match with non-greedy stars
+    
+    path.Match() errors out when testing "*x" against "xxx"
+    because it matches the star non-greedily. Ensure that
+    the last chunk consumes the rest of the name.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/223050
+
+ src/pkg/path/match.go      | 9 ++++++++-
+ src/pkg/path/match_test.go | 1 +
+ 2 files changed, 9 insertions(+), 1 deletion(-)

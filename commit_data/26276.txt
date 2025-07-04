@@ -1,0 +1,18 @@
+commit 2a46b08a027a20014d5178c070f759692e59a464
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 14 10:17:03 2016 -0700
+
+    cmd/dist: build bootstrap toolchain with -l
+    
+    Workaround Go 1.4 compiler bugs.  See discussion at:
+    https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+    
+    Change-Id: I842335fddffb67a6e21c000fe5bef258ea61c77a
+    Reviewed-on: https://go-review.googlesource.com/20690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit ac90d9ab473adcb2dc209d168c5b038583bed566
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 6 17:52:24 2015 -0800
+
+    build: fix race.bat flags
+    
+    The old C-based dist accepted merged flags (-wp) but the Go-based dist
+    requires -w -p
+    
+    This should get the Windows race builder running properly, along with
+    https://go-review.googlesource.com/#/c/4132/
+    
+    Update #8640
+    
+    Change-Id: Ic17bbe9ea6c8b3d3e9b29f94e234d014f2926439
+    Reviewed-on: https://go-review.googlesource.com/4133
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/race.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

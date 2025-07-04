@@ -1,0 +1,29 @@
+commit fcee1897767c0cfa6e13a843fe5ee5d1deb8081b
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Tue Nov 14 04:46:03 2017 -0800
+
+    net/mail: treat comment in address as display name
+    
+    I verified this change on a corpus of > 200 GB of emails since the mid-90s. With
+    this change, more addresses parse than before, and anything which parsed before
+    still parses.
+    
+    In said corpus, I came across the edge case of comments preceding an
+    addr-spec (with angle brackets!), e.g. “(John Doe) <john@example.com>”, which
+    does not satisfy the conditions to be treated as a fallback, as per my reading
+    of RFC2822.
+    
+    This change does not parse quoted-strings within comments (a corresponding TODO
+    is in the code), but I have not seen that in the wild.
+    
+    Fixes #22670
+    
+    Change-Id: I526fcf7c6390aa1c219fdec1852f26c514506f76
+    Reviewed-on: https://go-review.googlesource.com/77474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 44 +++++++++++++++++++++++++++---
+ src/net/mail/message_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 103 insertions(+), 5 deletions(-)

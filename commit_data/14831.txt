@@ -1,0 +1,16 @@
+commit f38df4e8790969180aee6b5889305f41539a8693
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 9 10:33:46 2013 -0800
+
+    net/http: don't buffer request writing if dest is already buffered
+    
+    The old code made it impossible to implement a reverse proxy
+    with anything less than 4k write granularity to the backends.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7060059
+
+ src/pkg/net/http/request.go      | 32 ++++++++++++++++++++++----------
+ src/pkg/net/http/request_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 10 deletions(-)

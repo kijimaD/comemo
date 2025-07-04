@@ -1,0 +1,16 @@
+commit a4600126d9e4fcbd8e9ea3072eff7ea5822f2014
+Author: Ryan Slade <ryanslade@gmail.com>
+Date:   Sun Dec 30 15:40:42 2012 +1100
+
+    encoding/json: encode map key is of string kind, decode only of string type
+    
+    Allows encoding and decoding of maps with key of string kind, not just string type.
+    Fixes #3519.
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6943047
+
+ src/pkg/encoding/json/decode.go      |  8 +++++---
+ src/pkg/encoding/json/decode_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 3 deletions(-)

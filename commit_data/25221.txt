@@ -1,0 +1,20 @@
+commit 732e2cd7461107b314ba23da10ca1e24a22885d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 17:22:48 2015 -0800
+
+    cmd/compile: don't truncate tiny float constants to 0 in error messages
+    
+    Fixes #13559.
+    
+    Change-Id: I6fe8b5083192e8eb6c1b3ca1919fde81a00ccb7e
+    Reviewed-on: https://go-review.googlesource.com/17695
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/mparith3.go | 27 ++++++----
+ test/fixedbugs/issue11326.go            | 16 +++---
+ test/fixedbugs/issue11590.go            |  2 +-
+ test/fixedbugs/issue13471.go            | 22 ++++----
+ test/fixedbugs/issue13559.go            | 89 +++++++++++++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 29 deletions(-)

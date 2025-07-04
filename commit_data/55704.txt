@@ -1,0 +1,17 @@
+commit 70a2e84e91f9f38754014d6006f8211d33662c3e
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 20 01:57:37 2024 +0000
+
+    crypto/ecdsa: fix typo
+    
+    Change-Id: I32580ffb31ffad05a7c8d3aa0c491aff9f55ea6a
+    GitHub-Last-Rev: 67516eaa18923f0f59a69e82b74ecba74af387d4
+    GitHub-Pull-Request: golang/go#65565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562316
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/ecdsa/ecdsa_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

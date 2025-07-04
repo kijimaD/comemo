@@ -1,0 +1,20 @@
+commit a6b6142f305195f235dc1e99d75571680b047f43
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 14:05:14 2010 -0700
+
+    gofmt: support for ... after actual arguments
+    
+    Pending acceptance of the proposed language change.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2193048
+
+ src/pkg/go/ast/ast.go                          | 9 +++++----
+ src/pkg/go/parser/parser.go                    | 9 +++++++--
+ src/pkg/go/parser/parser_test.go               | 1 +
+ src/pkg/go/printer/nodes.go                    | 5 ++++-
+ src/pkg/go/printer/testdata/expressions.golden | 7 +++++++
+ src/pkg/go/printer/testdata/expressions.input  | 7 +++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 7 +++++++
+ 7 files changed, 38 insertions(+), 7 deletions(-)

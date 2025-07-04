@@ -1,0 +1,43 @@
+commit 89c0dd829f49c91eb2636bc2b24df0b1cdc74a1c
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Apr 1 12:56:49 2022 -0700
+
+    runtime: split mprof locks
+    
+    The profiles for memory allocations, sync.Mutex contention, and general
+    blocking store their data in a shared hash table. The bookkeeping work
+    at the end of a garbage collection cycle involves maintenance on each
+    memory allocation record. Previously, a single lock guarded access to
+    the hash table and the contents of all records. When a program has
+    allocated memory at a large number of unique call stacks, the
+    maintenance following every garbage collection can hold that lock for
+    several milliseconds. That can prevent progress on all other goroutines
+    by delaying acquirep's call to mcache.prepareForSweep, which needs the
+    lock in mProf_Free to report when a profiled allocation is no longer in
+    use. With no user goroutines making progress, it is in effect a
+    multi-millisecond GC-related stop-the-world pause.
+    
+    Split the lock so the call to mProf_Flush no longer delays each P's call
+    to mProf_Free: mProf_Free uses a lock on the memory records' N+1 cycle,
+    and mProf_Flush uses locks on the memory records' accumulator and their
+    N cycle. mProf_Malloc also no longer competes with mProf_Flush, as it
+    uses a lock on the memory records' N+2 cycle. The profiles for
+    sync.Mutex contention and general blocking now share a separate lock,
+    and another lock guards insertions to the shared hash table (uncommon in
+    the steady-state). Consumers of each type of profile take the matching
+    accumulator lock, so will observe consistent count and magnitude values
+    for each record.
+    
+    For #45894
+    
+    Change-Id: I615ff80618d10e71025423daa64b0b7f9dc57daa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399956
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/lockrank.go |  27 +++--
+ src/runtime/malloc.go   |   7 +-
+ src/runtime/mprof.go    | 275 ++++++++++++++++++++++++++++++++----------------
+ 3 files changed, 208 insertions(+), 101 deletions(-)

@@ -1,0 +1,21 @@
+commit 47fbb7639ac6ea9de1ced9dd241c79e90bc9d1fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 00:21:25 2009 -0700
+
+    new tool godefs.
+    uses gcc to determine system header layouts and
+    emits simple C or Go.  see comment in main.c.
+    
+    R=r
+    DELTA=1069  (1067 added, 0 deleted, 2 changed)
+    OCL=26682
+    CL=26880
+
+ src/cmd/clean.bash      |   2 +-
+ src/cmd/godefs/Makefile |  24 +++
+ src/cmd/godefs/a.h      | 101 ++++++++++
+ src/cmd/godefs/main.c   | 497 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godefs/stabs.c  | 418 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godefs/util.c   |  36 ++++
+ src/cmd/make.bash       |   2 +-
+ 7 files changed, 1078 insertions(+), 2 deletions(-)

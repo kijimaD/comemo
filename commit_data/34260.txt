@@ -1,0 +1,20 @@
+commit 4313d7767d830e863e8f8b53a2b48ca8d0bf0a79
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jan 22 09:43:27 2018 -0800
+
+    cmd/compile: reset branch prediction when deleting a branch
+    
+    When we go from a branch block to a plain block, reset the
+    branch prediction bit. Downstream passes asssume that if the
+    branch prediction is set, then the block has 2 successors.
+    
+    Fixes #23504
+    
+    Change-Id: I2898ec002228b2e34fe80ce420c6939201c0a5aa
+    Reviewed-on: https://go-review.googlesource.com/88955
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/check.go |  2 +-
+ src/cmd/compile/internal/ssa/fuse.go  |  1 +
+ test/fixedbugs/issue23504.go          | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

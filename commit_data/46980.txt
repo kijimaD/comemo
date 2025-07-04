@@ -1,0 +1,15 @@
+commit 02a36668aa13c3182d29da678764c8f4f5a9499b
+Author: emahiro <ema.hiro@gmail.com>
+Date:   Fri Oct 22 00:34:33 2021 +0900
+
+    runtime: fix typo of pushBackAll
+    
+    Fixes: #49081
+    Change-Id: Ie6742f1e7a60c2d92ce1283bcfaa3eac521440a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357629
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit 95e08bde4475638452a0d790aecb8715c97f4145
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 5 05:42:02 2010 -0500
+
+    asn1: Fixes and additions to marshalling
+    
+    Marshalling:
+    * Fixes several silly bugs.
+    * Support the RawContents type.
+    * Support the RawValue type.
+    * Recurse into nested interface{}.
+    
+    Both directions:
+    * Better handling of SETs. You can now tag an element in a
+      structure with "set" to get the correct tag for serialisation.
+    * For types that aren't in a structure, you can now name them
+      with "SET" on the end.
+    * SETs are no longer implicitly treated as SEQUENCEs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/201049
+
+ src/pkg/asn1/asn1.go         |   5 --
+ src/pkg/asn1/asn1_test.go    |  49 ++++++++---------
+ src/pkg/asn1/common.go       |   6 +++
+ src/pkg/asn1/marshal.go      | 126 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/asn1/marshal_test.go |  18 +++++--
+ src/pkg/crypto/x509/x509.go  |   4 +-
+ 6 files changed, 161 insertions(+), 47 deletions(-)

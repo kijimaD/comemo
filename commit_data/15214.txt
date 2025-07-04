@@ -1,0 +1,16 @@
+commit 17377ab6510837db1a1df6d8547cb9c921f300f2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 13 13:19:06 2013 +1100
+
+    os: do not use hosts file for windows tests
+    
+    Not everyone has the file (http://golang.org/issue/4723#c4).
+    
+    Update #4723.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7311091
+
+ src/pkg/os/os_test.go | 1 -
+ 1 file changed, 1 deletion(-)

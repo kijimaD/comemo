@@ -1,0 +1,20 @@
+commit 266b0cff187f7deac294e5731143f0d0ffe04948
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Tue Nov 26 17:14:45 2024 +0800
+
+    internal/runtime/atomic: add Xchg8 for mips64x
+    
+    For #69735
+    
+    Change-Id: Ide6b3077768a96b76078e5d4f6460596b8ff1560
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631756
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/internal/runtime/atomic/atomic_mips64x.go |  3 +++
+ src/internal/runtime/atomic/atomic_mips64x.s  | 33 +++++++++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go     |  2 +-
+ 3 files changed, 37 insertions(+), 1 deletion(-)

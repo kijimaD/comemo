@@ -1,0 +1,20 @@
+commit 738a2caf089a195724041df58778a7e94fc7b80b
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:33:42 2022 +0200
+
+    cmd/dist: add support for freebsd/riscv64
+    
+    Updates #53466
+    
+    Change-Id: I6643b4254dc707351d397018cee485bb508dde94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431659
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/build.go | 1 +
+ src/cmd/dist/main.go  | 4 ++++
+ 2 files changed, 5 insertions(+)

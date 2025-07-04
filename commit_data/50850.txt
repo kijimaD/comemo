@@ -1,0 +1,24 @@
+commit ba8c94b5f255bf84d05cf90d3d66621ffd2e0fab
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Sep 5 03:03:35 2022 +1000
+
+    cmd/compile: convert SLT/SLTU with constant into immediate form on riscv64
+    
+    Convert SLT/SLTU with a suitably valued constant into a SLTI/SLTIU instruction.
+    This can reduce instructions and avoid register loads. Now that we generate
+    more SLTI/SLTIU instructions, absorb these into branches when it makes sense
+    to do so.
+    
+    Removes more than 800 instructions from the Go binary on linux/riscv64.
+    
+    Change-Id: I42c4e00486697acd4da7669d441b5690795f18ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428499
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 19 +++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 78 +++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 10 deletions(-)

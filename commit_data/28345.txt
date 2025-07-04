@@ -1,0 +1,38 @@
+commit 0cd3ecb016e0c3f0656877a20ca37eabe4fd0f8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 17:30:35 2016 -0700
+
+    cmd/compile: reduce allocs some more
+    
+    Also: update fmt_test.go.
+    
+    Together with the previous commits, we are now at or below c85b77c
+    levels in terms of allocation for the benchmark described in #16897
+    (old = c85b77c, new = this commit):
+    
+    name       old time/op     new time/op     delta
+    Template       297ms ± 5%      284ms ± 3%  -4.53%  (p=0.000 n=27+29)
+    Unicode        159ms ± 5%      151ms ± 5%  -4.91%  (p=0.000 n=28+30)
+    GoTypes        985ms ± 5%      935ms ± 2%  -5.13%  (p=0.000 n=28+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      46.8MB ± 0%     45.7MB ± 0%  -2.37%  (p=0.000 n=30+30)
+    Unicode       37.8MB ± 0%     37.9MB ± 0%  +0.29%  (p=0.000 n=29+30)
+    GoTypes        143MB ± 0%      138MB ± 0%  -3.64%  (p=0.000 n=29+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        444k ± 0%       440k ± 0%  -0.94%  (p=0.000 n=30+30)
+    Unicode         369k ± 0%       369k ± 0%  +0.19%  (p=0.000 n=29+30)
+    GoTypes        1.35M ± 0%      1.34M ± 0%  -1.24%  (p=0.000 n=30+30)
+    
+    For #16897.
+    
+    Change-Id: Iedbeb408e2f1e68dd4a3201bf8813c8066ebf7ed
+    Reviewed-on: https://go-review.googlesource.com/29089
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go         |  4 ----
+ src/cmd/compile/internal/gc/fmt.go  | 13 +++++++++----
+ src/cmd/compile/internal/gc/subr.go |  7 ++++---
+ src/cmd/compile/internal/gc/swt.go  |  9 +++------
+ 4 files changed, 16 insertions(+), 17 deletions(-)

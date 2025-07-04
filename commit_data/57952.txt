@@ -1,0 +1,18 @@
+commit f1add185301a55f29eac65e88caa3ae1f713e766
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Nov 10 16:57:06 2024 +0100
+
+    testing: replace CRLF by LF on windows before comparing to the expected output
+    
+    Fixes #51269
+    
+    Change-Id: I06747db18ca078c1f1bda9b7bc60006f53191f4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/testdata/script/test_crlf_example.txt | 39 ++++++++++++++++++++++++
+ src/testing/example.go                           |  5 +++
+ 2 files changed, 44 insertions(+)

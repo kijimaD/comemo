@@ -1,0 +1,14 @@
+commit 7fd6b925e38f67c2d0cb3fca0f3dc8b6dfb0708c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 28 09:54:20 2016 -0700
+
+    spec: update operator and delimiter section
+    
+    Follow-up on https://go-review.googlesource.com/30601.
+    
+    Change-Id: I51b603a6c4877b571e83cd7c4e78a8988cc831ca
+    Reviewed-on: https://go-review.googlesource.com/32310
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

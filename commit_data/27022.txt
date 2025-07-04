@@ -1,0 +1,21 @@
+commit 731531980a36f1fa6434c947c54daf8ba530a65f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 20 13:02:41 2016 +1000
+
+    debug/pe: move some code into section.go and symbol.go
+    
+    Just moving code. No code changes.
+    
+    Updates #15345
+    
+    Change-Id: I89c257b7aae4fbd78ce59a42909ecb3ff493659d
+    Reviewed-on: https://go-review.googlesource.com/22300
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go    | 47 -------------------------------------
+ src/debug/pe/pe.go      | 24 -------------------
+ src/debug/pe/section.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/debug/pe/symbol.go  | 24 +++++++++++++++++++
+ 4 files changed, 85 insertions(+), 71 deletions(-)

@@ -1,0 +1,25 @@
+commit 6dfd7a543517db868ef4f31e91fe56aba5bc8ea0
+Author: Mitar <mitar.git@tnode.com>
+Date:   Fri Mar 1 23:43:04 2024 +0000
+
+    fmt: allow padding and minus flags at the same time
+    
+    Existing implementation did not allow setting both padding and minus flags at the same time because standard formatting does not allow that. But custom Formatter interface implementations might have use of it. This change moves the check from the place flags are parsed to where they are used in standard formatting.
+    
+    Fixes #61784
+    
+    Change-Id: If5909d45dc929ddf911453e1056a4661abe76e52
+    GitHub-Last-Rev: d99ec55d3bbd9b2a8f14c8ade2fb25d6e0c174c3
+    GitHub-Pull-Request: golang/go#61836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516975
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/fmt_test.go | 5 +++++
+ src/fmt/format.go   | 8 +++++---
+ src/fmt/print.go    | 3 +--
+ 3 files changed, 11 insertions(+), 5 deletions(-)

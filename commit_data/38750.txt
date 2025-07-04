@@ -1,0 +1,18 @@
+commit f8c6f986fd459945ec76930d88bd45d45b359c77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 3 17:12:27 2019 -0700
+
+    math/big: don't clobber shared underlying array in pow5 computation
+    
+    Rearranged code slightly to make lifetime of underlying array of
+    pow5 more explicit in code.
+    
+    Fixes #31184.
+    
+    Change-Id: I063081f0e54097c499988d268a23813746592654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170641
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/math/big/ratconv.go      | 31 +++++++++++++------------------
+ src/math/big/ratconv_test.go | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 8 09:50:20 2011 -0700
+
+    gotest: Fix fix for \r\n on windows.
+    
+    R=rsc, brainman, rh, r2
+    CC=golang-dev
+    https://golang.org/cl/4366045
+
+ src/cmd/gotest/gotest.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit e8b8aeb02a56a2644978ce62c3c12aeb1c01a04b
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Thu Aug 12 00:04:17 2010 -0700
+
+    codereview.py: Fix issues with leading tabulation in the Files: section of CL description.
+    
+    R=imkrasin, rsc
+    CC=golang-dev
+    https://golang.org/cl/1943042
+
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

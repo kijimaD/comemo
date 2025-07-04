@@ -1,0 +1,15 @@
+commit ef64d9ffcc237fde9bcaed1fd00c5036c4f489de
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 28 23:26:50 2014 -0700
+
+    runtime: don't allocate a new string in printf
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/139890043
+
+ src/pkg/runtime/print1.go | 2 +-
+ src/pkg/runtime/string.c  | 1 +
+ src/pkg/runtime/stubs.go  | 1 +
+ 3 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9f399a0301fd5fd055dfcecfa366935ce3b01e16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 13 07:26:21 2013 +0800
+
+    net: make sure to use /tmp in unix domain socket tests
+    
+    R=golang-dev, bradfitz, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7547044
+
+ src/pkg/net/protoconn_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

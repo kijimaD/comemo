@@ -1,0 +1,27 @@
+commit 08d9397170e5870b72a95233e8e4ec43d2d70e30
+Author: rogeryk <rogeryk@outlook.com>
+Date:   Tue Nov 28 20:41:03 2023 +0800
+
+    text/template: add "else with" action
+    
+    Add "else with" action will reduce the template complexity in some use cases(#57646).
+    This action will be added:
+      {{with pipeline}} T1 {{else with pipeline}} T0 {{end}}.
+    
+    Fixes #57646
+    
+    Change-Id: I90ed546ab671805f753343b00bd3c9d1a1d5581d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/exec_test.go        |  2 ++
+ src/text/template/doc.go              |  7 +++++
+ src/text/template/exec_test.go        |  2 ++
+ src/text/template/parse/parse.go      | 56 +++++++++++++++++++----------------
+ src/text/template/parse/parse_test.go |  4 +++
+ 5 files changed, 45 insertions(+), 26 deletions(-)

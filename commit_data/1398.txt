@@ -1,0 +1,17 @@
+commit b2dfd787d72772044d1048c8f97b88569e52b87e
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 30 14:02:20 2008 -0800
+
+    allow slices (open arrays) to be
+    receivers in methods.
+    put back original code for hilbert/bignum
+    
+    R=r
+    OCL=21910
+    CL=21920
+
+ src/cmd/gc/go.h   |   2 +-
+ src/cmd/gc/subr.c |   5 ++-
+ src/lib/bignum.go | 115 +++++++++++++++++++++++-------------------------------
+ test/hilbert.go   |  21 ++--------
+ 4 files changed, 57 insertions(+), 86 deletions(-)

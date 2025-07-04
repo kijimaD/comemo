@@ -1,0 +1,26 @@
+commit 31da093c1e8b82bcba42846a4a8f670452df88f3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 16 18:36:07 2016 -0700
+
+    image/draw: remove some bounds checks from DrawYCbCr
+    
+    It’d be nicer to write just
+    
+    _ = dpix[x+3]
+    
+    but the compiler isn’t able to reason about offsets
+    from symbols (yet).
+    
+    image/draw benchmark:
+    
+    YCbCr-8   722µs ± 3%   682µs ± 3%  -5.54%  (p=0.000 n=50+50)
+    
+    Change-Id: Ia1e399496ed87c282bf0f9ca56c0b2d4948a0df9
+    Reviewed-on: https://go-review.googlesource.com/22146
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/internal/imageutil/gen.go  | 11 ++++++----
+ src/image/internal/imageutil/impl.go | 40 +++++++++++++++++++++---------------
+ 2 files changed, 31 insertions(+), 20 deletions(-)

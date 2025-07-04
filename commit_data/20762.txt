@@ -1,0 +1,13 @@
+commit e5383c68544236bbf41628ef8a3460676e0aec2a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 21 10:02:33 2014 +1100
+
+    debug/pe: use appropriate type for sizeofOptionalHeader32
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/157220043
+
+ src/debug/pe/file.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

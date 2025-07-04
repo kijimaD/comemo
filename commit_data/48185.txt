@@ -1,0 +1,19 @@
+commit d27248c52f8545aa3c3de07e3d2568da5c5df785
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 17 19:45:50 2022 -0500
+
+    runtime: save some stack space for racecall on ARM64
+    
+    To avoid nosplit overflow in -race -N -l build.
+    
+    For #51247.
+    
+    Change-Id: I48426bbd4adefd18eaf26ed51b4113c6a28305b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386716
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/race_arm64.s | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

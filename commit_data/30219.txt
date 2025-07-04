@@ -1,0 +1,18 @@
+commit e0d50a5830cbd17810cd488bf70d86fd0c2757ec
+Author: Paul Jolly <paul@myitcv.org.uk>
+Date:   Fri Dec 9 11:15:23 2016 +0000
+
+    doc: improve issue template and contribution guidelines
+    
+    Encourage people towards the various help forums as a first port of
+    call. Better sign-posting will reduce the incidence or questions being
+    asked in the issue tracker that should otherwise be handled elsewhere,
+    thereby keeping the issue tracker email traffic more focussed.
+    
+    Change-Id: I13b2e498d88be010fca421067ae6fb579a46d6b7
+    Reviewed-on: https://go-review.googlesource.com/34250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/ISSUE_TEMPLATE |  1 +
+ CONTRIBUTING.md        | 18 +++++++++---------
+ 2 files changed, 10 insertions(+), 9 deletions(-)

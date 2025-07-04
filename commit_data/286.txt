@@ -1,0 +1,11 @@
+commit 787cdc65f70526c7f41328f88b31772f8f3b8b5b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 3 17:16:08 2008 -0700
+
+    improved iota test for new form
+    
+    SVN=125995
+
+ test/golden.out |  2 +-
+ test/iota.go    | 79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 79 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit dbc6d75315fe72a4b574b1caa3f7680d561f1d3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 18:08:16 2010 -0400
+
+    goinstall: use https for Google Code checkouts
+    
+    This way, if you later want to check things in,
+    you can (with appropriate authorization).
+    Using plain http leads to the cryptic error
+    abort: HTTP Method Not Allowed.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1983050
+
+ src/cmd/goinstall/download.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

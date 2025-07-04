@@ -1,0 +1,26 @@
+commit 662c5eed3324a334d2d9418deb9e60a6765ff972
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 10 10:43:20 2021 -0400
+
+    go/types: accept constraint literals with elided interfaces
+    
+    This is a port of CL 353139 to go/types, adjusted for error reporting
+    and for the different representation of field lists in go/ast. A TODO is
+    added to verify if types2 produces redundant error messages for type
+    parameters sharing a bound.
+    
+    For #48424
+    
+    Change-Id: I3549942be0328de616d1d87d0ba621311fc53576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354989
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go        |  2 ++
+ src/go/types/decl.go                           | 31 +++++++++++++---
+ src/go/types/testdata/examples/typesets.go2    | 48 +++++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue39723.go2 |  2 +-
+ src/go/types/typeparam.go                      | 49 ++++++++++++++++++--------
+ 5 files changed, 113 insertions(+), 19 deletions(-)

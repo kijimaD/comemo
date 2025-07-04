@@ -1,0 +1,24 @@
+commit d5a2925b7d8fd947c174967abdd5b5405cc2d53d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 10 10:26:35 2017 -0400
+
+    cmd/compile: clean up ADDconst on PPC64
+    
+    ADDconst op is no longer used for addresses, as we lower Addr to
+    MOVDaddr. There is no rule that produces ADDconst with a non-nil
+    sym. So we can remove the sym aux field in ADDconst and limit its
+    use for adding constant (not offset to symbol).
+    
+    Passes "toolstash -cmp" on std cmd for GOARCH=ppc64 and ppc64le.
+    
+    Change-Id: Icee35cdb34d8d121ad7035076dfd07595c7ff809
+    Reviewed-on: https://go-review.googlesource.com/69450
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 11 ++---------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 -
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 14 +++++++-------
+ src/cmd/compile/internal/ssa/opGen.go        |  9 ++++-----
+ 4 files changed, 13 insertions(+), 22 deletions(-)

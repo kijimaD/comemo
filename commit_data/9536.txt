@@ -1,0 +1,12 @@
+commit 1952eb50107c76b4d13ebaed85c29e927fb51a61
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 29 10:45:37 2011 -0400
+
+    os: fix WNOHANG Waitmsg
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4962042
+
+ src/pkg/os/exec_unix.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

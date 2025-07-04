@@ -1,0 +1,37 @@
+commit 2ea9376266b71e8a0752b8b3663bbf5b9ed48c4d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 12:19:24 2022 -0700
+
+    go/types, types2: better error message for invalid type parameter term
+    
+    The spec says "In a union, a term cannot be a type parameter,...",
+    but it's really the type in a term that cannot be a type parameter.
+    (Also, for the spec's purposes, a single term is still a union.)
+    
+    This CL changes the current error message from:
+    
+            "cannot use type parameter in typeset"
+    
+    to one of two messages:
+    
+            "term cannot be a type parameter"           (for term of form P)
+            "type in term ~P cannot be a type parameter (for term of form ~P)
+    
+    which are more specific and match the spec more closely.
+    
+    Fixes #50420.
+    
+    Change-Id: Id48503efc8416cabc03d5c40d8e64d5b3a7f078e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396874
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../types2/testdata/examples/constraints.go        |  6 ++--
+ .../types2/testdata/fixedbugs/issue39948.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue47127.go        | 32 +++++++++++-----------
+ src/cmd/compile/internal/types2/union.go           |  6 +++-
+ src/go/types/testdata/examples/constraints.go      |  6 ++--
+ src/go/types/testdata/fixedbugs/issue39948.go      |  2 +-
+ src/go/types/testdata/fixedbugs/issue47127.go      | 32 +++++++++++-----------
+ src/go/types/union.go                              |  6 +++-
+ 8 files changed, 50 insertions(+), 42 deletions(-)

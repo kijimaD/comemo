@@ -1,0 +1,22 @@
+commit ab94ebbdcdcf6dc03574a85aae8984340c3de7f0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 15:57:25 2019 -0400
+
+    doc/go1.13: make cmd/go paragraphs more concise
+    
+    Looking at the live release notes on tip.golang.org, the Modules
+    section is much more verbose than the other sections.
+    
+    To some extent that's to be expected, but too much detail in the
+    release notes might discourage folks from consulting the actual
+    documentation. Ensure that topics have clear links and omit
+    unnecessary details.
+    
+    Change-Id: I1ccbc1697fccaf7ca7094c606bd11696c46d87f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183987
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.13.html | 34 ++++++++++++----------------------
+ 1 file changed, 12 insertions(+), 22 deletions(-)

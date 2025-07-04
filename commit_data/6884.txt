@@ -1,0 +1,20 @@
+commit 9042c2ce6840a7679739e6ec6ff59b57db30c459
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:53:30 2010 -0500
+
+    runtime/cgo: runtime changes for new cgo
+    
+    Formerly known as libcgo.
+    Almost no code here is changing; the diffs
+    are shown relative to the originals in libcgo.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3420043
+
+ src/pkg/Makefile                | 3 +++
+ src/pkg/runtime/cgocall.c       | 7 +++++--
+ src/pkg/runtime/darwin/thread.c | 3 +--
+ src/pkg/runtime/proc.c          | 7 ++++++-
+ src/pkg/runtime/runtime.h       | 1 +
+ 5 files changed, 16 insertions(+), 5 deletions(-)

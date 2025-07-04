@@ -1,0 +1,17 @@
+commit 15a5c35cec35c09d276b0429b719a0f2cbb29189
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 11 16:22:21 2014 -0400
+
+    runtime: move gosched to Go, to add stack frame information
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/134520044
+
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc0.go   |  2 +-
+ src/runtime/proc.c    | 13 +------------
+ src/runtime/runtime.h |  1 -
+ src/runtime/stubs.go  |  1 -
+ 5 files changed, 3 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit 21f2cb60eaf6636f66062585cce575af3e11edb5
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Sun Feb 28 21:30:32 2016 -0800
+
+    syscall: Fix generator for Linux syscalls.
+    
+    In golang.org/cl/14449 the `getdents' system call got changed to use
+    _SYS_getdents as a layer of indirection instead of SYS_GETDENTS64 for
+    compatibility with mips64, but this broke mksyscall.pl, which then
+    died with with:
+      syscall_linux.go:840: malformed //sys declaration
+    
+    Change-Id: Icb61965d8730f6e81f9fb0fa28c7bab635470f09
+    Reviewed-on: https://go-review.googlesource.com/20051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mksyscall.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

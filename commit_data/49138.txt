@@ -1,0 +1,37 @@
+commit 579902d0b1c45e85168196ed0ddfd4cfebb025f4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Nov 10 19:20:57 2021 +0700
+
+    cmd/compile,runtime: open code unsafe.Slice
+    
+    So prevent heavy runtime call overhead, and the compiler will have a
+    chance to optimize the bound check.
+    
+    With this optimization, changing runtime/stack.go to use unsafe.Slice
+    no longer negatively impacts stack copying performance:
+    
+    name                   old time/op    new time/op    delta
+    StackCopyWithStkobj-8    16.3ms ± 6%    16.5ms ± 5%   ~     (p=0.382 n=8+8)
+    
+    name                   old alloc/op   new alloc/op   delta
+    StackCopyWithStkobj-8     17.0B ± 0%     17.0B ± 0%   ~     (all equal)
+    
+    name                   old allocs/op  new allocs/op  delta
+    StackCopyWithStkobj-8      1.00 ± 0%      1.00 ± 0%   ~     (all equal)
+    
+    Fixes #48798
+    
+    Change-Id: I731a9a4abd6dd6846f44eece7f86025b7bb1141b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362934
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go             |  1 +
+ src/cmd/compile/internal/typecheck/builtin.go      | 11 ++--
+ .../compile/internal/typecheck/builtin/runtime.go  |  6 +-
+ src/cmd/compile/internal/walk/builtin.go           | 65 +++++++++++++++++-----
+ src/runtime/slice.go                               | 14 ++++-
+ 5 files changed, 76 insertions(+), 21 deletions(-)

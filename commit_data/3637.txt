@@ -1,0 +1,11 @@
+commit 34e8075259101430cc8ee19debf186b540d54b2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 23 11:35:40 2009 -0700
+
+    fix computation of sync delay
+    
+    R=rsc
+    http://go/go-review/1013011
+
+ src/cmd/godoc/godoc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

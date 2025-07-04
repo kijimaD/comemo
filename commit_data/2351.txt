@@ -1,0 +1,15 @@
+commit ead9f8be3ad87a56b090705d0b885f10f8d767cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun May 31 12:35:11 2009 -0700
+
+    new 64-bit math test.
+    allow multiline recipes in run.
+    
+    R=r
+    DELTA=712  (708 added, 2 deleted, 2 changed)
+    OCL=29641
+    CL=29666
+
+ test/64bit.go | 706 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/run      |  11 +-
+ 2 files changed, 714 insertions(+), 3 deletions(-)

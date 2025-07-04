@@ -1,0 +1,32 @@
+commit f2cadb6b2e589247be6730e8cb13c23d88450fbf
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 11 18:08:32 2025 -0500
+
+    cmd/pprof: update vendored github.com/google/pprof [generated]
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of the continuous process of keeping Go's dependencies
+    up to date.
+    
+    For #36905.
+    
+    [git-generate]
+    cd src/cmd
+    go get github.com/google/pprof@v0.0.0-20250208200701-d0013a598941
+    go mod tidy
+    go mod vendor
+    
+    Change-Id: I87e5621286d3db85f358fb86875aaf65bd7811a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648916
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../google/pprof/internal/driver/html/stacks.js    |  4 ++-
+ .../google/pprof/internal/report/report.go         | 33 +++++++++++++---------
+ .../google/pprof/internal/symbolizer/symbolizer.go | 14 +++++++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 41 insertions(+), 18 deletions(-)

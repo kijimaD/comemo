@@ -1,0 +1,18 @@
+commit 3953c1d84f2671615e842cb402e1aec6667530aa
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Nov 8 20:27:14 2015 +0100
+
+    cmd/go: send all go build -n output to stderr
+    
+    Also change a -v print, for consistency.
+    
+    Fixes #12913
+    
+    Change-Id: I6cc067d9f8dac66b1f9d1a675e0fbe0528371d0d
+    Reviewed-on: https://go-review.googlesource.com/16737
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

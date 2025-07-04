@@ -1,0 +1,13 @@
+commit b92db49c2604453a009bc44a68d06fe202465d25
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Aug 6 16:44:38 2010 -0700
+
+    encoding/binary: add complex
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1879043
+
+ src/pkg/encoding/binary/binary.go      | 48 ++++++++++++++++++++++-------
+ src/pkg/encoding/binary/binary_test.go | 56 ++++++++++++++++++++++++----------
+ 2 files changed, 77 insertions(+), 27 deletions(-)

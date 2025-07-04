@@ -1,0 +1,31 @@
+commit 1912632019fc8b57dddf5d7cb3fbd976088f7cc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:23:20 2010 -0800
+
+    runtime, type switch: eliminate package global name space assumption
+    
+    bonus: type switch now detects multiple uses of identical interface types.
+    bonus: interface types are now order-independent, following the spec.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/194053
+
+ src/cmd/gc/go.h                   |  16 +---
+ src/cmd/gc/reflect.c              |  71 +++++++++--------
+ src/cmd/gc/subr.c                 |  89 ++++++++++++---------
+ src/cmd/gc/swt.c                  | 163 +++++++++++++++++++++++---------------
+ src/cmd/gc/typecheck.c            |   2 +-
+ src/pkg/reflect/type.go           |   4 +-
+ src/pkg/reflect/value.go          |   2 +-
+ src/pkg/runtime/iface.c           |  12 +--
+ src/pkg/runtime/type.go           |   6 +-
+ src/pkg/runtime/type.h            |   4 +-
+ test/fixedbugs/bug248.dir/bug0.go |   9 +++
+ test/fixedbugs/bug248.dir/bug1.go |   9 +++
+ test/fixedbugs/bug248.dir/bug2.go |  92 +++++++++++++++++++++
+ test/fixedbugs/bug248.dir/bug3.go |  69 ++++++++++++++++
+ test/fixedbugs/bug248.go          |  12 +++
+ test/golden.out                   |   2 +-
+ test/typeswitch2.go               |  28 +++++++
+ 17 files changed, 423 insertions(+), 167 deletions(-)

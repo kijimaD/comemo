@@ -1,0 +1,15 @@
+commit f5a4d241cd5e2fe6fb2a50576eb95d16828857f1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 8 01:25:28 2014 -0400
+
+    doc/install.html: update wrt to OS and compiler support.
+    Update #7188
+    Fixes #7894.
+    
+    LGTM=alex.brainman, bradfitz, r
+    R=golang-codereviews, alex.brainman, mikioh.mikioh, gobot, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/95870043
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

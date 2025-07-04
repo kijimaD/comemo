@@ -1,0 +1,21 @@
+commit 5f5b20c4268c1a3aa6a3b132aeede6dc82adf344
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 21 08:15:08 2024 +0000
+
+    encoding/gob: close files used in dump.go and encgen.go
+    
+    Change-Id: Ic1dd899fa52fdf9098955fc14a828d2f07da8037
+    GitHub-Last-Rev: 6e0438ec7178382e2a7d56f0a053cec33fbe9e78
+    GitHub-Pull-Request: golang/go#66437
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/dump.go   | 1 +
+ src/encoding/gob/encgen.go | 3 +++
+ 2 files changed, 4 insertions(+)

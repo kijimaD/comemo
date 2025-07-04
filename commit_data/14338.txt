@@ -1,0 +1,18 @@
+commit f8614a6645d87777d222f0809cbf1b3f108c3ef5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 7 11:55:35 2012 -0800
+
+    reflect: fix test of whether structs are identical
+    
+    The old code worked with gc, I assume because the linker
+    unified identical strings, but it failed with gccgo.
+    
+    R=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/6826063
+
+ src/pkg/reflect/type.go         | 15 +++++++++++++--
+ test/fixedbugs/bug468.dir/p1.go |  7 +++++++
+ test/fixedbugs/bug468.dir/p2.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/bug468.go        | 10 ++++++++++
+ 4 files changed, 55 insertions(+), 2 deletions(-)

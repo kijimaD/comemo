@@ -1,0 +1,17 @@
+commit 82ddcc05f44a510118a1fc8bb8e3552a92d8f441
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 23 14:26:20 2014 -0700
+
+    os: fix another case where RemoveAll should return nil
+    
+    This hopefully fixes issue 8793.
+    
+    Fixes #8793
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/150860046
+
+ src/os/path.go | 3 +++
+ 1 file changed, 3 insertions(+)

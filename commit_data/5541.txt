@@ -1,0 +1,17 @@
+commit 9fc9246bf383eff51592bf8815914ee26a150a1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 16:54:24 2010 -0700
+
+    gc: bug281 - bad overlap in stack copy
+    
+    Fixes #807.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1283041
+
+ src/cmd/5g/cgen.c        | 32 ++++++++++++++++++++++++++++
+ src/cmd/6g/cgen.c        | 33 ++++++++++++++++++++++++++++-
+ src/cmd/8g/cgen.c        | 33 ++++++++++++++++++++++++++++-
+ test/fixedbugs/bug281.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 151 insertions(+), 2 deletions(-)

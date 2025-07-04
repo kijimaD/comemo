@@ -1,0 +1,12 @@
+commit 73ca127e67a1834c2e6239420d5eeeaec51cc87a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 13:02:54 2010 -0700
+
+    go/spec: fix typo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1790041
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

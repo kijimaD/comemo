@@ -1,0 +1,18 @@
+commit 4d23030859398c2a17243c878f0abb98f3074204
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 17 15:39:15 2008 -0800
+
+    - ripped out excessively fancy way of describing grammar
+      in favor of explicit constructs
+    - simpler, clearer, and shorter overall
+    - no spec changes
+    
+    (in retrospect it was just a (my) mistake to put it in in the first place)
+    
+    R=r
+    DELTA=55  (13 added, 28 deleted, 14 changed)
+    OCL=21434
+    CL=21462
+
+ doc/go_spec.txt | 67 ++++++++++++++++++++++-----------------------------------
+ 1 file changed, 26 insertions(+), 41 deletions(-)

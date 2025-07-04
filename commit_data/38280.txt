@@ -1,0 +1,20 @@
+commit e269f4ce01c458b53975fe666261b4be13160773
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Wed Feb 27 14:10:07 2019 -0500
+
+    go/constant: add Val accessor and Make constructor to handle varied types
+    
+    This change adds a Val accessor that returns the underlying type for a
+    given constant.Value. This change also adds a Make constructor that builds a
+    constant.Value given a value of a specific type.
+    
+    Fixes #29820
+    
+    Change-Id: I4fc3f5221408e24af42ffecd21ce4099ee75b47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164538
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/constant/example_test.go | 22 +++++++++++++++
+ src/go/constant/value.go        | 62 +++++++++++++++++++++++++++++++++++++++++
+ src/go/constant/value_test.go   | 17 +++++++++++
+ 3 files changed, 101 insertions(+)

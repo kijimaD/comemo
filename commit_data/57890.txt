@@ -1,0 +1,64 @@
+commit d98c51809d89c09d157f952fe62dd2124f89ddbc
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Sat Nov 2 10:59:20 2024 +0800
+
+    cmd/compile: wire up math/bits.Len intrinsics for loong64
+    
+    For the SubFromLen64 codegen test case to work as intended, we need
+    to fold c-(-(x-d)) into x+(c-d).
+    
+    Still, some instances of LeadingZeros are not optimized into single
+    CLZ instructions right now (actually, the LeadingZeros micro-benchmarks
+    are currently still compiled with redundant adds/subs of 64, due to
+    interference of loop optimizations before lowering), but perf numbers
+    indicate it's not that bad after all.
+    
+    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                   |  bench.old  |              bench.new              |
+                   |   sec/op    |   sec/op     vs base                |
+    LeadingZeros     3.660n ± 0%   1.348n ± 0%  -63.17% (p=0.000 n=20)
+    LeadingZeros8    1.777n ± 0%   1.767n ± 0%   -0.56% (p=0.000 n=20)
+    LeadingZeros16   2.816n ± 0%   1.770n ± 0%  -37.14% (p=0.000 n=20)
+    LeadingZeros32   5.293n ± 1%   1.683n ± 0%  -68.21% (p=0.000 n=20)
+    LeadingZeros64   3.622n ± 0%   1.349n ± 0%  -62.76% (p=0.000 n=20)
+    geomean          3.229n        1.571n       -51.35%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                   |  bench.old   |              bench.new               |
+                   |    sec/op    |    sec/op     vs base                |
+    LeadingZeros      2.410n ± 0%    1.103n ± 1%  -54.23% (p=0.000 n=20)
+    LeadingZeros8     1.236n ± 0%    1.501n ± 0%  +21.44% (p=0.000 n=20)
+    LeadingZeros16    2.106n ± 0%    1.501n ± 0%  -28.73% (p=0.000 n=20)
+    LeadingZeros32    2.860n ± 0%    1.324n ± 0%  -53.72% (p=0.000 n=20)
+    LeadingZeros64   2.6135n ± 0%   0.9509n ± 0%  -63.62% (p=0.000 n=20)
+    geomean           2.159n         1.256n       -41.81%
+    
+    Updates #59120
+    
+    This patch is a copy of CL 483356.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: Iee81a17f7da06d77a427e73dfcc016f2b15ae556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/compile/internal/loong64/ssa.go            |  2 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  7 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  3 +
+ src/cmd/compile/internal/ssa/opGen.go              | 28 +++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 91 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 10 +--
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  7 ++
+ test/codegen/mathbits.go                           | 16 ++++
+ 8 files changed, 159 insertions(+), 5 deletions(-)

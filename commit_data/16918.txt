@@ -1,0 +1,16 @@
+commit 789e1c351e6fca96fe3cec467029732c03d55d64
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Tue Jul 30 14:11:47 2013 +1000
+
+    encoding/xml: Do not pass through invalid utf8 bytes
+    
+    EscapeText now escapes 0xFFFD returned from DecodeRune as 0xFFFD, rather than passing through the original byte.
+    Fixes #5880.
+    
+    R=golang-dev, r, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/11975043
+
+ src/pkg/encoding/xml/xml.go      |  2 +-
+ src/pkg/encoding/xml/xml_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

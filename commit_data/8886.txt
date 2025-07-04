@@ -1,0 +1,13 @@
+commit d0ac84fe404d345e25571ab0ee7596fc358d8b84
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 28 16:00:55 2011 -0400
+
+    cc: broken return is an error, not a warning
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4626081
+
+ src/cmd/cc/com.c  | 2 +-
+ src/cmd/cc/pgen.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

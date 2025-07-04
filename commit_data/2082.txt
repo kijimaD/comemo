@@ -1,0 +1,13 @@
+commit 88a0c4071d2911b3fa891e260d3c447796c23c4d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 23 14:42:21 2009 -0700
+
+    fixed typo in EBNF of ENBF
+    
+    R=iant
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=27801
+    CL=27806
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

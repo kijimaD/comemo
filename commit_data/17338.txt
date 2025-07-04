@@ -1,0 +1,16 @@
+commit ed738ad354dcd6722d1d7fffcc4a27fd10148e78
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 20 17:32:55 2013 +0900
+
+    net: remove obsolete builtin network pollster
+    
+    Update #5199
+    Update #6146
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13112044
+
+ src/pkg/net/fd_bsd.go       | 123 --------------
+ src/pkg/net/fd_poll_unix.go | 379 --------------------------------------------
+ 2 files changed, 502 deletions(-)

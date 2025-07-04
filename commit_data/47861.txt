@@ -1,0 +1,14 @@
+commit 8a306e205663cde672e9920e2e81db9d3615e6c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 29 10:02:27 2021 -0800
+
+    misc/cgo/testsanitizers: don't fail asan test if no symbolizer
+    
+    Change-Id: Ic05c641bda3cc8f5292921c9b0c0d3df34f3bc48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374794
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testsanitizers/asan_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

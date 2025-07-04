@@ -1,0 +1,23 @@
+commit a39de964385fb32d13d8fac3991a669de962f0bd
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
+
+    runtime: buffered write barrier for mips64
+    
+    Updates #22460.
+    
+    Change-Id: I9718bff3a346e765601cfd1890417bdfa0f7b9d8
+    Reviewed-on: https://go-review.googlesource.com/92700
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go           |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go        |  5 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  3 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  6 ++
+ src/cmd/compile/internal/ssa/opGen.go         | 15 ++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 20 ++++++
+ src/cmd/vet/all/whitelist/mips64x.txt         |  2 +
+ src/runtime/asm_mips64x.s                     | 98 +++++++++++++++++++++++++++
+ 8 files changed, 150 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit bc5fc6d48ff4e8612c2f41d06e94578291b595d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 22:21:39 2020 -0800
+
+    cmd/compile: preserve shift boundedness information in dec64
+    
+    For clarity. No differences to generated code.
+    
+    Change-Id: Ie4360681caac091eb82c59fb06e35b725b1850dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217003
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/dec64.rules | 24 +++++-----
+ src/cmd/compile/internal/ssa/rewritedec64.go | 72 ++++++++++++++++++----------
+ 2 files changed, 60 insertions(+), 36 deletions(-)

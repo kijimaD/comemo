@@ -1,0 +1,32 @@
+commit b4b2ddb86771753aebd4383847e708cb61e94c73
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 16 12:24:12 2016 -0600
+
+    math: improve sqrt for ppc64le,ppc64
+    
+    The existing implementation uses code written in Go to
+    implement Sqrt; this adds the assembler to use the sqrt
+    instruction for Power and makes the necessary changes to
+    allow it to be inlined.
+    
+    The following tests showed this relative improvement:
+    
+    benchmark                 delta
+    BenchmarkSqrt             -97.91%
+    BenchmarkSqrtIndirect     -96.65%
+    BenchmarkSqrtGo           -35.93%
+    BenchmarkSqrtPrime        -96.94%
+    
+    Fixes #14349
+    
+    Change-Id: I8074f4dc63486e756587564ceb320aca300bf5fa
+    Reviewed-on: https://go-review.googlesource.com/19515
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go     |  2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go |  4 ++++
+ src/cmd/compile/internal/ppc64/peep.go  |  3 ++-
+ src/cmd/compile/internal/ppc64/prog.go  |  1 +
+ src/math/sqrt_ppc64x.s                  | 14 ++++++++++++++
+ src/math/stubs_ppc64x.s                 |  3 ---
+ 6 files changed, 22 insertions(+), 5 deletions(-)

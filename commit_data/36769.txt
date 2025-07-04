@@ -1,0 +1,25 @@
+commit 6a6f4a46536e9b2fb2bfb825269d6bd5e823fe8f
+Author: Travis Bischel <travis.bischel@gmail.com>
+Date:   Sun Sep 9 14:45:34 2018 -0700
+
+    net/textproto: redo BenchmarkReadMIMEHeader
+    
+    This benchmark is odd currently because it uses inconsistent cases
+    between benchmark iterations, and each iteration actually does a bit of
+    testing.
+    
+    This separates the two benchmark cases into two separate benchmarks and
+    removes the testing done on each iteration. The unit tests above
+    suffice.
+    
+    The benchmark being more succinct will make it easier to gauge the
+    benefits of any future MIME header reading changes.
+    
+    Change-Id: I2399fab28067f1aeec3d9b16951d39d787f8b39c
+    Reviewed-on: https://go-review.googlesource.com/134225
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/textproto/reader_test.go | 44 +++++++++++++++++-----------------------
+ 1 file changed, 19 insertions(+), 25 deletions(-)

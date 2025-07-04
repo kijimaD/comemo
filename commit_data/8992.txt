@@ -1,0 +1,13 @@
+commit e45b3213cd6e8d7f983b63edd1785b12e7ce66ec
+Author: Evan Martin <evan.martin@gmail.com>
+Date:   Sat Jul 9 15:18:31 2011 -0700
+
+    multipart: use textproto to handle multiline header
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4686044
+
+ src/pkg/mime/multipart/multipart.go      | 23 +++++------------------
+ src/pkg/mime/multipart/multipart_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 18 deletions(-)

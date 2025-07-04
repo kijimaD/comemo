@@ -1,0 +1,21 @@
+commit 7a92395ddd8354e49d2a928c99027a1a321ea716
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 25 19:32:48 2017 -0400
+
+    plugin: resolve plugin import path issue
+    
+    Resolve import paths to get plugin symbol prefixes.
+    
+    Fixes #19534
+    
+    Change-Id: Ic25d83e72465ba8f6be0337218a1627b5dc702dc
+    Reviewed-on: https://go-review.googlesource.com/40994
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testplugin/src/issue19534/main.go   | 23 +++++++++++++++
+ misc/cgo/testplugin/src/issue19534/plugin.go |  9 ++++++
+ misc/cgo/testplugin/test.bash                |  8 +++++-
+ src/plugin/plugin_dlopen.go                  | 43 +++++++++++++++++++++++++++-
+ 4 files changed, 81 insertions(+), 2 deletions(-)

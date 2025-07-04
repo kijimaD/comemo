@@ -1,0 +1,38 @@
+commit 3ce203db80cd1f320f0c597123b918c3b3bb0449
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 27 12:59:37 2022 -0500
+
+    os/exec: return error when PATH lookup would use current directory
+    
+    Following discussion on #43724, change os/exec to take the
+    approach of golang.org/x/sys/execabs, refusing to respect
+    path entries mentioning relative paths by default.
+    
+    Code that insists on being able to find executables in relative
+    directories in the path will need to add a couple lines to override the error.
+    
+    See the updated package docs in exec.go for more details.
+    
+    Fixes #43724.
+    Fixes #43947.
+    
+    Change-Id: I73c1214f322b60b4167a23e956e933d50470fe13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381374
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ api/next/43724.txt                      |   2 +
+ src/cmd/dist/build.go                   |   7 +++
+ src/cmd/dist/test.go                    |  27 ++++-----
+ src/cmd/dist/util.go                    |   6 +-
+ src/cmd/go/testdata/script/cgo_path.txt |   2 +-
+ src/internal/execabs/execabs.go         |  40 +------------
+ src/internal/execabs/execabs_test.go    | 103 --------------------------------
+ src/os/exec/dot_test.go                 |  88 +++++++++++++++++++++++++++
+ src/os/exec/exec.go                     |  86 ++++++++++++++++++++++++--
+ src/os/exec/lp_plan9.go                 |   9 ++-
+ src/os/exec/lp_unix.go                  |   9 ++-
+ src/os/exec/lp_windows.go               |  35 ++++++++---
+ src/os/exec/lp_windows_test.go          |   6 +-
+ 13 files changed, 248 insertions(+), 172 deletions(-)

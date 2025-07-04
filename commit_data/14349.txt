@@ -1,0 +1,14 @@
+commit e3977f0d3a20ec7311b939fd2e60d78f4c6031ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 7 17:34:06 2012 -0800
+
+    cmd/gc: warn about slice indexes larger than int in typecheck pass
+    
+    Fixes GOARCH=386 build.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6810098
+
+ src/cmd/gc/typecheck.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

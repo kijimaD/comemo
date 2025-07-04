@@ -1,0 +1,22 @@
+commit 16330817aa6588651a09df03b556091c16052ce6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:33:51 2021 -0400
+
+    runtime: add windows/arm64 cgo-linking code
+    
+    This code is needed for use with cgo proper
+    (as opposed to hand-written DLL calls, which
+    we always use but only exercise cgo execution,
+    not cgo linking).
+    
+    Change-Id: Iddc31d9c1c924d83d032b80dca65ddfda6624046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312041
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_windows_arm64.c | 46 +++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_windows_arm64.s     | 17 ++++++++++++++
+ src/runtime/sys_windows_arm.s       |  2 +-
+ 3 files changed, 64 insertions(+), 1 deletion(-)

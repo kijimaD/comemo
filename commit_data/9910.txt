@@ -1,0 +1,28 @@
+commit b536adbfba6d13e141ba65cda77d69e4ce7e5177
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sat Oct 8 19:37:06 2011 +0200
+
+    gc: changes to export format in preparation for inlining.
+    
+    string literals used as package qualifiers are now prefixed with '@'
+    which obviates the need for the extra ':' before tags.
+    
+    R=rsc, gri, lvd
+    CC=golang-dev
+    https://golang.org/cl/5129057
+
+ src/cmd/gc/builtin.c.boot      | 208 ++++++++++++++++++++---------------------
+ src/cmd/gc/esc.c               |   8 +-
+ src/cmd/gc/export.c            |   2 +-
+ src/cmd/gc/gen.c               |   2 +-
+ src/cmd/gc/go.h                |   9 +-
+ src/cmd/gc/go.y                |  45 +++------
+ src/cmd/gc/lex.c               |   1 +
+ src/cmd/gc/print.c             | 161 ++++++++++++++++++++++++++++---
+ src/cmd/gc/subr.c              | 200 +++++++++++++++++----------------------
+ src/lib9/fmt/fmtprint.c        |  26 ++----
+ src/lib9/fmt/fmtvprint.c       |  28 +++---
+ src/pkg/go/types/gcimporter.go | 120 ++++++++++++++----------
+ test/ddd1.go                   |   4 +-
+ test/escape2.go                | 204 ++++++++++++++++++++--------------------
+ 14 files changed, 563 insertions(+), 455 deletions(-)

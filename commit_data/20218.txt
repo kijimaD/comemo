@@ -1,0 +1,29 @@
+commit 397bdb216f705a3e3221c98904237820d4950042
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 30 00:56:52 2014 -0400
+
+    runtime: increase nosplit area to 192
+    
+    In CL 131450043, which raised it to 160,
+    I'd raise it to 192 if necessary.
+    Apparently it is necessary on windows/amd64.
+    
+    One note for those concerned about the growth:
+    in the old segmented stack world, we wasted this much
+    space at the bottom of every stack segment.
+    In the new contiguous stack world, each goroutine has
+    only one stack segment, so we only waste this much space
+    once per goroutine. So even raising the limit further might
+    still be a net savings.
+    
+    Fixes windows/amd64 build.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/132480043
+
+ src/pkg/runtime/stack.go      | 2 +-
+ src/pkg/runtime/stack.h       | 4 ++--
+ src/pkg/runtime/stack_test.go | 2 +-
+ test/nosplit.go               | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

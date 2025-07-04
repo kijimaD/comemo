@@ -1,0 +1,25 @@
+commit 8854368cb076ea9a2b71c8b3c8f675a8e19b751c
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Sep 24 08:57:06 2021 -0700
+
+    cmd/compile: deal with blank nodes with typeparam type during stenciling
+    
+    Deal correctly with a blank local variable with type param type. This is
+    a special case, because a blank local variable is not in the fn.Dcl
+    list. In this case, we must explicitly create a new blank node with the
+    correct substituted type, so we have correct types if the blank local
+    variable has an initializing assignment.
+    
+    Fixes #48602
+    
+    Change-Id: I903ea44b29934e180404e32800773b7309bf297b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352117
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  6 ++++++
+ test/typeparam/issue48602.go              | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

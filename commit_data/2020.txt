@@ -1,0 +1,14 @@
+commit 19692beee85c7971e32be9dc9edc57d7fa6ea910
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 00:26:49 2009 -0700
+
+    treat "" as empty
+    
+    R=r
+    DELTA=10  (10 added, 0 deleted, 0 changed)
+    OCL=27479
+    CL=27481
+
+ src/lib/template/template.go      |  2 ++
+ src/lib/template/template_test.go | 12 ++++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

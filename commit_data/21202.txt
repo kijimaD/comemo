@@ -1,0 +1,18 @@
+commit 583293349bccd62341f53941ccc68556563efd76
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jan 7 01:23:45 2015 -0500
+
+    misc/swig/stdio: fix broken nil pointer test
+    
+    SWIG has always returned a typed interface value for a C++ class,
+    so the interface value will never be nil even if the pointer itself
+    is NULL. ptr == NULL in C/C++ should be ptr.Swigcptr() == 0 in Go.
+    
+    Fixes #9514.
+    
+    Change-Id: I3778b91acf54d2ff22d7427fbf2b6ec9b9ce3b43
+    Reviewed-on: https://go-review.googlesource.com/2440
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/swig/stdio/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

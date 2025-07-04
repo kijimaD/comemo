@@ -1,0 +1,19 @@
+commit 869932d700cf161c19eec65d66b9fe55482698db
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 27 19:20:58 2024 +0000
+
+    net: improve documentation of netgo/netcgo build tags
+    
+    Updates #69680
+    
+    Change-Id: If80d43da493cb035164ede4a2cadcbec5831feaf
+    GitHub-Last-Rev: b3853e9487da1006ecece9dd378e3de299d0b1da
+    GitHub-Pull-Request: golang/go#69682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616262
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/net.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,30 @@
+commit 3dc85a32fc2c7216f18374bccd37eaed7ed2db7f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Dec 3 13:50:45 2022 +0000
+
+    net: report completed when context is done in cgoLookupIP and cgoLookupPTR
+    
+    All the Lookup* methods that resolve hostnames eventually call lookupIP
+    or lookupHost method. When the order is selected to be hostLookupCGO
+    then lookupHost calls cgoLookupHost which internally calls cgoLookupIP
+    (the lookupIP directly calls cgoLookupIP).
+    When we provide a context that is cancelled after cgo call, then the
+    cgoLookupIP returns completed  == false, which caues the
+    lookupIP/lookupHost to fallback to the go resolver.
+    This fallback is unnecessary because our context is already cancelled.
+    
+    The same thing can happen to LookupAddr.
+    
+    Change-Id: Ifff7716c461f05d954ef43b5205865103558b410
+    GitHub-Last-Rev: 2ef2023e8c51cdd251986f79e94aba86a0722230
+    GitHub-Pull-Request: golang/go#57042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454696
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

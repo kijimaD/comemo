@@ -1,0 +1,14 @@
+commit a0c96a926122f4437f0eba8ae42cc0369511cb58
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Thu Apr 11 16:20:27 2019 -0700
+
+    cmd/link/internal/ld: improve messages for testDWARF failures
+    
+    Change-Id: I60af7a6477d1b25c43b311246ae4a79bf691460e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171819
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/dwarf_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

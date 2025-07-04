@@ -1,0 +1,18 @@
+commit eb68e3367bf8d55bb98eb002cef35455f5be3c5f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Nov 11 07:10:52 2021 +0000
+
+    runtime: fix typo
+    
+    Change filepath reference from cmd/internal/ld/symtab.go to
+    cmd/link/internal/ld/symtab.go.
+    
+    Change-Id: Icb207a2e2c82d3976787d2d5cfb0f8005696f738
+    GitHub-Last-Rev: 428d99c6ca97db79b7d8cdf24843df3492a9aeb0
+    GitHub-Pull-Request: golang/go#49518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

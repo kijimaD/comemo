@@ -1,0 +1,15 @@
+commit 3dab3e65d8fceff2b8989796d315bc382b7005c8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 3 12:54:59 2009 -0700
+
+    put gob into the standard build
+    
+    R=rsc
+    DELTA=77  (76 added, 0 deleted, 1 changed)
+    OCL=31147
+    CL=31147
+
+ src/pkg/Make.deps    |  3 +-
+ src/pkg/Makefile     |  2 ++
+ src/pkg/gob/Makefile | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+), 1 deletion(-)

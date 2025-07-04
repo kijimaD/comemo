@@ -1,0 +1,21 @@
+commit ccf89bef43f3580526019e0804e91352e62047d5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 11:32:43 2020 -0400
+
+    cmd/compile: store call args in the call block
+    
+    We already do this for OpStore, but we didn't do this for OpMove.
+    Do the same, to ensure that no two memories are live at the same
+    time.
+    
+    Fixes #41846.
+    
+    Change-Id: Iad77ff031b3c4459d1217e0b04aeb0e692eb474d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260237
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

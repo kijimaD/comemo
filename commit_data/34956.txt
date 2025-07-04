@@ -1,0 +1,19 @@
+commit 90fee59287394fb43823481e1d1bff0d5d7fb047
+Author: dchenk <dcherchenko@gmail.com>
+Date:   Wed Apr 11 19:20:10 2018 -0700
+
+    database/sql: remove a couple redundancies
+    
+    This commit includes efficiency improvements in two places in the
+    database/sql package where an "if err != nil" was redundant and
+    the error can be returned as-is (most of the code in the standard
+    library and even in the file I changed does it my suggested way).
+    
+    Change-Id: Ib9dac69ed01ee846e570a776164cb87c2caee6ca
+    Reviewed-on: https://go-review.googlesource.com/106555
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

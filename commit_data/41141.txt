@@ -1,0 +1,18 @@
+commit 6718cb617f3d09878088779fe9d18b08949a9bc0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:32:32 2019 +1100
+
+    cmd/internal/obj/riscv: implement prologue and epilogue
+    
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: If552225552bf8d27c29b08de31146dd34986a3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204630
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 334 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 331 insertions(+), 3 deletions(-)

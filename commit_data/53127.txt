@@ -1,0 +1,31 @@
+commit ad7d1d995f85f43500dc3fa503642056c81b8411
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 17:32:05 2023 -0400
+
+    cmd/cgo/internal/testsovar: merge into testso
+    
+    The test driver for testso and testsovar are literally identical, and
+    only the testdata code is different between the two test packages.
+    Merge them into a single test package with two tests that share a
+    driver.
+    
+    Change-Id: I3f107a6aba345c0dd58606c10e3ac8eee33b33c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496315
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/cgo/internal/testso/so_test.go             |  10 +-
+ .../cgo/internal/testso/testdata/{ => so}/cgoso.c  |   0
+ .../cgo/internal/testso/testdata/{ => so}/cgoso.go |   0
+ .../internal/testso/testdata/{ => so}/cgoso_c.c    |   0
+ .../testso/testdata/{ => so}/cgoso_unix.go         |   0
+ .../cgo/internal/testso/testdata/{ => so}/main.go  |   0
+ .../testdata => testso/testdata/sovar}/cgoso.go    |   0
+ .../testdata => testso/testdata/sovar}/cgoso_c.c   |   0
+ .../testdata => testso/testdata/sovar}/cgoso_c.h   |   0
+ .../testdata => testso/testdata/sovar}/main.go     |   0
+ src/cmd/cgo/internal/testsovar/overlaydir_test.go  |  78 -------------
+ src/cmd/cgo/internal/testsovar/so_test.go          | 128 ---------------------
+ 12 files changed, 9 insertions(+), 207 deletions(-)

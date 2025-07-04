@@ -1,0 +1,18 @@
+commit b353a69509423c8fe509d3268ae336e9a45478de
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 10 19:39:17 2015 +1100
+
+    debug/elf: fix arm build
+    
+    This change adds the minimum necessary to implement applyRelocations.
+    
+    For adg, this code uses the switch statement.
+    
+    Change-Id: I0989daab8d0e36c2a4f6a315ced258b832744616
+    Reviewed-on: https://go-review.googlesource.com/7266
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/file.go                              |  56 +++++++++++++++++----
+ src/debug/elf/file_test.go                         |   6 +++
+ .../elf/testdata/go-relocation-test-gcc492-arm.obj | Bin 0 -> 2648 bytes
+ 3 files changed, 53 insertions(+), 9 deletions(-)

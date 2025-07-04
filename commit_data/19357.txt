@@ -1,0 +1,25 @@
+commit 8e22903b46aadd6eda937417cba86b528cba92e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 14 17:45:13 2014 -0700
+
+    cmd/nm, cmd/objdump: fix elf symbol types
+    
+    Turns out elf.File.Sections is indexed by the actual
+    section number, not the number minus one.
+    I don't know why I thought the -1 was necessary.
+    
+    Fixes objdump test (and therefore build) on ELF systems.
+    
+    While we're here, fix bounds on gnuDump so that we
+    don't crash when asked to disassemble outside
+    the text segment. May fix Windows build or at least
+    make the failure more interesting.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/92390043
+
+ src/cmd/nm/elf.go       | 4 ++--
+ src/cmd/objdump/elf.go  | 4 ++--
+ src/cmd/objdump/main.go | 9 +++++++++
+ 3 files changed, 13 insertions(+), 4 deletions(-)

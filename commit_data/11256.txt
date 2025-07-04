@@ -1,0 +1,13 @@
+commit d4fe9c6a9d8232b9d925dfd1f0e11f4891a5ad27
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 15:33:29 2012 +0900
+
+    encoding/json: fix comments, tweak tests for tag names
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5558047
+
+ src/pkg/encoding/json/encode.go      | 3 ++-
+ src/pkg/encoding/json/tagkey_test.go | 6 +++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

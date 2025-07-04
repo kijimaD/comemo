@@ -1,0 +1,30 @@
+commit 0f19e24da7fa564af3fa4e831463951d5715211a
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 9 13:53:34 2017 -0400
+
+    cmd/compile: intrinsics for trunc, floor, ceil on ppc64x
+    
+    This implements trunc, floor, and ceil in the math package
+    as intrinsics on ppc64x.  Significant improvement mainly due
+    to avoiding call overhead of args and return value.
+    
+    BenchmarkCeil-16                    5.95          0.69          -88.40%
+    BenchmarkFloor-16                   5.95          0.69          -88.40%
+    BenchmarkTrunc-16                   5.82          0.69          -88.14%
+    
+    Updates #21390
+    
+    Change-Id: I951e182694f6e0c431da79c577272b81fb0ebad0
+    Reviewed-on: https://go-review.googlesource.com/54654
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go             | 15 +++++++
+ src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  3 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++-
+ src/cmd/compile/internal/ssa/opGen.go          | 60 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 39 +++++++++++++++++
+ 7 files changed, 125 insertions(+), 2 deletions(-)

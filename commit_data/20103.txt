@@ -1,0 +1,22 @@
+commit 527ae57e6532f512dce984245c0c474372e7f62b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 24 21:16:24 2014 -0400
+
+    cmd/5g, cmd/8g: registerize small structs and arrays
+    
+    cmd/6g has been doing this for a long time.
+    
+    Arrays are still problematic on 5g because the addressing
+    for t[0] where local var t has type [3]uintptr takes the address of t.
+    That's issue 8125.
+    
+    Fixes #8123.
+    
+    LGTM=josharian
+    R=josharian, dave
+    CC=golang-codereviews
+    https://golang.org/cl/102890046
+
+ src/cmd/5g/cgen.c | 73 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/8g/cgen.c | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 147 insertions(+), 6 deletions(-)

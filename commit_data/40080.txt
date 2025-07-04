@@ -1,0 +1,20 @@
+commit ba18c7c42d4fa70e81b2304ccc3b2c01675a3af0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 30 11:47:04 2019 +0200
+
+    syscall: fix TestGroupCleanupUserNamespace on CentOS
+    
+    Update the list of expected "id" outputs in
+    TestGroupCleanupUserNamespace with SELinux context information as used
+    on CentOS.
+    
+    Fixes #34547
+    
+    Change-Id: I426bbe2d04e2039c87490362a1891ec3de6e36e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197841
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux_test.go | 1 +
+ 1 file changed, 1 insertion(+)

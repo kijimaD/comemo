@@ -1,0 +1,22 @@
+commit ff6b6c61d7818e4a32402acbf65940afa372368e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 31 14:58:20 2022 -0400
+
+    net: skip tests that use netsh on the windows-arm64-10 builder
+    
+    These tests sometimes hang on Windows 10 on ARM64, due to what appears
+    to be a platform bug. Since we have not yet observed any such hangs on
+    the windows-arm64-11 builder, I am leaving the tests otherwise enabled
+    on the theory that the platform bug may have been fixed in Windows 11.
+    
+    Fixes #52082 (at least for now).
+    
+    Change-Id: I79161f485b1921f083ebcf01865d6e7b0178ef70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397315
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

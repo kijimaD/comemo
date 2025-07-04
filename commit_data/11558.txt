@@ -1,0 +1,27 @@
+commit 8ba20dbdb5c7a77f79409488fb4637f470ab107d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Feb 2 13:55:53 2012 +0100
+
+    exp/norm: a few minor changes in prepration for a table format change:
+     - Unified bounary conditions for NFC and NFD and removed some indirections.
+       This enforces boundaries at the character level, which is typically what
+       the user expects. (NFD allows a boundary between 'a' and '`', for example,
+       which may give unexpected results for collation.  The current implementation
+       is already stricter than the standard, so nothing much changes.  This change
+       just formalizes it.
+     - Moved methods of qcflags to runeInfo.
+     - Swapped YesC and YesMaybe bits in qcFlags. This is to aid future changes.
+     - runeInfo return values use named fields in preperation for struct change.
+     - Replaced some left-over uint32s with rune.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5607050
+
+ src/pkg/exp/norm/composition.go |  20 +-
+ src/pkg/exp/norm/forminfo.go    |  58 ++---
+ src/pkg/exp/norm/input.go       |  10 +-
+ src/pkg/exp/norm/maketables.go  |   4 +-
+ src/pkg/exp/norm/normalize.go   |  26 +--
+ src/pkg/exp/norm/tables.go      | 488 ++++++++++++++++++++--------------------
+ 6 files changed, 294 insertions(+), 312 deletions(-)

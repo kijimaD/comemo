@@ -1,0 +1,15 @@
+commit 043ae50feb7b5e33e3a665124a6532cc1dd6859e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 1 00:00:00 2016 +1100
+
+    doc: 2016 is the Year of the Gopher.
+    
+    Change-Id: I85caba8c743dcd82954de75df947053b3d206bdc
+    Reviewed-on: https://go-review.googlesource.com/18117
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 18b49db18e02c1590119eeda58673bf93c2e41c9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 21 12:33:11 2017 +1000
+
+    cmd/go: ignore empty path elements in GOPATH
+    
+    go command refuses to use GOPATH with empty path elements
+    (like %GOPATH%=C:\go;). But environment variable change dialog
+    on Windows 10 produces strings ending with ; (see issue #21928
+    for a picture). Just accept GOPATH with empty path elements,
+    and ignore all empty path elements.
+    
+    Fixes #21928
+    
+    Change-Id: I1d3c3a19274ed69204d29ae06c3e8ff8c57c1ca0
+    Reviewed-on: https://go-review.googlesource.com/65151
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/main.go    |  5 +++++
+ 2 files changed, 26 insertions(+)

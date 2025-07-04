@@ -1,0 +1,20 @@
+commit e39072d65fd3aeb1db0744226c27abc1fa02e047
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 12 10:36:22 2012 +1000
+
+    sync/atomic: add package doc for AddT, LoadT and StoreT.
+    
+    Rename the first argument of CompareAndSwapT and AddT s/val/addr/
+    for consistency with LoadT and StoreT.
+    
+    R=rsc, r, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6494112
+
+ src/pkg/sync/atomic/asm_386.s       |  26 +++----
+ src/pkg/sync/atomic/asm_amd64.s     |  20 +++---
+ src/pkg/sync/atomic/asm_arm.s       |  12 ++--
+ src/pkg/sync/atomic/asm_linux_arm.s |  16 ++---
+ src/pkg/sync/atomic/atomic_test.go  | 140 ++++++++++++++++++------------------
+ src/pkg/sync/atomic/doc.go          |  46 +++++++-----
+ 6 files changed, 135 insertions(+), 125 deletions(-)

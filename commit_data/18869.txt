@@ -1,0 +1,19 @@
+commit 8d321625fdae77d7e4a8c1681fe90bd893b9cdd2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 23:25:48 2014 +0400
+
+    runtime: fix spans corruption
+    The problem was that spans end up in wrong lists after split
+    (e.g. in h->busy instead of h->central->empty).
+    Also the span can be non-swept before split,
+    I don't know what it can cause, but it's safer to operate on swept spans.
+    Fixes #7544.
+    
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/76160043
+
+ src/pkg/runtime/mgc0.c  |  2 +-
+ src/pkg/runtime/mheap.c | 96 ++++++++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/stack.c | 12 ++-----
+ 3 files changed, 70 insertions(+), 40 deletions(-)

@@ -1,0 +1,14 @@
+commit fd5540e7e5d2149c723b2a636ceed32c1d534ff5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 11:48:39 2014 -0800
+
+    runtime: tighten select permutation generation
+    
+    This is the optimization made to math/rand in CL 21030043.
+    
+    Change-Id: I231b24fa77cac1fe74ba887db76313b5efaab3e8
+    Reviewed-on: https://go-review.googlesource.com/9269
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/select.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

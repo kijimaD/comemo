@@ -1,0 +1,26 @@
+commit 5deea4c2425fd8aa6dee642c63a1bc43e090d04b
+Author: George Adams <georgeadams1995@gmail.com>
+Date:   Tue Nov 19 10:05:27 2024 +0000
+
+    Revert "os: check for valid Windows path when creating files"
+    
+    This reverts commit CL 618496.
+    
+    Reason for revert: https://github.com/golang/go/issues/54040#issuecomment-2485151973
+    
+    Change-Id: I3bf27f7fdd475a005cb6aa190994153504e96fb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629595
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/export_windows_test.go |  9 +++---
+ src/os/file.go                | 19 +++++++----
+ src/os/file_nonwindows.go     | 15 ---------
+ src/os/file_windows.go        | 22 -------------
+ src/os/os_windows_test.go     | 73 -------------------------------------------
+ src/os/path_windows.go        | 29 -----------------
+ src/os/path_windows_test.go   | 53 -------------------------------
+ 7 files changed, 17 insertions(+), 203 deletions(-)

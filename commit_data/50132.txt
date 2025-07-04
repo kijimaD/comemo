@@ -1,0 +1,20 @@
+commit 2af9ee072788e91332ab7c2baa0fb568fd1e8545
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Aug 26 11:28:48 2022 +0800
+
+    runtime: convert dlogger.owned to atomic type
+    
+    Note that this changes a non-atomic operation to atomic operation.
+    
+    For #53821
+    
+    Change-Id: I798914f505c8d7f85f9d7629fdc6493363a20aa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425782
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/debuglog.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

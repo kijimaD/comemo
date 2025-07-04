@@ -1,0 +1,11 @@
+commit cdcb0413b664d4600a38b28f6306a890cf32ef39
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 17:25:53 2009 -0800
+
+    language design FAQ edits
+    
+    R=r
+    http://go/go-review/1026019
+
+ doc/go_lang_faq.html | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

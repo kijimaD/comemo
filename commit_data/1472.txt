@@ -1,0 +1,17 @@
+commit a0c709bef8516b00c76b1d0350138fdf21f60904
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 14 15:19:34 2009 -0800
+
+    - use new letter definition for pretty
+    - fixed a bug with error column reporting in the presence of utf-8 chars
+    - fixed an assertion failure
+    
+    R=r
+    OCL=22762
+    CL=22762
+
+ usr/gri/pretty/compilation.go | 19 +++++++++++--------
+ usr/gri/pretty/parser.go      | 20 +++++++++++---------
+ usr/gri/pretty/scanner.go     |  5 ++++-
+ usr/gri/pretty/selftest2.go   |  6 ++++++
+ 4 files changed, 32 insertions(+), 18 deletions(-)

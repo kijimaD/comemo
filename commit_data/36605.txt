@@ -1,0 +1,17 @@
+commit 22afb3571c4bb6268664ecc5da4416ec58d3e060
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Mon Sep 3 11:20:23 2018 +0100
+
+    encoding/json: recover saved error context when unmarshalling
+    
+    Fixes: #27464
+    
+    Change-Id: I270c56fd0d5ae8787a1293029aff3072f4f52f33
+    Reviewed-on: https://go-review.googlesource.com/132955
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

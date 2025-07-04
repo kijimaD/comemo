@@ -1,0 +1,25 @@
+commit 92f6350287289579b370c92bd885ef82cab25e13
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 14 09:47:58 2017 +0200
+
+    syscall: really use utimensat for UtimesNano on Solaris
+    
+    golang.org/cl/55130 added utimensat for Solaris but didn't use it in
+    UtimesNano (despite indicating otherwise in the commit message). Fix
+    this by also using utimensat for UtimesNano on Solaris.
+    
+    Because all versions of Solaris suppported by Go support utimensat,
+    there is no need for the fallback logic and utimensat can be called
+    unconditionally.
+    
+    This issue was pointed out by Shawn Walker-Salas.
+    
+    Updates #16480
+    
+    Change-Id: I114338113a6da3cfcb8bca950674bdc8f5a7a9e5
+    Reviewed-on: https://go-review.googlesource.com/55141
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_solaris.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

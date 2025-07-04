@@ -1,0 +1,22 @@
+commit 3d33437c450aa74014ea1d41cd986b6ee6266984
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 13 10:15:51 2024 +0700
+
+    unicode/utf8: speedup RuneCount
+    
+    CL 612617 did speedup RuneCountInString, thus we can now use it to
+    speedup RuneCount, too.
+    
+    name                         old time/op    new time/op    delta
+    RuneCountTenASCIIChars-8       8.69ns ± 1%    3.59ns ± 2%  -58.66%  (p=0.000 n=9+9)
+    RuneCountTenJapaneseChars-8    49.8ns ± 2%    40.9ns ± 0%  -17.94%  (p=0.000 n=10+8)
+    
+    Change-Id: I311750c00efc79af35fb0ca3b482a5d94e0a7977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612955
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/unicode/utf8/utf8.go | 32 ++++----------------------------
+ 1 file changed, 4 insertions(+), 28 deletions(-)

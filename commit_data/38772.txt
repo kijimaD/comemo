@@ -1,0 +1,17 @@
+commit c4953a62f90f90f1ab2ac07d5664dd515936835e
+Author: 喜欢兰花山丘 <csharpwz@outlook.com>
+Date:   Tue Apr 16 15:08:32 2019 +0000
+
+    context: simplify stringify with a type switch
+    
+    Minor style change.
+    
+    Change-Id: Ib30243a71a83de1a67d3d005bfdd1e04265fca1e
+    GitHub-Last-Rev: 9d654de10eaa6f01ece29790fb81bc41dfd61eaf
+    GitHub-Pull-Request: golang/go#31479
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172199
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+
+ src/context/context.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

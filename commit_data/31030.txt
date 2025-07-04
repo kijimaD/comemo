@@ -1,0 +1,24 @@
+commit e4a500ce1490a5db709da5880f0121e5eeac73cd
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 28 15:30:31 2017 -0500
+
+    cmd/compile/internal/gc: improve comparison with constant strings
+    
+    Currently we expand comparison with small constant strings into len check
+    and a sequence of byte comparisons. Generate 16/32/64-bit comparisons,
+    instead of bytewise on 386 and amd64. Also increase limits on what is
+    considered small constant string.
+    Shaves ~30kb (0.5%) from go executable.
+    
+    This also updates test/prove.go to keep test case valid.
+    
+    Change-Id: I99ae8871a1d00c96363c6d03d0b890782fa7e1d9
+    Reviewed-on: https://go-review.googlesource.com/38776
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 22 ++++++++++++
+ src/cmd/compile/internal/gc/walk.go     | 62 ++++++++++++++++++++++++++++++---
+ test/prove.go                           |  4 ++-
+ 3 files changed, 83 insertions(+), 5 deletions(-)

@@ -1,0 +1,28 @@
+commit c74f3c457613638311e3cb2a57a9fca2df849e7a
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Wed Jan 30 02:53:56 2013 -0800
+
+    runtime: add support for panic/recover in Plan 9 note handler
+    
+    This change also resolves some issues with note handling: we now make
+    sure that there is enough room at the bottom of every goroutine to
+    execute the note handler, and the `exitstatus' is no longer a global
+    entity, which resolves some race conditions.
+    
+    R=rminnich, npe, rsc, ality
+    CC=golang-dev
+    https://golang.org/cl/6569068
+
+ src/cmd/dist/buildruntime.c          |   6 ++
+ src/pkg/runtime/defs_plan9_386.h     |  30 +++++++++-
+ src/pkg/runtime/defs_plan9_amd64.h   |  34 ++++++++++-
+ src/pkg/runtime/os_plan9.h           |  10 +++-
+ src/pkg/runtime/runtime.h            |   3 +
+ src/pkg/runtime/signal_plan9_386.c   | 101 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/signal_plan9_amd64.c | 108 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/signals_plan9.h      |  25 +++++++-
+ src/pkg/runtime/stack.h              |  12 +++-
+ src/pkg/runtime/sys_plan9_386.s      |  54 ++++++++++++++++--
+ src/pkg/runtime/sys_plan9_amd64.s    |  50 +++++++++++++++-
+ src/pkg/runtime/thread_plan9.c       |  63 +++++++-------------
+ 12 files changed, 439 insertions(+), 57 deletions(-)

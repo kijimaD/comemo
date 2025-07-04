@@ -1,0 +1,19 @@
+commit 6125d0c4265067cdb67af1340bf689975dd128f4
+Author: komisan19 <komiyama6219@gmail.com>
+Date:   Fri Jul 2 05:41:10 2021 +0000
+
+    cmd/dist: correct comment: SysProcAttri -> SysProcAttr
+    
+    Fixes #46982
+    
+    Change-Id: I07a18507b7aad828714b187f296fa7268f32b1c4
+    GitHub-Last-Rev: f498febffdae0bc93ae1794d1ee62b2ef3ecf1bb
+    GitHub-Pull-Request: golang/go#46983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331869
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

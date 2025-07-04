@@ -1,0 +1,28 @@
+commit e780fa86691ba5d832665b689243239931f5166a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 01:01:39 2009 -0700
+
+    defining package block names must override
+    universe block names.
+    
+    BUG=2097244
+    R=ken
+    OCL=34295
+    CL=34473
+
+ src/cmd/gc/align.c                 |   5 +-
+ src/cmd/gc/const.c                 |   4 ++
+ src/cmd/gc/dcl.c                   |   9 +--
+ src/cmd/gc/go.h                    |   1 +
+ src/cmd/gc/go.y                    |  21 +++---
+ src/cmd/gc/lex.c                   | 133 +++++++++++++++++++++----------------
+ src/cmd/gc/subr.c                  |   6 +-
+ src/cmd/gc/typecheck.c             |  36 +++++++---
+ src/cmd/gc/walk.c                  |   2 +-
+ src/pkg/big/arith.go               |   2 +-
+ test/fixedbugs/bug186.go           |   3 +-
+ test/{bugs => fixedbugs}/bug194.go |   0
+ test/golden.out                    |   4 --
+ test/rename.go                     |  75 +++++++++++++++++++++
+ test/rename1.go                    |  48 +++++++++++++
+ 15 files changed, 251 insertions(+), 98 deletions(-)

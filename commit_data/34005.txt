@@ -1,0 +1,16 @@
+commit a89fa7040bdccd0531aa51eb7c8c83f6fa36df25
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Thu Jan 11 08:45:03 2018 +0900
+
+    net/rpc: improve error report messages
+    
+    Updates #19957
+    
+    Change-Id: I8e2e3837db9e5e69b7102f9bd5831fe78ac60cfc
+    Reviewed-on: https://go-review.googlesource.com/87335
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/rpc/server.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

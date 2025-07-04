@@ -1,0 +1,11 @@
+commit e1c5c3df77302af0bbc85c9374add746099f6c24
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 18:17:11 2009 -0800
+
+    runtime: fix bug on darwin/amd64 - bad g in bsdthread_start
+    
+    R=r
+    https://golang.org/cl/157077
+
+ src/pkg/runtime/darwin/amd64/sys.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit b1175bebd0d2aef604825287b60798fce448a5c4
+Author: Florian Weimer <fw@deneb.enyo.de>
+Date:   Tue Dec 13 17:45:01 2011 -0500
+
+    contribute.html: do not fill in the reviewer field
+    
+    The golang-dev mailing list is added automatically.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5482060
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

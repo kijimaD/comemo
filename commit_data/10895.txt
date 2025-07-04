@@ -1,0 +1,16 @@
+commit 16bf7d9e82fd043ed44b3cb0ebd106c397f326d2
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Dec 20 09:25:47 2011 -0800
+
+    encoding/binary: add more benchmarks
+    Also add a byte count to the varint benchmarks - this
+    isn't accurate, of course, but it allows a rough comparison to
+    the other benchmarks.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5496070
+
+ src/pkg/encoding/binary/binary_test.go | 56 +++++++++++++++++++++++-----------
+ src/pkg/encoding/binary/varint_test.go |  2 ++
+ 2 files changed, 41 insertions(+), 17 deletions(-)

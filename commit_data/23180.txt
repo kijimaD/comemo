@@ -1,0 +1,29 @@
+commit df2809f04e6df31e2b36bac08704d8f27e04a0ad
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 29 12:13:50 2015 -0400
+
+    runtime: document that runtime.GC() blocks until GC is complete
+    
+    runtime.GC() is intentionally very weakly specified. However, it is so
+    weakly specified that it's difficult to know that it's being used
+    correctly for its one intended use case: to ensure garbage collection
+    has run in a test that is garbage-sensitive. In particular, it is
+    unclear whether it is synchronous or asynchronous. In the old STW
+    collector this was essentially self-evident; short of queuing up a
+    garbage collection to run later, it had to be synchronous. However,
+    with the concurrent collector, there's evidence that people are
+    inferring that it may be asynchronous (e.g., issue #10986), as this is
+    both unclear in the documentation and possible in the implementation.
+    
+    In fact, runtime.GC() runs a fully synchronous STW collection. We
+    probably don't want to commit to this exact behavior. But we can
+    commit to the essential property that tests rely on: that runtime.GC()
+    does not return until the GC has finished.
+    
+    Change-Id: Ifc3045a505e1898ecdbe32c1f7e80e2e9ffacb5b
+    Reviewed-on: https://go-review.googlesource.com/10488
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

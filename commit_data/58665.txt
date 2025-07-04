@@ -1,0 +1,28 @@
+commit 3310f324ad33571f68d3f0534dd4ebe9872ab2bd
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Sat Dec 14 12:53:29 2024 -0500
+
+    crypto/internal/fips140test: add TLS-v1.2 ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-135rev1 RFC 7627 TLS v1.2 KDF
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html
+    
+    Only SHA2-256, SHA2-384 and SHA2-512 are valid hash algorithms for the
+    TLSKDF algorithm.
+    
+    Updates #69642
+    
+    Change-Id: I553d4f6a1d6652ed486af0e2c94730c8063fb47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ .../internal/fips140test/acvp_capabilities.json    |  4 +++-
+ .../internal/fips140test/acvp_test.config.json     |  4 +++-
+ src/crypto/internal/fips140test/acvp_test.go       | 24 ++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 2 deletions(-)

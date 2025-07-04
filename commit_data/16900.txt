@@ -1,0 +1,20 @@
+commit 6350e45892b5b0189fe3461ba1e7f530da23ff8f
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Mon Jul 29 19:43:08 2013 +0400
+
+    runtime: allow SetFinalizer with a func(interface{})
+    
+    Fixes #5368.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/11858043
+
+ src/pkg/runtime/extern.go      |  5 ++-
+ src/pkg/runtime/malloc.goc     | 14 +++++--
+ src/pkg/runtime/malloc.h       |  2 +-
+ src/pkg/runtime/mfinal.c       | 14 ++++---
+ src/pkg/runtime/mfinal_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c         | 19 ++++++++--
+ src/pkg/runtime/runtime.h      |  2 +-
+ 7 files changed, 126 insertions(+), 16 deletions(-)

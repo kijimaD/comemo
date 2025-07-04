@@ -1,0 +1,14 @@
+commit 20eb4cba377174276e2e67284080cd89d5abfac3
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Sun Aug 18 08:10:00 2013 +1000
+
+    net/textproto: replace '3-digit' with 'three-digit'
+    
+    A matter on form in documentation.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13087043
+
+ src/pkg/net/textproto/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

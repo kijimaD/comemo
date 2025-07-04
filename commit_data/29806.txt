@@ -1,0 +1,20 @@
+commit 79a748fae876ffe38193a8f6a71bb2bfcdb69a52
+Author: Kaviraj <kavirajkanagaraj@gmail.com>
+Date:   Tue Dec 13 17:49:28 2016 +0530
+
+    net: document consecutive dialing in net.Dial
+    
+    document about the consecutive dialing introduced in Go 1.5.
+    If address is resolved to multiple addresses,
+    Dial will try each address in order until one succeeds.
+    Deadline is used to try each address (calculated based on
+    total number of resolved addresses)
+    
+    Fixes: #17617
+    
+    Change-Id: I56b6399edb640c8ef507675f98e0bd45a50d4e2d
+    Reviewed-on: https://go-review.googlesource.com/34176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

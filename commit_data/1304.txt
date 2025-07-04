@@ -1,0 +1,21 @@
+commit 6cbdeb3f8810a7acb20d166fe399ab087587a353
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 9 13:03:15 2008 -0800
+
+    - fixed bug with unicode text formatting: the number of bytes
+      per rune cannot be computed correctly if we have only parts
+      of a rune - delay computation
+    - added html filtering mode: html tags and entities are ignored
+      for width computations
+    - expanded tests:
+      - extra tests for html text
+      - extra tests that write text in various portions
+    
+    R=r
+    DELTA=227  (126 added, 20 deleted, 81 changed)
+    OCL=20833
+    CL=20835
+
+ src/lib/tabwriter/tabwriter.go      | 174 +++++++++++++++++++++++++-----------
+ src/lib/tabwriter/tabwriter_test.go | 122 ++++++++++++++++---------
+ 2 files changed, 201 insertions(+), 95 deletions(-)

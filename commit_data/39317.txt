@@ -1,0 +1,20 @@
+commit f31b7b9b5b43277fb8b77ee57389a0b2f5278c1e
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Jun 6 18:07:13 2019 +0800
+
+    syscall: skip test if unprivileged_userns_clone sysctl is missing
+    
+    The original test (CL 166460) didn't check the existence of
+    /proc/sys/kernel/unprivileged_userns_clone and continue the test
+    if the file doesn't exist.
+    
+    Fixes #32459
+    
+    Change-Id: Iab4938252fcaded32b61e17edf68f966c2565582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180877
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_linux_test.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

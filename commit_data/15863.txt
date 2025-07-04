@@ -1,0 +1,22 @@
+commit d4c80d19a80cbdf946102f3b787ce23bf95e4e12
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 21 12:48:02 2013 +0400
+
+    runtime: faster parallel GC
+    Use per-thread work buffers instead of global mutex-protected pool. This eliminates contention from parallel scan phase.
+    
+    benchmark                             old ns/op    new ns/op    delta
+    garbage.BenchmarkTree2-8               97100768     71417553  -26.45%
+    garbage.BenchmarkTree2LastPause-8     970931485    714103692  -26.45%
+    garbage.BenchmarkTree2Pause-8         469127802    345029253  -26.45%
+    garbage.BenchmarkParser-8            2880950854   2715456901   -5.74%
+    garbage.BenchmarkParserLastPause-8    137047399    103336476  -24.60%
+    garbage.BenchmarkParserPause-8         80686028     58922680  -26.97%
+    
+    R=golang-dev, 0xe2.0x9a.0x9b, dave, adg, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/7816044
+
+ src/pkg/runtime/mgc0.c | 42 +++++++++++++++++++++---------------------
+ src/pkg/runtime/proc.c |  8 ++++----
+ 2 files changed, 25 insertions(+), 25 deletions(-)

@@ -1,0 +1,37 @@
+commit 11cdbab9d4f3e4f0ce690d595933c72df54fad33
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Sep 23 03:58:52 2020 -0700
+
+    bytes, internal/bytealg: fix incorrect IndexString usage
+    
+    The IndexString implementation in the bytealg package requires that
+    the string passed into it be in the range '2 <= len(s) <= MaxLen'
+    where MaxLen may be any value (including 0).
+    
+    CL 156998 added calls to bytealg.IndexString where MaxLen was not
+    first checked. This led to an illegal instruction on s390x with
+    the vector facility disabled.
+    
+    This CL guards the calls to bytealg.IndexString with a MaxLen check.
+    If the check fails then the code now falls back to the pre CL 156998
+    implementation (a loop over the runes in the string).
+    
+    Since the MaxLen check is now in place the generic implementation is
+    no longer called so I have returned it to its original unimplemented
+    state.
+    
+    In future we may want to drop MaxLen to prevent this kind of
+    confusion.
+    
+    Fixes #41552.
+    
+    Change-Id: Ibeb3f08720444a05c08d719ed97f6cef2423bbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256717
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes.go                    | 50 ++++++++++++++++++++++-------------
+ src/internal/bytealg/index_generic.go | 38 ++------------------------
+ 2 files changed, 34 insertions(+), 54 deletions(-)

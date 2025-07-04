@@ -1,0 +1,20 @@
+commit 70fbc88288143c218fde9f905a38d55505adfb2b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Nov 22 09:21:27 2023 +0000
+
+    net/http: add ResponseController http2 request without body read deadline test
+    
+    Requires CL 464936
+    
+    For #58237
+    
+    Change-Id: I007b61f0f216d759f8e5327d77affbd9e8f8ff23
+    GitHub-Last-Rev: 30a10909b03bb0e8e4cd370a6f5ca386cd4ebc39
+    GitHub-Pull-Request: golang/go#58282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465035
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/responsecontroller_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

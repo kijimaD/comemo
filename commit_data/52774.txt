@@ -1,0 +1,29 @@
+commit 5256f90c98cd19b983d35d2377b3fecfd966671e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 24 10:18:07 2023 -0400
+
+    runtime: fix CgoRaceprof and CgoRaceSignal build failures
+    
+    TestRaceProf and TestRaceSignal were changed to run on all platforms
+    that support the race detector as of CL 487575, but the testprogcgo
+    source files needed to run the test rely on POSIX threads and were
+    still build-constrained to only linux/amd64 and freebsd/amd64.
+    
+    Since the C test program appears to require only POSIX APIs, update
+    the constraint to build the source file on all Unix platforms, and
+    update the tests to skip on Windows.
+    
+    This may slightly increase testprogcgo build time on Unix platforms
+    that do not support the race detector.
+    
+    Change-Id: I704dd496d475a3cd2e2da2a09c7d2e3bb8e96d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_cgo_test.go                | 11 +++++++++++
+ src/runtime/testdata/testprogcgo/raceprof.go |  4 ++--
+ src/runtime/testdata/testprogcgo/racesig.go  |  4 ++--
+ 3 files changed, 15 insertions(+), 4 deletions(-)

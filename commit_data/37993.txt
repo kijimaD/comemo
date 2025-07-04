@@ -1,0 +1,16 @@
+commit d7d3887e3e1cae524f1530fd0942f9a64d669de9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 18:07:49 2019 -0500
+
+    cmd/internal/obj/x86: fix issue19518_test in module mode
+    
+    Updates #30228
+    
+    Change-Id: I6a38269f322d906702921b3879ff48c8a96ab511
+    Reviewed-on: https://go-review.googlesource.com/c/162831
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/x86/issue19518_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

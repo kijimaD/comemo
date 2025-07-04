@@ -1,0 +1,17 @@
+commit add721ef91ed533cf578ff7a604124e377329ae4
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon Oct 24 21:20:04 2016 -0700
+
+    encoding/json: encode nil Marshaler as "null"
+    
+    Fixes #16042.
+    
+    Change-Id: I0a28aa004246b7b0ffaaab457e077ad9035363c2
+    Reviewed-on: https://go-review.googlesource.com/31932
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go      |  6 +++++-
+ src/encoding/json/encode_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

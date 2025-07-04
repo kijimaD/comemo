@@ -1,0 +1,21 @@
+commit acba24ff8c66d3c9d70bf0b087ae005c5a408e8d
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 14 14:11:45 2023 -0400
+
+    reflect: move more types, constants, functions into internal/abi
+    
+    Change-Id: Ib9cd15576896225e7c5e6fda11f1a77f6993a91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484857
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/reflect/abi.go            |  18 +--
+ src/reflect/benchmark_test.go |   3 +-
+ src/reflect/deepequal.go      |   2 +-
+ src/reflect/export_test.go    |  10 +-
+ src/reflect/swapper.go        |   2 +-
+ src/reflect/type.go           | 315 ++++++++++++++++++------------------------
+ src/reflect/value.go          |  52 +++----
+ 7 files changed, 178 insertions(+), 224 deletions(-)

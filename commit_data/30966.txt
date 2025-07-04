@@ -1,0 +1,14 @@
+commit bfeda6ccc7098c177f351670e3c102974a847377
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 16:04:52 2017 -0700
+
+    cmd/compile: add comment to statictmp name generation
+    
+    Follow-up to review comments on CL 39193.
+    
+    Change-Id: I7649af9d70ad73e039061a7a66fea416a7476192
+    Reviewed-on: https://go-review.googlesource.com/39199
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 1 +
+ 1 file changed, 1 insertion(+)

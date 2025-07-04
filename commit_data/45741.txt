@@ -1,0 +1,18 @@
+commit e11d14225c032a7c2722798db3c309762fa99757
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Jun 2 11:20:40 2021 -0400
+
+    doc/go1.17: remove runtime section
+    
+    Updates #44513
+    
+    Change-Id: I359d56fc3eeece3005f092cca2cb485664affc23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324209
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.17.html | 6 ------
+ 1 file changed, 6 deletions(-)

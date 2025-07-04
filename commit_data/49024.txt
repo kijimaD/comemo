@@ -1,0 +1,15 @@
+commit ed462a66a5e4b57402b509aa27c90342075231f0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu May 5 02:52:07 2022 +0700
+
+    cmd/compile: use appendWalkStmt when possible
+    
+    Change-Id: I718ad2fd98a3d30087e169abdd5ba3cc4f4b36ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403999
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/walk/complit.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

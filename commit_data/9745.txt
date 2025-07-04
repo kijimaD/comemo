@@ -1,0 +1,15 @@
+commit ab596cae9eac88db46326a7b01c99975da8729b6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 19 11:09:00 2011 -0700
+
+    sync/atomic: replace MFENCE with LOCK XADD
+    MFENCE was introduced only on the Pentium4 (SSE2),
+    while XADD was introduced on the 486.
+    Fixes #2268.
+    
+    R=golang-dev, rsc
+    CC=fshahriar, golang-dev
+    https://golang.org/cl/5056045
+
+ src/pkg/sync/atomic/asm_386.s | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

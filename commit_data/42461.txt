@@ -1,0 +1,18 @@
+commit b371f189dfdfb2454a20ec276de55fe884d6ff9f
+Author: joshuabezaleel <joshua.bezaleel@gmail.com>
+Date:   Fri Feb 7 17:36:26 2020 +0700
+
+    io/ioutil: update WriteFile to clarify it does not change permissions if the file exists.
+    
+    The existing documentation of WriteFile does not make it clear for
+    non-native English speakers that it will not change the permissions if
+    the file already exists before.
+    
+    Fixes #35711
+    
+    Change-Id: If861c3e3700957fc9ac3d5313351c57d399d3f58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218417
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/ioutil/ioutil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

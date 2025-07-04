@@ -1,0 +1,12 @@
+commit 3d50b1e0e890f04b77ddcd4b00e60c83dbf68760
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 16:20:00 2009 -0800
+
+    Finish the lexical section.
+    
+    DELTA=176  (172 added, 0 deleted, 4 changed)
+    OCL=25182
+    CL=25222
+
+ doc/go_ref.html | 174 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 173 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 094c75219a160be1667c9757f363ffad8926632b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 10:54:21 2023 -0700
+
+    doc: document new panic behavior of flag definition after Set
+    
+    For #57411
+    
+    Change-Id: I56c112bb03dde24c2e2643c9b72ce06158a8e717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499278
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ doc/go1.21.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 56ad88b1ffe567d6072e3d25d7b02da18af9f842
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 27 17:48:18 2015 -0400
+
+    runtime: free stack spans outside STW
+    
+    We couldn't do this before this point because it must be done before
+    the next GC cycle starts. Hence, if it delayed the start of the next
+    cycle, that would widen the window between reaching the heap trigger
+    of the next cycle and starting the next GC cycle, during which the
+    mutator could over-allocate. With the decentralized GC, any mutators
+    that reach the heap trigger will block on the GC starting, so it's
+    safe to widen the time between starting the world and being able to
+    start the next GC cycle.
+    
+    Fixes #11465.
+    
+    Change-Id: Ic7ea7e9eba5b66fc050299f843a9c9001ad814aa
+    Reviewed-on: https://go-review.googlesource.com/16394
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

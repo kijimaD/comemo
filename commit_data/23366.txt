@@ -1,0 +1,16 @@
+commit 7322ef5d2a4aefc3f059015dcb8a7860461cb911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 12:49:45 2015 -0700
+
+    go/types: fix Eval to use correct file set when evaluating an expression
+    
+    This is https://go-review.googlesource.com/10999 which we could not apply
+    in x/tools/go/types because we must not rely on 1.5 features in that repo
+    yet.
+    
+    Change-Id: I9a57cdb7ad4051df278d1fbed90c736df50f426f
+    Reviewed-on: https://go-review.googlesource.com/11125
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/eval.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

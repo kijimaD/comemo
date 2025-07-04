@@ -1,0 +1,15 @@
+commit b72153310d93a0eba6334a9a31a1ac9b3c592f06
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 05:49:07 2009 -0800
+
+    allow unpacking of json map into Go map,
+    now that reflection supports it.
+    
+    R=r
+    http://go/go-review/1015008
+
+ src/pkg/json/generic.go     |  3 ++
+ src/pkg/json/parse.go       |  4 +++
+ src/pkg/json/struct.go      | 70 +++++++++++++++++++++++++++++----------
+ src/pkg/json/struct_test.go | 81 +++++++++++++++++++++++++++++----------------
+ 4 files changed, 111 insertions(+), 47 deletions(-)

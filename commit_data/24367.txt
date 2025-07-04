@@ -1,0 +1,15 @@
+commit 3f7c3e01db49067645053e4bd66533a8cde1d308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 09:48:39 2015 -0700
+
+    math/big: fix test for denormalized inputs and enable more test cases
+    
+    Also: removed unnecessary BUG comment (was fixed).
+    
+    Change-Id: I8f11fbcb4e30a19ec5a25df742b3e25e2ee7f846
+    Reviewed-on: https://go-review.googlesource.com/14923
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv_test.go | 26 ++++++++++++++++++++------
+ src/math/big/ftoa.go           |  7 ++-----
+ 2 files changed, 22 insertions(+), 11 deletions(-)

@@ -1,0 +1,17 @@
+commit cd91c3b036c9ec087dcc3fc69ff8234020925fa9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 22:04:06 2016 -0500
+
+    runtime: add pointer to net and net/http for more GODEBUG settings
+    
+    net has GODEBUG text already.
+    net/http still needs it (leaving for Brad).
+    
+    For #13611.
+    
+    Change-Id: Icea1027924a23a687cbbe4001985e8c6384629d7
+    Reviewed-on: https://go-review.googlesource.com/18346
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/extern.go | 3 +++
+ 1 file changed, 3 insertions(+)

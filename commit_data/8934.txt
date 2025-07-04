@@ -1,0 +1,14 @@
+commit 72efdea20e96cba1b28352c1b0343b510caa8402
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 4 11:50:35 2011 +1000
+
+    exp/template: allow complex numbers, add 'with', 'define', and 'template' keywords.
+    Also simplify the handling of keywords.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4639096
+
+ src/pkg/exp/template/lex.go      | 88 ++++++++++++++++++++++++++--------------
+ src/pkg/exp/template/lex_test.go |  7 +++-
+ 2 files changed, 63 insertions(+), 32 deletions(-)

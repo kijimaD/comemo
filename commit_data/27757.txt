@@ -1,0 +1,28 @@
+commit 51b08d511e8b42eace59588a7eea73c4d21d222d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 16:56:43 2016 -0700
+
+    net/http: be consistent about spelling of HTTP/1.x
+    
+    There was only one use of "HTTP/1.n" compared to "HTTP/1.x":
+    
+    h2_bundle.go://   "Just as in HTTP/1.x, header field names are strings of ASCII
+    httputil/dump.go:// DumpRequest returns the given request in its HTTP/1.x wire
+    httputil/dump.go:// intact. HTTP/2 requests are dumped in HTTP/1.x form, not in their
+    response.go:// Write writes r to w in the HTTP/1.x server response format,
+    server.go:      // Request.Body. For HTTP/1.x requests, handlers should read any
+    server.go:// The default HTTP/1.x and HTTP/2 ResponseWriter implementations
+    server.go:// The default ResponseWriter for HTTP/1.x connections supports
+    server.go:// http1ServerSupportsRequest reports whether Go's HTTP/1.x server
+    server.go:      // about HTTP/1.x Handlers concurrently reading and writing, like
+    server.go:      // HTTP/1.x from here on.
+    transport.go:   return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %v", err)
+    
+    Be consistent.
+    
+    Change-Id: I93c4c873e500f51af2b4762055e22f5487a625ac
+    Reviewed-on: https://go-review.googlesource.com/24610
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/response.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit e1fcf8857e1b3e076cc3a6fad1860afe0d6c2ca6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 20 11:35:31 2021 -0700
+
+    test: add test that caused gofrontend compiler crash
+    
+    Updates https://gcc.gnu.org/PR101994
+    
+    Change-Id: I50dcb90e315792efd7d83b496034ad33b5f199e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/gcc101994.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

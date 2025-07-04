@@ -1,0 +1,16 @@
+commit 06b280214c653f533370608e294a0759c776f288
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 29 10:08:58 2015 -0700
+
+    cmd/go: do not panic on invalid import path containing "/vendor/"
+    
+    Fixes #11414
+    
+    Change-Id: I45a41b98554f00362d9222e9c68a441dbfc23cb8
+    Reviewed-on: https://go-review.googlesource.com/11700
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/pkg.go                                 |  6 +++++-
+ src/cmd/go/testdata/src/vend/x/invalid/invalid.go |  3 +++
+ src/cmd/go/vendor_test.go                         | 11 +++++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

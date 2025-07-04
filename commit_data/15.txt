@@ -1,0 +1,10 @@
+commit f27e5df49c0fe37fab2533d93a1b2ccbe26c97b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 22:11:51 2008 -0800
+
+    - fixed double-definition of StructType
+    
+    SVN=111689
+
+ doc/go_lang.txt | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

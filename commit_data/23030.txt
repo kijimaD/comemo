@@ -1,0 +1,15 @@
+commit ed8ae79282f1ad8d06f926b366725c1be798289c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 12 01:13:09 2015 -0400
+
+    syscall: add test for Flock_t roundtrip
+    
+    See CL 9962 for the rationale.
+    
+    Change-Id: I73c714fce258430eea1e61d3835f5c8e9014ca1f
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/9925
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_unix_test.go | 59 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 47 insertions(+), 12 deletions(-)

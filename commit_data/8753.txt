@@ -1,0 +1,13 @@
+commit d81147b617e192a7e9f33e32da1ea01da43aa381
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 12:56:39 2011 -0400
+
+    A+C: Volker Dobler (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4589055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

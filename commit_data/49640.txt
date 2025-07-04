@@ -1,0 +1,28 @@
+commit b9d5a25442ff4df9080250dd4b0d62c565466cec
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 14:44:21 2022 -0400
+
+    cmd/go: save zip sums for downloaded modules in 'go mod download' in a workspace
+    
+    Within a single module we expect all needed checksums to have already
+    been recorded by a previous call to 'go get' or 'go mod tidy' in that
+    module. However, when we combine multiple modules in a workspace, they
+    may upgrade each other's dependencies, so a given module might be
+    upgraded above the highest version recorded in the individual go.sum
+    files for the workspace modules.
+    
+    Since the checksums might not be present in individual go.sum files,
+    record them in go.work.sum.
+    
+    Fixes #51946.
+    
+    Change-Id: Icb4ea874b9e5c5b1950d42650974a24b5d6543d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417654
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go             | 26 ++++++++++++++++------
+ .../go/testdata/script/work_why_download_graph.txt | 10 +++++++--
+ 2 files changed, 27 insertions(+), 9 deletions(-)

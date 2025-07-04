@@ -1,0 +1,14 @@
+commit 881966d2a5ff74df442017097a849645b5112682
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 12:41:43 2012 +0800
+
+    cmd/go, cmd/godoc, net: fix typo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5757050
+
+ src/cmd/go/build.go         | 2 +-
+ src/cmd/godoc/godoc.go      | 2 +-
+ src/pkg/net/unicast_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

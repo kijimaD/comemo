@@ -1,0 +1,24 @@
+commit 368f73bcd9651129c1753c3486cf5b0757d4707d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 16 16:28:42 2015 +0000
+
+    net: unblock plan9 TCP Read calls after socket close
+    
+    Fixes #7782
+    Fixes #9554
+    Updates #7237 (original metabug, before we switched to specific bugs)
+    Updates #11932 (plan9 still doesn't have net I/O deadline support)
+    
+    Change-Id: I96f311b88b1501d884ebc008fd31ad2cf1e16d75
+    Reviewed-on: https://go-review.googlesource.com/15941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dial_test.go                       |  3 +++
+ src/net/fd_plan9.go                        |  8 ++++++++
+ src/net/http/httputil/reverseproxy_test.go |  4 ----
+ src/net/http/serve_test.go                 | 11 +++++++++--
+ src/net/http/transport_test.go             | 27 +++++++++++++++++----------
+ 5 files changed, 37 insertions(+), 16 deletions(-)

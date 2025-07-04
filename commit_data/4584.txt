@@ -1,0 +1,13 @@
+commit 9d4d7d8f991ad3b27f223a2a987f2517971cd868
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jan 12 09:45:11 2010 -0800
+
+    Fix bug that prevented the gofmt test script being run on more
+    than one explicitly named file.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/186095
+
+ src/cmd/gofmt/test.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

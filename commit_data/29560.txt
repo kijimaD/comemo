@@ -1,0 +1,30 @@
+commit 9f5673d9307572ff3b435a845470e3b7fd3c6a43
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 14 18:00:17 2016 -0500
+
+    cmd/compile: ensure necessary types appear in .debug_info
+    
+    Autotmp filtering was too aggressive and excluded types
+    necessary to make debuggers work properly.  Restore the
+    "late filter" in dwarf.go based on names to exclude autotmps,
+    and remove the "early filter" in pgen.go based on how the
+    name was introduced.  However, the updated naming scheme
+    with a dot prefix is retained to prevent accidental clashes
+    with legal Go identifier names.
+    
+    Includes test (grouped with runtime gdb tests),
+    verified to fail without the fix.
+    
+    Updates #17644.
+    Fixes #17830.
+    
+    Change-Id: I7ec3f7230083889660236e5f6bc77ba5fe434e93
+    Reviewed-on: https://go-review.googlesource.com/33233
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go |  5 ++-
+ src/cmd/internal/dwarf/dwarf.go     |  4 +++
+ src/runtime/runtime-gdb_test.go     | 70 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 76 insertions(+), 3 deletions(-)

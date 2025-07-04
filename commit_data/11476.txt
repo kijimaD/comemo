@@ -1,0 +1,14 @@
+commit 25c96cba2e6e9729ffda9e05da05f121ce9077f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 30 11:42:09 2012 -0800
+
+    json: remove old optimization that inlining covers now
+    
+    Benchmarks look the same.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5572080
+
+ src/pkg/encoding/json/scanner.go | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)

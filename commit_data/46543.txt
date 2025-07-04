@@ -1,0 +1,34 @@
+commit 98989f2a74aa53e9ea64c41c94e66f02beceecc9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 21 14:35:37 2021 -0400
+
+    cmd/compile, cmd/link: avoid ABI aliases
+    
+    In the past we introduced ABI aliases, in preparation for ABI
+    wrappers. Now that we have ABI wrappers implemented, we don't
+    need ABI aliases. If ABI wrappers are not enabled, ABI0 and
+    ABIInternal are actually identical, so we can resolve symbol
+    references without distinguish them. This CL does so by
+    normalizing ABIInternal to ABI0 at link time. This way, we no
+    longer need to generate ABI aliases.
+    
+    This CL doesn't clean up everything related to ABI aliases, which
+    will be done in followup CLs.
+    
+    Change-Id: I5b5db43370d29b8ad153078c70a853e3263ae6f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351271
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 20 --------------------
+ src/cmd/internal/goobj/builtin.go      |  4 +++-
+ src/cmd/link/internal/ld/deadcode.go   | 10 ++++++----
+ src/cmd/link/internal/ld/lib.go        | 27 +++++++--------------------
+ src/cmd/link/internal/ld/macho.go      |  3 +--
+ src/cmd/link/internal/ld/main.go       |  4 ++++
+ src/cmd/link/internal/ld/pcln.go       |  2 +-
+ src/cmd/link/internal/loader/loader.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go    |  6 ++++++
+ 9 files changed, 29 insertions(+), 49 deletions(-)

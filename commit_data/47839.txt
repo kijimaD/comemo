@@ -1,0 +1,24 @@
+commit 15550625c3140efce8ea1d7d3193ec4c563eb117
+Author: Andrew LeFevre <capnspacehook@gmail.com>
+Date:   Thu Dec 16 05:25:09 2021 +0000
+
+    net/netip: add a fuzz test
+    
+    This is a pretty straight port of the fuzz test at https://github.com/inetaf/netaddr.
+    
+    The MarshalText methods of netip.Addr and net.IP, the Is* methods of netip.Addr
+    and net.IP and the MarshalText and String methods of netip.Addr are also
+    checked to ensure that they behave the same way.
+    
+    Fixes #49367
+    
+    Change-Id: I44abb01f2a7af45f39597992a1fc7ff0305728fa
+    GitHub-Last-Rev: c2323b0ae119b804a58b810ad7f0e2bb1b3a38ac
+    GitHub-Pull-Request: golang/go#50108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371055
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/net/netip/fuzz_test.go | 351 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 351 insertions(+)

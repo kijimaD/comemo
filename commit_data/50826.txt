@@ -1,0 +1,64 @@
+commit 97760ed651f88341bcf15aa4980863c199b6f3dc
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Sep 6 22:12:16 2022 +0800
+
+    cmd/compile: intrinsify Add64 on loong64
+    
+    This is a follow up of CL 420094  on loong64.
+    
+    Reduce go toolchain size slightly on linux/loong64.
+    
+    compilecmp HEAD~1 -> HEAD
+    HEAD~1 (8a32354219): internal/trace: use strings.Builder
+    HEAD (1767784ac3): cmd/compile: intrinsify Add64 on loong64
+    platform: linux/loong64
+    
+    file      before    after     Δ       %
+    addr2line 3882616   3882536   -80     -0.002%
+    api       5528866   5528450   -416    -0.008%
+    asm       5133780   5133796   +16     +0.000%
+    cgo       4668787   4668491   -296    -0.006%
+    compile   25163409  25164729  +1320   +0.005%
+    cover     4658055   4658007   -48     -0.001%
+    dist      3437783   3437727   -56     -0.002%
+    doc       3883069   3883205   +136    +0.004%
+    fix       3383254   3383070   -184    -0.005%
+    link      6747559   6747023   -536    -0.008%
+    nm        3793923   3793939   +16     +0.000%
+    objdump   4256628   4256812   +184    +0.004%
+    pack      2356328   2356144   -184    -0.008%
+    pprof     14233370  14131910  -101460 -0.713%
+    test2json 2638668   2638476   -192    -0.007%
+    trace     13392065  13360781  -31284  -0.234%
+    vet       7456388   7455588   -800    -0.011%
+    total     132498256 132364392 -133864 -0.101%
+    
+    file                                    before    after     Δ       %
+    compile/internal/ssa.a                  35644590  35649482  +4892   +0.014%
+    compile/internal/ssagen.a               4101250   4099858   -1392   -0.034%
+    internal/edwards25519/field.a           226064    201718    -24346  -10.770%
+    internal/nistec/fiat.a                  1689922   1212254   -477668 -28.266%
+    tls.a                                   3256798   3256800   +2      +0.000%
+    big.a                                   1718552   1708518   -10034  -0.584%
+    bits.a                                  107786    106762    -1024   -0.950%
+    cmplx.a                                 169434    168214    -1220   -0.720%
+    math.a                                  581302    578762    -2540   -0.437%
+    netip.a                                 556096    555922    -174    -0.031%
+    net.a                                   3286526   3286528   +2      +0.000%
+    runtime.a                               8644786   8644510   -276    -0.003%
+    strconv.a                               519098    518374    -724    -0.139%
+    golang.org/x/crypto/internal/poly1305.a 115398    109546    -5852   -5.071%
+    total                                   260913122 260392768 -520354 -0.199%
+    
+    Change-Id: I75b2bb7761fa5a0d0d032d4ebe3582d092ea77be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428556
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  8 ++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 60 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go          | 12 ++---
+ test/codegen/mathbits.go                        |  7 +++
+ 4 files changed, 81 insertions(+), 6 deletions(-)

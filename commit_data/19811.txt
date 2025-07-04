@@ -1,0 +1,18 @@
+commit 3590d9ce695baa7535537e3d1404de52bf94fae5
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 24 14:37:34 2014 -0700
+
+    runtime: set sweepgen atomically before updating span state
+    
+    Sweepone may be running while a new span is allocating.  It
+    must not see the state updated while the sweepgen is unset.
+    
+    Fixes #8399
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/118050043
+
+ src/pkg/runtime/mheap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit a94a390e5cf802e54c95afb973c2f51be76f669e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 29 16:59:04 2018 +0100
+
+    os: treat "${}" in Expand like in Go 1.10
+    
+    CL 103055 made it so that invalid parameter expansions, like "$|", did
+    not make the dollar sign silently disappear.
+    
+    A few edge cases were not taken into account, such as "${}" and "${",
+    which were now printing just "$". For consistency and to not break
+    existing programs, go back to eating up the characters when invalid
+    syntax is encountered.
+    
+    For completeness, add a "$" test case too, even though its behavior is
+    unchanged by this CL.
+    
+    Fixes #26135.
+    
+    Change-Id: I5d25db9a8356dc6047a8502e318355113a99b247
+    Reviewed-on: https://go-review.googlesource.com/121636
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env.go      | 13 ++++++++++---
+ src/os/env_test.go |  4 ++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

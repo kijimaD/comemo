@@ -1,0 +1,12 @@
+commit 04ce9dbf355a5d1b2e0b979d02f16ef2bf83833f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 9 11:26:56 2015 -0800
+
+    math/big: correct umax
+    
+    Change-Id: I208c8ac44d1a8882d8fdeb18347dc20941e20374
+    Reviewed-on: https://go-review.googlesource.com/4250
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

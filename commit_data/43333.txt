@@ -1,0 +1,20 @@
+commit ae162554f9e0078b325fb32e2e10ddda15b2acdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 16 13:39:50 2020 -0400
+
+    net/http: try to deflake TestTransportDiscardsUnneededConns
+    
+    Fixes #33585.
+    Fixes #36797.
+    
+    Change-Id: I9202b624642368089a9ce827e3e7a7427100bf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263144
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

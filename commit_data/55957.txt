@@ -1,0 +1,21 @@
+commit 73cac618016a471e770672883619b0e323f9d875
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 14 21:22:31 2024 -0700
+
+    net: #define _GNU_SOURCE to 1
+    
+    Makes the build work with CGO_CPPFLAGS=-D_GNU_SOURCE,
+    as reportedly used by TinyGo.
+    
+    Fixes #66325
+    
+    Change-Id: I794f1cd89814638fdb6c3066d13bbd7da88c9d93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/cgo_unix_cgo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

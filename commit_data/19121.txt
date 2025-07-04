@@ -1,0 +1,18 @@
+commit a8d90ec3506142b8cc2400cbfcde2acfa834062a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 08:06:13 2014 -0700
+
+    net/http: close Body in client code always, even on errors, and document
+    
+    Fixes #6981
+    
+    LGTM=rsc
+    R=golang-codereviews, nightlyone
+    CC=adg, dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/85560045
+
+ src/pkg/net/http/client.go         | 14 +++++++++---
+ src/pkg/net/http/request.go        |  6 +++++
+ src/pkg/net/http/transport.go      |  7 ++++++
+ src/pkg/net/http/transport_test.go | 46 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 70 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit e7980732ee01350c2797e16cb9d2088d577f8b18
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 14:55:04 2009 -0700
+
+    tabwriter documentation
+    
+    R=rsc
+    DELTA=62  (31 added, 5 deleted, 26 changed)
+    OCL=26022
+    CL=26040
+
+ src/lib/tabwriter/tabwriter.go | 82 +++++++++++++++++++++++++++---------------
+ 1 file changed, 54 insertions(+), 28 deletions(-)

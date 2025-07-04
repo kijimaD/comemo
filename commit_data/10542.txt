@@ -1,0 +1,26 @@
+commit 3b3922771a1ace2e4781f7e53a16cf566f2c27bf
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 30 15:37:41 2011 +1100
+
+    html: parse <xmp> tags
+    
+    Pass tests5.dat, test 10:
+    <p><xmp></xmp>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |     <xmp>
+    
+    Also pass the remaining tests in tests5.dat.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5440062
+
+ src/pkg/html/parse.go      | 5 +++++
+ src/pkg/html/parse_test.go | 2 +-
+ src/pkg/html/render.go     | 2 +-
+ src/pkg/html/token.go      | 8 ++++----
+ 4 files changed, 11 insertions(+), 6 deletions(-)

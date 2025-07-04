@@ -1,0 +1,17 @@
+commit 277d5870a0776c53d93edfa6f4378b0a0b9980fc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 09:58:25 2015 -0500
+
+    runtime: move wbuf-related functions to new gcwork.go
+    
+    No code modifications.
+    
+    This is in preparation for improving the wbuf abstraction.
+    
+    Change-Id: I719543a345c34d079b7e39b251eccd5dd8a07826
+    Reviewed-on: https://go-review.googlesource.com/4710
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/gcwork.go | 338 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgc.go    | 328 ------------------------------------------------
+ 2 files changed, 338 insertions(+), 328 deletions(-)

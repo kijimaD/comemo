@@ -1,0 +1,15 @@
+commit 85deaf60776b686b550ed413c37fda9cc9615c05
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Fri Aug 18 13:26:41 2017 +0300
+
+    crypto/tls: fix docstring of Config.ClientSessionCache
+    
+    Closes #21519
+    
+    Change-Id: I1247e9435de93aae7e4db2b6e8e5be1b010c296b
+    Reviewed-on: https://go-review.googlesource.com/56832
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

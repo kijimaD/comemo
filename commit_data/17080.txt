@@ -1,0 +1,16 @@
+commit a97a91de06b3f071a08314c7cb54eac57c4a624a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 7 14:03:50 2013 -0700
+
+    runtime: Record jmpdefer's argument size.
+    Fixes bug 6055.
+    
+    R=golang-dev, bradfitz, dvyukov, khr
+    CC=golang-dev
+    https://golang.org/cl/12536045
+
+ src/pkg/runtime/asm_386.s   |  2 +-
+ src/pkg/runtime/asm_amd64.s |  2 +-
+ src/pkg/runtime/asm_arm.s   |  2 +-
+ test/fixedbugs/issue6055.go | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 32 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit c8a66a98ffe74a2a9899dc05bdd169ad842df5e2
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 2 19:54:51 2008 -0800
+
+    small code improvement to
+    used scaled indexing
+    
+    R=r
+    OCL=20308
+    CL=20310
+
+ src/cmd/6g/cgen.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

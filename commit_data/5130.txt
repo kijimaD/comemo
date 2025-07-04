@@ -1,0 +1,13 @@
+commit d2cdb2478605ca848b72cd33784803b2e7f13324
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 24 22:12:59 2010 -0700
+
+    gc: tests omitted from the last bug fix
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/748041
+
+ test/fixedbugs/bug262.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug263.go | 16 +++++++++++++++
+ 2 files changed, 68 insertions(+)

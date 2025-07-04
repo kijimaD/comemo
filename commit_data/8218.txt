@@ -1,0 +1,13 @@
+commit c2c7ee2736b5032a5e35577b3da54030ed8d3f63
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 13:57:52 2011 -0400
+
+    ld: fix 6l -d on Mac, diagnose invalid use of -d
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4430064
+
+ src/cmd/ld/go.c    | 8 +++++++-
+ src/cmd/ld/macho.c | 4 +++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

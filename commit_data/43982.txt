@@ -1,0 +1,17 @@
+commit 422dc83baa2816ca1d9a0aa3f1aaf4c47c8098ad
+Author: Hein Khant Zaw <heinkhantzaw1@gmail.com>
+Date:   Thu Dec 10 16:45:48 2020 +0000
+
+    database/sql: fix typo in comment
+    
+    Fixes #43116
+    
+    Change-Id: Ib04fab6ae03f322aa1508ec00523f628d891247a
+    GitHub-Last-Rev: 0a86e665b2c320e0b2aef75ee53bd7281b19b013
+    GitHub-Pull-Request: golang/go#43122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276992
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

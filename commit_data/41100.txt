@@ -1,0 +1,16 @@
+commit 79ccbe1b67b9c481c73bd6b310849bbcf13954a5
+Author: bxq2011hust <bxq2011hust@qq.com>
+Date:   Fri Jan 10 07:03:21 2020 +0000
+
+    crypto/x509: this change modifies C.CopyPEMRoots to static function
+    
+    Change-Id: Ic7997d1f747152afec78e8e439770166029f34ec
+    GitHub-Last-Rev: 6a07f25056c960dc8684cd6eac22cd3405a936c8
+    GitHub-Pull-Request: golang/go#36491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

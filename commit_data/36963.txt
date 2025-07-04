@@ -1,0 +1,14 @@
+commit 57456527560c63a5baef8b7e99eab5508ca58e63
+Author: Mak Kolybabi <mak@kolybabi.com>
+Date:   Fri Oct 12 21:43:48 2018 +0000
+
+    doc: fix spelling of `comp[]hensive` to `comp[r]ehensive`
+    
+    Change-Id: Idd93e45fab30e7496105b84fc2fce1884711b580
+    GitHub-Last-Rev: 43aa04e876655e31fc1c4b2b5ae0702472e49102
+    GitHub-Pull-Request: golang/go#27983
+    Reviewed-on: https://go-review.googlesource.com/c/141645
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

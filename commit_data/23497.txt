@@ -1,0 +1,14 @@
+commit a4ec50bd0b5986fbe0369043ac9e30e4ce229f21
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 11:11:45 2015 +1000
+
+    spec: fix bare & in HTML
+    
+    No need to update the date; this is not a spec change.
+    
+    Change-Id: I10a31234ed985c59e5d9b5328664a36661cef31e
+    Reviewed-on: https://go-review.googlesource.com/11531
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 44d13e3cfe621352fe1daf6a6f580c0912799372
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 12:54:30 2011 -0400
+
+    doc: fix memory model read visibility bug
+    
+    Fixes #2277.
+    
+    R=dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/5083044
+
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

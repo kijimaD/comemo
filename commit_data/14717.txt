@@ -1,0 +1,17 @@
+commit 54b7ccd514f6a689347c8d1f876bec90613f28f8
+Author: Erik St. Martin <alakriti@gmail.com>
+Date:   Sat Dec 22 11:14:56 2012 -0500
+
+          regexp: fix index panic in Replace
+    
+    When using subexpressions ($1) as replacements, when they either don't exist or values weren't found causes a panic.
+    This patch ensures that the match location isn't -1, to prevent out of bounds errors.
+    Fixes #3816.
+    
+    R=franciscossouza, rsc
+    CC=golang-dev
+    https://golang.org/cl/6931049
+
+ src/pkg/regexp/all_test.go | 4 ++++
+ src/pkg/regexp/regexp.go   | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

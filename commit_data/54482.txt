@@ -1,0 +1,21 @@
+commit 1fde99cd6eff725f5cc13748a43b4aef3de557c8
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Sep 14 18:43:14 2023 +0000
+
+    net: use bytealg.LastIndexByteString
+    
+    There is no need to handwrite the "last" function, the bytealg package already provides "LastIndexByteString".
+    
+    Change-Id: I6000705bffe8450a10cf8f3fa716a8d4605ada1f
+    GitHub-Last-Rev: 6627c65fb40fad96239edd28bde27a30f9f8f544
+    GitHub-Pull-Request: golang/go#62647
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527976
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dial.go   |  3 ++-
+ src/net/ipsock.go |  4 ++--
+ src/net/parse.go  | 11 -----------
+ 3 files changed, 4 insertions(+), 14 deletions(-)

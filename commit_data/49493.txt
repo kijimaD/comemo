@@ -1,0 +1,19 @@
+commit 6c25ba624fd032a20dcfa94f9f9f0ae32c57c54b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 1 12:54:00 2022 -0400
+
+    go/token: delete unused File.set field
+    
+    This field is only used for a sanity check in a test.
+    
+    Change-Id: I868ed10131ec33994ebb1b1d88f6740956824bd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409834
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/token/position.go       | 3 +--
+ src/go/token/serialize.go      | 1 -
+ src/go/token/serialize_test.go | 6 ------
+ 3 files changed, 1 insertion(+), 9 deletions(-)

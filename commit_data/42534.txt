@@ -1,0 +1,24 @@
+commit f84bbd52b0021c401b0b6508e90e913ae0aa241d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 4 15:41:45 2020 -0400
+
+    cmd/compile: mark block control instruction unsafe in "all unsafe" functions
+    
+    Currently, for runtime functions and nosplit functions, it is
+    considered "all unsafe", meaning that the entire function body is
+    unsafe points. In the past, we didn't mark CALLs in such
+    functions unsafe, which is fixed in CL 230541. We also didn't
+    mark block control instructions (for mostly-empty blocks) unsafe.
+    This CL fixes it.
+    
+    May fix #36110.
+    
+    Change-Id: I3be8fdcef2b294e5367b31eb1c1b5e79966565fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236597
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 12 +++++++++---
+ src/cmd/compile/internal/gc/ssa.go   |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

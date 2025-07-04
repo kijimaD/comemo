@@ -1,0 +1,35 @@
+commit d5e47fdc92ff0be67cf004b7796ba47943a7f0c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 19 15:45:50 2017 -0800
+
+    go/types: perform delayed tests even for types.Eval
+    
+    R=go1.11
+    
+    types.Eval historically never evaluated any delayed tests, which
+    included verification of validity of map keys, but also function
+    literal bodies.
+    
+    Now, embedded interfaces are also type-checked in a delayed fashion,
+    so it becomes imperative to do all delayed checks for eval (otherwise
+    obviously incorrect type expressions are silently accepted).
+    
+    Enabling the delayed tests also removes the restriction that function
+    literals were not type-checked.
+    
+    Also fixed a bug where eval wouldn't return a type-checking error
+    because check.handleBailout was using the wrong err variable.
+    
+    Added tests that verify that method set computation is using the
+    right types when evaluating interfaces with embedded types.
+    
+    For #18395.
+    For #22992.
+    
+    Change-Id: I574fa84568b5158bca4b4ccd4ef5abb616fbf896
+    Reviewed-on: https://go-review.googlesource.com/84898
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/eval.go      |  9 ++++-----
+ src/go/types/eval_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 5 deletions(-)

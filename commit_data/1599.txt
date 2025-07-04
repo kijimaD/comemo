@@ -1,0 +1,13 @@
+commit 6fdb18f90003ecda109efe5c8879d93db7a6b8b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 17:14:39 2009 -0800
+
+    can finally close this TODO - 6l was broken
+    
+    R=r
+    DELTA=2  (0 added, 2 deleted, 0 changed)
+    OCL=23993
+    CL=23995
+
+ src/libmach_amd64/sym.c | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,13 @@
+commit f401cb3e753504070741f4233fd3bd4e34b8b692
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 7 10:30:31 2009 -0700
+
+    fix test
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=31270
+    CL=31272
+
+ test/hilbert.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,38 @@
+commit 37e893b1bd7bb57b169224486e1f3f5eef264340
+Author: Morten Linderud <morten@linderud.pw>
+Date:   Thu Feb 16 14:37:50 2023 +0000
+
+    cmd/cgo: include seed string with -frandom-seed for lto
+    
+    cgo is built with -flto the symbols in runtime/cgo is going to include random numbers which would make builds unreproducible.
+    
+    Settings -frandom-seeds ensures this is consistent across builds, and to ensure we always use a reproducible seed across builds we use the actionID as the seed string.
+    
+    runtime/cgo built with "-frandom-seed=OFEc9OKoUMJwh3-5yFCH" would output the following:
+    
+        $ strings --all --bytes=8 $WORK/b055/_pkg_.a | grep "gnu.lto_.profile"
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+        .gnu.lto_.profile.8403a797
+    
+    Change-Id: I3c2d261a94f23c8227a922da9a7f81660905fd71
+    GitHub-Last-Rev: cec5162316d33d8f652948706ce0a5f8c6794a6e
+    GitHub-Pull-Request: golang/go#58561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468835
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

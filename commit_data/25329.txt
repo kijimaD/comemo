@@ -1,0 +1,14 @@
+commit e357eb97a695d62c3102973f7384a15cb664b519
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 02:24:07 2015 -0500
+
+    cmd/go: document that package documentation is ignored
+    
+    Fixes #11801.
+    
+    Change-Id: I2caeac7fdddc7f29015d6db8d4b3e296c8b9c423
+    Reviewed-on: https://go-review.googlesource.com/17954
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/help.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

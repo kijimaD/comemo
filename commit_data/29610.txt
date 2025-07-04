@@ -1,0 +1,17 @@
+commit 9073af247d602dff4633710adf90c8b3c1869c45
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 11:06:32 2016 -0500
+
+    encoding/json: document what happens to MarshalText's result
+    
+    Fixes #17743.
+    
+    Change-Id: Ib5afb6248bb060f2ad8dd3d5f78e95271af62a57
+    Reviewed-on: https://go-review.googlesource.com/33135
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

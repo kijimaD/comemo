@@ -1,0 +1,42 @@
+commit bb0c14b895d90bb5941e0463ba6c3564fc504e4f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 13 17:26:06 2025 +0200
+
+    os: don't fallback to the Stat slow path if file doesn't exist on Windows
+    
+    os.Stat and os.Lstat first try stating the file without opening it. If
+    that fails, then they open the file and try again, operations that tends
+    to be slow. There is no point in trying the slow path if the file
+    doesn't exist, we should just return an error immediately.
+    
+    This CL makes stating a non-existent file on Windows 50% faster:
+    
+    goos: windows
+    goarch: amd64
+    pkg: os
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+                    │   old.txt    │                new.txt                 │
+                    │    sec/op    │    sec/op     vs base                  │
+    StatNotExist-12   43.65µ ± 15%   20.02µ ± 10%  -54.14% (p=0.000 n=10+7)
+    
+                    │  old.txt   │             new.txt              │
+                    │    B/op    │    B/op     vs base              │
+    StatNotExist-12   224.0 ± 0%   224.0 ± 0%  ~ (p=1.000 n=10+7) ¹
+    ¹ all samples are equal
+    
+                    │  old.txt   │             new.txt              │
+                    │ allocs/op  │ allocs/op   vs base              │
+    StatNotExist-12   2.000 ± 0%   2.000 ± 0%  ~ (p=1.000 n=10+7) ¹
+    
+    Updates #72992.
+    
+    Change-Id: Iaeb9596d0d18e5a5a1bd1970e296a3480501af78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671458
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/os/stat_test.go    | 15 +++++++++++++++
+ src/os/stat_windows.go |  4 ++++
+ 2 files changed, 19 insertions(+)

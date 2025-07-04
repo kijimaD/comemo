@@ -1,0 +1,18 @@
+commit 1095305232b80fe23a14e0eb5d520bac91223572
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Oct 18 15:51:45 2011 +1100
+
+    misc/windows: automated toolchain packager
+    
+    A first run at fully automating the process.
+    This CL supersedes https://golang.org/cl/4634114/
+    which I seemed to have lost.
+    
+    R=golang-dev, alex.brainman, adg
+    CC=golang-dev
+    https://golang.org/cl/5273041
+
+ misc/windows/README        | 22 +++++++++++
+ misc/windows/installer.iss | 98 ++++++++++++++++++++++++++++++++++++++++++++++
+ misc/windows/package.bash  | 44 +++++++++++++++++++++
+ 3 files changed, 164 insertions(+)

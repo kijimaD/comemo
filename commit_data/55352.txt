@@ -1,0 +1,14 @@
+commit 759849187f51e40e36a507656485e34170f77497
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 08:41:31 2023 -0400
+
+    log/slog: clarify SetDefault behavior
+    
+    Change-Id: I53250ca9e6d1ba69cc667949bebb5be2651a020d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530477
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/logger.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

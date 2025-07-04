@@ -1,0 +1,22 @@
+commit 7a1fce8751b04f66f758c7aac0efd5937bc670dc
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Nov 9 01:53:45 2023 +0000
+
+    slices: update doc for Delete and Replace
+    
+    Fixes #64013
+    
+    Change-Id: Ibaeaad6120bff041bf6ab80fd4cd613f7d4ac5a7
+    GitHub-Last-Rev: 647ed646ec7c2e4ce93c5d3847d0b9e3627d7497
+    GitHub-Pull-Request: golang/go#64024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540955
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ src/slices/slices.go      |  7 ++++---
+ src/slices/slices_test.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

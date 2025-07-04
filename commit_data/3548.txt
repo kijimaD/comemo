@@ -1,0 +1,13 @@
+commit a34dd7156b9a44741e6e34889ce7d2551a5296f2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 15 00:27:40 2009 -0700
+
+    typo
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35743
+    CL=35762
+
+ src/pkg/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

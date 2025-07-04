@@ -1,0 +1,23 @@
+commit 17a108ba079cd3e94fa4d847d651d3a813569a9b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 9 16:52:28 2014 +1100
+
+    runtime: handle all windows exception
+    
+    Fixes #8006.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145150043
+
+ src/runtime/defs_windows.go         |  3 ++
+ src/runtime/defs_windows_386.h      |  3 ++
+ src/runtime/defs_windows_amd64.h    |  3 ++
+ src/runtime/os_windows.c            | 35 ++++++++++---
+ src/runtime/os_windows_386.c        | 84 +++++++++++++++++++-------------
+ src/runtime/os_windows_amd64.c      | 97 ++++++++++++++++++++++++-------------
+ src/runtime/sys_windows_386.s       | 18 ++++++-
+ src/runtime/sys_windows_amd64.s     | 18 ++++++-
+ src/runtime/syscall_windows_test.go | 39 +++++++++++++++
+ 9 files changed, 224 insertions(+), 76 deletions(-)

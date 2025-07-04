@@ -1,0 +1,24 @@
+commit 06eb504ca4a58b3c9c742d920f75630b26701980
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 13 11:41:52 2015 -0800
+
+    runtime: remove zgoarch_*.go files
+    
+    These now live in runtime/internal/sys.
+    
+    Change-Id: I270597142516512bfc1395419e51d8083ba1663f
+    Reviewed-on: https://go-review.googlesource.com/16891
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/zgoarch_386.go      | 26 --------------------------
+ src/runtime/zgoarch_amd64.go    | 26 --------------------------
+ src/runtime/zgoarch_amd64p32.go | 26 --------------------------
+ src/runtime/zgoarch_arm.go      | 26 --------------------------
+ src/runtime/zgoarch_arm64.go    | 26 --------------------------
+ src/runtime/zgoarch_mips64.go   | 26 --------------------------
+ src/runtime/zgoarch_mips64le.go | 26 --------------------------
+ src/runtime/zgoarch_ppc64.go    | 26 --------------------------
+ src/runtime/zgoarch_ppc64le.go  | 26 --------------------------
+ 9 files changed, 234 deletions(-)

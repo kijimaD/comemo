@@ -1,0 +1,31 @@
+commit e9d2f1eb36b7600c196474f5de5fa3afd0403c99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 22:03:19 2017 -0500
+
+    cmd/go: add go test -json flag
+    
+    This CL finally adds one of our longest-requested cmd/go features:
+    a way for test-running harnesses to access test output in structured form.
+    
+    In fact the structured json output is more informative than the text
+    output, because the output from multiple parallel tests can be
+    interleaved as it becomes available, instead of needing to wait for
+    the previous test to finish before showing any output from the
+    next test.
+    
+    See CL 76872 for the conversion details.
+    
+    Fixes #2981.
+    
+    Change-Id: I749c4fc260190af9fe633437a781ec0cf56b7260
+    Reviewed-on: https://go-review.googlesource.com/76873
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go                     | 41 ++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go          | 33 +++++++++++++++++++++++--
+ src/cmd/go/internal/test/testflag.go      |  6 ++++-
+ src/cmd/go/testdata/src/sleepy1/p_test.go | 10 ++++++++
+ src/cmd/go/testdata/src/sleepy2/p_test.go | 10 ++++++++
+ 5 files changed, 96 insertions(+), 4 deletions(-)

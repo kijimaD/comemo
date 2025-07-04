@@ -1,0 +1,13 @@
+commit 5245b27ed8e8e172f627e247415cbf9c758813ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 15 10:06:17 2011 -0700
+
+    openpgp: add PublicKey KeyId string accessors
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/4297041
+
+ src/pkg/crypto/openpgp/packet/public_key.go      | 13 +++++++++++++
+ src/pkg/crypto/openpgp/packet/public_key_test.go | 12 ++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)

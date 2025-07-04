@@ -1,0 +1,24 @@
+commit 1b0d04b89fa12bf635467e0ef7acff3fcc78d208
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 14:51:21 2013 -0700
+
+    net/http: reuse textproto.Readers; remove 2 more allocations
+    
+    Saves both the textproto.Reader allocation, and its internal
+    scratch buffer growing.
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        10324        10149   -1.70%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           19           17  -10.53%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1559         1492   -4.30%
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/8094046
+
+ src/pkg/net/http/request.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

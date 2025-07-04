@@ -1,0 +1,19 @@
+commit 400e6b68b55e20f49f10aaf69df5e3b298b02ad7
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue May 28 17:23:15 2024 -0700
+
+    os: openDir: add O_DIRECTORY flag for unix
+    
+    With this, ReadDir will fail a tad earlier (on open rather than on
+    readdir syscall). This should be the only effect of this change.
+    
+    Change-Id: Icf2870f47ea6c19aad29670e78ba9bfcc13c0ac3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit bcf2d74ce835016d8dde28a64cbc4b49b5b449c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 13:32:18 2017 -0700
+
+    cmd/compile: better errors for float constants with large exponents
+    
+    Also: Removed misleading comment.
+    
+    Fixes #20232.
+    
+    Change-Id: I0b141b1360ac53267b7ebfcec7a2e2a238f3f46c
+    Reviewed-on: https://go-review.googlesource.com/42930
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/mpfloat.go | 17 +++--------------
+ src/go/types/stdlib_test.go            |  1 +
+ test/fixedbugs/issue20232.go           | 11 +++++++++++
+ 3 files changed, 15 insertions(+), 14 deletions(-)

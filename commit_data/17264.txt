@@ -1,0 +1,12 @@
+commit 67c79da857671faa65e110f58667c2282403046c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 15 14:24:28 2013 +0400
+
+    runtime: fix plan9 build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12986043
+
+ src/pkg/runtime/mem_plan9.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

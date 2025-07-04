@@ -1,0 +1,14 @@
+commit bb7eb4002e54720e829cc9e2344252741411ccd0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 17:23:18 2011 -0700
+
+    go spec: clarify semantics of integer division
+    
+    Fixes #1764.
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/4431082
+
+ doc/go_spec.html | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

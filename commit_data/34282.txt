@@ -1,0 +1,17 @@
+commit 0cacc4d0e2a7bde8c50b5ef47ef65679226a1592
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 20:02:17 2018 +0100
+
+    cmd/compile: fold LEAQ/ADDQconst into SETx ops
+    
+    This saves an instruction and a register. The new rules
+    match ~4900 times during all.bash.
+    
+    Change-Id: I2f867c5e70262004e31f545f3bb89e939c45b718
+    Reviewed-on: https://go-review.googlesource.com/94767
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 544 ++++++++++++++++++++++++++-
+ 3 files changed, 548 insertions(+), 3 deletions(-)

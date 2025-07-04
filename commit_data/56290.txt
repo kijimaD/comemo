@@ -1,0 +1,25 @@
+commit 9b9de261bd66333885adb7b36f1dd133d00cfe13
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 24 16:51:20 2024 -0400
+
+    go/types: add Alias.Rhs
+    
+    This method returns the type on the right-hand side of an
+    alias declaration such as type L = R.
+    
+    Fixes #66559
+    
+    Change-Id: I396f2d999680ad251f47cdde20856ae20fc1c40a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/66559.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/go/types/66559.md |  3 +++
+ src/cmd/compile/internal/types2/alias.go     |  8 +++-----
+ src/cmd/compile/internal/types2/api.go       |  7 -------
+ src/cmd/compile/internal/types2/api_test.go  | 17 +++++++++++++++++
+ src/go/types/alias.go                        |  8 +++-----
+ src/go/types/api_test.go                     | 18 ++++++++++++++++++
+ 7 files changed, 45 insertions(+), 17 deletions(-)

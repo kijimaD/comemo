@@ -1,0 +1,19 @@
+commit 43edf21eff83e95b32cc43453c3a8df816d85e88
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 6 15:07:46 2018 -0500
+
+    cmd/cgo: fix typo in gccgo name mangling recipe
+    
+    The code to implement new-style gccgo name mangling had a recipe that
+    didn't quite match that of the compiler (incorrect handling for '.').
+    This showed up as a failure in the gotools cgo test if the directory
+    containing the test run included a "." character.
+    
+    [This is a copy of https://golang.org/cl/147917].
+    
+    Change-Id: Ia94728ecead879c8d223eb6cee6c102a8af1c86e
+    Reviewed-on: https://go-review.googlesource.com/c/147937
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

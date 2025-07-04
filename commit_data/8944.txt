@@ -1,0 +1,15 @@
+commit eea5443572e7a10b7133f199be2551756e157865
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 17:05:15 2011 +1000
+
+    exp/template: add templates to sets; boolean logic.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4670045
+
+ src/pkg/exp/template/exec.go      | 29 +++++++++++++++++++----------
+ src/pkg/exp/template/exec_test.go | 13 ++++++++++---
+ src/pkg/exp/template/funcs.go     | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/template/set.go       | 14 ++++++++++++++
+ 4 files changed, 73 insertions(+), 14 deletions(-)

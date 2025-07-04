@@ -1,0 +1,30 @@
+commit 2c66cab8a7b569b2dc5a7ab112ba4579f39c5dbb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 18 18:34:24 2021 -0400
+
+    testing: skip extra -count iterations if there are no tests
+    
+    When running benchmarks with high -count and no tests (either at all or
+    filtered with -run), the time for runTests to check for tests -count
+    times can add a significant delay to starting benchmarks.
+    
+    To avoid this delay, make runTests bail out on the second iteration if
+    the first found no tests to run. We expect the same tests to run every
+    time, so there is no reason to duplicate work.
+    
+    One caveat: the testing docs do not explicitly require the same subtests
+    to be run on every call, so this could break tests that depend on
+    multiple runs to actually run all tests. I consider such tests invalid,
+    but some may exist.
+    
+    Fixes #49050
+    
+    Change-Id: I7b34f3832b31493cc089ee0555e231f4dc690154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356669
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

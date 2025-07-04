@@ -1,0 +1,30 @@
+commit 294d16c9c58187492baf1fd8bac034b5fecbf0ba
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 10 11:50:49 2018 +1100
+
+    cmd/doc: add a -src flag to show original source
+    
+    It's long-desired but was blocked by #26835. That is now fixed, so
+    it's easy. When -src is off, we behave as before. But with -src
+    set, initialize the go/doc package to preserve the original AST and
+    things flow very easily.
+    
+    With -src, since you're seeing inside the package source anyway it
+    shows unexported fields and constants: you see the original source.
+    But you still need -u to ask about them.
+    
+    Fixes #18807
+    
+    Change-Id: I473e90323b4eff0735360274dc0d2d9dba16ff8b
+    Reviewed-on: https://go-review.googlesource.com/c/140959
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go        | 149 ++++++++++++++++++++++++++++-------------
+ src/cmd/doc/main.go            |   5 ++
+ src/cmd/doc/pkg.go             |  21 +++---
+ src/cmd/doc/testdata/pkg.go    |   8 ++-
+ src/cmd/go/alldocs.go          |   7 ++
+ src/cmd/go/internal/doc/doc.go |   7 ++
+ 6 files changed, 141 insertions(+), 56 deletions(-)

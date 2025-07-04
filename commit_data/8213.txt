@@ -1,0 +1,16 @@
+commit a8bf6f32cc9cfbfee28a47a54fcb2bc5f4368a38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 12:13:54 2011 -0400
+
+    runtime: correct out of memory error
+    
+    Fixes #1511.
+    
+    R=golang-dev, iant2
+    CC=golang-dev
+    https://golang.org/cl/4433065
+
+ src/pkg/runtime/darwin/mem.c  | 7 +++++++
+ src/pkg/runtime/freebsd/mem.c | 9 +++++++++
+ src/pkg/runtime/linux/mem.c   | 7 +++++++
+ 3 files changed, 23 insertions(+)

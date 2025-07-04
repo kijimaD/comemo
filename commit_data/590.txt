@@ -1,0 +1,14 @@
+commit 18852cf6d3f23a4fbcf2756836eb929283126827
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 18:43:42 2008 -0700
+
+    - added sort package and test case
+    
+    R=r
+    OCL=14975
+    CL=14975
+
+ src/lib/make.bash |  2 +-
+ src/lib/sort.go   | 95 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/sorting.go   | 62 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6101788972fedda42c13791bfac5ffa1218028ed
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Fri Nov 5 15:05:39 2010 -0400
+
+    io: use SetFinalizer more elegantly in Pipe
+    
+    (this works now that issue 751 is resolved)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2834041
+
+ src/pkg/io/pipe.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

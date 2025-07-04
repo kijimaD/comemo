@@ -1,0 +1,18 @@
+commit 5faa8286512db8b11ba3f16c447dbf41f289b47a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 20:25:54 2020 -0400
+
+    cmd/link: use GOOS=ios for TestBuildForTvOS
+    
+    Updates #38485.
+    
+    Fix darwin-amd64-10_15 build.
+    
+    Change-Id: I1833c23788acafc9530bb91fb6182fc5cb44f6cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263265
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/link_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

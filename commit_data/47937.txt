@@ -1,0 +1,21 @@
+commit 3ff12a019f00bc81996c453e5cb4729a9278f65a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 10 12:58:20 2022 -0500
+
+    cmd/go: run go install in workspace mode
+    
+    It's too confusing to users to run go install in module mode, so run
+    it in workspace mode instead.
+    
+    Fixes #50036
+    
+    Change-Id: Ia99927bd98f54be4c42224a247543892045e3464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377334
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go                  |  1 +
+ .../go/testdata/script/work_install_submodule.txt  | 36 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

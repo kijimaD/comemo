@@ -1,0 +1,30 @@
+commit 3e214e5693ff8df58011db8250cdd8874a63ea17
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 16 17:45:21 2018 -0500
+
+    runtime: simplify bulkBarrierPreWrite
+    
+    Currently, bulkBarrierPreWrite uses inheap to decide whether the
+    destination is in the heap or whether to check for stack or global
+    data. However, this isn't the best question to ask.
+    
+    Instead, get the span directly and query its state. This lets us
+    directly determine whether this might be a global, or is stack memory,
+    or is heap memory.
+    
+    At this point, inheap is no longer used in the hot path, so drop it
+    from the must-be-inlined list and substitute spanOf.
+    
+    This will help in a circuitous way with #23862, since fixing that is
+    going to push inheap very slightly over the inline-able threshold on a
+    few platforms.
+    
+    Change-Id: I5360fc1181183598502409f12979899e1e4d45f7
+    Reviewed-on: https://go-review.googlesource.com/95495
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go |  2 +-
+ src/runtime/mbitmap.go                  | 16 +++++++++-------
+ 2 files changed, 10 insertions(+), 8 deletions(-)

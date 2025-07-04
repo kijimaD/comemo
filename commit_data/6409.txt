@@ -1,0 +1,17 @@
+commit 2ccbf83b327a214a5b8d7e5f03c2d248e6d473e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 15:18:02 2010 -0400
+
+    6l, 8l: elfsetstring is only for .shstrtab
+    
+    Was also recording for .dynstrtab which made the
+    table run out of space and would have caused confusion
+    if the ELF code tried to refer to any of the strings.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2288041
+
+ src/cmd/6l/asm.c | 3 ++-
+ src/cmd/8l/asm.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

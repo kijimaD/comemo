@@ -1,0 +1,12 @@
+commit 75e5ece03a644a7587a0602d3a10e5a15aeb6227
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Wed Mar 10 10:00:10 2010 +1100
+
+    reflect: typo in comment
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/369041
+
+ src/pkg/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

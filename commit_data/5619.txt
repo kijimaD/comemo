@@ -1,0 +1,14 @@
+commit 0c222d6e49341e164b6a59a87534145b4c33f0fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 7 18:10:48 2010 -0700
+
+    gc: backslash newline is not a legal escape sequence in strings
+    
+    Fixes #827.
+    
+    R=ken2
+    CC=golang-dev, rsc
+    https://golang.org/cl/1592041
+
+ src/cmd/gc/lex.c | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,31 @@
+commit 8c3040d768e70fd6cf9f992fe4745edbf51bc581
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Jul 19 19:35:24 2019 -0400
+
+    runtime: call sysHugePage less often
+    
+    Currently when we coalesce memory we make a sysHugePage call
+    (MADV_HUGEPAGE) to ensure freed and coalesced huge pages are treated as
+    such so the scavenger's assumptions about performance are more in line
+    with reality.
+    
+    Unfortunately we do it way too often because we do it if there was any
+    change to the huge page count for the span we're coalescing into, not
+    taking into account that it could coalesce with its neighbors and not
+    actually create a new huge page.
+    
+    This change makes it so that it only calls sysHugePage if the original
+    huge page counts between the span to be coalesced into and its neighbors
+    do not add up (i.e. a new huge page was created due to alignment). Calls
+    to sysHugePage will now happen much less frequently, as intended.
+    
+    Updates #32828.
+    
+    Change-Id: Ia175919cb79b730a658250425f97189e27d7fda3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186926
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

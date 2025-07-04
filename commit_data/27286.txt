@@ -1,0 +1,16 @@
+commit bfa89c3cd42f4301c5dc8657e02372bdd449cfcb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 23:42:10 2016 -0700
+
+    cmd/compile/internal/gc: remove duplicated TestFP
+    
+    TestFp and TestFP are same, remove one.
+    
+    Change-Id: Iffdece634cd4572421974496298925e7c6ac13a9
+    Reviewed-on: https://go-review.googlesource.com/22799
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 276473cd72d47c5566f1dafeee6c45ff688cac74
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 11:02:04 2011 -0500
+
+    strconv: add Ftoa benchmarks
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5373096
+
+ src/pkg/strconv/ftoa_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

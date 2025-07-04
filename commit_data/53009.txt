@@ -1,0 +1,18 @@
+commit c308e9b54c99d0d1fdc2bc317165aab6c36b1420
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 10 16:31:46 2023 -0400
+
+    cmd/dist: drop goTest.dir
+    
+    At this point all tests are regular packages in std or cmd, so we no
+    longer need goTest.dir.
+    
+    Change-Id: I46a0c7b4464b0738e9959e41bf840ba1b73e3590
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494194
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 52 +++++++++++++++++++++++-----------------------------
+ 1 file changed, 23 insertions(+), 29 deletions(-)

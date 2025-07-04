@@ -1,0 +1,24 @@
+commit d2e2da83b1225355bb76fd85d088c62b8780b731
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 13 22:48:43 2023 -0700
+
+    cmd/compile: move remaining instrumentation logic into ssagen
+    
+    Allows removing Func.{Enter,Exit}, which were only ever used to hold
+    at most one function call each.
+    
+    Change-Id: I8b629c82e90bac3fcbe54db89900492406c7dca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528319
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ir/fmt.go          |  5 ---
+ src/cmd/compile/internal/ir/func.go         |  8 -----
+ src/cmd/compile/internal/ir/sizeof_test.go  |  2 +-
+ src/cmd/compile/internal/ir/symtab.go       |  2 ++
+ src/cmd/compile/internal/loopvar/loopvar.go |  2 --
+ src/cmd/compile/internal/ssagen/ssa.go      | 56 ++++++++++++++++++-----------
+ src/cmd/compile/internal/walk/race.go       | 55 ----------------------------
+ src/cmd/compile/internal/walk/walk.go       |  4 ---
+ 8 files changed, 38 insertions(+), 96 deletions(-)

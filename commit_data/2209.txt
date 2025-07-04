@@ -1,0 +1,14 @@
+commit 05851636f33214a27084a284d142926fea527726
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 14:59:51 2009 -0700
+
+    godoc fix: relative paths were incorrect
+    
+    R=r
+    DELTA=13  (1 added, 6 deleted, 6 changed)
+    OCL=28840
+    CL=28844
+
+ usr/gri/pretty/dirlist.html |  4 ++--
+ usr/gri/pretty/godoc.go     | 15 +++++----------
+ 2 files changed, 7 insertions(+), 12 deletions(-)

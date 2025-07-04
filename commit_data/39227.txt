@@ -1,0 +1,33 @@
+commit 94a9dad8fdcd7adf2036482391f715ea3ab35cd9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 22 11:06:09 2019 -0700
+
+    cmd/compile: fix capture-by-reference of return parameters
+    
+    As an optimization, function literals capture variables by value when
+    they're not assigned and their address has not been taken. Because
+    result parameters are implicitly assigned through return statements
+    (which do not otherwise set the "assigned" flag), result parameters
+    are explicitly handled to always capture by reference.
+    
+    However, the logic was slightly mistaken because it was only checking
+    if the variable in the immediately enclosing context was a return
+    parameter, whereas in a multiply-nested function literal it would
+    itself be another closure variable (PAUTOHEAP) rather than a return
+    parameter (PPARAMOUT).
+    
+    The fix is to simply test the outermost variable, like the rest of the
+    if statement's tests were already doing.
+    
+    Fixes #32175.
+    
+    Change-Id: Ibadde033ff89a1b47584b3f56c0014d8e5a74512
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178541
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ test/fixedbugs/issue32175.go           | 22 ++++++++++++++++++++++
+ test/fixedbugs/issue32175.out          |  1 +
+ 3 files changed, 24 insertions(+), 1 deletion(-)

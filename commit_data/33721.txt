@@ -1,0 +1,28 @@
+commit 79bd50852a6e9d93e2c49f7ab64d1063715b88a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 19:41:11 2017 +0000
+
+    vendor: update golang.org/x/net/nettest from upstream
+    
+    Updates to x/net git rev a8b92947779 for CL 80755
+    
+    Updates #22927
+    
+    Change-Id: I84aad75afd954c9a6c57ad9a76328b99f1dc74a1
+    Reviewed-on: https://go-review.googlesource.com/80758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../x/net/internal/nettest/helper_bsd.go           |  53 +++++++
+ .../x/net/internal/nettest/helper_nobsd.go         |  15 ++
+ .../x/net/internal/nettest/helper_posix.go         |  31 +++++
+ .../x/net/internal/nettest/helper_stub.go          |  32 +++++
+ .../x/net/internal/nettest/helper_unix.go          |  29 ++++
+ .../x/net/internal/nettest/helper_windows.go       |  42 ++++++
+ .../golang_org/x/net/internal/nettest/interface.go |  94 +++++++++++++
+ .../golang_org/x/net/internal/nettest/rlimit.go    |  11 ++
+ .../golang_org/x/net/internal/nettest/stack.go     | 152 +++++++++++++++++++++
+ .../golang_org/x/net/nettest/conntest_test.go      |  58 +-------
+ 10 files changed, 463 insertions(+), 54 deletions(-)

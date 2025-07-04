@@ -1,0 +1,19 @@
+commit 8414b1a5a40e5ef19508e4895b4c12a91fa498e7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 20:43:16 2020 -0400
+
+    runtime: remove go115ReduceLiveness and go115RestartSeq
+    
+    Make them always true. Delete code that are only executed when
+    they are false.
+    
+    Change-Id: I6194fa00de23486c2b0a0c9075fe3a09d9c52762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264339
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/debugcall.go | 34 +++++++----------------------
+ src/runtime/funcdata.h   |  3 +--
+ src/runtime/preempt.go   | 57 ++++++++++++++----------------------------------
+ src/runtime/symtab.go    |  7 +-----
+ 4 files changed, 26 insertions(+), 75 deletions(-)

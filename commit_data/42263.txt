@@ -1,0 +1,40 @@
+commit 53f27474a455a4a82e8c0f8ef4cee9a37b51ff98
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 19 17:08:58 2020 +1000
+
+    syscall, internal/syscall/windows: remove utf16PtrToString parameter
+    
+    CL 208617 introduced syscall.utf16PtrToString and
+    internal/syscall/windows.UTF16PtrToString functions.
+    
+    Original version of CL 208617 did not include syscall.utf16PtrToString
+    and internal/syscall/windows.UTF16PtrToString max parameter. The
+    parameter was added by Brad at the request of Ian. Ian said:
+    
+    "In some cases it seems at least possible that the null terminator is
+    not present. I think it would be safer if we passed a maximum length
+    here."
+    
+    The syscall.utf16PtrToString and
+    internal/syscall/windows.UTF16PtrToString function are designed to work
+    with only null terminated strings. So max parameter is superfluous.
+    
+    This change removes max parameter.
+    
+    Updates #34972
+    
+    Change-Id: Ifea65dbd86bca8a08353579c6b9636c6f963d165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228858
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go/build/deps_test.go                       |  2 +-
+ src/internal/syscall/windows/syscall_windows.go | 15 ++++++++++-----
+ src/net/interface_windows.go                    |  2 +-
+ src/net/lookup_windows.go                       |  8 ++++----
+ src/os/exec_windows.go                          |  2 +-
+ src/os/user/lookup_windows.go                   |  4 ++--
+ src/syscall/security_windows.go                 |  2 +-
+ src/syscall/syscall_windows.go                  | 15 ++++++++++-----
+ 8 files changed, 30 insertions(+), 20 deletions(-)

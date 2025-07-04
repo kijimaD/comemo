@@ -1,0 +1,13 @@
+commit 0ae43126370bcf0fcced69b9bbf9787a50e0e420
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 13:58:05 2012 -0500
+
+    A+C: Darren Elwood (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5650077
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

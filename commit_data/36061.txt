@@ -1,0 +1,12 @@
+commit 1ff8717aeb0f96f840b8fdc126622bfee3e8fe47
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 18 15:29:32 2018 -0700
+
+    doc: fill in final standard library TODOs in go1.11.html
+    
+    Change-Id: Ic1ff580573711a6c91c1d5e3eb019a298a2fec49
+    Reviewed-on: https://go-review.googlesource.com/124837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 47d1c42aff6bb84a654cc69b1dbc42f855b03415
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 15:40:48 2016 -0500
+
+    crypto/tls: use default cipher suites in BenchmarkThroughput
+    
+    CL 32871 updated the default cipher suites to use AES-GCM in
+    preference to ChaCha20-Poly1305 on platforms which have hardware
+    implementations of AES-GCM. This change makes BenchmarkThroughput
+    use the default cipher suites instead of the test cipher suites to
+    ensure that the recommended (fastest) algorithms are used.
+    
+    Updates #17779.
+    
+    Change-Id: Ib551223e4a00b5ea197d4d73748e1fdd8a47c32d
+    Reviewed-on: https://go-review.googlesource.com/32838
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/tls_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

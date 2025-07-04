@@ -1,0 +1,12 @@
+commit b935728a17da9fc2451ae6296d8e1ac8e592f76f
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Feb 10 11:01:05 2011 -0800
+
+    fmt: fix minor typo
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4187041
+
+ src/pkg/fmt/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

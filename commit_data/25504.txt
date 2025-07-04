@@ -1,0 +1,16 @@
+commit 99ed71a02c07a073a82a06c8f3a975a9540e962e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 12:16:05 2015 -0500
+
+    database/sql: guard against panics in driver.Stmt implementation
+    
+    For #13677, but there is more to do.
+    
+    Change-Id: Id1af999dc972d07cdfc771e5855a1a7dca47ca96
+    Reviewed-on: https://go-review.googlesource.com/18046
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go | 27 ++++++++++++++++++++++++++-
+ src/database/sql/sql.go         | 14 +++++++++-----
+ src/database/sql/sql_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 6 deletions(-)

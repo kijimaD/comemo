@@ -1,0 +1,12 @@
+commit f4279f587ab3a3b2aabdb8e3727b331123c37ccb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 16:49:11 2009 -0800
+
+    fix build - missed this file
+    
+    TBR=r
+    OCL=23335
+    CL=23335
+
+ src/lib/math/runtime.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

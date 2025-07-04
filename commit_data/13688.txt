@@ -1,0 +1,13 @@
+commit 5a297fa03873e2696290590cc663390ee3b6287b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 24 13:01:50 2012 -0700
+
+    VERSION: check in a version file for the development branch
+    That way "go version" will talk about "devel" rather than weekly.2012-03-27
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6478061
+
+ VERSION | 1 +
+ 1 file changed, 1 insertion(+)

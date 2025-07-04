@@ -1,0 +1,19 @@
+commit 133cea5cba354cca6540728334ddb1ed253e941e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 14 10:51:57 2023 -0400
+
+    cmd/go: skip gotoolchain_net script test for new-ish go experiments
+    
+    Skip the gotoolchain_net script test if any new-ish GOEXPERIMENT is
+    set, since it will fail under these circumstances.
+    
+    Updates #62106.
+    
+    Change-Id: Idfef8af7246a3fbe6481347872a94fe64bbaed7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/gotoolchain_net.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

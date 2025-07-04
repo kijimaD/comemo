@@ -1,0 +1,16 @@
+commit 0b7d87e6f9b61ecc950e2c59cf495f41cffc1ce4
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jul 28 00:29:38 2018 +0300
+
+    cmd/compile: remove dead code
+    
+    This struct, global var and method are not used anywhere.
+    
+    Change-Id: I83d9e93041a46904064d0fa88ab655a50149c747
+    Reviewed-on: https://go-review.googlesource.com/126397
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

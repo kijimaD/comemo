@@ -1,0 +1,21 @@
+commit 505325cf3027f2f2c5be47426867183b935ac85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 14:47:07 2023 -0800
+
+    cmd/dist: use a copy of platform.BuildModeSupported
+    
+    The dist tool already includes a similar duplicate of BuildModeSupported.
+    Replace it with an exact copy, to make it easier to maintain going forward.
+    
+    Change-Id: Id14a6c5a48f92d843e02218d87cc62c6b001923b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/test.go               | 161 +++++++++++++++++++++----------------
+ src/internal/platform/supported.go |   1 +
+ 2 files changed, 94 insertions(+), 68 deletions(-)

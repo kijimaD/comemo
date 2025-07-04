@@ -1,0 +1,36 @@
+commit 53e62aba2fcdc4bb97726bfaf13042625209d154
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 4 07:55:00 2017 -0700
+
+    cmd/compile: add Func.SetNilCheckDisabled
+    
+    Generated hash and eq routines don't need nil checks.
+    Prior to this CL, this was accomplished by
+    temporarily incrementing the global variable disable_checknil.
+    However, that increment lasted only the lifetime of the
+    call to funccompile. After CL 41503, funccompile may
+    do nothing but enqueue the function for compilation,
+    resulting in nil checks being generated.
+    
+    Fix this by adding an explicit flag to a function
+    indicating whether nil checks should be disabled
+    for that function.
+    
+    While we're here, allow concurrent compilation
+    with the -w and -W flags, since that was needed
+    to investigate this issue.
+    
+    Fixes #20242
+    
+    Change-Id: Ib9140c22c49e9a09e62fa3cf350f5d3eff18e2bd
+    Reviewed-on: https://go-review.googlesource.com/42591
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go    |  7 ++-----
+ src/cmd/compile/internal/gc/main.go   |  2 ++
+ src/cmd/compile/internal/gc/ssa.go    |  2 +-
+ src/cmd/compile/internal/gc/syntax.go | 37 +++++++++++++++++++----------------
+ 4 files changed, 25 insertions(+), 23 deletions(-)

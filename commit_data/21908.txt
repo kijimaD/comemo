@@ -1,0 +1,13 @@
+commit 1fff4fbebf07e38380aaa938b8d985d81e790b7d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 3 22:21:04 2015 -0500
+
+    .gitignore: remove obselete entries
+    
+    Change-Id: I520a0f2c2d14f744a5d2e8cf93963eec1cf3e9ba
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/6732
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ .gitignore | 8 --------
+ 1 file changed, 8 deletions(-)

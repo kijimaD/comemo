@@ -1,0 +1,20 @@
+commit feb92a8e8cadcd79e24d3caeab64149eb096363f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 15 15:44:16 2015 -0400
+
+    runtime: remove work.partial queue
+    
+    This work queue is no longer used (there are many reads of
+    work.partial, but the only write is in putpartial, which is never
+    called).
+    
+    Fixes #11922.
+    
+    Change-Id: I08b76c0c02a0867a9cdcb94783e1f7629d44249a
+    Reviewed-on: https://go-review.googlesource.com/15892
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 15 ++++--------
+ src/runtime/mgcmark.go |  2 +-
+ src/runtime/mgcwork.go | 66 ++++++--------------------------------------------
+ 3 files changed, 13 insertions(+), 70 deletions(-)

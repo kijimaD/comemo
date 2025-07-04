@@ -1,0 +1,12 @@
+commit a2bdb5c04f19e19c4b965b8497a3666e22aebfe9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Feb 17 11:21:32 2012 -0500
+
+    .hgignore: add src/cmd/dist/dist.dSYM
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5677076
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

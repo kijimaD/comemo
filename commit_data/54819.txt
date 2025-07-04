@@ -1,0 +1,24 @@
+commit 9c2ab20d483b38d483d3a40f4a9ffe250d58013c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Oct 28 07:09:01 2023 +0000
+
+    internal/fmtsort: makeChans pin pointer
+    
+    Complete TODO.
+    
+    For #49431
+    
+    Change-Id: I1399205e430ebd83182c3e0c4becf1fde32d433e
+    GitHub-Last-Rev: 02cdea740bccbe0993c53fecdd32608f08861e59
+    GitHub-Pull-Request: golang/go#62673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528796
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Commit-Queue: Keith Randall <khr@golang.org>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/fmtsort/sort_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

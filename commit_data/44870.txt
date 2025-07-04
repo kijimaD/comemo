@@ -1,0 +1,26 @@
+commit 1318fb4a32371311688c6b868c3041f0501b6aeb
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Mar 29 16:07:18 2021 -0700
+
+    cmd/compile: handle partial type inference that doesn't require function args
+    
+    Handle the case where types can be partially inferred for an
+    instantiated function that is not immediately called. The key for the
+    Inferred map is the CallExpr (if inferring types required the function
+    arguments) or the IndexExpr (if types could be inferred without the
+    function arguments).
+    
+    Added new tests for the case where the function isn't immediately called
+    to typelist.go.
+    
+    Change-Id: I60f503ad67cd192da2f2002060229efd4930dc39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305909
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go | 32 +++++++++++--------
+ test/typeparam/typelist.go             | 58 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 13 deletions(-)

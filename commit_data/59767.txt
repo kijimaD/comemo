@@ -1,0 +1,44 @@
+commit 3432c68467d50ffc622fed230a37cd401d82d4bf
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 2 09:26:27 2025 -0700
+
+    runtime: make bubbled timers more consistent with unbubbled
+    
+    This CL makes two changes to reduce the predictability
+    with which bubbled timers fire.
+    
+    When asynctimerchan=0 (the default), regular timers with an associated
+    channel are only added to a timer heap when some channel operation
+    is blocked on that channel. This allows us to garbage collect
+    unreferenced, unstopped timers. Timers in a synctest bubble, in
+    contrast, are always added to the bubble's timer heap.
+    
+    This CL changes bubbled timers with a channel to be handled the
+    same as unbubbled ones, adding them to the bubble's timer heap only
+    when some channel operation is blocked on the timer's channel.
+    This permits unstopped bubbled timers to be garbage collected,
+    but more importantly it makes all timers past their deadline
+    behave identically, regardless of whether they are in a bubble.
+    
+    This CL also changes timer scheduling to execute bubbled timers
+    immediately when possible rather than adding them to a heap.
+    Timers in a bubble's heap are executed when the bubble is idle.
+    Executing timers immediately avoids creating a predictable
+    order of execution.
+    
+    For #73850
+    Fixes #73934
+    
+    Change-Id: If82e441546408f780f6af6fb7f6e416d3160295d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678075
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/synctest/synctest_test.go | 55 ++++++++++++++++++-
+ src/runtime/chan.go                    |  6 +--
+ src/runtime/proc.go                    |  4 +-
+ src/runtime/select.go                  |  2 +-
+ src/runtime/synctest.go                |  3 +-
+ src/runtime/time.go                    | 97 +++++++++++++++++++---------------
+ 6 files changed, 113 insertions(+), 54 deletions(-)

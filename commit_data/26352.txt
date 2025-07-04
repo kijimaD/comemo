@@ -1,0 +1,22 @@
+commit 50bc546d432632ba948efd43927973ea752549ed
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Mar 15 21:14:04 2016 -0500
+
+    cmd/compile: reuse blocks in critical pass
+    
+    If a phi has duplicate arguments, then the new block that is constructed
+    to remove the critical edge can be used for all of the duplicate
+    arguments.
+    
+    read-only data = -904 bytes (-0.058308%)
+    global text (code) = -2240 bytes (-0.060056%)
+    Total difference -3144 bytes (-0.056218%)
+    
+    Change-Id: Iee3762744d6a8c9d26cdfa880bb23feb62b03c9c
+    Reviewed-on: https://go-review.googlesource.com/20746
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/critical.go | 107 +++++++++++++++++++++++++++----
+ 1 file changed, 96 insertions(+), 11 deletions(-)

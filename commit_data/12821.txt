@@ -1,0 +1,14 @@
+commit 6af069f3e1b64b89cd3f77b486af3d15cc8a4d8c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 4 00:03:42 2012 +0800
+
+    5a, 6a, 8a: take GOROOT_FINAL into consideration
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5940052
+
+ src/cmd/5a/lex.c | 33 ++++++++++++++++++++++++++++++++-
+ src/cmd/6a/lex.c | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/8a/lex.c | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 96 insertions(+), 1 deletion(-)

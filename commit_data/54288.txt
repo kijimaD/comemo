@@ -1,0 +1,19 @@
+commit 6b52bfa393a7f8942568e7a29816c673ff73f797
+Author: Dominique Lefevre <domingolefevre@gmail.com>
+Date:   Thu Aug 24 10:17:20 2023 +0300
+
+    cmd/link: remove special cases for Method() and MethodByName().
+    
+    There is no more need to do this in the linker. The compiler now
+    handles both Type.Method() and Value.Method(), and flags their
+    users as ReflectMethod.
+    
+    Change-Id: Ice93d5d975a1b93a324471e8abdebdce141d17d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522437
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)

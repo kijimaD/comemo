@@ -1,0 +1,17 @@
+commit 11cfb48df192c14d185c1cfcaad1ba3e7b84c807
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 15 14:19:10 2020 -0700
+
+    syscall: use MustHaveExec in TestExec
+    
+    For #41702
+    
+    Change-Id: Ib2b15e52aa1fef2f5e644b316c726150252fa9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262738
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/syscall/exec_unix_test.go | 1 +
+ 1 file changed, 1 insertion(+)

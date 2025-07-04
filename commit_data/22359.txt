@@ -1,0 +1,15 @@
+commit 7a96ecde4dd2cd1cb85695952ad9abc2e8894296
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:25 2015 -0400
+
+    cmd/internal/ld: force external linking on linux/arm64 with cgo
+    
+    Update #10373.
+    
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f5
+    Reviewed-on: https://go-review.googlesource.com/8452
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/ld/lib.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

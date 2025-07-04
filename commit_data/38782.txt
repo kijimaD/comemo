@@ -1,0 +1,31 @@
+commit 996a687ebbf81b26f81b41b8e62ef21d8b0826af
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 14:43:27 2019 -0700
+
+    cmd/compile: enable -newescape by default
+    
+    RELNOTE=yes
+    
+    The new escape analysis pass is more precise, which for most Go code
+    should be an improvement. However, it may also break code that
+    happened to work before (e.g., code that violated the unsafe.Pointer
+    safety rules).
+    
+    The old escape analysis pass can be re-enabled with "go build
+    -gcflags=all=-newescape=false". N.B., it's NOT recommended to mix the
+    old and new escape analysis passes such as by omitting "all=". While
+    the old and new escape analysis passes use similar and mostly
+    compatible metadata, there are cases (e.g., closure handling) where
+    they semantically differ and could lead to memory corruption errors in
+    compiled programs.
+    
+    Fixes #23109.
+    
+    Change-Id: I0b1b6a6de5e240cb30c87a165f47bb8795491158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170448
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

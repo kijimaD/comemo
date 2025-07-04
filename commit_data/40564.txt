@@ -1,0 +1,20 @@
+commit bb7890b85a4293886a665e5b83e1fb7c009d8946
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Oct 11 03:51:28 2019 -0700
+
+    cmd/compile: absorb more Not ops into Neq* and Eq* ops
+    
+    We absorbed Not into most integer comparisons but not into pointer
+    and floating point equality checks.
+    
+    The new cases trigger more than 300 times during make.bash.
+    
+    Change-Id: I77c6b31fcacde10da5470b73fc001a19521ce78d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200618
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   5 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 108 ++++++++++++++++++++++---
+ 2 files changed, 98 insertions(+), 15 deletions(-)

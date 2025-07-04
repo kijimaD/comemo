@@ -1,0 +1,12 @@
+commit 59d5835f144fae0c9e8726ffc7e42663eadef229
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 8 18:23:43 2016 +0000
+
+    doc: add a CL to go1.8.txt mentioned by Alberto Donizetti
+    
+    Change-Id: I43617e6dfd5b8227a8ef907dc22c00188de87b94
+    Reviewed-on: https://go-review.googlesource.com/32915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit 7e494f8500416b9940c239be7970fa7aacc0868f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 31 15:10:18 2014 -0800
+
+    unicode: delete appearance of unused LowerUpper term from comment
+    If a LowerUpper ever happens, maketables will complain.
+    
+    Fixes #7002.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/59210044
+
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit b06f59e75c5774171759fb70729b14c7f40c285c
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Mon Oct 16 11:18:50 2023 +0200
+
+    cmd/asm: fix the KMCTR instruction encoding and argument passing
+    
+    KMCTR encoding arguments incorrect way, which leading illegal instruction wherver we call KMCTR instruction.IBM z13 machine test's TestAESGCM test using gcmASM implementation, which uses KMCTR instruction to encrypt using AES in counter mode and the KIMD instruction for GHASH. z14+ machines onwards uses gcmKMA implementation for the same.
+    
+    Fixes #63387
+    
+    Change-Id: I86aeb99573c3f636a71908c99e06a9530655aa5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535675
+    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 6 +++---
+ src/cmd/internal/obj/s390x/asmz.go        | 7 ++-----
+ src/crypto/aes/asm_s390x.s                | 4 ++--
+ src/internal/cpu/cpu_s390x.s              | 4 ++--
+ 4 files changed, 9 insertions(+), 12 deletions(-)

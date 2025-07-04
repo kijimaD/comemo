@@ -1,0 +1,14 @@
+commit 81033fbd8e414447049e356af382fa6ecca072ea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 7 13:10:32 2022 -0400
+
+    doc/go1.19: some platforms are still on TSAN v2
+    
+    For #51400
+    
+    Change-Id: Ie6d6ac773aa81b105e15ef7399374f574197d775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410817
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.19.html | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

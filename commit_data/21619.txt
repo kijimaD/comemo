@@ -1,0 +1,15 @@
+commit 2e3c738649832d13ecaddc0c72f64d0354a89dae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 16:30:21 2015 -0800
+
+    math/big: remove Float.Round (not needed anymore), fix a bug in SetInt64
+    
+    TBR adonovan
+    
+    Change-Id: I30020f39be9183b37275e10a4fd1e1a3b4c48c89
+    Reviewed-on: https://go-review.googlesource.com/4880
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go      | 40 ++++++++++++++++++++--------------------
+ src/math/big/float_test.go | 37 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 52 insertions(+), 25 deletions(-)

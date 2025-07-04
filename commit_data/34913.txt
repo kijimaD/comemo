@@ -1,0 +1,29 @@
+commit 6b5236ae5361ed126324aebc37de6ec582518145
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Apr 10 16:42:44 2018 +0800
+
+    runtime: use internal/cpu in alginit
+    
+    After CL 104636 the feature flags in internal/cpu are initialized before
+    alginit and can now be used for aeshash feature detection. Also remove
+    now unused runtime variables:
+    x86:
+            support_ssse3
+            support_sse42
+            support_aes
+    arm64:
+            support_aes
+    
+    Change-Id: I2f64198d91750eaf3c6cf2aac6e9e17615811ec8
+    Reviewed-on: https://go-review.googlesource.com/106015
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/alg.go            | 9 +++++----
+ src/runtime/asm_386.s         | 9 ---------
+ src/runtime/asm_amd64.s       | 9 ---------
+ src/runtime/asm_amd64p32.s    | 9 ---------
+ src/runtime/os_linux_arm64.go | 1 -
+ src/runtime/runtime2.go       | 5 -----
+ 6 files changed, 5 insertions(+), 37 deletions(-)

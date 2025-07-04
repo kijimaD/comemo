@@ -1,0 +1,14 @@
+commit e65d6a6abe1ea4731dcb86f02fd7a68e97ed97eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 13 16:08:16 2018 -0700
+
+    cmd/compile: document new line directives
+    
+    Fixes #24183.
+    
+    Change-Id: I5ef31c4a3aad7e05568b7de1227745d686d4aff8
+    Reviewed-on: https://go-review.googlesource.com/100462
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/doc.go | 60 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 46 insertions(+), 14 deletions(-)

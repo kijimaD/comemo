@@ -1,0 +1,24 @@
+commit 56421f26ef8526427e034639510a162f3b40d825
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 19:36:21 2018 +0100
+
+    runtime: use StorepNoWB instead of atomicstorep in netpoll
+    
+    We only need the memory barrier from these stores,
+    and we only store nil over nil or over a static function value.
+    The write barrier is unnecessary.
+    
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.0µs ± 0%  17.0µs ± 0%  -0.43%  (p=0.032 n=5+5)
+    SetReadDeadline-6      205ns ± 1%   205ns ± 1%    ~     (p=0.683 n=5+5)
+    
+    Update #25729
+    
+    Change-Id: I66c097a1db7188697ddfc381f31acec053dfed2c
+    Reviewed-on: https://go-review.googlesource.com/c/146345
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,57 @@
+commit 21f434058cc989acfd32a05fab71d7e7fe5fb641
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 15 10:21:52 2023 -0800
+
+    cmd/compile: ensure constant folding of pointer arithmetic remains a pointer
+    
+    For c + nil, we want the result to still be of pointer type.
+    
+    Fixes ppc64le build failure with CL 468455, in issue33724.go.
+    
+    The problem in that test is that it requires a nil check to be
+    scheduled before the corresponding load. This normally happens fine
+    because we prioritize nil checks. If we have nilcheck(p) and load(p),
+    once p is scheduled the nil check will always go before the load.
+    
+    The issue we saw in 33724 is that when p is a nil pointer, we ended up
+    with two different p's, an int64(0) as the argument to the nil check
+    and an (*Outer)(0) as the argument to the load. Those two zeroes don't
+    get CSEd, so if the (*Outer)(0) happens to get scheduled first, the
+    load can end up before the nilcheck.
+    
+    Fix this by always having constant arithmetic preserve the pointerness
+    of the value, so that both zeroes are of type *Outer and get CSEd.
+    
+    Update #58482
+    Update #33724
+    
+    Change-Id: Ib9b8c0446f1690b574e0f3c0afb9934efbaf3513
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468615
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules     | 2 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   | 2 +-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     | 2 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   | 2 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 2 +-
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules    | 2 +-
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  | 2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   | 2 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 2 +-
+ src/cmd/compile/internal/ssa/_gen/S390X.rules   | 2 +-
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules    | 2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go      | 7 ++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 7 ++++---
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 7 ++++++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 7 ++++++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 7 ++++---
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     | 7 ++++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 7 ++++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 7 ++++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 7 ++++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 7 ++++---
+ src/cmd/compile/internal/ssa/rewriteWasm.go     | 7 ++++++-
+ 22 files changed, 65 insertions(+), 34 deletions(-)

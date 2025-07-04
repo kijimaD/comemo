@@ -1,0 +1,13 @@
+commit 2fb4edd3e1d099a14fc6f39fa890c0df0c536449
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Sep 27 09:39:37 2008 -0700
+
+    Correct zoneinfo version number: it's not 2, it's '2'.
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=16032
+    CL=16040
+
+ src/lib/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

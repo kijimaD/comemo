@@ -1,0 +1,14 @@
+commit 5c432fe0e3755255d70d1ad601725b039becb7ad
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 10 11:16:24 2018 +0100
+
+    cmd/compile: gofmt rewriteARM64.go
+    
+    Change-Id: I7424257e496f8f40c9601b62335b64d641dcd3b5
+    Reviewed-on: https://go-review.googlesource.com/99996
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

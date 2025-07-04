@@ -1,0 +1,29 @@
+commit fb4f4f4e96058165c0e7be32aa9ce493515c22a3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Sep 30 14:20:42 2016 -0400
+
+    crypto/{aes,cipher}: add optimized implementation of AES-GCM for s390x
+    
+    Also adds two tests: one to exercise the counter incrementing code
+    and one which checks the output of the optimized implementation
+    against that of the generic implementation for large/unaligned data
+    sizes.
+    
+    Uses the KIMD instruction for GHASH and the KMCTR instruction for AES
+    in counter mode.
+    
+    AESGCMSeal1K  75.0MB/s ± 2%  1008.7MB/s ± 1%  +1245.71%  (p=0.000 n=10+10)
+    AESGCMOpen1K  75.3MB/s ± 1%  1006.0MB/s ± 1%  +1235.59%   (p=0.000 n=10+9)
+    AESGCMSeal8K  78.5MB/s ± 1%  1748.4MB/s ± 1%  +2127.34%   (p=0.000 n=9+10)
+    AESGCMOpen8K  78.5MB/s ± 0%  1752.7MB/s ± 0%  +2134.07%   (p=0.000 n=10+9)
+    
+    Change-Id: I88dbcfcb5988104bfd290ae15a60a2721c1338be
+    Reviewed-on: https://go-review.googlesource.com/30361
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/aes/asm_s390x.s    |  96 +++++++++++++++
+ src/crypto/aes/gcm_s390x.go   | 270 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/cipher/gcm_test.go | 158 ++++++++++++++++++++++++
+ 3 files changed, 524 insertions(+)

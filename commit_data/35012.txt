@@ -1,0 +1,16 @@
+commit 224f807e268e97aa7ddd17bb1f91705a00041511
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 16 04:49:10 2018 +0900
+
+    net: add missing deadline test for RawConn
+    
+    Updates #19435.
+    
+    Change-Id: Ife4a31972b05094a86c60a48fcacdfe52d133ee4
+    Reviewed-on: https://go-review.googlesource.com/107395
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/rawconn_test.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)

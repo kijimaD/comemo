@@ -1,0 +1,13 @@
+commit 21d94a22fe0a1189468b3c8ad91e379a348e9c39
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Sep 8 10:38:11 2012 +0900
+
+    exp/locale/collate: switch from DUCET to CLDR for the default root table.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6499079
+
+ src/pkg/exp/locale/collate/maketables.go |    3 +-
+ src/pkg/exp/locale/collate/tables.go     | 4133 +++++++++++++++---------------
+ 2 files changed, 2070 insertions(+), 2066 deletions(-)

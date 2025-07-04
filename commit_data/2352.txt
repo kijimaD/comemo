@@ -1,0 +1,16 @@
+commit c17ce9f94fea5c3bf53312a5149dda11ba1ec8e1
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun May 31 13:02:24 2009 -0700
+
+    prevent multiple similar errors
+    in complex literals. side effect is
+    fix of error in initializerr.go
+    
+    R=r
+    OCL=29667
+    CL=29667
+
+ src/cmd/gc/sinit.c |  5 -----
+ src/cmd/gc/walk.c  | 49 +++++++++++++++++++++++++++++++++++--------------
+ test/golden.out    |  3 ---
+ 3 files changed, 35 insertions(+), 22 deletions(-)

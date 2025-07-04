@@ -1,0 +1,18 @@
+commit ca2a66431e4e6f95b5c69a8dde0222d5d2b346ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 02:04:01 2015 -0400
+
+    cmd/go: fix custom import path wildcards (go get rsc.io/pdf/...)
+    
+    Fixes TestGoGetWorksWithVanityWildcards,
+    but that test uses the network and is not run
+    on the builders.
+    
+    For #11806.
+    
+    Change-Id: I35c6677deaf84e2fa9bdb98b62d80d388b5248ae
+    Reviewed-on: https://go-review.googlesource.com/12557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/get.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

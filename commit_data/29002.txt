@@ -1,0 +1,15 @@
+commit fc88a0f4ce66704d04f2b6d7730e722ef2b9a5de
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 16:43:09 2016 -0400
+
+    net/mail: expose ParseDate, for use parsing Resent-Date headers
+    
+    Fixes #16657.
+    
+    Change-Id: I9425af91a48016b1d7465b9f43cafa792bc00bb3
+    Reviewed-on: https://go-review.googlesource.com/31581
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/net/mail/message.go      |  5 +++--
+ src/net/mail/message_test.go | 13 +++++++++----
+ 2 files changed, 12 insertions(+), 6 deletions(-)

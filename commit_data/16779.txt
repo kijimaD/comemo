@@ -1,0 +1,12 @@
+commit 8fb6c3ac25f077f5207215dc4868014a29e61759
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jul 16 12:18:00 2013 -0400
+
+    test: invert incorrect condition.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/11359043
+
+ test/cmp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

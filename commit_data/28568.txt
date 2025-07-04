@@ -1,0 +1,17 @@
+commit 594cddd62598dcfc1fe6ee1c3e5978063f498dc1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 28 13:31:33 2016 +1000
+
+    testing: add Name method to *T and *B
+    
+    Fixes #17231
+    
+    Change-Id: I0d6007ab504f2277cb6affc9e2050157a6ad4d5e
+    Reviewed-on: https://go-review.googlesource.com/29970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

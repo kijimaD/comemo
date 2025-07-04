@@ -1,0 +1,23 @@
+commit 1fc3346275d0457cfc154b1001b25bd0cb0c1751
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 31 07:47:19 2022 -0400
+
+    debug/dwarf: better error handling in SeekPC
+    
+    The dwarf.Reader "SeekPC" method was not properly handling the case
+    of a truncated/empty unit (something that has header information
+    but an empty abbrev table and no DIEs). Add some guards to handle
+    this case.
+    
+    Fixes #52045.
+    
+    Change-Id: I978163eca3b610f7528058693b840931e90d3f63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397054
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/dwarf/entry.go      |  2 +-
+ src/debug/dwarf/entry_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

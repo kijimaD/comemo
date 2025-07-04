@@ -1,0 +1,14 @@
+commit e8a426aebe4968d5a27068e5aed2970a4c38f686
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 20 12:37:13 2011 -0700
+
+    go/ast: use single-element map in test
+    
+    Avoids test failure due to undefined map iteration order.
+    
+    R=rsc, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5297048
+
+ src/pkg/go/ast/print_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

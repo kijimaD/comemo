@@ -1,0 +1,24 @@
+commit a2a9a7b5132c7a0b1d4c297018d6072101456709
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Tue Feb 2 15:25:21 2021 +0200
+
+    cmd/go: make mod init disallow invalid major version suffixes
+    
+    This CL reuses the SplitPathVersion function from the module package to
+    detect invalid major version suffixes and return a relevant error
+    message along with a suggested fix.
+    
+    Fixes #44052
+    Fixes #46085
+    
+    Change-Id: I6c06f31a134e864a1d9b6e00c048ca1c59b4365e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288712
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go                | 60 ++++++++++++++++
+ .../go/testdata/script/mod_init_invalid_major.txt  | 82 ++++++++++++++++++++++
+ 2 files changed, 142 insertions(+)

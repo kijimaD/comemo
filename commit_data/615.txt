@@ -1,0 +1,12 @@
+commit ff65872fbfebf292ca0067a00b7879d98472f5b8
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 11 15:44:45 2008 -0700
+
+    function wo return is an error - not warning
+    
+    R=r
+    OCL=15169
+    CL=15169
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

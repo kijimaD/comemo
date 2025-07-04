@@ -1,0 +1,23 @@
+commit 009aebdba8f35fb8609635520c58f76742e46996
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Wed Dec 1 11:59:13 2010 -0800
+
+    Removed bytes.Add and bytes.AddByte; we now have 'append'.
+    Changed all uses of bytes.Add (aside from those testing bytes.Add) to append(a, b...).
+    Also ran "gofmt -s" and made use of copy([]byte, string) in the fasta benchmark.
+    
+    R=golang-dev, r, r2
+    CC=golang-dev
+    https://golang.org/cl/3302042
+
+ doc/effective_go.html           |  2 +-
+ src/pkg/bytes/bytes.go          | 42 ------------------------------------
+ src/pkg/bytes/bytes_test.go     | 39 ----------------------------------
+ src/pkg/crypto/tls/conn.go      |  2 +-
+ src/pkg/json/scanner_test.go    |  2 +-
+ src/pkg/json/stream.go          |  3 +--
+ src/pkg/net/textproto/reader.go |  6 ++----
+ src/pkg/regexp/regexp.go        |  2 +-
+ src/pkg/xml/read.go             |  4 ++--
+ test/bench/fasta.go             | 47 +++++++++++++++++++----------------------
+ 10 files changed, 31 insertions(+), 118 deletions(-)

@@ -1,0 +1,15 @@
+commit d2a835fbf3f22ca3b3e5fb51c8c2756c8a7b2550
+Author: Ben Olive <sionide21@gmail.com>
+Date:   Thu Dec 17 13:39:13 2009 -0800
+
+    time: add ISO 8601 time format
+    
+    Fixes #431.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/179079
+
+ src/pkg/time/time.go      | 23 ++++++++++++++++++++++-
+ src/pkg/time/time_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

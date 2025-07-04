@@ -1,0 +1,19 @@
+commit 7307e86afda3c5c7f6158d2469c39606fd1dba65
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Nov 8 09:44:33 2020 +0100
+
+    test/codegen: go fmt
+    
+    Fixes #42445
+    
+    Change-Id: I9653ef094dba2a1ac2e3daaa98279d10df17a2a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268257
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ test/codegen/bits.go               |  4 +--
+ test/codegen/compare_and_branch.go | 72 +++++++++++++++++++-------------------
+ 2 files changed, 38 insertions(+), 38 deletions(-)

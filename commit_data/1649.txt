@@ -1,0 +1,12 @@
+commit c8d59c1fb24cd5efd495ec8142aa69270ddba8d2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 10:20:15 2009 -0800
+
+    fix int64/int error - build broken
+    
+    R=gri
+    OCL=24678
+    CL=24678
+
+ src/lib/os/dir_amd64_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

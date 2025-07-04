@@ -1,0 +1,13 @@
+commit 64eb7749bca304a858638222849c5765e6427c79
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Dec 21 20:39:30 2012 +0100
+
+    cmd/gc: mapassign2 doesn't exist anymore.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6997043
+
+ src/cmd/gc/builtin.c  | 1 -
+ src/cmd/gc/runtime.go | 1 -
+ 2 files changed, 2 deletions(-)

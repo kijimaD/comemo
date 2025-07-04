@@ -1,0 +1,14 @@
+commit f33b67b870208071a737768a6165198ccf340ec0
+Author: Romain Baugue <romain.baugue@gmail.com>
+Date:   Wed Mar 27 10:13:38 2019 +0100
+
+    reflect: document that method sets are lexicographically sorted
+    
+    Fixes #30688
+    
+    Change-Id: I8b63feba4b18bc07a09f6fbfaa33c1b3326b40e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169597
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/type.go | 3 +++
+ 1 file changed, 3 insertions(+)

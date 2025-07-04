@@ -1,0 +1,14 @@
+commit a3c1a3f40120b4cf6a5e24025a0279a8c48ea22f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 16:21:33 2016 -0500
+
+    runtime: deflake TestNumGoroutine
+    
+    Fixes #14107.
+    
+    Change-Id: Icd9463b1a77b139c7ebc2d8732482d704ea332d0
+    Reviewed-on: https://go-review.googlesource.com/19002
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc_test.go | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

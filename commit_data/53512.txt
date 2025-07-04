@@ -1,0 +1,18 @@
+commit ce8eadf591f81cbdec3d7887339a3dabfe20f7ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 8 13:16:06 2023 -0700
+
+    doc/go1.21: remove CL 472195 TODO
+    
+    It's not needed per CL 499515.
+    
+    Change-Id: I2a5ce46be93dad1442c0aad736fd8d230ee35f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501996
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

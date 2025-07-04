@@ -1,0 +1,18 @@
+commit c8f4e6152d5f0b767a8177b7d09884cf2279d8e6
+Author: Piers <helloPiers@users.noreply.github.com>
+Date:   Mon Jul 19 20:11:29 2021 +0000
+
+    spec: correct example comment in Conversions from slice to array
+    
+    Fixes #47280
+    
+    Change-Id: I78a8d235949b4878c7f075ac4ca37700e7e6c31c
+    GitHub-Last-Rev: 067f96eeb2c918eb4f775c428edc945c75af44d8
+    GitHub-Pull-Request: golang/go#47282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335470
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

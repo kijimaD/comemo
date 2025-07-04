@@ -1,0 +1,12 @@
+commit db8c2b1803c2ae42306bbd8071b5831d8382657d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 11 21:30:03 2010 -0700
+
+    spec: clarify that result parameters are always zeroed before the function executes.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1641043
+
+ doc/go_spec.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

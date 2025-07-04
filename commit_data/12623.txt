@@ -1,0 +1,12 @@
+commit ace7d2649973382c763987568a78bfa7a021cae8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 14:02:59 2012 +1100
+
+    cmd/godoc: s/ignore/appengine/ in appinit.go +build constraint
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5784072
+
+ src/cmd/godoc/appinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

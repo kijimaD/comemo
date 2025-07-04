@@ -1,0 +1,18 @@
+commit 3ebb1720d92f194d23ff9ba838715cfcf8fc90e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 14 12:10:11 2022 -0700
+
+    go/types, types2: alias type declarations may refer to constraint types
+    
+    Fixes #51616.
+    
+    Change-Id: I388a6d91d9bfe5410b5eb32e1606257ec668d618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392715
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go               |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue51616.go2 | 19 +++++++++++++++++++
+ src/go/types/decl.go                                  |  2 +-
+ src/go/types/testdata/fixedbugs/issue51616.go2        | 19 +++++++++++++++++++
+ 4 files changed, 40 insertions(+), 2 deletions(-)

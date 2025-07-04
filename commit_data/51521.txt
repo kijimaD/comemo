@@ -1,0 +1,45 @@
+commit 7dc9fcb13de7bb20b11f6a526865545cc9142c2c
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 10 12:16:27 2022 -0800
+
+    os, net/http: avoid escapes from os.DirFS and http.Dir on Windows
+    
+    Do not permit access to Windows reserved device names (NUL, COM1, etc.)
+    via os.DirFS and http.Dir filesystems.
+    
+    Avoid escapes from os.DirFS(`\`) on Windows. DirFS would join the
+    the root to the relative path with a path separator, making
+    os.DirFS(`\`).Open(`/foo/bar`) open the path `\\foo\bar`, which is
+    a UNC name. Not only does this not open the intended file, but permits
+    reference to any file on the system rather than only files on the
+    current drive.
+    
+    Make os.DirFS("") invalid, with all file access failing. Previously,
+    a root of "" was interpreted as "/", which is surprising and probably
+    unintentional.
+    
+    Fixes CVE-2022-41720
+    Fixes #56694
+    
+    Change-Id: I275b5fa391e6ad7404309ea98ccc97405942e0f0
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1663834
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455362
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455716
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/go/build/deps_test.go                 |  1 +
+ src/internal/safefilepath/path.go         | 21 +++++++
+ src/internal/safefilepath/path_other.go   | 23 ++++++++
+ src/internal/safefilepath/path_test.go    | 88 ++++++++++++++++++++++++++++
+ src/internal/safefilepath/path_windows.go | 95 +++++++++++++++++++++++++++++++
+ src/net/http/fs.go                        |  8 ++-
+ src/net/http/fs_test.go                   | 19 +++++++
+ src/os/file.go                            | 44 ++++++++------
+ src/os/os_test.go                         | 38 +++++++++++++
+ 9 files changed, 316 insertions(+), 21 deletions(-)

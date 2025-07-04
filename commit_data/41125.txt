@@ -1,0 +1,18 @@
+commit 998cbe29832a989eff6e239d6b70ff1c92ad1fa6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 14 15:28:47 2020 -0800
+
+    testing: don't run Cleanup functions until parallel subtests complete
+    
+    Fixes #31651
+    
+    Change-Id: Idbab0c4355fcc58520e210126795223435cf0078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214822
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/panic_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/testing/sub_test.go   |  31 +++++++++++
+ src/testing/testing.go    |  49 ++++++++++++++++--
+ 3 files changed, 203 insertions(+), 6 deletions(-)

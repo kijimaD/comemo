@@ -1,0 +1,12 @@
+commit c833a57dac041bc413a35ab4f4baf33d8f5ef7f3
+Author: Chris Lennert <calennert@gmail.com>
+Date:   Mon Nov 23 17:44:38 2009 -0800
+
+    Added my name to the AUTHORS and CONTRIBUTORS lists.
+    
+    R=rsc
+    https://golang.org/cl/160047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

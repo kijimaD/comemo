@@ -1,0 +1,23 @@
+commit 1a4681ed745bd31613ef2ef4f33006212047b6ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 14 14:30:10 2011 -0400
+
+    exp/regexp/syntax: more escapes, character classes
+    
+    Still TODO: parsing optimizations
+    
+    make_perl_groups.pl is copied with minimal modifications
+    (just to generate Go syntax instead of C++) from RE2.
+    Google Inc is "The RE2 Author" of that file and is one of
+    the Go Authors, so copyright changed to the Go Authors instead.
+    
+    R=sam.thorogood, r, fvbommel, robert.hencke
+    CC=golang-dev
+    https://golang.org/cl/4612041
+
+ src/pkg/exp/regexp/syntax/Makefile            |   1 +
+ src/pkg/exp/regexp/syntax/make_perl_groups.pl | 103 ++++
+ src/pkg/exp/regexp/syntax/parse.go            | 764 ++++++++++++++++++++++++--
+ src/pkg/exp/regexp/syntax/parse_test.go       | 112 ++--
+ src/pkg/exp/regexp/syntax/perl_groups.go      | 130 +++++
+ 5 files changed, 1006 insertions(+), 104 deletions(-)

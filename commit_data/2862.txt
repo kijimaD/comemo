@@ -1,0 +1,14 @@
+commit cb9c9738293321bf92a52b107917efe07e2e0245
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 13:34:20 2009 -0700
+
+    don't crash printing a nil map
+    
+    R=rsc
+    DELTA=19  (18 added, 0 deleted, 1 changed)
+    OCL=32656
+    CL=32670
+
+ src/pkg/fmt/fmt_test.go  | 14 ++++++++++++++
+ src/pkg/reflect/value.go |  6 +++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

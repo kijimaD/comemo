@@ -1,0 +1,21 @@
+commit 5d4e8f5162c97d9a51abbe55d0042fea9c6be3a0
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Thu Feb 22 01:25:52 2024 +0000
+
+    go/doc: fix typo in comment
+    
+    Change-Id: Idcfd649b8b8c8b47f5622702969bf2d43aa57354
+    GitHub-Last-Rev: cd38bee1917377a5057d6dd7c911c55e79c59eae
+    GitHub-Pull-Request: golang/go#65835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565516
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/go/doc/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

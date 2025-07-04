@@ -1,0 +1,19 @@
+commit 1f9d80e33165dfb169d1ee82ca0021484951d3bb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 3 17:59:48 2023 +0000
+
+    runtime: disable huge pages for GC metadata for small heaps
+    
+    For #55328.
+    
+    Change-Id: I8792161f09906c08d506cc0ace9d07e76ec6baa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460316
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/malloc.go     | 63 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgc.go        |  5 ++++
+ src/runtime/mheap.go      |  4 +++
+ src/runtime/mpagealloc.go | 59 +++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 130 insertions(+), 1 deletion(-)

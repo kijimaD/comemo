@@ -1,0 +1,34 @@
+commit 60ef4b2c1e931069d81f053358a4023e09359e7f
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 6 11:42:12 2022 -0400
+
+    runtime: in traceback, only jump stack if M doesn't change
+    
+    CL 424257 modified gentraceback to switch gp when jumping from a
+    system stack to a user stack to simplify reasoning through the rest of
+    the function. This has the unintended side-effect of also switching
+    all references to gp.m. The vast majority of the time, g0.m and curg.m
+    are the same across a stack switch, making this a no-op, but there's
+    at least one case where this isn't true: if a profiling signal happens
+    in execute between setting mp.curg and setting gp.m. In this case,
+    mp.curg.m is briefly nil, which can cause gentraceback to crash with a
+    nil pointer dereference. We see this failure (surprisingly
+    frequently!) in profiling tests in the morestack=mayMoreStackPreempt
+    testing mode (#48297).
+    
+    Fix this by making only jumping stacks if doing so will not switch Ms.
+    This restores the original property that gp.m doesn't change across
+    the stack jump, and makes gentraceback a little more conservative
+    about jumping stacks.
+    
+    Fixes #54885.
+    
+    Change-Id: Ib1524c41c748eeff35896e0f3abf9a7efbe5969f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428656
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/runtime/traceback.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

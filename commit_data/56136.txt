@@ -1,0 +1,21 @@
+commit 99b65ae9304d8cc04b1d6c72d59bcb8e8ad539cd
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:52:06 2024 +0800
+
+    net: update the doc for TCPConn.SetKeepAlivePeriod on Windows
+    
+    The method comment of TCPConn.SetKeepAlivePeriod had become
+    obsolete and inaccurate since CL 565495 and CL 570077 were merged.
+    
+    For #65817
+    
+    Change-Id: Ide99b2949676d452a505ba6fd634088f05c9df44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576435
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/tcpsock.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

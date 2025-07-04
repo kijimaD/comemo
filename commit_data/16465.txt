@@ -1,0 +1,12 @@
+commit 1a145cd52db21b07406568106f75d89c07af0ce8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jun 3 03:09:47 2013 +0800
+
+    doc/go1.2.txt: update for CL 8248043.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9949044
+
+ doc/go1.2.txt | 2 ++
+ 1 file changed, 2 insertions(+)

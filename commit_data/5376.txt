@@ -1,0 +1,13 @@
+commit a82349614b2342ef012f3213dd91b4a421eb0171
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 28 10:50:44 2010 +1000
+
+    go_tutorial: removed outdated use of semicolons
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1013042
+
+ doc/go_tutorial.html | 46 +++++++++++++++++++++++-----------------------
+ doc/go_tutorial.txt  | 42 +++++++++++++++++++++---------------------
+ 2 files changed, 44 insertions(+), 44 deletions(-)

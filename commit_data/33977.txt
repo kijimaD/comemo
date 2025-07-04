@@ -1,0 +1,16 @@
+commit de292613c17c0fd8bf6e5fb9e781866d77dc49b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:49:40 2018 -0500
+
+    os: fix grammar nit
+    
+    There should not be a comma before "and" in the original text,
+    because what follows is not a complete sentence. Rewrite.
+    
+    Change-Id: Ie99f204cc87e911fb46149e2eb65e132fa1eb63a
+    Reviewed-on: https://go-review.googlesource.com/87020
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

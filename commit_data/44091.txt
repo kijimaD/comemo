@@ -1,0 +1,32 @@
+commit fa90aaca7d523eaf81c02b48a412cad4ebc57817
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jan 7 21:45:00 2021 +0700
+
+    cmd/compile: fix late expand_calls leaf type for OpStructSelect/OpArraySelect
+    
+    For the example in #43551, before late call expansion, the OpArg type is
+    decomposed to int64. But the late call expansion is currently decompose
+    it to "x.Key" instead.
+    
+    This CL make expand_calls decompose further for struct { 1-field type }
+    and array [1]elem.
+    
+    This matches the previous rules for early decompose args:
+    
+    (StructSelect (StructMake1 x)) => x
+    (ArraySelect (ArrayMake1 x)) => x
+    
+    Fixes #43551
+    
+    Change-Id: I2f1ebe18cb81cb967f494331c3d237535d2859e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282332
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  3 ++-
+ test/fixedbugs/issue43551.dir/a.go           | 13 +++++++++++++
+ test/fixedbugs/issue43551.dir/b.go           | 14 ++++++++++++++
+ test/fixedbugs/issue43551.go                 |  7 +++++++
+ 4 files changed, 36 insertions(+), 1 deletion(-)

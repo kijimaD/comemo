@@ -1,0 +1,15 @@
+commit f68577f2941b7e331b8b702cd1e6ca100d3820c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:15:15 2020 -0800
+
+    doc/go1.14: mention new field net/http/httptest/Server.EnableHTTP2
+    
+    Updates #34939
+    Updates #36878
+    
+    Change-Id: Ifa9a17b5b16bfcfbfe1d113a2b66a63ea3a6b59c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217131
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

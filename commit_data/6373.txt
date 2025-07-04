@@ -1,0 +1,12 @@
+commit fb7e175d1f40f357fa123c702a0c11af32bff4bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 13:12:50 2010 -0400
+
+    debug/proc: ... changes (fix build)
+    
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/2229047
+
+ src/pkg/debug/proc/proc_linux.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

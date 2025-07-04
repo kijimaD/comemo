@@ -1,0 +1,24 @@
+commit bec2cc370871b998a131f5f363dab4a14b5f2eb2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 12 10:26:04 2022 -0500
+
+    runtime: eliminate arbitrary timeout in TestStackGrowth
+    
+    Instead, allow the test to run up until nearly the test's deadline,
+    whatever that may be, and then crash with a panic (instead of calling
+    t.Errorf) to get a useful goroutine dump.
+    
+    With the arbitrary timeout removed, we can now also run this test in
+    short mode, reducing its impact on test latency.
+    
+    Fixes #19381
+    
+    Change-Id: Ie1fae321a2973fcb9b69a012103363f16214f529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378034
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/stack_test.go | 72 ++++++++++++++++++-----------------------------
+ 1 file changed, 28 insertions(+), 44 deletions(-)

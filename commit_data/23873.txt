@@ -1,0 +1,15 @@
+commit 0229317d7665fc7195028f7dc7cd4e88d320e46a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 23:29:09 2015 -0700
+
+    runtime: don't define libc_getpid in os3_solaris.go
+    
+    The function is already defined between syscall_solaris.go and
+    syscall2_solaris.go.
+    
+    Change-Id: I034baf7c8531566bebfdbc5a4061352cbcc31449
+    Reviewed-on: https://go-review.googlesource.com/12773
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go | 3 ---
+ 1 file changed, 3 deletions(-)

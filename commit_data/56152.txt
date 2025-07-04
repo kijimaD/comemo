@@ -1,0 +1,17 @@
+commit da732dd1c0304819ae107754206eb9da7d282469
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 21 16:00:17 2024 -0500
+
+    cmd/compile/internal/ssa: mark opPPC64ADDZE as having a flag input
+    
+    This was missed in CL 571055.
+    
+    Change-Id: I58d6469c9ea323943e9c230a54fba8f7ec705d47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573515
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/schedule.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

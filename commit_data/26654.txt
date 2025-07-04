@@ -1,0 +1,13 @@
+commit 014f3e1e094c4a173ce503e5dfe1bc0619f2f4a8
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Thu Mar 31 12:59:05 2016 +0300
+
+    cmd/internal/obj: more idiomatic object writer
+    
+    Change-Id: I41722ee605ea76a6b52e8a7e1e10f2293cef1a7a
+    Reviewed-on: https://go-review.googlesource.com/21371
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/link.go    |   1 -
+ src/cmd/internal/obj/objfile.go | 451 +++++++++++++++++++++-------------------
+ 2 files changed, 237 insertions(+), 215 deletions(-)

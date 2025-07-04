@@ -1,0 +1,16 @@
+commit 77faa652c1d3b351272940fe9bb0e6400dfc9f63
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 14 00:46:03 2018 -0700
+
+    net: use retry in TestLookupGmailNS
+    
+    There are two flakes present on the dashboard for this test.
+    
+    Change-Id: I4abec972586314fbafe7db5760b91afd7ae47fd3
+    Reviewed-on: https://go-review.googlesource.com/106980
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

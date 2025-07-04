@@ -1,0 +1,21 @@
+commit 3743d2127040c283114a247da1319c3155a81f10
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 9 10:57:46 2020 +0100
+
+    runtime: re-enable TestArenaCollision on darwin in race mode
+    
+    Go 1.14 will drop support for macOS 10.10, see #23011
+    
+    This reverts CL 155097
+    
+    Updates #26475
+    Updates #29340
+    
+    Change-Id: I64d0275141407313b73068436ee81d13eacc4c76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214058
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/malloc_test.go | 8 --------
+ 1 file changed, 8 deletions(-)

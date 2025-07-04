@@ -1,0 +1,15 @@
+commit 3acb9fd98e41014b3958cd11ba599385c4eab9cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 21:40:35 2015 -0800
+
+    math/big: disable some tests on 32bit platforms (fix build)
+    
+    TBR: adonovan
+    
+    Change-Id: I59757b5b46a2c533fc5f888423c99d550d3c7648
+    Reviewed-on: https://go-review.googlesource.com/3264
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go      | 14 ++++++++++----
+ src/math/big/float_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit aef23cc49e745e619c10bd8e4f9d4555de3a9c5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 07:39:46 2012 -0800
+
+    test: add new test of indirect type references
+    
+    Similar to bug190, but without recursive reference.  Crashed
+    gccgo.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5672053
+
+ test/fixedbugs/bug417.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

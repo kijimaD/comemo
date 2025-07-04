@@ -1,0 +1,14 @@
+commit 29df4c8f0004aa259093bf8dbf0bf966a392d44d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 17 16:23:40 2016 -0700
+
+    unsafe: document use of &^ to round/align pointers
+    
+    Follow-up to CL 27156
+    
+    Change-Id: I4f1cfced2dced9c9fc8a05bbc00ec4229e85c5c9
+    Reviewed-on: https://go-review.googlesource.com/27314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/unsafe/unsafe.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

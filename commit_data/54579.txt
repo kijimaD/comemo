@@ -1,0 +1,23 @@
+commit 20944cf0665a5aec6abab802875a9700592b5391
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Sep 28 22:26:57 2023 +0000
+
+    internal/zstd: reset reader buffer
+    
+    Reset r.buffer on Reset to avoid subsequent Read calls
+    observing previously decoded data.
+    
+    For #62513
+    
+    Change-Id: Icb65e76b5c5c0af32b36ec3a5999dca86407cbc8
+    GitHub-Last-Rev: 99c0a6fa72ad67cba5d29593fd3b28d14ddce4a4
+    GitHub-Pull-Request: golang/go#63288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531735
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/zstd/zstd.go      |  2 +-
+ src/internal/zstd/zstd_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

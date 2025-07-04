@@ -1,0 +1,19 @@
+commit 32f4864216366f355a589c99a8d789f3341bc85c
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Mon Oct 21 17:22:00 2024 +0800
+
+    cmd/compile: arithmetic optimization for shifts
+    
+    Fixes #69635
+    
+    Change-Id: I4f8d7dafb34ccfb943c29f96c982278ab7edcd05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621357
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  10 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 736 ++++++++++++++++++++++++
+ 2 files changed, 746 insertions(+)

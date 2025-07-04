@@ -1,0 +1,20 @@
+commit e6ba19f9138dfaa981b281105fafabbf55250a18
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 6 20:54:36 2019 +0000
+
+    Revert "cmd/compile: improve errors for invalid conversions of consts"
+    
+    This reverts commit 2da9c3e0f99b72cf8f3bdca01b57e7a68a546c5b.
+    
+    Reason for revert: while the new error messages are more informative,
+    they're not strictly correct. This CL also conflicts with CL 187657.
+    
+    Change-Id: I1c36cf7e86c2f35ee83a4f98918ee38aa1f59965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193977
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 10 ++---
+ test/fixedbugs/issue21979.go         | 75 ------------------------------------
+ 2 files changed, 3 insertions(+), 82 deletions(-)

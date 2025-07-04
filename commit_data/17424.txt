@@ -1,0 +1,17 @@
+commit 280c8b90e2785a7de2216cb129752bbeca09210a
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Aug 29 16:48:44 2013 +0200
+
+    cmd/gc: make method names for function scoped types unique
+    
+    Types in function scope can have methods on them if they embed another type, but we didn't make the name unique, meaning that 2 identically named types in different functions would conflict with eachother.
+    
+    Fixes #6269.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13326045
+
+ src/cmd/gc/fmt.c            |  5 ++++-
+ test/fixedbugs/issue6269.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

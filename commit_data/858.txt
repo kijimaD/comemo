@@ -1,0 +1,13 @@
+commit 82e41cc5339c0c5a0a70e6508b97d7f9129033c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 14 17:10:39 2008 -0700
+
+    allow trailing comma in braced initialized list
+    
+    R=ken
+    OCL=17141
+    CL=17143
+
+ src/cmd/gc/go.y   | 31 ++++++++++++++++++++++++++++---
+ test/initcomma.go | 17 +++++++++++++++++
+ 2 files changed, 45 insertions(+), 3 deletions(-)

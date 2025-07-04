@@ -1,0 +1,12 @@
+commit 4b4bb53bf33d77bf3e66ddb670bcc2501139eb2a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 21 17:17:22 2017 +0200
+
+    sync: make clear that WaitGroup.Done decrements by one
+    
+    Change-Id: Ief076151739147378f8ca35cd09aabb59c3c9a52
+    Reviewed-on: https://go-review.googlesource.com/46350
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sync/waitgroup.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

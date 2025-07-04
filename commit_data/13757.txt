@@ -1,0 +1,17 @@
+commit 256cd7e78eb0cc4cfd7ed472b9e11f22d34098b6
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Sep 7 02:13:14 2012 +1000
+
+    syscall: regenerate/update netbsd z-files
+    
+    Regenerate/update netbsd z-files on NetBSD 6.0 RC1.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6506062
+
+ src/pkg/syscall/zerrors_netbsd_386.go   | 53 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 53 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_netbsd_386.go   |  7 -----
+ src/pkg/syscall/zsysnum_netbsd_amd64.go |  7 -----
+ 4 files changed, 106 insertions(+), 14 deletions(-)

@@ -1,0 +1,26 @@
+commit 0882ca7a73639c3886ed7673c59d2a7f489cb9e4
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Jan 16 23:30:12 2024 +0100
+
+    hash/crc32: fix code generator to use the Go standard
+    
+    Apply the Go standard for code generation (https://go.dev/s/generatedcode)
+    to generated crc32_table_ppc64le.s despites this is not
+    generated Go but Assembly.  This is to help prevent changes like CL 478976
+    that changed the generated output without fixing the generator.
+    
+    Add gen.go to allow to launch code generation with "go generate".
+    
+    Change-Id: I8671284265425826c8620dbec055519b992fa04e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556335
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/hash/crc32/crc32_table_ppc64le.s | 3 +--
+ src/hash/crc32/gen.go                | 7 +++++++
+ src/hash/crc32/gen_const_ppc64le.go  | 8 ++++----
+ 3 files changed, 12 insertions(+), 6 deletions(-)

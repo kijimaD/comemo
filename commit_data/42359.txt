@@ -1,0 +1,23 @@
+commit 1f325af4dd6c07f899da0a7c0512a7d470cebf9f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 12:16:10 2020 -0400
+
+    cmd/link: fix SCONST symbol handling on darwin
+    
+    Don't include SCONST symbols in the symbol table when
+    NotInSymbolTable is set. This is what the old code (genasmsym)
+    does.
+    
+    In fact, SCONST symbol is only emitted by the field tracking
+    code, and is always NotInSymbolTable. So we should just not
+    include them at all, or not generate SCONST symbols at all. But
+    at this late stage I'll just restore the old behavior.
+    
+    Change-Id: If6843003e16701d45b8c67b2297098a7babdec52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233997
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

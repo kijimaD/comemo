@@ -1,0 +1,14 @@
+commit 1e0e2ffb8d90d2c8a163d07d7dccf506891b7dac
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 10:01:37 2015 -0500
+
+    runtime: skip test on darwin/arm
+    
+    Needs the Go tool, which we do not have on iOS. (No Fork.)
+    
+    Change-Id: Iedf69f5ca81d66515647746546c9b304c8ec10c4
+    Reviewed-on: https://go-review.googlesource.com/6102
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/runtime_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

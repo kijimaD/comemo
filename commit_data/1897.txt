@@ -1,0 +1,16 @@
+commit 3f9da829041dfaa1ee0a15b4f24ae94d7ad15a0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 22:13:49 2009 -0700
+
+    minor tweaks:
+    - permit scanner to run w/o error handler
+    - provide an error counter
+    
+    R=iant
+    DELTA=43  (25 added, 0 deleted, 18 changed)
+    OCL=26804
+    CL=26812
+
+ src/lib/go/scanner.go      | 42 ++++++++++++++++++++++++++++++------------
+ src/lib/go/scanner_test.go | 13 ++++++++++---
+ 2 files changed, 40 insertions(+), 15 deletions(-)

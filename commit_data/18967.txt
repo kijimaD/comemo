@@ -1,0 +1,17 @@
+commit 6119dc1b52c550c47aa42b8b10b1760f7cad5d5d
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 27 00:29:55 2014 -0400
+
+    misc/bash, misc/zsh: fix completion rules
+    
+    This patch includes fixes pointed out in CL 52140043, which was
+    originally written by john.gosset.
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/80320043
+
+ misc/bash/go | 12 +-----------
+ misc/zsh/go  |  5 +++--
+ 2 files changed, 4 insertions(+), 13 deletions(-)

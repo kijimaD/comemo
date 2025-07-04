@@ -1,0 +1,24 @@
+commit 9ae7dc304082cc36d0d587c5edcc899497f2d06f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 11:29:36 2022 -0400
+
+    cmd/compile: fix If lowering on ARM64
+    
+    On ARM64, an If block is lowered to (NZ cond yes no). This is
+    incorrect because cond is a boolean value and therefore only the
+    last byte is meaningful (same as AMD64, see ARM64Ops.go). But here
+    we are comparing a full register width with 0. Correct it by
+    comparing only the last bit.
+    
+    Fixes #52788.
+    
+    Change-Id: I2cacf9f3d2f45e149c361a290f511b2d4ed845c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405114
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  17 ++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 160 ++++++++++++++++++++++++++-
+ test/fixedbugs/issue52788.go                 |  27 +++++
+ 3 files changed, 201 insertions(+), 3 deletions(-)

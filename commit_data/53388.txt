@@ -1,0 +1,21 @@
+commit bfa3284f9b3af76030d8058ae22e3d212637a286
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed May 31 15:07:03 2023 +0200
+
+    doc: document WER and SEH changes in Go 1.21
+    
+    While here, I've removed the CL 472195 TODO, which I marked as
+    RELNOTE=yes by mistake.
+    
+    For #57441
+    For #57302
+    
+    Change-Id: I7563140bf307f8d732f0154d02b8fa0735527323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499515
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ doc/go1.21.html | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

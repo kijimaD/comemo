@@ -1,0 +1,69 @@
+commit 3c36b8be660f409142a00ecd57115399ce8aabc9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 20 15:48:46 2018 -0400
+
+    cmd/compile: incrementally compact liveness maps
+    
+    The per-Value slice of liveness maps is currently one of the largest
+    sources of allocation in the compiler. On cmd/compile/internal/ssa,
+    it's 5% of overall allocation, or 75MB in total. Enabling liveness
+    maps everywhere significantly increased this allocation footprint,
+    which in turn slowed down the compiler.
+    
+    Improve this by compacting the liveness maps after every block is
+    processed. There are typically very few distinct liveness maps, so
+    compacting the maps after every block, rather than at the end of the
+    function, can significantly reduce these allocations.
+    
+    Passes toolstash -cmp.
+    
+    name        old time/op       new time/op       delta
+    Template          198ms ± 2%        196ms ± 1%  -1.11%  (p=0.008 n=9+10)
+    Unicode           100ms ± 1%         99ms ± 1%  -0.94%  (p=0.015 n=8+9)
+    GoTypes           703ms ± 2%        695ms ± 1%  -1.15%  (p=0.000 n=10+10)
+    Compiler          3.38s ± 3%        3.33s ± 0%  -1.66%  (p=0.000 n=10+9)
+    SSA               7.96s ± 1%        7.93s ± 1%    ~     (p=0.113 n=9+10)
+    Flate             134ms ± 1%        132ms ± 1%  -1.30%  (p=0.000 n=8+10)
+    GoParser          165ms ± 2%        163ms ± 1%  -1.32%  (p=0.013 n=9+10)
+    Reflect           462ms ± 2%        459ms ± 0%  -0.65%  (p=0.036 n=9+8)
+    Tar               188ms ± 2%        186ms ± 1%    ~     (p=0.173 n=8+10)
+    XML               243ms ± 7%        239ms ± 1%    ~     (p=0.684 n=10+10)
+    [Geo mean]        421ms             416ms       -1.10%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.0MB ± 0%       36.5MB ± 0%  -3.98%  (p=0.000 n=10+10)
+    Unicode          30.3MB ± 0%       29.6MB ± 0%  -2.21%  (p=0.000 n=10+10)
+    GoTypes           125MB ± 0%        120MB ± 0%  -4.51%  (p=0.000 n=10+9)
+    Compiler          575MB ± 0%        546MB ± 0%  -5.06%  (p=0.000 n=10+10)
+    SSA              1.64GB ± 0%       1.55GB ± 0%  -4.97%  (p=0.000 n=10+10)
+    Flate            25.9MB ± 0%       25.0MB ± 0%  -3.41%  (p=0.000 n=10+10)
+    GoParser         30.7MB ± 0%       29.5MB ± 0%  -3.97%  (p=0.000 n=10+10)
+    Reflect          84.1MB ± 0%       81.9MB ± 0%  -2.64%  (p=0.000 n=10+10)
+    Tar              37.0MB ± 0%       35.8MB ± 0%  -3.27%  (p=0.000 n=10+9)
+    XML              47.2MB ± 0%       45.0MB ± 0%  -4.57%  (p=0.000 n=10+10)
+    [Geo mean]       83.2MB            79.9MB       -3.86%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           337k ± 0%         337k ± 0%  -0.06%  (p=0.000 n=10+10)
+    Unicode            340k ± 0%         340k ± 0%  -0.01%  (p=0.014 n=10+10)
+    GoTypes           1.18M ± 0%        1.18M ± 0%  -0.04%  (p=0.000 n=10+10)
+    Compiler          4.97M ± 0%        4.97M ± 0%  -0.03%  (p=0.000 n=10+10)
+    SSA               12.3M ± 0%        12.3M ± 0%  -0.01%  (p=0.000 n=10+10)
+    Flate              226k ± 0%         225k ± 0%  -0.09%  (p=0.000 n=10+10)
+    GoParser           283k ± 0%         283k ± 0%  -0.06%  (p=0.000 n=10+9)
+    Reflect            972k ± 0%         971k ± 0%  -0.04%  (p=0.000 n=10+8)
+    Tar                333k ± 0%         332k ± 0%  -0.05%  (p=0.000 n=10+9)
+    XML                395k ± 0%         395k ± 0%  -0.04%  (p=0.000 n=10+10)
+    [Geo mean]         764k              764k       -0.04%
+    
+    Updates #24543.
+    
+    Change-Id: I6fdc46e4ddb6a8eea95d38242345205eb8397f0b
+    Reviewed-on: https://go-review.googlesource.com/110177
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go    |   8 ++-
+ src/cmd/compile/internal/gc/plive.go | 105 +++++++++++++++++++----------------
+ 2 files changed, 65 insertions(+), 48 deletions(-)

@@ -1,0 +1,19 @@
+commit c84ae1c49970453158b511c54d5df63e438d2ce9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 10:28:59 2015 -0500
+
+    runtime: eliminate write barriers from mem_plan9.go
+    
+    This replaces *memHdr with memHdrPtr.
+    
+    Updates #10600.
+    
+    Change-Id: I673aa2cd20f29abec8ab91ed7e783718c8479ce1
+    Reviewed-on: https://go-review.googlesource.com/17009
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/mem_plan9.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

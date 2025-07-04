@@ -1,0 +1,15 @@
+commit 949ab5c7ff51c498683f06650dd722d7617bdd81
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jul 25 17:03:27 2008 -0700
+
+    select
+    
+    R=r
+    APPROVED=r
+    DELTA=41  (24 added, 13 deleted, 4 changed)
+    OCL=13480
+    CL=13480
+
+ src/cmd/gc/walk.c  | 36 +++++++++++++++++++++++++++---------
+ src/runtime/chan.c |  9 +--------
+ 2 files changed, 28 insertions(+), 17 deletions(-)

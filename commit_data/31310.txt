@@ -1,0 +1,20 @@
+commit a73a330cdfba1d9960f4e8de3f238a00caba1a14
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 23 16:34:35 2017 -0700
+
+    cmd/compile: count init functions from 0, not 1
+    
+    While we're here, do minor style cleanup.
+    Also, since we know exactly how many init
+    functions there are, use that knowledge.
+    
+    This is cleanup prior to a more substantive CL.
+    
+    Change-Id: I2bba60b3c051c852590f798f45e8268f8bc54ca8
+    Reviewed-on: https://go-review.googlesource.com/41499
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/init.go | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)

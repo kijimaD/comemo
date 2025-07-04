@@ -1,0 +1,39 @@
+commit d066e02adc0f343b178a0d8191e719e1218ffe80
+Author: Julian Phillips <julian@quantumfyre.co.uk>
+Date:   Thu Oct 27 17:45:07 2011 +0900
+
+    goinstall: More intelligent vcs selection for common sites
+    
+    goinstall has built in support for a few common code hosting sites.  The
+    identification of which vcs tool should be used was based purely on a
+    regex match against the provided import path.  The problem with this
+    approach is that it requires distinct import paths for different vcs
+    tools on the same site.
+    
+    Since bitbucket has recently starting hosting Git repositories under the
+    same bitbucket.org/user/project scheme as it already hosts Mercurial
+    repositories, now would seem a good time to take a more flexible
+    approach.
+    
+    We still match the import path against a list of regexes, but now the
+    match is purely to distinguish the different hosting sites.  Once the
+    site is identified, the specified function is called with the repo and
+    path matched out of the import string.  This function is responsible for
+    creating the vcsMatch structure that tells us what we need to download
+    the code.
+    
+    For github and launchpad, only one vcs tool is currently supported, so
+    these functions can simply return a vcsMatch structure.  For googlecode,
+    we retain the behaviour of determing the vcs from the import path - but
+    now it is done by the function instead of the regex.  For bitbucket, we
+    use api.bitbucket.org to find out what sort of repository the specified
+    import path corresponds to - and then construct the appropriate vcsMatch
+    structure.
+    
+    R=golang-dev, adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/5306069
+
+ src/cmd/goinstall/doc.go      |   2 +-
+ src/cmd/goinstall/download.go | 122 ++++++++++++++++++++++++++++++++----------
+ 2 files changed, 94 insertions(+), 30 deletions(-)

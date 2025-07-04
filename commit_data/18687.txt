@@ -1,0 +1,21 @@
+commit 67b8bf3e32ec0bcc79453caeea9595a3ca036929
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 27 18:29:00 2014 -0800
+
+    net/http: add optional Server.ConnState callback
+    
+    Update #4674
+    
+    This allows for all sorts of graceful shutdown policies,
+    without picking a policy (e.g. lameduck period) and without
+    adding lots of locking to the server core. That policy and
+    locking can be implemented outside of net/http now.
+    
+    LGTM=adg
+    R=golang-codereviews, josharian, r, adg, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/69260044
+
+ src/pkg/net/http/serve_test.go | 115 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  67 ++++++++++++++++++++++++
+ 2 files changed, 182 insertions(+)

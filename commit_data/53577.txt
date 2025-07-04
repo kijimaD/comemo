@@ -1,0 +1,31 @@
+commit 3c8b7a95513c088f02483aa876e16263cbc7ee52
+Author: Al Cutter <al@google.com>
+Date:   Thu Jun 15 15:23:12 2023 +0000
+
+    net/http: check RemoteAddr isn't nil before dereferencing
+    
+    RemoteAddr can return nil in some cases, this fix prevents a panic.
+    
+    I chatted with @neild about this beforehand, but what's happening in our
+    case is that a connection comes in to the HTTP server which is then
+    immediately closed (we discovered this issue by accident using nmap).
+    The network implementation that we're using (it happens to be gVisor
+    via its gonet adaptor) is returning nil from RemoteAddr(), presumably
+    as there is no remote at that point.
+    
+    But, ultimately, since RemoteAddr returns an interface it is always
+    possible for it to return nil, and indeed conn.RemoteAddr in this file
+    does exactly that if the conn is not ok.
+    
+    Change-Id: Ibe67ae6e30b68e2776df5ee2911bf5f1dc539641
+    GitHub-Last-Rev: ff3505d1d0b00ca16c68ec2a05f542978b79b170
+    GitHub-Pull-Request: golang/go#60823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503656
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

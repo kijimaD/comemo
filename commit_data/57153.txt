@@ -1,0 +1,27 @@
+commit 0253c0f4acdf9f7a2930609f55d24b334fa7d3c2
+Author: Tim King <taking@google.com>
+Date:   Mon Aug 5 12:57:33 2024 -0700
+
+    cmd/compile/internal/types2: change inference error message
+    
+    Changes the type inference error message so that the position is
+    proceeded by a space. cmd/go rewrites the output of gc to replace
+    absolute paths at the beginning of lines and those proceeded by a
+    space or a tab to relative paths.
+    
+    Updates testdir to do the same post processing on the output
+    of tests as cmd/go.
+    
+    Fixes #68292
+    
+    Change-Id: Ie109b51143e68f6e7ab4cd19064110db0e609a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603097
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/infer.go |  2 +-
+ src/cmd/internal/testdir/testdir_test.go | 22 +++++++++++++++++++++-
+ src/go/types/infer.go                    |  2 +-
+ test/fixedbugs/issue68292.go             | 12 ++++++++++++
+ 4 files changed, 35 insertions(+), 3 deletions(-)

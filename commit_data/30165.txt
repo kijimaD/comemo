@@ -1,0 +1,24 @@
+commit 4f6d4bb3f4461e7e25eff24254115b689495e834
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Feb 8 10:32:22 2017 -0800
+
+    database/sql: do not exhaust connection pool on conn request timeout
+    
+    Previously if a context was canceled while it was waiting for a
+    connection request, that connection request would leak.
+    
+    To prevent this remove the pending connection request if the
+    context is canceled and ensure no connection has been sent on the channel.
+    This requires a change to how the connection requests are represented in the DB.
+    
+    Fixes #18995
+    
+    Change-Id: I9a274b48b8f4f7ca46cdee166faa38f56d030852
+    Reviewed-on: https://go-review.googlesource.com/36563
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 49 +++++++++++++++++++++++++++----------
+ src/database/sql/sql_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 13 deletions(-)

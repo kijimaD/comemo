@@ -1,0 +1,14 @@
+commit f4d714ca2def2b1435b2f36cda55e38e49f2fb60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 30 11:31:06 2010 -0800
+
+    Match gccgo error message.
+    
+    bug231.go:20:4: error: incompatible types in assignment (type has no methods)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194156
+
+ test/fixedbugs/bug231.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

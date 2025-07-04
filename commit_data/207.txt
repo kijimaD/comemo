@@ -1,0 +1,20 @@
+commit aeb43984ec7c86aee220cc56146e0127de4ce2e3
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 21 15:36:23 2008 -0700
+
+    add signal handling and traceback support therein.
+    factor the runtime into architecture-dependent and -independent pieces.
+    ditto for the OS dependence.
+    
+    SVN=124020
+
+ src/cmd/6l/obj.c               |  7 ++++
+ src/runtime/make.bash          |  9 +++++
+ src/runtime/rt0_amd64_linux.s  | 19 +++++++++++
+ src/runtime/rt1_amd64_darwin.c | 11 +++++++
+ src/runtime/rt1_amd64_linux.c  | 75 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/rt2_amd64.c        | 68 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.c          | 62 +++-------------------------------
+ src/runtime/runtime.h          |  8 +++++
+ src/runtime/signals.h          | 40 ++++++++++++++++++++++
+ 9 files changed, 241 insertions(+), 58 deletions(-)

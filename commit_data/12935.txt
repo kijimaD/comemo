@@ -1,0 +1,15 @@
+commit 5583060c4cc16951d6a4d43daa73519bbd2ba8ee
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Apr 23 15:39:01 2012 -0400
+
+    cmd/gc: fix addresses escaping through closures called in-place.
+    
+    Fixes #3545.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6061043
+
+ src/cmd/gc/esc.c |  70 ++++++++++++++++------------
+ test/escape2.go  | 137 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 175 insertions(+), 32 deletions(-)

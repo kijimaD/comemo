@@ -1,0 +1,12 @@
+commit 74607d18c5355aed38b3354c64b307af96780e68
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Apr 16 17:36:02 2012 -0700
+
+    os: avoid panic when testing errors on Plan 9
+    
+    R=golang-dev, bradfitz, akumar
+    CC=golang-dev
+    https://golang.org/cl/6017043
+
+ src/pkg/os/error_plan9.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,35 @@
+commit 105f9d51691d996c1698811ca3906b505639f49b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 12 14:50:50 2023 -0400
+
+    os/exec: simplify Windows-specific tests
+    
+    - Use the test binary itself for printing paths instead of building a
+      separate binary and running it through additional subprocesses.
+    
+    - Factor out a common chdir helper.
+    
+    - Use t.Setenv where appropriate.
+    
+    - Reduce indirection in test helpers.
+    
+    - Set NoDefaultCurrentDirectoryInExePath consistently in the
+      environment.
+    
+    Also add a test case demonstrating an interesting behavior for
+    relative paths that may interact with #62596.
+    
+    Fixes #62594.
+    For #62596.
+    
+    Change-Id: I19b9325034edf78cd0ca747594476cd7432bb451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528035
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/exec/dot_test.go        |  15 +-
+ src/os/exec/exec_test.go       |  37 ++
+ src/os/exec/lp_unix_test.go    |  23 +-
+ src/os/exec/lp_windows_test.go | 748 +++++++++++++++++++----------------------
+ 4 files changed, 400 insertions(+), 423 deletions(-)

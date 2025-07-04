@@ -1,0 +1,59 @@
+commit 3bd8684facfadb57ba649cae6b067e3a3ecb1208
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 24 10:51:39 2012 -0700
+
+    math/big: minor tweaks to assembly code (slightly better performance)
+    
+    Benchmarks run on 2.8GHz Quad-Code Intel Xeon,
+    4GB 800MHz DDR2 FB-DIMM ("PowerMac").
+    
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkAddVV_1              7            7   -0.82%
+    BenchmarkAddVV_2              8            8   -3.46%
+    BenchmarkAddVV_3             10            9   -4.81%
+    BenchmarkAddVV_4              9            9   -1.89%
+    BenchmarkAddVV_5             11           10   -5.22%
+    BenchmarkAddVV_1e1           17           18   +4.05%
+    BenchmarkAddVV_1e2          117          115   -1.71%
+    BenchmarkAddVV_1e3         1095         1090   -0.46%
+    BenchmarkAddVV_1e4        13149        12679   -3.57%
+    BenchmarkAddVV_1e5       135133       129482   -4.18%
+    BenchmarkAddVW_1              6            6   -1.14%
+    BenchmarkAddVW_2              7            7   +3.78%
+    BenchmarkAddVW_3              8            8   +0.12%
+    BenchmarkAddVW_4              8            8   -6.52%
+    BenchmarkAddVW_5              9            8   -3.70%
+    BenchmarkAddVW_1e1           14           13   -4.29%
+    BenchmarkAddVW_1e2           97           96   -1.33%
+    BenchmarkAddVW_1e3          953          940   -1.36%
+    BenchmarkAddVW_1e4         9776         9527   -2.55%
+    BenchmarkAddVW_1e5       102396        97738   -4.55%
+    
+    benchmark              old MB/s     new MB/s  speedup
+    BenchmarkAddVV_1        8702.84      8774.56    1.01x
+    BenchmarkAddVV_2       14739.60     15277.82    1.04x
+    BenchmarkAddVV_3       18375.37     19398.16    1.06x
+    BenchmarkAddVV_4       26935.44     27464.68    1.02x
+    BenchmarkAddVV_5       27754.04     29423.30    1.06x
+    BenchmarkAddVV_1e1     37050.89     35629.72    0.96x
+    BenchmarkAddVV_1e2     54289.15     55533.24    1.02x
+    BenchmarkAddVV_1e3     58428.83     58682.53    1.00x
+    BenchmarkAddVV_1e4     48670.55     50475.99    1.04x
+    BenchmarkAddVV_1e5     47360.54     49427.66    1.04x
+    BenchmarkAddVW_1       10397.27     10502.23    1.01x
+    BenchmarkAddVW_2       17279.03     16654.13    0.96x
+    BenchmarkAddVW_3       23858.39     23825.89    1.00x
+    BenchmarkAddVW_4       29799.42     31895.06    1.07x
+    BenchmarkAddVW_5       34781.83     36105.11    1.04x
+    BenchmarkAddVW_1e1     45629.88     47597.42    1.04x
+    BenchmarkAddVW_1e2     65341.93     66240.04    1.01x
+    BenchmarkAddVW_1e3     67153.67     68069.83    1.01x
+    BenchmarkAddVW_1e4     65464.60     67173.83    1.03x
+    BenchmarkAddVW_1e5     62501.88     65480.66    1.05x
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6484056
+
+ src/pkg/math/big/arith_amd64.s | 70 ++++++++++++++++++++----------------------
+ 1 file changed, 33 insertions(+), 37 deletions(-)

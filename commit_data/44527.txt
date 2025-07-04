@@ -1,0 +1,29 @@
+commit c5a1c2276ee41a65cce93b7e443d333dfa29aba7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 17 19:28:33 2021 +0000
+
+    reflect: use global variables for register count
+    
+    This change switches reflect to use global variables for ABI-related
+    register counts instead of internal/abi constants. The advantage of
+    doing so is that we can make the internal/abi constants non-zero and
+    enable the runtime register argument spiller/unspiller even if they're
+    not used. It's basically turning two things we need to flip when we
+    switch to the register ABI into one.
+    
+    It also paves the way for testing the reflect register ABI path
+    independently, because now we can switch the global variables at will
+    and run the register-assignment algorithm in tests without having the
+    rest of the runtime be broken.
+    
+    Change-Id: Ie23629a37a5c80aeb24909d4bd9eacbd3f0c06d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293149
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/abi/abi_amd64.go | 10 +++-------
+ src/reflect/abi.go            | 28 ++++++++++++++++++++++++++--
+ src/runtime/asm_amd64.s       |  5 +----
+ 3 files changed, 30 insertions(+), 13 deletions(-)

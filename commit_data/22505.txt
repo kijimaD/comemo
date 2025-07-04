@@ -1,0 +1,16 @@
+commit 2c89992f445a631da250517d6f9b9fcd7852872e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 9 16:03:12 2015 -0700
+
+    io: add CopyBuffer, a version of Copy in which the user provides a buffer
+    
+    This trivial addition to the io package makes it easy to control the
+    buffer size and allocation properties of io.Copy.
+    
+    Change-Id: Ica1a6bd015e429d4e655bc0c6f66cea21c454acf
+    Reviewed-on: https://go-review.googlesource.com/8730
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/io.go      | 26 ++++++++++++++++++++++----
+ src/io/io_test.go | 22 +++++++++++++++++++++-
+ 2 files changed, 43 insertions(+), 5 deletions(-)

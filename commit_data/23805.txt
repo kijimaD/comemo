@@ -1,0 +1,19 @@
+commit 74ec5bf2d88364a9f29ab0468a3285e82abe5eb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 02:23:14 2015 -0400
+
+    runtime: make pcln table check not trigger next to foreign code
+    
+    Foreign code can be arbitrarily aligned,
+    so the function before it can have
+    arbitrarily much padding.
+    We can't call pcvalue on values in the padding.
+    
+    Fixes #11653.
+    
+    Change-Id: I7d57f813ae5a2409d1520fcc909af3eeef2da131
+    Reviewed-on: https://go-review.googlesource.com/12550
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/symtab.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

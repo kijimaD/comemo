@@ -1,0 +1,26 @@
+commit 25d74f324dde687e1bbf486ef444a1f73f48f4eb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 12:31:33 2022 -0700
+
+    cmd/compile/internal/inline: fix latent CalleeEffects issue
+    
+    ir.ClosureExpr implements ir.InitNode, so ir.InitExpr can prepend init
+    statements to it. However, CalleeEffects wasn't aware of this and
+    could cause the init statements to get dropped when inlining a call to
+    a closure.
+    
+    This isn't an issue today, because we don't create closures with init
+    statements. But I ran into this within unified IR.
+    
+    Easy and robust solution: just take advantage that ir.TakeInit can
+    handle any node.
+    
+    Change-Id: Ica05fbf6a8c5be4b11927daf84491a1140da5431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422196
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

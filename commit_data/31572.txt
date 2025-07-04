@@ -1,0 +1,24 @@
+commit 9e83c11fca44282e4b8b1e099f437f557b73b43e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 15:54:12 2017 -0400
+
+    runtime/pprof: expand inlined frames in symbolized proto profiles
+    
+    Currently proto symbolization uses runtime.FuncForPC and assumes each
+    PC maps to a single frame. This isn't true in the presence of inlining
+    (even with leaf-only inlining this can get incorrect results).
+    
+    Change PC symbolization to use runtime.CallersFrames to expand each PC
+    to all of the frames at that PC.
+    
+    Change-Id: I8d20dff7495a5de495ae07f569122c225d433ced
+    Reviewed-on: https://go-review.googlesource.com/41256
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/pprof.go      |  4 +-
+ src/runtime/pprof/pprof_test.go | 27 ++++++++++++
+ src/runtime/pprof/proto.go      | 98 +++++++++++++++++++++++++----------------
+ src/runtime/pprof/protomem.go   |  5 +--
+ 4 files changed, 91 insertions(+), 43 deletions(-)

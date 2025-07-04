@@ -1,0 +1,28 @@
+commit a671e33c6daded6639e0cd97b4791c4468475e71
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Thu Nov 12 17:42:58 2020 -0500
+
+    all: use more precise build tags
+    
+    s/!gccgo/gc/ in files which use gc-syntax assembly.
+    
+    Change-Id: Ifdadb62edd1210ebc70e7cd415648b752afaf067
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269957
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: David Chase <drchase@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/test/testdata/issue9400/asm_386.s     | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_amd64x.s  | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_arm.s     | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_arm64.s   | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_mips64x.s | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_mipsx.s   | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_ppc64x.s  | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_riscv64.s | 2 +-
+ misc/cgo/test/testdata/issue9400/asm_s390x.s   | 2 +-
+ misc/cgo/testshared/testdata/depBase/asm.s     | 2 +-
+ misc/cgo/testshared/testdata/depBase/stubs.go  | 2 +-
+ src/cmd/dist/util_gc.go                        | 4 ++--
+ src/cmd/go/testdata/script/build_overlay.txt   | 2 +-
+ 13 files changed, 14 insertions(+), 14 deletions(-)

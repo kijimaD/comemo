@@ -1,0 +1,13 @@
+commit 6419bbbfd310d0e48b3de60c8891a8f0fcc98b6f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 23 16:40:13 2012 +1100
+
+    weekly.2012-02-22
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5698043
+
+ .hgtags               |   1 -
+ doc/devel/weekly.html | 119 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+), 1 deletion(-)

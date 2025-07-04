@@ -1,0 +1,23 @@
+commit c23f647e841a511562e0f47097d36bd3253db656
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 22 10:43:01 2010 +1000
+
+    doc: variable-width layout
+    
+    The front page remains fixed-width.
+    All other pages should look good in windows >=500px wide.
+    
+    Includes additional styles for search result highlighting,
+    code comments, and general CSS clean-ups.
+    
+    Tested with Chrome 6, Firefox 3.6, IE 7, and IE 8.
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/2229041
+
+ doc/all.css          | 114 ++++++++++++++++++++++++++++++---------------------
+ doc/frontpage.css    |  16 +++++++-
+ doc/root.html        |   6 ++-
+ lib/godoc/godoc.html |   3 +-
+ 4 files changed, 88 insertions(+), 51 deletions(-)

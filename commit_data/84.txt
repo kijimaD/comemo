@@ -1,0 +1,11 @@
+commit f1880579ef1c70833864dcf4b220e7557f53fc1b
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 4 15:33:59 2008 -0700
+
+    loaded problem getting main from a library
+    
+    SVN=121175
+
+ src/cmd/gc/go.h  | 2 +-
+ src/cmd/gc/lex.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 5689e6472c36de82ea1bfc1c8049634d0ff30743
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 21 00:05:19 2009 -0700
+
+    update golden for bug 143
+    
+    R=dsymonds
+    DELTA=6  (6 added, 0 deleted, 0 changed)
+    OCL=27654
+    CL=27654
+
+ test/golden.out | 6 ++++++
+ 1 file changed, 6 insertions(+)

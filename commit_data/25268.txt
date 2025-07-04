@@ -1,0 +1,13 @@
+commit c1cbe5b577b1bfdc34be18f391ab82904b6530f2
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 11 17:50:02 2015 -0500
+
+    runtime: check for spanBytesAlloc underflow
+    
+    Change-Id: I5e6739ff0c6c561195ed9891fb90f933b81e7750
+    Reviewed-on: https://go-review.googlesource.com/17746
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgcsweep.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

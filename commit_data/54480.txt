@@ -1,0 +1,16 @@
+commit a9cfbec17b12166c56aeb9808b5d1b7393e90f43
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 16 11:15:08 2023 -0400
+
+    cmd/compile/internal/inlheur: minor debug trace changes
+    
+    Minor changes to debug tracing and to the -d=dumpinlfuncprops
+    debug flag implementation.
+    
+    Change-Id: Ibaefd489c94675ac7f5a04ec0331b7f888c15a49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521818
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 26 +++++++++++++++-------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

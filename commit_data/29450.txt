@@ -1,0 +1,22 @@
+commit 48c6048e554ff4f428aefd41b9345ed5ec634783
+Author: Quentin Smith <quentin@golang.org>
+Date:   Tue Nov 8 16:47:04 2016 -0500
+
+    encoding/xml: check type when unmarshaling innerxml field
+    
+    We only support unmarshaling into a string or a []byte, but we
+    previously would try (and panic while) setting a slice of a different
+    type. The docs say ",innerxml" is ignored if the type is not string or
+    []byte, so do that for other slices as well.
+    
+    Fixes #15600.
+    
+    Change-Id: Ia64815945a14c3d04a0a45ccf413e38b58a69416
+    Reviewed-on: https://go-review.googlesource.com/32919
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/read.go      |  4 +++-
+ src/encoding/xml/read_test.go | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit f7c6f6210be16d6ecfdece7c283fcd4ddc28b151
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 14:57:11 2021 -0400
+
+    cmd/link: test trampolines with cgo
+    
+    Updates #40492, #30949.
+    
+    Change-Id: I6d7923ac83275c5ab08958f7a501f7975aea151a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314456
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/link_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

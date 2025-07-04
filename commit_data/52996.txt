@@ -1,0 +1,275 @@
+commit bf6c55a8b313752667b51194485fa206110d71f9
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 4 12:13:27 2023 -0400
+
+    misc/cgo: move easy tests to cmd/cgo/internal
+    
+    This moves most misc/cgo tests to cmd/cgo/internal. This is mostly a
+    trivial rename and updating dist/test.go for the new paths, plus
+    excluding these packages from regular dist test registration. A few
+    tests were sensitive to what path they ran in, so we update those.
+    
+    This will let these tests access facilities in internal/testenv.
+    
+    For #37486.
+    
+    Change-Id: I3ed417c7c22d9b667f2767c0cb1f59118fcd4af6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492720
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/doc.go                                 |  2 +-
+ .../cgo/internal}/testcarchive/carchive_test.go    |  0
+ .../cgo/internal}/testcarchive/overlaydir_test.go  |  0
+ .../internal}/testcarchive/testdata/libgo/libgo.go |  0
+ .../testcarchive/testdata/libgo2/libgo2.go         |  0
+ .../testcarchive/testdata/libgo3/libgo3.go         |  0
+ .../testcarchive/testdata/libgo4/libgo4.go         |  0
+ .../testcarchive/testdata/libgo6/sigprof.go        |  0
+ .../internal}/testcarchive/testdata/libgo7/sink.go |  0
+ .../internal}/testcarchive/testdata/libgo8/a.go    |  0
+ .../cmd/cgo/internal}/testcarchive/testdata/main.c |  0
+ .../cgo/internal}/testcarchive/testdata/main2.c    |  2 +-
+ .../cgo/internal}/testcarchive/testdata/main3.c    |  2 +-
+ .../cgo/internal}/testcarchive/testdata/main4.c    |  0
+ .../cgo/internal}/testcarchive/testdata/main5.c    |  0
+ .../cgo/internal}/testcarchive/testdata/main6.c    |  0
+ .../cgo/internal}/testcarchive/testdata/main7.c    |  0
+ .../cgo/internal}/testcarchive/testdata/main8.c    |  0
+ .../internal}/testcarchive/testdata/main_unix.c    |  0
+ .../internal}/testcarchive/testdata/main_windows.c |  0
+ .../cmd/cgo/internal}/testcarchive/testdata/p/p.go |  0
+ .../cmd/cgo/internal}/testcshared/cshared_test.go  |  0
+ .../cgo/internal}/testcshared/overlaydir_test.go   |  0
+ .../testcshared/testdata/go2c2go/go/shlib.go       |  0
+ .../internal}/testcshared/testdata/go2c2go/m1/c.c  |  0
+ .../testcshared/testdata/go2c2go/m1/main.go        |  0
+ .../testcshared/testdata/go2c2go/m2/main.go        |  0
+ .../testcshared/testdata/issue36233/issue36233.go  |  0
+ .../internal}/testcshared/testdata/libgo/libgo.go  |  0
+ .../internal}/testcshared/testdata/libgo2/dup2.go  |  0
+ .../internal}/testcshared/testdata/libgo2/dup3.go  |  0
+ .../testcshared/testdata/libgo2/libgo2.go          |  0
+ .../testcshared/testdata/libgo4/libgo4.go          |  0
+ .../testcshared/testdata/libgo5/libgo5.go          |  0
+ .../cmd/cgo/internal}/testcshared/testdata/main0.c |  0
+ .../cmd/cgo/internal}/testcshared/testdata/main1.c |  0
+ .../cmd/cgo/internal}/testcshared/testdata/main2.c |  0
+ .../cmd/cgo/internal}/testcshared/testdata/main3.c |  0
+ .../cmd/cgo/internal}/testcshared/testdata/main4.c |  2 +-
+ .../cmd/cgo/internal}/testcshared/testdata/main5.c |  2 +-
+ .../cmd/cgo/internal}/testcshared/testdata/p/p.go  |  0
+ .../cgo/internal/testerrors}/argposition_test.go   |  0
+ .../cmd/cgo/internal/testerrors}/badsym_test.go    |  0
+ .../cmd/cgo/internal/testerrors}/errors_test.go    |  0
+ .../cmd/cgo/internal/testerrors}/ptr_test.go       |  0
+ .../cmd/cgo/internal/testerrors}/testdata/err1.go  |  0
+ .../cmd/cgo/internal/testerrors}/testdata/err2.go  |  0
+ .../cmd/cgo/internal/testerrors}/testdata/err4.go  |  0
+ .../internal/testerrors}/testdata/issue11097a.go   |  0
+ .../internal/testerrors}/testdata/issue11097b.go   |  0
+ .../internal/testerrors}/testdata/issue14669.go    |  0
+ .../internal/testerrors}/testdata/issue18452.go    |  0
+ .../internal/testerrors}/testdata/issue18889.go    |  0
+ .../internal/testerrors}/testdata/issue28069.go    |  0
+ .../internal/testerrors}/testdata/issue28721.go    |  0
+ .../internal/testerrors}/testdata/issue33061.go    |  0
+ .../internal/testerrors}/testdata/issue42580.go    |  0
+ .../internal/testerrors}/testdata/issue50710.go    |  0
+ .../testerrors}/testdata/long_double_size.go       |  0
+ .../cgo/internal/testerrors}/testdata/malloc.go    |  0
+ .../cmd/cgo/internal/testfortran}/fortran_test.go  |  2 +-
+ .../testdata}/helloworld/helloworld.f90            |  0
+ .../testfortran}/testdata/testprog/answer.f90      |  0
+ .../testfortran}/testdata/testprog/fortran.go      |  0
+ .../cgo/internal}/testgodefs/testdata/anonunion.go |  0
+ .../cgo/internal}/testgodefs/testdata/bitfields.go |  0
+ .../internal}/testgodefs/testdata/fieldtypedef.go  |  0
+ .../internal}/testgodefs/testdata/issue37479.go    |  0
+ .../internal}/testgodefs/testdata/issue37621.go    |  0
+ .../internal}/testgodefs/testdata/issue38649.go    |  0
+ .../internal}/testgodefs/testdata/issue39534.go    |  0
+ .../internal}/testgodefs/testdata/issue48396.go    |  0
+ .../cgo/internal}/testgodefs/testdata/issue8478.go |  0
+ .../cmd/cgo/internal}/testgodefs/testdata/main.go  |  0
+ .../cgo/internal}/testgodefs/testgodefs_test.go    |  0
+ .../cmd/cgo/internal/testlife}/life_test.go        |  0
+ .../cmd/cgo/internal/testlife}/overlaydir_test.go  |  0
+ .../cmd/cgo/internal/testlife}/testdata/c-life.c   |  0
+ .../cmd/cgo/internal/testlife}/testdata/life.go    |  0
+ .../cmd/cgo/internal/testlife}/testdata/life.h     |  0
+ .../cmd/cgo/internal/testlife}/testdata/main.go    |  0
+ .../cmd/cgo/internal/testlife}/testdata/main.out   |  0
+ .../testplugin/altpath/testdata/common/common.go   |  0
+ .../altpath/testdata/plugin-mismatch/main.go       |  0
+ .../cgo/internal}/testplugin/overlaydir_test.go    |  0
+ .../cmd/cgo/internal}/testplugin/plugin_test.go    |  2 +-
+ .../testplugin/testdata/checkdwarf/main.go         |  0
+ .../internal}/testplugin/testdata/common/common.go |  0
+ .../internal}/testplugin/testdata/forkexec/main.go |  0
+ .../cgo/internal}/testplugin/testdata/host/host.go |  0
+ .../internal}/testplugin/testdata/iface/main.go    |  0
+ .../cgo/internal}/testplugin/testdata/iface_a/a.go |  0
+ .../cgo/internal}/testplugin/testdata/iface_b/b.go |  0
+ .../cgo/internal}/testplugin/testdata/iface_i/i.go |  0
+ .../testplugin/testdata/issue18584/main.go         |  0
+ .../testplugin/testdata/issue18584/plugin.go       |  0
+ .../issue18676/dynamodbstreamsevt/definition.go    |  0
+ .../testplugin/testdata/issue18676/main.go         |  0
+ .../testplugin/testdata/issue18676/plugin.go       |  0
+ .../testplugin/testdata/issue19418/main.go         |  0
+ .../testplugin/testdata/issue19418/plugin.go       |  0
+ .../testplugin/testdata/issue19529/plugin.go       |  0
+ .../testplugin/testdata/issue19534/main.go         |  0
+ .../testplugin/testdata/issue19534/plugin.go       |  0
+ .../testplugin/testdata/issue22175/main.go         |  0
+ .../testplugin/testdata/issue22175/plugin1.go      |  0
+ .../testplugin/testdata/issue22175/plugin2.go      |  0
+ .../testplugin/testdata/issue22295.pkg/main.go     |  0
+ .../testplugin/testdata/issue22295.pkg/plugin.go   |  0
+ .../testplugin/testdata/issue24351/main.go         |  0
+ .../testplugin/testdata/issue24351/plugin.go       |  0
+ .../testplugin/testdata/issue25756/main.go         |  0
+ .../testplugin/testdata/issue25756/plugin/c-life.c |  0
+ .../testplugin/testdata/issue25756/plugin/life.go  |  0
+ .../testplugin/testdata/issue25756/plugin/life.h   |  0
+ .../testplugin/testdata/issue44956/base/base.go    |  0
+ .../testplugin/testdata/issue44956/main.go         |  0
+ .../testplugin/testdata/issue44956/plugin1.go      |  0
+ .../testplugin/testdata/issue44956/plugin2.go      |  0
+ .../testplugin/testdata/issue52937/main.go         |  0
+ .../testplugin/testdata/issue53989/main.go         |  0
+ .../testplugin/testdata/issue53989/p/p.go          |  0
+ .../testplugin/testdata/issue53989/plugin.go       |  0
+ .../internal}/testplugin/testdata/method/main.go   |  0
+ .../internal}/testplugin/testdata/method/plugin.go |  0
+ .../internal}/testplugin/testdata/method2/main.go  |  0
+ .../internal}/testplugin/testdata/method2/p/p.go   |  0
+ .../testplugin/testdata/method2/plugin.go          |  0
+ .../internal}/testplugin/testdata/method3/main.go  |  0
+ .../internal}/testplugin/testdata/method3/p/p.go   |  0
+ .../testplugin/testdata/method3/plugin.go          |  0
+ .../testplugin/testdata/plugin1/plugin1.go         |  0
+ .../testplugin/testdata/plugin2/plugin2.go         |  0
+ .../testplugin/testdata/sub/plugin1/plugin1.go     |  0
+ .../internal}/testplugin/testdata/unnamed1/main.go |  0
+ .../internal}/testplugin/testdata/unnamed2/main.go |  0
+ .../cmd/cgo/internal}/testsanitizers/asan_test.go  |  2 +-
+ .../cmd/cgo/internal}/testsanitizers/cc_test.go    |  4 +--
+ .../cgo/internal}/testsanitizers/cshared_test.go   |  0
+ .../cgo/internal}/testsanitizers/libfuzzer_test.go |  0
+ .../cmd/cgo/internal}/testsanitizers/msan_test.go  |  0
+ .../testsanitizers/testdata/arena_fail.go          |  0
+ .../testsanitizers/testdata/asan1_fail.go          |  0
+ .../testsanitizers/testdata/asan2_fail.go          |  0
+ .../testsanitizers/testdata/asan3_fail.go          |  0
+ .../testsanitizers/testdata/asan4_fail.go          |  0
+ .../testsanitizers/testdata/asan5_fail.go          |  0
+ .../testsanitizers/testdata/asan_global1_fail.go   |  0
+ .../testsanitizers/testdata/asan_global2_fail.go   |  0
+ .../testsanitizers/testdata/asan_global3_fail.go   |  0
+ .../testsanitizers/testdata/asan_global4_fail.go   |  0
+ .../testsanitizers/testdata/asan_global5.go        |  0
+ .../testsanitizers/testdata/asan_linkerx/main.go   |  2 +-
+ .../testsanitizers/testdata/asan_linkerx/p/p.go    |  0
+ .../testsanitizers/testdata/asan_unsafe_fail1.go   |  0
+ .../testsanitizers/testdata/asan_unsafe_fail2.go   |  0
+ .../testsanitizers/testdata/asan_unsafe_fail3.go   |  0
+ .../testsanitizers/testdata/asan_useAfterReturn.go |  0
+ .../testsanitizers/testdata/libfuzzer1.go          |  0
+ .../internal}/testsanitizers/testdata/libfuzzer2.c |  0
+ .../testsanitizers/testdata/libfuzzer2.go          |  0
+ .../cgo/internal}/testsanitizers/testdata/msan.go  |  0
+ .../cgo/internal}/testsanitizers/testdata/msan2.go |  0
+ .../testsanitizers/testdata/msan2_cmsan.go         |  0
+ .../cgo/internal}/testsanitizers/testdata/msan3.go |  0
+ .../cgo/internal}/testsanitizers/testdata/msan4.go |  0
+ .../cgo/internal}/testsanitizers/testdata/msan5.go |  0
+ .../cgo/internal}/testsanitizers/testdata/msan6.go |  0
+ .../cgo/internal}/testsanitizers/testdata/msan7.go |  0
+ .../cgo/internal}/testsanitizers/testdata/msan8.go |  0
+ .../internal}/testsanitizers/testdata/msan_fail.go |  0
+ .../testsanitizers/testdata/msan_shared.go         |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan.go  |  0
+ .../internal}/testsanitizers/testdata/tsan10.go    |  0
+ .../internal}/testsanitizers/testdata/tsan11.go    |  0
+ .../internal}/testsanitizers/testdata/tsan12.go    |  0
+ .../internal}/testsanitizers/testdata/tsan13.go    |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan2.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan3.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan4.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan5.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan6.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan7.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan8.go |  0
+ .../cgo/internal}/testsanitizers/testdata/tsan9.go |  0
+ .../testsanitizers/testdata/tsan_shared.go         |  0
+ .../cmd/cgo/internal}/testsanitizers/tsan_test.go  |  0
+ .../cgo/internal}/testshared/overlaydir_test.go    |  0
+ .../cmd/cgo/internal}/testshared/shared_test.go    |  2 +-
+ .../cgo/internal}/testshared/testdata/dep2/dep2.go |  0
+ .../cgo/internal}/testshared/testdata/dep3/dep3.go |  0
+ .../internal}/testshared/testdata/depBase/asm.s    |  0
+ .../internal}/testshared/testdata/depBase/dep.go   |  0
+ .../internal}/testshared/testdata/depBase/gccgo.go |  0
+ .../internal}/testshared/testdata/depBase/stubs.go |  0
+ .../testshared/testdata/division/division.go       |  0
+ .../cgo/internal}/testshared/testdata/exe/exe.go   |  0
+ .../cgo/internal}/testshared/testdata/exe2/exe2.go |  0
+ .../cgo/internal}/testshared/testdata/exe3/exe3.go |  0
+ .../internal}/testshared/testdata/execgo/exe.go    |  0
+ .../testshared/testdata/explicit/explicit.go       |  0
+ .../testshared/testdata/gcdata/main/main.go        |  0
+ .../internal}/testshared/testdata/gcdata/p/p.go    |  0
+ .../internal}/testshared/testdata/global/main.go   |  0
+ .../testshared/testdata/globallib/global.go        |  0
+ .../internal}/testshared/testdata/iface/main.go    |  0
+ .../cgo/internal}/testshared/testdata/iface_a/a.go |  0
+ .../cgo/internal}/testshared/testdata/iface_b/b.go |  0
+ .../cgo/internal}/testshared/testdata/iface_i/i.go |  0
+ .../testshared/testdata/implicit/implicit.go       |  0
+ .../testshared/testdata/implicitcmd/implicitcmd.go |  0
+ .../internal}/testshared/testdata/issue25065/a.go  |  0
+ .../testdata/issue30768/issue30768lib/lib.go       |  0
+ .../testshared/testdata/issue30768/x_test.go       |  0
+ .../testshared/testdata/issue39777/a/a.go          |  0
+ .../testshared/testdata/issue39777/b/b.go          |  0
+ .../testshared/testdata/issue44031/a/a.go          |  0
+ .../testshared/testdata/issue44031/b/b.go          |  0
+ .../testshared/testdata/issue44031/main/main.go    |  0
+ .../testshared/testdata/issue47837/a/a.go          |  0
+ .../testshared/testdata/issue47837/main/main.go    |  0
+ .../testshared/testdata/issue58966/main.go         |  0
+ .../testshared/testdata/trivial/trivial.go         |  0
+ .../cmd/cgo/internal}/testso/noso_test.go          |  0
+ .../cmd/cgo/internal}/testso/overlaydir_test.go    |  0
+ .../cgo => src/cmd/cgo/internal}/testso/so_test.go |  0
+ .../cmd/cgo/internal}/testso/testdata/cgoso.c      |  0
+ .../cmd/cgo/internal}/testso/testdata/cgoso.go     |  0
+ .../cmd/cgo/internal}/testso/testdata/cgoso_c.c    |  0
+ .../cgo/internal}/testso/testdata/cgoso_unix.go    |  0
+ .../cmd/cgo/internal}/testso/testdata/main.go      |  0
+ .../cmd/cgo/internal}/testsovar/noso_test.go       |  0
+ .../cmd/cgo/internal}/testsovar/overlaydir_test.go |  0
+ .../cmd/cgo/internal}/testsovar/so_test.go         |  0
+ .../cmd/cgo/internal}/testsovar/testdata/cgoso.go  |  0
+ .../cmd/cgo/internal}/testsovar/testdata/cgoso_c.c |  0
+ .../cmd/cgo/internal}/testsovar/testdata/cgoso_c.h |  0
+ .../cmd/cgo/internal}/testsovar/testdata/main.go   |  0
+ .../cmd/cgo/internal/teststdio}/overlaydir_test.go |  0
+ .../cmd/cgo/internal/teststdio}/stdio_test.go      |  0
+ .../cmd/cgo/internal/teststdio}/testdata/chain.go  |  0
+ .../cmd/cgo/internal/teststdio}/testdata/chain.out |  0
+ .../cmd/cgo/internal/teststdio}/testdata/fib.go    |  0
+ .../cmd/cgo/internal/teststdio}/testdata/fib.out   |  0
+ .../cmd/cgo/internal/teststdio}/testdata/hello.go  |  0
+ .../cmd/cgo/internal/teststdio}/testdata/hello.out |  0
+ .../cgo/internal/teststdio}/testdata/stdio/file.go |  2 +-
+ .../internal/teststdio}/testdata/stdio/stdio.go    |  0
+ src/cmd/dist/test.go                               | 40 +++++++++++++++-------
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ src/cmd/go/internal/work/init.go                   |  2 +-
+ 251 files changed, 42 insertions(+), 28 deletions(-)

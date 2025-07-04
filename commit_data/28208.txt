@@ -1,0 +1,14 @@
+commit 6db13e071b8b35b9efc8aeae6434217733ee8e94
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 6 04:11:59 2016 +0000
+
+    syscall: add yet more TestGetfsstat debugging
+    
+    Updates #16937
+    
+    Change-Id: I98aa203176f8f2ca2fcca6e334a65bc60d6f824d
+    Reviewed-on: https://go-review.googlesource.com/28535
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_bsd_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,24 @@
+commit 2d34af0fd6c6cb214c3a5a8f11ef95854667dd92
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 30 08:55:22 2022 +0700
+
+    cmd/compile/internal/walk: fix wrong soleComponent implementation
+    
+    CL 367755 added soleComponent for handling 1-byte type interface conversion.
+    This implementation must be kept in sync with Type.SoleComponent, but it
+    does not. When seeing a blank field in struct, we must continue looking
+    at the field type to find sole component, if any. The current code just
+    terminate immediately, which causes wrong sole component type returned.
+    
+    Fixes #52020
+    
+    Change-Id: I4f506fe094fa7c5532de23467a4f9139476bb0a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/walk/convert.go |  2 +-
+ test/fixedbugs/issue52020.go             | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

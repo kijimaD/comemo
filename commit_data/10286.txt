@@ -1,0 +1,25 @@
+commit ce4eec2e0acf9ec36c34bd42e81bbb2e32f18b81
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 9 09:43:55 2011 +1100
+
+    html: treat <image> as <img>
+    
+    Pass tests1.dat, test 90:
+    <p><image></p>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <img>
+    
+    Also pass test 91:
+    <a><table><a></table><p><a><div><a>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5339052
+
+ src/pkg/html/parse.go      | 3 +++
+ src/pkg/html/parse_test.go | 5 +++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

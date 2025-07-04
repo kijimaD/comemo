@@ -1,0 +1,18 @@
+commit 044f937a73dc9a28c36a6c87d55c2211247e7d63
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jan 25 11:14:57 2021 +0100
+
+    doc/go1.16: fix WalkDir and Walk links
+    
+    Reported by Ben on golang-dev:
+    https://groups.google.com/g/golang-dev/c/gsoj5Vv15j0/m/XR9CYSRkAgAJ
+    
+    For #40700.
+    
+    Change-Id: If4702cf0e9858aaef99c231251dc646a67d1026e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285718
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/go1.16.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

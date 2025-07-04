@@ -1,0 +1,15 @@
+commit 685ecc7f027051f0380dc5c9575595c145eb625a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue May 22 22:09:35 2018 +0200
+
+    internal/cpu: fix test build on ppc64
+    
+    The runtime import is unused.
+    
+    Change-Id: I37fe210256ddafa579d9e6d64f3f0db78581974e
+    Reviewed-on: https://go-review.googlesource.com/114175
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/cpu/cpu_ppc64x_test.go | 1 -
+ 1 file changed, 1 deletion(-)

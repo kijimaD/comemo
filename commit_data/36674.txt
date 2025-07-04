@@ -1,0 +1,20 @@
+commit 2d82465d18520820c52fea6b5e400a692ffdb92a
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Sep 5 18:49:52 2018 +0300
+
+    cmd/compile/internal/gc: treat cap/len as safe in mayAffectMemory
+    
+    OLEN and OCAP can't affect memory state as long as their
+    arguments don't.
+    
+    Re-organized case bodies to avoid duplicating same branches for
+    recursive invocations.
+    
+    Change-Id: I30407143429f7dd1891badb70df88969ed267535
+    Reviewed-on: https://go-review.googlesource.com/133555
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

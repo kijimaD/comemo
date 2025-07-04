@@ -1,0 +1,30 @@
+commit ceef0633b3c5bbf5d17a12d6e663c136b30b3f36
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 24 10:58:56 2024 -0700
+
+    path/filepath, internal/filepathlite: move parts of filepath to filepathlite
+    
+    The path/filepath package needs to depend on the os package to
+    implement Abs, Walk, and other functions. Move the implementation
+    of purely lexical functions from path/filepath into
+    internal/filepathlite, so they can be used by os and
+    other low-level packages.
+    
+    Change-Id: Id211e547d6f1f58c82419695ff2d75cd6cd14a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566556
+    Reviewed-by: Behroz Karimpor <behrozkarimpor201@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/filepathlite/path.go                  | 262 ++++++++++++++++++++-
+ .../filepathlite}/path_nonwindows.go               |   2 +-
+ src/internal/filepathlite/path_plan9.go            |  31 ++-
+ src/internal/filepathlite/path_unix.go             |  31 ++-
+ src/internal/filepathlite/path_windows.go          | 201 +++++++++++++++-
+ src/path/filepath/match.go                         |   3 +-
+ src/path/filepath/path.go                          | 214 ++---------------
+ src/path/filepath/path_plan9.go                    |  19 +-
+ src/path/filepath/path_unix.go                     |  19 +-
+ src/path/filepath/path_windows.go                  | 200 +---------------
+ src/path/filepath/symlink.go                       |   9 +-
+ 11 files changed, 544 insertions(+), 447 deletions(-)

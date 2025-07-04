@@ -1,0 +1,15 @@
+commit 5567b878915f7c2f1e7ee3898125c2cd2b7fe287
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 14 11:27:11 2016 -0700
+
+    spec: fix examples for predeclared function complex
+    
+    Fixes #17398.
+    
+    Change-Id: Iac7899031c1bfbadc4f84e5b374eaf1f01dff8c8
+    Reviewed-on: https://go-review.googlesource.com/31190
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit d168ad18e15c4e052260bb8c3446c90ab46fdde0
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Jun 28 02:20:22 2025 +0200
+
+    slices: update TestIssue68488 to avoid false positives
+    
+    Fixes #74387
+    
+    Even tho we are abusing unsafe.SliceData a bit here it's probably fine;
+    in case this test fail, it means some memory alias is happening
+    which is not good for GC purposes.
+    
+    We don't care about false keep alives for stack locations tho.
+    
+    Change-Id: I9434bad8c6d9fbc39c738690617dc7cf91d82aef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684755
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/slices/slices_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

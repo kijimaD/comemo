@@ -1,0 +1,15 @@
+commit 3eaaed5030a531d11a228353b3f964e4b0227ba7
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jun 24 13:23:02 2013 -0700
+
+    net/rpc: fix RegisterName rejects "." character.
+    
+    Fixes #5617.
+    
+    R=r, rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/10370043
+
+ src/pkg/net/rpc/server.go      | 11 +++++++----
+ src/pkg/net/rpc/server_test.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

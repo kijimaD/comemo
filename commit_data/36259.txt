@@ -1,0 +1,15 @@
+commit 7a6fc1f30bc7339726cd3f93f96be3e0d36ff7cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 13 16:00:34 2018 +0000
+
+    net/http: update request cancelation docs
+    
+    Fixes #26101
+    
+    Change-Id: Id4def032b846257d2de992b7561ac90a17e08b91
+    Reviewed-on: https://go-review.googlesource.com/129155
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/client.go  | 8 +++-----
+ src/net/http/request.go | 4 ++++
+ 2 files changed, 7 insertions(+), 5 deletions(-)

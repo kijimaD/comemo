@@ -1,0 +1,21 @@
+commit 2119294af9b2a84267de6d701c64ce9634a25045
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Sep 14 16:57:55 2008 -0700
+
+    methods on any type
+    -- but only *struct tested
+    
+    R=r
+    OCL=15326
+    CL=15326
+
+ src/cmd/6g/gsubr.c    |   6 +-
+ src/cmd/6g/obj.c      |  12 +++-
+ src/cmd/gc/dcl.c      | 100 +++++++++++++++-------------
+ src/cmd/gc/export.c   |  21 +++++-
+ src/cmd/gc/go.h       |  14 ++--
+ src/cmd/gc/go.y       |   9 ++-
+ src/cmd/gc/walk.c     | 176 +++++++++++++++++---------------------------------
+ src/runtime/print.c   |   7 +-
+ src/runtime/runtime.c |   1 +
+ 9 files changed, 169 insertions(+), 177 deletions(-)

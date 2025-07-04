@@ -1,0 +1,14 @@
+commit a773fae808709764bf03e0ba42238880fac639e4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 2 11:27:57 2015 +1100
+
+    image/jpeg: distinguish between FormatError and UnsupportedError when
+    encountering unknown markers.
+    
+    Change-Id: Ica86013308d69da2f5b486119235ff693135b2f1
+    Reviewed-on: https://go-review.googlesource.com/6393
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+
+ src/image/jpeg/reader.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

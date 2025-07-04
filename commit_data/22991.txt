@@ -1,0 +1,14 @@
+commit c06b8565558d9060aad39442270e9fd48f2448b6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 12 19:19:29 2015 -0400
+
+    testing: fix typo
+    
+    Fixes #10794.
+    
+    Change-Id: Id91485394ddbadc28c800e1d0c3ec281ba6cd098
+    Reviewed-on: https://go-review.googlesource.com/9990
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

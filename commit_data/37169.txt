@@ -1,0 +1,18 @@
+commit 61d40c8abc82fd845b5e4340bdf0495de0de7ecd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 15 23:00:58 2018 +0000
+
+    runtime: extend ReadMemStatsSlow to re-compute HeapReleased
+    
+    This change extends the test function ReadMemStatsSlow to re-compute
+    the HeapReleased statistic such that it is checked in testing to be
+    consistent with the bookkeeping done in the runtime.
+    
+    Change-Id: I49f5c2620f5731edea8e9f768744cf997dcd7c22
+    Reviewed-on: https://go-review.googlesource.com/c/142397
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

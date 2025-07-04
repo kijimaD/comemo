@@ -1,0 +1,14 @@
+commit 5008927c5c1ad78808697967d1ee834ae653b76c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 17:53:24 2010 -0400
+
+    libcgo: update Makefile to use Make.inc
+    Fix printf format string.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1959044
+
+ src/libcgo/Makefile       | 16 ++++++----------
+ src/libcgo/darwin_amd64.c |  4 ++--
+ 2 files changed, 8 insertions(+), 12 deletions(-)

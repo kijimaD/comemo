@@ -1,0 +1,83 @@
+commit 54dbab5221e02d7a1f983dbaa0b0ef64387146f5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 23 14:46:41 2018 -0700
+
+    cmd/compile: optimize TrailingZeros(8|16) on amd64
+    
+    Introduce Ctz8 and Ctz16 ops and provide optimized lowerings for them.
+    amd64 only for this CL, although it wouldn't surprise me
+    if other architectures also admit of optimized lowerings.
+    
+    name               old time/op  new time/op  delta
+    TrailingZeros8-8   1.33ns ± 6%  0.84ns ± 3%  -36.90%  (p=0.000 n=20+20)
+    TrailingZeros16-8  1.26ns ± 5%  0.84ns ± 5%  -33.50%  (p=0.000 n=20+18)
+    
+    Code:
+    
+    func f8(x uint8)   { z = bits.TrailingZeros8(x) }
+    func f16(x uint16) { z = bits.TrailingZeros16(x) }
+    
+    Before:
+    
+    "".f8 STEXT nosplit size=34 args=0x8 locals=0x0
+            0x0000 00000 (x.go:7)   TEXT    "".f8(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:7)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:7)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:7)   MOVBLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:7)   MOVBLZX AL, AX
+            0x0008 00008 (x.go:7)   BTSQ    $8, AX
+            0x000d 00013 (x.go:7)   BSFQ    AX, AX
+            0x0011 00017 (x.go:7)   MOVL    $64, CX
+            0x0016 00022 (x.go:7)   CMOVQEQ CX, AX
+            0x001a 00026 (x.go:7)   MOVQ    AX, "".z(SB)
+            0x0021 00033 (x.go:7)   RET
+    
+    "".f16 STEXT nosplit size=34 args=0x8 locals=0x0
+            0x0000 00000 (x.go:8)   TEXT    "".f16(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:8)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:8)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:8)   MOVWLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:8)   MOVWLZX AX, AX
+            0x0008 00008 (x.go:8)   BTSQ    $16, AX
+            0x000d 00013 (x.go:8)   BSFQ    AX, AX
+            0x0011 00017 (x.go:8)   MOVL    $64, CX
+            0x0016 00022 (x.go:8)   CMOVQEQ CX, AX
+            0x001a 00026 (x.go:8)   MOVQ    AX, "".z(SB)
+            0x0021 00033 (x.go:8)   RET
+    
+    After:
+    
+    "".f8 STEXT nosplit size=20 args=0x8 locals=0x0
+            0x0000 00000 (x.go:7)   TEXT    "".f8(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:7)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:7)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:7)   MOVBLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:7)   BTSL    $8, AX
+            0x0009 00009 (x.go:7)   BSFL    AX, AX
+            0x000c 00012 (x.go:7)   MOVQ    AX, "".z(SB)
+            0x0013 00019 (x.go:7)   RET
+    
+    "".f16 STEXT nosplit size=20 args=0x8 locals=0x0
+            0x0000 00000 (x.go:8)   TEXT    "".f16(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:8)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:8)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:8)   MOVWLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:8)   BTSL    $16, AX
+            0x0009 00009 (x.go:8)   BSFL    AX, AX
+            0x000c 00012 (x.go:8)   MOVQ    AX, "".z(SB)
+            0x0013 00019 (x.go:8)   RET
+    
+    Change-Id: I0551e357348de2b724737d569afd6ac9f5c3aa11
+    Reviewed-on: https://go-review.googlesource.com/108940
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 14 ++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 12 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 52 +++++++++++++++++++++++---
+ test/codegen/mathbits.go                       |  4 +-
+ 6 files changed, 79 insertions(+), 11 deletions(-)

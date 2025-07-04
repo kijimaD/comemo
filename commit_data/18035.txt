@@ -1,0 +1,17 @@
+commit 8ce584c2aaf3cb3afbb6bf4b8fde340dbe38532a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 17 22:40:13 2013 -0500
+
+    liblink: rewrite '\\' in paths to '/' on windows
+    At least three Go tests rely on that (log, runtime/{pprof,debug}).
+    
+    Fixes #6972.
+    Fixes #6974.
+    Fixes #6975.
+    
+    R=alex.brainman, mattn.jp, rsc
+    CC=golang-dev
+    https://golang.org/cl/43150043
+
+ src/liblink/objfile.c | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)

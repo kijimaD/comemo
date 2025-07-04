@@ -1,0 +1,15 @@
+commit c34050fd535113b6e1ed6fc00c9228bbd7e112db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 14:28:16 2013 -0700
+
+    spec: rewrite the description of panic and recover.
+    The old description was misleading and inaccurate.
+    
+    Fixes #4774.
+    
+    R=iant, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/7761044
+
+ doc/go_spec.html | 51 +++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 35 insertions(+), 16 deletions(-)

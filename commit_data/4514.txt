@@ -1,0 +1,14 @@
+commit 1d5e1f578cd14a15cbdaa09086302ffebda1462d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 29 14:59:08 2009 -0800
+
+    Document how to build gccgo to use gold.
+    
+    This provides full support for discontiguous stacks.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183088
+
+ doc/gccgo_install.html | 36 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 31 insertions(+), 5 deletions(-)

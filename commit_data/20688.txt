@@ -1,0 +1,25 @@
+commit 1fd042c9aa84cc20f02974c69202df919cf1ff00
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 9 17:37:40 2014 -0700
+
+    encoding/asn1: fix explicitly tagged Times.
+    
+    https://golang.org/cl/153770043/ tried to fix the case where a
+    implicitly tagged Time, that happened to have the same tag as
+    GENERALIZEDTIME, shouldn't be parsed as a GENERALIZEDTIME.
+    
+    It did so, mistakenly, by testing whether params.tag != nil. But
+    explicitly tagged values also have a non-nil tag and there the inner
+    tag actually does encode the type of the value.
+    
+    This change instead tests whether the tag class is UNIVERSAL before
+    assuming that the tag contains type information.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/152380044
+
+ src/encoding/asn1/asn1.go      |  4 ++--
+ src/encoding/asn1/asn1_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 2 deletions(-)

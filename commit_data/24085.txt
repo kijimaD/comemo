@@ -1,0 +1,33 @@
+commit 32add8d7c8433d87aca782ddcd79898922ac96b7
+Author: Uttam C Pawar <uttam.c.pawar@intel.com>
+Date:   Thu Jul 2 11:43:46 2015 -0700
+
+    bytes: improve Compare function on amd64 for large byte arrays
+    
+    This patch contains only loop unrolling change for size > 63B
+    
+    Following are the performance numbers for various sizes on
+    On Haswell based system: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz.
+    
+    benchcmp go.head.8.25.15.txt go.head.8.25.15.opt.txt
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkBytesCompare1-4        5.37          5.37          +0.00%
+    BenchmarkBytesCompare2-4        5.37          5.38          +0.19%
+    BenchmarkBytesCompare4-4        5.37          5.37          +0.00%
+    BenchmarkBytesCompare8-4        4.42          4.38          -0.90%
+    BenchmarkBytesCompare16-4       4.27          4.45          +4.22%
+    BenchmarkBytesCompare32-4       5.30          5.36          +1.13%
+    BenchmarkBytesCompare64-4       6.93          6.78          -2.16%
+    BenchmarkBytesCompare128-4      10.3          9.50          -7.77%
+    BenchmarkBytesCompare256-4      17.1          13.8          -19.30%
+    BenchmarkBytesCompare512-4      31.3          22.1          -29.39%
+    BenchmarkBytesCompare1024-4     62.5          39.0          -37.60%
+    BenchmarkBytesCompare2048-4     112           73.2          -34.64%
+    
+    Change-Id: I4eeb1c22732fd62cbac97ba757b0d29f648d4ef1
+    Reviewed-on: https://go-review.googlesource.com/11871
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes_test.go | 31 ++++++++++++++++++++++++++++++
+ src/runtime/asm_amd64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

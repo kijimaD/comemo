@@ -1,0 +1,26 @@
+commit cdf3249d74c4187bc0c1737e1bb6ab1aa52c0b6f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 16 01:42:39 2023 -0800
+
+    os: make FindProcess use pidfd on Linux
+    
+    Amend FindProcess to use pidfdFind, and make it return ErrProcessDone
+    if pidfdFind is used and the process is not found.
+    
+    Since this is a change in API, introduce GODEBUG osfinderr=0 setting
+    to disable the feature.
+    
+    Change-Id: I724c6f622f0c99f21a70b864cf7cf2b8836869ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542699
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/godebug.md                 |  5 +++++
+ src/internal/godebugs/table.go |  1 +
+ src/os/exec.go                 |  9 ++++++++-
+ src/os/exec_unix.go            | 10 ++++++++--
+ src/os/pidfd_linux.go          | 20 ++++++++++++++++++++
+ src/os/pidfd_other.go          |  4 ++++
+ src/runtime/metrics/doc.go     |  4 ++++
+ 7 files changed, 50 insertions(+), 3 deletions(-)

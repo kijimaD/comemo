@@ -1,0 +1,29 @@
+commit 5d39260079b5170e6b4263adb4022cc4b54153c4
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Nov 8 22:08:35 2018 -0800
+
+    net: preserve unexpired context values for LookupIPAddr
+    
+    To avoid any cancelation of the parent context from affecting
+    lookupGroup operations, Resolver.LookupIPAddr previously used
+    an entirely new context created from context.Background().
+    However, this meant that all the values in the parent context
+    with which LookupIPAddr was invoked were dropped.
+    
+    This change provides a custom context implementation
+    that only preserves values of the parent context by composing
+    context.Background() and the parent context. It only falls back
+    to the parent context to perform value lookups if the parent
+    context has not yet expired.
+    This context is never canceled, and has no deadlines.
+    
+    Fixes #28600
+    
+    Change-Id: If2f570caa26c65bad638b7102c35c79d5e429fea
+    Reviewed-on: https://go-review.googlesource.com/c/148698
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup.go      | 32 +++++++++++++++++++--
+ src/net/lookup_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 2 deletions(-)

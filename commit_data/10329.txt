@@ -1,0 +1,14 @@
+commit bb6616454284d21800d32c1ff3840db9194141af
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 16:14:18 2011 -0800
+
+    effective_go: a little more about comma ok and type assertion
+    Fixes #2416.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5370049
+
+ doc/effective_go.html | 12 ++++++++++++
+ doc/effective_go.tmpl | 12 ++++++++++++
+ 2 files changed, 24 insertions(+)

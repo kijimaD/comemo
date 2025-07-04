@@ -1,0 +1,10 @@
+commit c1aba41194691cdd50e7a742c2b7dacfe623e398
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 28 16:19:59 2008 -0700
+
+    fix description of iota to reflect reality.
+    
+    SVN=117108
+
+ doc/go_lang.txt | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit df8b63780b9331ea1860eae6432b047a7c8ea08e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 10:53:24 2014 +0900
+
+    doc: add freebsd items
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71000043
+
+ doc/go1.3.txt | 3 +++
+ 1 file changed, 3 insertions(+)

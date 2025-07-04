@@ -1,0 +1,29 @@
+commit 49e542aa85b7c2d9f6cf50de00843b455bc1e635
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Aug 30 08:17:19 2024 +0200
+
+    runtime: fix GoroutineProfile stacks not getting null terminated
+    
+    Fix a regression introduced in CL 572396 causing goroutine stacks not
+    getting null terminated.
+    
+    This bug impacts callers that reuse the []StackRecord slice for multiple
+    calls to GoroutineProfile. See https://github.com/felixge/fgprof/issues/33
+    for an example of the problem.
+    
+    Add a test case to prevent similar regressions in the future. Use null
+    padding instead of null termination to be consistent with other profile
+    types and because it's less code to implement. Also fix the
+    ThreadCreateProfile code path.
+    
+    Fixes #69243
+    
+    Change-Id: I0b9414f6c694c304bc03a5682586f619e9bf0588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609815
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mprof.go            |  6 ++-
+ src/runtime/pprof/pprof_test.go | 92 ++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 86 insertions(+), 12 deletions(-)

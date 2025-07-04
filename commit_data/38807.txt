@@ -1,0 +1,18 @@
+commit cbaa8e5f93a9571c30271c0f6d7c874793ec49ce
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 17 13:32:19 2019 +0200
+
+    runtime: move libcall to stack for runtime syscalls on AIX
+    
+    As the stackguard was increased on AIX by CL 157117, every syscalls can
+    now have libcall directly on the stack. This fixes some concurrency bugs
+    which seems to occur when semasleep is interrupted by a SIGPROF signal.
+    
+    Change-Id: I905a9618d13ef227dad6f8328b0f958f2f917a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172359
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os2_aix.go | 77 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 42 insertions(+), 35 deletions(-)

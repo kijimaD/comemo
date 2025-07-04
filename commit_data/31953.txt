@@ -1,0 +1,14 @@
+commit f081266e4af4bdce22756aa58489225dfbe6bb23
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 23:12:41 2017 +0000
+
+    encoding/binary: clarify the repercussions for not following the docs
+    
+    Fixes #19794
+    
+    Change-Id: I462cbc432fe9d4a9e6e79a9833b0013d82a0780e
+    Reviewed-on: https://go-review.googlesource.com/47093
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/binary/binary.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

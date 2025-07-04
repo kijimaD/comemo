@@ -1,0 +1,18 @@
+commit 642b1311111ef949f54606317ec447838c29024c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Nov 2 21:46:38 2023 +1100
+
+    runtime: remove getcallerpc on riscv64
+    
+    This was converted to a compiler intrinsic and no longer needs to exist
+    in assembly.
+    
+    Change-Id: I7495c435d4642e0e71d8f7677d70af3a3ca2a6ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539195
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/asm_riscv64.s | 5 -----
+ 1 file changed, 5 deletions(-)

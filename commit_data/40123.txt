@@ -1,0 +1,20 @@
+commit 53bd9151099c54ffb4fee73d8b1771e311f6a271
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 11:08:43 2019 -0400
+
+    cmd/compile: classify more nodes as "poor choices" for statements
+    
+    Aggregate-making nodes that are later decomposed
+    are poor choices for statements, because the decomposition
+    phase turns them into multiple sub-values, some of which may be
+    dead.  Better to look elsewhere for a statement mark.
+    
+    Change-Id: Ibd9584138ab3d1384548686896a28580a2e43f54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198477
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/numberlines.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

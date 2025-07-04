@@ -1,0 +1,27 @@
+commit f8a850b250655bd26f5da4cfe7299b4a32be28fa
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 26 21:17:24 2013 +0400
+
+    runtime: refactor mallocgc
+    Make it accept type, combine flags.
+    Several reasons for the change:
+    1. mallocgc and settype must be atomic wrt GC
+    2. settype is called from only one place now
+    3. it will help performance (eventually settype
+    functionality must be combined with markallocated)
+    4. flags are easier to read now (no mallocgc(sz, 0, 1, 0) anymore)
+    
+    R=golang-dev, iant, nightlyone, rsc, dave, khr, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/10136043
+
+ src/pkg/runtime/chan.c     |   3 +-
+ src/pkg/runtime/hashmap.c  |  26 ++++------
+ src/pkg/runtime/malloc.goc | 121 ++++++++++++++-------------------------------
+ src/pkg/runtime/malloc.h   |  11 +++--
+ src/pkg/runtime/mfinal.c   |   4 +-
+ src/pkg/runtime/mgc0.c     |   2 +-
+ src/pkg/runtime/proc.c     |   4 +-
+ src/pkg/runtime/stack.c    |   2 +-
+ src/pkg/runtime/string.goc |   8 +--
+ 9 files changed, 62 insertions(+), 119 deletions(-)

@@ -1,0 +1,19 @@
+commit e62dd7bce93549ddf3d3991409d51a26c9f169b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 21 14:28:59 2009 -0700
+
+    - split bignum package into 3 files
+    - use array for common small values
+    - integer.go, rational.go don't contain changes besides the added file header
+    
+    R=rsc
+    DELTA=1475  (748 added, 713 deleted, 14 changed)
+    OCL=31939
+    CL=31942
+
+ src/pkg/bignum/Makefile       |  23 +-
+ src/pkg/bignum/bignum.go      | 739 +-----------------------------------------
+ src/pkg/bignum/bignum_test.go |   5 +
+ src/pkg/bignum/integer.go     | 500 ++++++++++++++++++++++++++++
+ src/pkg/bignum/rational.go    | 224 +++++++++++++
+ 5 files changed, 764 insertions(+), 727 deletions(-)

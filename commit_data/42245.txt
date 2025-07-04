@@ -1,0 +1,19 @@
+commit e3b0e3d64638cc3d55aaae7b0c3fb6387f5193e3
+Author: Michał Łowicki <mlowicki@gmail.com>
+Date:   Sat Apr 11 22:24:37 2020 +0100
+
+    cmd/go: add 'go help buildconstraint'
+    
+    Fixes #37018
+    
+    Change-Id: I1d32c1cb432bc2d7a4d8d6b5c3a54fee558141ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228017
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go               | 89 ++++++++++++++++++++++++++++++-------
+ src/cmd/go/internal/help/help.go    |  2 +-
+ src/cmd/go/internal/help/helpdoc.go | 57 ++++++++++++++++++++++++
+ src/cmd/go/main.go                  |  1 +
+ 4 files changed, 131 insertions(+), 18 deletions(-)

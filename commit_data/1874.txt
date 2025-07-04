@@ -1,0 +1,20 @@
+commit 08cfcd1dd64d965fc319ae683638b16a1e93e075
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 13:51:48 2009 -0700
+
+    convert darwin to use godefs-generated defs.h.
+    
+    this change is much smaller if you ignore
+    the machine-generated defs.h.
+    
+    TBR=r
+    OCL=26684
+    CL=26684
+
+ src/runtime/Makefile            |  12 +-
+ src/runtime/darwin/amd64/defs.h | 305 ++++++++++++++++++++++++++++++++--------
+ src/runtime/darwin/defs.c       | 104 ++++++++++++++
+ src/runtime/darwin/os.h         |  24 ++++
+ src/runtime/darwin/signal.c     | 246 +++++++-------------------------
+ src/runtime/darwin/thread.c     | 228 ++++++++----------------------
+ 6 files changed, 490 insertions(+), 429 deletions(-)

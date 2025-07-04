@@ -1,0 +1,17 @@
+commit 885099d1550dad8387013c8f35ad3d4ad9f17c66
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Apr 18 01:30:04 2020 +0700
+
+    cmd/compile: rewrite integer range rules to use typed aux fields
+    
+    Passes toolstash-check.
+    
+    Change-Id: I2752e4df211294112d502a59c3b9988e00d25aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228857
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  64 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 624 ++++++++++++-------------
+ 2 files changed, 344 insertions(+), 344 deletions(-)

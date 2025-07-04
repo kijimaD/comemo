@@ -1,0 +1,15 @@
+commit 0046d51e0685e59e973829260a3bc107d85d629d
+Author: Kirklin McDonald <kirklin.mcdonald@gmail.com>
+Date:   Wed Jun 30 10:54:24 2010 +1000
+
+            net: add support for DNS SRV requests.
+    
+            Fixes #758.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/1078041
+
+ src/pkg/net/dnsclient.go | 91 ++++++++++++++++++++++++++++++++++++------------
+ src/pkg/net/dnsmsg.go    | 14 ++++++++
+ 2 files changed, 82 insertions(+), 23 deletions(-)

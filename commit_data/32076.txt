@@ -1,0 +1,29 @@
+commit b81735924936291303559fd71dabaa1aa88f57c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jul 21 16:53:54 2017 -0700
+
+    encoding/json: ignore embedded fields of pointers to unexported non-structs
+    
+    https://golang.org/cl/33773 fixes the JSON marshaler to avoid serializing
+    embedded fields on unexported types of non-struct types. However, Go allows
+    embedding pointer to types, so the check for whether the field is a non-struct
+    type must first dereference the pointer to get at the underlying type.
+    
+    Furthermore, due to a edge-case in the behavior of StructField.PkgPath not
+    being a reliable indicator of whether the field is unexported (see #21122),
+    we use our own logic to determine whether the field is exported or not.
+    
+    The logic in this CL may be simplified depending on what happens in #21122.
+    
+    Fixes #21121
+    Updates #21122
+    
+    Change-Id: I8dfd1cdfac8a87950df294a566fb96dfd04fd749
+    Reviewed-on: https://go-review.googlesource.com/50711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go      |  23 +++-
+ src/encoding/json/encode_test.go | 229 +++++++++++++++++++++++++++------------
+ 2 files changed, 182 insertions(+), 70 deletions(-)

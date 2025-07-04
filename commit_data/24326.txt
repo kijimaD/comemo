@@ -1,0 +1,23 @@
+commit e31114dab0bac5c6104385d651c69462421801ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Sep 19 05:39:03 2015 +0000
+
+    cmd/dist: skip spectralnorm shootout test on the linux-arm-arm5 builder
+    
+    Temporary fix to get the arm5 builder happy again.
+    
+    Without hardware floating point, this test takes over 20 minutes to
+    run.
+    
+    A proper solution would probably be to run all the benchmark tests,
+    but with a much lower iteration count, just to exercise the code.
+    
+    Updates golang/go#12688
+    
+    Change-Id: Ie56c93d3bf2a5a693a33217ba1b1df3c6c856442
+    Reviewed-on: https://go-review.googlesource.com/14775
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/dist/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,18 @@
+commit c83d4fba0791927e9a0b66729ee886e0f8d15249
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 14 16:19:11 2022 -0700
+
+    os/signal: pass *int32 to ioctl that expects pid_t
+    
+    Fixes #56233
+    
+    Change-Id: I1cf176bc2f39c5e41d5a390ec6893426cdd39be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443175
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/os/signal/signal_cgo_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

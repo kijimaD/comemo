@@ -1,0 +1,13 @@
+commit eb5db57d1aa3dbff48693af0673746c232da875e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 14:41:30 2012 -0500
+
+    cmd/go: sync type Package and go list doc
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5730061
+
+ src/cmd/go/list.go | 35 +++++++++++++++++++++++------------
+ src/cmd/go/pkg.go  | 31 ++++++++++++++++---------------
+ 2 files changed, 39 insertions(+), 27 deletions(-)

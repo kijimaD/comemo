@@ -1,0 +1,26 @@
+commit ead5d1e316873a63471de31f3d70f97aeb7969f5
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Oct 23 20:20:44 2018 -0600
+
+    math/bits: panic when y<=hi in Div
+    
+    Explicitly check for divide-by-zero/overflow and panic with the appropriate
+    runtime error.  The additional checks have basically no effect on performance
+    since the branch is easily predicted.
+    
+    name     old time/op  new time/op  delta
+    Div-4    53.9ns ± 1%  53.0ns ± 1%  -1.59%  (p=0.016 n=4+5)
+    Div32-4  17.9ns ± 0%  18.4ns ± 0%  +2.56%  (p=0.008 n=5+5)
+    Div64-4  53.5ns ± 0%  53.3ns ± 0%    ~     (p=0.095 n=5+5)
+    
+    Updates #28316
+    
+    Change-Id: I36297ee9946cbbc57fefb44d1730283b049ecf57
+    Reviewed-on: https://go-review.googlesource.com/c/144377
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/go/build/deps_test.go  |  2 +-
+ src/math/bits/bits.go      | 18 ++++++++--
+ src/math/bits/bits_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 3 deletions(-)

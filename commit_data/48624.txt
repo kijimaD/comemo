@@ -1,0 +1,24 @@
+commit a84ef500213ef6c2a0e4bfd82253e9fcd28f1f62
+Author: John Anthony <johnanthony.contrib@gmail.com>
+Date:   Thu Mar 17 15:36:52 2022 +0000
+
+    cmd/go: prevent go work use panic when given a file
+    
+    The current implementation fails to identify that an argument to go work
+    use is a file when expecting a directory, and panics when attempting to
+    access it as a directory. This change checks arguments are directories
+    and generates an error otherwise.
+    
+    Fixes #51749
+    
+    Change-Id: If8f69d233409e93fcf391a8774bace74c031c986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393615
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/workcmd/use.go           | 13 +++++++++----
+ src/cmd/go/testdata/script/work_use_file.txt | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

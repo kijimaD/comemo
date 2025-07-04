@@ -1,0 +1,14 @@
+commit 66ce8e383f1070320b9d63d06dc7f5ec40d35135
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Sep 18 17:07:21 2017 +0200
+
+    bytes: removed unnecessary slicing on copy
+    
+    Change-Id: Ia42e3479c852a88968947411de8b32e5bcda5ae3
+    Reviewed-on: https://go-review.googlesource.com/64371
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

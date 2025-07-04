@@ -1,0 +1,27 @@
+commit ac1fd419b6d2af8b0e69b13fa5c794705095db0a
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Thu Mar 5 07:59:00 2020 +0100
+
+    math/big: correct off-by-one access in divBasic
+    
+    The divBasic function computes the quotient of big nats u/v word by word.
+    It estimates each word qhat by performing a long division (top 2 words of u
+    divided by top word of v), looks at the next word to correct the estimate,
+    then perform a full multiplication (qhat*v) to catch any inaccuracy in the
+    estimate.
+    
+    In the latter case, "negative" values appear temporarily and carries
+    must be carefully managed, and the recursive division refactoring
+    introduced a case where qhat*v has the same length as v, triggering an
+    out-of-bounds write in the case it happens when computing the top word
+    of the quotient.
+    
+    Fixes #37499
+    
+    Change-Id: I15089da4a4027beda43af497bf6de261eb792f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221980
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go      | 15 +++++++++++++--
+ src/math/big/nat_test.go | 18 ++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

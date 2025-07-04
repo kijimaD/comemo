@@ -1,0 +1,27 @@
+commit a7de684e1b6f460aae7d4dbf2568cb21130ec520
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 17:24:23 2022 -0800
+
+    cmd/compile/internal/noder: stop creating TUNION types
+    
+    In the types1 universe under the unified frontend, we never need to
+    worry about type parameter constraints, so we only see pure
+    interfaces. However, we might still see interfaces that contain union
+    types, because of interfaces like "interface{ any | int }" (equivalent
+    to just "any").
+    
+    We can handle these without needing to actually represent type unions
+    within types1 by simply mapping any union to "any".
+    
+    Updates #57410.
+    
+    Change-Id: I5e4efcf0339edbb01f4035c54fb6fb1f9ddc0c65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458619
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go | 32 ++++++++++++++++++++++++++------
+ test/typeparam/issue52124.go             |  4 +++-
+ 2 files changed, 29 insertions(+), 7 deletions(-)

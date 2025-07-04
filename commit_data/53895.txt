@@ -1,0 +1,18 @@
+commit 460dc37c885b83a27d589befe3f52097fe3363b0
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Jun 2 20:20:18 2023 +0200
+
+    io: remove manual SectionReader.Size in SectionReader.ReadAt
+    
+    Change-Id: Ib3e8953dbdefa2b78c31b1bcbf0909bce248e423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500475
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

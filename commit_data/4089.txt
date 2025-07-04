@@ -1,0 +1,13 @@
+commit c0e1ccf3ff1c0c1effacec338e75e1b173be7279
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 08:39:26 2009 -0800
+
+    Make.pkg: have "make coverage" invoke 6cov with correct binary
+    
+    Fixes #239.
+    
+    R=r
+    https://golang.org/cl/154176
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

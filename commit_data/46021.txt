@@ -1,0 +1,23 @@
+commit 5a401001417151649363a4b2fbd658f3f1957cba
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 13 09:30:19 2021 -0700
+
+    cmd/compile: fix dictionaries for nested closures
+    
+    Capturing dictionary closure variables is ok.
+    
+    Fixes #47684
+    
+    Change-Id: I049c87117915e0c5a172b9665bfac2f91064b2d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342050
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/ir/name.go |  4 +++-
+ test/typeparam/issue47684.go        | 19 +++++++++++++++++++
+ test/typeparam/issue47684b.go       | 23 +++++++++++++++++++++++
+ test/typeparam/issue47684c.go       | 19 +++++++++++++++++++
+ 4 files changed, 64 insertions(+), 1 deletion(-)

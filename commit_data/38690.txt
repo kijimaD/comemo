@@ -1,0 +1,16 @@
+commit bec67e1130db10dc901c5b214c7df081ed4191ab
+Author: Jingnan Si <jingnan.si@gmail.com>
+Date:   Mon Apr 8 19:02:40 2019 +0000
+
+    runtime: follow Windows calling convention for _cgo_sys_thread_create
+    
+    Windows requires space for four pointers on the stack.
+    
+    Change-Id: I9f7ba3e09b6c660f86d15139bb51954fffc8ccb1
+    GitHub-Last-Rev: 76d21bcc2b07edfde6daa45000093d070e2337bc
+    GitHub-Pull-Request: golang/go#30944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168351
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_windows_amd64.s | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

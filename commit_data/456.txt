@@ -1,0 +1,12 @@
+commit 9fb9e82fa34b9bb9c7a7282b91036b6592e47c88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 21:51:25 2008 -0700
+
+    - added missing file
+    
+    R=r
+    OCL=13681
+    CL=13681
+
+ usr/gri/gosrc/verifier.go | 114 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 114 insertions(+)

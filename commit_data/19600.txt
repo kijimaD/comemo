@@ -1,0 +1,17 @@
+commit bcda286d34e0e1af5c9fb580869b73503d691b5c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 25 03:06:07 2014 +1000
+
+    strings: additional tests
+    
+    This CL re-applies the tests added in CL 101330053 and subsequently rolled back in CL 102610043.
+    
+    The original author of this change was Rui Ueyama <ruiu@google.com>
+    
+    LGTM=r, ruiu
+    R=ruiu, r
+    CC=golang-codereviews
+    https://golang.org/cl/109170043
+
+ src/pkg/strings/replace_test.go | 42 +++++++++++++++++++++++++++++------------
+ 1 file changed, 30 insertions(+), 12 deletions(-)

@@ -1,0 +1,16 @@
+commit cb0a02f028dff43274c24bba7493036ada149f69
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 11:38:31 2009 -0700
+
+    ignore missing structs
+    
+    R=rsc
+    DELTA=113  (74 added, 14 deleted, 25 changed)
+    OCL=31776
+    CL=31776
+
+ src/pkg/gob/codec_test.go   |  7 +++-
+ src/pkg/gob/decode.go       | 95 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/gob/encoder_test.go | 22 +++++------
+ src/pkg/gob/type.go         | 12 +++---
+ 4 files changed, 98 insertions(+), 38 deletions(-)

@@ -1,0 +1,12 @@
+commit 122fc3b5b7b32431db547d81f54a848cb7d3aa84
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 18 16:05:50 2010 -0700
+
+    fix bug in example. need to convert Value to float in Abs example
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2486043
+
+ doc/ExpressivenessOfGo.pdf | Bin 889867 -> 859406 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,16 @@
+commit ff5d47ebbaad42862e97e93d46fc89c768c098a3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 20 10:48:33 2012 +1100
+
+    testing: only capture stdout when running examples
+    
+    Fixes #4550.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6973048
+
+ src/cmd/go/doc.go          | 30 ++++++++++++++++++++++++++----
+ src/cmd/go/test.go         |  4 ++--
+ src/pkg/testing/example.go | 12 ++++++------
+ 3 files changed, 34 insertions(+), 12 deletions(-)

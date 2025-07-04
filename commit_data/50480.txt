@@ -1,0 +1,21 @@
+commit 5231ba2f054f2ecb1387bad00b8745d6fe532ea4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 14 19:50:00 2022 -0400
+
+    cmd/link: stop passing -pagezero_size to darwin linker
+    
+    We added -pagezero_size in CL 72730, where it was intented for iOS.
+    The current code passes it only on macOS/AMD64 instead. It is not
+    really necessary there. Also, the new darwin linker starts to emit
+    a warning about deprecation of the flag. Stop passing it.
+    
+    For #54482.
+    
+    Change-Id: If9db7a1645c37d4284e48f075856912df8d8c1a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430936
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 1 -
+ 1 file changed, 1 deletion(-)

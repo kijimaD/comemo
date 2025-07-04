@@ -1,0 +1,14 @@
+commit b8c8cb85092aba7dda9b5f27b1a6c940aaf3c985
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 15:20:42 2013 -0400
+
+    cmd/dist: fix build again
+    
+    I am really bad at this. Didn't hg add this file.
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12372043
+
+ src/cmd/dist/buildgo.c | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

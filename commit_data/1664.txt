@@ -1,0 +1,14 @@
+commit 7cd24361bd66f11ec2beb1905052a3b73cdf3dac
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 11 17:54:03 2009 -0800
+
+    fix gc bug.  i think this is tgs's second bug.
+    i stumbled across it in all.bash.
+    
+    TBR=r
+    OCL=24912
+    CL=24912
+
+ src/runtime/malloc.c | 9 ++++++---
+ src/runtime/mheap.c  | 2 ++
+ 2 files changed, 8 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 37db8804691f0a5e618cbc041909895c9709263c
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Wed Oct 16 09:22:57 2013 -0700
+
+    database/sql: Fix connection leak and potential deadlock
+    
+    CL 10726044 introduced a race condition which causes connections
+    to be leaked under certain circumstances. If SetMaxOpenConns is
+    used, the application eventually deadlocks. Otherwise, the number
+    of open connections just keep growing indefinitely.
+    
+    Fixes #6593
+    
+    R=golang-dev, bradfitz, tad.glines, bketelsen
+    CC=golang-dev
+    https://golang.org/cl/14611045
+
+ src/pkg/database/sql/fakedb_test.go |  6 +++++
+ src/pkg/database/sql/sql.go         |  9 ++++---
+ src/pkg/database/sql/sql_test.go    | 51 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 3 deletions(-)

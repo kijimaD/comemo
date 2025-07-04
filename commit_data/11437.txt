@@ -1,0 +1,12 @@
+commit 903752f4844703517b6a0aa21ed38afabc445abf
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Fri Jan 27 09:52:58 2012 -0800
+
+    compress/flate: remove unused huffmanEncoder.generateChains.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/5577061
+
+ src/pkg/compress/flate/huffman_code.go | 55 ----------------------------------
+ 1 file changed, 55 deletions(-)

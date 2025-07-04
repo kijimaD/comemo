@@ -1,0 +1,12 @@
+commit 31693e9f148e4bea3f923bed84dcec4f3c8be918
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Mar 31 19:50:27 2010 -0700
+
+    kate: Update for recent language changes
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/849045
+
+ misc/kate/go.xml | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

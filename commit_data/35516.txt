@@ -1,0 +1,13 @@
+commit 33cfcf6afac867f4fbf94237b9219778e5fd51c7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 28 13:49:40 2018 -0700
+
+    cmd/compile: fix trivial typos in comments
+    
+    Change-Id: I04880d87e317a1140ec12da6ec5e788991719760
+    Reviewed-on: https://go-review.googlesource.com/114936
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

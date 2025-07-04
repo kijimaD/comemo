@@ -1,0 +1,19 @@
+commit 02a092778625a9e9b9eb88c954a4c6e33dc742dc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jan 24 15:24:50 2024 -0500
+
+    doc/go1.22: remove archive/tar.FileInfoNames
+    
+    CL 514235 is reverted.
+    
+    Updates #65245.
+    Updates #61422.
+    
+    Change-Id: Ib5d2e16c982ab25c8a87af2bdaee8568446cf599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557840
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

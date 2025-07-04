@@ -1,0 +1,14 @@
+commit 54951023cb0a1743f7f3cb233ff424593bf1a131
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Jun 30 19:10:41 2014 -0400
+
+    runtime: update arm comments now register m is gone
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/109220046
+
+ src/pkg/runtime/asm_arm.s     | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_arm.S |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

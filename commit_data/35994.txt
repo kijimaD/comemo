@@ -1,0 +1,18 @@
+commit 12f217459da0f20b19ae382e4b1cc231bc188bdd
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 14:06:28 2018 +1000
+
+    doc: update Implementation and Performance sections of the FAQ
+    
+    Changes are mostly about making more about now than about the past,
+    changing some verb tenses, and mentioning gollvm (which should
+    be pronounced "gollum" if you ask me).
+    
+    Update #26107
+    
+    Change-Id: I6c14f42b9fc2684259d4ba8bc149d7ec9bb83d15
+    Reviewed-on: https://go-review.googlesource.com/123917
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 110 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 79 insertions(+), 31 deletions(-)

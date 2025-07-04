@@ -1,0 +1,12 @@
+commit 7969860126f51194929328418833344111e89467
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 15:29:10 2008 -0800
+
+    testing support library
+    
+    R=rsc
+    OCL=19496
+    CL=19496
+
+ src/lib/testing.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

@@ -1,0 +1,14 @@
+commit 1595a1947c047070542b6c8d7478eaf485489bbb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 18:28:41 2009 -0800
+
+    today's snapshot: steps towards using interfaces for statements in ast
+    
+    R=r
+    OCL=24380
+    CL=24380
+
+ usr/gri/pretty/ast.go     | 131 ++++++++++++---
+ usr/gri/pretty/parser.go  | 397 +++++++++++++++++++++++++++++++++++++++-------
+ usr/gri/pretty/printer.go | 148 +++++++++++++++--
+ 3 files changed, 587 insertions(+), 89 deletions(-)

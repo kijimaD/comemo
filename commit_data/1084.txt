@@ -1,0 +1,15 @@
+commit 9c7374d71b32bb3cd9d19dcdb556ddeed085f34c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 6 17:39:48 2008 -0800
+
+    Erroneous test case.  The break statement should break out of
+    a select clause.
+    
+    R=ken
+    DELTA=20  (0 added, 20 deleted, 0 changed)
+    OCL=18731
+    CL=18739
+
+ test/bugs/bug119.go | 20 --------------------
+ test/golden.out     |  4 ----
+ 2 files changed, 24 deletions(-)

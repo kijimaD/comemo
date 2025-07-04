@@ -1,0 +1,25 @@
+commit 21c71d77887733c02a7ae31b65b1b12041485ee5
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Feb 10 13:17:20 2017 -0600
+
+    cmd/compile/internal/ssa: combine load + op on AMD64
+    
+    On AMD64 Most operation can have one operand in memory.
+    Combine load and dependand operation into one new operation,
+    where possible. I've seen no significant performance changes on go1,
+    but this allows to remove ~1.8kb code from go tool. And in math package
+    I see e. g.:
+    
+    Remainder-6            70.0ns ± 0%   64.6ns ± 0%   -7.76%  (p=0.000 n=9+1
+    Change-Id: I88b8602b1d55da8ba548a34eb7da4b25d59a297e
+    Reviewed-on: https://go-review.googlesource.com/36793
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  13 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  31 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +
+ src/cmd/compile/internal/ssa/opGen.go        | 298 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 798 +++++++++++++++++++++++++++
+ 5 files changed, 1160 insertions(+)

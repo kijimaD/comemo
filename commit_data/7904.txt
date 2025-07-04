@@ -1,0 +1,24 @@
+commit 5546cc7eabef2775d379a6cdb4f4d2926fa7ab23
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 28 23:28:53 2011 -0400
+
+    update tree for package net changes
+    
+    Converted with gofix.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4284049
+
+ src/pkg/exp/draw/x11/conn.go        |  6 +++---
+ src/pkg/http/serve_test.go          |  8 ++++----
+ src/pkg/http/transport.go           |  2 +-
+ src/pkg/netchan/import.go           |  2 +-
+ src/pkg/rpc/client.go               |  4 ++--
+ src/pkg/rpc/jsonrpc/client.go       |  2 +-
+ src/pkg/smtp/smtp.go                |  2 +-
+ src/pkg/syslog/syslog.go            |  2 +-
+ src/pkg/syslog/syslog_unix.go       |  2 +-
+ src/pkg/websocket/client.go         |  4 ++--
+ src/pkg/websocket/websocket_test.go | 10 +++++-----
+ 11 files changed, 22 insertions(+), 22 deletions(-)

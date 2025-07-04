@@ -1,0 +1,16 @@
+commit e7e7b1c55ce7d73812caff018d02545f8f5740aa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 23 23:47:36 2012 +0800
+
+    math: ARM assembly implementation for Abs
+    
+    Obtained on 700MHz OMAP4460:
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkAbs           61           23  -61.63%
+    
+    R=dave, remyoudompheng, mtj, rsc
+    CC=golang-dev
+    https://golang.org/cl/6094047
+
+ src/pkg/math/abs_arm.s | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

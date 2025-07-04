@@ -1,0 +1,14 @@
+commit 01df6601d8774f27f36ce339a093333d887ef8f6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:21:28 2020 +1100
+
+    cmd/objdump: disable unsupported tests on riscv64
+    
+    Updates #27532, #36738 and #36739.
+    
+    Change-Id: If10031c6fd2c8ec2aa8c37f7edb148d8f26f8697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216258
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

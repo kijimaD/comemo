@@ -1,0 +1,14 @@
+commit b5c3a9e572a1257c0db47d74b45f8e03f2f91f27
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 13 18:12:48 2015 +1100
+
+    image: add image.CMYK and color.CMYK types.
+    
+    Change-Id: Icf212a4b890725c803b16e76e1a88294b8b62cb8
+    Reviewed-on: https://go-review.googlesource.com/4800
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/ycbcr.go      | 55 +++++++++++++++++++++++++++
+ src/image/color/ycbcr_test.go | 23 ++++++++++--
+ src/image/image.go            | 86 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 3 deletions(-)

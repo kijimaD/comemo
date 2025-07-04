@@ -1,0 +1,55 @@
+commit 6acb4d944dafa13a6c80faffc4e7ecc47d2bcdbc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 22 14:23:32 2015 -0700
+
+    cmd/go: fix processing of flags for test binaries.
+    
+    The usage message says:
+    
+            test [-c] [-i] [build and test flags] [packages] [flags for test binary]
+    
+    but this was not what was implemented. Instead, after packages are named,
+    flag processing continues, which makes it impossible, for example, to pass
+    to the binary a flag with the same name as a test flag. This was triggered
+    by the -v flag in glog.
+    
+    Consider this test:
+    
+    package pkg
+    
+    ... imports ...
+    
+    var v = flag.Int("v", 0, "v flag")
+    
+    func TestFoo(t *testing.T) {
+            if *v != 7 { log.Fatal(*v) }
+    }
+    
+    Attempting to run this test with go test pkg -v=7 would give a usage
+    message. This change allows it. In fact it allows
+    
+            go test -v pkg -v=7
+    
+    The solution is to implement the usage message. One compatibility
+    issue is that flags after the package name are no longer processed
+    as test flags, so this no longer works:
+    
+            go test foo -cover
+    
+    One must write
+    
+            go test -cover foo
+    
+    I do not think this is onerous but it must be called out in the
+    release notes.
+    
+    Fixes #12177.
+    
+    Change-Id: Ib9267884b47a6b0c183efa888ec78333272113aa
+    Reviewed-on: https://go-review.googlesource.com/14826
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 12 +++++++---
+ src/cmd/go/testdata/flag_test.go | 16 +++++++++++++
+ src/cmd/go/testflag.go           | 52 +++++++++++++++++++---------------------
+ 3 files changed, 50 insertions(+), 30 deletions(-)

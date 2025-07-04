@@ -1,0 +1,12 @@
+commit 7e196d08227edaa1c3b80dfdedbe5e4f0cbf211e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 09:18:23 2012 +1100
+
+    godoc: fix site for large displays
+    
+    R=golang-dev, skybrian
+    CC=golang-dev
+    https://golang.org/cl/6643062
+
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

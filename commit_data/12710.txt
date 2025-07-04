@@ -1,0 +1,24 @@
+commit cfd8b84f072e1799456ad3dc350bc1a486a0e280
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 21 11:29:30 2012 -0700
+
+    godoc: use shorter titles for tabs
+    
+    In a browser with many open tabs, the tab titles become short
+    and uninformative because they all start with the same prefix
+    ("Package ", "Directory ", etc.).
+    
+    Permit use of shorter tab titles that start with the relevant
+    information first.
+    
+    Fixes #3365.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5865056
+
+ lib/godoc/godoc.html      |  2 +-
+ src/cmd/godoc/codewalk.go |  4 ++--
+ src/cmd/godoc/godoc.go    | 50 +++++++++++++++++++++++++++++++----------------
+ src/cmd/godoc/main.go     |  2 +-
+ 4 files changed, 37 insertions(+), 21 deletions(-)

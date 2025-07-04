@@ -1,0 +1,12 @@
+commit 052cd29dd6877a02e86b2bd3bd5d9fc03143a6b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 23 22:05:20 2010 -0400
+
+    nacl: update instructions for new SDK
+    
+    R=nigeltao_gnome, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/2253042
+
+ src/pkg/exp/nacl/README | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

@@ -1,0 +1,18 @@
+commit 1d3a0df4bb77af0158d25854c85ad87cc36fe8dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 21 16:20:00 2017 -0700
+
+    go/types: more robust operand printing
+    
+    Not a fix but useful for further debugging, and safe.
+    
+    For #18643.
+    
+    Change-Id: I5fb4f4a8662007a26e945fff3986347855f00eab
+    Reviewed-on: https://go-review.googlesource.com/46393
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/operand.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

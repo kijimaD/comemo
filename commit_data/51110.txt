@@ -1,0 +1,22 @@
+commit 0758a7d82da03d38fff8619a245f5fcb05721cf9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 3 09:08:33 2022 -0400
+
+    runtime: eliminate arbitrary timeouts in runBuiltTestProg and TestGdbBacktrace
+    
+    This may fix the TestEINTR failures that have been frequent on the
+    riscv64 builders since CL 445597.
+    
+    Updates #37405.
+    Updates #39043.
+    
+    Change-Id: Iaf1403ff5ce2ff0203d5d0059908097d32d0b217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447495
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_test.go       | 11 ++++++-----
+ src/runtime/runtime-gdb_test.go | 41 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 43 insertions(+), 9 deletions(-)

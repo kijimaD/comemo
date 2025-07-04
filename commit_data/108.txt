@@ -1,0 +1,42 @@
+commit 094ee44b32d1f459534c3f187da16619f4909d7a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 16:56:18 2008 -0700
+
+    check in the bugs and fixed bugs
+    
+    SVN=121543
+
+ test/bugs/bug001.go      |  11 +++++
+ test/bugs/bug002.go      |  11 +++++
+ test/bugs/bug003.go      |  15 ++++++
+ test/bugs/bug004.go      |  11 +++++
+ test/bugs/bug006.go      |  28 +++++++++++
+ test/bugs/bug010.go      |  19 ++++++++
+ test/bugs/bug014.go      |  14 ++++++
+ test/bugs/bug015.go      |  13 ++++++
+ test/bugs/bug016.go      |  16 +++++++
+ test/bugs/bug022.go      |  20 ++++++++
+ test/bugs/bug023.go      |  29 ++++++++++++
+ test/bugs/bug024.go      |  20 ++++++++
+ test/bugs/bug025.go      |  16 +++++++
+ test/bugs/bug026.go      |  28 +++++++++++
+ test/bugs/bug027.go      |  62 ++++++++++++++++++++++++
+ test/bugs/bug028.go      |  23 +++++++++
+ test/bugs/bug029.go      |  14 ++++++
+ test/bugs/bug030.go      |  12 +++++
+ test/fixedbugs/bug000.go |  20 ++++++++
+ test/fixedbugs/bug005.go |  18 +++++++
+ test/fixedbugs/bug007.go |  22 +++++++++
+ test/fixedbugs/bug008.go |  20 ++++++++
+ test/fixedbugs/bug009.go |  16 +++++++
+ test/fixedbugs/bug011.go |  26 +++++++++++
+ test/fixedbugs/bug012.go |  23 +++++++++
+ test/fixedbugs/bug013.go |  19 ++++++++
+ test/fixedbugs/bug017.go |  24 ++++++++++
+ test/fixedbugs/bug020.go |  22 +++++++++
+ test/fixedbugs/bug021.go |  13 ++++++
+ test/fixedbugs/bug031.go |  28 +++++++++++
+ test/golden.out          | 119 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/ken/robliteral.go   |  14 +++++-
+ test/run                 |   6 +--
+ 33 files changed, 746 insertions(+), 6 deletions(-)

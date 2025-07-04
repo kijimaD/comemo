@@ -1,0 +1,12 @@
+commit 67b277c3b92daa16777d307f3c48aff06abe1305
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 4 13:27:12 2012 +0900
+
+    cmd/dist: fix build on openbsd
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5608060
+
+ src/cmd/dist/windows.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

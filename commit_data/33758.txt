@@ -1,0 +1,25 @@
+commit 0c0c3c186b1c1a7d3bc9d8a4aaec24767b5bfa81
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 16:20:50 2017 -0500
+
+    sync/atomic: remove noCopy from Value
+    
+    Values must not be copied after the first use.
+    
+    Using noCopy makes vet complain about copies
+    even before the first use, which is incorrect
+    and very frustrating.
+    
+    Drop it.
+    
+    Fixes #21504.
+    
+    Change-Id: Icd3a5ac3fe11e84525b998e848ed18a5d996f45a
+    Reviewed-on: https://go-review.googlesource.com/80836
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/testdata/copylock.go |  8 +++++---
+ src/sync/atomic/value.go         | 12 ------------
+ 2 files changed, 5 insertions(+), 15 deletions(-)

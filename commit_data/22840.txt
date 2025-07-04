@@ -1,0 +1,14 @@
+commit 62bc2e4c2d9e289c1bdfd2415813d1776eb5c71b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 2 22:44:49 2015 -0400
+
+    syscall: fix little-endian assumptions
+    
+    Change-Id: Ia38256998e544d620a342dabedd9289d61fb0551
+    Reviewed-on: https://go-review.googlesource.com/9672
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

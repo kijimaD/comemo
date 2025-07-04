@@ -1,0 +1,24 @@
+commit bda74b0e4a8eb1acae8c202efd62d298ec3268f0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 21:40:55 2017 -0500
+
+    runtime: make TestMemStats failure messages useful
+    
+    Currently most TestMemStats failures dump the whole MemStats object if
+    anything is amiss without telling you what is amiss, or even which
+    field is wrong. This makes it hard to figure out what the actual
+    problem is.
+    
+    Replace this with a reflection walk over MemStats and a map of
+    predicates to check. If one fails, we can construct a detailed and
+    descriptive error message. The predicates are a direct translation of
+    the current tests.
+    
+    Change-Id: I5a7cafb8e6a1eeab653d2e18bb74e2245eaa5444
+    Reviewed-on: https://go-review.googlesource.com/37512
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc_test.go | 60 +++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 44 insertions(+), 16 deletions(-)

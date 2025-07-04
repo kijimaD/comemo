@@ -1,0 +1,37 @@
+commit 160914e33ca6521d74297291d801062cc44d794d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 6 14:24:16 2017 -0500
+
+    cmd/compile: do not use "oaslit" for global
+    
+    The compiler did not emit write barrier for assigning global with
+    struct literal, like global = T{} where T contains pointer.
+    
+    The relevant code path is:
+    walkexpr OAS var_ OSTRUCTLIT
+        oaslit
+            anylit OSTRUCTLIT
+                walkexpr OAS var_ nil
+                return without adding write barrier
+        return true
+    break (without adding write barrier)
+    
+    This CL makes oaslit not apply to globals. See also CL
+    https://go-review.googlesource.com/c/36355/ for an alternative
+    fix.
+    
+    The downside of this is that it generates static data for zeroing
+    struct now. Also this only covers global. If there is any lurking
+    bug with implicit zeroing other than globals, this doesn't fix.
+    
+    Fixes #18956.
+    
+    Change-Id: Ibcd27e4fae3aa38390ffa94a32a9dd7a802e4b37
+    Reviewed-on: https://go-review.googlesource.com/36410
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/writebarrier.go                 | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

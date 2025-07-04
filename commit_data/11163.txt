@@ -1,0 +1,12 @@
+commit 439d863e7c4e246f06e42e7ebdf562c4f7582e08
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Jan 13 16:49:30 2012 -0800
+
+    go/doc: remove duplicate package comment
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5528101
+
+ src/pkg/go/doc/reader.go | 1 -
+ 1 file changed, 1 deletion(-)

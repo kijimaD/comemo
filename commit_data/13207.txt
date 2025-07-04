@@ -1,0 +1,12 @@
+commit 994cdcea18402c8fa04fa5a039f711b886c89328
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 30 16:41:15 2012 +1000
+
+    runtime: disable new TestCrashHandle on freebsd to fix build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6256069
+
+ src/pkg/runtime/crash_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

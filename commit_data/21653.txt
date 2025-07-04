@@ -1,0 +1,24 @@
+commit eaf8e8cbe576a8553214ffc8e2ce09e9fbc6e87e
+Author: Alex Sergeyev <abc@alexsergeyev.com>
+Date:   Mon Feb 16 09:29:37 2015 -0500
+
+    net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT
+    
+    Env vars were incorrectly copying whole value of http.RemoteAddr
+    to REMOTE_ADDR and REMOTE_HOST. They contained IP:port pair which
+    instead should only have IP (RFC 3875, other sources).
+    
+    Module also was not setting REMOTE_PORT variable which become de-facto
+    standard for passing TCP client port to CGI scripts (Apache mod_cgi,
+    IIS, and probably others)
+    
+    Fixes #9861
+    
+    Change-Id: Ia73e664c48539e3c7db4997d09d957884e98d8a5
+    Reviewed-on: https://go-review.googlesource.com/4933
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cgi/host.go            | 10 +++++++--
+ src/net/http/cgi/host_test.go       | 43 ++++++++++++++++++++++++++++++++++---
+ src/net/http/cgi/matryoshka_test.go |  1 +
+ 3 files changed, 49 insertions(+), 5 deletions(-)

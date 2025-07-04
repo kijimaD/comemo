@@ -1,0 +1,27 @@
+commit 36eee6d1e13c4d16c66259ce8da9318dcfda0459
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Aug 25 17:57:40 2009 -0700
+
+    Make the expression compiler not use the AST visitor.  The
+    statement compiler will be fixed in a later CL.
+    
+    The input and output of the expression compiler are now
+    clearly distinguished.  In the process, I made the individual
+    expression compilers operate on the compiled form of their
+    children instead of AST nodes.  As a result, there are now
+    fewer places where I hand-craft intermediate expression nodes.
+    
+    The diff looks scarier than it is, mostly because exprCompiler
+    has been split into the input and output types, resulting in
+    lots of little renames.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=774  (204 added, 199 deleted, 371 changed)
+    OCL=33851
+    CL=33851
+
+ usr/austin/eval/compiler.go |  12 -
+ usr/austin/eval/expr.go     | 906 ++++++++++++++++++++++----------------------
+ usr/austin/eval/stmt.go     |  81 ++--
+ 3 files changed, 502 insertions(+), 497 deletions(-)

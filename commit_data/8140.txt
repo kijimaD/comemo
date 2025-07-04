@@ -1,0 +1,17 @@
+commit 23fc9c84bd4ac22f5900ee8d2a20a2aebc311016
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 18 10:51:40 2011 -0700
+
+    tutorial: modernize the definition and use of Open.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4446053
+
+ doc/go_tutorial.html     | 115 +++++++++++++++++++++++++++++------------------
+ doc/go_tutorial.txt      |  24 +++++++---
+ doc/progs/cat.go         |   3 +-
+ doc/progs/cat_rot13.go   |   3 +-
+ doc/progs/file.go        |  17 ++++++-
+ doc/progs/helloworld3.go |   2 +-
+ 6 files changed, 112 insertions(+), 52 deletions(-)

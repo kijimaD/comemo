@@ -1,0 +1,16 @@
+commit b8d56fdd9379bd5bb89454f3679f01acecd9df4d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 17 12:18:39 2016 +0900
+
+    net: tweak comment on ExampleCIDRMask
+    
+    CIDRMask just returns a mask which corresponds to an address
+    prefix in CIDR nonation. A subnet for an IPv6 mask sounds a bit
+    confusing.
+    
+    Change-Id: Ic7859ce992bc2de4043d3b25caf9a1051d118b0e
+    Reviewed-on: https://go-review.googlesource.com/33262
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/example_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

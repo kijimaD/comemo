@@ -1,0 +1,13 @@
+commit f1489ac2511eda7c9eaca6bac83d329410b3ce92
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Sun Mar 1 10:09:27 2015 -0500
+
+    build: update Windows make.bat to use CC_FOR_TARGET.
+    
+    Change-Id: Ie4d8bedb9408372dff64e9a7fd857e1be4ee59e1
+    Reviewed-on: https://go-review.googlesource.com/6401
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/make.bat | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 924ea515cf1d1a6f5e447c212e00e3e88c785c41
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 9 18:30:54 2011 +0100
+
+    gc: better error for non-calling use of unsafe builtins.
+    
+    Fixes #1951
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5372041
+
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/typecheck.c   |  4 ++++
+ src/cmd/gc/unsafe.c      | 19 +++++++++++++++++--
+ test/fixedbugs/bug376.go | 11 +++++++++++
+ 4 files changed, 33 insertions(+), 2 deletions(-)

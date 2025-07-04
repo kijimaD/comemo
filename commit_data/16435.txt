@@ -1,0 +1,24 @@
+commit 037a1a9f3183e92a930e25ce66dba99df3786fb0
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed May 29 17:16:57 2013 -0700
+
+    cmd/ld, runtime: emit pointer maps for nosplits identified by the linker
+    
+    A nosplits was assumed to have no argument information and no
+    pointer map.  However, nosplits created by the linker often
+    have both.  This change uses the pointer map size as an
+    alternate source of argument size when processing a nosplit.
+    
+    In addition, the symbol table construction pointer map size
+    and argument size consistency check is strengthened.  If a
+    nptrs is greater than 0 it must be equal to the number of
+    argument words.
+    
+    R=golang-dev, khr, khr
+    CC=golang-dev
+    https://golang.org/cl/9666047
+
+ src/cmd/gc/pgen.c        | 22 ++++++++--------------
+ src/cmd/ld/lib.c         |  6 +++++-
+ src/pkg/runtime/symtab.c |  4 ++--
+ 3 files changed, 15 insertions(+), 17 deletions(-)

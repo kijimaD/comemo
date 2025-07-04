@@ -1,0 +1,20 @@
+commit 2568d323f603417c74f3b7030a6108362234d427
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Mar 25 11:11:24 2020 +0800
+
+    cmd/link/internal/arm64: increase the function alignment to 16
+    
+    On arm64, a function's address is 16 bytes aligned, and
+    the assembler aligns the size of function symbol to 16 bytes,
+    so to keep the consistent, this patch changes the function
+    alignment in the linker to 16 bytes.
+    
+    Change-Id: I4d1e89a56200453b7b586fe3f4656bada7544214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225397
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/arm64/l.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

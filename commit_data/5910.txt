@@ -1,0 +1,12 @@
+commit bc0a1c61f7ab4d95caff5bcccab3083eeafe8776
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 29 13:02:27 2010 -0700
+
+    scanner: better comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1900044
+
+ src/pkg/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

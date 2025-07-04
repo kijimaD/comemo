@@ -1,0 +1,32 @@
+commit f423d616b15302730c1b737a3b22afca315a7fbe
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 11 15:33:39 2020 -0500
+
+    cmd/cgo: fix initialization of empty argument types
+    
+    CL 258938 changed the way C to Go calls work such that they now
+    construct a C struct on the C side for the arguments and space for the
+    results. Any pointers in the result space must be zeroed, so we just
+    zero the whole struct.
+    
+    However, C makes it surprisingly hard to robustly zero any struct
+    type. We had used a "{0}" initializer, which works in the vast
+    majority of cases, but fails if the type is empty or effectively
+    empty.
+    
+    This CL fixes this by changing how the cgo tool zero-initializes the
+    argument struct to be more robust.
+    
+    Fixes #42495.
+    
+    Change-Id: Id1749b9d751e59eb7a02a9d44fec0698a2bf63cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269337
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue42495.go | 15 +++++++++++++++
+ src/cmd/cgo/out.go          | 10 +++++++++-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

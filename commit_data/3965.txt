@@ -1,0 +1,12 @@
+commit d6c388616b03f486d5e634b59132694af42e8d9a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 18:00:48 2009 -0800
+
+    test for invalid $GOBIN setting before trying to build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/153049
+
+ src/make.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

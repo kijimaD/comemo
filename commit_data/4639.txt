@@ -1,0 +1,12 @@
+commit ae3e8eb2ec5b41c55099866ed005266976d34701
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 13:09:27 2010 -0800
+
+    ld: unused variable
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186229
+
+ src/cmd/ld/lib.c | 2 --
+ 1 file changed, 2 deletions(-)

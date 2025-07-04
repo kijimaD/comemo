@@ -1,0 +1,12 @@
+commit deeb1b36ddd7a59871d7e6bb088cf06c71da5ebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 13:41:29 2012 -0500
+
+    codereview: ignore test files during 'hg gofmt'
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5581047
+
+ lib/codereview/codereview.py | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

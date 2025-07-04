@@ -1,0 +1,15 @@
+commit 7b03f2a9901785fdf4dd4177682c4673c0d48f97
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 25 21:25:15 2011 +1000
+
+    fmt: make %q work for integers, printing a quoted character literal.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4556060
+
+ src/pkg/fmt/doc.go      |  1 +
+ src/pkg/fmt/fmt_test.go | 11 +++++++++++
+ src/pkg/fmt/format.go   |  7 +++++++
+ src/pkg/fmt/print.go    | 13 +++++++++++++
+ 4 files changed, 32 insertions(+)

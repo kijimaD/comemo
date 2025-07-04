@@ -1,0 +1,26 @@
+commit 825309962fd6d8e34f7f38f51c4994395826d139
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 31 11:03:00 2022 -0400
+
+    cmd/go: allow either test to complete first in TestScript/test_chatty_parallel_success_run
+    
+    This fixes a failure mode observed in
+    https://build.golang.org/log/7b28a914b1914dabe94f7c4e36ad6466ebd4de5d,
+    in which the expected CONT lines are present but the test completions
+    are reported in a different (but valid) order.
+    
+    CONT lines are only printed between interleaved output lines, so if
+    the ordering of the tests swaps after all output is already generated
+    the PASS lines can be in arbitrary order.
+    
+    Fixes #51221 (again).
+    
+    Change-Id: I051f8ec4331e2e3ab1bb00a7c188c322ad4e0a03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397194
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/test_chatty_parallel_success_run.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

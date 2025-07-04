@@ -1,0 +1,22 @@
+commit 40cf4ad0ef2232d65a85d35897ea11aab95e9ef4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 15:32:49 2016 -0700
+
+    all: fix "result not used" vet warnings
+    
+    For tests, assign to _.
+    For benchmarks, assign to a sink.
+    
+    Updates #11041
+    
+    Change-Id: I87c5543245c7bc74dceb38902f4551768dd37948
+    Reviewed-on: https://go-review.googlesource.com/27116
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/decimal_test.go | 4 +++-
+ src/net/dnsmsg_test.go       | 4 ++--
+ src/net/ip_test.go           | 6 ++++--
+ src/time/time_test.go        | 2 +-
+ 4 files changed, 10 insertions(+), 6 deletions(-)

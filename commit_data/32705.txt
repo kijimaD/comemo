@@ -1,0 +1,22 @@
+commit 6d33df1d65c405a3624dbb792112b8ce399f470f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:10:43 2017 +0200
+
+    cmd/compile: remove redundant switch label
+    
+    This label was added automatically by grind to remove gotos. As of
+    today, it's completely useless, as none of its uses need a label to
+    begin with.
+    
+    While at it, remove all the redundant breaks too. Leave those that are
+    the single statement in a case clause body, as that's the style used
+    throughout std and cmd to clarify when cases are empty.
+    
+    Change-Id: I3e20068b66b759614e903beab1cc9b2709b31063
+    Reviewed-on: https://go-review.googlesource.com/62950
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 87 +++++---------------------------
+ 1 file changed, 12 insertions(+), 75 deletions(-)

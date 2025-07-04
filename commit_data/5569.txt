@@ -1,0 +1,14 @@
+commit a63f73c196db33f513b71c4ea908d251129b9885
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 31 07:05:41 2010 +0200
+
+    net: fix typo
+    
+    Fixes #819.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1421041
+
+ src/pkg/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

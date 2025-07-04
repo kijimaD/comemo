@@ -1,0 +1,15 @@
+commit 340f73ce34546609f44543abc7f4b124a839b423
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 25 13:03:37 2024 -0700
+
+    net/http: fix typo in log message
+    
+    Change-Id: I399c65b44706cf5407099e867de27b3acdaf4825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574235
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

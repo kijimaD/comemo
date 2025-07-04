@@ -1,0 +1,11 @@
+commit 5cc32a5348170eed078767f31a8733505cc7dfaf
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 26 08:02:19 2009 -0700
+
+    fix defer. gave up on unified code for defer and go for now.
+    
+    R=rsc
+    http://go/go-review/1014010
+
+ src/cmd/5g/ggen.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 49 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit d160982a2ef9193384fb3c66939db0fb37a21ba3
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Dec 19 19:28:17 2016 +0200
+
+    cmd/vet: fix copylocks false positive on len(array) and cap(array).
+    
+    This is a follow-up for https://golang.org/cl/24340.
+    
+    Updates #14664.
+    Fixes #18374.
+    
+    Change-Id: I2831556a9014d30ec70d5f91943d18c33db5b390
+    Reviewed-on: https://go-review.googlesource.com/34630
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/copylock.go          |  8 +++++---
+ src/cmd/vet/testdata/copylock.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit af8f94e3c5885647d6f85d2d5227b5fc6b637c52
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Jul 11 17:12:33 2023 -0400
+
+    src/README.vendor: s/latest/master/
+    
+    Update the README to specify the module query "@master" instead of
+    "@latest".
+    
+    Vendoring the highest tagged version is unlikely to be right. Usually
+    one wants to vendor the module at HEAD.
+    
+    Change-Id: Id00d23523a13fd3dcd73d6eacefdf50bcdbfa26e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508823
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/README.vendor | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

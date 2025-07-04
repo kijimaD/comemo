@@ -1,0 +1,11 @@
+commit 6837c5927f247145bed27b62d1776cf57a1f8162
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 9 16:23:48 2008 -0700
+
+    - initial better error reporting
+    
+    SVN=126578
+
+ usr/gri/src/parser.go  |  2 +-
+ usr/gri/src/scanner.go | 45 ++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 39 insertions(+), 8 deletions(-)

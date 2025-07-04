@@ -1,0 +1,13 @@
+commit 0235f6854c0c327025f6e0321c64f04595c6ba36
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 15 08:46:16 2014 +0900
+
+    doc: make it point to correct go1.3.1 change history
+    
+    LGTM=minux, adg
+    R=golang-codereviews, minux, adg
+    CC=golang-codereviews
+    https://golang.org/cl/129180043
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

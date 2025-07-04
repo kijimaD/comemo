@@ -1,0 +1,12 @@
+commit f653dfeb498b96c72fbad92ef3dab2887435230f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 28 04:03:27 2012 +0800
+
+    cmd/api: recognize version "devel" as dev. branch and apply -next
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6476066
+
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

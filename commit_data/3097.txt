@@ -1,0 +1,12 @@
+commit 2d73b7f7f06cdae4950c380d0793e8dcca5ee991
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Aug 26 19:19:07 2009 -0700
+
+    bug slicing array - cap is huge
+    
+    R=rsc
+    OCL=33936
+    CL=33936
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

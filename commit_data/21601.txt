@@ -1,0 +1,28 @@
+commit 2e78447bafc2dfdfa8b75e01ca3e681741706bbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 6 13:48:42 2015 -0500
+
+    cmd/yacc: adjust expansion of $n to be more useful in errors
+    
+    When the compiler echoes back an expression, it shows the
+    generated yacc expression. Change the generated code to
+    use a slice so that $3 shows up as yyDollar[3] in such messages.
+    
+    Consider changing testdata/expr/expr.y to say:
+    
+            $$.Sub(float64($1), $3)
+    
+    (The float64 conversion is incorrect.)
+    
+    Before:
+    expr.y:70[expr.go:486]: cannot convert exprS[exprpt - 2].num (type *big.Rat) to type float64
+    
+    After:
+    expr.y:70[expr.go:492]: cannot convert exprDollar[1].num (type *big.Rat) to type float64
+    
+    Change-Id: I74e494069df588e62299d1fccb282f3658d8f8f4
+    Reviewed-on: https://go-review.googlesource.com/4630
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/yacc/yacc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

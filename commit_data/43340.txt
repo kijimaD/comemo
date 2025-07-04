@@ -1,0 +1,15 @@
+commit 689a7a13780dc7a5138215aa4d369bdcf789fee8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 19:11:42 2020 -0400
+
+    runtime/cgo: fix build tag placement vet warning
+    
+    Change-Id: Ie6583b46213caae897fc2189d4973c88759f5f4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263258
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,17 @@
+commit 176c44699b5be7861070c01856494b6b94ff918a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 12:48:32 2014 -0400
+
+    runtime: remove guard against uninitialized forcegc.g
+    
+    The race was in the old C code.
+    The new Go code does not have the race
+    and does not need the check.
+    
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/140180043
+
+ src/pkg/runtime/proc.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,27 @@
+commit 8766f96dd72b5d124bf76bf5f88e260a88072683
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jun 25 17:50:38 2020 -0400
+
+    cmd/go: migrate to module.MatchPrefixPatterns
+    
+    In CL 239797, str.GlobsMatchPath was copied to golang.org/x/mod/module
+    as MatchPrefixPatterns. This CL updates x/mod, switches calls to use
+    the new function, and deletes the old function.
+    
+    For #38725
+    
+    Change-Id: I7241032228b574aa539426a92d2f5aad9ee001e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240061
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                   |  2 +-
+ src/cmd/go.sum                                   |  4 +-
+ src/cmd/go/internal/modfetch/insecure.go         |  5 ++-
+ src/cmd/go/internal/modfetch/repo.go             |  4 +-
+ src/cmd/go/internal/modfetch/sumdb.go            |  3 +-
+ src/cmd/go/internal/str/path.go                  | 45 -----------------------
+ src/cmd/vendor/golang.org/x/mod/module/module.go | 47 ++++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                       |  2 +-
+ 8 files changed, 57 insertions(+), 55 deletions(-)

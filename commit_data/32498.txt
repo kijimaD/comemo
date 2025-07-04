@@ -1,0 +1,14 @@
+commit 9afec99dc2e354811ea4cf5ba2e2a7f9a5a8f1e4
+Author: Karsten Köhler <karsten.koehler95@gmail.com>
+Date:   Mon Aug 21 21:13:53 2017 +0200
+
+    sort: add examples for IntsAreSorted, Float64s and Float64sAreSorted
+    
+    Change-Id: Ib4883470bd2271e546daea3156d4a48dd873aaa3
+    Reviewed-on: https://go-review.googlesource.com/57670
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sort/example_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

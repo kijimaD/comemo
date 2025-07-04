@@ -1,0 +1,15 @@
+commit 079cbddbd83f996cfd5b79ea38c96c5061efa85b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 01:32:36 2010 +0200
+
+    arm: fix signal handler
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2670042
+
+ src/pkg/Makefile                 |  2 --
+ src/pkg/runtime/linux/arm/defs.h | 26 +++++++++++++-------------
+ src/pkg/runtime/linux/arm/sys.s  |  7 +------
+ src/pkg/runtime/linux/defs_arm.c | 28 ++++++++++++++--------------
+ 4 files changed, 28 insertions(+), 35 deletions(-)

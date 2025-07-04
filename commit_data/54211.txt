@@ -1,0 +1,19 @@
+commit b303fb48558612e5c2a1f10acbc0b1accdb8f260
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 23 15:19:15 2023 -0700
+
+    runtime: fix maps.Clone bug when cloning a map mid-grow
+    
+    Fixes #62203
+    
+    Change-Id: I0459d3f481b0cd20102f6d9fd3ea84335a7739a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522317
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/map.go           |  2 +-
+ test/fixedbugs/issue62203.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

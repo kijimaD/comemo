@@ -1,0 +1,30 @@
+commit ca397bb68e4b548843d2886e374f96ec3bb0f9c0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 19:30:41 2016 +1000
+
+    cmd: remove bio.BufReader and bio.BufWriter
+    
+    bio.BufReader was never used.
+    
+    bio.BufWriter was used to wrap an existing io.Writer, but the
+    bio.Writer returned would not be seekable, so replace all occurences
+    with bufio.Reader instead.
+    
+    Change-Id: I9c6779e35c63178aa4e104c17bb5bb8b52de0359
+    Reviewed-on: https://go-review.googlesource.com/21722
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  6 +++---
+ src/cmd/asm/main.go                       | 15 ++++++++-------
+ src/cmd/compile/internal/gc/bexport.go    |  6 +++---
+ src/cmd/compile/internal/gc/export.go     |  4 ++--
+ src/cmd/compile/internal/gc/go.go         |  3 ++-
+ src/cmd/compile/internal/gc/main.go       |  3 +--
+ src/cmd/internal/bio/buf.go               | 12 ------------
+ src/cmd/internal/obj/link.go              |  4 ++--
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ src/cmd/link/internal/ld/link.go          |  9 ++++-----
+ src/cmd/link/internal/ld/pobj.go          |  4 ++--
+ 11 files changed, 28 insertions(+), 40 deletions(-)

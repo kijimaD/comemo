@@ -1,0 +1,20 @@
+commit 783741844b48ebbe6b575369c915bfc1c6e53972
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 4 15:52:35 2016 +0100
+
+    fmt: float formatting should not permanently change width
+    
+    formatFloat should restore the original f.wid value before
+    returning. Callers should not have to save and restore f.wid.
+    
+    Fixes: #14642
+    
+    Change-Id: I531dae15c7997fe8909e2ad1ef7c376654afb030
+    Reviewed-on: https://go-review.googlesource.com/20179
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 8 ++++++++
+ src/fmt/format.go   | 7 +++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit f5722a81faec8c4e0dafb93a5f8e2479b033eaed
+Author: Ralph Corderoy <ralph@inputplus.co.uk>
+Date:   Thu Nov 12 13:00:57 2015 +0000
+
+    A+C: alter email-address description to cover more than two
+    
+    Explictly list the alternative formats in each file.  In AUTHORS, refer
+    to CONTRIBUTORS' definition of multiple email addresses.  Indent with
+    four spaces;  AUTHORS used a tab, but CONTRIBUTORS used four spaces.
+    s/Rietveld/Gerrit/
+    
+    Change the tab separating Sebastien Binet from his email address,
+    added in 2010's 18b02f6c.
+    
+    Change-Id: Id52228ae6b62dd88ad8098110c22373bf14e068f
+    Reviewed-on: https://go-review.googlesource.com/16826
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 10 ++++++----
+ CONTRIBUTORS |  9 +++++----
+ 2 files changed, 11 insertions(+), 8 deletions(-)

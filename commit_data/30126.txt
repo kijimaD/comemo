@@ -1,0 +1,28 @@
+commit 1ead0bd1dc8958939b16b8fc3ab2cc8242f5e831
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 11:59:38 2017 -0500
+
+    crypto/x509: check for new tls-ca-bundle.pem last
+    
+    We added CentOS 7's /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+    to the list in response to #17549 - not being able to find any certs otherwise.
+    
+    Now we have #18813, where CentOS 6 apparently has both that file
+    and /etc/pki/tls/certs/ca-bundle.crt, and the latter is complete while
+    the former is not.
+    
+    Moving the new CentOS 7 file to the bottom of the list should fix both
+    problems: the CentOS 7 system that didn't have any of the other files
+    in the list will still find the new one, and existing systems will still
+    keep using what they were using instead of preferring the new path
+    that may or may not be complete on some systems.
+    
+    Fixes #18813.
+    
+    Change-Id: I5275ab67424b95e7210e14938d3e986c8caee0ba
+    Reviewed-on: https://go-review.googlesource.com/36429
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/root_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

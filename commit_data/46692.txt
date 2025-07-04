@@ -1,0 +1,19 @@
+commit 96d3ba868aae7aa043147f18e0ca299ada4e34b7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 11:46:00 2021 -0400
+
+    cmd/link: reduce alignment for some funcdata symbols
+    
+    Funcdata like opendefer info and traceback arginfo are varints or
+    bytes. There is no need to align them.
+    
+    GC liveness map and inline tree have 32-bit fields, so continue
+    align them to 4 bytes.
+    
+    Change-Id: I9d5dd750a926c65a910efe5817f9f5c473019bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353469
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/symtab.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

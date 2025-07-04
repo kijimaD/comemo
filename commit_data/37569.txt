@@ -1,0 +1,27 @@
+commit c2412a7681d5beaeb5a4ceef3b2b7886361282ce
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Nov 28 16:33:23 2018 -0500
+
+    cmd/go: emit go list error for local non-existant packages
+    
+    In CL 129061, a check was added for patterns that reference
+    nonexistent local directories. While this prevented unnecessary
+    network lookups (fixing #26874), it caused "go list -e" to exit with
+    an error instead of listing packages with error messages.
+    
+    This change avoids the network lookup and does not exit for these
+    kinds of packages. Errors are still reported by
+    internal/load.LoadImport for packages that don't exist.
+    
+    Fixes #28023
+    
+    Change-Id: I0a648269e437aed3a95bfb05461a397264f3793f
+    Reviewed-on: https://go-review.googlesource.com/c/151800
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/load.go            | 20 ++++++++------------
+ src/cmd/go/testdata/script/mod_fs_patterns.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_list_dir.txt    |  4 +++-
+ 3 files changed, 13 insertions(+), 15 deletions(-)

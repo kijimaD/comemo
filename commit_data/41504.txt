@@ -1,0 +1,30 @@
+commit d464c7ce29faa90ef2d35d5072c3e7c07606c525
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 27 16:18:56 2020 -0500
+
+    cmd/go/internal/modload: make AmbiguousImportError an ImportPathError
+    
+    AmbiguousImportErrors will now be formatted like other ImportPathErrors:
+    this means that now the ambiguously imported package won't be printed
+    twice. Whereas the error message looked like the following:
+    
+            can't load package: package example.com/m/importy: ambiguous import: found package example.com/m/importy in multiple directories:
+                    $WORK/importy
+                    $WORK/vendor/example.com/m/importy
+    
+    It now looks like this:
+    
+            can't load package: ambiguous import: found package example.com/m/importy in multiple directories:
+                    $WORK/importy
+                    $WORK/vendor/example.com/m/importy
+    
+    Change-Id: I52a2074a6b3f5eb7d78d331d0852b7ea6b3735e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221457
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/import.go               | 14 ++++++++++----
+ src/cmd/go/testdata/script/mod_ambiguous_import.txt |  4 ++--
+ 2 files changed, 12 insertions(+), 6 deletions(-)

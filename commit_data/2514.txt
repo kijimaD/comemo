@@ -1,0 +1,26 @@
+commit a50cbf6c739496e3d0dba621d9f7a1eaa6637223
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 20:12:50 2009 -0700
+
+    style police: parens in if, for, switch, range
+    
+    R=r
+    DELTA=32  (0 added, 3 deleted, 29 changed)
+    OCL=30718
+    CL=30725
+
+ src/pkg/http/client_test.go          |  7 ++-----
+ src/pkg/http/request_test.go         |  4 ++--
+ src/pkg/http/url.go                  | 10 +++++-----
+ src/pkg/log/log_test.go              |  2 +-
+ src/pkg/math/sin.go                  |  2 +-
+ src/pkg/math/tan.go                  |  4 ++--
+ src/pkg/os/env.go                    |  2 +-
+ src/pkg/os/exec.go                   |  2 +-
+ src/pkg/reflect/tostring.go          |  4 ++--
+ src/pkg/reflect/type.go              |  2 +-
+ src/pkg/strconv/decimal.go           |  2 +-
+ src/pkg/strings/strings_test.go      |  4 ++--
+ src/pkg/unicode/decimaldigit_test.go |  4 ++--
+ src/pkg/unicode/letter_test.go       | 12 ++++++------
+ 14 files changed, 29 insertions(+), 32 deletions(-)

@@ -1,0 +1,30 @@
+commit d384545a4580cf1f6990efee5f0047ec60f4258d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 15:21:05 2015 +0300
+
+    cmd/pprof: add -runtime flag
+    
+    The flag disables stripping of runtime frames in profiles.
+    This is useful when analyzing runtime itself.
+    
+    Before:
+    $ go tool pprof --text --alloc_objects --lines fmt.test /tmp/mprof
+          flat  flat%   sum%        cum   cum%
+          2768 79.65% 79.65%      32768 79.65%  fmt_test.TestComplexFormatting fmt/fmt_test.go:744
+          6554 15.93% 95.58%       6554 15.93%  regexp/syntax.(*compiler).rune regexp/syntax/compile.go:267
+          1820  4.42%   100%       1820  4.42%  runtime.malg runtime/proc1.go:1977
+    
+    After:
+    $ go tool pprof --text --alloc_objects --lines --runtime fmt.test /tmp/mprof
+          flat  flat%   sum%        cum   cum%
+         32768 79.65% 79.65%      32768 79.65%  runtime.convT2E runtime/iface.go:139
+          6554 15.93% 95.58%       6554 15.93%  runtime.growslice runtime/slice.go:89
+          1820  4.42%   100%       1820  4.42%  runtime.malg runtime/proc1.go:1977
+    
+    Change-Id: If468dfa5c5bbd0809c45a58d912d3115fac009ed
+    Reviewed-on: https://go-review.googlesource.com/5291
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

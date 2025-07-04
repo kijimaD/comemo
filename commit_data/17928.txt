@@ -1,0 +1,13 @@
+commit 1eac128d648da34431850e9393c2404921105073
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 09:58:35 2013 -0800
+
+    cmd/6l: fix linux/amd64
+    
+    TBR=iant
+    CC=golang-dev
+    https://golang.org/cl/39530043
+
+ src/cmd/ld/pobj.c  |  2 +-
+ src/liblink/obj6.c | 16 +++++++---------
+ 2 files changed, 8 insertions(+), 10 deletions(-)

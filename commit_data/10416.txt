@@ -1,0 +1,18 @@
+commit f5db4d05f299c8cf681eae0f1b3faeb3b8df7bdb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 16 09:32:52 2011 -0800
+
+    html/template: indirect top-level values before printing
+    text/template does this (in an entirely different way), so
+    make html/template do the same. Before this fix, the template
+    {{.}} given a pointer to a string prints its address instead of its
+    value.
+    
+    R=mikesamuel, r
+    CC=golang-dev
+    https://golang.org/cl/5370098
+
+ src/pkg/html/template/content.go     | 21 ++++++++++++++++++++-
+ src/pkg/html/template/escape_test.go | 35 ++++++++++++++++++++++++++++++++++-
+ src/pkg/html/template/js.go          | 20 ++++++++++++++++++--
+ 3 files changed, 72 insertions(+), 4 deletions(-)

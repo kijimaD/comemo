@@ -1,0 +1,13 @@
+commit 63c16b1878497e807d0045064214e0e546c7be26
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Sun Apr 12 12:08:06 2015 -0400
+
+    cmd/go: fix a typo.
+    
+    Change-Id: Ic453da17817f66e1073f6ba740b830b8daf2fc38
+    Reviewed-on: https://go-review.googlesource.com/8829
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/build.go | 2 +-
+ src/cmd/go/doc.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

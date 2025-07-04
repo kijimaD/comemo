@@ -1,0 +1,12 @@
+commit 4eb93029725f3adbd9632a1b58644920f077f100
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Mar 17 13:00:31 2015 +0900
+
+    cmd/yacc: fix path in documentation
+    
+    Change-Id: I367b5a837844e3bee1576c59497d37f5e67c761d
+    Reviewed-on: https://go-review.googlesource.com/7674
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/yacc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

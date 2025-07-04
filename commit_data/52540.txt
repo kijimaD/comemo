@@ -1,0 +1,22 @@
+commit f9cf2c4d0424e352f30d50b89d50eafbfb6fc019
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 5 15:49:07 2023 -0400
+
+    cmd/compile: use correct type in amd64 late-lower rules
+    
+    The wrong type causes the wrong width spill, which corrupts
+    the value.  I tried to write a test for this and did not
+    succeed, but was able (using gossahash and ssa.html) to
+    isolate to exact change and spill.
+    
+    Fixes #59432.
+    
+    Change-Id: I85ad82c9f8fed7674c69d6a2b0a62e111f690454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 10 ++--
+ .../compile/internal/ssa/rewriteAMD64latelower.go  | 66 ++++++++++++----------
+ 2 files changed, 41 insertions(+), 35 deletions(-)

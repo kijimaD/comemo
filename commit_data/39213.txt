@@ -1,0 +1,27 @@
+commit 2d357d8da864fc8d14e7e7834d521aa638243772
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 16 02:28:47 2019 +0700
+
+    cmd/compile: fix typecheck type alias makes wrong export symbol metadata
+    
+    typecheck type alias always replaces the original definition of the symbol.
+    This is wrong behavior because if the symbol's definition is replaced by a
+    local type alias, it ends up being written to compiled file as an alias,
+    instead of the original type.
+    
+    To fix, only replace the definition of symbol with global type alias.
+    
+    Fixes #31959
+    
+    Change-Id: Id85a15e8a9d6a4b06727e655a95dc81e63df633a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177378
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ test/fixedbugs/issue31959.dir/a.go       | 12 ++++++++++++
+ test/fixedbugs/issue31959.dir/main.go    | 21 +++++++++++++++++++++
+ test/fixedbugs/issue31959.go             |  7 +++++++
+ test/fixedbugs/issue31959.out            |  2 ++
+ 5 files changed, 47 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 5851a1b5ad4edd46a433336e3c1e79eb7e7bd43f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 18:19:05 2009 -0700
+
+    allow
+    
+    package main
+    type t interface
+    type t interface{ m(map[t]bool) }
+    type m map[t] int
+    
+    making it work without the forward declaration will require a second pass.
+    
+    R=ken
+    OCL=30773
+    CL=30773
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

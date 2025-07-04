@@ -1,0 +1,12 @@
+commit ae6bfe3687521c2761285a71232c7ee63dd25cf7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 17 13:47:52 2010 -0800
+
+    tls: fix argument mistake in Error call.
+    
+    R=agl, agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/3753041
+
+ src/pkg/crypto/tls/conn_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit c45e800e0cb237fcedc9a3e4fd243e3a7f47334c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Jun 29 09:20:04 2021 -0700
+
+    crypto/x509: don't fail on optional auth key id fields
+    
+    If a certificate contains an AuthorityKeyIdentifier extension that
+    lacks the keyIdentifier field, but contains the authorityCertIssuer
+    and/or the authorityCertSerialNumber fields, don't return an error and
+    continue parsing.
+    
+    Fixes #46854
+    
+    Change-Id: I82739b415441f639a722755cc1f449d73078adfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331689
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/parser.go    |  8 +++++---
+ src/crypto/x509/x509_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 3 deletions(-)

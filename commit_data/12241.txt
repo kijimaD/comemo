@@ -1,0 +1,14 @@
+commit fa33fdbc7dc29f5c24c9a82868cbaf076ba59214
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 10:15:23 2012 +1100
+
+    encoding/binary: better example
+    
+    leave that joke to Java.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5695080
+
+ src/pkg/encoding/binary/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

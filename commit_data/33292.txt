@@ -1,0 +1,31 @@
+commit 6a5f1e58edfe55428d375be26c9c8eefbd67ad31
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 15:30:19 2017 -0400
+
+    runtime: simplify and optimize typedslicecopy
+    
+    Currently, typedslicecopy meticulously performs a typedmemmove on
+    every element of the slice. This probably used to be necessary because
+    we only had an individual element's type, but now we use the heap
+    bitmap, so we only need to know whether the type has any pointers and
+    how big it is. Hence, this CL rewrites typedslicecopy to simply
+    perform one bulk barrier and one memmove.
+    
+    This also has a side-effect of eliminating two unnecessary write
+    barriers per slice element that were coming from updates to dstp and
+    srcp, which were stored in the parent stack frame. However, most of
+    the win comes from eliminating the loops.
+    
+    name                 old time/op  new time/op  delta
+    BulkWriteBarrier-12  7.83ns ±10%  7.33ns ± 6%  -6.45%  (p=0.000 n=20+20)
+    
+    Updates #22460.
+    
+    Change-Id: Id3450e9f36cc8e0892f268319b136f0d8f5464b8
+    Reviewed-on: https://go-review.googlesource.com/73831
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbarrier.go | 40 ++++++----------------------------------
+ 1 file changed, 6 insertions(+), 34 deletions(-)

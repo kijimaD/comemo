@@ -1,0 +1,12 @@
+commit d8d321068b1bff68fc796036c491d82f2148a3fe
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat Dec 10 14:42:29 2011 -0800
+
+    gotest: use build.ArchChar()
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5480060
+
+ src/cmd/gotest/gotest.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

@@ -1,0 +1,24 @@
+commit 278b9b3a4c7c01929133737e960335afa18eeec3
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Oct 27 12:06:46 2021 -0400
+
+    go/types: implement generic conversions
+    
+    This is a port of 4 CLs from types2: CL 356010, CL 357333, CL 357410,
+    and CL 357249. These 4 CLs are all related to implementing conversions,
+    and porting them together saved time (particularly because go/types was
+    already threading a *reason argument in some places).
+    
+    Change-Id: Ic89b608d7096b61bfb9f7d71fdae2cc50b0ed70e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359137
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/api.go         |   2 +-
+ src/cmd/compile/internal/types2/conversions.go |   4 +-
+ src/go/types/conversions.go                    |  86 ++++++++++++---
+ src/go/types/operand.go                        |   6 +-
+ src/go/types/testdata/examples/conversions.go2 | 144 +++++++++++++++++++++++++
+ 5 files changed, 218 insertions(+), 24 deletions(-)

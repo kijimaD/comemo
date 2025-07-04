@@ -1,0 +1,21 @@
+commit 60525dc31d9e4401d476d1ec9d91050dca700218
+Author: Tim King <taking@google.com>
+Date:   Wed Nov 23 10:31:03 2022 -0800
+
+    spec: document conversion from slice to array
+    
+    Document that a slice can be converted to either an array or a pointer
+    to an array of a matching underlying array type. This was documented in
+    the "Conversions from slice to array or array pointer" subsection, but
+    not in the list of conversion rules.
+    
+    Updates #46505.
+    
+    Change-Id: I16a89a63ef23c33580129952415e977a8f334009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452936
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

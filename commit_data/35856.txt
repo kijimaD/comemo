@@ -1,0 +1,19 @@
+commit 6780042f0a30569abcc3c5e9e0376761ac928ef5
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 1 08:03:36 2018 +1000
+
+    testing/cover: improve comments on CoverBlock
+    
+    The previous CL (https://go-review.googlesource.com/c/go/+/96756)
+    added comments that didn't really say much, but there is something
+    so say: what the units are and that they are indexed starting at 1.
+    
+    Add a more helpful comment on the type, and also follow proper
+    style by using initial capitals and a period.
+    
+    Change-Id: Id19cd5f392faf7c7bac034073f276cc770589075
+    Reviewed-on: https://go-review.googlesource.com/121875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/cover.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

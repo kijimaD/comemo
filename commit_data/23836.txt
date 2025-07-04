@@ -1,0 +1,12 @@
+commit 0645bdd11007a264988029459844cb78ec06e790
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Fri Jun 19 11:41:41 2015 +0200
+
+    html/template: add examples to package and functions
+    
+    Change-Id: Ib4fb8256863d908580a07e6f2e1c92ea109ea989
+    Reviewed-on: https://go-review.googlesource.com/11249
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/html/template/example_test.go | 122 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)

@@ -1,0 +1,21 @@
+commit 23866aedd960b920d8c95250818d26d2b9023c5a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 11:41:23 2020 -0400
+
+    cmd/link: fix data race in testDWARF
+    
+    Multiple instances of testDWARF run in parallel, with a shared
+    backing store of the env input slice. Do modification of the
+    environment locally, instead of on the shared slice.
+    
+    Fixes #38265.
+    
+    Change-Id: I22a7194c8cd55ba22c9d6c47ac47bf7e710a7027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227342
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/dwarf_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

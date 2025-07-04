@@ -1,0 +1,16 @@
+commit 16b95ba614b2bf0e5f26e50ce79766d8428e310c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 10:22:52 2009 -0700
+
+    simplifications.
+    
+    mark multifile section with TODO only
+    because that is a bigger change.
+    
+    R=gri
+    DELTA=45  (9 added, 22 deleted, 14 changed)
+    OCL=33565
+    CL=33593
+
+ doc/go_spec.html | 55 +++++++++++++++++++++----------------------------------
+ 1 file changed, 21 insertions(+), 34 deletions(-)

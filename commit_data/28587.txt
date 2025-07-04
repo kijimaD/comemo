@@ -1,0 +1,23 @@
+commit 8e69d43b32be578cd36eebe491b6e1205dbf32a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 27 20:50:57 2016 +0000
+
+    net: add Buffers type, do writev on unix
+    
+    No fast path currently for solaris, windows, nacl, plan9.
+    
+    Fixes #13451
+    
+    Change-Id: I24b3233a2e3a57fc6445e276a5c0d7b097884007
+    Reviewed-on: https://go-review.googlesource.com/29951
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/fd_unix.go          |   3 +
+ src/net/net.go              |  63 ++++++++++++++++
+ src/net/net_test.go         |  35 +++++++++
+ src/net/writev_test.go      | 171 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/writev_unix.go      |  91 +++++++++++++++++++++++
+ src/syscall/syscall_nacl.go |   2 +
+ 6 files changed, 365 insertions(+)

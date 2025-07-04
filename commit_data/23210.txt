@@ -1,0 +1,23 @@
+commit 60e5f5bdff1b176b749bf04816179d712411d0a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 23:05:35 2015 -0400
+
+    cmd/compile: remove Node.Alloc
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 240
+    $
+    
+    Change-Id: Id12710c480ed4e0a5bf4f5006f6bd56ef91a2af1
+    Reviewed-on: https://go-review.googlesource.com/10525
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/gen.go     |  6 +++---
+ src/cmd/compile/internal/gc/order.go   | 13 ++++++++-----
+ src/cmd/compile/internal/gc/range.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  8 ++++----
+ src/cmd/compile/internal/gc/syntax.go  |  1 -
+ src/cmd/compile/internal/gc/walk.go    | 14 ++++++++------
+ 7 files changed, 34 insertions(+), 30 deletions(-)

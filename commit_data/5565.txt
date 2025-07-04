@@ -1,0 +1,19 @@
+commit 2bb59fd71a2b5290e6581a86b035b771eb31497d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri May 28 12:59:21 2010 -0700
+
+    Make image.Color.RGBA return 16 bit color instead of 32 bit color.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1388041
+
+ src/pkg/exp/draw/color.go        |  6 +---
+ src/pkg/exp/draw/draw.go         | 22 +------------
+ src/pkg/exp/draw/draw_test.go    |  9 ------
+ src/pkg/exp/nacl/av/image.go     |  4 ---
+ src/pkg/image/color.go           | 69 ++++++++++++----------------------------
+ src/pkg/image/image.go           | 17 ++++------
+ src/pkg/image/png/reader_test.go |  6 ++--
+ src/pkg/image/png/writer.go      | 16 +++++-----
+ 8 files changed, 41 insertions(+), 108 deletions(-)

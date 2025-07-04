@@ -1,0 +1,22 @@
+commit 5063056bd19698a92da3fd69c34ee784af62b03e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 16 13:04:16 2022 -0400
+
+    runtime: drop redundant argument to getArgInfo
+    
+    The f funcInfo argument is always the same as frame.fn, so we don't
+    need to pass it. I suspect that was there to make the signatures of
+    getArgInfoFast and getArgInfo more similar, but it's not necessary.
+    
+    For #54466.
+    
+    Change-Id: Idc717f4df09e97cad49d52c5b7edf28090908cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424255
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

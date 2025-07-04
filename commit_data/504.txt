@@ -1,0 +1,13 @@
+commit 67c4cc473cf8d5fe600c0168a2a4696f375fd349
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 8 17:15:46 2008 -0700
+
+    forgot a file
+    
+    R=r
+    DELTA=427  (427 added, 0 deleted, 0 changed)
+    OCL=14017
+    CL=14017
+
+ src/cmd/gc/mparith.c | 431 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 431 insertions(+)

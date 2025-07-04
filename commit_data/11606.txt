@@ -1,0 +1,12 @@
+commit 6513e195324f53c25cad08072f5537189a37443d
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sat Feb 4 10:34:31 2012 +1100
+
+    spec: correct primes
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5627048
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

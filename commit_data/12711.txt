@@ -1,0 +1,12 @@
+commit 7186e565730d9b0789128319c9dde79dbf8488dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 22 03:18:47 2012 +0800
+
+    go/build: clarify why we exclude files starting with '_' or '.'
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5864053
+
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

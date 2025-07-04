@@ -1,0 +1,18 @@
+commit 4eb7ba743d82029063f993bc8eea8940c3c61ac6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 25 16:36:29 2013 -0500
+
+    runtime/cgo: fix deadlock involving signals on darwin
+    sigprocmask() is process-wide on darwin, so two concurrent
+    libcgo_sys_thread_start() can result in all signals permanently
+    blocked, which in particular blocks handling of nil derefs.
+    Fixes #4833.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7324058
+
+ src/pkg/runtime/cgo/gcc_darwin_386.c   |  4 +-
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c |  4 +-
+ src/pkg/runtime/crash_test.go          | 73 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 4 deletions(-)

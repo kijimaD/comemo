@@ -1,0 +1,26 @@
+commit 0328b4f4cae6d2340ded9a7d2ce850b98d3bbcbe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 14 17:01:43 2022 -0800
+
+    go/types, types2: move validType code into its own file
+    
+    The validType check is independent of the work of declaring objects.
+    Move it into a separate file for better separation of concerns and
+    code organization.
+    
+    No other changes - this is purely a code move.
+    
+    Preparation for fixing issue #48962.
+    
+    Change-Id: Ib08db2d009c4890882d0978b278e965ca3078851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378674
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go      | 90 --------------------------
+ src/cmd/compile/internal/types2/validtype.go | 95 ++++++++++++++++++++++++++++
+ src/go/types/decl.go                         | 90 --------------------------
+ src/go/types/validtype.go                    | 95 ++++++++++++++++++++++++++++
+ 4 files changed, 190 insertions(+), 180 deletions(-)

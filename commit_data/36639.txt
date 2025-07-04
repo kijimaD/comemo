@@ -1,0 +1,31 @@
+commit b2fcfc1a50fbd46556f7075f7f1fbf600b5c9e5d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 12 09:26:31 2018 +0200
+
+    encoding/json: use panics for phase errors
+    
+    Having these panic-like errors used to be ok, since they were used in
+    the internal decoder state instead of passed around via return
+    parameters.
+    
+    Recently, the decoder was rewritten to use explicit error returns
+    instead. This error is a terrible fit for error returns; a handful of
+    functions must return an error because of it, and their callers must
+    check for an error that should never happen.
+    
+    This is precisely what panics are for, so use them. The test coverage of
+    the package goes up from 91.3% to 91.6%, and performance is unaffected.
+    We can also get rid of some unnecessary verbosity in the code.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-4    27.5ms ± 1%    27.5ms ± 1%   ~     (p=0.937 n=6+6)
+    
+    Change-Id: I01033b3f5b7c0cf0985082fa272754f96bf6353c
+    Reviewed-on: https://go-review.googlesource.com/134835
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/encoding/json/decode.go | 110 ++++++++++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 66 deletions(-)

@@ -1,0 +1,13 @@
+commit 9b475bd2a4dc72728db4178e9c15b571f4676bea
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 23:14:33 2009 -0700
+
+    fix up prints in flag.go
+    
+    R=rsc
+    DELTA=11  (0 added, 0 deleted, 11 changed)
+    OCL=31760
+    CL=31760
+
+ src/pkg/flag/flag.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,40 @@
+commit d8ed449d8eae5b39ffe227ef7f56785e978dd5e2
+Author: Ronald G. Minnich <rminnich@gmail.com>
+Date:   Wed Mar 22 14:40:55 2017 -0700
+
+    os/exec: handle Unshareflags with CLONE_NEWNS
+    
+    In some newer Linux distros, systemd forces
+    all mount namespaces to be shared, starting
+    at /. This disables the CLONE_NEWNS
+    flag in unshare(2) and clone(2).
+    While this problem is most commonly seen
+    on systems with systemd, it can happen anywhere,
+    due to how Linux namespaces now work.
+    
+    Hence, to create a private mount namespace,
+    it is not sufficient to just set
+    CLONE_NEWS; you have to call mount(2) to change
+    the behavior of namespaces, i.e.
+    mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL)
+    
+    This is tested and working and we can now correctly
+    start child process with private namespaces on Linux
+    distros that use systemd.
+    
+    The new test works correctly on Ubuntu 16.04.2 LTS.
+    It fails if I comment out the new Mount, and
+    succeeds otherwise. In each case it correctly
+    cleans up after itself.
+    
+    Fixes #19661
+    
+    Change-Id: I52240b59628e3772b529d9bbef7166606b0c157d
+    Reviewed-on: https://go-review.googlesource.com/38471
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux.go      | 18 ++++++++++++
+ src/syscall/exec_linux_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

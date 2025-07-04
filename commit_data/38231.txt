@@ -1,0 +1,20 @@
+commit 95d4e6158b4199e1eee957e2c8c934d2cb86c35e
+Author: hengwu0 <41297446+hengwu0@users.noreply.github.com>
+Date:   Tue Mar 5 01:24:35 2019 +0000
+
+    cmd/compile: fix mips64 instruction UNPREDICTABLE bug
+    
+    Replace addu with a sll instruction with a definite behavior (sll will discard the upper 32 bits of the 64 bits, then do sign extensions, with certain behavior). It won't have any UNPREDICTABLE expectation.
+    
+    Fixes #30459
+    
+    Change-Id: Id79085c28c5cc4f86939b4ef08ef4bff46077c45
+    GitHub-Last-Rev: 03569796a9a64ed6c7d56a5bca966fc62c89b4ff
+    GitHub-Pull-Request: golang/go#30461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164758
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/mips/asm0.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

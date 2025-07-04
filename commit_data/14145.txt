@@ -1,0 +1,12 @@
+commit 6273c7324fa671f8e8e43c0113e842d2ab5fe8b9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Oct 15 13:54:31 2012 +0400
+
+    runtime: add missing if(raceenabled)
+    
+    R=0xe2.0x9a.0x9b, minux.ma, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/6654052
+
+ src/pkg/runtime/malloc.goc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

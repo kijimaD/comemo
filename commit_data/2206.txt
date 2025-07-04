@@ -1,0 +1,12 @@
+commit a8db4593ab78301ceaebc879d1772d4c303fa059
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 14 09:59:16 2009 -0700
+
+    fix spelling error in message
+    
+    R=ken
+    OCL=28814
+    CL=28814
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

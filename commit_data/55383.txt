@@ -1,0 +1,19 @@
+commit 165383381199de6632665f43561e8e0dfc96f067
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri Jan 19 13:51:50 2024 -0500
+
+    internal/goversion: update Version to 1.23
+    
+    (The corresponding update for the last release cycle was CL 510735.)
+    
+    For #40705
+    For #64340
+    
+    Change-Id: I123ce68131a6c7b0344cab54cd29402cabb57225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557155
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

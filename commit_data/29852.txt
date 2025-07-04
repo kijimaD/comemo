@@ -1,0 +1,12 @@
+commit 4d02833c2e79ee8dce06e108e1ae7a8e62611f1f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Dec 19 20:27:12 2016 -0800
+
+    cmd/cover: fix spelling mistake
+    
+    Change-Id: Iac7c4f22dc55c970940af33e0f0470694da5c4a6
+    Reviewed-on: https://go-review.googlesource.com/34654
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

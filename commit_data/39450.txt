@@ -1,0 +1,35 @@
+commit 4ea7aa7cf3755533634904d934c89f93d461d642
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 25 14:48:04 2019 -0400
+
+    cmd/compile, runtime: use R20, R21 in ARM64's Duff's devices
+    
+    Currently we use R16 and R17 for ARM64's Duff's devices.
+    According to ARM64 ABI, R16 and R17 can be used by the (external)
+    linker as scratch registers in trampolines. So don't use these
+    registers to pass information across functions.
+    
+    It seems unlikely that calling Duff's devices would need a
+    trampoline in normal cases. But it could happen if the call
+    target is out of the 128 MB direct jump limit.
+    
+    The choice of R20 and R21 is kind of arbitrary. The register
+    allocator allocates from low-numbered registers. High numbered
+    registers are chosen so it is unlikely to hold a live value and
+    forces a spill.
+    
+    Fixes #32773.
+    
+    Change-Id: Id22d555b5afeadd4efcf62797d1580d641c39218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183842
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/arm64/ggen.go       |   6 +-
+ src/cmd/compile/internal/arm64/ssa.go        |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  16 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  10 +-
+ src/cmd/internal/obj/arm64/a.out.go          |   4 +-
+ src/runtime/duff_arm64.s                     | 384 +++++++++++++--------------
+ src/runtime/mkduff.go                        |  18 +-
+ 7 files changed, 220 insertions(+), 220 deletions(-)

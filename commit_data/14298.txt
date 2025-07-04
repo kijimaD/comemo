@@ -1,0 +1,16 @@
+commit 84e20465fc33f1702d6dfc7ed1c05b457acb1b5b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 2 11:07:22 2012 +1100
+
+    net: use better error messages on windows
+    
+    Fixes #4320.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6810064
+
+ src/pkg/net/fd_unix.go    |  3 ---
+ src/pkg/net/fd_windows.go | 11 +++++++----
+ src/pkg/net/net.go        |  2 ++
+ 3 files changed, 9 insertions(+), 7 deletions(-)

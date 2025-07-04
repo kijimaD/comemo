@@ -1,0 +1,21 @@
+commit 26ceae85a89dc4ea910cc0bfa209c85213a93725
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Wed Feb 10 14:46:54 2021 +0900
+
+    spec: More precise wording in section on function calls.
+    
+    A caller is not always in a function.
+    
+    For example, a call can appear in top level declarations.
+    
+    e.g. var x = f()
+    
+    Change-Id: I29c4c3b7663249434fb2b8a6d0003267c77268cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290849
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

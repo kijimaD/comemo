@@ -1,0 +1,12 @@
+commit f7b92bb45d7d269b4f3583bba8347c25523ade3f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 9 16:54:08 2009 -0700
+
+    fix to scanner_test after change to //-style comment token
+    
+    R=rsc
+    OCL=31421
+    CL=31421
+
+ src/pkg/go/scanner/scanner_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

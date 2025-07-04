@@ -1,0 +1,26 @@
+commit 67f0f83216930e053441500e2b28c3fa2b667581
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 25 23:29:02 2019 -0500
+
+    runtime: disable async preemption on darwin/arm(64) if no cgo
+    
+    On darwin, we use libc calls, and cgo is required on ARM and
+    ARM64 so we have TLS set up to save/restore G during C calls. If
+    cgo is absent, we cannot save/restore G in TLS, and if a signal
+    is received during C execution we cannot get the G. Therefore
+    don't send signals (and hope that we won't receive any signal
+    during C execution).
+    
+    This can only happen in the go_bootstrap program (otherwise cgo
+    is required).
+    
+    Fixes #35800.
+    
+    Change-Id: I6c02a9378af02c19d32749a42db45165b578188d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208818
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

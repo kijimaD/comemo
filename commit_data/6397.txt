@@ -1,0 +1,15 @@
+commit 2d5e732c545cb01bc59d4aa4f3ab27d298cf3f72
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 27 14:09:10 2010 -0400
+
+    gc: eliminate duplicates in method table
+    
+    Fixes #906.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2279042
+
+ src/cmd/gc/subr.c           |  9 ++++++++-
+ src/pkg/reflect/all_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

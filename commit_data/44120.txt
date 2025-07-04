@@ -1,0 +1,28 @@
+commit 7eb31d999cf2769deb0e7bdcafc30e18f52ceb48
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 8 15:14:22 2021 -0500
+
+    cmd/go: add hints to more missing sum error messages
+    
+    When a command fails due to a module zip sum missing from go.sum,
+    if the module is in the build list, the go command will print a
+    'go mod download' command the user can run to fix it.
+    
+    Previously, a hint was only printed if the module provided a package
+    in 'all'. We don't print a 'go get' hint, since we may not want to add
+    a new requirement to go.mod.
+    
+    Fixes #43572
+    
+    Change-Id: I88c61b1b42ad56c04e4482f6a1bb97ce758aaeff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282712
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go            | 66 ++++++++++++++++++------
+ src/cmd/go/internal/modload/load.go              |  8 +--
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt | 12 +++--
+ src/cmd/go/testdata/script/mod_sum_readonly.txt  |  4 +-
+ 4 files changed, 65 insertions(+), 25 deletions(-)

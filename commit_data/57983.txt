@@ -1,0 +1,23 @@
+commit dea12628e65de4bf5e2bfdf2d51cee573e626000
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 15 09:34:04 2024 -0500
+
+    cmd/compile/internal/staticinit: remove FIPS debugging
+    
+    This is panicking on the darwin-amd64-longtest builders.
+    Not sure why, but it was added only to get a stack trace
+    during debugging. If there's still a problem, we should let
+    it proceed and find the real problem.
+    
+    The test that was failing - internal/coverage/cfile - passes
+    with this CL, even when I set GODEBUG=fips140=on,
+    so there's hope that it will fix the longtest builders.
+    
+    Change-Id: I9b3e743effdddcc0a76895922f87631527781dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628375
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/staticinit/sched.go | 3 ---
+ 1 file changed, 3 deletions(-)

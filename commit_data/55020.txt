@@ -1,0 +1,20 @@
+commit b34059032e27fac58fba44c4bf9a30f67f3af142
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 16 16:04:17 2023 -0800
+
+    go/types, types2: avoid type inference error if arguments are invalid
+    
+    Fixes #60434.
+    
+    Change-Id: I6eca4c508fa96fe81c4ee8a12b76c3de405fee7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543176
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go            |  8 ++++++++
+ src/go/types/infer.go                               |  8 ++++++++
+ src/internal/types/testdata/fixedbugs/issue60434.go | 17 +++++++++++++++++
+ 3 files changed, 33 insertions(+)

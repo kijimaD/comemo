@@ -1,0 +1,22 @@
+commit d9f97467946556e94817acbb35fef7f536afed5f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 17:04:15 2023 +0800
+
+    mime: add available godoc link
+    
+    Change-Id: I66ec9edc71f4c1207135e4248003a7457e456931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539576
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+
+ src/mime/encodedword.go              |  2 +-
+ src/mime/mediatype.go                |  4 ++--
+ src/mime/multipart/formdata.go       |  8 ++++----
+ src/mime/multipart/multipart.go      | 16 ++++++++--------
+ src/mime/multipart/readmimeheader.go |  3 ++-
+ src/mime/multipart/writer.go         | 16 ++++++++--------
+ src/mime/quotedprintable/writer.go   | 12 ++++++------
+ 7 files changed, 31 insertions(+), 30 deletions(-)

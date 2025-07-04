@@ -1,0 +1,18 @@
+commit 2190f771d876180fe3fe51d785f0dbc32a5373d0
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 17 14:35:55 2016 -0500
+
+    bytes: fix typo in ppc64le asm for Compare
+    
+    Correcting a line in asm_ppc64x.s in the cmpbodyLE function
+    that originally was R14 but accidentally changed to R4.
+    
+    Fixes #17488
+    
+    Change-Id: Id4ca6fb2e0cd81251557a0627e17b5e734c39e01
+    Reviewed-on: https://go-review.googlesource.com/31266
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+
+ src/runtime/asm_ppc64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

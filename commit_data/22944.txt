@@ -1,0 +1,22 @@
+commit 2320b56af1b26e4c945c282a89c53e599596b86c
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Fri May 8 14:57:30 2015 +0200
+
+    internal/syscall/windows: increase registry.ExpandString buffer
+    
+    ExpandString correctly loops on the syscall until it reaches the
+    required buffer size but truncates it before converting it back to
+    string. The truncation limit is increased to 2^15 bytes which is the
+    documented maximum ExpandEnvironmentStrings output size.
+    
+    This fixes TestExpandString on systems where len($PATH) > 1024.
+    
+    Change-Id: I2a6f184eeca939121b458bcffe1a436a50f3298e
+    Reviewed-on: https://go-review.googlesource.com/9805
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/syscall/windows/registry/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

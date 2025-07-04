@@ -1,0 +1,13 @@
+commit 805d6206829abfb483e2fca88c88171b777de7dc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 23:11:25 2012 -0200
+
+    doc/go1: add net/url changes
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5575056
+
+ doc/go1.html | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 136 insertions(+)

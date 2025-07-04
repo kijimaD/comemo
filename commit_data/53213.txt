@@ -1,0 +1,36 @@
+commit 9dd0c7fc78cb19000f15bd58a3a1ab5ae1c6a84b
+Author: David Chase <drchase@google.com>
+Date:   Mon May 22 16:58:12 2023 -0400
+
+    cmd/compile: indicate sense of hash/bisect match in output
+    
+    If a hash match is "disabled" (!enabled) indicate that in the
+    output with DISABLED.  This is helpful in ensuring that multiple
+    package-directed command-line flags have the intended behavior,
+    e.g.
+    
+    ```
+    go build -a                       \
+    -gcflags=all=-d=gossahash=vn      \
+    -gcflags=runtime=-d=gossahash=vy  \
+    std
+    ```
+    
+    Output looks like
+    
+    [DISABLED] [bisect-match 0x11d0ee166d9d61b4]
+    
+    or (w/ "v"-prefixed hashcode )
+    
+    sort/slice.go:23:29 note [DISABLED] [bisect-match 0xa5252e1c1b85f2ec]
+    gossahash triggered sort/slice.go:23:29 note [DISABLED] 100001011111001011101100
+    
+    Change-Id: I797e02b3132f9781d97bacd0dcd2e80af0035cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497216
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/hashdebug.go      | 12 +++++++++---
+ src/cmd/compile/internal/base/hashdebug_test.go |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

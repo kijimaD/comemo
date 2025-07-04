@@ -1,0 +1,15 @@
+commit c64469f8e8d035207e629d925b3124dce068e907
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 14:08:42 2013 -0500
+
+    doc/contribute.html: mention hg mail during hg change discussion
+    
+    People keep not reading all the way to the bottom of the doc
+    and not running hg mail.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7137057
+
+ doc/contribute.html | 5 +++++
+ 1 file changed, 5 insertions(+)

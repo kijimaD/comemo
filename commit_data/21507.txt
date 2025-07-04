@@ -1,0 +1,14 @@
+commit 01fe1492712d53a9f0c47041736b6162a6ffa517
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 6 14:54:28 2015 +0900
+
+    syscall: gofmt
+    
+    And the silence of the git-codereview.
+    
+    Change-Id: If3f7fe2de2ab4c1756f3cef8267199049d468b31
+    Reviewed-on: https://go-review.googlesource.com/3983
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/syscall_darwin_arm.go | 1 -
+ 1 file changed, 1 deletion(-)

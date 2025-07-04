@@ -1,0 +1,19 @@
+commit 214136b7412d56151d5443741feb0ed873facf2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 21 10:07:02 2020 -0400
+
+    cmd/go/internal/fsys: use a root other than "." in Walk tests
+    
+    Fixes #42115
+    
+    Change-Id: Icf4c9eac5ed3295acbc8377c7a06f82c6bddc747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264177
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/fsys/fsys_test.go | 74 +++++++++++++++++++----------------
+ 1 file changed, 40 insertions(+), 34 deletions(-)

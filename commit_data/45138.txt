@@ -1,0 +1,17 @@
+commit 492faaeda8d1d673c4b5d7f3983f3fcd072608de
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Apr 14 12:57:21 2021 +0200
+
+    os/exec: replace os.Setenv with T.Setenv
+    
+    Updates #45448
+    
+    Change-Id: I570e9894c4976d0a875388ef9ea4a2aa31b78013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310031
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/lp_unix_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

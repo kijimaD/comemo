@@ -1,0 +1,18 @@
+commit 75447d0623e3e7614a9cf9cdd5ece23d18028cab
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 02:56:07 2015 -0400
+
+    cmd/7g: fix linux/arm64 build
+    
+    REGRT1 and REGRT2 are also reserved on arm64 for runtime (duffzero
+    and duffcopy).
+    
+    Change-Id: If098527a7f29d16f94bdcec05fd55950b9076e35
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7977
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/7g/gsubr.go | 2 ++
+ 1 file changed, 2 insertions(+)

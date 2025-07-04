@@ -1,0 +1,23 @@
+commit 23724081896c0965cbbe49f4c339d1c8e1237081
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 11:03:48 2009 -0700
+
+    sort errors by line number
+    
+    turn off testdclstack and "not used" errors
+    when there are syntax errors.
+    
+    BUG=2181825
+    R=ken
+    OCL=35606
+    CL=35608
+
+ src/cmd/gc/dcl.c  |   6 +--
+ src/cmd/gc/go.h   |   2 +
+ src/cmd/gc/go.y   |   3 +-
+ src/cmd/gc/lex.c  |  11 ++--
+ src/cmd/gc/subr.c | 147 +++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/swt.c  |   8 +--
+ src/cmd/gc/walk.c |   2 +-
+ test/golden.out   |   4 +-
+ 8 files changed, 134 insertions(+), 49 deletions(-)

@@ -1,0 +1,17 @@
+commit fc90fb8c814bcaaa6bb107da9f3e4430da3b48da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 10 14:47:10 2009 -0700
+
+    rename units -> units.txt.
+    add makefile rules to build a binary named units as a demo.
+    
+    R=r
+    DELTA=1257  (659 added, 597 deleted, 1 changed)
+    OCL=34528
+    CL=34530
+
+ src/cmd/goyacc/Makefile             |  5 +++++
+ src/cmd/goyacc/goyacc.go            | 16 ++++++++--------
+ src/cmd/goyacc/{units => units.txt} |  0
+ src/cmd/goyacc/units.y              |  8 +++++---
+ 4 files changed, 18 insertions(+), 11 deletions(-)

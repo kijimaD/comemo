@@ -1,0 +1,21 @@
+commit befecf6b595220f31d70815bee4067a0e260516d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 00:26:56 2010 -0400
+
+    runtime: fix crash trace on amd64
+    
+    g is not in r15 anymore.
+    now it's in a per-thread memory segment,
+    which is valid even inside a signal handler,
+    so we can just refer to g directly.
+    
+    Fixes #1082.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2149045
+
+ src/pkg/runtime/darwin/amd64/signal.c  | 4 ++--
+ src/pkg/runtime/freebsd/amd64/signal.c | 4 ++--
+ src/pkg/runtime/linux/amd64/signal.c   | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

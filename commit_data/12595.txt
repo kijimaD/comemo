@@ -1,0 +1,12 @@
+commit 16ade99d9d57a84a754bfa8e9a52f5911d9cf5e4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 12 22:42:55 2012 -0400
+
+    runtime: fix windows/amd64 exception handler
+    
+    R=golang-dev, rsc
+    CC=golang-dev, hectorchu
+    https://golang.org/cl/5797077
+
+ src/pkg/runtime/sys_windows_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

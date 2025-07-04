@@ -1,0 +1,15 @@
+commit e5437ab0652865c9314c8fbf643743dd6415568f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 26 00:49:32 2011 -0400
+
+    runtime: fix freebsd build
+    
+    Fixes #2078.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4800052
+
+ src/pkg/runtime/freebsd/386/signal.c   | 2 ++
+ src/pkg/runtime/freebsd/amd64/signal.c | 2 ++
+ 2 files changed, 4 insertions(+)

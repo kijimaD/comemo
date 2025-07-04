@@ -1,0 +1,15 @@
+commit 719b088697a3da28090a561280726631ceb373a7
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Dec 13 16:41:47 2008 -0800
+
+    code generation
+    
+    R=r
+    OCL=21146
+    CL=21146
+
+ src/cmd/6g/cgen.c  | 64 ++++++++++++++++++++++++++++++++-----------
+ src/cmd/6g/gen.c   | 79 ++----------------------------------------------------
+ src/cmd/6g/gg.h    |  2 +-
+ src/cmd/6g/gsubr.c | 39 ++++++++++++++++-----------
+ 4 files changed, 75 insertions(+), 109 deletions(-)

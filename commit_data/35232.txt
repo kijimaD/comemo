@@ -1,0 +1,22 @@
+commit 9d11c63b64d1f29f43cfd7397614baa24c72a151
+Author: Eric Pauley <eric@pauley.me>
+Date:   Sun Apr 29 00:15:03 2018 -0400
+
+    bytes, strings: improve EqualFold fast version for ASCII
+    
+    The existing implementation only considers the special ASCII
+    case when the lower character is an upper case letter. This
+    means that most ASCII comparisons use unicode.SimpleFold even
+    when it is not necessary.
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkEqualFold-8     450           390           -13.33%
+    
+    Change-Id: I735ca3c30fc0145c186d2a54f31fd39caab2c3fa
+    Reviewed-on: https://go-review.googlesource.com/110018
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go          |  6 +++---
+ src/strings/strings.go      |  6 +++---
+ src/strings/strings_test.go | 12 ++++++++++++
+ 3 files changed, 18 insertions(+), 6 deletions(-)

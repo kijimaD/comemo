@@ -1,0 +1,14 @@
+commit 5dbbb776339fe923293c87b4ccb35673b12c112e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 18 15:29:32 2015 -0800
+
+    runtime: don't test gdb on darwin
+    
+    Fixes #9927
+    
+    Change-Id: I2114cc21f7a4772e3d42bcad9642a8a545cd8e16
+    Reviewed-on: https://go-review.googlesource.com/5285
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

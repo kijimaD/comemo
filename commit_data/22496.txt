@@ -1,0 +1,24 @@
+commit e7fe9f56ea7ea7b9aebb1c13702631d4ed4b91d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 09:52:02 2015 -0700
+
+    cmd/internal/gc: convert Bval to bool
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I4fba0c248645c3910ee3f7fc99dacafb676c5dc2
+    Reviewed-on: https://go-review.googlesource.com/8911
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/7g/gsubr.go              | 2 +-
+ src/cmd/9g/gsubr.go              | 2 +-
+ src/cmd/internal/gc/cgen.go      | 2 +-
+ src/cmd/internal/gc/const.go     | 8 ++++----
+ src/cmd/internal/gc/fmt.go       | 2 +-
+ src/cmd/internal/gc/go.go        | 2 +-
+ src/cmd/internal/gc/gsubr.go     | 2 +-
+ src/cmd/internal/gc/sinit.go     | 2 +-
+ src/cmd/internal/gc/subr.go      | 2 +-
+ src/cmd/internal/gc/swt.go       | 2 +-
+ src/cmd/internal/gc/typecheck.go | 4 ++--
+ 11 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,28 @@
+commit fe14ee52ccf89fa02366a06fe892a7fcf135e214
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 1 08:35:33 2013 -0800
+
+    cmd/6c, cmd/6g: add flag to support large-model code generation
+    
+    Added the -pic flag to 6c and 6g to avoid assembler instructions that
+    cannot use RIP-relative adressing. This is needed to support the -shared mode
+    in 6l.
+    
+    See also:
+    https://golang.org/cl/6926049
+    https://golang.org/cl/6822078
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7064048
+
+ src/cmd/6c/sgen.c  |  5 ++++-
+ src/cmd/6g/cgen.c  |  8 ++++++--
+ src/cmd/6g/ggen.c  | 10 +++++++++-
+ src/cmd/6g/gsubr.c |  4 ++++
+ src/cmd/cc/cc.h    |  1 +
+ src/cmd/cc/lex.c   |  2 ++
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/lex.c   |  2 ++
+ src/make.bash      |  7 +++++--
+ 9 files changed, 34 insertions(+), 6 deletions(-)

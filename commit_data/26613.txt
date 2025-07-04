@@ -1,0 +1,33 @@
+commit ea5091fcd76534565dd76aff593302cd6f5dfcbb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 30 20:37:51 2016 +1100
+
+    cmd/compile/internal/gc: don't let the argument to Fields.Set escape
+    
+    Apply Robert's optimisation from CL 21241 to Type.Fields. The results
+    are less impressive, possibly because of the makeup of the test data.
+    
+    name      old time/op    new time/op    delta
+    Template     365ms ± 5%     365ms ± 3%    ~     (p=0.888 n=20+16)
+    Unicode      182ms ±10%     180ms ± 9%    ~     (p=0.883 n=20+20)
+    GoTypes      1.14s ± 2%     1.13s ± 3%    ~     (p=0.096 n=20+20)
+    Compiler     5.74s ± 1%     5.76s ± 2%    ~     (p=0.369 n=20+20)
+    
+    name      old alloc/op   new alloc/op   delta
+    Template    56.8MB ± 0%    56.7MB ± 0%  -0.15%  (p=0.000 n=19+20)
+    Unicode     38.3MB ± 0%    38.3MB ± 0%  -0.02%  (p=0.006 n=20+19)
+    GoTypes      180MB ± 0%     180MB ± 0%  -0.13%  (p=0.000 n=20+20)
+    Compiler     805MB ± 0%     804MB ± 0%  -0.05%  (p=0.000 n=20+20)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      485k ± 0%      482k ± 0%  -0.54%  (p=0.000 n=19+20)
+    Unicode       377k ± 0%      377k ± 0%  -0.05%  (p=0.005 n=20+20)
+    GoTypes      1.37M ± 0%     1.36M ± 0%  -0.53%  (p=0.000 n=20+19)
+    Compiler     5.42M ± 0%     5.41M ± 0%  -0.21%  (p=0.000 n=20+20)
+    
+    Change-Id: I6782659fadd605ce9931bf5c737c7058b96a29eb
+    Reviewed-on: https://go-review.googlesource.com/21296
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/type.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

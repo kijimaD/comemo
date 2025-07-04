@@ -1,0 +1,12 @@
+commit 0ba5ec53b047376e77418a248233b0645a79a838
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 20 13:02:29 2012 +1100
+
+    bufio: remove a little unnecessary indirection in tests.
+    
+    R=mchaten, r
+    CC=golang-dev
+    https://golang.org/cl/6739045
+
+ src/pkg/bufio/bufio_test.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

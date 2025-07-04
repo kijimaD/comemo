@@ -1,0 +1,21 @@
+commit 94c62efe9cfb9b3d9f0934dcb6d40a0ae522cdff
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 15:07:05 2017 -0700
+
+    cmd/link: skip TestDWARF when cgo is disabled
+    
+    While we're here, fix a Skip/Skipf error I noticed.
+    
+    Fixes #19796.
+    
+    Change-Id: I59b1f5b5ea727fc314acfee8445b3de0b5af1e46
+    Reviewed-on: https://go-review.googlesource.com/38992
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/dwarf_test.go          |  1 +
+ src/cmd/link/linkbig_test.go        |  2 +-
+ src/internal/testenv/testenv.go     |  9 +++++++++
+ src/internal/testenv/testenv_cgo.go | 11 +++++++++++
+ 4 files changed, 22 insertions(+), 1 deletion(-)

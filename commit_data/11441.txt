@@ -1,0 +1,17 @@
+commit a0d0ed200210012a42d4f6e32b4b52004ca3c46e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 27 14:45:31 2012 -0800
+
+    go/doc: added test case
+    
+    Don't show conflicting method embedded via
+    a visible and invisible anonymous field.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5564064
+
+ src/pkg/go/doc/testdata/e.0.golden | 10 ++++++++--
+ src/pkg/go/doc/testdata/e.1.golden | 10 ++++++++--
+ src/pkg/go/doc/testdata/e.go       | 16 ++++++++++++----
+ 3 files changed, 28 insertions(+), 8 deletions(-)

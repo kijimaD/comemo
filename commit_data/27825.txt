@@ -1,0 +1,14 @@
+commit 2cb471e40dfe3d3ae1b0c777e67f3737a823ae79
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 28 08:41:37 2016 +0900
+
+    crypto/tls: gofmt -w -s
+    
+    Change-Id: Iedf9000e3bb1fa73b4c3669eae846e85f1f5fdfe
+    Reviewed-on: https://go-review.googlesource.com/24489
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/tls_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

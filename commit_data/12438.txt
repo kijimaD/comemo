@@ -1,0 +1,14 @@
+commit 243ac1613e625d73fac19f45edea68b603a26346
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 7 13:13:26 2012 +1100
+
+    misc/dist: prepare source archives
+    
+    Fixes #95.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5756066
+
+ misc/dist/bindist.go | 103 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 77 insertions(+), 26 deletions(-)

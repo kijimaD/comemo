@@ -1,0 +1,16 @@
+commit 0e3e46f0d741745b6ddd78c05e137d7dd77ace92
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 10 09:41:23 2019 -0400
+
+    cmd/go/internal/get: simplify scheme lookup
+    
+    Fixes #26123
+    
+    Change-Id: If0dad65a3885d2146624f2aac42099e9eca9670e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200758
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/vcs.go | 51 +++++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 25 deletions(-)

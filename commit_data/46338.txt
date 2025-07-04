@@ -1,0 +1,18 @@
+commit b5e33a50fe600314752b866980a9b2498f23a326
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 4 14:55:57 2021 -0700
+
+    reflect: rename MapIter method receiver variable from it to iter
+    
+    This is easier to use in documentation.
+    Adjust the existing documentation that worked around the unfortunate name.
+    
+    Change-Id: Ia4b7793ab94dfd7fb3968ee983be56cc38c30ec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347769
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/value.go | 78 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

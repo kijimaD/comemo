@@ -1,0 +1,22 @@
+commit 463887d5cc3e4cc30347f350f6cdc93f42766340
+Author: Hiro <laciferin@gmail.com>
+Date:   Mon Jul 31 08:50:43 2023 +0000
+
+    go/types: add test cases for generic constraints, types and functions
+    
+    Dups: #60856
+    For #60817
+    
+    Change-Id: Ic0710758e170d6ceed66649fec08ef8054be4d6b
+    GitHub-Last-Rev: 8bbc76aaa704f102f9eabdfead45da452e1ea6e6
+    GitHub-Pull-Request: golang/go#61664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514255
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/printer_test.go | 17 +++++++++++++++--
+ src/go/types/exprstring_test.go                 | 19 +++++++++++++++----
+ 2 files changed, 30 insertions(+), 6 deletions(-)

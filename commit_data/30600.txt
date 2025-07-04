@@ -1,0 +1,18 @@
+commit 3a1271dad7617a9766d21987b2c3cc0e683d2010
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 8 22:54:52 2017 +0100
+
+    go/internal/srcimporter: skip tests on iOS
+    
+    The iOS test harness only includes the current test directory in its
+    app bundles, but the tests need access to all source code.
+    
+    Change-Id: I8a902b183bc2745b4fbfffef867002d573abb1f5
+    Reviewed-on: https://go-review.googlesource.com/37961
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/internal/srcimporter/srcimporter_test.go |  6 +++---
+ src/internal/testenv/testenv.go                 | 13 +++++++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

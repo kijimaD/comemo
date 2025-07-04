@@ -1,0 +1,25 @@
+commit ced0ba56289a5326332705a6617c10f3412cee0b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 4 10:00:30 2014 +0900
+
+    net: fix parsing literal IP address in builtin dns stub resolver
+    
+    This CL fixes a bug introduced by CL 128820043 which is that
+    builtin dns stub resolver doesn't work well with literal IPv6
+    address namesever entries in /etc/resolv.conf.
+    
+    Also simplifies resolv.conf parser and adds more test cases.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/140040043
+
+ src/pkg/net/dnsclient_unix_test.go      |  4 +-
+ src/pkg/net/dnsconfig_unix.go           | 35 ++++---------
+ src/pkg/net/dnsconfig_unix_test.go      | 91 +++++++++++++++++++++------------
+ src/pkg/net/testdata/domain-resolv.conf |  5 ++
+ src/pkg/net/testdata/empty-resolv.conf  |  1 +
+ src/pkg/net/testdata/resolv.conf        |  5 +-
+ src/pkg/net/testdata/search-resolv.conf |  5 ++
+ 7 files changed, 83 insertions(+), 63 deletions(-)

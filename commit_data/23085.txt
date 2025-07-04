@@ -1,0 +1,13 @@
+commit 9c9e36b34040d33b9f9a0b6fd918ef470338aec4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 15:15:52 2015 -0400
+
+    cmd/internal/gc: sync nowritebarrier checks and write barrier insertion
+    
+    Change-Id: I348223d0336e28d95b8e68d7653aa547acc7c9c3
+    Reviewed-on: https://go-review.googlesource.com/10262
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/cgen.go | 6 ++++++
+ src/cmd/internal/gc/walk.go | 3 +++
+ 2 files changed, 9 insertions(+)

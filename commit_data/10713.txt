@@ -1,0 +1,29 @@
+commit 420fe2292139123a31dbd90420417f63d4191c76
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Mon Dec 12 15:42:11 2011 -0500
+
+    ld/6l/8l: First pass at changes to the linker to support NetBSD binaries.
+    
+    This will not currently create valid NetBSD binaries because NetBSD requires
+    an ELF note section to run, otherwise the kernel will throw ENOEXEC. I was
+    unable to determine an elegant way to add the section, so I am submitting
+    what I have.
+    
+    References:
+    http://www.netbsd.org/docs/kernel/elf-notes.html
+    http://mail-index.netbsd.org/netbsd-bugs/2001/08/03/0012.html
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5472049
+
+ src/cmd/6l/asm.c    | 14 +++++++++++++-
+ src/cmd/6l/doc.go   |  2 ++
+ src/cmd/6l/obj.c    | 23 +++++++++++++----------
+ src/cmd/6l/pass.c   |  4 ++--
+ src/cmd/8l/asm.c    |  7 +++++++
+ src/cmd/8l/doc.go   |  2 ++
+ src/cmd/8l/obj.c    | 27 +++++++++++++++------------
+ src/cmd/cc/godefs.c |  6 +++---
+ src/cmd/ld/lib.c    |  2 +-
+ 9 files changed, 58 insertions(+), 29 deletions(-)

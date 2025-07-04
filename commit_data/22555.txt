@@ -1,0 +1,28 @@
+commit 89b7c66d0d14462fd7893be4290bdfe5f9063ae1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 13 23:45:00 2015 +0900
+
+    net: fix inconsistent error values on Dial, Listen partially
+    
+    This change makes TestDialError, TestListenError work without any
+    external dependency, enables them by default, and removes unnecessary
+    -run_error_test flag for fixing #4856.
+    
+    Also fixes inconsistent error values on Dial, Listen partially as a
+    first stab.
+    
+    Updates #4856.
+    
+    Change-Id: Ie10c151ae06759085f352c7db2ca45107a81914f
+    Reviewed-on: https://go-review.googlesource.com/8903
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go        | 104 -----------------------
+ src/net/error_plan9_test.go |  14 ++++
+ src/net/error_posix_test.go |  16 ++++
+ src/net/error_test.go       | 199 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_windows.go       |  51 +++++++-----
+ src/net/main_test.go        |   4 -
+ src/net/timeout_test.go     |  47 +++++------
+ src/net/udp_test.go         |   2 +-
+ 8 files changed, 282 insertions(+), 155 deletions(-)

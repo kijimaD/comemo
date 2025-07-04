@@ -1,0 +1,23 @@
+commit 0dcdbc772e62bf76b4468c288372b255dd18f4d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 2 10:12:38 2018 -0700
+
+    go/types: fix internal documentation and strengthen assumptions
+    
+    Imported (incl. dot-imported) objects are always in file scope,
+    never in package scope. Fix misleading comment.
+    
+    Package-scope declared objects must have objMap entry by
+    construction (of that map). Remove unnecessary check and
+    corresponding misleading comment.
+    
+    Found while investigating solutions for @23203.
+    
+    Change-Id: Idadfdd1576681ae56e11daa27bdcee2c73733c41
+    Reviewed-on: https://go-review.googlesource.com/110916
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/resolver.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

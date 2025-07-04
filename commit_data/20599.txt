@@ -1,0 +1,16 @@
+commit 1b89cd16589c223f1d5fb73b88a2612800d68e67
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 30 11:49:15 2014 -0700
+
+    encoding/asn1: fix unmarshaling of implicitly tagged UTF-8 strings.
+    
+    Fixes #8541.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/153770043
+
+ src/encoding/asn1/asn1.go      | 12 ++++++++----
+ src/encoding/asn1/asn1_test.go |  5 +++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 7b325ba27d8a5a90d16793267523ebf52a18bf65
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 8 17:08:52 2023 +0000
+
+    runtime: apply looser bound to /gc/heap/live:bytes in test
+    
+    /gc/heap/live:bytes may exceed MemStats.HeapAlloc, even when all data is
+    flushed, becuase the GC may double-count objects when marking them. This
+    is an intentional design choice that is largely inconsequential. The
+    runtime is already robust to it, and the condition is rare.
+    
+    Fixes #60607.
+    
+    Change-Id: I4da402efc24327328d2d8780e4e49961b189f0ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501858
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/metrics_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 9c6fecc2da35d3d4ee685cc7f56c69f4671e8888
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Jul 24 11:20:53 2013 -0400
+
+    misc/emacs: Make godef-jump behave more like find-tag by supporting pop-tag-mark
+    
+    Push point to the find-tag marker ring to support pop-tag-mark.
+    
+    Fixes #5804.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/11457044
+
+ misc/emacs/go-mode.el | 3 +++
+ 1 file changed, 3 insertions(+)

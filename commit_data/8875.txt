@@ -1,0 +1,15 @@
+commit 52cd055f9156c5d09468e427521eaceb63f9b50a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 23:23:51 2011 -0400
+
+    exp/regexp/syntax: case-folding in character classes
+    
+    Also fix \x{123} parsing.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4632052
+
+ src/pkg/exp/regexp/syntax/parse.go      | 157 +++++++++++++++++++++++++-------
+ src/pkg/exp/regexp/syntax/parse_test.go |  85 +++++++++++++++--
+ 2 files changed, 205 insertions(+), 37 deletions(-)

@@ -1,0 +1,21 @@
+commit f243584d297e183112cc97fcc09a9140961dc188
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 21 13:14:06 2013 -0700
+
+    go/*: support for slices with cap: s[:j:k] and s[i:j:k]
+    
+    Experimental, per rsc's proposal.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10204043
+
+ src/pkg/go/ast/ast.go                          |  1 +
+ src/pkg/go/ast/walk.go                         |  3 +++
+ src/pkg/go/parser/parser.go                    | 26 +++++++++++++++---------
+ src/pkg/go/parser/short_test.go                | 10 +++++++++
+ src/pkg/go/printer/nodes.go                    | 28 +++++++++++++++++---------
+ src/pkg/go/printer/testdata/expressions.golden | 17 ++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 17 ++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 17 ++++++++++++++++
+ 8 files changed, 99 insertions(+), 20 deletions(-)

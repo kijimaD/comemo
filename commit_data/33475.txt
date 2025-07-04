@@ -1,0 +1,26 @@
+commit 647648bd475e0635ce644c947b0140fd88eef58e
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Oct 15 12:21:00 2017 -0700
+
+    crypto/x509: enforce EKU nesting at chain-construction time.
+    
+    crypto/x509 has always enforced EKUs as a chain property (like CAPI, but
+    unlike the RFC). With this change, EKUs will be checked at
+    chain-building time rather than in a target-specific way.
+    
+    Thus mis-nested EKUs will now cause a failure in Verify, irrespective of
+    the key usages requested in opts. (This mirrors the new behaviour w.r.t.
+    name constraints, where an illegal name in the leaf will cause a Verify
+    failure, even if the verified name is permitted.).
+    
+    Updates #15196
+    
+    Change-Id: Ib6a15b11a9879a9daf5b1d3638d5ebbbcac506e5
+    Reviewed-on: https://go-review.googlesource.com/71030
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/x509/name_constraints_test.go | 465 ++++++++++++++++++++++++++-----
+ src/crypto/x509/verify.go                | 217 ++++++++-------
+ 2 files changed, 514 insertions(+), 168 deletions(-)

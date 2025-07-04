@@ -1,0 +1,23 @@
+commit cb37cfa01c24a554568fcc7bbe5dced325c3c50f
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 28 19:43:50 2015 +0100
+
+    runtime: TestGdbPython 'print mapvar' should not need unwinding
+    
+    issue #10017: TestGdbPython 'print mapvar' is reported to fail on ppc64.
+    issue #10002: TestGdbPython 'print mapvar' is reported to fail on arm hardfloat.
+    
+    The testcase now uses plain line number in main.  Unwinding issues are
+    unrelated to the GDB map prettyprinter feature.
+    
+    Remove arch-specific t.Skip()s from those two issues.
+    
+    Fixes #10017
+    Fixes #10002
+    
+    Change-Id: I9d50ffe2f3eb7bf65dd17c8c76a2677571de68ba
+    Reviewed-on: https://go-review.googlesource.com/6267
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

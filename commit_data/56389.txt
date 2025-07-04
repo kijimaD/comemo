@@ -1,0 +1,16 @@
+commit 46aa30ff485aee401d591c719eb7bc49fde0391c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 10:59:34 2024 -0400
+
+    time: more deflaking asynctimer tests
+    
+    For #66322.
+    
+    Change-Id: I1d83c7a3cacd2ab012039d954270a7c87bbdf5ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584195
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/time/tick_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

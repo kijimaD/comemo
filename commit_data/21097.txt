@@ -1,0 +1,12 @@
+commit 09d369f8dd51db09c4dfaa7635ecb4e71a30782a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 16:00:49 2014 -0500
+
+    doc: mention the crypto/cipher.Stream clarification in go1.5.txt
+    
+    Change-Id: Ie95c86d222b230a2e69f4141e3372bf94dee3e91
+    Reviewed-on: https://go-review.googlesource.com/2129
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

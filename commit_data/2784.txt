@@ -1,0 +1,43 @@
+commit d3888fe8a318da1fdd089e0059aaa1596405a659
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 27 13:01:23 2009 -0700
+
+    Implement single-valued, non-variadic function literals and
+    function calling.  Implement a type compiler and named types.
+    Implement a universal scope containing built-in named types,
+    and some built-in constants.  Implement a simple virtual
+    machine for executing statements and single-valued return.
+    
+    Fix many places that incorrectly dealt with named types.  In
+    particular, the Type.Zero methods now use the type's bit count
+    to determine the appropriate value representation.  As a
+    result, a bit count of 0 now means architecture-dependent and
+    bounded types use unsafe.Sizeof to determine the correct
+    bounds.  Previously, the bounds on a 32-bit machine would have
+    been wrong.
+    
+    Eliminated Type.compatible, since the implementation is
+    equivalent for all types.  Added Type.rep that shallowly
+    strips named types.  Replaced almost all uses of Type.literal
+    with Type.rep.
+    
+    Fix implementation of assign-op's so it only evaluates the
+    left side once.  As part of this, there is now a generic way
+    to separate out the effect and value of an expression.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1530  (1244 added, 68 deleted, 218 changed)
+    OCL=32184
+    CL=32230
+
+ usr/austin/eval/compiler.go |  79 ++++++++
+ usr/austin/eval/decls.go    |  37 +++-
+ usr/austin/eval/expr.go     | 475 ++++++++++++++++++++++++++++++++++----------
+ usr/austin/eval/func.go     |  90 +++++++++
+ usr/austin/eval/scope.go    |  76 ++++++-
+ usr/austin/eval/stmt.go     | 253 ++++++++++++++++++-----
+ usr/austin/eval/type.go     | 406 +++++++++++++++++++++++++++++++------
+ usr/austin/eval/typec.go    | 202 +++++++++++++++++++
+ usr/austin/eval/value.go    | 100 +++++++---
+ 9 files changed, 1453 insertions(+), 265 deletions(-)

@@ -1,0 +1,13 @@
+commit b0c7d680525d46d40fab09a4c68131ccbcd3254d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 14:55:04 2009 -0800
+
+    os.TestSeek: use a smaller but still 64-bit seek offset.
+    
+    Might fix issue 91.
+    
+    R=r
+    https://golang.org/cl/152108
+
+ src/pkg/os/os_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

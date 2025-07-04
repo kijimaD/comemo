@@ -1,0 +1,14 @@
+commit 695024b8fa78677362ad2c3d57fa63de7f5fbab4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 1 09:20:44 2012 +1000
+
+    image/png: tRNS chunk is *non*-alpha-premultiplied.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6446062
+
+ src/pkg/image/png/reader.go      |  2 +-
+ src/pkg/image/png/reader_test.go | 15 +++++++++-----
+ src/pkg/image/png/writer.go      | 44 ++++++++++++++++------------------------
+ 3 files changed, 29 insertions(+), 32 deletions(-)

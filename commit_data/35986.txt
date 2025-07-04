@@ -1,0 +1,15 @@
+commit 3239e9d3dc7ab3df904b91ace570cc0e6be7999f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 13 16:38:24 2018 -0400
+
+    cmd/go: fix TestModFindModulePath on Windows
+    
+    The os.RemoveAll(tg.tempdir) was not a good idea.
+    
+    Change-Id: I6f78cff887044186649cbf3ee04a58abdbcb71e2
+    Reviewed-on: https://go-review.googlesource.com/123757
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/mod_test.go | 88 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 45 deletions(-)

@@ -1,0 +1,15 @@
+commit 35e37bbf4139d7a7eab49e857402c3edfe89af52
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 20 15:36:57 2009 -0800
+
+    6g: better genembedtramp fatal error,
+       and don't put inaccessible private methods
+       in signature.
+    
+    R=ken
+    OCL=23138
+    CL=23140
+
+ src/cmd/6g/obj.c  | 2 +-
+ src/cmd/gc/subr.c | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

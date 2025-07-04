@@ -1,0 +1,24 @@
+commit 4042b77776fe59c8cff23849745fe9e17146fa66
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 22:48:03 2013 -0400
+
+    runtime: cut struct Hmap back to 48-byte allocation
+    
+    struct Hmap is the header for a map value.
+    
+    CL 8377046 made flags a uint32 so that it could be updated atomically,
+    but that bumped the struct to 56 bytes, which allocates as 64 bytes (on amd64).
+    
+    hash0 is initialized from runtime.fastrand1, which returns a uint32,
+    so the top 32 bits were always zero anyway. Declare it as a uint32
+    to reclaim 4 bytes and bring the Hmap size back down to a 48-byte allocation.
+    
+    Fixes #5237.
+    
+    R=golang-dev, khr, khr
+    CC=bradfitz, dvyukov, golang-dev
+    https://golang.org/cl/12034047
+
+ src/pkg/runtime/hashmap.c   |  2 +-
+ src/pkg/runtime/map_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

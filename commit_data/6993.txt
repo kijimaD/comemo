@@ -1,0 +1,13 @@
+commit a890d70cc1fff8513d89e88b7028132f6df40b42
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Dec 17 12:19:37 2010 -0500
+
+    crypto/hmac: add HMAC-SHA256
+    
+    R=agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/3730041
+
+ src/pkg/crypto/hmac/hmac.go      |   4 ++
+ src/pkg/crypto/hmac/hmac_test.go | 109 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 111 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 46cf91a75fc0a516eb76b66b1a61202f3546bd7e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Sun Oct 7 00:58:08 2018 +0900
+
+    all: fix typos
+    
+    Change-Id: I775eb4b33422a95f4255799d551c9962d7e181d3
+    Reviewed-on: https://go-review.googlesource.com/c/140318
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/typexpr.go        |  2 +-
+ src/os/user/cgo_lookup_unix.go | 10 ++++------
+ 2 files changed, 5 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 22853098a9a3139260b6d0efcd95a825999807b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 21 14:10:39 2011 -0400
+
+    gc: select functions are no longer special
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4794049
+
+ src/cmd/gc/go.h        |  1 -
+ src/cmd/gc/subr.c      | 23 -----------------------
+ src/cmd/gc/walk.c      | 11 -----------
+ src/pkg/runtime/chan.c | 12 ++++++++++++
+ 4 files changed, 12 insertions(+), 35 deletions(-)

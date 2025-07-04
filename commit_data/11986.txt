@@ -1,0 +1,14 @@
+commit a15f59ef1da4c3ac23e46eef2fa679e0f41205bb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 12:47:56 2012 +1100
+
+    debug/dwarf: address TODO in doc comment for New
+    
+    Fixes #2844.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5675072
+
+ src/pkg/debug/dwarf/open.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

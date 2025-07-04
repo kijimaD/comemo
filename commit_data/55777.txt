@@ -1,0 +1,20 @@
+commit 0784fd1b2f6050b8fb91c88c1d02107258a1651a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 27 13:22:40 2024 -0800
+
+    runtime/cgo: ignore unknown warning options
+    
+    For #65290
+    Fixes #65971
+    
+    Change-Id: If15853f287e06b85bb1cb038b3785516d5812f84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567556
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/cgo/gcc_libinit.c | 1 +
+ 1 file changed, 1 insertion(+)

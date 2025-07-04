@@ -1,0 +1,23 @@
+commit c8c646d31bec3cbe56ecf5a26fbbd235c97cfb21
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 13 16:43:41 2023 -0500
+
+    cmd/go/internal/modfetch: avoid path.Join in URL errors
+    
+    path.Join collapses duplicated '/' tokens, but an HTTP URL
+    intentionally includes a '://' after the scheme.
+    
+    This should fix the syntax of the errors seen in
+    https://build.golang.org/log/a17d0c7b6159ea4dad0a9e5378ab5a36ee30ce44.
+    
+    Updates #52727.
+    
+    Change-Id: I6e1773a7eb8b3e7e2b3ca29540c1e94a7cd2d99d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461682
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/modfetch/proxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

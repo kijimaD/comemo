@@ -1,0 +1,21 @@
+commit f79c99fe8ae4a5e4380af22ee6cb38c3eb3a0416
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 3 11:20:29 2023 +0200
+
+    internal/syscall/unix: implement Eaccess on netbsd
+    
+    Like on linux and freebsd, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+    
+    Change-Id: Ia76ba67023b6deba6f0cdaf30a0b9cee0c140bb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531876
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/syscall/unix/at_sysnum_netbsd.go                  | 10 +++++++---
+ .../syscall/unix/{eaccess_freebsd.go => eaccess_bsd.go}        |  2 ++
+ src/internal/syscall/unix/eaccess_other.go                     |  2 +-
+ 3 files changed, 10 insertions(+), 4 deletions(-)

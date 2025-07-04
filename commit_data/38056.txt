@@ -1,0 +1,21 @@
+commit 576a3c61d9a0960565e068732c26f8fa96314f7a
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Wed Feb 13 19:18:25 2019 +0000
+
+    crypto/x509: remove redundant check for nil in tests
+    
+    Comparing err variable to be not nil is redundant in this case.
+    The code above ensures that it is always not nil.
+    
+    Updates #30208
+    
+    Change-Id: I0a41601273de36a05d22270a743c0bdedeb1d0bf
+    GitHub-Last-Rev: 372e0fd48f90f33e266fbcdf2ccf87b9f1311c4f
+    GitHub-Pull-Request: golang/go#30213
+    Reviewed-on: https://go-review.googlesource.com/c/162439
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/name_constraints_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

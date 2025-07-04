@@ -1,0 +1,29 @@
+commit 640cd3b3220f7a06820365e53f8fc6cb0acd1b20
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 11:04:37 2017 -0500
+
+    runtime: check transition condition before triggering periodic GC
+    
+    Currently sysmon triggers periodic GC if GC is not currently running
+    and it's been long enough since the last GC. This misses some
+    important conditions; for example, whether GC is enabled at all by
+    GOGC. As a result, if GOGC is off, once we pass the timeout for
+    periodic GC, sysmon will attempt to trigger a GC every 10ms. This GC
+    will be a no-op because gcStart will check all of the appropriate
+    conditions and do nothing, but it still goes through the motions of
+    waking the forcegc goroutine and printing a gctrace line.
+    
+    Fix this by making sysmon call gcShouldStart to check *all* of the
+    appropriate transition conditions before attempting to trigger a
+    periodic GC.
+    
+    Fixes #19247.
+    
+    Change-Id: Icee5521ce175e8419f934723849853d53773af31
+    Reviewed-on: https://go-review.googlesource.com/37515
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

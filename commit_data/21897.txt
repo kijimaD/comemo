@@ -1,0 +1,34 @@
+commit 122384e4893edeccb34c3faa4c1378b3bcb55531
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Mar 3 16:55:14 2015 -0500
+
+    runtime: Remove boundary bit logic.
+    
+    This is an experiment to see if removing the boundary bit logic will
+    lead to fewer cache misses and improved performance. Instead of using
+    boundary bits we use the span information to get element size and use
+    some bit whacking to get the boundary without having to touch the
+    random heap bits which cause cache misses.
+    
+    Furthermore once the boundary bit is removed we can either use that
+    bit for a simpler checkmark routine or we can reduce the number of
+    bits in the GC bitmap to 2 bits per pointer sized work. For example
+    the 2 bits at the boundary can be used for marking and pointer/scalar
+    differentiation. Since we don't need the mark bit except at the
+    boundary nibble of the object other nibbles can use this bit
+    as a noscan bit to indicate that there are no more pointers in
+    the object.
+    
+    Currently the changed included in this CL slows down the garbage
+    benchmark. With the boundary bits garbage gives 5.78 and without
+    (this CL) it gives 5.88 which is a 2% slowdown.
+    
+    Change-Id: Id68f831ad668176f7dc9f7b57b339e4ebb6dc4c2
+    Reviewed-on: https://go-review.googlesource.com/6665
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go  | 137 ++++++++----------------------------------------
+ src/runtime/mcentral.go |   2 +-
+ src/runtime/mgcmark.go  |  23 ++++----
+ src/runtime/mgcsweep.go |   2 +-
+ 4 files changed, 34 insertions(+), 130 deletions(-)

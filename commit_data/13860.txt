@@ -1,0 +1,12 @@
+commit 35724c1aa5f9370093851c92fb61b482260bb834
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Sep 18 14:30:01 2012 -0400
+
+    runtime: hide the semaphore table from garbage collector
+    
+    R=rsc, dvyukov, dave
+    CC=golang-dev
+    https://golang.org/cl/6528043
+
+ src/pkg/runtime/sema.goc | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

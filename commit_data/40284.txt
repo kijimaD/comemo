@@ -1,0 +1,19 @@
+commit 3972f97d049edde37936d8b675e3600d10705dbc
+Author: Trung Nguyen <trung.n.k@gmail.com>
+Date:   Fri Oct 11 13:50:01 2019 -0400
+
+    net/http, net/textproto: add Header.Values, MIMEHeader.Values methods
+    
+    Fixes #34799
+    
+    Change-Id: I134b2717fa90c8955902e7eeaaf8510dcc28340e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200760
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/header.go           | 14 ++++++++---
+ src/net/textproto/header.go      | 15 +++++++++--
+ src/net/textproto/header_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
+ src/net/textproto/reader_test.go | 35 --------------------------
+ 4 files changed, 78 insertions(+), 40 deletions(-)

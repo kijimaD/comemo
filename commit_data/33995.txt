@@ -1,0 +1,16 @@
+commit 08e342d62c222b80c3a0480002eb71976218f589
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 10 17:14:20 2018 -0800
+
+    cmd/compile/internal/syntax: don't record semi position if there's none
+    
+    Fixes #23406.
+    
+    Change-Id: Ief04e20357c9ca03a5e496f1742428394c8ee658
+    Reviewed-on: https://go-review.googlesource.com/87317
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

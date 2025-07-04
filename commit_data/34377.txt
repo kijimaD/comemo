@@ -1,0 +1,21 @@
+commit 81786649c54c5e45765de12cbdf11c9081614506
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Wed Feb 21 13:35:08 2018 -0800
+
+    cmd/compile/internal/ssa: clear branch likeliness in clobberBlock
+    
+    The branchelim pass makes some blocks unreachable, but does not
+    remove them from Func.Values. Consequently, ssacheck complains
+    when it finds a block with a non-zero likeliness value but no
+    successors.
+    
+    Fixes #24014
+    
+    Change-Id: I2dcf1d8f4e769a2f363508dab3b11198ead336b6
+    Reviewed-on: https://go-review.googlesource.com/96075
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/branchelim.go | 1 +
+ 1 file changed, 1 insertion(+)

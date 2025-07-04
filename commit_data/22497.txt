@@ -1,0 +1,17 @@
+commit 2d0c962b1c13e451d0cce79032c92551c607b1bd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 11:31:41 2015 -0700
+
+    misc/ios: read codesign info from environment variables
+    
+    Use environment variables to allow set-and-forget.
+    
+    Add a script to attempt to autodetect codesign info.
+    
+    Change-Id: Ic56b9c5f097b1a4117ebb89c408bc333d91f581d
+    Reviewed-on: https://go-review.googlesource.com/8910
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/detect.go             | 132 +++++++++++++++++++++++++++++++++++++++++
+ misc/ios/go_darwin_arm_exec.go |  40 ++++++++++---
+ 2 files changed, 164 insertions(+), 8 deletions(-)

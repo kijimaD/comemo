@@ -1,0 +1,16 @@
+commit 445f51fb119789e08889abcb8ae54b4eb5029fad
+Author: Suyash <dextrous93@gmail.com>
+Date:   Sun Sep 11 12:47:47 2016 +0530
+
+    image/png: add Encode and Decode examples
+    
+    partially addresses #16360
+    
+    Change-Id: I8274825b9ca6aec46294c8513b4795b0eb3062a2
+    Reviewed-on: https://go-review.googlesource.com/28992
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/png/example_test.go | 77 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

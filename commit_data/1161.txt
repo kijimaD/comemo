@@ -1,0 +1,17 @@
+commit c1efd7d6e5a97cce233ecb6bb59d19b55eb33c3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 16:13:25 2008 -0800
+
+    roll tests into one binary
+    
+    R=r
+    DELTA=145  (27 added, 27 deleted, 91 changed)
+    OCL=19423
+    CL=19502
+
+ src/lib/strconv/test.bash   |  13 +----
+ src/lib/strconv/testatof.go | 137 +++++++++++++++++++++-----------------------
+ src/lib/strconv/testfp.go   |  42 ++++++--------
+ src/lib/strconv/testftoa.go |  22 ++++---
+ src/lib/strconv/testing.go  |  26 +++++++++
+ 5 files changed, 122 insertions(+), 118 deletions(-)

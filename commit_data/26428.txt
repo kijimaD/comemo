@@ -1,0 +1,17 @@
+commit 4402ee9fa3fd98e37d123e364209933c2c1685bb
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 19:41:34 2016 -0400
+
+    test: add s390x case to nosplit test
+    
+    Fixes this test on s390x.
+    
+    Change-Id: Ie5b70e8191169867765ec9248d827ca12c6405f4
+    Reviewed-on: https://go-review.googlesource.com/20964
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/nosplit.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,24 @@
+commit 5abc8c897ced423dae799f093cdafac68dbeb244
+Author: griesemer <gri@golang.org>
+Date:   Fri Aug 11 16:51:40 2017 +0200
+
+    spec: better comment in example for type definition
+    
+    The old comment for the example
+    
+            type PtrMutex *Mutex
+    
+    talked about the method set of the base type of PtrMutex.
+    It's more direct and clearer to talk about the underlying
+    type of PtrMutex for this specific example.
+    Also removed link inside pre-formatted region of text.
+    
+    Fixes #20900.
+    
+    Change-Id: Ie37340e53670e34ebe13e780ba8ccb1bba67795c
+    Reviewed-on: https://go-review.googlesource.com/55070
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

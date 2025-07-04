@@ -1,0 +1,12 @@
+commit 4aa6d353063aff777a9bdd3d3cedea5ca3fed2a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 18 10:10:10 2013 +1000
+
+    net/http: document NewRequest treating Reader as ReadCloser
+    
+    R=golang-dev, dsymonds, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/11432044
+
+ src/pkg/net/http/request.go | 4 ++++
+ 1 file changed, 4 insertions(+)

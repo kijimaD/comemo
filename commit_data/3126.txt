@@ -1,0 +1,17 @@
+commit 8fdc5b6041d05e0fad8140f489358dd1cbe4e5de
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 12:45:30 2009 -0700
+
+    Give NamedTypes a public interface
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=32  (14 added, 1 deleted, 17 changed)
+    OCL=34043
+    CL=34043
+
+ usr/austin/eval/bridge.go |  2 +-
+ usr/austin/eval/expr.go   |  2 +-
+ usr/austin/eval/type.go   | 34 ++++++++++++++++++++++++----------
+ usr/austin/eval/typec.go  | 11 +++++------
+ 4 files changed, 31 insertions(+), 18 deletions(-)

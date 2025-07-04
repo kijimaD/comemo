@@ -1,0 +1,21 @@
+commit 703b897f781a399c528a3fe1556762f2d9db3417
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 12:40:02 2013 +1000
+
+    cmd/gc: remove mentions of "ideal" from error messages.
+            _ = complex("foo", 0)
+            _ = complex(true, 0)
+    now trigger:
+            x.go:4: invalid operation: complex("foo", 0) (mismatched types untyped string and untyped number)
+            x.go:5: invalid operation: complex(true, 0) (mismatched types untyped bool and untyped number)
+    
+    Fixes #4521
+    
+    R=golang-dev, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/12973043
+
+ src/cmd/gc/const.c     | 2 +-
+ src/cmd/gc/fmt.c       | 4 ++--
+ src/cmd/gc/typecheck.c | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

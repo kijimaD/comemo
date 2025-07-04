@@ -1,0 +1,16 @@
+commit 5e6a1a3f4894b3995c546178dd6de52d0f77493b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 21 15:56:15 2013 -0700
+
+    go/doc: use regexp for -notes instead of comma-sep. list
+    
+    -notes="BUG|TODO" instead of -notes="BUG,TODO".
+    Permits -notes=".*" to see all notes.
+    
+    R=cnicolaou
+    CC=golang-dev
+    https://golang.org/cl/7951043
+
+ src/cmd/godoc/doc.go   |  3 +++
+ src/cmd/godoc/godoc.go | 21 +++++++++++----------
+ 2 files changed, 14 insertions(+), 10 deletions(-)

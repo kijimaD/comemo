@@ -1,0 +1,29 @@
+commit 1a3e968b1fcb2082b1d99be563a7c9f8c61c66ba
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Feb 21 22:09:03 2021 +0700
+
+    cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer
+    
+    In CL 253457, we did the same fix for direct function calls. But for
+    method calls, the receiver argument also need to be passed through the
+    wrapper function, which we are not doing so the compiler crashes with
+    the code in #44415.
+    
+    As we already rewrite t.M(...) into T.M(t, ...) during walkCall1, to fix
+    this, we can do the same trick in wrapCall, so the receiver argument
+    will be treated as others.
+    
+    Fixes #44415
+    
+    Change-Id: I396182983c85d9c5e4494657da79d25636e8a079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294849
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++++++--------------
+ src/cmd/compile/internal/walk/stmt.go |  3 +++
+ test/fixedbugs/issue24491a.go         | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue44415.go          | 21 +++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 14 deletions(-)

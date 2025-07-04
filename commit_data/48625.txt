@@ -1,0 +1,31 @@
+commit 434b2a5d0dbdfdce6327beb06ca03c02b3fd2785
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 31 16:51:32 2022 -0400
+
+    syscall: relax output check in TestGroupCleanupUserNamespace
+    
+    “If you have a procedure with ten parameters, you probably missed some.”
+    ― attr. Alan J. Perlis
+    
+    I argue that the same is true for hard-coded special cases.
+    
+    In TestGroupCleanupUserNamespace, instead of a curated list of strings
+    observed in the wild we now check for a prefix, as was done for
+    TestGroupCleanup in CL 24670.
+    
+    Updates #16224.
+    Updates #16303.
+    Updates #19938.
+    Updates #34547.
+    Updates #46752.
+    Fixes #52088.
+    
+    Change-Id: I59c5b0c048113e306996c0f8247e09c714d2423a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397316
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

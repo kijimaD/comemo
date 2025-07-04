@@ -1,0 +1,13 @@
+commit d4cdfcf3d99e357b22e4098ae8dfbb04be02fd5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 7 17:15:42 2012 -0700
+
+    text/scanner: skip first character if it's a BOM
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6493097
+
+ src/pkg/text/scanner/scanner.go      | 12 ++++++------
+ src/pkg/text/scanner/scanner_test.go |  7 +++++--
+ 2 files changed, 11 insertions(+), 8 deletions(-)

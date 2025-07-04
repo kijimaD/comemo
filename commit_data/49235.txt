@@ -1,0 +1,45 @@
+commit cc4957a5f6eba946f359ed9646ec3e5083a259a9
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 16:25:46 2021 +0800
+
+    cmd/link: support linker for linux/loong64
+    
+    The basic arch-specific hooks are implemented, which
+    are used for internal and external linker.
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I4680eb0635dd0fa3d6ea8348a2488da9c7e33d3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349514
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/link/internal/ld/config.go     |   2 +-
+ src/cmd/link/internal/ld/elf.go        |   9 +-
+ src/cmd/link/internal/ld/lib.go        |   2 +
+ src/cmd/link/internal/ld/pcln.go       |   2 +-
+ src/cmd/link/internal/ld/target.go     |   4 +
+ src/cmd/link/internal/loadelf/ldelf.go |  14 ++
+ src/cmd/link/internal/loong64/asm.go   | 240 +++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/loong64/l.go     |  17 +++
+ src/cmd/link/internal/loong64/obj.go   |  58 ++++++++
+ src/cmd/link/internal/sym/reloc.go     |   2 +
+ src/cmd/link/link_test.go              |   2 +
+ src/cmd/link/main.go                   |   3 +
+ 12 files changed, 351 insertions(+), 4 deletions(-)

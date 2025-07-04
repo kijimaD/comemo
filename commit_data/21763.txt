@@ -1,0 +1,16 @@
+commit 79c12958c7dab8903791476746687fa643976c67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 13:23:02 2015 -0800
+
+    math/big: export Float.MinPrec
+    
+    MinPrec returns the minimum precision required to represent a Float
+    without loss of precision. Added test.
+    
+    Change-Id: I466c8e492dcdd59fae854fc4e71ef9b1add7d817
+    Reviewed-on: https://go-review.googlesource.com/6010
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 24 ++++++++++++------------
+ src/math/big/float_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 12 deletions(-)

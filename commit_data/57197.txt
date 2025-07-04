@@ -1,0 +1,26 @@
+commit f432b5f756c223564fd397b7568bd2ce949c7c6f
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Tue Aug 20 09:19:22 2024 +0000
+
+    testing: add Context
+    
+    Adds a new Context method to testing.T, that returns a context, that is
+    canceled before the end of its test function.
+    
+    Fixes #36532.
+    
+    Change-Id: I9315ad4dad25529d0b5be809e2d9db4e7528b5f2
+    GitHub-Last-Rev: 1c3fd6c4d8a9cc68a61f2df284d04d3d080216be
+    GitHub-Pull-Request: golang/go#68828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603959
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next/36532.txt                          |  4 +++
+ doc/next/6-stdlib/99-minor/testing/36532.md |  2 ++
+ doc/next/6-stdlib/99-minor/testing/62516.md |  4 +--
+ src/testing/testing.go                      | 54 ++++++++++++++++++++++-------
+ src/testing/testing_test.go                 | 28 +++++++++++++++
+ 5 files changed, 77 insertions(+), 15 deletions(-)

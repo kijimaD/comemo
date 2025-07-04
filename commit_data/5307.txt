@@ -1,0 +1,15 @@
+commit 13f81feb31ab54fabc95b38764fd2d55079edd1f
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Sun Apr 18 14:46:24 2010 -0700
+
+    net: fix bugs in packStructValue
+    
+    packStructValue was cutting off last byte of uint32
+    in _Dns_msg.Unpack, use packRR for rr types
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/844048
+
+ src/pkg/net/dnsmsg.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

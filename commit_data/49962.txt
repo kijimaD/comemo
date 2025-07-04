@@ -1,0 +1,20 @@
+commit f6efcf1fbb8e86b235a9398660593b7c83b69aff
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:39:01 2022 +0700
+
+    runtime: convert m.cgoCallersUse to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I99b01f8e91b798e73275635c8a63fcdc4a8df9f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423888
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/proc.go      | 2 +-
+ src/runtime/runtime2.go  | 8 ++++----
+ src/runtime/traceback.go | 5 ++---
+ 3 files changed, 7 insertions(+), 8 deletions(-)

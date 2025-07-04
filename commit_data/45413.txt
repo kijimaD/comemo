@@ -1,0 +1,34 @@
+commit 6082c05d8b4ab59e74204a3749629c8e6240b7b0
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 10:35:53 2021 -0400
+
+    go/types: better errors for invalid short var decls
+    
+    This is a port of CL 312170 to go/types, adjusted to use go/ast and to
+    add error codes. go/parser already emits errors for non-identifiers on
+    the LHS of a short var decl, so a TODO is added to reconsider this
+    redundancy.
+    
+    A new error code is added for repeated identifiers in short var decls.
+    This is a bit specific, but I considered it to be a unique kind of
+    error.
+    
+    The x/tools tests for this port turned up a bug: the new logic failed to
+    call recordDef for blank identifiers. Patchset #2 contains the fix for
+    this bug, both in go/types and cmd/compile/internal/types2.
+    
+    Change-Id: Ibdc40b8b4ad0e0696111d431682e1f1056fd5eeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314629
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go    |  1 +
+ src/cmd/compile/internal/types2/assignments.go | 20 +++---
+ src/go/types/api_test.go                       |  1 +
+ src/go/types/assignments.go                    | 99 ++++++++++++++++----------
+ src/go/types/errorcodes.go                     |  9 +++
+ src/go/types/fixedbugs/issue43087.src          | 43 +++++++++++
+ src/go/types/testdata/stmt0.src                |  6 +-
+ 7 files changed, 127 insertions(+), 52 deletions(-)

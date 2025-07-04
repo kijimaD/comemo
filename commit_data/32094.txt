@@ -1,0 +1,25 @@
+commit b63db76c4ae4e154ed40b4ec3c782d7fe9c0d3b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 2 10:49:20 2017 -0700
+
+    testsanitizers: check that tsan program runs, skip tsan10 on gcc
+    
+    Check not only that a tsan program can be built, but also that it runs.
+    This fails with some installations of GCC 7.
+    
+    Skip the tsan10 program when using GCC, as it reportedly hangs.
+    
+    This is a patch to help people build 1.9; we may be able to do a
+    better fix for 1.10.
+    
+    Updates #21196
+    
+    Change-Id: Icd1ffbd018dc65a97ff45cab1264b9b0c7fa0ab2
+    Reviewed-on: https://go-review.googlesource.com/52790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

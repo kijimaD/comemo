@@ -1,0 +1,83 @@
+commit 9f9bb26880388c5bead158e9eca3be4b3a9bd2af
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 7 19:09:59 2023 +0000
+
+    runtime: avoid MADV_HUGEPAGE for heap memory
+    
+    Currently the runtime marks all new memory as MADV_HUGEPAGE on Linux and
+    manages its hugepage eligibility status. Unfortunately, the default
+    THP behavior on most Linux distros is that MADV_HUGEPAGE blocks while
+    the kernel eagerly reclaims and compacts memory to allocate a hugepage.
+    
+    This direct reclaim and compaction is unbounded, and may result in
+    significant application thread stalls. In really bad cases, this can
+    exceed 100s of ms or even seconds.
+    
+    Really all we want is to undo MADV_NOHUGEPAGE marks and let the default
+    Linux paging behavior take over, but the only way to unmark a region as
+    MADV_NOHUGEPAGE is to also mark it MADV_HUGEPAGE.
+    
+    The overall strategy of trying to keep hugepages for the heap unbroken
+    however is sound. So instead let's use the new shiny MADV_COLLAPSE if it
+    exists.
+    
+    MADV_COLLAPSE makes a best-effort synchronous attempt at collapsing the
+    physical memory backing a memory region into a hugepage. We'll use
+    MADV_COLLAPSE where we would've used MADV_HUGEPAGE, and stop using
+    MADV_NOHUGEPAGE altogether.
+    
+    Because MADV_COLLAPSE is synchronous, it's also important to not
+    re-collapse huge pages if the huge pages are likely part of some large
+    allocation. Although in many cases it's advantageous to back these
+    allocations with hugepages because they're contiguous, eagerly
+    collapsing every hugepage means having to page in at least part of the
+    large allocation.
+    
+    However, because we won't use MADV_NOHUGEPAGE anymore, we'll no longer
+    handle the fact that khugepaged might come in and back some memory we
+    returned to the OS with a hugepage. I've come to the conclusion that
+    this is basically unavoidable without a new madvise flag and that it's
+    just not a good default. If this change lands, advice about Linux huge
+    page settings will be added to the GC guide.
+    
+    Verified that this change doesn't regress Sweet, at least not on my
+    machine with:
+    
+    /sys/kernel/mm/transparent_hugepage/enabled [always or madvise]
+    /sys/kernel/mm/transparent_hugepage/defrag [madvise]
+    /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none [0 or 511]
+    
+    Unfortunately, this workaround means that we only get forced hugepages
+    on Linux 6.1+.
+    
+    Fixes #61718.
+    
+    Change-Id: I7f4a7ba397847de29f800a99f9cb66cb2720a533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516795
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/defs_linux_386.go     |  1 +
+ src/runtime/defs_linux_amd64.go   |  1 +
+ src/runtime/defs_linux_arm.go     |  1 +
+ src/runtime/defs_linux_arm64.go   |  1 +
+ src/runtime/defs_linux_loong64.go |  1 +
+ src/runtime/defs_linux_mips64x.go |  1 +
+ src/runtime/defs_linux_mipsx.go   |  1 +
+ src/runtime/defs_linux_ppc64.go   |  1 +
+ src/runtime/defs_linux_ppc64le.go |  1 +
+ src/runtime/defs_linux_riscv64.go |  1 +
+ src/runtime/defs_linux_s390x.go   |  1 +
+ src/runtime/export_test.go        |  4 ++--
+ src/runtime/mem.go                |  6 ++++++
+ src/runtime/mem_aix.go            |  3 +++
+ src/runtime/mem_bsd.go            |  3 +++
+ src/runtime/mem_darwin.go         |  3 +++
+ src/runtime/mem_linux.go          | 25 ++++++++++++++++++++++++
+ src/runtime/mem_sbrk.go           |  3 +++
+ src/runtime/mem_windows.go        |  3 +++
+ src/runtime/mgcscavenge.go        | 40 ++++++++++++++++++++++++++-------------
+ src/runtime/mpagealloc.go         |  5 -----
+ 21 files changed, 86 insertions(+), 20 deletions(-)

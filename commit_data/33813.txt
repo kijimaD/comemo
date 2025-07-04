@@ -1,0 +1,12 @@
+commit 28736053ad2829dcf576d05412a2def8bc3a1549
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 6 10:59:40 2017 +0100
+
+    doc: fix two spelling mistakes in contribute.html
+    
+    Change-Id: Ife60468d508f90321733ebdbdb0e6cf443ba1659
+    Reviewed-on: https://go-review.googlesource.com/82156
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

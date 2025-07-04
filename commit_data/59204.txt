@@ -1,0 +1,19 @@
+commit 7177f2400995901b666b1ed94d87c15c8c410fab
+Author: 喜欢 <csharpwz@outlook.com>
+Date:   Fri Mar 28 06:39:41 2025 +0000
+
+    log/slog: log and logAttrs initialize ctx at top
+    
+    In extreme cases (e.g., ctx = nil), it is recommended to initialize the
+    context only once at the entry point before using log and logAttrs.
+    
+    Change-Id: Ib191963f52183406d7fcd5104b60fea1a9e1bc80
+    GitHub-Last-Rev: e1719b95390011a45a0a6652a13e675279bc76cd
+    GitHub-Pull-Request: golang/go#73066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661255
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/log/slog/logger.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

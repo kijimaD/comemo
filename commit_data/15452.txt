@@ -1,0 +1,12 @@
+commit 2c2934eeb539a1b137c48b521d15ff3a77bd53a1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 26 17:17:44 2013 -0800
+
+    sort: add an example showing sorting struct by different keys
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7376058
+
+ src/pkg/sort/example_keys_test.go | 96 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

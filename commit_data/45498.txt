@@ -1,0 +1,25 @@
+commit 8327d2150f97528dc6a3090ddee99db0e9872212
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 30 19:45:11 2021 -0400
+
+    cmd/compile: add traceback argument info to ABI0 assembly functions
+    
+    For ABI0 assembly functions that have Go declarations, generate
+    traceback argument info and attach it to the assembly functions.
+    So we can print argument in tracebacks if e.g. assembly function
+    panics.
+    
+    Only do this for ABI0 functions, as for ABIInternal assembly
+    functions it is likely that they never spill arguments to memory.
+    
+    Change-Id: I7e601ccd9aded5e6af2f02be975bf81ff9948f4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315870
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/gc/compile.go |  6 +++
+ src/cmd/compile/internal/ssagen/ssa.go | 38 +++++++++--------
+ src/cmd/internal/obj/plist.go          | 75 ++++++++++++++++++++--------------
+ 3 files changed, 71 insertions(+), 48 deletions(-)

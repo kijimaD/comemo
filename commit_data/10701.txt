@@ -1,0 +1,13 @@
+commit e505c9ccacdf23af84c507cef6ccff4bd62aa5b9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 11 09:29:44 2011 -0800
+
+    net/http: further simplify example program
+    (should have caught this in review.)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5478066
+
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

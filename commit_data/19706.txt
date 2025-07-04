@@ -1,0 +1,14 @@
+commit 6fbade1ec6e3f05a822b72bb90da82d382a5688a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 10 18:08:33 2014 +1000
+
+    A+C: add Dustin Long (Markover Inc. DBA Poptip corporate CLA).
+    
+    LGTM=adg
+    R=adg
+    CC=dustmop, golang-codereviews
+    https://golang.org/cl/111000044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

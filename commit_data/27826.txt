@@ -1,0 +1,17 @@
+commit 77e68ea78abc08f827041384e0198576da44db9f
+Author: Gyu-Ho Lee <gyuhox@gmail.com>
+Date:   Sat Jun 4 23:08:19 2016 -0700
+
+    archive/tar: preallocate slice from paxHeaders
+    
+    Preallocate keys slice with the length of paxHeaders map
+    to prevent slice growth with append operations.
+    
+    Change-Id: Ic9a927c4eaa775690a4ef912d61dd06f38e11510
+    Reviewed-on: https://go-review.googlesource.com/23782
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

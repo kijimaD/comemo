@@ -1,0 +1,22 @@
+commit d33548d178016122726342911f8e15016a691472
+Author: Wang Yaduo <wangyaduo@linux.alibaba.com>
+Date:   Fri Oct 27 14:48:25 2023 +0800
+
+    cmd/internal/obj/riscv: fix the offset of JALR transformed from JAL
+    
+    Currently, the offset of JALR is zero all the time, which is transformed
+    from JAL with over ±1MB offset. This causes the segment fault for the
+    wrong address.
+    
+    Change-Id: I4dcb3eb13bd1ea71e9eb27f07c03ffec376608ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538135
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/asm_test.go | 66 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go      |  2 +-
+ 2 files changed, 67 insertions(+), 1 deletion(-)

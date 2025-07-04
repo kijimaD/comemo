@@ -1,0 +1,14 @@
+commit f1e4184db62eba7cf1778b3a15251959c3e5adc2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 21 14:35:54 2014 -0800
+
+    testing: improve introduction to package comment
+    Fixes #7361.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/66910045
+
+ src/pkg/testing/testing.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

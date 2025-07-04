@@ -1,0 +1,12 @@
+commit 61dbc3401a1af9feb0bbcf782adddd867bc3110f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 6 15:02:56 2013 -0700
+
+    doc: add FAQ entry about language changes
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/9244043
+
+ doc/go_faq.html | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

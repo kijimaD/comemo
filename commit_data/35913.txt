@@ -1,0 +1,25 @@
+commit 4da84adc0c55d92f20b761d24a6ec0508e55dc7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 17:30:10 2018 +0000
+
+    vendor: update vendored x/net/http/httpproxy
+    
+    This updates x/net/http/httpproxy to git rev c21de06a for:
+    
+        http/httpproxy: support CIDR notation and ports with NO_PROXY
+        https://golang.org/cl/115255
+    
+    Fixes #16704
+    
+    Change-Id: Ic96a0a36828779f88e68cd715bd076f36fd45e7a
+    Reviewed-on: https://go-review.googlesource.com/122655
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Fraenkel <michael.fraenkel@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go                     |   2 +-
+ .../golang_org/x/net/http/httpproxy/export_test.go |   8 +-
+ .../golang_org/x/net/http/httpproxy/proxy.go       | 209 +++++++++++++++++----
+ .../golang_org/x/net/http/httpproxy/proxy_test.go  |  75 ++++++--
+ 4 files changed, 242 insertions(+), 52 deletions(-)

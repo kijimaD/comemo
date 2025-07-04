@@ -1,0 +1,15 @@
+commit a8a678fc2af8ac70ec7571ad047da440c90c72a6
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 21 19:51:27 2009 -0700
+
+    Add SetValue(Value) to the Value interface.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=172  (170 added, 0 deleted, 2 changed)
+    OCL=35969
+    CL=35980
+
+ src/pkg/reflect/all_test.go |  44 ++++++++++++++-
+ src/pkg/reflect/value.go    | 130 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 172 insertions(+), 2 deletions(-)

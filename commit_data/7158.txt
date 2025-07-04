@@ -1,0 +1,16 @@
+commit 655da9962769e5dd1a3c6247bc74cb1eac6f8c78
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Wed Jan 19 14:30:57 2011 -0500
+
+    cgo: add complex float, complex double
+    
+    R=rsc
+    CC=binet, golang-dev
+    https://golang.org/cl/3906041
+
+ src/cmd/cgo/gcc.go                         |  34 +++++++++++++++++++++++------
+ src/pkg/debug/dwarf/testdata/typedef.c     |   7 ++++++
+ src/pkg/debug/dwarf/testdata/typedef.elf   | Bin 11546 -> 10837 bytes
+ src/pkg/debug/dwarf/testdata/typedef.macho | Bin 4608 -> 5256 bytes
+ src/pkg/debug/dwarf/type_test.go           |  33 +++++++++++++++-------------
+ 5 files changed, 52 insertions(+), 22 deletions(-)

@@ -1,0 +1,18 @@
+commit bc0139b4b3d642b7ffbb55d7fbc88b4dcb1db4ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 19 09:27:45 2012 -0800
+
+    exp/sql: rename NullableString to NullString and allow its use as a parameter
+    
+    Prep for Issue 2699
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5536045
+
+ src/pkg/exp/sql/convert_test.go | 37 ++++++++++++++++++++++--
+ src/pkg/exp/sql/driver/types.go | 48 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/sql/fakedb_test.go  |  4 ++-
+ src/pkg/exp/sql/sql.go          | 45 ++++++++++++++++++++++++------
+ src/pkg/exp/sql/sql_test.go     | 62 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 184 insertions(+), 12 deletions(-)

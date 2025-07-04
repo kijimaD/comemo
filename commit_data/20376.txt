@@ -1,0 +1,22 @@
+commit ee6c6d96b652cb7003bdb705dcfa617e04777b3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 9 17:12:05 2014 -0400
+
+    runtime: fix windows/386 build
+    
+    The difference between the old and the new (from earlier) code
+    is that we set stackguard = stack.lo + StackGuard, while the old
+    code set stackguard = stack.lo. That 512 bytes appears to be
+    the difference between the profileloop function running and not running.
+    
+    We don't know how big the system stack is, but it is likely MUCH bigger than 4k.
+    Give Go/C 8k.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/140440044
+
+ src/runtime/memclr_386.s      | 2 ++
+ src/runtime/memclr_amd64.s    | 2 ++
+ src/runtime/sys_windows_386.s | 2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)

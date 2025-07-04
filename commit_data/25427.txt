@@ -1,0 +1,14 @@
+commit ddc25081d24d62ebf37e737b73b8bad8fd4b50ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 4 09:12:31 2016 -0800
+
+    log/syslog: document that syslog is frozen
+    
+    Try to reduce feature request bug reports.
+    
+    Change-Id: I713bb715d25d23e084b054aea8e1c3197dde90d4
+    Reviewed-on: https://go-review.googlesource.com/18222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/syslog/doc.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

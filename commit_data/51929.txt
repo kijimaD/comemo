@@ -1,0 +1,35 @@
+commit 103f37497f2927eeb510789f63fe2a0319b6a49a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 3 09:59:55 2023 -0800
+
+    cmd/compile: ensure first instruction in a function is not inlined
+    
+    People are using this to get the name of the function from a function type:
+    
+    runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+    
+    Unfortunately, this technique falls down when the first instruction
+    of the function is from an inlined callee. Then the expression above
+    gets you the name of the inlined function instead of the function itself.
+    
+    To fix this, ensure that the first instruction is never from an inlinee.
+    Normally functions have prologs so those are already fine. In just the
+    cases where a function is a leaf with no local variables, and an instruction
+    from an inlinee appears first in the prog list, add a nop at the start
+    of the function to hold a non-inlined position.
+    
+    Consider the nop a "mini-prolog" for leaf functions.
+    
+    Fixes #58300
+    
+    Change-Id: Ie37092f4ac3167fe8e5ef4a2207b14abc1786897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465076
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 44 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue58300.go           | 29 ++++++++++++++++++++++
+ test/fixedbugs/issue58300.out          |  2 ++
+ 3 files changed, 75 insertions(+)

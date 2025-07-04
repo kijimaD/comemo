@@ -1,0 +1,19 @@
+commit 3825656e285155d40f286ff9e1e5deb60cf99094
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Nov 26 11:21:01 2016 -0800
+
+    cmd/go: report position info in package errors
+    
+    Also refactor common position filling code into a function.
+    
+    Fixes #18011
+    
+    Change-Id: I76528626da67a7309193fa92af1e361c8e2fcf84
+    Reviewed-on: https://go-review.googlesource.com/33631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go |  6 +++---
+ src/cmd/go/pkg.go     | 33 +++++++++++++++------------------
+ 2 files changed, 18 insertions(+), 21 deletions(-)

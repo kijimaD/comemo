@@ -1,0 +1,20 @@
+commit b4787201c9872fbbe8e1ebb2e2113b31ec2105a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 7 14:48:08 2021 -0800
+
+    cmd/compile: minor doc improvements
+    
+    These are left over from comments I failed to leave on CL 249463;
+    apparently I never hit "Reply".
+    
+    Change-Id: Ia3f8a900703c347f8f98581ec1ac172c0f72cd9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299589
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go   | 2 +-
+ src/cmd/compile/internal/ssa/value.go     | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

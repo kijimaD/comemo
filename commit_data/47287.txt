@@ -1,0 +1,21 @@
+commit 6f32d2050d7f0a9d0c529a1a7a21aa8c1d63fa20
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 25 21:49:05 2021 +0000
+
+    runtime: pace the scavenger according to 1% of overall CPU time
+    
+    Currently the scavenger is paced to 1% of 1 CPU because it had
+    scalability problems. As of the last few CLs, that should be largely
+    resolved. This change resolves the TODO and paces the scavenger
+    according to 1% of overall CPU time.
+    
+    This change is made separately to allow it to be more easily rolled
+    back.
+    
+    Change-Id: I1ab4de24ba41c564960701634a128a813c55ece9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358675
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcscavenge.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

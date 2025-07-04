@@ -1,0 +1,12 @@
+commit d293c85e397c328be13e58d79e34193f05f0707f
+Author: Kashav Madan <kshvmdn@gmail.com>
+Date:   Sat Jun 17 02:07:44 2017 -0400
+
+    doc: fix typo in Go 1.9 release notes
+    
+    Change-Id: Ia5c8fcff000bf3d369d42407342c470ea92e18da
+    Reviewed-on: https://go-review.googlesource.com/46006
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

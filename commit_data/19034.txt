@@ -1,0 +1,13 @@
+commit 22bc710fe4dbd3e4c0e1ac07c97e30942f722664
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 4 09:55:19 2014 +0900
+
+    cmd/gc: fix build
+    
+    LGTM=minux.ma
+    R=rsc, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/84260043
+
+ src/cmd/gc/plive.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

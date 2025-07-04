@@ -1,0 +1,19 @@
+commit 562d398aef1378c781a3164f59f54dd1b0f4638f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 11:27:52 2016 -0700
+
+    go/types: accept trailing empty stmts in terminating stmt lists
+    
+    Per the latest spec refinement (https://golang.org/cl/19981).
+    
+    Fixes #14537.
+    
+    Change-Id: I2dedee942c4da21dc94bdeda466f133827ab5bb9
+    Reviewed-on: https://go-review.googlesource.com/22241
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/return.go          |  9 +++--
+ src/go/types/testdata/stmt1.src | 76 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 2 deletions(-)

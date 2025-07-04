@@ -1,0 +1,20 @@
+commit b41030e6e00d1507141c7c00c014fe8bd9e41ef6
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 10 10:46:56 2021 -0400
+
+    go/internal/gcimporter: enable importing typeparam/issue48424.go
+    
+    This is a partial revert of CL 353389, now that go/types supports
+    eliding interface in constraints.
+    
+    For #48424
+    
+    Change-Id: Ibde26fb66bf6bd5a4c919acffd045a57783d1b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354990
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

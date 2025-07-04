@@ -1,0 +1,16 @@
+commit c5560d3aaae55e266beb2cb96049f769006bbbf7
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 7 16:56:05 2009 -0800
+
+    document time
+    
+    R=rsc
+    DELTA=42  (23 added, 1 deleted, 18 changed)
+    OCL=25881
+    CL=25886
+
+ src/lib/time/sleep.go    |  2 ++
+ src/lib/time/tick.go     |  3 +++
+ src/lib/time/time.go     | 28 ++++++++++++++++++++++------
+ src/lib/time/zoneinfo.go | 27 ++++++++++++++-------------
+ 4 files changed, 41 insertions(+), 19 deletions(-)

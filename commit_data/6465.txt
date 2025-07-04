@@ -1,0 +1,13 @@
+commit 4ed132826f9d53da1bb9d1bab13c6f9f8d43410d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 03:07:35 2010 -0400
+
+    A+C: Graham Miller (individual CLA)
+    
+    R=gmiller, adg
+    CC=golang-dev
+    https://golang.org/cl/2362043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

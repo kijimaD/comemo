@@ -1,0 +1,14 @@
+commit 462860bd8db134859809ea2cd6b063a0f767ea38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 14:25:40 2012 -0800
+
+    spec: more explicit comments for constant expression examples
+    
+    Fixes #3814.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6920057
+
+ doc/go_spec.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

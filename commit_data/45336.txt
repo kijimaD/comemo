@@ -1,0 +1,55 @@
+commit 00d42ffc895be17db72f195c1cf8f23be141a6fc
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 21 16:21:30 2021 -0400
+
+    cmd/compile: spos handling fixes to improve prolog debuggability
+    
+    With the new register ABI, the compiler sometimes introduces spills of
+    argument registers in function prologs; depending on the positions
+    assigned to these spills and whether they have the IsStmt flag set,
+    this can degrade the debugging experience. For example, in this
+    function from one of the Delve regression tests:
+    
+    L13:  func foo((eface interface{}) {
+    L14:    if eface != nil {
+    L15:            n++
+    L16:    }
+    L17   }
+    
+    we wind up with a prolog containing two spill instructions, the first
+    with line 14, the second with line 13.  The end result for the user
+    is that if you set a breakpoint in foo and run to it, then do "step",
+    execution will initially stop at L14, then jump "backwards" to L13.
+    
+    The root of the problem in this case is that an ArgIntReg pseudo-op is
+    introduced during expand calls, then promoted (due to lowering) to a
+    first-class statement (IsStmt flag set), which in turn causes
+    downstream handling to propagate its position to the first of the register
+    spills in the prolog.
+    
+    To help improve things, this patch changes the rewriter to avoid
+    moving an "IsStmt" flag from a deleted/replaced instruction to an
+    Arg{Int,Float}Reg value, and adds Arg{Int,Float}Reg to the list of
+    opcodes not suitable for selection as statement boundaries, and
+    suppresses generation of additional register spills in defframe() when
+    optimization is disabled (since in that case things will get spilled
+    in any case).
+    
+    This is not a comprehensive/complete fix; there are still cases where
+    we get less-than-ideal source position markers (ex: issue 45680).
+    
+    Updates #40724.
+    
+    Change-Id: Ica8bba4940b2291bef6b5d95ff0cfd84412a2d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312989
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go       | 1 +
+ src/cmd/compile/internal/ssa/numberlines.go | 5 +++--
+ src/cmd/compile/internal/ssa/rewrite.go     | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go      | 4 +++-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

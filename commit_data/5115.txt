@@ -1,0 +1,14 @@
+commit eaf45f2d56c46e370bdf72dadc9b8007afb0f1c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 23 18:11:21 2010 -0700
+
+    gc: fix build in France
+    
+    Fixes #626.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/714041
+
+ src/cmd/gc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

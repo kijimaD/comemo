@@ -1,0 +1,12 @@
+commit 74c6325142c4377527e1b9ee1ae06e489646e7ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 24 13:50:09 2012 -0700
+
+    math/big: fix broken comment
+    
+    R=iant, iant
+    CC=golang-dev
+    https://golang.org/cl/6485064
+
+ src/pkg/math/big/arith_amd64.s | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)

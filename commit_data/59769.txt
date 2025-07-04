@@ -1,0 +1,95 @@
+commit 78eadf5b3de568297456fe137b65ff16e8cc8bb6
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Jun 4 15:35:31 2025 -0400
+
+    all: update vendored dependencies [generated]
+    
+    The Go 1.25 RC is due soon. This is the time to once again update all
+    golang.org/x/... module versions that contribute packages to the std and
+    cmd modules in the standard library to latest master versions.
+    
+    For #36905.
+    
+    [git-generate]
+    go install golang.org/x/build/cmd/updatestd@latest
+    go install golang.org/x/tools/cmd/bundle@latest
+    updatestd -goroot=$(pwd) -branch=master
+    
+    cat << EOF | patch
+    diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+    index df8863ae03..2a572ace72 100644
+    --- a/src/cmd/go/testdata/script/test_json_build.txt
+    +++ b/src/cmd/go/testdata/script/test_json_build.txt
+    @@ -56,7 +56,7 @@ stdout '"Action":"fail","Package":"m/cycle/p","Elapsed":.*,"FailedBuild":"m/cycl
+     ! go test -json -o=$devnull ./veterror
+     stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
+     stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# \[m/veterror\]\\n"'
+    -stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror(/|\\\\)main_test.go:9:9: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
+    +stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror(/|\\\\)main_test.go:9:21: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
+     stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-fail"'
+     stdout '"Action":"start","Package":"m/veterror"'
+     stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[build failed\]\\n"'
+    EOF
+    
+    Change-Id: I6a8d35acdeab90c3bbd6395b8b1abb021673b5cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678556
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go.mod                                     |    18 +-
+ src/cmd/go.sum                                     |    36 +-
+ src/cmd/go/testdata/script/test_json_build.txt     |     2 +-
+ .../golang.org/x/arch/arm64/arm64asm/inst.go       |   216 +-
+ .../golang.org/x/arch/s390x/s390xasm/plan9.go      |    35 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go |    12 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/intel.go   |    12 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |    21 +-
+ .../vendor/golang.org/x/sync/errgroup/errgroup.go  |   108 +-
+ .../golang.org/x/sys/windows/security_windows.go   |    49 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |     6 +-
+ .../golang.org/x/sys/windows/types_windows.go      |   212 +
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |     9 +
+ .../x/telemetry/counter/countertest/countertest.go |     8 +
+ .../counter/countertest/countertest_go121.go       |    16 -
+ .../x/telemetry/internal/counter/stackcounter.go   |    14 +-
+ .../telemetry/internal/crashmonitor/crash_go123.go |    17 -
+ .../x/telemetry/internal/crashmonitor/monitor.go   |    11 +-
+ .../x/telemetry/internal/mmap/mmap_other.go        |     2 +-
+ .../x/telemetry/internal/mmap/mmap_unix.go         |     2 +-
+ .../x/telemetry/internal/telemetry/proginfo.go     |     5 +-
+ src/cmd/vendor/golang.org/x/telemetry/start.go     |    10 +-
+ src/cmd/vendor/golang.org/x/term/terminal.go       |    77 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |     2 +-
+ .../go/analysis/passes/composite/composite.go      |     3 +-
+ .../analysis/passes/framepointer/framepointer.go   |    49 +-
+ .../go/analysis/passes/loopclosure/loopclosure.go  |     2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |    58 +-
+ .../go/analysis/passes/stringintconv/string.go     |    12 +-
+ .../go/analysis/passes/structtag/structtag.go      |     2 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |    17 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |    80 +-
+ .../{internal/astutil => go/ast}/edge/edge.go      |     0
+ .../astutil/cursor => go/ast/inspector}/cursor.go  |    89 +-
+ .../x/tools/go/ast/inspector/inspector.go          |    48 +-
+ .../golang.org/x/tools/go/ast/inspector/walk.go    |     2 +-
+ .../x/tools/go/types/objectpath/objectpath.go      |     2 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |    18 +-
+ .../x/tools/internal/astutil/cursor/hooks.go       |    40 -
+ .../golang.org/x/tools/internal/astutil/util.go    |     2 +
+ .../golang.org/x/tools/internal/facts/imports.go   |     4 +-
+ .../golang.org/x/tools/internal/stdlib/deps.go     |   384 +-
+ .../golang.org/x/tools/internal/stdlib/manifest.go | 34648 +++++++++----------
+ .../golang.org/x/tools/internal/stdlib/stdlib.go   |     8 +
+ .../tools/internal/typesinternal/classify_call.go  |     8 +-
+ .../internal/typesinternal/typeindex/typeindex.go  |    27 +-
+ .../x/tools/internal/typesinternal/types.go        |    61 +-
+ src/cmd/vendor/modules.txt                         |    29 +-
+ src/go.mod                                         |     8 +-
+ src/go.sum                                         |    16 +-
+ src/net/http/h2_bundle.go                          |    16 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |    11 +
+ .../golang.org/x/sys/cpu/cpu_linux_riscv64.go      |    23 +
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go     |    12 +
+ src/vendor/modules.txt                             |     8 +-
+ 55 files changed, 18527 insertions(+), 18060 deletions(-)

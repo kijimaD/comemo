@@ -1,0 +1,18 @@
+commit a73af5d91c4c335fb44ae99517d4c41d5f3960e0
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 19 07:04:15 2024 +0000
+
+    cmd/compile: fix typo in comment
+    
+    Change-Id: I0bbc74fdab9bc295d42ae7e346d33db8df52c797
+    GitHub-Last-Rev: fe2b7d1efeeb8cf6ccffe5419da5a55a4cbdbb43
+    GitHub-Pull-Request: golang/go#66397
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572616
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

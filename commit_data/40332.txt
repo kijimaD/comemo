@@ -1,0 +1,24 @@
+commit 71d127aafd15d7d11afb7752c22689a8c13ef21a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 21 14:12:26 2019 -0400
+
+    crypto/tls: retry net.Dial flakes on Dragonfly
+    
+    localPipe currently flakes in various crypto/tls tests. Since that
+    function doesn't seem to flake anywhere else, I suspect a kernel bug.
+    
+    To make the test less flaky, retry the Dial if we suspect that it is
+    affected. (Worst case, we delay the test by a few seconds before
+    erroring out as usual.)
+    
+    Fixes #29583
+    
+    Change-Id: I357990ffa316edb471bd7d46d6404fa0884da646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202557
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_test.go      | 15 +++++++++++++--
+ src/crypto/tls/handshake_unix_test.go | 18 ++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

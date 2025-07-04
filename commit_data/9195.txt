@@ -1,0 +1,17 @@
+commit 3a07d516b4ab75d045f82d81c4c49bc3876721b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 24 22:03:17 2011 -0700
+
+    runtime: remove rnd calls that pass a second argument of 1
+    
+    When rnd is called with a second argument of 1, it simply
+    returns the first argument anyway.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4820045
+
+ src/pkg/runtime/chan.c    | 2 +-
+ src/pkg/runtime/hashmap.c | 4 ++--
+ src/pkg/runtime/iface.c   | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

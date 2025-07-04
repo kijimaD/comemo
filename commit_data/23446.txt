@@ -1,0 +1,17 @@
+commit 5ac5a9856288d20634ac21b457ec458f19ea0a37
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 19 13:55:38 2015 -0700
+
+    doc: mention moderation delay in contributing docs
+    
+    This sometime worries new contributors.
+    Hopefully mentioning it here will help.
+    
+    Fixes #11300.
+    
+    Change-Id: Ica7f10d749731704ac6a2c39c7dcba389996011e
+    Reviewed-on: https://go-review.googlesource.com/11236
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

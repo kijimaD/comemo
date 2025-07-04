@@ -1,0 +1,12 @@
+commit 9173a095300ad4a1d0e57b4d096c39a655753382
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 31 18:54:25 2011 +1100
+
+    bufio: make Flush a no-op when the buffer is empty
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4119048
+
+ src/pkg/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

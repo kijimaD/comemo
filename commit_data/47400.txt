@@ -1,0 +1,22 @@
+commit d5a5a13ad987db9bcdda8c6cecb84ed8583ea68d
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Jul 26 10:56:30 2021 +0200
+
+    sync: clarify the validity to call Map methods inside Range
+    
+    This change clarifies that calling all Map methods inside the callback
+    of Range is allowed. For further assurance, a nested range call test
+    is also added.
+    
+    Fixes #46399
+    
+    Change-Id: I0a766a5c1470e6b573ec35df1ccd62b2e46f1561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337389
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/sync/map.go      |  5 +++--
+ src/sync/map_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 2 deletions(-)

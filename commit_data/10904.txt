@@ -1,0 +1,15 @@
+commit 964309e2fdd7f1e1b7b7e0c601446dc85d5d41bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 13:17:39 2011 -0800
+
+    net: DialTimeout
+    
+    Fixes #240
+    
+    R=adg, dsymonds, rsc, r, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5491062
+
+ src/pkg/net/dial.go      | 66 +++++++++++++++++++++++++++++++++++-
+ src/pkg/net/dial_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 153 insertions(+), 1 deletion(-)

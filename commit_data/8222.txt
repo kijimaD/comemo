@@ -1,0 +1,12 @@
+commit 079a5cffb3f541920b28dabbe777a0dee5d6f32a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Apr 25 15:33:57 2011 -0700
+
+    runtime: fix arm build
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4438069
+
+ src/pkg/runtime/linux/arm/sys.s | 1 -
+ 1 file changed, 1 deletion(-)

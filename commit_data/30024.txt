@@ -1,0 +1,23 @@
+commit 7ef746961cec772635b83553fec6836956387954
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 12:11:54 2017 +0100
+
+    syscall: regenerate zsyscall_darwin_arm64.go with mksyscall.pl
+    
+    Notably, this change fixes the TestTCPReadWriteAllocs test because
+    the errnoErr wrapper is now used, elimitating the allocation for
+    common errnos.
+    
+    The change to Dup is caused by a CL 8095 that changed the Dup* calls
+    to use Syscall instead of RawSyscall.
+    
+    Found while working on the new iOS builders.
+    
+    Change-Id: I44ab9dcad27db190e175aa149865b33944f48674
+    Reviewed-on: https://go-review.googlesource.com/36061
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/zsyscall_darwin_arm64.go | 212 +++++++++++++++++------------------
+ 1 file changed, 105 insertions(+), 107 deletions(-)

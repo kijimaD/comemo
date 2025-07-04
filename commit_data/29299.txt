@@ -1,0 +1,22 @@
+commit e22c79660d96187b672a92622d171066a0d5c5c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 10:38:24 2016 -0700
+
+    go/types: handle imported aliases
+    
+    When we lookup a qualified identifier, we need to unpack
+    an alias. Do this in all places, not just one. Duh!
+    
+    Fixes #17716.
+    For #17592.
+    
+    Change-Id: I58d57b17cc635d0408b370f109c719c16757fd8e
+    Reviewed-on: https://go-review.googlesource.com/32534
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go       | 68 +++++++++++++++++++++++++++++++++++++++++-
+ src/go/types/call.go           |  9 +++++-
+ src/go/types/decl.go           | 21 +++++++++++++
+ src/go/types/testdata/alias.go | 20 +++++++++++++
+ src/go/types/typexpr.go        |  9 ++----
+ 5 files changed, 119 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 1b79afe460c329c1db75456c3278600a4b451b41
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 27 12:31:33 2019 -0400
+
+    runtime: remove old stack scanning code
+    
+    This removes scang and preemptscan, since the stack scanning code now
+    uses suspendG.
+    
+    For #10958, #24543.
+    
+    Change-Id: Ic868bf5d6dcce40662a82cb27bb996cb74d0720e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201138
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/proc.go     | 113 ------------------------------------------------
+ src/runtime/runtime2.go |   1 -
+ src/runtime/stack.go    |  29 +------------
+ 3 files changed, 1 insertion(+), 142 deletions(-)

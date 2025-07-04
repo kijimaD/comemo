@@ -1,0 +1,22 @@
+commit dbd323bb880ff27fa9b4bdfebf3e5d4828b09678
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 13 20:28:29 2018 +0000
+
+    internal/x/net/http2/hpack: update from upstream
+    
+    Updates to x/net git rev 891ebc4b82d6e74f468c533b06f983c7be918a96 for:
+    
+       http2/hpack: track the beginning of a header block
+       https://go-review.googlesource.com/c/153978
+    
+    Updates golang/go#29187
+    
+    Change-Id: Ie2568b3f8d6aaa3f097a4ac25d3acdc794f5ff5c
+    Reviewed-on: https://go-review.googlesource.com/c/154118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ src/internal/x/net/http2/hpack/hpack.go      | 10 +++++++++-
+ src/internal/x/net/http2/hpack/hpack_test.go | 14 +++++++++++---
+ 2 files changed, 20 insertions(+), 4 deletions(-)

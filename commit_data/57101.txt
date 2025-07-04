@@ -1,0 +1,22 @@
+commit 36e5c84ffa8b64727b01f056b550c235636c123a
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Jun 7 09:36:53 2024 +0800
+
+    runtime: add padding to Linux kernel structures sigcontext on loong64
+    
+    On linux/loong64, the sc_extcontext member in the sigcontext structure is
+    required to be 16-byte aligned [1], although sc_extcontext is not currently
+    used anywhere, it still needs to be padded to the specified alignment.
+    
+    [1] https://github.com/torvalds/linux/blob/master/arch/loongarch/include/uapi/asm/sigcontext.h
+    
+    Change-Id: I98d30e921730314835c9469a6f28e186c9808e34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591855
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/defs_linux_loong64.go | 1 +
+ 1 file changed, 1 insertion(+)

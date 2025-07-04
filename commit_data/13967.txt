@@ -1,0 +1,47 @@
+commit 7014bc64b1be8f85fff75ec13f8597b6a6aed366
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Wed Sep 26 15:32:59 2012 -0400
+
+    net: spread fd over several pollservers.
+    
+    Lighten contention without preventing further improvements on pollservers.
+    Connections are spread over Min(GOMAXPROCS, NumCPU, 8) pollserver instances.
+    
+    Median of 10 runs, 4 cores @ 3.4GHz, amd/linux-3.2:
+    
+    BenchmarkTCPOneShot                171917 ns/op   175194 ns/op      1.91%
+    BenchmarkTCPOneShot-2              101413 ns/op   109462 ns/op      7.94%
+    BenchmarkTCPOneShot-4               91796 ns/op    35712 ns/op    -61.10%
+    BenchmarkTCPOneShot-6               90938 ns/op    30607 ns/op    -66.34%
+    BenchmarkTCPOneShot-8               90374 ns/op    29150 ns/op    -67.75%
+    BenchmarkTCPOneShot-16             101089 ns/op   111526 ns/op     10.32%
+    
+    BenchmarkTCPOneShotTimeout         174986 ns/op   178606 ns/op      2.07%
+    BenchmarkTCPOneShotTimeout-2       101585 ns/op   110678 ns/op      8.95%
+    BenchmarkTCPOneShotTimeout-4        91547 ns/op    35931 ns/op    -60.75%
+    BenchmarkTCPOneShotTimeout-6        91496 ns/op    31019 ns/op    -66.10%
+    BenchmarkTCPOneShotTimeout-8        90670 ns/op    29531 ns/op    -67.43%
+    BenchmarkTCPOneShotTimeout-16      101013 ns/op   106026 ns/op      4.96%
+    
+    BenchmarkTCPPersistent              51731 ns/op    53324 ns/op      3.08%
+    BenchmarkTCPPersistent-2            32888 ns/op    30678 ns/op     -6.72%
+    BenchmarkTCPPersistent-4            25751 ns/op    15595 ns/op    -39.44%
+    BenchmarkTCPPersistent-6            26737 ns/op     9805 ns/op    -63.33%
+    BenchmarkTCPPersistent-8            26850 ns/op     9730 ns/op    -63.76%
+    BenchmarkTCPPersistent-16          104449 ns/op   102838 ns/op     -1.54%
+    
+    BenchmarkTCPPersistentTimeout       51806 ns/op    53281 ns/op      2.85%
+    BenchmarkTCPPersistentTimeout-2     32956 ns/op    30895 ns/op     -6.25%
+    BenchmarkTCPPersistentTimeout-4     25994 ns/op    18111 ns/op    -30.33%
+    BenchmarkTCPPersistentTimeout-6     26679 ns/op     9846 ns/op    -63.09%
+    BenchmarkTCPPersistentTimeout-8     26810 ns/op     9727 ns/op    -63.72%
+    BenchmarkTCPPersistentTimeout-16   101652 ns/op   104410 ns/op      2.71%
+    
+    R=rsc, dvyukov, dave, mikioh.mikioh, bradfitz, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6496054
+
+ src/pkg/net/fd_unix.go          | 65 +++++++++++++++++++++++++++++------------
+ src/pkg/net/sendfile_freebsd.go |  2 +-
+ src/pkg/net/sendfile_linux.go   |  2 +-
+ 3 files changed, 49 insertions(+), 20 deletions(-)

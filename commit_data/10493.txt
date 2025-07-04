@@ -1,0 +1,30 @@
+commit 77b0ad1e806580e47e4f682dfb912c55e1411b73
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 24 09:28:58 2011 +1100
+
+    html: parse DOCTYPE into name and public and system identifiers
+    
+    Pass tests2.dat, test 59:
+    <!DOCTYPE <!DOCTYPE HTML>><!--<!--x-->-->
+    
+    | <!DOCTYPE <!doctype>
+    | <html>
+    |   <head>
+    |   <body>
+    |     ">"
+    |     <!-- <!--x -->
+    |     "-->"
+    
+    Pass all the tests in doctype01.dat.
+    
+    Also pass tests2.dat, test 60:
+    <!doctype html><div><form></form><div></div></div>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5437045
+
+ src/pkg/html/parse.go      | 58 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/html/parse_test.go | 21 +++++++++++++++--
+ src/pkg/html/render.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 129 insertions(+), 6 deletions(-)

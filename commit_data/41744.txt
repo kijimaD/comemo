@@ -1,0 +1,22 @@
+commit 6b6414cab49fcc035e1f20bafdb723077e7d36bb
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Mar 13 23:24:38 2020 -0600
+
+    math: correct Atan2(±y,+∞) = ±0 on s390x
+    
+    The s390x assembly implementation was previously only handling this
+    case correctly for x = -Pi.  Update the special case handling for
+    any y.
+    
+    Fixes #35446
+    
+    Change-Id: I355575e9ec8c7ce8bd9db10d74f42a22f39a2f38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223420
+    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go   |  4 ++++
+ src/math/atan2_s390x.s | 11 +++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit c82304b7129d7e675ff010d54f58d039235e4802
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 6 12:54:54 2022 +0700
+
+    cmd/compile: do not devirtualize defer/go calls
+    
+    For defer/go calls, the function/method value are evaluated immediately.
+    So after devirtualizing, it may trigger a panic when implicitly deref
+    a nil pointer receiver, causing the program behaves unexpectedly.
+    
+    It's safer to not devirtualizing defer/go calls at all.
+    
+    Fixes #52072
+    
+    Change-Id: I562c2860e3e577b36387dc0a12ae5077bc0766bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428495
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ .../compile/internal/devirtualize/devirtualize.go  | 20 ++++++++++++--
+ test/fixedbugs/issue52072.go                       | 32 ++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 2 deletions(-)

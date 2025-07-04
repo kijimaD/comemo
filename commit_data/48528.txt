@@ -1,0 +1,16 @@
+commit 80a7504a13a5dccb60757d1fc66d71bcba359799
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 20 21:28:46 2022 +0800
+
+    cmd/compile: enable inlining SELECT
+    
+    Change-Id: I90c8e12a0be05d82bf6e147b5249859518f35c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394074
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 11 +++++++----
+ test/inline.go                         | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

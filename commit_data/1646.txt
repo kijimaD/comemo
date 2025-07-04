@@ -1,0 +1,22 @@
+commit b5aba026f8070354f01c61a7f5c6127f0e929a44
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 8 10:18:50 2009 -0800
+
+    First pass at reading directories.
+    Syscall support.
+    Readdirnames returns array of strings of contents of directory.
+    
+    R=rsc
+    DELTA=216  (201 added, 0 deleted, 15 changed)
+    OCL=24642
+    CL=24655
+
+ src/lib/os/Makefile                   | 12 +++++--
+ src/lib/os/dir_amd64_darwin.go        | 58 +++++++++++++++++++++++++++++++++
+ src/lib/os/dir_amd64_linux.go         | 61 +++++++++++++++++++++++++++++++++++
+ src/lib/os/os_test.go                 | 38 ++++++++++++++++++++++
+ src/lib/syscall/file_darwin.go        |  9 ++++++
+ src/lib/syscall/file_linux.go         | 10 ++++++
+ src/lib/syscall/types_amd64_darwin.go | 32 +++++++++++-------
+ src/lib/syscall/types_amd64_linux.go  |  9 ++++++
+ 8 files changed, 216 insertions(+), 13 deletions(-)

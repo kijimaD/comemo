@@ -1,0 +1,14 @@
+commit e1d20d0a514289db48edfcadba3ae39f96f52335
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 3 10:59:00 2010 -0700
+
+    bytes: Change IndexAny to look for UTF-8 encoded characters.
+    Also improve the implementations of Equals and Compare.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/969047
+
+ src/pkg/bytes/bytes.go      | 46 ++++++++++++++++++++++++++++++---------------
+ src/pkg/bytes/bytes_test.go | 11 ++++++++++-
+ 2 files changed, 41 insertions(+), 16 deletions(-)

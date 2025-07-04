@@ -1,0 +1,17 @@
+commit 80315322f3068123ab98632c55ee4bc9d7a03930
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 22 15:40:51 2019 +0700
+
+    runtime: simplify findObject bad pointer checking condition
+    
+    Factor out case s == nil, make the code cleaner and easier to read.
+    
+    Change-Id: I63f52e14351c0a0d20a611b1fe10fdc0d4947d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202498
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

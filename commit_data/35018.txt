@@ -1,0 +1,22 @@
+commit d0925228d7171eb074902a53249bccfbda51abea
+Author: fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Mar 15 22:37:01 2018 -0400
+
+    testing: failfast fails fast when Fatal called
+    
+    When a test calls t.Fatal()/t.Fatalf(), only deferred code will execute.
+    Increment the failure count as part of a deferred call.
+    
+    Fixes #24412
+    
+    Change-Id: Ibb154015fcd3d0fb7739718fdda8c9ad22f9e896
+    Reviewed-on: https://go-review.googlesource.com/101035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go                    | 3 +++
+ src/cmd/go/testdata/src/failfast_test.go | 8 ++++++++
+ src/testing/testing.go                   | 8 +++++---
+ 3 files changed, 16 insertions(+), 3 deletions(-)

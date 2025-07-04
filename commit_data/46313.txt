@@ -1,0 +1,17 @@
+commit 37e9c1d6fe453458a203595277147ae713650a3a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 20 17:04:35 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for address to register loads
+    
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    an address to register load, generate the appropriate machine instruction
+    sequence directly.
+    
+    Change-Id: I507195b6d24ff3253eadcc807ddbe27dca97d220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344456
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 149 ++++++++++++++++++++------------------
+ 1 file changed, 79 insertions(+), 70 deletions(-)

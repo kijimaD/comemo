@@ -1,0 +1,12 @@
+commit a21b36da1cd1e00941536ee1b4e33f456a4500dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun May 5 02:23:19 2013 +0800
+
+    go/build: document GOOS.go also has implicit GOOS build constraint
+    
+    R=golang-dev, i.caught.air, alexb, r
+    CC=golang-dev
+    https://golang.org/cl/9064044
+
+ src/pkg/go/build/doc.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

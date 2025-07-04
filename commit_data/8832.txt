@@ -1,0 +1,12 @@
+commit 8f72a87b4ca236805bb8417ed85812cf38998d9d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jun 22 23:24:14 2011 -0400
+
+    libmach: fix tracing on linux (for cov)
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/4629064
+
+ src/libmach/linux.c | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

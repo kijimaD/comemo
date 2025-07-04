@@ -1,0 +1,15 @@
+commit a2659aa6a105e6ae4fd3debcf4f4d8c79a6b4f4d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Oct 17 17:23:47 2012 +0200
+
+    cmd/go: Dedup package arguments before building.
+    
+    Fixes #4104.
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6639051
+
+ src/cmd/go/pkg.go    | 5 +++++
+ src/cmd/go/test.bash | 6 ++++++
+ 2 files changed, 11 insertions(+)

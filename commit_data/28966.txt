@@ -1,0 +1,16 @@
+commit c2425178669c0c6a26f58f90b59086d7e4313c64
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 19 16:01:02 2016 -0400
+
+    runtime: replace *g with guintptr in trace
+    
+    trace's reader *g is going to cause write barriers in unfortunate
+    places, so replace it with a guintptr.
+    
+    Change-Id: Ie8fb13bb89a78238f9d2a77ec77da703e96df8af
+    Reviewed-on: https://go-review.googlesource.com/31469
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/trace.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

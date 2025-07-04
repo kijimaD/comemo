@@ -1,0 +1,16 @@
+commit 63a0a905fa8a84c46569aaee6b12d6530c7527e6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 15 11:04:10 2024 +0200
+
+    math/rand/v2: use max builtin in tests
+    
+    Change-Id: I6d0050319c66fb62c817206e646e1a9449dc444c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/math/rand/v2/rand_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

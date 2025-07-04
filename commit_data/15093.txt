@@ -1,0 +1,13 @@
+commit dcf16bd83d3c36430771f36df53044be3dda67fa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 3 01:42:17 2013 +0800
+
+    syscall: (*Proc).Call should return nil error when no error occurs
+    Fixes #4686.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/7174047
+
+ src/pkg/syscall/dll_windows.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

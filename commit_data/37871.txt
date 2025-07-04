@@ -1,0 +1,17 @@
+commit 5f699e400a0a982bcc3ad1ff864dca70b1255d8b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 10 11:12:28 2019 -0800
+
+    doc: add Go 1.12 release note for trigonometric reductions in math
+    
+    Worth mentioning because the results are not bit-for-bit identical.
+    This causes a test failure in github.com/fogleman/gg.
+    
+    Updates #6794
+    
+    Change-Id: I701f34927731fb5c658a1be271c04388e5e7e3f7
+    Reviewed-on: https://go-review.googlesource.com/c/157417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

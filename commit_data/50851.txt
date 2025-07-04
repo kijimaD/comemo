@@ -1,0 +1,21 @@
+commit 4274ffd4b8bcef4e07cfdef9405a2e33f935d079
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 9 23:15:46 2022 +1000
+
+    cmd/compile: fold negation into subtraction on riscv64
+    
+    Fold negation into subtraction and avoid double negation.
+    
+    This removes around 500 instructions from the Go binary on riscv64.
+    
+    Change-Id: I4aac6c87baa2a0759b180ba87876d488a23df6d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431105
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  7 ++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 49 +++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

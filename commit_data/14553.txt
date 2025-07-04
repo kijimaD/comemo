@@ -1,0 +1,17 @@
+commit 458632a21a7e532e10b7a64daf447e2ccfab97e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 4 13:09:02 2012 -0800
+
+    spec: BuiltinCall syntax must permit "..." for append
+    
+    Also: fix an incorrect link.
+    
+    Fixes #4479.
+    Fixes #4456.
+    
+    R=rsc, iant, r, ken
+    CC=golang-dev
+    https://golang.org/cl/6868062
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

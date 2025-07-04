@@ -1,0 +1,20 @@
+commit 9ebe7c8ec6e95b73a7b0e480fe10f2188ef4928a
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Sep 16 09:42:06 2021 -0700
+
+    go/test: add a test for issue 48344
+    
+    This was fixed by https://go-review.googlesource.com/c/go/+/349613
+    and https://go-review.googlesource.com/c/go/+/349614
+    
+    Fixes #48344
+    
+    Change-Id: I4c62109fd34b20566b07fcca87fb3946a5702fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350309
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ test/typeparam/issue48344.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

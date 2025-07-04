@@ -1,0 +1,18 @@
+commit 6db87c4faaafebb6cecbb3c02bff67aafdc5d971
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 17:49:55 2017 -0700
+
+    cmd/go: remove TestCoverageUsesActualSettingToOverrideEvenForRace
+    
+    The test no longer passes as of https://golang.org/cl/43777, which
+    intentionally disables the feature that this test was checking for.
+    Nobody noticed since the test is not run in -short mode.
+    
+    Updates #20435.
+    
+    Change-Id: I64f37fd94c01f22ead88470b6d9bfe8a151ddb1c
+    Reviewed-on: https://go-review.googlesource.com/44650
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/cmd/go/go_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

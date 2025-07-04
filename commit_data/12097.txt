@@ -1,0 +1,14 @@
+commit 3970d2fd5840f2361bb3398254d52ec45ae34660
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 15:21:34 2012 +1100
+
+    net: panic if sockaddrToTCP returns nil incorrectly
+    Part of diagnosing the selfConnect bug
+    TBR=dsymonds
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5687057
+
+ src/pkg/net/tcpsock_posix.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

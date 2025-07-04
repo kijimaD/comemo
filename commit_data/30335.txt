@@ -1,0 +1,28 @@
+commit 6db4d92e4c01c854e15391d18100c8d99cbbd7bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 11:42:24 2017 +1100
+
+    cmd/link: do not add __image_base__ and _image_base__ if external linker
+    
+    The symbols get in a way when using external linker. They are
+    not associated with a section. And linker fails when
+    generating relocations for them.
+    
+    __image_base__ and _image_base__ have been added long time ago.
+    I do not think they are needed anymore. If I delete them, all
+    tests still PASS. I tried going back to the commit that added
+    them to see if I can reproduce original error, but I cannot
+    build it. I don't have hg version of go repo, and my gcc is
+    complaining about cc source code.
+    
+    I wasted too much time with this, so I decided to leave them only
+    for internal linker. That is what they were originally added for.
+    
+    For #10776.
+    
+    Change-Id: Ibb72b04f3864947c782f964a7badc69f4b074e25
+    Reviewed-on: https://go-review.googlesource.com/36979
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

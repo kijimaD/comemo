@@ -1,0 +1,26 @@
+commit 9d669ed47a502ca540c7f3329f84d89fc0c53971
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 4 08:16:58 2021 -0700
+
+    misc/cgo/errors: use expected column numbers
+    
+    The test was using the wrong column numbers, and was erroneously
+    passing because there happened to be line numbers that matched those
+    column numbers. Change the test harness to require the expected line
+    number for the ERROR HERE regexp case, so that this doesn't happen again.
+    
+    Also rename a couple of variables in the test to avoid useless
+    redeclaration errors.
+    
+    Fixes #46534
+    
+    Change-Id: I2fcbf5e379c346de5346035c73d174a3980c0927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324970
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/errors/errors_test.go   |  3 ++-
+ misc/cgo/errors/testdata/err2.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 7 deletions(-)

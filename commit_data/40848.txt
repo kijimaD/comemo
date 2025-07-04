@@ -1,0 +1,24 @@
+commit e0306c1d62d7d10e1e5239f51e01792b28e8001b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 11 18:19:04 2019 -0500
+
+    doc: add glossary to module reference documentation
+    
+    These terms will be defined throughout the document, and more terms
+    will be added. After drafting a few sections, it's clear that a
+    glossary will be useful. There are enough terms that it would be
+    overwhelming at the beginning.
+    
+    Also, add anchors for each heading and add a couple more headings.
+    
+    Updates #33637
+    
+    Change-Id: I0017064f0b1e5e656dd280018ca0379484345df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206478
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 170 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 161 insertions(+), 9 deletions(-)

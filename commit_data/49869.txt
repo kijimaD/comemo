@@ -1,0 +1,25 @@
+commit b04e4637dba254e5bda132753a91532f8e32e4b9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:58:23 2022 -0400
+
+    runtime: convert timeHistogram to atomic types
+    
+    I've dropped the note that sched.timeToRun is protected by sched.lock,
+    as it does not seem to be true.
+    
+    For #53821.
+    
+    Change-Id: I03f8dc6ca0bcd4ccf3ec113010a0aa39c6f7d6ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419449
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/align_runtime_test.go |  4 ----
+ src/runtime/export_test.go        |  4 ++--
+ src/runtime/histogram.go          | 12 +++++-------
+ src/runtime/metrics.go            |  9 ++++-----
+ src/runtime/mstats.go             |  4 ----
+ src/runtime/proc.go               |  5 -----
+ src/runtime/runtime2.go           |  2 --
+ 7 files changed, 11 insertions(+), 29 deletions(-)

@@ -1,0 +1,22 @@
+commit 9a40dee3ee9c69e8bb4952f9e14b1817195d1f3d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 4 10:39:32 2021 -0500
+
+    cmd/go: reject 'go list -m MOD@patch' when no existing version of MOD is required
+    
+    Noticed while debugging failing tests for #36460.
+    
+    Fixes #44788
+    
+    Change-Id: Ic2cf511d871b29284f7372920f6f7d452825dd63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298651
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/list.go                  | 2 +-
+ src/cmd/go/internal/modload/query.go                 | 2 +-
+ src/cmd/go/internal/modload/query_test.go            | 2 +-
+ src/cmd/go/testdata/script/mod_prefer_compatible.txt | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 739aa6b1ba6f643a37370d569c5f67827f5c370c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 13:52:27 2013 -0800
+
+    cmd/vet: check for misplaced and malformed build tags
+    
+    Fixes #4184.
+    
+    R=golang-dev, bradfitz, minux.ma, cookieo9
+    CC=golang-dev
+    https://golang.org/cl/7251044
+
+ src/cmd/vet/Makefile        |  3 +-
+ src/cmd/vet/buildtag.go     | 96 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/buildtag_bad.go | 11 ++++++
+ src/cmd/vet/main.go         | 23 +++++++++--
+ src/cmd/vet/taglit.go       |  2 +-
+ 5 files changed, 130 insertions(+), 5 deletions(-)

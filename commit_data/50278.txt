@@ -1,0 +1,20 @@
+commit 0cf996a9c12d9bc5b38787c2f3b0212c39d87dd5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 1 00:16:32 2022 +0700
+
+    cmd/compile/internal/abt: use strings.Builder
+    
+    Since go1.17 is now used for bootstrapping.
+    
+    Change-Id: I5692ff4b38b7d9a279b20662ce5348ff34a2dde6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427134
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/abt/avlint32.go | 31 +++++++------------------------
+ 1 file changed, 7 insertions(+), 24 deletions(-)

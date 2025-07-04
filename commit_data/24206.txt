@@ -1,0 +1,20 @@
+commit fd50db2a66e2058d51569bb13ee46af15cde101d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 16:21:25 2015 +1000
+
+    cmd/internal/obj: remove unused code
+    
+    Following on from CL 14350, remove the remaining dead code from data.go.
+    
+    Also leave a TODO to be addressed later (with a unit test) to reduce
+    the overhead of SymGrow.
+    
+    Change-Id: Iebad775b1280b54b89e87a3a073ca8af19a8bfba
+    Reviewed-on: https://go-review.googlesource.com/14359
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/data.go | 122 ++-----------------------------------------
+ 1 file changed, 4 insertions(+), 118 deletions(-)

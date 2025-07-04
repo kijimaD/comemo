@@ -1,0 +1,13 @@
+commit c515852732a490bab64f35d001ddc444b0f0f553
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Tue Sep 8 14:31:39 2020 +0800
+
+    runtime: add 2-byte and 8-byte sub-benchmarks for memmove load/store
+    
+    Change-Id: I6389d7efe90836b6ece44d2e75053d1ad9f35d08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253417
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/memmove_test.go | 39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)

@@ -1,0 +1,26 @@
+commit 502a03ffcfe488f5c774794e6224e711b064fdf3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 18:02:43 2017 -0700
+
+    cmd/compile: move Node.Typecheck to flags
+    
+    Change-Id: Id5aa4a1499068bf2d3497b21d794f970b7e47fdf
+    Reviewed-on: https://go-review.googlesource.com/41795
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 +++---
+ src/cmd/compile/internal/gc/racewalk.go  |  2 +-
+ src/cmd/compile/internal/gc/range.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/reflect.go   | 12 ++++++------
+ src/cmd/compile/internal/gc/select.go    |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 16 ++++++++--------
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 11 +++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
+ 13 files changed, 67 insertions(+), 64 deletions(-)

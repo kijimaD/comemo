@@ -1,0 +1,17 @@
+commit d5ab7846113004e7fa3aaf64691d3d170988c311
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 5 22:58:02 2013 +0400
+
+    runtime: remove singleproc var
+    It was needed for the old scheduler,
+    because there temporary could be more threads than gomaxprocs.
+    In the new scheduler gomaxprocs is always respected.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12438043
+
+ src/pkg/runtime/mgc0.c    | 6 +++---
+ src/pkg/runtime/proc.c    | 2 --
+ src/pkg/runtime/runtime.h | 1 -
+ 3 files changed, 3 insertions(+), 6 deletions(-)

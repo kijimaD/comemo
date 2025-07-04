@@ -1,0 +1,19 @@
+commit 9f2a075df905d873e3e426b2f549c327d228ac26
+Author: tangxi666 <tx1275044634@gmail.com>
+Date:   Sat Nov 27 05:20:05 2021 +0000
+
+    cmd/go: fix a typo in mod_lazy_new_import.txt
+    
+    x/y -> a/y
+    
+    Change-Id: If24970623731098bb72345b8f4c8518b563bbec8
+    GitHub-Last-Rev: 8a35dddbc155d97f03c08c06d945596584bc2e6d
+    GitHub-Pull-Request: golang/go#49813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367202
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

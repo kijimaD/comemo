@@ -1,0 +1,21 @@
+commit a11aa2aaecff98d6b46035704d587920c10788f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 14:19:01 2018 -0800
+
+    cmd/link: only create .init_array section if not empty
+    
+    This avoids a warning from old versions of the GNU linker or glibc.
+    
+    No test because these old versions are not readily available.
+    I tested this by hand on CentOS 6.
+    
+    Fixes #28722
+    
+    Change-Id: I16640c9b83a79f759ec68fac64874803e74fbbfb
+    Reviewed-on: https://go-review.googlesource.com/c/153257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 3dbf65871c9b2f9f6e6c8b272b77d4a03d3d1ec3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 15:03:09 2011 -0700
+
+    test: adjust bug324 to expect run-time failure, not compile-time.
+    
+    Failing at compile time requires that for each conversion
+    between two interface types the compiler compare the sets of
+    unexported methods to see if they come from different
+    packages.  Since this test will fail approximately never on
+    real code, and since it can't catch all cases of the problem,
+    I don't think it's worth testing in the compiler.  This CL
+    changes this test to look for a run-time panic rather than a
+    compile-time error.
+    
+    R=gri, rsc1, iant2, rsc
+    CC=golang-dev
+    https://golang.org/cl/4332041
+
+ test/bugs/bug324.dir/main.go | 2 +-
+ test/bugs/bug324.go          | 2 +-
+ test/golden.out              | 4 +++-
+ 3 files changed, 5 insertions(+), 3 deletions(-)

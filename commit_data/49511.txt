@@ -1,0 +1,27 @@
+commit f5715181392c68d928c3152f8cf90fa9d4ee9e4e
+Author: kkHAIKE <kkhaike@gmail.com>
+Date:   Wed May 11 02:27:21 2022 +0000
+
+    cmd/cgo: dont override declared struct type
+    
+    Fixes #52611
+    
+    Change-Id: I835df8d6a98a37482446ec00af768c96fd8ee4fe
+    GitHub-Last-Rev: ea54dd69eef90eaf1641889039344fff70158ece
+    GitHub-Pull-Request: golang/go#52733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404497
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/test/testdata/issue52611.go    | 13 +++++++++++++
+ misc/cgo/test/testdata/issue52611a/a.go | 16 ++++++++++++++++
+ misc/cgo/test/testdata/issue52611a/b.go | 11 +++++++++++
+ misc/cgo/test/testdata/issue52611b/a.go | 11 +++++++++++
+ misc/cgo/test/testdata/issue52611b/b.go | 16 ++++++++++++++++
+ src/cmd/cgo/gcc.go                      |  5 +++++
+ 6 files changed, 72 insertions(+)

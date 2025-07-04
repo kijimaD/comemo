@@ -1,0 +1,40 @@
+commit ca0c449a6b1c6ecc75169f93cffa8a5630740030
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 22 14:39:55 2019 -0700
+
+    bytes, internal/bytealg: simplify Equal
+    
+    The compiler has advanced enough that it is cheaper
+    to convert to strings than to go through the assembly
+    trampolines to call runtime.memequal.
+    
+    Simplify Equal accordingly, and cull dead code from bytealg.
+    
+    While we're here, simplify Equal's documentation.
+    
+    Fixes #31587
+    
+    Change-Id: Ie721d33f9a6cbd86b1d873398b20e7882c2c63e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173323
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go                    | 17 +++--------------
+ src/bytes/bytes_test.go               | 23 ++++++++++-------------
+ src/bytes/export_test.go              |  1 -
+ src/cmd/vet/all/whitelist/arm.txt     |  1 -
+ src/internal/bytealg/equal_386.s      | 18 ------------------
+ src/internal/bytealg/equal_amd64.s    | 18 ------------------
+ src/internal/bytealg/equal_amd64p32.s | 19 -------------------
+ src/internal/bytealg/equal_arm.s      | 21 ---------------------
+ src/internal/bytealg/equal_arm64.s    | 20 --------------------
+ src/internal/bytealg/equal_generic.go | 18 ++++++++++++++++++
+ src/internal/bytealg/equal_mips64x.s  | 26 --------------------------
+ src/internal/bytealg/equal_mipsx.s    | 26 --------------------------
+ src/internal/bytealg/equal_native.go  |  5 -----
+ src/internal/bytealg/equal_ppc64x.s   | 19 -------------------
+ src/internal/bytealg/equal_s390x.s    | 12 ------------
+ src/internal/bytealg/equal_wasm.s     | 20 --------------------
+ 16 files changed, 31 insertions(+), 233 deletions(-)

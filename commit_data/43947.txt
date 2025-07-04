@@ -1,0 +1,18 @@
+commit 73580645087b84c3470943155e5e94eacf83bb86
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 3 17:29:39 2020 -0500
+
+    doc/go1.16: preannounce dropping macOS 10.12 support
+    
+    Go 1.16 will be the last to support macOS 10.12 Sierra.
+    Go 1.17 will require macOS 10.13 High Sierra.
+    
+    For #23011.
+    
+    Change-Id: I80052bdde4d9f1c5d71b67b85f65fb0b40856750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275299
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,23 @@
+commit efd229238aceefdee6a00ea28b61c924c2b5f1a5
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Nov 4 09:36:25 2018 +0100
+
+    runtime: avoid arm64 8.1 atomics on Android
+    
+    The kernel on some Samsung S9+ models reports support for arm64 8.1
+    atomics, but in reality only some of the cores support them. Go
+    programs scheduled to cores without support will crash with SIGILL.
+    
+    This change unconditionally disables the optimization on Android.
+    A better fix is to precisely detect the offending chipset.
+    
+    Fixes #28431
+    
+    Change-Id: I35a1273e5660603824d30ebef2ce7e429241bf1f
+    Reviewed-on: https://go-review.googlesource.com/c/147377
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_linux_arm64.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

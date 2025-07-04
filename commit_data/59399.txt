@@ -1,0 +1,83 @@
+commit 1b40dbce1ab039f6715b8b151a4db093ede87fff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 12 18:52:58 2025 +0000
+
+    runtime: mark and scan small objects in whole spans [green tea]
+    
+    Our current parallel mark algorithm suffers from frequent stalls on
+    memory since its access pattern is essentially random. Small objects
+    are the worst offenders, since each one forces pulling in at least one
+    full cache line to access even when the amount to be scanned is far
+    smaller than that. Each object also requires an independent access to
+    per-object metadata.
+    
+    The purpose of this change is to improve garbage collector performance
+    by scanning small objects in batches to obtain better cache locality
+    than our current approach. The core idea behind this change is to defer
+    marking and scanning small objects, and then scan them in batches
+    localized to a span.
+    
+    This change adds scanned bits to each small object (<=512 bytes) span in
+    addition to mark bits. The scanned bits indicate that the object has
+    been scanned. (One way to think of them is "grey" bits and "black" bits
+    in the tri-color mark-sweep abstraction.) Each of these spans is always
+    8 KiB and if they contain pointers, the pointer/scalar data is already
+    packed together at the end of the span, allowing us to further optimize
+    the mark algorithm for this specific case.
+    
+    When the GC encounters a pointer, it first checks if it points into a
+    small object span. If so, it is first marked in the mark bits, and then
+    the object is queued on a work-stealing P-local queue. This object
+    represents the whole span, and we ensure that a span can only appear at
+    most once in any queue by maintaining an atomic ownership bit for each
+    span. Later, when the pointer is dequeued, we scan every object with a
+    set mark that doesn't have a corresponding scanned bit. If it turns out
+    that was the only object in the mark bits since the last time we scanned
+    the span, we scan just that object directly, essentially falling back to
+    the existing algorithm. noscan objects have no scan work, so they are
+    never queued.
+    
+    Each span's mark and scanned bits are co-located together at the end of
+    the span. Since the span is always 8 KiB in size, it can be found with
+    simple pointer arithmetic. Next to the marks and scans we also store the
+    size class, eliminating the need to access the span's mspan altogether.
+    
+    The work-stealing P-local queue is a new source of GC work. If this
+    queue gets full, half of it is dumped to a global linked list of spans
+    to scan. The regular scan queues are always prioritized over this queue
+    to allow time for darts to accumulate. Stealing work from other Ps is a
+    last resort.
+    
+    This change also adds a new debug mode under GODEBUG=gctrace=2 that
+    dumps whole-span scanning statistics by size class on every GC cycle.
+    
+    A future extension to this CL is to use SIMD-accelerated scanning
+    kernels for scanning spans with high mark bit density.
+    
+    For #19112. (Deadlock averted in GOEXPERIMENT.)
+    For #73581.
+    
+    Change-Id: I4bbb4e36f376950a53e61aaaae157ce842c341bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658036
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/test/inl_test.go |   6 +-
+ src/internal/runtime/gc/malloc.go         |   3 +
+ src/internal/runtime/gc/scan.go           |  15 +
+ src/runtime/export_test.go                |  25 +
+ src/runtime/gc_test.go                    | 193 ++++++++
+ src/runtime/mbitmap.go                    |  41 +-
+ src/runtime/mcentral.go                   |   6 +-
+ src/runtime/mgc.go                        |  68 ++-
+ src/runtime/mgcmark.go                    | 153 ++++--
+ src/runtime/mgcmark_greenteagc.go         | 765 ++++++++++++++++++++++++++++++
+ src/runtime/mgcmark_nogreenteagc.go       |  80 ++++
+ src/runtime/mgcpacer.go                   |  41 +-
+ src/runtime/mgcsweep.go                   |  10 +
+ src/runtime/mgcwork.go                    |  90 +++-
+ src/runtime/mheap.go                      | 157 +++++-
+ src/runtime/mstats.go                     |  10 +
+ src/runtime/mwbbuf.go                     |   5 +-
+ 17 files changed, 1554 insertions(+), 114 deletions(-)

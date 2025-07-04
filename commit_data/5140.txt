@@ -1,0 +1,29 @@
+commit 6358e1faf6be512a8d1c20d26675975c0daa1fe0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 25 16:59:02 2010 -0700
+
+    godoc: don't convert multi-line functions into one-liners by default
+    
+    - new heuristic: if both the opening { and closing } braces are on the
+      same line, and the function body doesn't contain comments or is other-
+      wise too long (e.g. signature too long), it is formatted as a one-line
+      function
+    
+    - related cleanups along the way
+    
+    - gofmt -w src misc led to no additional changes as expected
+    
+    R=rsc, rsc1
+    CC=golang-dev, ken2, r
+    https://golang.org/cl/758041
+
+ src/pkg/go/printer/nodes.go                     | 52 ++++++++++++++++---------
+ src/pkg/go/printer/printer.go                   | 36 ++++++++---------
+ src/pkg/go/printer/testdata/comments.golden     | 11 +++++-
+ src/pkg/go/printer/testdata/comments.input      |  4 ++
+ src/pkg/go/printer/testdata/declarations.golden | 27 ++++++++++---
+ src/pkg/go/printer/testdata/declarations.input  | 13 +++++--
+ src/pkg/go/printer/testdata/expressions.golden  | 27 ++++++++++---
+ src/pkg/go/printer/testdata/expressions.input   | 17 +++++---
+ src/pkg/go/printer/testdata/expressions.raw     | 27 ++++++++++---
+ 9 files changed, 150 insertions(+), 64 deletions(-)

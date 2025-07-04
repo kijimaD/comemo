@@ -1,0 +1,18 @@
+commit fc7ed45b35d24d6d67720e5085c083041a8dd30e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 16:36:15 2012 -0500
+
+    runtime: avoid malloc during malloc
+    
+    A fault during malloc might lead to the program's
+    first call to findfunc, which would in turn call malloc.
+    Don't do that.
+    
+    Fixes #1777.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5689047
+
+ src/pkg/runtime/symtab.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

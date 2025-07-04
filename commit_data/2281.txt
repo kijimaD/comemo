@@ -1,0 +1,13 @@
+commit fad7791b073bb8d56b83f75177d2358a176e119c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 20:29:22 2009 -0700
+
+    fix regexp to strip comment markers
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=29221
+    CL=29221
+
+ src/lib/go/doc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

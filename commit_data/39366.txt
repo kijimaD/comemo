@@ -1,0 +1,12 @@
+commit c0c6cee6aada70c261bd83cd0a94e6e37ba1fc21
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jun 12 18:04:00 2019 -0400
+
+    doc: release notes for text/scanner and text/template
+    
+    Change-Id: Ib5417cc48959b03befb1579da3281415a11ede9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181879
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.13.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

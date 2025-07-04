@@ -1,0 +1,35 @@
+commit e25823edcea364df70b8db7462f53e7dac2b8fca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 13:46:50 2018 -0700
+
+    cmd/compile/internal/gc: add tracing support to debug type checking
+    
+    The compiler must first be built with the constant enableTrace set
+    to true (typecheck.go). After that, the -t flag becomes available
+    which enables tracing output of type-checking functions.
+    
+    With enableTrace == false, the tracing code becomes dead code
+    and won't affect the compiler.
+    
+    Typical output might look like this:
+    
+    path/y.go:4:6: typecheck 0xc00033e180 DCLTYPE <node DCLTYPE> tc=0
+    path/y.go:4:6: . typecheck1 0xc00033e180 DCLTYPE <node DCLTYPE> tc=2
+    path/y.go:4:6: . . typecheck 0xc000331a40 TYPE T tc=1
+    path/y.go:4:6: . . . typecheck1 0xc000331a40 TYPE T tc=2
+    path/y.go:4:6: . . . . typecheckdef 0xc000331a40 TYPE T tc=2
+    path/y.go:4:6: . . . . => 0xc000331a40 TYPE T tc=2 type=*T
+    path/y.go:4:6: . . . => 0xc000331a40 TYPE T tc=2 type=*T
+    path/y.go:4:6: . . => 0xc000331a40 TYPE T tc=1 type=*T
+    path/y.go:4:6: . => 0xc00033e180 DCLTYPE <node DCLTYPE> tc=2 type=<T>
+    path/y.go:4:6: => 0xc00033e180 DCLTYPE <node DCLTYPE> tc=1 type=<T>
+    
+    Disabled by default.
+    
+    Change-Id: Ifd8385290d1cf0d3fc5e8468b2f4ab84e8eff338
+    Reviewed-on: https://go-review.googlesource.com/c/146782
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go      |  3 +
+ src/cmd/compile/internal/gc/typecheck.go | 96 ++++++++++++++++++++++++++++++--
+ 2 files changed, 94 insertions(+), 5 deletions(-)

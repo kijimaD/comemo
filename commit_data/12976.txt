@@ -1,0 +1,12 @@
+commit 314df5226a812b25f480a0f13cb3aed7dd140475
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 26 12:02:06 2012 -0700
+
+    doc: go1.0.1 release notes
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6123055
+
+ doc/devel/release.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

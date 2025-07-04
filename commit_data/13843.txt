@@ -1,0 +1,18 @@
+commit b29ed23ab55477dbdc02ee9fd4bf711e0b296f6a
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Sep 17 17:25:26 2012 -0400
+
+    build: fix various 'set and not used' for Plan 9
+    
+    R=dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6501134
+
+ src/cmd/8g/reg.c               | 1 -
+ src/cmd/gc/closure.c           | 1 +
+ src/cmd/gc/esc.c               | 1 +
+ src/cmd/gc/mparith1.c          | 2 +-
+ src/cmd/gc/reflect.c           | 1 +
+ src/cmd/ld/go.c                | 1 +
+ src/pkg/runtime/thread_plan9.c | 1 +
+ 7 files changed, 6 insertions(+), 2 deletions(-)

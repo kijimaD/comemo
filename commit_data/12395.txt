@@ -1,0 +1,13 @@
+commit 286fb69746cc33e8f408f14d7c505aec6fd4d682
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 5 15:10:58 2012 -0800
+
+    C+A: adding c.emil.hessman@gmail.com
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5754044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit ceb8fe45da7042b20189de0b66db5b33bb589f7b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 20 15:49:23 2015 -0400
+
+    go/parser: parse incomplete selection "fmt." as a blank selection "fmt._"
+    
+    Formerly it would return a BadExpr.
+    
+    This prevents partial syntax from being discarded, and makes the error
+    recovery logic more consistent with other places where an identifier
+    was expected but not found.
+    
+    + test
+    
+    Change-Id: I223c0c0589e7ceb7207ae951b8f71b9275a1eb73
+    Reviewed-on: https://go-review.googlesource.com/10269
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/interface.go   |  5 ++++-
+ src/go/parser/parser.go      |  3 ++-
+ src/go/parser/parser_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 2 deletions(-)

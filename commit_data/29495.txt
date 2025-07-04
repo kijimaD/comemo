@@ -1,0 +1,39 @@
+commit 866e01457f69b58b31ccb95f223aac80e1285332
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 20:44:26 2016 -0400
+
+    net: apply tcp4/tcp6 restrictions to literals in ResolveTCPAddr
+    
+    The restrictions were already being applied to the IP addresses
+    received from the host resolver. Apply the same restrictions to
+    literal IP addresses not passed to the host resolver.
+    
+    For example, ResolveTCPAddr("tcp4", "[2001:db8::1]:http") used
+    to succeed and now does not (that's not an IPv4 address).
+    
+    Perhaps a bit surprisingly,
+    ResolveTCPAddr("tcp4", "[::ffff:127.0.0.1]:http") succeeds,
+    behaving identically to ResolveTCPAddr("tcp4", "127.0.0.1:http"), and
+    ResolveTCPAddr("tcp6", "[::ffff:127.0.0.1]:http") fails,
+    behaving identically to ResolveTCPAddr("tcp6", "127.0.0.1:http").
+    Even so, it seems right to match (by reusing) the existing filtering
+    as applied to addresses resolved by the host C library.
+    If anyone can make a strong argument for changing the filtering
+    of IPv4-inside-IPv6 addresses, the fix can be applied to all
+    the code paths in a separate CL.
+    
+    Fixes #14037.
+    
+    Change-Id: I690dfdcbe93d730e11e00ea387fa7484cd524341
+    Reviewed-on: https://go-review.googlesource.com/32100
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go         |  2 +-
+ src/net/error_test.go   | 14 +++++++++-----
+ src/net/ipsock.go       | 43 +++++++++++++++++++++----------------------
+ src/net/ipsock_test.go  | 14 +++++++-------
+ src/net/net.go          |  2 +-
+ src/net/tcpsock_test.go | 30 ++++++++++++++++++------------
+ 6 files changed, 57 insertions(+), 48 deletions(-)

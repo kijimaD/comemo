@@ -1,0 +1,18 @@
+commit 10661bd95225cc9d4e85bffe0de63e797ff4f2ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:38:07 2022 -0500
+
+    cmd/objdump: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I1965ea453af6aa9eeae9669065deb0b372dc6caf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450705
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/objdump/objdump_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

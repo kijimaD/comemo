@@ -1,0 +1,29 @@
+commit a82ee9c76d979f8ea713caa13023dcfd747b433a
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 15 15:02:03 2016 -0800
+
+    encoding/asn1: respect “explicit” and “tag” when unmarshaling RawValues.
+    
+    Previously, any “explicit” and/or “tag” decorations on a RawValue would
+    be ignored when unmarshaling. The RawValue would swallow whatever
+    element was encountered.
+    
+    This change causes these decorations to be respected. Thus a field like:
+      Foo asn1.RawValue `asn1:"explicit,tag:1,optional"`
+    will only match if an explicit tag with value one is encountered.
+    Otherwise the RawValue will get the default value and parsing will move
+    onto the next element.
+    
+    Thanks to Martin Kreichgauer for reporting the issue.
+    
+    Change-Id: If6c4488685b9bd039cb5e352d6d75744f98dbb1f
+    Reviewed-on: https://go-review.googlesource.com/34503
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/encoding/asn1/asn1.go      | 46 +++++++++++++++-------------------
+ src/encoding/asn1/asn1_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++
+ src/encoding/asn1/common.go    | 30 +++++++++++-----------
+ src/encoding/asn1/marshal.go   |  4 +--
+ 4 files changed, 95 insertions(+), 42 deletions(-)

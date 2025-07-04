@@ -1,0 +1,15 @@
+commit 5a043de746a0aa230862318e2f249d71de1e1fe3
+Author: Joel Sing <jsing@google.com>
+Date:   Thu May 24 11:33:11 2012 +1000
+
+    runtime: make go work on netbsd/amd64
+    
+    R=golang-dev, rsc, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/6222044
+
+ src/pkg/runtime/os_netbsd.h           |  2 +-
+ src/pkg/runtime/signal_netbsd_amd64.c | 12 ++++++
+ src/pkg/runtime/sys_netbsd_amd64.s    | 61 +++++++++++------------------
+ src/pkg/runtime/thread_netbsd.c       | 74 +++++++++++++++++++++++++----------
+ 4 files changed, 88 insertions(+), 61 deletions(-)

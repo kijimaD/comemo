@@ -1,0 +1,23 @@
+commit ecb7b63820b8c28d8b2ea4ac1df194d19837e48e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 3 15:14:56 2017 -0400
+
+    runtime: fix gcpacertrace printing of sweep ratio
+    
+    Commit 44ed88a5a7 moved printing of the "sweep done" gcpacertrace
+    message so that it is printed when the final sweeper finishes.
+    However, by this point some other thread has often already observed
+    that there are no more spans to sweep and zeroed sweepPagesPerByte.
+    
+    Avoid printing a 0 sweep ratio in the trace when this race happens by
+    getting the value of the sweep ratio upon entry to sweepone and
+    printing that.
+    
+    Change-Id: Iac0c48ae899e12f193267cdfb012c921f8b71c85
+    Reviewed-on: https://go-review.googlesource.com/39492
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcsweep.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

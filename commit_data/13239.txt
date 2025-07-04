@@ -1,0 +1,12 @@
+commit 935d8d16d402d3721a2c80ffb0d0e16262566a48
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 1 10:55:55 2012 +1000
+
+    misc/dashboard/codereview: handle abandoned CLs.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6257082
+
+ misc/dashboard/codereview/dashboard/cl.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

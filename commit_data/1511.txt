@@ -1,0 +1,19 @@
+commit 83c17606d76f30eafce660d6e64187e628ccb0d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 16 14:12:50 2009 -0800
+
+    - language for export via capitalized identifiers
+    - removed explicit "export" declarations and keyword
+    - fixed a few glitches and adjusted examples
+    
+    (The details of what "export" mean should be clarified
+    in the spec, this is just so we have a working doc for
+    now.)
+    
+    R=r
+    DELTA=131  (7 added, 63 deleted, 61 changed)
+    OCL=22753
+    CL=22970
+
+ doc/go_spec.txt | 180 +++++++++++++++++++-------------------------------------
+ 1 file changed, 62 insertions(+), 118 deletions(-)

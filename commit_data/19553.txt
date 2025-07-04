@@ -1,0 +1,13 @@
+commit f2147cd740810ac50b56f96f429ef6b47245e904
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 00:45:39 2014 -0700
+
+    runtime: disable funky wide string test for now.
+    
+    TBR=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105280045
+
+ src/pkg/runtime/string_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

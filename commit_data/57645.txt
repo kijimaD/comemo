@@ -1,0 +1,19 @@
+commit 0fd2d4d6c2101fb615a7546f49e92a2187191fb0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 9 10:12:57 2024 +0200
+
+    syscall: implement Ftruncate using a single syscall on Windows
+    
+    Ftruncate can be implemented on Windows using a single syscall. This
+    makes the implementation more efficient and less prone to races when
+    used in combination with other Seek calls.
+    
+    Change-Id: I5d9f780fba2710403fce89d3325e519f33ad9ae8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618835
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/syscall_windows.go  | 20 +++++++-------------
+ src/syscall/zsyscall_windows.go |  9 +++++++++
+ 2 files changed, 16 insertions(+), 13 deletions(-)

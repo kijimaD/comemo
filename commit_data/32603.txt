@@ -1,0 +1,16 @@
+commit b2e8630f2f8120f917b8e6d3e2a88ee6046da569
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Sep 3 12:31:14 2017 -0700
+
+    cmd/compile: simplify "missing function body" error message
+    
+    Fixes #21747.
+    
+    Change-Id: I6a68370be3b7510ce364ddd1e41a1d767ce3a67f
+    Reviewed-on: https://go-review.googlesource.com/61311
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

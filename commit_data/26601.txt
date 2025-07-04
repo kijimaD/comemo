@@ -1,0 +1,29 @@
+commit 788f11263a0eccb25d9067525d84208058000391
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 10:55:44 2016 -0700
+
+    cmd/compile: rename Type.IsPtr to Type.IsPtrShaped
+    
+    Previously, t.IsPtr() reported whether t was represented with a
+    pointer, but some of its callers expected it to report whether t is an
+    actual Go pointer. Resolve this by renaming t.IsPtr to t.IsPtrShaped
+    and adding a new t.IsPtr method to report Go pointer types.
+    
+    Updated a couple callers in gc/ssa.go to use IsPtr instead of
+    IsPtrShaped.
+    
+    Passes toolstash -cmp.
+    
+    Updates #15028.
+    
+    Change-Id: I0a8154b5822ad8a6ad296419126ad01a3d2a5dc5
+    Reviewed-on: https://go-review.googlesource.com/21232
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go        | 14 +++++++-------
+ src/cmd/compile/internal/gc/type.go       | 11 +++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go   |  2 +-
+ src/cmd/compile/internal/ssa/type.go      |  4 ++--
+ src/cmd/compile/internal/ssa/type_test.go |  2 +-
+ 5 files changed, 22 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit ed615aaf5bd6bb9ab0c9d88f4e41b4d2ff07a10e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 16:40:27 2020 +0100
+
+    crypto/x509: expand package docs and clarify package target
+    
+    Fixes #26624
+    
+    Change-Id: Ifab3fc2209d71b9a7de383eaa5786b7446de25fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266541
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/x509.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit e14339d34cab4ae7abd7d0f83aacff9eed516ea2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 17 12:58:10 2015 -0700
+
+    cmd/go: don't crash on unknown GOARCH unless we actually care
+    
+    For example, "GOARCH=sparc go build -compiler=gccgo" should not crash
+    merely because the architecture character for sparc is not known.
+    
+    Change-Id: I18912c7f5d90ef8f586592235ec9d6e5053e4bef
+    Reviewed-on: https://go-review.googlesource.com/7695
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go | 56 ++++++++++++++++++++++++++++++-----------------------
+ src/cmd/go/env.go   |  5 ++++-
+ 2 files changed, 36 insertions(+), 25 deletions(-)

@@ -1,0 +1,14 @@
+commit 717de79976f2b8675cbba4dea01b092a351ecbe7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 6 16:27:14 2008 -0700
+
+    change in spec results in non-error
+    
+    R=gri
+    DELTA=4  (0 added, 3 deleted, 1 changed)
+    OCL=16565
+    CL=16579
+
+ test/func3.go   | 2 +-
+ test/golden.out | 3 ---
+ 2 files changed, 1 insertion(+), 4 deletions(-)

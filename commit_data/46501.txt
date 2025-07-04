@@ -1,0 +1,15 @@
+commit 9e60c371473ff15eb4b13981721b29f62e1d862c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 17 07:24:31 2021 -0500
+
+    cmd/compile: document register-based ABI for ppc64
+    
+    This adds the ppc64 information to the ABI doc.
+    
+    Change-Id: I55ce77a59a8b50309d02e3e0de0cea3fc62ad003
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342869
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/abi-internal.md | 99 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)

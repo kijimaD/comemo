@@ -1,0 +1,21 @@
+commit fadd77c05b0f6633d753da61c74a7ed81959b252
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 21 11:03:16 2022 -0500
+
+    runtime/coverage: add missing file close in test support helper
+    
+    The processPod() helper (invoked by processCoverTestDir, which is in
+    turn called by _testmain.go) was opening and reading counter data
+    files, but never closing them. Add a call to close the files after
+    they have been read.
+    
+    Fixes #57407.
+    
+    Change-Id: If9a489f92e4bab72c5b2df8697e14420a6f7b8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458835
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/coverage/testsupport.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

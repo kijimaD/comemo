@@ -1,0 +1,17 @@
+commit 9c21ce54dd3625aac3b948b509a9562b684434bc
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 9 20:36:19 2013 +0200
+
+    cmd/6g: handle very wide offsets.
+    
+    Fixes #6036.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12992043
+
+ src/cmd/6g/cgen.c           |  3 +++
+ src/cmd/6g/gg.h             |  1 +
+ src/cmd/6g/gsubr.c          | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue6036.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 75 insertions(+)

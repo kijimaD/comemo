@@ -1,0 +1,30 @@
+commit a6736cae30a707794db3d418c75aec2a2554b1e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 13:40:51 2011 -0500
+
+    spec: allow imported packages named main
+    
+    Prior to this CL, there were two requirements about the
+    package name main.
+    
+    1. The package that sits at the root of the import graph
+       (the one where program execution begins)
+       must be named main.
+    
+    2. No other package in the program can be named main.
+    
+    This CL only removes requirement #2, which can be done
+    without changing any other Go documentation.
+    
+    The new wording and formatting is such that removing
+    requirement #1 can be done by deleting a single line,
+    but making that change is explicitly outside the scope
+    of this CL, because it would require changes to other
+    documentation at the same time.
+    
+    R=gri, r, gri1
+    CC=golang-dev
+    https://golang.org/cl/4126053
+
+ doc/go_spec.html | 26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)

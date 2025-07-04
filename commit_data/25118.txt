@@ -1,0 +1,26 @@
+commit 3a1bed82a66c9ff4bf659e5603a8f7c0120435c3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Dec 1 15:39:41 2015 +1300
+
+    cmd/internal/obj: fix stack barriers in ppc64le shared libs
+    
+    runtime.stackBarrier is a strange function: it is only ever "called" by
+    smashing its address into a LR slot on the stack. Calling it like this
+    certainly does not adhere to the rule that r12 is set to the global entry point
+    before calling it and the prologue instrutions that compute r2 from r12 in fact
+    just corrupt r2, which is bad because the function that stackBarrier returns to
+    probably uses r2 to access global data.
+    
+    Fortunately stackBarrier itself does not access any global data and so does not
+    depend on the value of r2, meaning we can ignore the ABI rules and simply skip
+    inserting the prologue instructions into this specific function.
+    
+    Fixes 64bit.go, append.go and fixedbugs/issue13169.go from "cd test; go run
+    run.go -linkshared".
+    
+    Change-Id: I606864133a83935899398e2d42edd08a946aab24
+    Reviewed-on: https://go-review.googlesource.com/17281
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

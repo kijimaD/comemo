@@ -1,0 +1,13 @@
+commit dfc3e52310dfe43534a9522b6ef4c870f76bd7d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 9 15:13:26 2009 -0800
+
+    Use make instead of new to allocate a channel.
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=22452
+    CL=22455
+
+ doc/progs/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

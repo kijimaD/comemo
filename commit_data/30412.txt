@@ -1,0 +1,14 @@
+commit f7f3514bd874844f2091a123e55b19fdaf4773b5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 22 14:43:21 2017 -0800
+
+    cmd/compile/internal/gc: simplify ascompatte
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ibb51ccaf29ee97c3463543175c9ac7b85ea10a7f
+    Reviewed-on: https://go-review.googlesource.com/37339
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go | 170 ++++++++++--------------------------
+ 1 file changed, 45 insertions(+), 125 deletions(-)

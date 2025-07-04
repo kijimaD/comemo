@@ -1,0 +1,21 @@
+commit 8ee0261865bea69f1a39e04a539e1152b7ba578d
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Aug 30 09:45:26 2015 -0700
+
+    crypto/x509: make verification of an empty certificate consistent across platforms.
+    
+    Platform-specific verification needs the ASN.1 contents of a certificate
+    but that might not be provided if the Certificate was not created by
+    ParseCertificate. In order to avoid a panic on Windows, and to make
+    behaviour consistent across platforms, this change causes verification
+    to fail when the ASN.1 contents of a certificate are not available.
+    
+    Fixes #12184
+    
+    Change-Id: I4395d74934e675c179eaf4cded1094a756e478bb
+    Reviewed-on: https://go-review.googlesource.com/14053
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go    | 18 ++++++++++++++++++
+ src/crypto/x509/x509_test.go |  6 ++++++
+ 2 files changed, 24 insertions(+)

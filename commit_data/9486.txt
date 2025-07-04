@@ -1,0 +1,15 @@
+commit 0227c45edec55aa05c8546f06edf24530241aee5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 25 09:26:13 2011 -0400
+
+    gc: fix some spurious leaks
+    
+    Probably will spark some discussion.  ☺
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/4948041
+
+ src/cmd/gc/esc.c | 143 ++++++++++++++++++++++---------------------------------
+ test/escape2.go  |  86 +++++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 85 deletions(-)

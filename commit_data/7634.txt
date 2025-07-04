@@ -1,0 +1,21 @@
+commit 9442e9518dc54c0444e44eb0898c6c7ce4d28a4f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 4 14:18:52 2011 -0800
+
+    gob: enable the GobEncoder and GobDecoder interfaces.
+    These allow data items to control their own representation.
+    
+    For now, the implementation requires that the value passed
+    to Encode and Decode must be exactly the type of the
+    methods' receiver; it cannot be, for instance, T if the receiver
+    is of type *T.  This will be fixed in a later CL.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4235051
+
+ src/pkg/gob/decode.go         |  2 +-
+ src/pkg/gob/encode.go         |  2 +-
+ src/pkg/gob/gobencdec_test.go | 18 +++++++--------
+ src/pkg/gob/type.go           | 54 ++++++++++++++++++++++++++++++++-----------
+ 4 files changed, 52 insertions(+), 24 deletions(-)

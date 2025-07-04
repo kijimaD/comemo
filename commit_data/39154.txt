@@ -1,0 +1,16 @@
+commit a75bfb05b30bdc1e3400024d1d29612349280174
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue May 14 17:46:55 2019 +0300
+
+    cmd/internal/obj/x86: fix oclass tests for Hsolaris
+    
+    Use objabi.Hlinux for now.
+    
+    Fixes #32028
+    
+    Change-Id: If9745f72c0ee4444ea2a2faa50813d2e1ac2bf97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177077
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit c9a4b01f424d5c1b13ddf9eb900c664ea2bf7d98
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 11 12:41:01 2019 -0500
+
+    cmd/go: in 'go build -o', allow the destination file to exist if it is empty
+    
+    This allows the target of 'go build' to be a filename constructed
+    using ioutil.TempFile or similar, without racily deleting the file
+    before rebuilding it.
+    
+    Updates #32407
+    Updates #28387
+    
+    Change-Id: I4c5072830a02b93f0c4186b50bffa9de00257afe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206477
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go                     |  4 ++--
+ src/cmd/go/testdata/script/test_compile_tempfile.txt | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

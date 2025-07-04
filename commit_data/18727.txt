@@ -1,0 +1,16 @@
+commit 52e6d7c6224612a3b60caa799bc22bd50ab16acb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 4 08:18:17 2014 +0100
+
+    cmd/gc: use a register to checknil constants.
+    
+    Fixes #7346.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/69050044
+
+ src/cmd/gc/pgen.c           |  2 +-
+ test/fixedbugs/issue7346.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

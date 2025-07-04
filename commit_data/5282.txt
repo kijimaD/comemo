@@ -1,0 +1,15 @@
+commit 74d0302eb9c4f5fd2b771a0c1798d3ead3254826
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Apr 13 10:51:35 2010 +1000
+
+    Remove exp/exception as it's no longer relevant
+    
+    R=gri, adg
+    CC=golang-dev, r, rsc
+    https://golang.org/cl/857048
+
+ src/pkg/Makefile                        |  1 -
+ src/pkg/exp/exception/Makefile          | 11 -----
+ src/pkg/exp/exception/exception.go      | 83 ---------------------------------
+ src/pkg/exp/exception/exception_test.go | 61 ------------------------
+ 4 files changed, 156 deletions(-)

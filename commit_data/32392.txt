@@ -1,0 +1,12 @@
+commit 7188e00287ca5bba27b3c1ed07f9c203fba5351e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 16:10:49 2017 +1000
+
+    cmd/link: introduce and use peFile.nextSectOffset and nextFileOffset
+    
+    Change-Id: Iecff99e85e2cca1127dca79747bb0d5362cd4125
+    Reviewed-on: https://go-review.googlesource.com/56319
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

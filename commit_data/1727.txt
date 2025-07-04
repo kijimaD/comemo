@@ -1,0 +1,12 @@
+commit da34bea950229a2bae01d080cbf833e567c5b84e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 20:17:12 2009 -0800
+
+    redo poor example of slices.
+    
+    R=rsc
+    OCL=25614
+    CL=25614
+
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

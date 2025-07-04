@@ -1,0 +1,12 @@
+commit 55f8fd26841c2e9ef63759b62b7cd0bafa93b5f1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 20:19:56 2011 +1000
+
+    gobuilder: remove some windows-specificity
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4528109
+
+ misc/dashboard/builder/exec.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

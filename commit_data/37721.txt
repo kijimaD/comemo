@@ -1,0 +1,22 @@
+commit a1aafd8b28ada0d40e2cb25fb0762ae171eec558
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 17 11:33:42 2018 -0800
+
+    cmd/compile: generate interface method expression wrapper for error.Error
+    
+    A prior optimization (https://golang.org/cl/106175) removed the
+    generation of unnecessary method expression wrappers, but also
+    eliminated the generation of the wrapper for error.Error which
+    was still required.
+    
+    Special-case error type in the optimization.
+    
+    Fixes #29304.
+    
+    Change-Id: I54c8afc88a2c6d1906afa2d09c68a0a3f3e2f1e3
+    Reviewed-on: https://go-review.googlesource.com/c/154578
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  5 +++--
+ test/fixedbugs/issue29304.go        | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

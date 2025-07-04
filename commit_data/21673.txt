@@ -1,0 +1,39 @@
+commit 69275eef5e6dfa837202323223f39bc24f2695ac
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 10 12:24:11 2015 +0900
+
+    net, syscall: more accurate parsers for routing messages on BSD variants
+    
+    This changes fixes two issues with regard to handling routing messages
+    as follows:
+    - Misparsing on platforms (such as FreeBSD) supporting multiple
+      architectures in the same kernel (kern.supported_archs="amd64 i386")
+    - Misparsing with unimplemented messages such as route, interface
+      address state notifications
+    
+    To fix those issues, this change implements all the required socket
+    address parsers, adds a processor architecture identifying function to
+    FreeBSD and tests.
+    
+    Fixes #9707.
+    Fixes #8203.
+    
+    Change-Id: I7ed7b4a0b6f10f54b29edc681a2f35603f2d8d45
+    Reviewed-on: https://go-review.googlesource.com/4330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface_bsd.go           |  81 +++++-----
+ src/net/interface_darwin.go        |  37 +++--
+ src/net/interface_freebsd.go       |  37 +++--
+ src/syscall/route_bsd.go           | 303 +++++++++++++++++++++++++------------
+ src/syscall/route_bsd_test.go      | 197 ++++++++++++++++++++++++
+ src/syscall/route_darwin.go        |  46 +++---
+ src/syscall/route_dragonfly.go     |  50 +++---
+ src/syscall/route_freebsd.go       |  70 ++++++---
+ src/syscall/route_freebsd_32bit.go |  13 +-
+ src/syscall/route_freebsd_64bit.go |   7 +-
+ src/syscall/route_ifma_test.go     |  74 +++++++++
+ src/syscall/route_netbsd.go        |   6 +-
+ src/syscall/route_noifma_test.go   |  63 ++++++++
+ src/syscall/route_openbsd.go       |   6 +-
+ 14 files changed, 740 insertions(+), 250 deletions(-)

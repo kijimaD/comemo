@@ -1,0 +1,16 @@
+commit e0ac75d2ab9da30d41a76a4ed89b89cb79cb5c60
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 30 16:15:41 2019 +0000
+
+    cmd/dist: disable cgo for darwin/386
+    
+    Fixes #31751
+    
+    Change-Id: Id002f14557a34accc3597cb1b9a42e838a027da4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174497
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

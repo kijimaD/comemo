@@ -1,0 +1,17 @@
+commit 5e939b3a9ce7864551e86c04a05db887c25e2759
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 11 11:44:23 2023 -0800
+
+    doc: add crypto/tls and crypto/x509 release notes
+    
+    Updates #61422
+    
+    Change-Id: If561f701882396f8e28e2fc3fa9c76c7169f752e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548975
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 60 +++++++++++++++++++++++++--------------------------------
+ 1 file changed, 26 insertions(+), 34 deletions(-)

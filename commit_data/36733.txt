@@ -1,0 +1,12 @@
+commit 0ee8a559e5778b4dbfa20c524867112693ba607f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 24 23:59:48 2018 +0000
+
+    cmd/compile/internal/ssa: fix a typo
+    
+    Change-Id: Ie3a8c54fe5e1b94f506cc0e6f650aab441d28a75
+    Reviewed-on: https://go-review.googlesource.com/137115
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

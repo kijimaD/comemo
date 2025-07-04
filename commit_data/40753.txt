@@ -1,0 +1,19 @@
+commit dd0173845f939dc532e8e8348b8360914dbca216
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 1 19:00:33 2019 -0400
+
+    crypto/tls: implement (*ClientHelloInfo).SupportsCertificate
+    
+    We'll also use this function for a better selection logic from
+    Config.Certificates in a later CL.
+    
+    Updates #32426
+    
+    Change-Id: Ie239574d02eb7fd2cf025ec36721c8c7e082d0bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205057
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go           | 169 +++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go |   1 +
+ src/crypto/tls/tls_test.go         | 159 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 329 insertions(+)

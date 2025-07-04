@@ -1,0 +1,21 @@
+commit be0d049a42ee4b07bfb71acb5e8f7c3d2735049a
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Feb 9 10:39:15 2022 +0800
+
+    runtime: AES maphash scramble 3 times on 386
+    
+    Issue #43130 shows flaky hash not inbalanced on 386 platform,
+    which is using AES hashing instead of wyhash.
+    This CL increase the scramble times to 3 that amd64 using right now.
+    
+    Fixes #43130
+    
+    Change-Id: I9d012eda99ff71c13a89448f46fcb9c5e7cec921
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384075
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_386.s | 33 ++++++++++++++++++++++++---------
+ 1 file changed, 24 insertions(+), 9 deletions(-)

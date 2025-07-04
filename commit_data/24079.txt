@@ -1,0 +1,12 @@
+commit 79a3d239e99d8e60324701d313969cb6611bf308
+Author: Andy Maloney <asmaloney@gmail.com>
+Date:   Thu Aug 6 11:45:53 2015 -0400
+
+    cmd/cgo: change comments in generated C code to be C-style
+    
+    Change-Id: I3889eda72ae0f57117f1d4299e3574f8bf68be67
+    Reviewed-on: https://go-review.googlesource.com/13310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

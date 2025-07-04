@@ -1,0 +1,33 @@
+commit ed963c908d11fc6ffd17c9e9bc615cc134af6046
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 30 09:47:39 2014 +0900
+
+    undo CL 102610045 / 7244ce3ae9db
+    
+    preparing for the syscall package freeze.
+    
+    ««« original CL description
+    syscall: regenerate z-files for darwin
+    
+    Updates z-files from 10.7 kernel-based to 10.9 kernel-based.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/102610045
+    »»»
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/114530044
+
+ api/except.txt                          |  24 -----
+ src/pkg/syscall/mkerrors.sh             |  30 ------
+ src/pkg/syscall/mksysnum_darwin.pl      |  28 +-----
+ src/pkg/syscall/types_darwin.go         |   9 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 173 +-------------------------------
+ src/pkg/syscall/zerrors_darwin_amd64.go | 173 +-------------------------------
+ src/pkg/syscall/zsysnum_darwin_386.go   |  21 +---
+ src/pkg/syscall/zsysnum_darwin_amd64.go |  21 +---
+ 8 files changed, 15 insertions(+), 464 deletions(-)

@@ -1,0 +1,15 @@
+commit ae6cbd4fcf35471996c35018ec0ff908c0a59728
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat May 17 00:06:56 2014 +0000
+
+    syscall: fix arm build
+    
+    Rename Seek to seek in asm file, was overlooked in CL 99320043.
+    
+    LGTM=bradfitz, r
+    R=r, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/99320044
+
+ src/pkg/syscall/asm_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

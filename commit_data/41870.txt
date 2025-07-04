@@ -1,0 +1,18 @@
+commit 94d22d12fa4d35d4e6265222665fb566b92c2bda
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 15:52:01 2020 +0000
+
+    Revert "runtime/pprof: try to use real stack in TestTryAdd"
+    
+    This reverts CL 227484.
+    
+    Reason for revert: failing on linux-amd64-noopt builder.
+    
+    Change-Id: Id677de8cfb18fbccb7d9b04b0f8a21d3c1d2b060
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227580
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 91 +++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 66 deletions(-)

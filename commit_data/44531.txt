@@ -1,0 +1,23 @@
+commit d4247f516724cae2e84a4d1bef71bd47aa2fd1d8
+Author: Adrien Delorme <azr@users.noreply.github.com>
+Date:   Fri Mar 5 15:59:12 2021 +0000
+
+    text/template: wrap errors returned by template functions instead of stringifying them
+    
+    Fixes #34201
+    
+    Change-Id: Ic2e2967e4b01167345cf38bd006cabb206a64377
+    GitHub-Last-Rev: 5d0c4856550614484a8dbfb68c37aa1abcfcc529
+    GitHub-Pull-Request: golang/go#42398
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267838
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Pontus Leitzler <leitzler@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/text/template/exec.go      |  2 +-
+ src/text/template/exec_test.go | 22 ++++++++++++++++++++++
+ src/text/template/funcs.go     |  5 ++++-
+ 3 files changed, 27 insertions(+), 2 deletions(-)

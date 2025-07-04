@@ -1,0 +1,11 @@
+commit eca23cfd92f373345d58a370ba4913609cbcb8bb
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 28 12:50:33 2008 -0700
+
+    slice doesn't work on a string literal
+    
+    SVN=125259
+
+ test/bugs/bug061.go | 12 ++++++++++++
+ test/golden.out     |  6 ++++++
+ 2 files changed, 18 insertions(+)

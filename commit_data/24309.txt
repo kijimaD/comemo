@@ -1,0 +1,25 @@
+commit d5fe165ca0a3a7ed6043eb9d795e11d5d98f38e3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 10 15:57:39 2015 +1000
+
+    cmd/compile: convert externdecl to []*Node
+    
+    This one of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
+    
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: Ifd73501e06e8ea5efd028b6d473b3e5d1b07a5ac
+    Reviewed-on: https://go-review.googlesource.com/14570
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/go.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go     |  6 +++---
+ src/cmd/compile/internal/gc/obj.go     | 13 ++++--------
+ src/cmd/compile/internal/gc/reflect.go |  3 +--
+ src/cmd/compile/internal/gc/subr.go    | 39 +++++++++++++++++-----------------
+ 6 files changed, 29 insertions(+), 36 deletions(-)

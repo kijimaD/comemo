@@ -1,0 +1,23 @@
+commit 6675fadfb880bd0a3fa1d5524819db02d200bda2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 08:33:21 2017 +0200
+
+    runtime: cleanup amd64p32 memmove and memclr file organization
+    
+    Move memclr to a separate file to make it consistent
+    with other platforms asm function to file organization.
+    
+    Remove nacl from the memmove filename as the implementation
+    is generic for the amd64p32 platform even if currently only
+    nacl is supported for amd64p32.
+    
+    Change-Id: I8930b76da430a5cf2664801974e4f5185fc0f82f
+    Reviewed-on: https://go-review.googlesource.com/61031
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_amd64p32.s                         | 18 -----------------
+ src/runtime/memclr_amd64p32.s                      | 23 ++++++++++++++++++++++
+ ...{memmove_nacl_amd64p32.s => memmove_amd64p32.s} |  0
+ 3 files changed, 23 insertions(+), 18 deletions(-)

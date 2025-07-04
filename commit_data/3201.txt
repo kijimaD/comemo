@@ -1,0 +1,15 @@
+commit d4903abeaebe8945147f4f16345230a624ddc207
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 3 10:24:38 2009 -0700
+
+    use %L in listings so we see source line number in easy format
+    
+    R=ken
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=34309
+    CL=34311
+
+ src/cmd/5g/list.c | 6 +++---
+ src/cmd/6g/list.c | 6 +++---
+ src/cmd/8g/list.c | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

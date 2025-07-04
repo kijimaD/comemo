@@ -1,0 +1,13 @@
+commit a342006207dad6884a43fdcdb62d190dd0db9ce4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 4 16:05:11 2011 +1000
+
+    goinstall: only report successfully-installed packages to the dashboard
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4657071
+
+ src/cmd/goinstall/download.go | 26 ++++++++++++++------------
+ src/cmd/goinstall/main.go     |  6 +++++-
+ 2 files changed, 19 insertions(+), 13 deletions(-)

@@ -1,0 +1,29 @@
+commit a81692e2650fce39bebd77224f4153a326460286
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 23 23:11:04 2014 -0500
+
+    cmd/gc: add zeroing to enable precise stack accounting
+    
+    There is more zeroing than I would like right now -
+    temporaries used for the new map and channel runtime
+    calls need to be eliminated - but it will do for now.
+    
+    This CL only has an effect if you are building with
+    
+            GOEXPERIMENT=precisestack ./all.bash
+    
+    (or make.bash). It costs about 5% in the overall time
+    spent in all.bash. That number will come down before
+    we make it on by default, but this should be enough for
+    Keith to try using the precise maps for copying stacks.
+    
+    amd64 only (and it's not really great generated code).
+    
+    TBR=khr, iant
+    CC=golang-codereviews
+    https://golang.org/cl/56430043
+
+ src/cmd/6g/ggen.c      | 35 +++++++++++++++++++++++++++++++++--
+ src/cmd/gc/plive.c     | 26 +++++++++++++++-----------
+ src/pkg/runtime/mgc0.c |  2 +-
+ 3 files changed, 49 insertions(+), 14 deletions(-)

@@ -1,0 +1,21 @@
+commit 6a8cff57309ba3168844640b2da2ea3103d594fd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 22:55:05 2018 +0000
+
+    os: fix missing break bug in earlier CL 110295's use of Uname
+    
+    The Uname name was never being used because it always generated a
+    too-long string.
+    
+    The new test looking for zero bytes wouldn't have caught it (I thought
+    it would've), but is still nice to have.
+    
+    Updates #24701
+    
+    Change-Id: I2648074452609e4ad1b9736973e1b3a95eac658d
+    Reviewed-on: https://go-review.googlesource.com/110436
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go   | 35 +++++++++++++++--------------------
+ src/os/sys_linux.go |  1 +
+ 2 files changed, 16 insertions(+), 20 deletions(-)

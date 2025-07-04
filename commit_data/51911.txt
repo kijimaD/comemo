@@ -1,0 +1,16 @@
+commit 32284526c8040f59da6d487cf2c976be3ca8798c
+Author: Ethan Lowman <ethan.l.527@gmail.com>
+Date:   Fri Feb 3 13:35:28 2023 -0500
+
+    net/http/httputil: fix syntax in ReverseProxy example comment
+    
+    Change-Id: I7e71626246af94047fbd1abb9bb77f2cd9b281fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465195
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

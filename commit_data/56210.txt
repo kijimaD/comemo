@@ -1,0 +1,21 @@
+commit 315b6ae682a2a4e7718924a45b8b311a0fe10043
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 15 10:14:57 2024 -0700
+
+    debug/elf: define non-standard but well-known symbol types
+    
+    Fixes #66836
+    
+    Change-Id: I603faca2acd2bcffabbcaca8b8670d46387d2a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578995
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/66836.txt                            | 6 ++++++
+ doc/next/6-stdlib/99-minor/debug/elf/66836.md | 2 ++
+ src/debug/elf/elf.go                          | 7 +++++++
+ 3 files changed, 15 insertions(+)

@@ -1,0 +1,15 @@
+commit 68b40fbbb8ceff55efdf6dfb1f25c48c2f2df6d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 15:53:32 2011 -0800
+
+    Getting Started guide: update for new versions of Mercurial
+    
+    Newer versions of Mercurial require the configuration
+    of Certification Authorities.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4128052
+
+ doc/install.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

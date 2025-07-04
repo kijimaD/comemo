@@ -1,0 +1,21 @@
+commit 3dc082f8fea3ee2710f1d1929169fb49ddf2622a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 15 15:22:35 2016 -0700
+
+    go/types: minor cleanups
+    
+    1) Removed mark field from declInfo struct. Instead use a visited map
+       in ordering.go which was the only use place for the mark field.
+    
+    2) Introduced objSet type for the common map[Object]bool type.
+    
+    3) Improved comments.
+    
+    Change-Id: I7544e7458d844b0ca08193f11de6238d317eaf2d
+    Reviewed-on: https://go-review.googlesource.com/24153
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/initorder.go |  4 ++--
+ src/go/types/ordering.go  | 20 ++++++++------------
+ src/go/types/resolver.go  | 11 ++++++++---
+ 3 files changed, 18 insertions(+), 17 deletions(-)

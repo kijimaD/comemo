@@ -1,0 +1,18 @@
+commit 1a955f5c8ece0ab3cc282fd26395b31fb300a212
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Oct 6 11:20:50 2024 +0100
+
+    io/fs: document need to call File.Close
+    
+    Fixes #69723
+    
+    Change-Id: Id081f68cd30abfa77a971a2370f4a0ebf330eb8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618095
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/io/fs/fs.go | 1 +
+ 1 file changed, 1 insertion(+)

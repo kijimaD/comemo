@@ -1,0 +1,17 @@
+commit a22361d68d6d93ab2b06e4b608e19796e033218b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 6 09:55:04 2013 +1100
+
+    vet: check for useless assignments.
+    
+    The only check so far is for self-assignments of the form "expr = expr",
+    but even that found one instance in the standard library.
+    
+    R=r, adg, mtj, rsc
+    CC=golang-dev
+    https://golang.org/cl/7455048
+
+ src/cmd/vet/assign.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go        |  2 ++
+ src/cmd/vet/test_assign.go | 20 ++++++++++++++++++++
+ 3 files changed, 66 insertions(+)

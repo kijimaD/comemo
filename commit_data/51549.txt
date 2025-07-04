@@ -1,0 +1,16 @@
+commit 6f7a95d25e1873a9685360ed7c15505bfdcbd05d
+Author: Changkun Ou <hi@changkun.de>
+Date:   Fri Dec 9 18:19:52 2022 +0100
+
+    sync: remove unused const
+    
+    Change-Id: I4382b5317cf7f39a48005516ff6d437883c6fd07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456495
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+
+ src/sync/map_bench_test.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 0c7e5d3b8db6668d6bdb16410d59c0ae4133400a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 19:18:00 2023 +0800
+
+    path: add available godoc link
+    
+    Change-Id: I6d40a59cde4c3f1d5094f5126fdbc1195285195f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539577
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/path/filepath/match.go |  8 ++++----
+ src/path/filepath/path.go  | 34 +++++++++++++++++-----------------
+ src/path/match.go          |  2 +-
+ src/path/path.go           |  2 +-
+ 4 files changed, 23 insertions(+), 23 deletions(-)

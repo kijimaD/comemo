@@ -1,0 +1,19 @@
+commit d47fe8092e13e33275033730bb96ebec492375a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 9 15:34:06 2015 -0400
+
+    cmd/internal/gc: increase registerization limits
+    
+    Also clean up code a little.
+    
+    Change-Id: I23b7d2b7871b31e0974f1305e54f0c18dcab05d9
+    Reviewed-on: https://go-review.googlesource.com/7746
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/6g/peep.go          |   6 +-
+ src/cmd/internal/gc/bits.go | 159 ---------------------
+ src/cmd/internal/gc/go.go   |  24 ----
+ src/cmd/internal/gc/popt.go | 137 ++----------------
+ src/cmd/internal/gc/reg.go  | 329 ++++++++++++++++++++++++++++++++++++--------
+ 5 files changed, 291 insertions(+), 364 deletions(-)

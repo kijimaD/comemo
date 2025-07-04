@@ -1,0 +1,24 @@
+commit 2e2047a07fea81f65170eca9562a649ba2f5b11d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:45:50 2017 -0400
+
+    runtime/race: install alternate packages to temp dir
+    
+    The content-based staleness code means that
+    
+            go run -gcflags=-l helloworld.go
+    
+    recompiles all of helloworld.go's dependencies with -gcflags=-l,
+    whereas before it would have assumed installed packages were
+    up-to-date. In this test, that means every race iteration rebuilds
+    the runtime and maybe a few other packages. Instead, install them
+    to a temporary location for reuse.
+    
+    This speeds the test from 17s to 9s on my MacBook Pro.
+    
+    Change-Id: Ied136ce72650261083bb19cc7dee38dac0ad05ca
+    Reviewed-on: https://go-review.googlesource.com/73992
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/output_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

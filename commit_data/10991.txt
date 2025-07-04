@@ -1,0 +1,13 @@
+commit 5962ef2c008e10b21ad73a7bdc08713225f90297
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 23 13:23:07 2011 +1100
+
+    path/filepath: implement Base and Dir for windows
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5501069
+
+ src/pkg/path/filepath/path.go      | 12 +++++++---
+ src/pkg/path/filepath/path_test.go | 48 ++++++++++++++++++++++++++++++++++----
+ 2 files changed, 53 insertions(+), 7 deletions(-)

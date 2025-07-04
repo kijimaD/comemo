@@ -1,0 +1,33 @@
+commit 5c865c78c378548c282b22d96e6d0375079d4417
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 17 10:56:09 2023 -0400
+
+    crypto/tls: retry DialWithTimeout until the listener accepts a connection
+    
+    The point of DialWithTimeout seems to be to test what happens when the
+    connection times out during handshake. However, the test wasn't
+    actually verifying that the connection made it into the handshake at
+    all. That would not only fail to test the intended behavior, but also
+    leak the Accept goroutine until arbitrarily later, at which point it
+    may call t.Error after the test t is already done.
+    
+    Instead, we now:
+    
+    - retry the test with a longer timeout if we didn't accept a
+      connection, and
+    
+    - wait for the Accept goroutine to actually complete when the test
+      finishes.
+    
+    Fixes #59646.
+    
+    Change-Id: Ie56ce3297e2c183c02e67b8f6b26a71e50964558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485115
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/tls/tls_test.go | 70 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 47 insertions(+), 23 deletions(-)

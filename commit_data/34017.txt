@@ -1,0 +1,15 @@
+commit 4dc1c491b04e90a502ce041f0fd757c91915bff4
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 10 14:26:33 2018 -0800
+
+    crypto/x509: better document Verify's behaviour.
+    
+    This change expands the documentation for Verify to mention the name
+    constraints and EKU behaviour.
+    
+    Change-Id: Ifc80faa6077c26fcc1d2a261ad1d14c00fd13b23
+    Reviewed-on: https://go-review.googlesource.com/87300
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

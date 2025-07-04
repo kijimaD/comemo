@@ -1,0 +1,18 @@
+commit d51f7f39704fd8517739bcd6ad743741983b2234
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 4 20:22:01 2019 -0800
+
+    cmd/compile: update TestFormats for CL 196959
+    
+    CL 196959 uses %v to print *EscLocation values. This happens at least at
+        Fatalf("path inconsistency: %v != %v", edge.src, src)
+    in (*Escape).explainPath.
+    
+    Change-Id: I1c761406af6a1025403dfefa5ec40aee75e72944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmtmap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

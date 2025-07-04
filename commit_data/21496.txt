@@ -1,0 +1,14 @@
+commit 3819907a5565c53457b826912a10b18eda708f38
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Feb 5 14:16:13 2015 -0500
+
+    cmd/cgo: detect misuse of generated _cgo_export.h
+    
+    Fixes #9742.
+    
+    Change-Id: Ifedf7ff9465bc49534b708d414c8e435ee9ce6cd
+    Reviewed-on: https://go-review.googlesource.com/3970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

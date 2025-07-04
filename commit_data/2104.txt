@@ -1,0 +1,14 @@
+commit 91ce0ef8f32c2c97ab4e6e2e392f75fa39caa79a
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 28 13:52:56 2009 -0700
+
+    bug 139
+    
+    R=r
+    OCL=27987
+    CL=27987
+
+ src/cmd/6g/cgen.c                  | 5 ++++-
+ test/{bugs => fixedbugs}/bug139.go | 0
+ test/golden.out                    | 5 -----
+ 3 files changed, 4 insertions(+), 6 deletions(-)

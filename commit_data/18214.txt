@@ -1,0 +1,16 @@
+commit 7f62d087771d44b9670e2f34a0d3cef73c01a020
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 10 13:51:11 2014 +0400
+
+    fmt: make benchmarks parallel
+    This seems to be the best target to benchmark sync.Pool changes.
+    
+    This is resend of cl/49910043 which was LGTMed by
+    TBR=bradfitz
+    
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/50140045
+
+ src/pkg/fmt/fmt_test.go | 51 ++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 36 insertions(+), 15 deletions(-)

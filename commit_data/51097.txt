@@ -1,0 +1,36 @@
+commit 3511c822f766fdf16817c1a1949971806c4eeb7e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Nov 2 14:36:51 2022 -0400
+
+    go/build: don't add unparsable non-Go files to InvalidGoFiles
+    
+    go/build attempts to parse comments at the beginning of non-Go files
+    looking for //go:build or //+go build comments. Before this change,
+    if the beginning of the non-Go file failed to parse (perhaps because
+    it is in a format that isn't even meant to be built with Go code) the
+    file would be added to InvalidGoFiles. The comment for InvalidGoFiles
+    states that it contains Go files, so this is clearly incorrect
+    behavior.
+    
+    Further, if there was a directory that only contained these unparsable
+    non-Go files, it would have a non-zero number of InvalidGoFiles, and
+    the matching code in cmd/go/internal/search/search.go in
+    (*Match).MatchDirs would treat it as a directory containing (invalid)
+    Go files and would match the directory as a Go package. This incorrect
+    behavior is also fixed by this CL.
+    
+    Fixes #56509
+    
+    Change-Id: Id0d905827c71f7927f7c2fa42b236181950af7e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447357
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modindex/read.go            | 30 ++++++++++++----------
+ src/cmd/go/testdata/script/list_issue_56509.txt | 34 +++++++++++++++++++++++++
+ src/go/build/build.go                           | 29 +++++++++++----------
+ src/go/build/build_test.go                      | 16 ++++++++++++
+ src/go/build/testdata/bads/bad.s                |  1 +
+ 5 files changed, 83 insertions(+), 27 deletions(-)

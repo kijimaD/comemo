@@ -1,0 +1,30 @@
+commit cb84d831c956026f477b52c9f8a7c1ed2b2724ad
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Nov 26 22:38:45 2020 +0100
+
+    cmd/link: mark windows/arm as all PIE
+    
+    If the linker thinks that it's in exe mode instead of pie mode, it
+    won't emit relocations when generating the pcln table, and we wind
+    up with crashes like this on windows/arm, where all binaries are
+    in fact relocated:
+    
+        Building Go toolchain2 using go_bootstrap and Go toolchain1.
+        fatal error: minpc or maxpc invalid
+        runtime: panic before malloc heap initialized
+    
+    This problem was already solved by darwin/arm64, so solve it the same
+    way here for windows/arm.
+    
+    Fixes CL 228478.
+    Fixes #42786.
+    
+    Change-Id: I6d1db6907c131183649fc263ccca06783188f344
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273566
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/link/internal/ld/config.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

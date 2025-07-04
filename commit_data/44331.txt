@@ -1,0 +1,35 @@
+commit 04903476fe6a1bba4ed751f5e234bccb5a651a9b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 22 11:55:14 2021 -0800
+
+    cmd/compile: reject some rare looping CFGs in shortcircuit
+    
+    One CFGs that shortcircuit looks for is:
+    
+    p   q
+     \ /
+      b
+     / \
+    t   u
+    
+    The test case creates a CFG like that in which p == t.
+    That caused the compiler to generate a (short-lived) invalid phi value.
+    
+    Fix this with a relatively big hammer: Disallow single-length loops entirely.
+    This is probably overkill, but it such loops are very rare.
+    This doesn't change the generated code for anything in std.
+    
+    It generates worse code for the test case:
+    It no longer compiles the entire function away.
+    
+    Fixes #44465
+    
+    Change-Id: Ib8cdcd6cc9d7f48b4dab253652038ace24eae152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295130
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/shortcircuit.go |  7 +++++++
+ test/fixedbugs/issue44465.go                 | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

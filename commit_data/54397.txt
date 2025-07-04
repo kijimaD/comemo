@@ -1,0 +1,23 @@
+commit c0c4a5981600aae2b7a9de9494a29e2f5d82be54
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 11 12:17:40 2023 -0400
+
+    Revert "runtime: set stackguard1 on extra M g0"
+    
+    This reverts CL 527056.
+    
+    CL 525455 breaks darwin, alpine, and android. This CL must be reverted
+    in order to revert that CL.
+    
+    For #62440.
+    
+    Change-Id: I4e1b16e384b475a605e0214ca36c918d50faa22c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527316
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgocall.go  | 2 --
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

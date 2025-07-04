@@ -1,0 +1,19 @@
+commit d7b678b2ca26928390078c29e3f71868e867a182
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 2 09:34:06 2014 +1000
+
+    runtime: properly restore registers in Solaris runtime·sigtramp
+    
+    We restored registers correctly in the usual case where the thread
+    is a Go-managed thread and called runtime·sighandler, but we
+    failed to do so when runtime·sigtramp was called on a cgo-created
+    thread. In that case, runtime·sigtramp called runtime·badsignal,
+    a Go function, and did not restore registers after it returned
+    
+    LGTM=rsc, dave
+    R=rsc, dave
+    CC=golang-codereviews, minux.ma
+    https://golang.org/cl/105280050
+
+ src/pkg/runtime/sys_solaris_amd64.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

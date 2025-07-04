@@ -1,0 +1,12 @@
+commit af95499619f731e8f93a316ba70fa2cd732d0d17
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 17:55:47 2012 -0500
+
+    reflect: expand doc for Value.Interface
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5716057
+
+ src/pkg/reflect/value.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

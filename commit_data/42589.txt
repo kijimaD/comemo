@@ -1,0 +1,26 @@
+commit 5de90d33c837af4d9a375a0a36811c7033655596
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jul 1 11:31:15 2020 +0000
+
+    Revert "encoding/json: don't reuse slice elements when decoding"
+    
+    This reverts https://golang.org/cl/191783.
+    
+    Reason for revert: Broke too many programs which depended on the previous
+    behavior, even when it was the opposite of what the documentation said.
+    
+    We can attempt to fix the original issue again for 1.16, while keeping
+    those programs in mind.
+    
+    Fixes #39427.
+    
+    Change-Id: I7a7f24b2a594c597ef625aeff04fff29aaa88fc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240657
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go      | 40 ++++++++++++++++++----------------------
+ src/encoding/json/decode_test.go | 15 +--------------
+ 2 files changed, 19 insertions(+), 36 deletions(-)

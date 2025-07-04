@@ -1,0 +1,17 @@
+commit a1a45afd4a0586cea2d238bfa9dd8e584645a562
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:06 2021 -0600
+
+    cmd/internal/obj: remove duplicate ppc64 spr MOV* optab entries
+    
+    The matching rules will match C_SPR for the commonly used SPR
+    entries (xer, lr, ctr).
+    
+    Change-Id: I93759c1ce2891f6825661b99c5cbb89250b64ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304429
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 12 ------------
+ 1 file changed, 12 deletions(-)

@@ -1,0 +1,13 @@
+commit d842acd57ed2633478cb46bbb4c18271ec62f36a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 10:25:48 2011 -0500
+
+    crypto/tls: make compatible with go/build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5484073
+
+ src/pkg/crypto/tls/root_stub.go | 2 ++
+ src/pkg/crypto/tls/root_unix.go | 2 ++
+ 2 files changed, 4 insertions(+)

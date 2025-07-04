@@ -1,0 +1,16 @@
+commit d54b67df0cc2f9cfa7785919e20d152305bd72e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 19 09:36:47 2014 -0400
+
+    reflect: test, fix access to nil maps
+    
+    Fixes #8010.
+    
+    LGTM=bradfitz, khr
+    R=khr, bradfitz, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/91450048
+
+ src/pkg/reflect/all_test.go | 22 ++++++++++++++++++++++
+ src/pkg/runtime/hashmap.goc | 12 ++++++++----
+ 2 files changed, 30 insertions(+), 4 deletions(-)

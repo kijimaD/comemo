@@ -1,0 +1,12 @@
+commit a8ce9ab46ca4302d7e33c3734610f4b680b52e72
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 23 12:41:23 2012 +1000
+
+    misc/dashboard/codereview: add admin-only link to force-update a CL.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6431055
+
+ misc/dashboard/codereview/dashboard/front.go | 3 +++
+ 1 file changed, 3 insertions(+)

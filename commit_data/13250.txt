@@ -1,0 +1,18 @@
+commit d186d07eda6cb043c4c75ef6ec3e161e7f6c5a3e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 3 03:08:49 2012 +0800
+
+    cmd/5a, cmd/5l, math: add CLZ instruction for ARM
+            Supported in ARMv5 and above.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6284043
+
+ src/cmd/5a/lex.c             | 2 ++
+ src/cmd/5l/5.out.h           | 4 +++-
+ src/cmd/5l/asm.c             | 9 +++++++++
+ src/cmd/5l/optab.c           | 2 ++
+ src/cmd/5l/span.c            | 1 +
+ src/pkg/math/big/arith_arm.s | 2 +-
+ 6 files changed, 18 insertions(+), 2 deletions(-)

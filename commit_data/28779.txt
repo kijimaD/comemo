@@ -1,0 +1,16 @@
+commit 9c850958cea35d019142f8341beacb4151e1511b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Oct 7 18:11:06 2016 -0400
+
+    go/types: expose Default function, which converts untyped T to T
+    
+    Change-Id: Ibcf5e0ba694b280744a00c2c6fda300f0a653455
+    Reviewed-on: https://go-review.googlesource.com/30715
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/assignments.go | 4 ++--
+ src/go/types/builtins.go    | 2 +-
+ src/go/types/conversions.go | 2 +-
+ src/go/types/expr.go        | 6 +++---
+ src/go/types/predicates.go  | 4 ++--
+ 5 files changed, 9 insertions(+), 9 deletions(-)

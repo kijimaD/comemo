@@ -1,0 +1,57 @@
+commit 57584a0ee1761b6204bbd8b48e1129c0217caedc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 17 18:40:07 2017 -0400
+
+    runtime: fix false positive race in profile label reading
+    
+    Because profile labels are copied from the goroutine into the tag
+    buffer by the signal handler, there's a carefully-crafted set of race
+    detector annotations to create the necessary happens-before edges
+    between setting a goroutine's profile label and retrieving it from the
+    profile tag buffer.
+    
+    Given the constraints of the signal handler, we have to approximate
+    the true synchronization behavior. Currently, that approximation is
+    too weak.
+    
+    Ideally, runtime_setProfLabel would perform a store-release on
+    &getg().labels and copying each label into the profile would perform a
+    load-acquire on &getg().labels. This would create the necessary
+    happens-before edges through each individual g.labels object.
+    
+    Since we can't do this in the signal handler, we instead synchronize
+    on a "labelSync" global. The problem occurs with the following
+    sequence:
+    
+    1. Goroutine 1 calls setProfLabel, which does a store-release on
+       labelSync.
+    
+    2. Goroutine 2 calls setProfLabel, which does a store-release on
+       labelSync.
+    
+    3. Goroutine 3 reads the profile, which does a load-acquire on
+       labelSync.
+    
+    The problem is that the load-acquire only synchronizes with the *most
+    recent* store-release to labelSync, and the two store-releases don't
+    synchronize with each other. So, once goroutine 3 touches the label
+    set by goroutine 1, we report a race.
+    
+    The solution is to use racereleasemerge. This is like a
+    read-modify-write, rather than just a store-release. Each RMW of
+    labelSync in runtime_setProfLabel synchronizes with the previous RMW
+    of labelSync, and this ultimately carries forward to the load-acquire,
+    so it synchronizes with *all* setProfLabel operations, not just the
+    most recent.
+    
+    Change-Id: Iab58329b156122002fff12cfe64fbeacb31c9613
+    Reviewed-on: https://go-review.googlesource.com/56670
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++------
+ src/runtime/profbuf.go          |  2 +-
+ src/runtime/proflabel.go        | 17 ++++++++++++++++-
+ 3 files changed, 46 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 528534c1d4901f832e1ac6b5e2b8a56071ff8427
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 07:16:53 2013 -0400
+
+    runtime: fix comments (g->gobuf became g->sched long ago)
+    
+    Should reduce size of CL 9868044.
+    
+    R=golang-dev, ality
+    CC=golang-dev
+    https://golang.org/cl/10045043
+
+ src/pkg/runtime/asm_386.s   | 12 ++++++------
+ src/pkg/runtime/asm_amd64.s | 12 ++++++------
+ src/pkg/runtime/asm_arm.s   | 10 +++++-----
+ 3 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,30 @@
+commit dfc3910afabf5f9df2ba7b3924b30347ce210b1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 13:31:01 2009 -0800
+
+    math: doc
+    
+    R=r
+    DELTA=173  (74 added, 14 deleted, 85 changed)
+    OCL=25753
+    CL=25767
+
+ src/lib/math/asin.go    | 20 +++++++++---------
+ src/lib/math/atan.go    | 10 +++++----
+ src/lib/math/atan2.go   | 26 ++++++++++++------------
+ src/lib/math/const.go   |  8 +++++---
+ src/lib/math/exp.go     |  7 +++++++
+ src/lib/math/fabs.go    |  9 +++++----
+ src/lib/math/floor.go   | 19 ++++++++---------
+ src/lib/math/fmod.go    |  1 +
+ src/lib/math/hypot.go   |  2 ++
+ src/lib/math/log.go     | 16 +++++++++++----
+ src/lib/math/pow.go     |  2 +-
+ src/lib/math/pow10.go   |  1 +
+ src/lib/math/runtime.go | 54 +++++++++++++++++++++++++++++++++++++++----------
+ src/lib/math/sin.go     | 17 ++++++++--------
+ src/lib/math/sinh.go    | 39 ++++++++++++++++++-----------------
+ src/lib/math/sqrt.go    | 28 +++++++++++++++----------
+ src/lib/math/tan.go     |  4 ++--
+ src/lib/math/tanh.go    | 17 ++++++++--------
+ 18 files changed, 170 insertions(+), 110 deletions(-)

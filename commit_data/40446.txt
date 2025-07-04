@@ -1,0 +1,16 @@
+commit 5d000a8b6268c09697c64c76bade1daa86f43a9e
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Oct 26 09:24:29 2019 +0200
+
+    test: add test for fixed internal compiler error
+    
+    Updates #35157 (the bug there was fixed by CL200861)
+    
+    Change-Id: I67069207b4cdc2ad4a475dd0bbc8555ecc5f534f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203598
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ test/fixedbugs/issue35157.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,0 +1,31 @@
+commit 43f2f5024b2a1438a642fe5340b929d3069099e9
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Apr 28 17:47:27 2020 -0400
+
+    crypto/tls: rotate session ticket keys
+    
+    Automatically rotate session ticket keys for servers
+    that don't already have sessionTicketKeys and that
+    haven't called SetSessionTicketKeys.
+    
+    Now, session ticket keys will be rotated every 24 hours
+    with a lifetime of 7 days. This adds a small performance
+    cost to existing clients that don't provide a session
+    ticket encrypted with a fresh enough session ticket key,
+    which would require a full handshake.
+    
+    Updates #25256
+    
+    Change-Id: I15b46af7a82aab9a108bceb706bbf66243a1510f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230679
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/common.go                | 203 +++++++++++++++++++++-----------
+ src/crypto/tls/conn.go                  |   5 +
+ src/crypto/tls/handshake_client_test.go |  15 +++
+ src/crypto/tls/handshake_server.go      |  14 +--
+ src/crypto/tls/handshake_server_test.go |  14 +--
+ src/crypto/tls/ticket.go                |  12 +-
+ 6 files changed, 172 insertions(+), 91 deletions(-)

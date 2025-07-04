@@ -1,0 +1,14 @@
+commit 3c5eb96001453466656873a2d5c8921d8baebfcd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 15:22:35 2015 +1000
+
+    doc: update the architecture-specific information in asm.html
+    
+    Still to do: ARM64 and PPC64. These architectures are woefully underdocumented.
+    
+    Change-Id: Iedcf767a7e0e1c931812351940bc08f0c3821212
+    Reviewed-on: https://go-review.googlesource.com/12110
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/asm.html | 186 +++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 154 insertions(+), 32 deletions(-)

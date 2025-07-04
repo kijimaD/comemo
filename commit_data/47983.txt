@@ -1,0 +1,18 @@
+commit d15481b8c7f5f73a8b987a0c1deea04659ed0bb0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 20 16:20:33 2022 -0800
+
+    Revert "doc/go1.18: document type parameter name restriction"
+    
+    This reverts CL 376414.
+    
+    For #47694.
+    For #50481.
+    
+    Change-Id: Ie73961046e52e6e5d3262ef0aeaa24bec7eaa937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379835
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 258c817a1b14acc5f24e96e03e6fad1ea6d18c19
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 10 15:09:09 2008 -0700
+
+    allow name-type or pointer-to-named-type as method name (bug046)
+    
+    R=r
+    DELTA=17  (11 added, 3 deleted, 3 changed)
+    OCL=14048
+    CL=14048
+
+ src/cmd/gc/dcl.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 4f2ec03416b9188244a2b36900cea49a93d0de8d
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 3 12:47:06 2009 -0800
+
+    Add testing/script.
+    
+    R=rsc, r
+    CC=go-dev
+    http://go/go-review/1016001
+
+ src/pkg/Make.deps                     |  12 +-
+ src/pkg/Makefile                      |   2 +
+ src/pkg/testing/script/Makefile       |  11 +
+ src/pkg/testing/script/script.go      | 389 ++++++++++++++++++++++++++++++++++
+ src/pkg/testing/script/script_test.go |  75 +++++++
+ 5 files changed, 484 insertions(+), 5 deletions(-)

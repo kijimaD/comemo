@@ -1,0 +1,27 @@
+commit bdbb3b455e9bccb6c0994ff3a8216477f18f70fb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 18 14:09:16 2009 -0700
+
+    remove print() from the tutorial, generating a little clumsiness around "import"
+    
+    R=rsc,gri
+    DELTA=103  (36 added, 33 deleted, 34 changed)
+    OCL=26442
+    CL=26491
+
+ doc/go_tutorial.txt      | 58 +++++++++++++++++++++++-------------------------
+ doc/progs/cat.go         |  8 ++++---
+ doc/progs/cat_rot13.go   |  7 +++---
+ doc/progs/helloworld.go  |  4 +++-
+ doc/progs/helloworld2.go | 11 ---------
+ doc/progs/helloworld3.go |  7 ++++--
+ doc/progs/printf.go      | 11 ---------
+ doc/progs/run            |  4 ----
+ doc/progs/server.go      |  6 +++--
+ doc/progs/server1.go     |  4 +++-
+ doc/progs/sieve.go       |  4 +++-
+ doc/progs/sieve1.go      |  4 +++-
+ doc/progs/sortmain.go    |  9 +++++---
+ doc/progs/strings.go     |  4 +++-
+ doc/progs/sum.go         |  4 +++-
+ 15 files changed, 70 insertions(+), 75 deletions(-)

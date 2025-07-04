@@ -1,0 +1,31 @@
+commit 117b1c84d3678a586c168a5f7f2f0a750c27f0c2
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sat Dec 26 02:25:13 2020 +0900
+
+    cmd/go/internal/work: remove '_test' from import paths in stacktraces when -trimpath is specified
+    
+    ExampleFrames with -trimpath failed since the content of Frame's File
+    changed when -trimpath is specified.
+    
+    This CL fixes the issue by adding a new field OrigImportPath to
+    PackageInternal, which represents the original import path before adding
+    '_test' suffix for an external test package, and always using it to
+    create paths for the build tools.
+    
+    Fixes golang/go#43380
+    
+    Change-Id: Ibbc947eb3ae08a7ba81f13f03af67c8745b5c69f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279440
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    |  2 +
+ src/cmd/go/internal/load/test.go                   | 25 ++++++-----
+ src/cmd/go/internal/work/gc.go                     |  5 ++-
+ src/cmd/go/testdata/script/test_trimpath.txt       | 51 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/test_trimpath_main.txt  | 38 ++++++++++++++++
+ .../testdata/script/test_trimpath_test_suffix.txt  | 40 +++++++++++++++++
+ 6 files changed, 148 insertions(+), 13 deletions(-)

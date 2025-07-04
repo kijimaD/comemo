@@ -1,0 +1,26 @@
+commit e8210824f6e418e9e43dacc9934ae7347c952614
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 5 19:37:34 2009 -0700
+
+    various go printer fixes:
+    - better handling of line breaks in expression lists
+    - fixed line breaks around label decls
+    - remove ()'s around if, for, switch expressions
+    - simple index expressions don't require blanks
+    - better line breaks around declarations of different kind
+    
+    R=rsc
+    DELTA=404  (369 added, 8 deleted, 27 changed)
+    OCL=35354
+    CL=35359
+
+ src/pkg/go/printer/printer.go                   | 110 +++++++++++++++++++-----
+ src/pkg/go/printer/testdata/declarations.go     |  24 ++++++
+ src/pkg/go/printer/testdata/declarations.golden |  28 ++++++
+ src/pkg/go/printer/testdata/expressions.go      |  13 +++
+ src/pkg/go/printer/testdata/expressions.golden  |  12 +++
+ src/pkg/go/printer/testdata/linebreaks.go       |  78 +++++++++++++++++
+ src/pkg/go/printer/testdata/linebreaks.golden   |  87 +++++++++++++++++--
+ src/pkg/go/printer/testdata/statements.go       |  37 +++++++-
+ src/pkg/go/printer/testdata/statements.golden   |  38 +++++++-
+ 9 files changed, 394 insertions(+), 33 deletions(-)

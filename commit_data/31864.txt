@@ -1,0 +1,16 @@
+commit a07ee270462550d17a6541ec8dbd62282477ec6a
+Author: konstantin8105 <konstantin8105@gmail.com>
+Date:   Sun Jun 18 15:11:49 2017 +0300
+
+    doc: website: changed link for cover
+    
+    Changed link for cover from x-tools to correct
+    
+    Fix #20662
+    
+    Change-Id: I9b839ed952e9abb12b3d1655ac4cf5976f374a4b
+    Reviewed-on: https://go-review.googlesource.com/46012
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

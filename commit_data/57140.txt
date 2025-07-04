@@ -1,0 +1,27 @@
+commit 83d9afefead685d9da8e993e064cbe695111110c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 6 13:49:42 2024 +0200
+
+    crypto/internal/boring: upgrade module to fips-20220613 / certificate 4735
+    
+    Reapplies CL 549695 now that the certificate was issued.
+    
+    Updates #64717
+    Updates #62372
+    
+    Change-Id: Ie37abed5c5aceac435d92397ed626dfeefabe5ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/internal/boring/Dockerfile              |  37 ++++++++++++++++-----
+ src/crypto/internal/boring/LICENSE                 |   2 +-
+ src/crypto/internal/boring/README.md               |   7 ++--
+ src/crypto/internal/boring/build-boring.sh         |   4 +--
+ src/crypto/internal/boring/build-goboring.sh       |   2 +-
+ src/crypto/internal/boring/build.sh                |   6 ++++
+ src/crypto/internal/boring/goboringcrypto.h        |   2 ++
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2555664 -> 2429120 bytes
+ .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 1980296 -> 2107832 bytes
+ 9 files changed, 44 insertions(+), 16 deletions(-)

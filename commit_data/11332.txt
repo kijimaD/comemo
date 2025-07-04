@@ -1,0 +1,15 @@
+commit 5ad9e2db28a9058547983a85cfd2883788d5a704
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jan 23 16:56:57 2012 +0100
+
+    gc: handle function calls in arguments to builtin complex operations.
+    
+    Fixes #2582
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5574044
+
+ src/cmd/gc/cplx.c        |  2 ++
+ test/fixedbugs/bug401.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

@@ -1,0 +1,18 @@
+commit 73a10bfcbb46e7b07fe0e0582b23b27d74a09ae6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 22:12:41 2015 -0500
+
+    cmd/dist: fix deadlock when compilation command fails
+    
+    Can't use bgwait, both because it can only be used from
+    one goroutine at a time and because it ends up queued
+    behind all the other pending commands. Use a separate
+    signaling mechanism so that we can notice we're dying
+    sooner.
+    
+    Change-Id: I8652bfa2f9bb5725fa5968d2dd6a745869d01c01
+    Reviewed-on: https://go-review.googlesource.com/3010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/util.go | 64 ++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 45 insertions(+), 19 deletions(-)

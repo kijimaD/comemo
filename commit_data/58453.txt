@@ -1,0 +1,17 @@
+commit 5efb4239c6627e81e82b88377b9eb947f7f253d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 18 14:15:48 2024 -0800
+
+    spec: document that string conversions don't guarantee result slice capacity
+    
+    Fixes #24163.
+    
+    Change-Id: If389c4abf3b9b6e4eba6f31c3c12779329456df6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637655
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 4 ++++
+ 1 file changed, 4 insertions(+)

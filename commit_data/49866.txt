@@ -1,0 +1,21 @@
+commit 1eeef5d5b4d5fafa96fb0d4aab033fc0c3947e51
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:20:22 2022 -0400
+
+    runtime: convert schedt.nmspinning to atomic type
+    
+    Note that this converts nmspinning from uint32 to int32 for consistency
+    with the other count fields in schedt.
+    
+    For #53821.
+    
+    Change-Id: Ia6ca7a2b476128eda3b68e9f0c7775ae66c0c744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419446
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcpacer.go |  2 +-
+ src/runtime/proc.go     | 32 ++++++++++++++++----------------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 18 insertions(+), 18 deletions(-)

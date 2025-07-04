@@ -1,0 +1,16 @@
+commit 01187f756e26c80af83ec13b3ebdfe3bcd2d0a46
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 7 02:12:23 2015 -0400
+
+    build: fix clean scripts
+    
+    Fixes #10734.
+    
+    Change-Id: I7a2c580b87749225668fbd7a005412c8eee6824d
+    Reviewed-on: https://go-review.googlesource.com/9823
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/clean.bash | 3 ++-
+ src/clean.bat  | 5 +++--
+ src/clean.rc   | 3 ++-
+ 3 files changed, 7 insertions(+), 4 deletions(-)

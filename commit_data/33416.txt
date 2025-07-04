@@ -1,0 +1,19 @@
+commit a9e2479a4453ce1a2b3583212a6e64c99c31bbfe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 30 16:05:18 2017 -0700
+
+    bytes: set cap of slices returned by Split and Fields and friends
+    
+    This avoids the problem in which appending to a slice returned by
+    Split can affect subsequent slices.
+    
+    Fixes #21149.
+    
+    Change-Id: Ie3df2b9ceeb9605d4625f47d49073c5f348cf0a1
+    Reviewed-on: https://go-review.googlesource.com/74510
+    Reviewed-by: Jelte Fennema <github-tech@jeltef.nl>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/bytes/bytes.go      | 10 ++++----
+ src/bytes/bytes_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 65 insertions(+), 7 deletions(-)

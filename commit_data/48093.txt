@@ -1,0 +1,22 @@
+commit 1d6051380c1faa3e515db73c4cfe14f807e2c686
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sat Feb 5 17:23:26 2022 +0100
+
+    cmd/dist: skip internal linking tests on arm64
+    
+    The previous workaround for issue #39466 only disabled this test for
+    Linux. However, the issue manifests for all arm64 systems with gcc 9.4
+    and above. The new netbsd-arm64 builder uses NetBSD-current with gcc
+    10.3, so it fails in the same way.
+    
+    Updates #39466
+    
+    Change-Id: I276a99a5e60914e5c22f74a680e461bea17cfe92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383554
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 3496ff1d1905fca857e009584f4c9a15481739d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Mar 17 22:39:42 2019 +0100
+
+    internal/bytealg: share code for IndexByte functions on arm
+    
+    Move the shared code of IndexByte and IndexByteString into
+    indexbytebody. This will allow to implement optimizations (e.g.
+    for #29001) in a single function.
+    
+    Change-Id: I1d550da8eb65f95e492a460a12058cc35b1162b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167939
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/bytealg/indexbyte_arm.s | 42 +++++++++++++++---------------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

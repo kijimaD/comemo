@@ -1,0 +1,20 @@
+commit fdd8f0219d055f16647c8dfcd11e79cce222d200
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 17:27:06 2022 -0500
+
+    cmd/go: disable cgo by default if DefaultCC is absolute and doesn't exist
+    
+    Also fix the autocgo test from CL 450739 when DefaultCC is absolute.
+    
+    Change-Id: Ie282a42a1334660225e88680b63b18b7c1ecba2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451219
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go         |  9 ++++++++-
+ src/cmd/go/scriptconds_test.go         | 14 ++++++++++++++
+ src/cmd/go/testdata/script/README      |  2 ++
+ src/cmd/go/testdata/script/autocgo.txt |  7 +++++--
+ 4 files changed, 29 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit fb6b39186bf5de419e4592aa18420dfed53675a6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 26 23:17:14 2010 -0700
+
+    os, syscall: more mingw
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/878046
+
+ src/pkg/os/file.go                    |  23 +-----
+ src/pkg/os/file_mingw.go              |  38 ++++++++-
+ src/pkg/os/file_unix.go               |  20 +++++
+ src/pkg/os/stat_mingw.go              |  28 +++++--
+ src/pkg/os/sys_mingw.go               |  10 ++-
+ src/pkg/syscall/syscall_mingw.go      | 143 ++++++++++++++++++++++++--------
+ src/pkg/syscall/zerrors_mingw_386.go  |   3 +-
+ src/pkg/syscall/zsyscall_mingw_386.go | 148 ++++++++++++++++++++++++++++++----
+ src/pkg/syscall/ztypes_mingw_386.go   |  17 ++++
+ 9 files changed, 353 insertions(+), 77 deletions(-)

@@ -1,0 +1,15 @@
+commit 216f5fff3696c3667ddfcfb5e5868636520a3540
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 17:51:48 2010 -0400
+
+    build: delete Make.386 Make.amd64 Make.arm
+    obsoleted by Make.inc.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2009041
+
+ src/Make.386   | 11 -----------
+ src/Make.amd64 | 11 -----------
+ src/Make.arm   | 11 -----------
+ 3 files changed, 33 deletions(-)

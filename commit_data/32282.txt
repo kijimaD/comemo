@@ -1,0 +1,21 @@
+commit d38d357c787f38eadd511b7dadda4fe3b1d7391b
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri May 26 11:33:49 2017 +0200
+
+    crypto/tls: don't check whether an ec point is on a curve twice
+    
+    The processClientKeyExchange and processServerKeyExchange functions unmarshal an
+    encoded EC point and explicitly check whether the point is on the curve. The explicit
+    check can be omitted because elliptic.Unmarshal fails if the point is not on the curve
+    and the returned error would always be the same.
+    
+    Fixes #20496
+    
+    Change-Id: I5231a655eace79acee2737dd036a0c255ed42dbb
+    Reviewed-on: https://go-review.googlesource.com/44311
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/key_agreement.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

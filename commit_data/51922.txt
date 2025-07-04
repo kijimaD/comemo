@@ -1,0 +1,22 @@
+commit bf5ad8e491b17ac89644ad8a5c1f51db3b2264b1
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Feb 3 21:14:05 2023 -0800
+
+    crypto/rand: replace shift with constant
+    
+    It was mentioned after CL 463993 was merged that it
+    is uncommon to use shifts for numbers other than
+    powers of ten. Replace the shift with a base 10 constant.
+    
+    Change-Id: I11c90128740109a59add40ed7b680f7bcc9715ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465275
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/rand/rand_js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

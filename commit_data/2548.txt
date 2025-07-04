@@ -1,0 +1,17 @@
+commit 8f9a9537605d320a15585381cd94f1c9e41b22b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 15:13:56 2009 -0700
+
+    make use of forward method declaration
+    
+    R=r
+    DELTA=11  (0 added, 6 deleted, 5 changed)
+    OCL=30862
+    CL=30870
+
+ src/pkg/os/dir_darwin_386.go   | 2 +-
+ src/pkg/os/dir_darwin_amd64.go | 2 +-
+ src/pkg/os/dir_linux_386.go    | 2 +-
+ src/pkg/os/dir_linux_amd64.go  | 2 +-
+ src/pkg/os/file.go             | 8 +-------
+ 5 files changed, 5 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit f699811c14067387efec0f30a522274b9719b34a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:21:40 2010 -0400
+
+    time: do not crash in String on nil Time
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2052041
+
+ src/pkg/time/format.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

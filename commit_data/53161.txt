@@ -1,0 +1,18 @@
+commit a0d53199b710bf7cbb8516c2d4ca0e02e15658e0
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri May 19 19:39:29 2023 +0100
+
+    net/http/pprof: document query params
+    
+    Fixes #59452
+    
+    Change-Id: Ia0b5a03565f663190c480ef9e26309fa85ff192c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496144
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/pprof/pprof.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

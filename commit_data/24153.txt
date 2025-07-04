@@ -1,0 +1,32 @@
+commit 5c78589b69c87f25a4792d9c8a1446294c07600e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 1 23:42:43 2015 -0700
+
+    compress/flate: simplify inflate logic
+    
+    The flate library contains generator code, which is used to generate
+    the fixed huffman table. This is done so that fixed blocks can be
+    processed quicker since there is no need generate the decoder table
+    for fixed codes.
+    
+    Instead, delete the precomputed table, and use sync.Once to generate
+    it at runtime when used.
+    
+    Advantages:
+    * Reduces duplicated logic in flate package
+    * Reduces binary size by approximately 2KiB
+    
+    Disadvantages:
+    * For the simplest possible program that simply decodes the fixed
+    block "\x03\x00" once, the modified code takes 4.7% longer for the
+    first decode. Compression performance for subsequent blocks afterwards
+    has no noticeable slow down.
+    
+    Change-Id: I8f351218debf7d732118808859eda481b01011f6
+    Reviewed-on: https://go-review.googlesource.com/14181
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/fixedhuff.go |  78 ------------
+ src/compress/flate/gen.go       | 265 ----------------------------------------
+ src/compress/flate/inflate.go   |  44 +++++--
+ 3 files changed, 35 insertions(+), 352 deletions(-)

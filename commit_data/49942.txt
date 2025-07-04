@@ -1,0 +1,18 @@
+commit ce7aae5095c9f0c5ed2e4daddeac25a415cc370c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:18:07 2022 +0700
+
+    runtime: convert aix netpollWakeSig to atomic type
+    
+    Updates #53821
+    
+    Change-Id: Ic073871ed2638ca22e6cb057dd8297f27582e78f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423877
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/netpoll_aix.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

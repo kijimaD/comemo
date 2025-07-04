@@ -1,0 +1,38 @@
+commit 25171439578dd08c8bc98bd3fbacada98c9c7e28
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Sep 2 12:39:35 2011 +0200
+
+    exp/norm: added Reader and Writer and bug fixes to support these.
+    Needed to ensure that finding the last boundary does not result in O(n^2)-like behavior.
+    Now prevents lookbacks beyond 31 characters across the board (starter + 30 non-starters).
+    composition.go:
+    - maxCombiningCharacters now means exactly that.
+    - Bug fix.
+    - Small performance improvement/ made code consistent with other code.
+    forminfo.go:
+    - Bug fix: ccc needs to be 0 for inert runes.
+    normalize.go:
+    - A few bug fixes.
+    - Limit the amount of combining characters considered in FirstBoundary.
+    - Ditto for LastBoundary.
+    - Changed semantics of LastBoundary to not consider trailing illegal runes a boundary
+      as long as adding bytes might still make them legal.
+    trie.go:
+    - As utf8.UTFMax is 4, we should treat UTF-8 encodings of size 5 or greater as illegal.
+      This has no impact on the normalization process, but it prevents buffer overflows
+      where we expect at most UTFMax bytes.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4963041
+
+ src/pkg/exp/norm/Makefile           |   1 +
+ src/pkg/exp/norm/composition.go     |  27 +++++---
+ src/pkg/exp/norm/forminfo.go        |   7 ++-
+ src/pkg/exp/norm/normalize.go       |  66 +++++++++++++-------
+ src/pkg/exp/norm/normalize_test.go  |  71 ++++++++++++++++-----
+ src/pkg/exp/norm/readwriter.go      | 121 ++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/norm/readwriter_test.go |  69 ++++++++++++++++++++
+ src/pkg/exp/norm/trie.go            |  20 ------
+ src/pkg/exp/norm/trie_test.go       |   6 +-
+ 9 files changed, 318 insertions(+), 70 deletions(-)

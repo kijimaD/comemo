@@ -1,0 +1,13 @@
+commit caf3b4a749e58ed0ba6ff5a0741ce07368b6eacd
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Sep 14 17:25:34 2010 +1000
+
+    Preliminary support for 'copy' builtin function in exp/eval
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/2157042
+
+ src/pkg/exp/eval/expr.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/eval/type.go |  2 ++
+ 2 files changed, 34 insertions(+)

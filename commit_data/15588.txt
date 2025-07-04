@@ -1,0 +1,15 @@
+commit 2fe840f4f69bb1013ff5ae8968d8ab8257fb2d22
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 5 09:40:17 2013 +0200
+
+    runtime: fix false positive deadlock when using runtime.Goexit
+    Fixes #4893.
+    Actually it's fixed by cl/7314062 (improved scheduler),
+    just submitting the test.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7422054
+
+ src/pkg/runtime/crash_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

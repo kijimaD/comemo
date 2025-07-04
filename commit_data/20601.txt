@@ -1,0 +1,25 @@
+commit 146713b67ac6628350abd74f76fd2955de66b3c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 30 12:26:38 2014 -0700
+
+    go/format, cmd/gofmt: added missing comments, minor internal cleanup
+    
+    This is a minor cleanup following CL 142360043:
+    
+    The internal parse and format functions in both packages
+    were almost identical - made them identical by adding an
+    extra parameter, and documented them as identical.
+    
+    Eventually we should find a nice way to factor these functions
+    out, but we cannot do this now while in prep for 1.4.
+    
+    No functionality change.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/146520043
+
+ src/cmd/gofmt/gofmt.go  | 29 +++++++++++++++++++++++------
+ src/go/format/format.go | 36 +++++++++++++++++++++++++++++-------
+ 2 files changed, 52 insertions(+), 13 deletions(-)

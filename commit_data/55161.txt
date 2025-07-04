@@ -1,0 +1,38 @@
+commit b2efd1de97402ec4b8fb4e9e0ec29c8e49e8e200
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 27 22:27:32 2023 +0000
+
+    runtime: put ReadMemStats debug assertions behind a double-check mode
+    
+    ReadMemStats has a few assertions it makes about the consistency of the
+    stats it's about to produce. Specifically, how those stats line up with
+    runtime-internal stats. These checks are generally useful, but crashing
+    just because some stats are wrong is a heavy price to pay.
+    
+    For a long time this wasn't a problem, but very recently it became a
+    real problem. It turns out that there's real benign skew that can happen
+    wherein sysmon (which doesn't synchronize with a STW) generates a trace
+    event when tracing is enabled, and may mutate some stats while
+    ReadMemStats is running its checks.
+    
+    Fix this by synchronizing with both sysmon and the tracer. This is a bit
+    heavy-handed, but better that than false positives.
+    
+    Also, put the checks behind a debug mode. We want to reduce the risk of
+    backporting this change, and again, it's not great to crash just because
+    user-facing stats are off. Still, enable this debug mode during the
+    runtime tests so we don't lose quite as much coverage from disabling
+    these checks by default.
+    
+    Fixes #64401.
+    
+    Change-Id: I9adb3e5c7161d207648d07373a11da8a5f0fda9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545277
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/export_test.go |   2 +
+ src/runtime/gc_test.go     |   5 ++
+ src/runtime/mstats.go      | 114 +++++++++++++++++++++++++--------------------
+ 3 files changed, 71 insertions(+), 50 deletions(-)

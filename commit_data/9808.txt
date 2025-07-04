@@ -1,0 +1,15 @@
+commit 45301ba8c04cca3501d2324a7e30481e3ce022c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 20:46:37 2011 -0700
+
+    runtime: check for nil value pointer in select syncsend case
+    
+    Fixes #2309.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5128053
+
+ src/pkg/runtime/chan.c |  3 ++-
+ test/chan/select7.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)

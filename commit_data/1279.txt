@@ -1,0 +1,22 @@
+commit cfb94254608e8aa83ca589d5cc30dd3d3c64ff26
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 13:49:45 2008 -0800
+
+    emit dynamically linked 6.out on darwin instead of static,
+    unless given -d flag.
+    
+    the resulting binary doesn't *use* any dynamic libraries,
+    it just has a reference to the dynamic linker and an
+    empty list of needed symbols and libraries.
+    
+    this is enough to make 6.out binaries that can be run
+    under dtrace / dtruss.
+    
+    R=r
+    DELTA=39  (34 added, 0 deleted, 5 changed)
+    OCL=20476
+    CL=20482
+
+ src/cmd/6l/asm.c | 43 ++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/6l/l.h   |  1 +
+ 2 files changed, 39 insertions(+), 5 deletions(-)

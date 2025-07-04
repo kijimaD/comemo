@@ -1,0 +1,22 @@
+commit c043fc4f655ce34f67a0e7fe2833139f6313a3f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 16:47:50 2018 -0800
+
+    os: don't let sendFile put a pipe into blocking mode
+    
+    Use SyscallConn to avoid calling the Fd method in sendFile on Unix
+    systems, since Fd has the side effect of putting the descriptor into
+    blocking mode.
+    
+    Fixes #28330
+    
+    Change-Id: If093417a225fe44092bd2c0dbbc3937422e98c0b
+    Reviewed-on: https://go-review.googlesource.com/c/155137
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/sendfile_linux.go    |  14 +++++-
+ src/net/sendfile_test.go     | 104 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/sendfile_unix_alt.go |  14 +++++-
+ 3 files changed, 130 insertions(+), 2 deletions(-)

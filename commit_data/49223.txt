@@ -1,0 +1,29 @@
+commit 2540f4e49d47f951de6c7697acdc510bcb7b3ed1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 13 16:07:06 2022 -0700
+
+    cmd/compile: remove base.Ctxt.Pkgpath fallback paths
+    
+    Historically, the compiler set types.LocalPkg.Path to "", so a lot of
+    compiler code checks for this, and then falls back to using
+    base.Ctxt.Pkgpath instead.
+    
+    Since CL 393715, we now initialize types.LocalPkg.Path to
+    base.Ctxt.Pkgpath, so these code paths can now simply rely on Pkg.Path
+    always being meaningful.
+    
+    Updates #51734.
+    
+    Change-Id: I0aedbd7cf8e14edbfef781106a9510344d468f2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406317
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/pkginit/init.go     | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go       | 3 ---
+ src/cmd/compile/internal/staticdata/embed.go | 2 +-
+ src/cmd/compile/internal/types/type.go       | 3 ---
+ 4 files changed, 2 insertions(+), 8 deletions(-)

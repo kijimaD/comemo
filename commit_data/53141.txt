@@ -1,0 +1,17 @@
+commit 24617a068c55d0ee7ef56d1b9fb951ee1e75f67d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 18 17:19:37 2023 +0000
+
+    runtime: flush idle time to sched.idleTime on limiter event consumption
+    
+    This was an oversight, which might cause accounted-for idle time to be
+    lost. Noticed this while working on #60276.
+    
+    Change-Id: Ic743785d6dc82555e660f2c9b6aaa9dedef56ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496117
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgclimit.go | 1 +
+ 1 file changed, 1 insertion(+)

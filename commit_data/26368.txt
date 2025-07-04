@@ -1,0 +1,30 @@
+commit ac2f84d5244172079445b26354d1f3b64ff01838
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 17 05:33:13 2016 +0900
+
+    net: make unexposed methods start with lowercase letters
+    
+    This change makes unexposed methods start with lowercase letters for
+    avoiding unnecessary confusion because the net package uses many
+    embedding structures and intrefaces for controlling exposure of APIs.
+    
+    Note that this change leaves DNS-related methods as they are.
+    
+    Change-Id: I253758d1659175c5d0af6b2efcd30ce83f46543d
+    Reviewed-on: https://go-review.googlesource.com/20784
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_mutex.go           | 26 ++++++++--------
+ src/net/fd_mutex_test.go      | 72 +++++++++++++++++++++----------------------
+ src/net/fd_plan9.go           | 14 ++++-----
+ src/net/fd_poll_nacl.go       | 24 +++++++--------
+ src/net/fd_poll_runtime.go    | 36 +++++++++++-----------
+ src/net/fd_unix.go            | 50 +++++++++++++++---------------
+ src/net/fd_windows.go         | 26 ++++++++--------
+ src/net/sendfile_dragonfly.go |  2 +-
+ src/net/sendfile_freebsd.go   |  2 +-
+ src/net/sendfile_linux.go     |  2 +-
+ src/net/sendfile_solaris.go   |  2 +-
+ 11 files changed, 128 insertions(+), 128 deletions(-)

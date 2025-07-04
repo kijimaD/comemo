@@ -1,0 +1,26 @@
+commit dafbcf6df743f5c79931328cbc4d744b6781d100
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 15:19:06 2016 -0800
+
+    cmd/compile: remove syslook's copy parameter
+    
+    Instead make substArgTypes responsible for cloning the function
+    definition Node and the function signature Type tree.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9ec84c90a7ae83d164d3f578e84a91cf1490d8ab
+    Reviewed-on: https://go-review.googlesource.com/20239
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go   |   6 +-
+ src/cmd/compile/internal/gc/cgen.go  |   6 +-
+ src/cmd/compile/internal/gc/gen.go   |   4 +-
+ src/cmd/compile/internal/gc/init.go  |   2 +-
+ src/cmd/compile/internal/gc/range.go |  10 +--
+ src/cmd/compile/internal/gc/ssa.go   |   4 +-
+ src/cmd/compile/internal/gc/subr.go  |  22 +++----
+ src/cmd/compile/internal/gc/walk.go  | 124 +++++++++++++++++------------------
+ 8 files changed, 87 insertions(+), 91 deletions(-)

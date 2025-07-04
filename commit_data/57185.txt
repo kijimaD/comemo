@@ -1,0 +1,32 @@
+commit 79ca434ac608d0817a5807d1c7b2138912ed55ce
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Sep 7 17:08:56 2023 -0700
+
+    testing: add Chdir
+    
+    Some tests need to use os.Chdir, but the use is complicated because
+     - they must change back to the old working directory;
+     - they must not use t.Parallel.
+    
+    Add Chdir that covers these cases, and sets PWD environment variable
+    to the new directory for the duration of the test for Unix platforms.
+    Unify the panic message when t.Parallel is used together with t.Setenv
+    or t.Chdir.
+    
+    Add some tests.
+    
+    For #62516.
+    
+    Change-Id: Ib050d173b26eb28a27dba5a206b2d0d877d761c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/62516.txt                          |   4 +
+ doc/next/6-stdlib/99-minor/testing/62516.md |   2 +
+ src/testing/export_test.go                  |   2 +
+ src/testing/testing.go                      |  95 ++++++++++++----
+ src/testing/testing_test.go                 | 171 ++++++++++++++++++++++------
+ 5 files changed, 221 insertions(+), 53 deletions(-)

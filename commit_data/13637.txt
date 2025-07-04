@@ -1,0 +1,12 @@
+commit 1ac397f4b93e37f75f8c747a0167b5b2018b2d40
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 16 20:19:54 2012 +1000
+
+    misc/cgo/test: remove unused Makefile
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/6459091
+
+ misc/cgo/test/Makefile | 48 ------------------------------------------------
+ 1 file changed, 48 deletions(-)

@@ -1,0 +1,15 @@
+commit 3bf645a6338d0699116f58f5ae5b0f2a0f0dca65
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 12 17:30:36 2021 -0700
+
+    cmd/link: force external linking for DragonFly cgo programs
+    
+    Change-Id: Idce4eec2a4698a94aa7b40590dffb6bf9bd45342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309571
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/internal/ld/config.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

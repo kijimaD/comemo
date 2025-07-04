@@ -1,0 +1,12 @@
+commit 752c9380b17e89acd418f88b21543ce07f88d68c
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Jun 14 13:24:22 2017 -0700
+
+    api: update next.txt
+    
+    Change-Id: I824fc5a62977140ccc62d55e8b42cfd01da935e9
+    Reviewed-on: https://go-review.googlesource.com/45774
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next.txt | 59 +++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 43 insertions(+), 16 deletions(-)

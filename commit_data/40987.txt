@@ -1,0 +1,27 @@
+commit 22d28a24c8b0d99f2ad6da5fe680fa3cfa216651
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 10 17:27:26 2019 -0800
+
+    runtime: force segv for nil defer function to be in deferreturn()
+    
+    If the defer function pointer is nil, force the seg fault to happen in deferreturn
+    rather than in jmpdefer. jmpdefer is used fairly infrequently now because most
+    functions have open-coded defers.
+    
+    The open-coded defer implementation calls gentraceback() with a callback when
+    looking for the first open-coded defer frame. gentraceback() throws an error if it
+    is called with a callback on an LR architecture and jmpdefer is on the stack,
+    because the stack trace can be incorrect in that case - see issue #8153. So, we
+    want to make sure that we don't have a seg fault in jmpdefer.
+    
+    Fixes #36050
+    
+    Change-Id: Ie25e6f015d8eb170b40248dedeb26a37b7f9b38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210978
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/callers_test.go | 34 +++++++++++++++++++++++++++++++---
+ src/runtime/panic.go        |  6 ++++++
+ 2 files changed, 37 insertions(+), 3 deletions(-)

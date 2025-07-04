@@ -1,0 +1,24 @@
+commit d94498470bb09bb0606b0eff3248cb5b35e1a145
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 17 19:38:33 2021 -0400
+
+    cmd/go: add GOWORK to go env command
+    
+    GOWORK will be set to the go.work file's path, if in workspace mode
+    or will be empty otherwise.
+    
+    For #45713
+    Fixes #48589
+    
+    Change-Id: I163ffaf274e0a41469c1f3b8514d6f90e20423b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355689
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go       |  5 ++++-
+ src/cmd/go/testdata/script/work.txt     |  4 ++++
+ src/cmd/go/testdata/script/work_env.txt | 24 ++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

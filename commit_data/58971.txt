@@ -1,0 +1,24 @@
+commit 232dfd226bb09b03d2218055d5c8c2c6b2c67ac2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 09:51:41 2025 -0800
+
+    go/types, types2: rename errorCause to typeError
+    
+    Change-Id: Ib8a63cdaa12dacb5223318a7166fe3dfdac71a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654655
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go       |  4 ++--
+ src/cmd/compile/internal/types2/expr.go       | 10 +++++-----
+ src/cmd/compile/internal/types2/predicates.go | 14 +++++++-------
+ src/cmd/compile/internal/types2/stmt.go       |  4 ++--
+ src/cmd/compile/internal/types2/under.go      | 28 +++++++++++++--------------
+ src/go/types/call.go                          |  4 ++--
+ src/go/types/expr.go                          | 10 +++++-----
+ src/go/types/predicates.go                    | 14 +++++++-------
+ src/go/types/stmt.go                          |  4 ++--
+ src/go/types/under.go                         | 28 +++++++++++++--------------
+ 10 files changed, 60 insertions(+), 60 deletions(-)

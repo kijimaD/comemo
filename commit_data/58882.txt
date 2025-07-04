@@ -1,0 +1,23 @@
+commit c55c1cbd04ca42c70adadc86e1f48f3678be10cc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 26 16:31:58 2025 +0000
+
+    net: return proper error from Context
+    
+    Sadly err was a named parameter so this did not cause
+    compile error.
+    
+    Fixes #71974
+    
+    Change-Id: I10cf29ae14c52d48a793c9a6cb01b01d79b1b356
+    GitHub-Last-Rev: 4dc0e6670a9265612b8ec26dbc378219b25156b4
+    GitHub-Pull-Request: golang/go#71976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652815
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 0f42e35feeef606977859039b876773ae5fb4de9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:25:12 2022 -0700
+
+    encoding/json: rely on utf8.AppendRune
+    
+    Change-Id: I50e5609ff9c5f2b216b93cec7fb5214d196cae90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412537
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/encoding/json/fold_test.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

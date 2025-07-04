@@ -1,0 +1,18 @@
+commit 3afa74115b1c458319e5a07fba5bdacc39ef7f88
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 11 08:51:21 2020 -0700
+
+    runtime/race: rebuild netbsd .syso
+    
+    Fixes #14481
+    Fixes #37355
+    
+    Change-Id: Idfceaf0e64d340b7304ce9562549a82ebfc27e3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227867
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/README                 |   2 +-
+ src/runtime/race/race_netbsd_amd64.syso | Bin 574896 -> 602384 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

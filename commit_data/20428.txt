@@ -1,0 +1,16 @@
+commit 337fe4134fe733377db6025d67cfe01a9608099a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 09:58:17 2014 -0400
+
+    cmd/gc: make runtime escape an error, not a fatal error
+    
+    It is more useful to report all the errors instead of just the first.
+    
+    LGTM=dave, khr
+    R=khr, dave
+    CC=golang-codereviews
+    https://golang.org/cl/143940043
+
+ src/cmd/gc/gen.c  | 2 +-
+ src/cmd/gc/walk.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

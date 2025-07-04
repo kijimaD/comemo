@@ -1,0 +1,35 @@
+commit 15eea6a193ec0a6c4fe0bfee14eae0fd6c02c815
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 5 13:31:05 2023 -0400
+
+    cmd/link: allow enabling DWARF with -s
+    
+    The -s flag is to documented to disable symbol table, not DWARF
+    (which is the -w flag). However, due to a bug (#15166), -s was
+    made to also disable DWARF. That bug can be fixed without
+    disabling DWARF. So do that, and make it possible to enable DWARF
+    with -s.
+    
+    Since -s has been disabling DWARF for quite some time, and users
+    who use -s may want to suppress all symbol information, as DWARF
+    also contains symbol information, we keep the current behavior,
+    having -s continue to disable DWARF by default. But we allow
+    enabling DWARF by specifying -w=0 (or false).
+    
+    In summary, this is the behavior now:
+    -s       no symbol table, no DWARF
+    -w       has symbol table, no DWARF
+    -s -w    no symbol table, no DWARF (same as -s)
+    -s -w=0  no symbol table, has DWARF
+    
+    Change-Id: I1883f0aa3618abccfd735d104d983f7f531813d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492984
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/config.go |  6 ++--
+ src/cmd/link/internal/ld/dwarf.go  |  3 --
+ src/cmd/link/internal/ld/elf.go    |  2 ++
+ src/cmd/link/internal/ld/main.go   | 59 +++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 63 insertions(+), 7 deletions(-)

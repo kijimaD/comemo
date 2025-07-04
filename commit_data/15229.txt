@@ -1,0 +1,14 @@
+commit cd566958e938c695d09730dfcb7c2b8e76658f89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 18:33:15 2013 -0800
+
+    net/http: test that we preserve Go 1.0 Request.Write Host behavior
+    
+    Fixes #4792
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7314093
+
+ src/pkg/net/http/requestwrite_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,18 @@
+commit 0382a30dd6cd78efd9fb27bfed50dd1d6d7f722b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:44:31 2016 -0400
+
+    math: add functions and stubs for s390x
+    
+    Includes assembly implementations of Sqrt and Dim.
+    
+    Change-Id: I57472e8d31e2ee74bcebf9f8e818f765eb9b8abf
+    Reviewed-on: https://go-review.googlesource.com/20936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/dim_s390x.s   | 132 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/sqrt_s390x.s  |  12 +++++
+ src/math/stubs_s390x.s |  77 +++++++++++++++++++++++++++++
+ 3 files changed, 221 insertions(+)

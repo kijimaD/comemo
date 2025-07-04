@@ -1,0 +1,13 @@
+commit 4262ff05531b167dd2013739e8599ce8fc9d6a40
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 14 15:49:20 2009 -0700
+
+    Adjust for open source release.
+    
+    R=go-dev
+    DELTA=111  (19 added, 38 deleted, 54 changed)
+    OCL=35722
+    CL=35728
+
+ doc/go_gccgo_setup.html | 308 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 308 insertions(+)

@@ -1,0 +1,17 @@
+commit dc27d68936767277984ac731a06cb15c4f64c997
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 1 12:57:57 2017 +0000
+
+    syscall: reuse BSD forkExecPipe for Solaris
+    
+    The function was duplicated for Solaris. Reuse the BSD version instead.
+    
+    Change-Id: Ibc812bcf36d21f4a7ceeef7b4fb091fa9479bfa8
+    Reviewed-on: https://go-review.googlesource.com/81395
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_solaris.go                  | 14 --------------
+ src/syscall/{forkpipe_bsd.go => forkpipe.go} |  3 ++-
+ 2 files changed, 2 insertions(+), 15 deletions(-)

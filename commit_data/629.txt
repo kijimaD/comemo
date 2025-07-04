@@ -1,0 +1,13 @@
+commit c8e18767e88ecf490419250359c0ce7a16bde581
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 12:26:22 2008 -0700
+
+    - hopefully improved language on label scopes
+    
+    R=r
+    DELTA=18  (12 added, 0 deleted, 6 changed)
+    OCL=15200
+    CL=15240
+
+ doc/go_spec.txt | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

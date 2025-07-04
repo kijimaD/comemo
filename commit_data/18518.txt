@@ -1,0 +1,26 @@
+commit 02ae91f3424d45820a5b98ddc2595680666a97e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 23:33:20 2014 -0500
+
+    cmd/gc: correct liveness for wrappers containing tail jumps
+    
+    A normal RET is treated as using the return values,
+    but a tail jump RET does not - it is jumping to the
+    function that is going to fill in the return values.
+    If a tail jump RET is recorded as using the return values,
+    since nothing initializes them they will be marked as
+    live on entry to the function, which is clearly wrong.
+    
+    Found and tested by the new code in plive.c that looks
+    for variables that are incorrectly live on entry.
+    That code is disabled for now because there are other
+    cases remaining to be fixed. But once it is enabled,
+    test/live1.go becomes a real test of this CL.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63570045
+
+ src/cmd/gc/plive.c | 26 +++++++++++++++++++++++++-
+ test/live1.go      | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

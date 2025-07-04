@@ -1,0 +1,25 @@
+commit ddddd39fc8b7ab073044e0fe8ad7c0eb912758b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 19 10:12:09 2012 -0700
+
+    go spec: constant divisors must not be zero
+    
+    Both gc and gccgo always checked this for constant
+    expressions but the spec only mentions run-time
+    exceptions.
+    
+    This CL also requires that constant divisors
+    must not be zero in non-constant integer expressions:
+    This is consistent with the spirit of the most
+    recent changes and it is consistent with constant
+    expressions. We don't want to specify the effect for
+    non-integer expressions (f/0.0 where f is a float or
+    complex number) because there the result f/g is not
+    further specified if a non-constant g is 0.
+    
+    R=r, rsc, iant, ken, andybalholm, iant
+    CC=golang-dev
+    https://golang.org/cl/6710045
+
+ doc/go_spec.html | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

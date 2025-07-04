@@ -1,0 +1,12 @@
+commit 5e7bae5082dcc2cd241b40c2bf50db6b28943827
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 28 20:15:57 2016 +1000
+
+    doc: add testing Name method to go1.8.txt
+    
+    Change-Id: I6d413f747e6a6c30c5e0e9afdffd5ec18dce7e08
+    Reviewed-on: https://go-review.googlesource.com/29974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

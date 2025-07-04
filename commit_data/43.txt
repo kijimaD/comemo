@@ -1,0 +1,10 @@
+commit e311457488b7e9b6bae26b2e39f7339147752398
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 27 22:11:10 2008 -0700
+
+    add script to generate .html from .txt
+    
+    SVN=114148
+
+ doc/go_lang.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

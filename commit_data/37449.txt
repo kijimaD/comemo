@@ -1,0 +1,25 @@
+commit 2cc6d62d666f49d91c6d088bcba3ef18072d093f
+Author: David Heuschmann <heuschmann.d@gmail.com>
+Date:   Tue Nov 20 11:11:59 2018 +0100
+
+    mime: correctly detect non-ASCII characters in FormatMediaType
+    
+    FormatMediaType used rune&0x80==0 to check if parameter values consisted
+    of valid ascii charaters. Comparing strings using their runes instead of
+    their bytes leads to some non-ascii strings to pass as valid.
+    
+    E.g. the rune for 'Ą' is 0x104, 0x104 & 0x80 => 0. Its byte
+    representation is 0xc4 0x84, both of which result in non zero values
+    when masked with 0x80
+    
+    Fixes #28849
+    
+    Change-Id: Ib9fb4968bcbbec0197d81136f380d40a2a56c14b
+    Reviewed-on: https://go-review.googlesource.com/c/150417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/mediatype.go      | 2 +-
+ src/mime/mediatype_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

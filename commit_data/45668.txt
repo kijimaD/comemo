@@ -1,0 +1,27 @@
+commit 7e63c8b765c30823131bd136d190afbe4c21abc9
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri May 21 12:01:39 2021 +0200
+
+    runtime: wait for Go runtime to initialize in Windows signal test
+    
+    The test harness waits for "ready" as a sign that the Go runtime has
+    installed its signal handler and is ready to be tested. But actually,
+    while LoadLibrary starts the loading of the Go runtime, it does so
+    asynchronously, so the "ready" sign is potentially premature and
+    certainly racy. However, all exported cgo entry points make a call to
+    _cgo_wait_runtime_init_done which waits for that asynchronous
+    initialization to complete. Therefore, this commit fixes the test to
+    call into the exported "Dummy" cgo function before emitting the "ready"
+    sign, so that we're sure the Go runtime is actually loaded.
+    
+    Updates #45638.
+    
+    Change-Id: I9b12b172d45bdcc09d54dd301de3a3e499544834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321769
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/testdata/testwinlibsignal/main.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

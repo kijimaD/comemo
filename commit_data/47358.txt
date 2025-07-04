@@ -1,0 +1,19 @@
+commit 01103d533a086afd6c06f3eec5057d46f117d2ff
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Nov 9 10:01:05 2021 +0100
+
+    cmd/link: fix GCC startfiles names on AIX
+    
+    Since GCC version 11, the 64-bit version of GCC starting files are
+    now suffixed by "_64" instead of being stored without suffix under
+    "ppc64" multilib directory.
+    
+    Change-Id: Ibe53521ed24d36e5f6282e3574849b9ae11a1e9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362594
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 6bea504b9407a1ce8ac3f6909f4e728be5b18764
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jun 21 15:17:13 2013 -0400
+
+    cmd/6a, cmd/6l: add PCLMULQDQ instruction.
+    
+    This Intel instruction implements multiplication in binary fields.
+    
+    R=golang-dev, minux.ma, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/10428043
+
+ src/cmd/6a/lex.c   | 1 +
+ src/cmd/6l/6.out.h | 2 ++
+ src/cmd/6l/optab.c | 2 ++
+ 3 files changed, 5 insertions(+)

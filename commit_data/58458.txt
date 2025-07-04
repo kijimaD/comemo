@@ -1,0 +1,20 @@
+commit a63aee4955d8236f657a94101d6a703be97e98ec
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 13:09:25 2024 -0500
+
+    cmd/go: improve GOCACHEPROG types documentation
+    
+    This is in preparation for adding a "go help" topic for GOCACHEPROG.
+    
+    Updates #71032
+    Updates #59719
+    
+    Change-Id: I9dbbe56fa328dffe89207b5b41a0f37afd51e2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638566
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/cache/cache.go | 12 ++---
+ src/cmd/go/internal/cache/prog.go  | 89 ++++++++++++++++++++++++++++----------
+ 2 files changed, 72 insertions(+), 29 deletions(-)

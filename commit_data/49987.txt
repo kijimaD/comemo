@@ -1,0 +1,38 @@
+commit 661146bc0bb0fad22d561eef2c0b48974aca32b6
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jun 26 21:18:19 2022 -0700
+
+    cmd/compile: don't use OFORUNTIL when implementing range loops
+    
+    We don't need this special loop construct anymore now that we do
+    conservative GC scanning of the top of stack. Rewrite instead to a simple
+    pointer increment on every iteration. This leads to having a potential
+    past-the-end pointer at the end of the last iteration, but that value
+    immediately goes dead after the loop condition fails, and the past-the-end
+    pointer is never live across any call.
+    
+    This simplifies and speeds up loops.
+    
+    R=go1.20
+    
+    TODO: actually delete all support for OFORUNTIL. It is now never generated,
+    but code to handle it (e.g. in ssagen) is still around.
+    
+    TODO: in "for _, x := range" loops, we could get rid of the index
+    altogether and use a "pointer to the last element" reference to determine
+    when the loop is complete.
+    
+    Fixes #53409
+    
+    Change-Id: Ifc141600ff898a8bc6a75f793e575f8862679ba1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414876
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/range.go | 72 ++++++++++++++++++++--------------
+ test/prove.go                          |  4 +-
+ 2 files changed, 45 insertions(+), 31 deletions(-)

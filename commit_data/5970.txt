@@ -1,0 +1,15 @@
+commit 8055f4702952d5b4cc59dc0a8c56aec1a3092268
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Fri Aug 6 16:39:18 2010 -0700
+
+    exp/iterable: add UintArray
+    
+    all other basic types seem to be represented.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1919042
+
+ src/pkg/exp/iterable/array.go         | 13 +++++++++++++
+ src/pkg/exp/iterable/iterable_test.go |  4 ++++
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,14 @@
+commit 15b63eee96e8397d1d0752cf3416ce002218fd35
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Sun Feb 11 00:30:34 2018 +0100
+
+    sort: fix typo, was a mixup between identifiers 'unsorted' and 'data'
+    
+    Change-Id: If9ad8ae663f007efe43cc35631713565fa754e93
+    Reviewed-on: https://go-review.googlesource.com/93237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

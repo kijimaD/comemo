@@ -1,0 +1,14 @@
+commit 5fae09b7386de26db59a1184f62fc7b22ec7667b
+Author: GuilhermeCaruso <gui.martinscaruso@gmail.com>
+Date:   Tue Jan 15 23:24:52 2019 +0000
+
+    encoding/json: add comment for mashalererror struct
+    
+    Change-Id: Iaabbfe5a4c1bbedd19d4087f1b79e5a38bdd3878
+    GitHub-Last-Rev: 55c91fc19074dacc66623aa7ff2286b11ccd5340
+    GitHub-Pull-Request: golang/go#29752
+    Reviewed-on: https://go-review.googlesource.com/c/157958
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/encode.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,21 @@
+commit 109a18dce7ef8ecb2aa60cef25362ebd05661ea0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 18:47:11 2022 -0700
+
+    debug/elf: check for negative shoff and phoff fields
+    
+    No test because we could add an infinite number of tests of bogus data.
+    
+    For #47653
+    Fixes #52035
+    
+    Change-Id: Iec7e2fe23f2dd1cf14bad2475422f243f51028f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396880
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/debug/elf/file.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

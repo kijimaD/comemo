@@ -1,0 +1,14 @@
+commit 6bf794a36dc3bb4d5dca471c85233e6cc84a9e74
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 15:45:12 2015 -0500
+
+    cmd/link: link go.o first
+    
+    Does not fix #12327 but nicer anyway.
+    
+    Change-Id: I4ad730a4ca833d76957b7571895b3a08a6a530d4
+    Reviewed-on: https://go-review.googlesource.com/16964
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 7aa57a96872f07cdccfe9f7eedbbc86819a93554
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 13 23:12:18 2021 +0200
+
+    runtime: remove unused getrlimit on linux/riscv64
+    
+    Follow CL 94775 and CL 93655 which removed the (commented-out) usage
+    of this function on other platforms.
+    
+    Change-Id: I28e0569d8531d0c09f3caefa7c4eb54fb5bd8a33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334429
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_riscv64.s | 10 ----------
+ 1 file changed, 10 deletions(-)

@@ -1,0 +1,18 @@
+commit b01fb2af9ed6a3b90dd89d548ceef38b4ec1fc94
+Author: DrGo <salah.mahmud@gmail.com>
+Date:   Mon Jan 4 11:26:46 2021 +0000
+
+    testing/fstest: fix typo in error message
+    
+    Change-Id: Iac59f5271c79c46b39733fdf0eb4bf9b0fc0bdca
+    GitHub-Last-Rev: 03f96e32a81d1516a9307b6578c930434783e3d3
+    GitHub-Pull-Request: golang/go#43450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280953
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/fstest/testfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

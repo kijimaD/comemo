@@ -1,0 +1,12 @@
+commit 033682deec8cf13b4e821e30ef774f843ab1e0d0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 5 08:20:34 2008 -0700
+
+    workaround for compiler bug: len(a) is zero
+    
+    TBR=iant
+    OCL=13873
+    CL=13873
+
+ test/chan/powser1.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

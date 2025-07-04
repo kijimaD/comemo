@@ -1,0 +1,22 @@
+commit c46ffdd2eca339918ed30b6ba9d4715ba769d35d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 25 20:30:37 2020 -0500
+
+    runtime: guard VZEROUPPER on CPU feature
+    
+    In CL 219131 we inserted a VZEROUPPER instruction on darwin/amd64.
+    The instruction is not available on pre-AVX machines. Guard it
+    with CPU feature.
+    
+    Fixes #37459.
+    
+    Change-Id: I9a064df277d091be4ee594eda5c7fd8ee323102b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/cpuflags.go     |  1 +
+ src/runtime/mkpreempt.go    | 19 +++++++++++--------
+ src/runtime/preempt_amd64.s |  8 +++++---
+ 3 files changed, 17 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit d66d65da96e7f089403e3eb5b03e1d0a62a7b59b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 17:06:10 2009 -0700
+
+    bug132
+    
+    R=ken
+    OCL=33792
+    CL=33803
+
+ src/cmd/gc/dcl.c                   | 11 ++++++++++-
+ test/{bugs => fixedbugs}/bug132.go |  6 +++---
+ test/golden.out                    |  3 ---
+ 3 files changed, 13 insertions(+), 7 deletions(-)

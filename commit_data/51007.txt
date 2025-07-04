@@ -1,0 +1,22 @@
+commit f9ee56145bd8aa802b91db9465564cae5596966b
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Wed Oct 26 06:06:43 2022 +0000
+
+    cmd/compile: print readable function name in error message
+    
+    i.e.
+    from "function %!s(*Node=0xc0003b48c0) cannot have ABI wrappers", to "function xxFunctionName cannot have ABI wrappers".
+    
+    Change-Id: I83cfdf1916e82ab1455db8032153d9cdae85250d
+    GitHub-Last-Rev: 87b077653f8731be511861d968bd31d58744b386
+    GitHub-Pull-Request: golang/go#56428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445516
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

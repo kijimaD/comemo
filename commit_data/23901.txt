@@ -1,0 +1,17 @@
+commit d3ffc975f38890abbd8ca3f7833772e6423297e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 19:04:35 2015 -0400
+
+    runtime: set invalidptr=1 by default, as documented
+    
+    Also make invalidptr control the recently added GC pointer check,
+    as documented.
+    
+    Change-Id: Iccfdf49480219d12be8b33b8f03d8312d8ceabed
+    Reviewed-on: https://go-review.googlesource.com/12857
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/mbitmap.go  | 2 +-
+ src/runtime/runtime1.go | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

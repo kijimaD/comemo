@@ -1,0 +1,14 @@
+commit d9ee9a0f6e4b83737013fff1551d0875c4442709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 19:00:15 2015 -0700
+
+    runtime: fix runtime·raise for dragonfly amd64
+    
+    Fixes #11847.
+    
+    Change-Id: I21736a4c6f6fb2f61aec1396ce2c965e3e329e92
+    Reviewed-on: https://go-review.googlesource.com/12621
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/runtime/sys_dragonfly_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

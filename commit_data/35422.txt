@@ -1,0 +1,14 @@
+commit a8e67fe0ed72186c6c5673ed5fab37af0e843393
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon May 21 13:06:46 2018 +0200
+
+    runtime/pprof: update stale link in documentation
+    
+    Fixes #25477
+    
+    Change-Id: I6f724bb855cfffa21de090c1fcb04d58d7cdd9d8
+    Reviewed-on: https://go-review.googlesource.com/113839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

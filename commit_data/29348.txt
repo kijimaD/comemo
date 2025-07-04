@@ -1,0 +1,19 @@
+commit 3345802e8ac39e4ea6b2772ace15983f2c3be66b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 17:19:42 2016 -0400
+
+    time: document that only Jan and January, Mon and Monday are recognized
+    
+    Not "J", not "JAN", not "jan", etc.
+    
+    Fixes #17523.
+    
+    Change-Id: I16b5da97e73d88c6680c36401d30f8a195061527
+    Reviewed-on: https://go-review.googlesource.com/32636
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/format.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

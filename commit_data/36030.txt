@@ -1,0 +1,16 @@
+commit ce09ce4ae0116d2056e8864fe2c2fd3abbc5375a
+Author: EduRam <eduardo.ramalho@gmail.com>
+Date:   Tue Jul 17 22:59:35 2018 +0000
+
+    syscall: update check for UserNS support for CentOS 7.5+
+    
+    Fixes #26385
+    
+    Change-Id: I5594564f42898a71d30531e5132bddb3a6915247
+    GitHub-Last-Rev: fbd7b38b0419e21ecd22fe802ede5c0ee3f14a9a
+    GitHub-Pull-Request: golang/go#26427
+    Reviewed-on: https://go-review.googlesource.com/124555
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

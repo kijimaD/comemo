@@ -1,0 +1,17 @@
+commit d307bd4ede254d73412fede200f2ab1d188c3f54
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sat Mar 2 19:58:13 2019 +0000
+
+    encoding/gob: properly ignore errors
+    
+    Change-Id: I8827cef0f57459384329c50c51795350da0ede4b
+    GitHub-Last-Rev: c9ad9e12b5a0fff47c21a8c299b762b64b8c9c7c
+    GitHub-Pull-Request: golang/go#30010
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160434
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/encoding/gob/decgen.go | 4 +++-
+ src/encoding/gob/encgen.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

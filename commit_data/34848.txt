@@ -1,0 +1,18 @@
+commit eef42f928db025ef11973cdb6a2e6dee49ad4b5e
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Apr 5 00:31:34 2018 +0300
+
+    cmd/internal/obj/x86: make AsmBuf receiver name consistent
+    
+    Fixes golint receiver name complaints.
+    
+    We can't go with "a" name as it sometimes is used for obj.Addr args.
+    
+    Change-Id: I66556f4e3dc42cfaaa4db3ed7772fa6756ea9a9b
+    Reviewed-on: https://go-review.googlesource.com/104796
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/internal/obj/x86/asm6.go | 802 +++++++++++++++++++--------------------
+ 1 file changed, 401 insertions(+), 401 deletions(-)

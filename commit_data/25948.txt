@@ -1,0 +1,46 @@
+commit 7da4ceddd020a0f1de0b9a0af56a931f70a8bb08
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Feb 21 16:05:44 2016 +0100
+
+    fmt: simplify buffer write methods and adjust calls to them
+    
+    Once upon a time fmt did use bytes.Buffer for its buffer.
+    The buffer write methods still mimic the bytes.Buffer signatures.
+    The current code depends on manipulating the buffer []bytes array directly
+    which makes going back to bytes.Buffer by only changing the type of buffer
+    impossible. Since type buffer is not exported the methods can be simplified
+    to the needs of fmt. This saves space and avoids unnecessary overhead.
+    
+    Use WriteString instead of Write for known inputs since
+    WriteString is faster than Write to append the same data.
+    This also saves space in the binary.
+    
+    Remove the add method from Printer and depending on the data to be written
+    use WriteRune or WriteByte directly instead.
+    
+    In total makes the go binary around 4 kilobyte smaller.
+    
+    name                  old time/op  new time/op  delta
+    SprintfEmpty-2        24.1ns ± 3%  23.8ns ± 1%  -1.14%  (p=0.000 n=20+20)
+    SprintfString-2        114ns ± 2%   114ns ± 4%    ~     (p=0.558 n=20+19)
+    SprintfInt-2           116ns ± 9%   118ns ± 7%    ~     (p=0.086 n=20+20)
+    SprintfIntInt-2        195ns ± 6%   193ns ± 5%    ~     (p=0.345 n=20+19)
+    SprintfPrefixedInt-2   251ns ±16%   241ns ± 9%  -3.69%  (p=0.024 n=20+19)
+    SprintfFloat-2         203ns ± 4%   205ns ± 5%    ~     (p=0.153 n=20+20)
+    SprintfBoolean-2       101ns ± 7%    96ns ±11%  -5.23%  (p=0.005 n=19+20)
+    ManyArgs-2             651ns ± 7%   628ns ± 7%  -3.44%  (p=0.002 n=20+20)
+    FprintInt-2            164ns ± 2%   158ns ± 2%  -3.62%  (p=0.000 n=20+18)
+    FprintfBytes-2         215ns ± 1%   216ns ± 1%  +0.58%  (p=0.000 n=20+20)
+    FprintIntNoAlloc-2     115ns ± 0%   112ns ± 0%  -2.61%  (p=0.000 n=20+20)
+    ScanInts-2             700µs ± 0%   702µs ± 1%  +0.38%  (p=0.000 n=18+20)
+    ScanRecursiveInt-2    82.7ms ± 0%  82.7ms ± 0%    ~     (p=0.820 n=20+20)
+    
+    Change-Id: I0409eb170b8a26d9f4eb271f6292e5d39faf2d8b
+    Reviewed-on: https://go-review.googlesource.com/19955
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go |   7 +++
+ src/fmt/format.go   |  11 ++--
+ src/fmt/print.go    | 143 ++++++++++++++++++++++++----------------------------
+ src/fmt/scan.go     |   2 +-
+ 4 files changed, 78 insertions(+), 85 deletions(-)

@@ -1,0 +1,27 @@
+commit 9f4a359fc2d914c275bccc187ae5216787a85146
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 7 09:47:02 2016 +1300
+
+    cmd/compile, cmd/link, cmd/newlink: remove support for weak symbols
+    
+    They were only used for rtype.ptrToThis which David Crawshaw removed a couple
+    of weeks ago. Removes two traversals of Ctxt.Allsym from the linker but it
+    doesn't seem to make much difference to performance.
+    
+    Change-Id: I5c305e0180186f643221d57822d301de4aa18827
+    Reviewed-on: https://go-review.googlesource.com/20287
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go      |   2 --
+ src/cmd/compile/internal/gc/lex.go     |   5 -----
+ src/cmd/compile/internal/gc/reflect.go |   9 ---------
+ src/cmd/link/internal/ld/go.go         |  31 -------------------------------
+ src/cmd/link/internal/ld/pobj.go       |   1 -
+ src/cmd/newlink/auto.go                |  21 +--------------------
+ src/cmd/newlink/auto_test.go           |   1 -
+ src/cmd/newlink/prog.go                |   1 -
+ src/cmd/newlink/testdata/autoweak.6    | Bin 385 -> 0 bytes
+ src/cmd/newlink/testdata/autoweak.s    |  30 ------------------------------
+ 10 files changed, 1 insertion(+), 100 deletions(-)

@@ -1,0 +1,13 @@
+commit ee5fe7756fc6c53b62fe8c186113c97ffd9d6e71
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 9 16:44:20 2009 -0700
+
+    no longer necessary; directory not empty anymore
+    
+    R=r
+    DELTA=2  (0 added, 2 deleted, 0 changed)
+    OCL=31417
+    CL=31420
+
+ lib/place-holder | 2 --
+ 1 file changed, 2 deletions(-)

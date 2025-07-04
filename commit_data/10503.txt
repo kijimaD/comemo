@@ -1,0 +1,16 @@
+commit a899a467f2e8ef7af2153cb91063f2da2bc2f36f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 25 14:13:10 2011 +0300
+
+    time: fix timer stop
+    Due to data structure corruption,
+    some timers could not be removed.
+    Fixes #2495.
+    
+    R=golang-dev, adg
+    CC=golang-dev, mdbrown
+    https://golang.org/cl/5437060
+
+ src/pkg/runtime/time.goc   | 13 ++++++++++---
+ src/pkg/time/sleep_test.go | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

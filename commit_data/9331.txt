@@ -1,0 +1,18 @@
+commit 8f3c7497acd69d980d40f55ebf97ae2f9a7fd034
+Author: Dave Grijalva <dgrijalva@ngmoco.com>
+Date:   Wed Aug 10 14:16:13 2011 -0700
+
+    http: corrects undocumented side effects in http.DefaultTransport's RoundTrip method
+    Fixes #2140.
+    
+    The http.DefaultTransport's RoundTrip method leaves the http.Request object
+    in an altered state after performing the round trip.  This patch removes
+    the header from the Request before returning to the client.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4857041
+
+ src/pkg/http/transport.go      |  3 ++
+ src/pkg/http/transport_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+)

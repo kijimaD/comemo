@@ -1,0 +1,12 @@
+commit 6a47bb4974ae6908ba34e16c6a0fd6b6e2d15909
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 00:12:49 2011 -0500
+
+    spec: remove redundant, outdated definition of default literal types
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5480047
+
+ doc/go_spec.html | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)

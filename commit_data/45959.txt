@@ -1,0 +1,31 @@
+commit 63b968f4f86f4c23ce92b7ac2feda4fc7ca17c8e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 16 16:51:11 2021 -0400
+
+    doc/go1.17: clarify Modules changes
+    
+    Writing CL 333629 clarified my thinking about the behavioral changes
+    associated with lazy loading. There are really two interrelated
+    changes — graph pruning, and lazy loading proper — that are both made
+    possible by the added redundancy in the go.mod file.
+    
+    (I had initially approached the whole cluster of features as “lazy
+    loading” because that was the starting point for the design. Graph
+    pruning came into the picture when we looked at how to bound the
+    worst-case behavior of lazy loading, but it is really the more
+    important of the two aspects of the design.)
+    
+    Note that this change adds links to doc anchors added in CL 333629.
+    
+    Fixes #36460
+    Fixes #47397
+    
+    Change-Id: I0ef4af57f647bf5ee210ea7099191fb4befa2cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335135
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html | 70 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 45 insertions(+), 25 deletions(-)

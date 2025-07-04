@@ -1,0 +1,21 @@
+commit 48d71990722f3cc81305c794d3d3b6d9007770c8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 28 11:29:53 2017 +0100
+
+    cmd/go: clarify that tag lists are space-separated
+    
+    Apparently the current documentation is confusing users that
+    quickly skim the flags list at the top. Make very clear that
+    build tags are space-separated.
+    
+    Updates #18800
+    
+    Change-Id: I473552c5a2b70ca03d8bbbd2c76805f7f82b49a2
+    Reviewed-on: https://go-review.googlesource.com/35951
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go             | 9 +++++----
+ src/cmd/go/internal/work/build.go | 9 +++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)

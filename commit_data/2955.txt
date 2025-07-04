@@ -1,0 +1,20 @@
+commit a92610208e5cc9c60778d78261fa5e59e4204d27
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 14:41:13 2009 -0700
+
+    delete code for forward type declarations
+    
+    R=ken
+    OCL=33108
+    CL=33113
+
+ src/cmd/gc/align.c     |   7 ---
+ src/cmd/gc/dcl.c       | 121 ++-----------------------------------------------
+ src/cmd/gc/export.c    |   6 ---
+ src/cmd/gc/go.h        |   7 ---
+ src/cmd/gc/go.y        |  20 --------
+ src/cmd/gc/reflect.c   |   4 --
+ src/cmd/gc/subr.c      |   4 +-
+ src/cmd/gc/typecheck.c |   2 -
+ src/cmd/gc/walk.c      |   5 +-
+ 9 files changed, 6 insertions(+), 170 deletions(-)

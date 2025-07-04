@@ -1,0 +1,13 @@
+commit 0f0c25dcccee52c4fae3b54ca8b185984ceff1f9
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Nov 23 20:20:14 2011 -0800
+
+    strings: Add ContainsAny and ContainsRune to correspond to IndexAny etc.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5430046
+
+ src/pkg/strings/strings.go      | 16 ++++++++++---
+ src/pkg/strings/strings_test.go | 50 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 3 deletions(-)

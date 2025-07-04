@@ -1,0 +1,18 @@
+commit e3f2e9ac4e1ab99e1ebd0bf2a6bd3898633873b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 4 14:53:46 2020 -0800
+
+    internal/bytealg: fix riscv64 offset names
+    
+    Vet caught that these were incorrect.
+    
+    Updates #37022
+    
+    Change-Id: I7b5cd8032ea95eb8e0729f6a4f386aec613c71d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217777
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/bytealg/indexbyte_riscv64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

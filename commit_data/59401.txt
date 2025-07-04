@@ -1,0 +1,47 @@
+commit 9c1d19a183e89be6cf18168addccc0d24551bb71
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 2 14:18:03 2025 -0400
+
+    runtime: clear frame pointer in mcall
+    
+    On amd64, mcall leaves BP untouched, so the callback will push BP,
+    connecting the g0 stack to the calling g stack. This seems OK (frame
+    pointer unwinders like Linux perf can see what user code called into the
+    scheduler), but the "scheduler" part is problematic.
+    
+    mcall is used when calling into the scheduler to deschedule the current
+    goroutine (e.g., in goyield). Once the goroutine is descheduled, it may
+    be picked up by another M and continue execution. The other thread is
+    mutating the goroutine stack, but our M still has a frame pointer
+    pointing to the goroutine stack.
+    
+    A frame pointer unwinder like Linux perf could get bogus values off of
+    the mutating stack. Note that though the execution tracer uses
+    framepointer unwinding, it never unwinds a g0, so it isn't affected.
+    
+    Clear the frame pointer in mcall so that unwinding always stops at
+    mcall.
+    
+    On arm64, mcall stores the frame pointer from g0.sched.bp. This doesn't
+    really make any sense. mcall wasn't called by whatever used g0 last, so
+    at best unwinding will get misleading results (e.g., it might look like
+    cgocallback calls mcall?).
+    
+    Also clear the frame pointer on arm64.
+    
+    Other architectures don't use frame pointers.
+    
+    For #63630.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-arm64-longtest
+    Change-Id: I6a6a636cb6404f3c95ecabdb969c9b8184615cee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669615
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm_amd64.s | 1 +
+ src/runtime/asm_arm64.s | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

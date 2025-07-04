@@ -1,0 +1,16 @@
+commit 553f45a61e062abe1c3459adc288929fc8693746
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 27 10:49:25 2015 -0700
+
+    archive/zip: sanity check the TOC's declared number of files
+    
+    Fixes #10956
+    
+    Change-Id: If8517094f04250c4f722e1e899a237eb6e170eb9
+    Reviewed-on: https://go-review.googlesource.com/10421
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/zip/reader.go      |  4 ++++
+ src/archive/zip/reader_test.go | 17 +++++++++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

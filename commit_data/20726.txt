@@ -1,0 +1,19 @@
+commit 7ed8723d49f93b0b983a0a89504a03e455e07537
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 14:44:55 2014 -0400
+
+    runtime: make pprof a little nicer
+    
+    Update #8942
+    
+    This does not fully address issue 8942 but it does make
+    the profiles much more useful, until that issue can be
+    fixed completely.
+    
+    LGTM=dvyukov
+    R=r, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/159990043
+
+ src/runtime/proc.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

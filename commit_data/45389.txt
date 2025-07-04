@@ -1,0 +1,37 @@
+commit 4a7effa418b4644abc5142e35228e26c6a52a50a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 17:19:42 2021 -0400
+
+    cmd/compile: mark R12 clobbered for special calls
+    
+    In external linking mode the external linker may insert
+    trampolines, which use R12 as a scratch register. So a call could
+    potentially clobber R12 if the target is laid out too far. Mark
+    R12 clobbered.
+    
+    Also, we will use R12 for trampolines in the Go linker as well.
+    
+    CL 310731 updated the generated rewrite files so imports are
+    grouped, but the generator was not updated to do so. Grouped
+    imports are nice. But as those are generated files, for
+    simplicity and my laziness, just regenerate with the current
+    generator (which makes imports not grouped).
+    
+    Change-Id: Iddb741ff7314a291ade5fbffc7d315f555808409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314453
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     | 11 ++++++-----
+ src/cmd/compile/internal/ssa/opGen.go          |  8 ++++----
+ src/cmd/compile/internal/ssa/rewrite386.go     |  6 ++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 10 ++++------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  6 ++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  8 +++-----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  8 +++-----
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  8 +++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  6 ++----
+ 10 files changed, 31 insertions(+), 46 deletions(-)

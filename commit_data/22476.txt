@@ -1,0 +1,14 @@
+commit 63cced7b31efadb08dc0504958579b3d030e874e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 11 10:30:13 2015 -0700
+
+    net: document that DNSError.Timeout and Temporary are unreliable
+    
+    Update #10417.
+    
+    Change-Id: Ibfbdd05358f696a37217eef160f71b14a468ff86
+    Reviewed-on: https://go-review.googlesource.com/8788
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/dnsclient.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

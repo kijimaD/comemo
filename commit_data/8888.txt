@@ -1,0 +1,12 @@
+commit 161deaa85c4ed97f16fe3905d6de5ad3be24b13a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 28 22:26:31 2011 -0400
+
+    runtime/cgo: fix build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4629082
+
+ src/pkg/runtime/cgo/darwin_386.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

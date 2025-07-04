@@ -1,0 +1,17 @@
+commit 03eeaa9656027514113e7cd3dc2906255ee23963
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jan 17 09:06:13 2020 +0000
+
+    testing: clarify that Cleanup is run after subtests complete.
+    
+    It's good to be explicit, as it's not necessarily obvious (and indeed
+    the behavior has changed recently with https://go-review.googlesource.com/c/go/+/214822)
+    without an associated doc comment change).
+    
+    Change-Id: I99d6398bf15b404b1b1b196e712e926e363251e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215217
+    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

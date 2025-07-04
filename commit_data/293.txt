@@ -1,0 +1,14 @@
+commit 4d6d4e7f4e3124efd788e8e80074210242ea38a8
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 5 17:43:25 2008 -0700
+
+    random little bugs
+    
+    SVN=126049
+
+ src/cmd/gc/const.c  | 16 ++++++++++------
+ src/cmd/gc/dcl.c    |  2 +-
+ src/cmd/gc/export.c | 13 +++++++++----
+ src/cmd/gc/lex.c    |  3 ++-
+ src/cmd/gc/walk.c   | 52 +++++++++++++++++++++++++++++++---------------------
+ 5 files changed, 53 insertions(+), 33 deletions(-)

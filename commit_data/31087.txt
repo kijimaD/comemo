@@ -1,0 +1,31 @@
+commit 9d01def5979c638a9743ee491d68e3f7b81cd840
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 16:33:21 2017 -0700
+
+    math/bits: support negative rotation count and remove RotateRight
+    
+    For details see the discussion on the issue below.
+    
+    RotateLeft functions can now be inlined because the don't panic
+    anymore for negative rotation counts.
+    
+    name            old time/op  new time/op  delta
+    RotateLeft-8    6.72ns ± 2%  1.86ns ± 0%  -72.33%  (p=0.016 n=5+4)
+    RotateLeft8-8   4.41ns ± 2%  1.67ns ± 1%  -62.15%  (p=0.008 n=5+5)
+    RotateLeft16-8  4.46ns ± 6%  1.65ns ± 0%  -63.06%  (p=0.008 n=5+5)
+    RotateLeft32-8  4.50ns ± 5%  1.67ns ± 1%  -62.86%  (p=0.008 n=5+5)
+    RotateLeft64-8  4.54ns ± 1%  1.85ns ± 1%  -59.32%  (p=0.008 n=5+5)
+    
+    https://perf.golang.org/search?q=upload:20170411.4
+    
+    (Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.)
+    
+    For #18616.
+    
+    Change-Id: I0828d80d54ec24f8d44954a57b3d6aeedb69c686
+    Reviewed-on: https://go-review.googlesource.com/40394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/bits.go      |  77 ++++--------------------------
+ src/math/bits/bits_test.go | 114 ++++++++++-----------------------------------
+ 2 files changed, 34 insertions(+), 157 deletions(-)

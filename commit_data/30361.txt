@@ -1,0 +1,40 @@
+commit 19d2061d502d26086d6db75fa818dde668a888bf
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Feb 10 23:41:53 2017 -0700
+
+    cmd/compile: suppress callsite signatures if any type is unknown
+    
+    Fixes #19012.
+    
+    Fallback to return signatures without detailed types.
+    These error message will be of the form of issue:
+    * https://golang.org/issues/4215
+    * https://golang.org/issues/6750
+    
+    So:
+    func f(x int, y uint) {
+        return x > y
+    }
+    
+    f(10, "a" < 3)
+    
+    will give errors:
+    too many errors to return
+    too many arguments in call to f
+    
+    instead of:
+    
+    too many errors to return
+      have (<T>)
+      want ()
+    too many arguments in call to f
+      have (number, <T>)
+      want (number, number)
+    
+    Change-Id: I680abc7cdd8444400e234caddf3ff49c2d69f53d
+    Reviewed-on: https://go-review.googlesource.com/36806
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 27 ++++++++++++++++++++++-----
+ test/fixedbugs/issue19012.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 5 deletions(-)

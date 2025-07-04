@@ -1,0 +1,22 @@
+commit 5609a48931593a0ba88cab4a54ea5c426b292c3e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 21:36:12 2016 -0800
+
+    cmd/compile: make cmpstackvarlt properly asymmetric
+    
+    Previously, given two Nodes n1 and n2 of different non-PAUTO classes
+    (e.g., PPARAM and PPARAMOUT), cmpstackvarlt(n1, n2) and
+    cmpstackvarlt(n2, n1) both returned true, which is nonsense.
+    
+    This doesn't seem to cause any visible miscompilation problems, but
+    notably fixing it does cause toolstash/buildall to fail.
+    
+    Change-Id: I33b2c66e902c5eced875d8fbf18b7cfdc81e8aed
+    Reviewed-on: https://go-review.googlesource.com/19778
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go      | 22 +++++-----------------
+ src/cmd/compile/internal/gc/pgen_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 17 deletions(-)

@@ -1,0 +1,18 @@
+commit c6b62112292fa741d5708dfd63bd89eed3b6f8ee
+Author: Aaron Sheah <aaronsheah@gmail.com>
+Date:   Thu Jun 3 17:43:36 2021 +0000
+
+    doc/go1.17: document testing changes for Go 1.17
+    
+    For #44513. Fixes #46024
+    
+    Change-Id: Icf3877d1fcd67448fbc79a0ce3db3f319ad4a0e9
+    GitHub-Last-Rev: 8c015935c2e376134d81aa577bffdca7fc03170d
+    GitHub-Pull-Request: golang/go#46324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322109
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

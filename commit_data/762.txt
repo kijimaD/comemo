@@ -1,0 +1,20 @@
+commit 08df4dcf7d713b8986ee0ce89522234caf6c0e30
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 29 11:03:21 2008 -0700
+
+    Storing an out of range constant into a variable should
+    ideally cause the compiler to give an error.  Right now 6g
+    warns about large shifts but does not give an error.  This CL
+    removes the out of range shift from shift.go, so that it will
+    work with gccgo, and adds a test case in bugs/ to be fixed at
+    a later date.
+    
+    R=ken,r
+    DELTA=23  (9 added, 14 deleted, 0 changed)
+    OCL=16085
+    CL=16088
+
+ test/bugs/bug108.go | 10 ++++++++++
+ test/golden.out     | 12 ++++--------
+ test/ken/shift.go   |  6 ------
+ 3 files changed, 14 insertions(+), 14 deletions(-)

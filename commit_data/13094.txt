@@ -1,0 +1,13 @@
+commit 434625d1be0d028f30f269344d9c5783e84c4c74
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 18 10:32:54 2012 -0700
+
+    A+C: add James Gray (Individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6213055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

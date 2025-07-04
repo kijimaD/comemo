@@ -1,0 +1,13 @@
+commit 8efb70f92e258d458c183232b985c83b477ed3de
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Aug 5 17:02:41 2012 -0400
+
+    syscall: add some new syscall numbers from NetBSD-current
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6454100
+
+ src/pkg/syscall/zsysnum_netbsd_386.go   | 4 ++++
+ src/pkg/syscall/zsysnum_netbsd_amd64.go | 4 ++++
+ 2 files changed, 8 insertions(+)

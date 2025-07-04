@@ -1,0 +1,15 @@
+commit 4601776901a4db8b213d66392128a7a2f1c8d1c4
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Dec 28 21:35:48 2015 +0900
+
+    os: fix race condition between (*os.File).Stat and os.Chdir on windows
+    
+    Fixes #13752
+    
+    Change-Id: I53cfc4ecae90c35b6f1074f3be08489c408a6464
+    Reviewed-on: https://go-review.googlesource.com/18181
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/os_windows_test.go | 29 +++++++++++++++++++++++++++++
+ src/os/stat_windows.go    |  2 +-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

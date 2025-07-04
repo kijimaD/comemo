@@ -1,0 +1,26 @@
+commit b1aff42900133e4fbc9b7d7c1af13c77e4f647b0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon May 10 17:19:50 2021 -0400
+
+    cmd/go: don't print 'go get' deprecation notices in the main module
+    
+    If a user runs 'go get example.com/cmd' for a package in the main
+    module, it's more likely they intend to fill in missing dependencies
+    for that package (especially with -u). If the intent were only to
+    build and install, 'go install example.com/cmd' would be a better
+    choice.
+    
+    For #43684
+    
+    Resolving a comment on CL 305670.
+    
+    Change-Id: I5c80ffdcdb3425b448f2f49cc20b07a18cb2bbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318570
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                   |  8 ++++----
+ .../testdata/script/mod_get_deprecate_install.txt   | 21 +++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 6 deletions(-)

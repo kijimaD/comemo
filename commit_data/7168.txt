@@ -1,0 +1,15 @@
+commit 89993544c2f9a188d0789e0c955c66093f6f5ba1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 19 12:28:38 2011 -0800
+
+    runtime/debug: new package
+    Facilities for printing stack traces from within a running goroutine.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4031041
+
+ src/pkg/Makefile                    |  1 +
+ src/pkg/runtime/debug/stack.go      | 90 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/debug/stack_test.go | 55 +++++++++++++++++++++++
+ 3 files changed, 146 insertions(+)

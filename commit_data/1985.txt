@@ -1,0 +1,30 @@
+commit 365706155031f5b0da56f28576799fdb66235583
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Apr 9 18:16:21 2009 -0700
+
+    change representation of strings
+    
+    R=r
+    OCL=27293
+    CL=27293
+
+ src/cmd/6g/cgen.c             |   8 ++--
+ src/cmd/6g/gg.h               |   2 +-
+ src/cmd/6g/gsubr.c            |  10 ++---
+ src/cmd/6g/obj.c              |  55 +++++++++++++++++------
+ src/cmd/gc/align.c            |   8 ++--
+ src/cmd/gc/const.c            |   4 +-
+ src/cmd/gc/dcl.c              |   2 +-
+ src/cmd/gc/go.h               |  37 +++++++++++-----
+ src/cmd/gc/lex.c              |   7 +--
+ src/cmd/gc/obj.c              |  17 ++++---
+ src/cmd/gc/subr.c             |   4 +-
+ src/lib/reflect/typestring.c  |  36 +++++++++++++--
+ src/runtime/amd64/traceback.c |   4 +-
+ src/runtime/iface.c           |  36 +++++++--------
+ src/runtime/print.c           |  14 +++---
+ src/runtime/runtime.c         |  22 +++++----
+ src/runtime/runtime.h         |  34 +++++++-------
+ src/runtime/string.c          | 101 +++++++++++++++++++-----------------------
+ src/runtime/symtab.c          |   2 +-
+ 19 files changed, 234 insertions(+), 169 deletions(-)

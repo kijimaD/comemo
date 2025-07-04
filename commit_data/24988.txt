@@ -1,0 +1,14 @@
+commit f2a0fc10c957959f1a495da0595b7987766467a0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 14:41:08 2015 -0800
+
+    cmd/cgo: final docs for pointer passing
+    
+    Update #12416.
+    
+    Change-Id: I39eb0d1090c08ef9be9dc38d27abab62672cf664
+    Reviewed-on: https://go-review.googlesource.com/17064
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/cgo/doc.go | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

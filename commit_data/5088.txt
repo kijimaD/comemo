@@ -1,0 +1,12 @@
+commit b21f3137a4e320f84a2d31e1e44c923d02327beb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 19 16:28:32 2010 -0700
+
+    os: drop File finalizer after normal Close
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/586043
+
+ src/pkg/os/file.go | 3 +++
+ 1 file changed, 3 insertions(+)

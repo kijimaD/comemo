@@ -1,0 +1,16 @@
+commit de4c0730cb51aeb2292fc91830324bc95cfb9d6f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 5 14:26:29 2019 -0400
+
+    cmd/go/internal/modfetch: report the module path for errors in (*codeRepo).Versions
+    
+    Updates #34094
+    
+    Change-Id: Ifd10b51c2b4ebe77c4f8f68726e411f54c13b9c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194560
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

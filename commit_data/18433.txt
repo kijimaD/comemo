@@ -1,0 +1,13 @@
+commit 730f51ab58cebb05eb06eea5113e4c2bcb1aff65
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 9 13:56:47 2014 -0800
+
+    archive/zip: add flate writing benchmark
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/60530049
+
+ src/pkg/archive/zip/writer_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

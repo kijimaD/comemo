@@ -1,0 +1,17 @@
+commit fe708385987231fa99d34df5b8c9d14afa0d35cf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:09:59 2020 +1100
+
+    math/big: initial vector arithmetic in riscv64 assembly
+    
+    Provide an assembly implementation of mulWW - for now all others run the
+    Go code.
+    
+    Change-Id: Icb594c31048255f131bdea8d64f56784fc9db4d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220919
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith_decl.go      |  2 +-
+ src/math/big/arith_decl_pure.go |  2 +-
+ src/math/big/arith_riscv64.s    | 51 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 2 deletions(-)

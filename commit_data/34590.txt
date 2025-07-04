@@ -1,0 +1,17 @@
+commit 363bcd7b4f628f140f7942f2610a15ed142aa82d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 13 13:11:09 2018 -0700
+
+    cmd/compile: use key position for key:val elements in composite literals
+    
+    Fixes #24339.
+    
+    Change-Id: Ie47764fed27f76b480834b1fdbed0512c94831d9
+    Reviewed-on: https://go-review.googlesource.com/100457
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go |  3 ++-
+ test/fixedbugs/issue24339.go         | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 7b29dbb866540b7308f94f9fab319412969c6cb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 17:33:28 2009 -0700
+
+    symbol bugs.
+    do not emit unreachable data symbols.
+    
+    R=austin
+    DELTA=103  (71 added, 4 deleted, 28 changed)
+    OCL=33325
+    CL=33622
+
+ src/cmd/6g/gsubr.c |  4 +---
+ src/cmd/6g/reg.c   |  2 ++
+ src/cmd/6l/asm.c   |  2 ++
+ src/cmd/6l/list.c  |  6 +++++-
+ src/cmd/6l/obj.c   | 14 +++++++-------
+ src/cmd/6l/pass.c  | 10 +++++++++-
+ src/cmd/6l/span.c  | 25 ++++++++++++++++++++-----
+ src/cmd/8g/gsubr.c |  4 +---
+ src/cmd/8l/asm.c   |  2 ++
+ src/cmd/8l/list.c  |  5 ++++-
+ src/cmd/8l/obj.c   | 14 +++++++-------
+ src/cmd/8l/pass.c  |  8 +++++++-
+ src/cmd/8l/span.c  | 19 ++++++++++++++++---
+ src/cmd/gc/go.h    |  2 ++
+ src/cmd/gc/subr.c  | 10 ++++++++++
+ src/cmd/ld/go.c    |  4 ++++
+ 16 files changed, 99 insertions(+), 32 deletions(-)

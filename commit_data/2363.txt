@@ -1,0 +1,17 @@
+commit aa9ce6148a84112e9c135b8298ba9b36dfe0b3e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 2 18:03:47 2009 -0700
+
+    change datafmt syntax to use '@' instead of '^' (to match
+    convention used in template.go)
+    
+    R=rsc
+    DELTA=22  (3 added, 1 deleted, 18 changed)
+    OCL=29780
+    CL=29782
+
+ src/lib/datafmt/datafmt.go      | 11 +++++------
+ src/lib/datafmt/datafmt_test.go |  6 +++---
+ src/lib/datafmt/parser.go       |  9 ++++++---
+ usr/gri/pretty/ast.txt          | 14 +++++++-------
+ 4 files changed, 21 insertions(+), 19 deletions(-)

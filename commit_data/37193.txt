@@ -1,0 +1,18 @@
+commit d086c5c81f6e19e1dce0a17d901fec071b9394ff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 31 09:32:51 2018 -0700
+
+    cmd/go: don't pass empty string to ar when using -compiler=gccgo
+    
+    Correct error introduced in CL 145417 on non-AIX systems.
+    
+    Fixes #28511
+    
+    Change-Id: I6624939061425af19faccedd271f465d1fe6b975
+    Reviewed-on: https://go-review.googlesource.com/c/146277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/gccgo.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

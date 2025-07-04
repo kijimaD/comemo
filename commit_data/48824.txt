@@ -1,0 +1,19 @@
+commit 104742fddae061b52c38e221697cf20ebd09bf10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 13:46:15 2022 -0700
+
+    cmd/compile/internal/types2: use correct value of iota
+    
+    Fixes #52438.
+    
+    Change-Id: I5cbf8c448dba037e9e0c5fe8f209401d6bf7d43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401134
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/resolver.go        |  2 +-
+ .../internal/types2/testdata/check/const0.go       | 19 +++++++++++
+ src/go/types/testdata/check/const0.go              | 19 +++++++++++
+ test/fixedbugs/issue52438.go                       | 39 ++++++++++++++++++++++
+ 5 files changed, 79 insertions(+), 2 deletions(-)

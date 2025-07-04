@@ -1,0 +1,18 @@
+commit f67c9de65621a46905a2f923b35634f74fa8635b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 9 21:43:50 2016 -0400
+
+    runtime: document MemStats
+    
+    This documents all fields in MemStats and more clearly documents where
+    mstats differs from MemStats.
+    
+    Fixes #15849.
+    
+    Change-Id: Ie09374bcdb3a5fdd2d25fe4bba836aaae92cb1dd
+    Reviewed-on: https://go-review.googlesource.com/28972
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/mstats.go | 337 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 288 insertions(+), 49 deletions(-)

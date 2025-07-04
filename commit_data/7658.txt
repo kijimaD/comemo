@@ -1,0 +1,12 @@
+commit 2b4a9603d33308ac8a13700dbb9489de115bd2ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 6 21:52:37 2011 -0500
+
+    io/ioutil: use filepath.Join, handle trailing / in $TMPDIR
+    
+    R=niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4256057
+
+ src/pkg/io/ioutil/tempfile_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

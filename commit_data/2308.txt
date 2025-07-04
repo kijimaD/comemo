@@ -1,0 +1,22 @@
+commit 021abfbd28aca7d6699f6b16ef46aa44692fa928
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 14:46:06 2009 -0700
+
+    8g: hello world works again
+            * string format changed
+            * files got renamed
+            * new files that i forgot to check in last time
+    updates are all copy and paste from 6g
+    
+    R=ken
+    OCL=29385
+    CL=29400
+
+ src/cmd/8g/Makefile              |   6 +-
+ src/cmd/8g/{align.c => galign.c} |   0
+ src/cmd/8g/gg.h                  |   3 +-
+ src/cmd/8g/{gen.c => ggen.c}     |   5 ++
+ src/cmd/8g/{obj.c => gobj.c}     | 187 +++++++++++++++++++++++++++++++--------
+ src/cmd/gc/go.h                  |   1 +
+ src/runtime/386/traceback.c      |   4 +-
+ 7 files changed, 164 insertions(+), 42 deletions(-)

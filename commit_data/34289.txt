@@ -1,0 +1,17 @@
+commit 16c5d30c84a7dbba88f89585b0238f52cc6b4494
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Feb 20 19:14:00 2018 -0500
+
+    github: update Pull Request template
+    
+    + Move from Markdown checklist to text. The first PR comment is
+      presented as text when creating it.
+    + Add the note about Signed-Off-By: not being required.
+    
+    Change-Id: I0650891dcf11ed7dd367007148730ba2917784fe
+    Reviewed-on: https://go-review.googlesource.com/95696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/PULL_REQUEST_TEMPLATE    | 25 +++++++++++++++++++++++++
+ .github/PULL_REQUEST_TEMPLATE.md | 21 ---------------------
+ 2 files changed, 25 insertions(+), 21 deletions(-)

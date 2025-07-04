@@ -1,0 +1,13 @@
+commit 6b451ce3f39ed7a9474ec1eca59009da699c6c89
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:58:07 2017 -0400
+
+    cmd/compile: expand comment on cgo_unsafe_args in inlinine
+    
+    Change-Id: Ie8fd7839806b4a6bcfac5ac1f984db7ab282c3b5
+    Reviewed-on: https://go-review.googlesource.com/41150
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Lazar <lazard@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

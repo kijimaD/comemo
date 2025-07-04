@@ -1,0 +1,21 @@
+commit 902d5aa84f8340752c20b93bfd450a6cefcf3952
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Oct 13 20:33:47 2019 +0530
+
+    cmd/go/internal/work: fix error while passing custom vet tool
+    
+    For GOROOT packages, we were adding -unsafeptr=false to prevent unsafe.Pointer
+    checks. But the flag also got passed to invocations of go vet with a custom
+    vet tool. To prevent this from happening, we add this flag only when no
+    tools are passed.
+    
+    Fixes #34053
+    
+    Change-Id: I8bcd637fd8ec423d597fcdab2a0ceedd20786019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200957
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

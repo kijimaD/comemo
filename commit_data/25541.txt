@@ -1,0 +1,17 @@
+commit ba593d6ab861222ee03b87a6f733afac48f5a04e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 11 12:27:37 2016 -0800
+
+    net: disable sendfile on Solaris for now
+    
+    There are reports of corruption. Let's disable it for now (for Go 1.6,
+    especially) until we can investigate and fix properly.
+    
+    Update #13892
+    
+    Change-Id: I557275e5142fe616e8a4f89c00ffafb830eb3b78
+    Reviewed-on: https://go-review.googlesource.com/18540
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/net/sendfile_solaris.go | 2 ++
+ 1 file changed, 2 insertions(+)

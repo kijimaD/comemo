@@ -1,0 +1,19 @@
+commit 80a7315c3400b011a0f89e63aca73031a9073c9a
+Author: ryomak <ryooomaaa0413@gmail.com>
+Date:   Wed Jun 28 22:06:38 2023 +0900
+
+    image/draw: replace deprecated image.ZP and image.ZR in xx_test.go
+    
+    Change-Id: I87545a46e5871452075152b4c99ba85089ef86b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/image/draw/bench_test.go   |  2 +-
+ src/image/draw/clip_test.go    | 64 +++++++++++++++++++++---------------------
+ src/image/draw/draw_test.go    | 18 ++++++------
+ src/image/draw/example_test.go |  2 +-
+ 4 files changed, 43 insertions(+), 43 deletions(-)

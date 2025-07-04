@@ -1,0 +1,20 @@
+commit 0c2abb32337def615027f66e14eb212987498070
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 4 14:15:39 2023 -0700
+
+    runtime, cmd/compile: prune unused _defer fields
+    
+    These fields are no longer needed since go.dev/cl/513837.
+    
+    Change-Id: I980fc9db998c293e930094bbb87e8c8f1654e39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516198
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 24 ++++++------------------
+ src/runtime/runtime2.go                | 15 ++++-----------
+ 2 files changed, 10 insertions(+), 29 deletions(-)

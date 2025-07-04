@@ -1,0 +1,54 @@
+commit 9da6530faab0a58c4c4e02b2f3f4a5c754dcbd4e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Mar 20 10:47:17 2019 -0700
+
+    syscall: avoid _getdirentries64 on darwin
+    
+    Getdirentries is implemented with the __getdirentries64 function
+    in libSystem.dylib. That function works, but it's on Apple's
+    can't-be-used-in-an-app-store-application list.
+    
+    Implement Getdirentries using the underlying fdopendir/readdir_r/closedir.
+    The simulation isn't faithful, and could be slow, but it should handle
+    common cases.
+    
+    Don't use Getdirentries in the stdlib, use fdopendir/readdir_r/closedir
+    instead (via (*os.File).readdirnames).
+    
+    Fixes #30933
+    
+    Update #28984
+    
+    RELNOTE=yes
+    
+    Change-Id: Ia6b5d003e5bfe43ba54b1e1d9cfa792cc6511717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../{fd_opendir_ios.go => fd_opendir_darwin.go}    |  3 --
+ src/os/{dir_ios.go => dir_darwin.go}               | 13 ++---
+ src/os/dir_unix.go                                 |  2 +-
+ src/runtime/sys_darwin.go                          | 11 +++++
+ src/runtime/sys_darwin_32.go                       | 11 -----
+ src/runtime/sys_darwin_386.s                       | 37 +++++++++++++-
+ src/runtime/sys_darwin_64.go                       | 11 -----
+ src/runtime/sys_darwin_amd64.s                     | 37 ++++++++++++--
+ src/runtime/sys_darwin_arm.s                       |  2 +-
+ src/runtime/sys_darwin_arm64.s                     |  6 +--
+ src/syscall/dirent_bsd_test.go                     |  2 +-
+ src/syscall/mksyscall.pl                           |  4 ++
+ src/syscall/syscall_darwin.go                      | 55 +++++++++++++++++++++
+ src/syscall/syscall_darwin_386.go                  | 15 +++++-
+ src/syscall/syscall_darwin_amd64.go                | 15 +++++-
+ src/syscall/syscall_darwin_arm.go                  |  7 ---
+ src/syscall/syscall_darwin_arm64.go                |  9 +---
+ src/syscall/zsyscall_darwin_386.go                 | 50 ++++++++++---------
+ src/syscall/zsyscall_darwin_386.s                  |  8 +++-
+ src/syscall/zsyscall_darwin_amd64.go               | 50 ++++++++++---------
+ src/syscall/zsyscall_darwin_amd64.s                |  8 +++-
+ src/syscall/zsyscall_darwin_arm.go                 | 56 +++++++++++-----------
+ src/syscall/zsyscall_darwin_arm64.go               | 56 +++++++++++-----------
+ 23 files changed, 303 insertions(+), 165 deletions(-)

@@ -1,0 +1,20 @@
+commit c032b042190dcc37963b025c75e938f3ffa587d0
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Mar 11 21:19:11 2025 -0400
+
+    internal/buildcfg: fix typo in DWARF 5 enabling code
+    
+    Fix a typo in the code that decides which GOOS values will support use
+    of DWARF 5 ("darwin" was not spelled correctly).
+    
+    Updates #26379.
+    
+    Change-Id: I3a7906d708550fcedc3a8e89d0444bf12b9143f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656895
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/buildcfg/exp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

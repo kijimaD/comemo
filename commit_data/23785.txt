@@ -1,0 +1,16 @@
+commit 58f3a8295070df9d7b27c6b1dad5e2a8c3e06cdc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 11:54:41 2015 -0400
+
+    runtime: fix comments referring to trace functions in runtime/pprof
+    
+    ae1ea2a moved trace-related functions from runtime/pprof to
+    runtime/trace, but missed a doc comment and a code comment. Update
+    these to reflect the move.
+    
+    Change-Id: I6e1e8861e5ede465c08a2e3f80b976145a8b32d8
+    Reviewed-on: https://go-review.googlesource.com/12525
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

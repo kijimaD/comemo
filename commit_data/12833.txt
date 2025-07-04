@@ -1,0 +1,12 @@
+commit 0f775d6b769496296e95ce19ae5f4062bc0e5aed
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 5 11:16:37 2012 +1000
+
+    misc/dist: label 386 and amd64 as "32-bit x86" and "64-bit x86"
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5986043
+
+ misc/dist/bindist.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

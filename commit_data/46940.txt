@@ -1,0 +1,22 @@
+commit 6294207a1c79e318124850155c7b6c23997c8c13
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 18 16:15:43 2021 -0400
+
+    cmd/go: skip flaky fuzz tests
+    
+    (Temporarily, until they can be fixed.)
+    
+    For #49046
+    For #49047
+    
+    Change-Id: Ib580a5e45a0955aabdfc1899ed38a262a37f66ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356649
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt       | 2 ++
+ src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt | 2 ++
+ 2 files changed, 4 insertions(+)

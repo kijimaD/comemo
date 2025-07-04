@@ -1,0 +1,23 @@
+commit 0e31de280f8593dcee2bedb120eb929503785abf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 24 11:02:46 2021 -0400
+
+    math/big: don't require runtime.(*Frame).Next symbol present
+    
+    I don't know why the test requires runtime.(*Frame).Next symbol
+    present in the binary under test. I assume it is just some
+    sanity check? With CL 268479 runtime.(*Frame).Next can be pruned
+    by the linker. Replace it with runtime.main which should always
+    be present.
+    
+    May fix the longtest builders.
+    
+    Change-Id: Id3104c058b2786057ff58be41b1d35aeac2f3073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304431
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/math/big/link_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

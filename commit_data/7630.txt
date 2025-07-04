@@ -1,0 +1,16 @@
+commit 7b563be51647fe13c1cbfa45b310ee0068833e55
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 4 11:41:57 2011 -0800
+
+    http: rename ClientTransport to Transport
+    
+    http.Transport looks nicer, and ServerTransport
+    doesn't make much sense anyway.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4239056
+
+ src/pkg/http/client.go    | 10 +++++-----
+ src/pkg/http/transport.go | 23 ++++++++++++-----------
+ 2 files changed, 17 insertions(+), 16 deletions(-)

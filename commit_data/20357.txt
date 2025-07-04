@@ -1,0 +1,21 @@
+commit ec96795ba20209263a0bbb17a073a9c028e74437
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 14:54:00 2014 -0700
+
+    go/parser: fix (pathological) corner case
+    
+    Inside a control clause (if ... {}), composite
+    literals starting with a type name must be parenthesized.
+    A composite literal used in the array length expression
+    of an array composite literal is already parenthesized.
+    Not a valid program, but syntactically is should
+    be accepted.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/142760043
+
+ src/go/parser/parser.go     | 2 ++
+ src/go/parser/short_test.go | 1 +
+ 2 files changed, 3 insertions(+)

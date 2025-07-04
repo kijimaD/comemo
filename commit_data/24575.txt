@@ -1,0 +1,31 @@
+commit d4a7ea1b71523115f9baead2d0f98fd8cf517577
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 20 00:35:12 2015 -0700
+
+    runtime: add stringStructOf helper function
+    
+    Instead of open-coding conversions from *string to unsafe.Pointer then
+    to *stringStruct, add a helper function to add some type safety.
+    Bonus: This caught two **string values being converted to
+    *stringStruct in heapdump.go.
+    
+    While here, get rid of the redundant _string type, but add in a
+    stringStructDWARF type used for generating DWARF debug info.
+    
+    Change-Id: I8882f8cca66ac45190270f82019a5d85db023bd2
+    Reviewed-on: https://go-review.googlesource.com/16131
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go |  2 +-
+ src/runtime/env_plan9.go          |  4 ++--
+ src/runtime/env_posix.go          |  3 +--
+ src/runtime/hashmap_fast.go       |  4 ++--
+ src/runtime/heapdump.go           |  6 +++---
+ src/runtime/print.go              |  4 ++--
+ src/runtime/runtime2.go           |  5 -----
+ src/runtime/slice.go              |  2 +-
+ src/runtime/string.go             | 18 ++++++++++++++----
+ 9 files changed, 26 insertions(+), 22 deletions(-)

@@ -1,0 +1,13 @@
+commit 31f2503cde7438d6f4c106ee1738f9602b614c93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 27 17:23:25 2010 -0700
+
+    go spec: Disallow &a notation to obtain a slice
+    from an array; one needs to write a[0:] instead.
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/1365041
+
+ doc/go_spec.html | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

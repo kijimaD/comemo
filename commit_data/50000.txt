@@ -1,0 +1,36 @@
+commit a719a78c1b36141af68d84970695fe95263fb896
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 7 17:43:57 2022 +0700
+
+    runtime: add and use runtime/internal/sys.NotInHeap
+    
+    Updates #46731
+    
+    Change-Id: Ic2208c8bb639aa1e390be0d62e2bd799ecf20654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421878
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/HACKING.md          | 36 +----------------------------------
+ src/runtime/debuglog.go         | 37 ++++++++++++++++++------------------
+ src/runtime/export_test.go      |  2 --
+ src/runtime/internal/sys/nih.go | 42 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/malloc.go           | 13 ++++++-------
+ src/runtime/mbitmap.go          |  2 +-
+ src/runtime/mcache.go           |  5 +++--
+ src/runtime/mcentral.go         |  8 +++++---
+ src/runtime/mcheckmark.go       | 16 +++++++++-------
+ src/runtime/mfinal.go           |  4 ++--
+ src/runtime/mfixalloc.go        | 11 +++++++----
+ src/runtime/mgcstack.go         | 15 ++++++---------
+ src/runtime/mgcwork.go          |  3 ++-
+ src/runtime/mheap.go            | 38 ++++++++++++++++++-------------------
+ src/runtime/mprof.go            |  4 ++--
+ src/runtime/netpoll.go          |  8 ++++----
+ src/runtime/slice.go            |  2 +-
+ src/runtime/stack.go            |  2 +-
+ src/runtime/trace.go            | 10 ++++------
+ 19 files changed, 133 insertions(+), 125 deletions(-)

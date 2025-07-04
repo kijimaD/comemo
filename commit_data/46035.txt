@@ -1,0 +1,20 @@
+commit ddffe30a21c909314a7bab8815505b709e921c3c
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 13:37:45 2021 -0400
+
+    go/types: rename TypeParams to TParamList
+    
+    This is a straightforward port of CL 341861 to go/types.
+    
+    Change-Id: I4f21170eb2ea1e5395a6eba5132f34aa1d53bb20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342481
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go      |  2 +-
+ src/go/types/named.go     |  6 +++---
+ src/go/types/signature.go |  8 ++++----
+ src/go/types/typeparam.go | 14 +++++++-------
+ 4 files changed, 15 insertions(+), 15 deletions(-)

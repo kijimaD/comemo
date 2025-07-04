@@ -1,0 +1,18 @@
+commit 5d16f9751a1b947308d6ac4ab51c85c28e8c067d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 19:49:33 2017 +0000
+
+    Revert "cmd/dist: disable plugin test on linux-arm with GOARM=5"
+    
+    This reverts commit 168eb9cf3395583541224af0227c19ddb13e35be.
+    
+    CL 47831 fixes the issue with plugins on ARMv5, so we can re-enable the test.
+    
+    Updates #19674.
+    
+    Change-Id: Idcb29f93ffb0460413f1fab5bb82fa2605795038
+    Reviewed-on: https://go-review.googlesource.com/47834
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 8 --------
+ 1 file changed, 8 deletions(-)

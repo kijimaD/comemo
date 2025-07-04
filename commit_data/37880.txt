@@ -1,0 +1,21 @@
+commit d82c9a167d9e3a09eb27a00b6125e1a3fea6dc3d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 15 19:37:17 2019 +1100
+
+    path/filepath: skip part of TestNTNamespaceSymlink
+    
+    Recent CL 156398 extended TestNTNamespaceSymlink. But new code
+    fails, if user running the test does not have sufficient privilege
+    to create file symlink. Skip part of TestNTNamespaceSymlink, if
+    user cannot create symlink.
+    
+    Fixes #29745
+    
+    Change-Id: Ie4176429ba9dd98553ce9e91fd19851cc7353f42
+    Reviewed-on: https://go-review.googlesource.com/c/157917
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/path/filepath/path_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

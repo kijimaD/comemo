@@ -1,0 +1,12 @@
+commit d862753cccd537ef56dbc8b42b4969dac93461c6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 22:28:50 2015 -0700
+
+    doc: fix typo in go1.6.txt
+    
+    Change-Id: I3bf1862c304ff08bfb87f84b6ccbb50204225244
+    Reviewed-on: https://go-review.googlesource.com/14407
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

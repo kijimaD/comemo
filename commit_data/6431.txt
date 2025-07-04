@@ -1,0 +1,13 @@
+commit ae5cb2c58195d34b1b189fe9de543fd9cc243227
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Thu Sep 30 13:22:28 2010 +1000
+
+    http: fix http handler signature changes previously missed
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/2303041
+
+ src/pkg/http/server.go |  2 +-
+ src/pkg/http/triv.go   | 50 +++++++++++++++++++++++++-------------------------
+ 2 files changed, 26 insertions(+), 26 deletions(-)

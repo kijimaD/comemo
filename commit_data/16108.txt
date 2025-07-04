@@ -1,0 +1,12 @@
+commit 07c70629c23ae709ae387e1cfe8237ed36e71ba7
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Fri Apr 5 15:23:03 2013 -0700
+
+    net/http: fix typo in ErrMissingBoundary
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8429045
+
+ src/pkg/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

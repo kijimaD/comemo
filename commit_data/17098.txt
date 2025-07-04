@@ -1,0 +1,14 @@
+commit 9a9e541c4db86bb1c590b0f4657929dde4312e2b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 13:36:22 2013 -0700
+
+    cmd/api: show output of api tool even if exit status is 0
+    
+    We weren't seeing additions. (stuff to put in next.txt)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12678043
+
+ src/cmd/api/run.go | 1 +
+ 1 file changed, 1 insertion(+)

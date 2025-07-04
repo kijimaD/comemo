@@ -1,0 +1,25 @@
+commit cb733da42c582bfce9387a4811e8b757b058d1b6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 7 23:57:41 2024 +0700
+
+    net/http: set Cache-Control header only if presents on error
+    
+    CL 544019 changes http.Error to remove misleading response headers.
+    However, it also adds new "Cache-Control" header unconditionally, which
+    may breaks existing clients out there, who do not expect to see the
+    this header in the response like test in golang.org/x/net/http2.
+    
+    To keep thing backward compatible, http.Error should only add
+    Cache-Control header if it has been presented.
+    
+    Updates #50905
+    
+    Change-Id: I989e9f999a30ec170df4fb28905f50aed0267dad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569815
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/server.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

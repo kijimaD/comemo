@@ -1,0 +1,17 @@
+commit f744717d1924340b8f5e5a385e99078693ad9097
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat May 14 07:54:02 2016 +0200
+
+    debug/gosym: parse remote packages correctly
+    
+    Fixes #15675
+    
+    Change-Id: I8bad220988e5d690f20804db970b2db037c81187
+    Reviewed-on: https://go-review.googlesource.com/23086
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/gosym/symtab.go      | 19 ++++++++++++++-----
+ src/debug/gosym/symtab_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 5 deletions(-)

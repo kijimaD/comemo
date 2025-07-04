@@ -1,0 +1,23 @@
+commit 1d004fa2015d128acf6302fc74b95f6a36c35680
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Nov 17 10:17:31 2021 +0700
+
+    cmd/compile: emit definition of 'any' only if generic enabled
+    
+    CL 364377 emitted definition of 'any' when compiling runtime. But 'any'
+    is only available when generic enabled. Thus emitting its definition
+    unconditionally causes the compiler crashes.
+    
+    Updates #49619
+    
+    Change-Id: I0888ca1cbc7a7df300310a99a344f170636333f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 4 +++-
+ test/fixedbugs/issue49619.go                    | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

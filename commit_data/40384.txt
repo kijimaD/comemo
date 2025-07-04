@@ -1,0 +1,27 @@
+commit ab3f1a23b6c29a110423d6fd6bf2b01fa62a6fb2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 14:20:54 2019 -0700
+
+    runtime: add race detector support for new timers
+    
+    Since the new timers run on g0, which does not have a race context,
+    we add a race context field to the P, and use that for timer functions.
+    This works since all timer functions are in the standard library.
+    
+    Updates #27707
+    
+    Change-Id: I8a5b727b4ddc8ca6fc60eb6d6f5e9819245e395b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171882
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go        | 15 +++++++++++++++
+ src/runtime/race.go        | 13 +++++++++++++
+ src/runtime/race0.go       |  2 ++
+ src/runtime/race_amd64.s   | 18 +++++++++++++++---
+ src/runtime/race_arm64.s   | 13 ++++++++++++-
+ src/runtime/race_ppc64le.s | 19 ++++++++++++++++---
+ src/runtime/runtime2.go    |  3 +++
+ src/runtime/time.go        | 22 ++++++++++++++++++++++
+ 8 files changed, 98 insertions(+), 7 deletions(-)

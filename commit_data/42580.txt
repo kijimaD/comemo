@@ -1,0 +1,18 @@
+commit c4fd3f6ff60189ba18446d538523b646f37f930b
+Author: Ferenc Szabo <frncmx@gmail.com>
+Date:   Thu Jun 25 11:12:50 2020 +0200
+
+    doc: add note about missing lock in sample code
+    
+    The sample code in 'Interfaces and methods' section contains a
+    data race. Handlers are served concurrently. The handler does write
+    and read operations; `go test -race` would fail (with concurrent
+    requests). Since the doc is frozen and the code remains less
+    cluttered without locks/atomic, don't change the sample code.
+    
+    Change-Id: I654b324d2f0b7f48497822751907c7d39e2f0e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239877
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

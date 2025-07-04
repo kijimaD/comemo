@@ -1,0 +1,14 @@
+commit 406d73876dc13bfe85215e7a9c32cd8396270256
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 27 23:24:39 2011 +1000
+
+    time: fix Format bug: noon is 12PM, not 0PM.
+    Fixes #1882.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4556062
+
+ src/pkg/time/format.go    | 13 +++++++++++--
+ src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

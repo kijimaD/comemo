@@ -1,0 +1,22 @@
+commit 55d7dcc3cd4b3ee6bca0ab7101866d785776ff51
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Nov 10 21:02:18 2020 +0800
+
+    runtime: optimize the memory padding in p struct
+    
+    Since allocation for p struct will be rounded up to the next size class,
+    the two relevant adjacent classes for this case are 9728 bytes and 10240 bytes.
+    
+    A p is currently 10072 bytes, so it gets rounded up to 10240 bytes when we allocate one,
+    So the pad in p struct is unnecessary, eliminate it and add comments for
+    warning the false sharing.
+    
+    Change-Id: Iae8b32931d1beddbfff1f58044d8401703da6407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268759
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime2.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

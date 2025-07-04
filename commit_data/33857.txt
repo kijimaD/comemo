@@ -1,0 +1,41 @@
+commit 29be20a111d87b41b91e79a59fd3df95062ce91a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 4 13:57:48 2017 -0500
+
+    cmd/go: invalidate cached test results if env vars or files change
+    
+    When we write a cached test result, we now also write a log of the
+    environment variables and files inspected by the test run,
+    along with a hash of their content. Before reusing a cached test result,
+    we recompute the hash of the content specified by the log, and only
+    use the result if that content has not changed.
+    
+    This makes test caching behave correctly for tests that consult
+    environment variables or stat or read files or directories.
+    
+    Fixes #22593.
+    
+    Change-Id: I8608798e73c90e0c1911a38bf7e03e1232d784dc
+    Reviewed-on: https://go-review.googlesource.com/81895
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                              | 125 ++++++++--
+ src/cmd/go/internal/cache/cache.go                 |   6 +
+ src/cmd/go/internal/test/test.go                   | 256 +++++++++++++++++++--
+ .../go/testdata/src/testcache/testcache_test.go    |  91 ++++++++
+ src/go/build/deps_test.go                          |  15 +-
+ src/internal/testlog/log.go                        |  69 ++++++
+ src/os/env.go                                      |   7 +-
+ src/os/exec.go                                     |   2 +
+ src/os/exec/exec_test.go                           |  10 +-
+ src/os/file.go                                     |   8 +
+ src/os/file_plan9.go                               |   3 +
+ src/os/file_unix.go                                |   3 +
+ src/os/file_windows.go                             |   3 +
+ src/os/stat_plan9.go                               |   2 +
+ src/os/stat_unix.go                                |   3 +
+ src/os/stat_windows.go                             |   3 +
+ src/testing/internal/testdeps/deps.go              |  62 +++++
+ src/testing/testing.go                             |  31 ++-
+ 18 files changed, 652 insertions(+), 47 deletions(-)

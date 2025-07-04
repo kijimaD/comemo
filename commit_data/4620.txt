@@ -1,0 +1,13 @@
+commit 08d3f5e271cd4bd8e1de18966947bf791d9c023e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 15 13:49:31 2010 -0800
+
+    template: look inside interface values
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186169
+
+ src/pkg/template/template.go      |  3 +++
+ src/pkg/template/template_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,0 +1,26 @@
+commit 5c98bcb7d43e1dcf60d3799afc30f4d56e5e3cc4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 28 10:40:54 2021 +0700
+
+    runtime: fix noopt builder
+    
+    CL 352057 added track argument stack slot liveness, and updated
+    TestTracebackArgs for argument liveness. But when optimization is
+    disabled, all arguments are considered lived. The abiSel does not
+    consider this case and return wrong expected result.
+    
+    To fix this, checking if we are running in a noopt builder and return
+    the correct expected result. Also, skipping TestTracebackArgs in quick
+    mode, since when quick mode run the test without optimization disable.
+    
+    Updates #45728
+    
+    Change-Id: I3737a1b1a5fa0c711fbb3218205f2f6e34f36260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359196
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/traceback_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

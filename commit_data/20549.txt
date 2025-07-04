@@ -1,0 +1,12 @@
+commit 706efdb12c2c176b441e4c479ccc4d98b909c293
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 26 11:00:49 2014 +1000
+
+    doc: document Go 1.3.2
+    
+    LGTM=r
+    R=r, rsc, iant, agl
+    https://golang.org/cl/142650045
+
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

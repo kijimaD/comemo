@@ -1,0 +1,17 @@
+commit 30edda690f643baa03988739ffa7eb722034d035
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 09:52:54 2010 -0400
+
+    ld: share asmlc
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2373043
+
+ src/cmd/5l/asm.c  | 82 ------------------------------------------------------
+ src/cmd/5l/l.h    |  1 +
+ src/cmd/6l/span.c | 80 -----------------------------------------------------
+ src/cmd/8l/span.c | 80 -----------------------------------------------------
+ src/cmd/ld/lib.c  | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/ld/lib.h  |  1 +
+ 6 files changed, 84 insertions(+), 243 deletions(-)

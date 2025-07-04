@@ -1,0 +1,15 @@
+commit 782464aea540e9ebf720509ce627d192d84d92a7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Oct 6 12:05:52 2012 +0200
+
+    runtime: fix a panic when growing zero-width-element slices.
+    
+    Fixes #4197.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6611056
+
+ src/pkg/runtime/slice.c  |  2 +-
+ test/fixedbugs/bug457.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

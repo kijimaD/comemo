@@ -1,0 +1,22 @@
+commit 16796afc35de049a89da42efaad1593c26a96392
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu May 30 10:23:23 2019 +0100
+
+    cmd/go: add two more uses of lazyregexp
+    
+    A couple of regexp.MustCompile globals have made their way in since we
+    introduced this package for cmd/go.
+    
+    Convert the declarations. It's just two of them, so the cmd/go exec
+    benchmark isn't affected noticeably.
+    
+    Change-Id: Ibd0615c99b6a049124a952c59978fd714c1b9615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179358
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modconv/dep.go   | 4 ++--
+ src/cmd/go/internal/sumweb/server.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

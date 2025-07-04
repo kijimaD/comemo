@@ -1,0 +1,12 @@
+commit 73c026e6fef43ab0aec86193627d42e9b01895b7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Mar 30 00:30:28 2015 -0400
+
+    test: add testcase for gccgo-specific issue 10284
+    
+    Change-Id: I624b336a9eb27fbbc8ef13f141023b4f60966245
+    Reviewed-on: https://go-review.googlesource.com/8240
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue10284.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

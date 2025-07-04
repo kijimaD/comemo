@@ -1,0 +1,23 @@
+commit 0ad332d80cf3e2bbeef5f1e5f5eb50272bbde92e
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 30 12:58:50 2018 -0700
+
+    cmd/compile: implement some moves using non-overlapping reads&writes
+    
+    For moves >8,<16 bytes, do a move using non-overlapping loads/stores
+    if it would require no more instructions.
+    
+    This helps a bit with the case when the move is from a static
+    constant, because then the code to materialize the value being moved
+    is smaller.
+    
+    Change-Id: Ie47a5a7c654afeb4973142b0a9922faea13c9b54
+    Reviewed-on: https://go-review.googlesource.com/c/146019
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 ++++++++++++++++++++++++++-
+ test/codegen/strings.go                      |  12 ++++
+ 3 files changed, 121 insertions(+), 4 deletions(-)

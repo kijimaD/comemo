@@ -1,0 +1,13 @@
+commit 2374edc6401401fcaa0d328bab38c9e3cffc9274
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 14 11:57:32 2012 -0800
+
+    go/doc: print only one newline between paragraphs
+    Fixes #2595.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5544068
+
+ src/pkg/go/doc/comment.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

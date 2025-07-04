@@ -1,0 +1,17 @@
+commit 770df2e18df01e64f8770301b0d3a5d6bfa04027
+Author: vinckr <vincent@ory.sh>
+Date:   Thu Aug 26 10:59:02 2021 +0000
+
+    crypto/tls: fix typo in PreferServerCipherSuites comment
+    
+    Fixing a typo, Deprected -> Deprecated.
+    
+    Change-Id: Ie0ccc9a57ae6a935b4f67154ac097dba4c3832ec
+    GitHub-Last-Rev: 57337cc1bfa771111f229e7b899fdfdad3b1655e
+    GitHub-Pull-Request: golang/go#47745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342791
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 83dfc0d02d005f7de3b8a57ea29dacf8609edba8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 6 20:36:52 2020 -0400
+
+    time: enable system zoneinfo on macOS/ARM64
+    
+    Updates #38485.
+    
+    Change-Id: I4a8b509dc4ad03706235289fbe8c2a675453c871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260339
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/{zoneinfo_darwin_arm64.go => zoneinfo_ios.go} | 0
+ src/time/zoneinfo_unix.go                              | 2 +-
+ src/time/zoneinfo_unix_test.go                         | 2 +-
+ 3 files changed, 2 insertions(+), 2 deletions(-)

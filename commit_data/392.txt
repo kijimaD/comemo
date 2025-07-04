@@ -1,0 +1,17 @@
+commit 5a90ede8a49ac5a7f480ccc729c88a73e1422e17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 18 17:18:29 2008 -0700
+
+    - scanner returns now triple (tok, tok_pos, tok_val)
+    - initial try-out of AST data structures
+    - removed test_parser (not working anymore - parser needs more infrastructure)
+    
+    SVN=128089
+
+ usr/gri/gosrc/ast.go          | 22 ++++++++++
+ usr/gri/gosrc/compilation.go  |  1 +
+ usr/gri/gosrc/parser.go       | 54 +++++++++++++++----------
+ usr/gri/gosrc/scanner.go      | 93 +++++++++++++++++++++++--------------------
+ usr/gri/gosrc/test_parser.go  | 43 --------------------
+ usr/gri/gosrc/test_scanner.go |  8 +++-
+ 6 files changed, 110 insertions(+), 111 deletions(-)

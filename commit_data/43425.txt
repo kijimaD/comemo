@@ -1,0 +1,18 @@
+commit a29dd1f2bd0ee0048f03782ba67034a0441a147e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Oct 18 09:49:16 2020 -0700
+
+    net: add Example for Unix dialer with context
+    
+    Showing users how to accomplish this more easily is a compromise
+    between doing nothing and adding a new API to the net package.
+    
+    Fixes #38506.
+    
+    Change-Id: I43f831cf94951c987cf3c8c1aa55f0012ee8034e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/example_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

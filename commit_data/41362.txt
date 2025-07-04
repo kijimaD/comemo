@@ -1,0 +1,24 @@
+commit baea3cd7c9e7ae27f7e5d44874a9afd249458df5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 9 17:00:27 2020 -0500
+
+    cmd/link: handle absolute address relocation in C objects for internal linking PIE
+    
+    For an absolute address relocation in C objects (e.g.
+    R_X86_64_64), we turn it into an R_ADDR relocation and handle it
+    the same way. For internal linking PIE, this R_ADDR relocation
+    cannot be resolved statically. We need to generate a dynamic
+    relocation for it. This CL makes it so.
+    
+    This fixes internal linking PIE on the dev.boringcrypto branch.
+    Test will be enabled in the next CL.
+    
+    Change-Id: I9bdd6517ccd79cbbe9c64844a31536bf3da37616
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 6 ++++++
+ src/cmd/link/internal/arm64/asm.go | 6 ++++++
+ 2 files changed, 12 insertions(+)

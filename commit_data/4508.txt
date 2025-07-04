@@ -1,0 +1,13 @@
+commit e01459f567dcc86818e90c1b378f6499f0a4300f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 29 11:41:44 2009 -0800
+
+    Apply symmetric changes to sha1 and sha256 as to md4 and md5.
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/183083
+
+ src/pkg/crypto/sha1/sha1.go     | 20 ++++++++------------
+ src/pkg/crypto/sha256/sha256.go | 20 ++++++++------------
+ 2 files changed, 16 insertions(+), 24 deletions(-)

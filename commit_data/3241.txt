@@ -1,0 +1,13 @@
+commit f966ba1df9de703a68bbdc641c39bf52cbe8c112
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 9 10:32:26 2009 -0700
+
+    use the new type switch multicase to clean up a little.
+    
+    R=rsc
+    DELTA=28  (7 added, 16 deleted, 5 changed)
+    OCL=34487
+    CL=34487
+
+ src/pkg/gob/encoder.go | 31 +++++++++++--------------------
+ 1 file changed, 11 insertions(+), 20 deletions(-)

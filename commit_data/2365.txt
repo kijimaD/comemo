@@ -1,0 +1,20 @@
+commit 07393f8706c7bfc6ddc3088eac3db169065499b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 22:33:21 2009 -0700
+
+    8l fixes, cut and paste from 6l.
+    move PtrSize value into 6l/8l files.
+    
+    R=r
+    DELTA=78  (47 added, 15 deleted, 16 changed)
+    OCL=29729
+    CL=29798
+
+ src/cmd/6l/go.c  |  4 ++++
+ src/cmd/6l/obj.c |  6 ++----
+ src/cmd/8l/asm.c | 16 ++++++++++++++-
+ src/cmd/8l/go.c  | 10 +++++++++
+ src/cmd/8l/l.h   |  1 +
+ src/cmd/8l/obj.c | 62 ++++++++++++++++++++++++++++++++------------------------
+ src/cmd/ld/go.c  |  1 -
+ 7 files changed, 68 insertions(+), 32 deletions(-)

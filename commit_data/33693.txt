@@ -1,0 +1,19 @@
+commit 0d264746063df2887875432170cbf11607c85501
+Author: rajender <rajenderreddykompally@gmail.com>
+Date:   Mon Nov 27 23:19:12 2017 +0530
+
+    encoding/json: update RFC number
+    
+    Existing docs mention obsolete RFC 4627. Update it with current one,
+    https://tools.ietf.org/html/rfc7159.
+    
+    Current implementation already adhere to RFC 7159.
+    
+    Fixes #22888
+    
+    Change-Id: I705ec1313f6f655b3bc41d2f847b30e479bf9b15
+    Reviewed-on: https://go-review.googlesource.com/79995
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

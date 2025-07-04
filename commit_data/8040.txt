@@ -1,0 +1,14 @@
+commit 1b7142d15729861669a1ed5491263a693707e141
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sun Apr 10 11:23:23 2011 +1000
+
+    archive/zip: add new type ReadCloser, make OpenReader return it.
+    Fixes #1678.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4372047
+
+ src/pkg/archive/zip/reader.go      | 46 ++++++++++++++++++++++++++++----------
+ src/pkg/archive/zip/reader_test.go |  6 +++++
+ 2 files changed, 40 insertions(+), 12 deletions(-)

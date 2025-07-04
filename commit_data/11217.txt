@@ -1,0 +1,14 @@
+commit a5a16eeaab1f53c332fc03e6d2d402ce5733f310
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 18 10:55:03 2012 +1100
+
+    image: fix typo in Rectangle.Sub comment.
+    
+    Fixes #2724.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5555043
+
+ src/pkg/image/geom.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

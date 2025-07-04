@@ -1,0 +1,18 @@
+commit d284d4ff9204e42c3cfc5424880d74063ed08b23
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 19 12:02:58 2016 +1200
+
+    cmd/link: split "bag of Symbols" functionality out of Link
+    
+    Mechanical refactorings to follow.
+    
+    Change-Id: I9b98e69a58c3cba7c7d1d3e3f600d4ed99d4fce2
+    Reviewed-on: https://go-review.googlesource.com/29342
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/link.go    | 30 +++++--------
+ src/cmd/link/internal/ld/sym.go     | 42 +++++------------
+ src/cmd/link/internal/ld/symbols.go | 90 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 111 insertions(+), 51 deletions(-)

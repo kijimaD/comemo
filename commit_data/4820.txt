@@ -1,0 +1,17 @@
+commit d3be2e3e0a2a2aa318689bd8dda2a9ca3db60092
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 13:33:00 2010 -0800
+
+    add simple garbage collector benchmarks to dashboard
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/207043
+
+ src/clean.bash         |   2 +-
+ src/pkg/Makefile       |   2 +-
+ test/garbage/Makefile  |  27 ++++++++++
+ test/garbage/parser.go |  36 ++++++++-----
+ test/garbage/peano.go  | 137 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/garbage/tree.go   | 104 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 293 insertions(+), 15 deletions(-)

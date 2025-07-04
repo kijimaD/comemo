@@ -1,0 +1,32 @@
+commit 28b51184156e1261bb92e7ec4050a794dd606fa6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 30 15:30:41 2015 -0500
+
+    runtime: rename m.gcing to m.preemptoff and make it a string
+    
+    m.gcing has become overloaded to mean "don't preempt this g" in
+    general.  Once the garbage collector is preemptible, the one thing it
+    *won't* mean is that we're in the garbage collector.
+    
+    So, rename gcing to "preemptoff" and make it a string giving a reason
+    that preemption is disabled.  gcing was never set to anything but 0 or
+    1, so we don't have to worry about there being a stack of reasons.
+    
+    Change-Id: I4337c29e8e942e7aa4f106fc29597e1b5de4ef46
+    Reviewed-on: https://go-review.googlesource.com/3660
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/debug.go      |  4 ++--
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/malloc.go     |  4 ++--
+ src/runtime/mem.go        |  8 ++++----
+ src/runtime/mgc.go        |  4 ++--
+ src/runtime/mprof.go      |  8 ++++----
+ src/runtime/panic.go      |  7 +++++--
+ src/runtime/panic1.go     |  2 +-
+ src/runtime/proc1.go      |  4 ++--
+ src/runtime/runtime2.go   |  2 +-
+ src/runtime/stack1.go     |  9 +++++----
+ src/runtime/trace.go      | 12 ++++++------
+ 13 files changed, 36 insertions(+), 32 deletions(-)

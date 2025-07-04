@@ -1,0 +1,21 @@
+commit bd3dc9d6da5f3ede9001ca3f4493d48c4e48de0f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Aug 8 03:06:02 2017 +0200
+
+    net: fix LookupCNAME on Plan 9
+    
+    Looking up a nonexistent CNAME record on an existing
+    domain on Plan 9 can return either a "dns failure"
+    error or a "resource does not exist" error.
+    
+    Fixes #21335.
+    
+    Change-Id: Iead8ed4fe3167db06adb4ab7797c52c7efc3ff89
+    Reviewed-on: https://go-review.googlesource.com/53670
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

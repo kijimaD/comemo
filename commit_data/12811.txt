@@ -1,0 +1,14 @@
+commit 3b7feb7001a3d7a99a4340b2fe3cf75b6ad5ceb1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 2 12:55:23 2012 -0400
+
+    codereview: give advice on 'cannot create CL outside default branch'
+    
+    Fixes #3430.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5981047
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

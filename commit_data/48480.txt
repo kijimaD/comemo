@@ -1,0 +1,18 @@
+commit 4b6debaf2894757e7ae9ad31f52f6a1279c94e90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 21 14:37:38 2022 -0700
+
+    cmd/gofmt: don't descend into /testdata directories in tests (fix long builders)
+    
+    Now that the go/types and types2 test files end in .go we must
+    avoid trying to format them as that won't work in general.
+    
+    Change-Id: I05fdd95a0d26cbe746f6d618b22b48dc1f1ea749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394295
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/gofmt/long_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 2ca0f5a1e2e637cd15b50f3c625cbb8d169575ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 26 18:29:34 2020 +0000
+
+    Revert "encoding/xml: fix reserved namespace check to be case-insensitive"
+    
+    This reverts CL 203417.
+    
+    Reason for revert: This change changes uses of tags like "XMLSchema-instance" without any recourse.
+    
+    For #35151
+    Fixes #39876
+    
+    Change-Id: I4c85c8267a46b3748664b5078794dafffb42aa26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240179
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/encoding/xml/marshal.go      |  7 ++-----
+ src/encoding/xml/marshal_test.go | 24 ------------------------
+ 2 files changed, 2 insertions(+), 29 deletions(-)

@@ -1,0 +1,18 @@
+commit 57d4e5763559634733452f62aba562a5df345192
+Author: Dhaivat Pandit <dhaivatpandit@gmail.com>
+Date:   Fri Aug 26 20:13:44 2016 -0700
+
+    net/http/cookiejar: added simple example test
+    
+    Fixes #16884
+    Updates #16360
+    
+    Change-Id: I01563031a1c105e54499134eed4789f6219f41ec
+    Reviewed-on: https://go-review.googlesource.com/27993
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookiejar/dummy_publicsuffix_test.go | 21 ++++++++
+ src/net/http/cookiejar/example_test.go            | 65 +++++++++++++++++++++++
+ 2 files changed, 86 insertions(+)

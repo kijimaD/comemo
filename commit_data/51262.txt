@@ -1,0 +1,16 @@
+commit b4ff4792989853b82150c1dc136ba024f6a09d0a
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Nov 13 20:41:58 2022 +0100
+
+    cmd/compile: remove manually implemented popcount in _gen/main.go
+    
+    Change-Id: I7b4da26bace15c2b632c2dbfe56cc2799bbfdb02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450058
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/main.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

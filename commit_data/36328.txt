@@ -1,0 +1,16 @@
+commit c589b9ec4eaf47e9e4994113d88e073cb695181b
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Mon Aug 20 12:46:43 2018 -0700
+
+    cmd/vet: exclude windows/arm from cmd/vet
+    
+    Updates #27103
+    
+    Change-Id: I1f7d198879e5912661e4156a86e13de2698a5473
+    Reviewed-on: https://go-review.googlesource.com/130055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/all/main.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

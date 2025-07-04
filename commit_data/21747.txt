@@ -1,0 +1,12 @@
+commit bba8b89aa5ee9ef9d6981deeac4dea5393c7d4ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 10:08:17 2015 -0800
+
+    math/big: improve some doc strings
+    
+    Change-Id: Ie37673d4af2fa7476d67ffb686641611ab6a8e6b
+    Reviewed-on: https://go-review.googlesource.com/5930
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go | 44 ++++++++++++++++++++++++--------------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)

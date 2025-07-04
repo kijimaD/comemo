@@ -1,0 +1,12 @@
+commit 543226e8fd1fa14f12e99e5570095bf0624d6164
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 18 17:09:20 2008 -0700
+
+    - added large integer arithmetic package and test cases
+    
+    SVN=123486
+
+ test/golden.out      |  12 +
+ test/integer.go      | 618 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/test_integer.go | 137 ++++++++++++
+ 3 files changed, 767 insertions(+)

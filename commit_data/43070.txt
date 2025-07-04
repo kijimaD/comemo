@@ -1,0 +1,28 @@
+commit 8f8a8e8921eb46ffba9a5400a259e21eb2011bb7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 18 16:14:08 2020 -0400
+
+    cmd/go/internal/modload: eliminate QueryPackage
+    
+    QueryPackage was a wrapper around QueryPattern with extra validation,
+    called only once from within the same package. Most of that validation
+    was already performed much earlier, in (*loader).Load. Inline the
+    remaining validation and remove the needless indirection.
+    
+    For #36460
+    
+    Change-Id: I108a01d416197db8f886889554e07b29f0c37f3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256057
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go              | 12 +++---
+ src/cmd/go/internal/modload/load.go                |  8 ++++
+ src/cmd/go/internal/modload/query.go               | 14 -------
+ .../go/testdata/script/mod_import_issue41113.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_import_meta.txt     | 45 ++++++++++++++++++++++
+ 5 files changed, 60 insertions(+), 21 deletions(-)

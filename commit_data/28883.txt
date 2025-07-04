@@ -1,0 +1,18 @@
+commit ac1108bdcbd316aa3ffc0bf70d50caa35e7b785f
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 16 11:25:37 2016 -0700
+
+    fmt: fix documention for %#v on uints
+    
+    It's the same as %#x not %x.
+    
+    Just a documentation change; tests already cover it.
+    
+    Fixes #17322
+    
+    Change-Id: Ia9db229f781f9042ac5c0bb824e3d7a26fb74ec5
+    Reviewed-on: https://go-review.googlesource.com/31254
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 3557d546090c7fedd69562c88d20767397de835d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 17 10:27:43 2017 -0500
+
+    cmd/compile: check both syms when folding address into load/store on ARM64
+    
+    The rules for folding addresses into load/stores checks sym1 is
+    not on stack (because the stack offset is not known at that point).
+    But sym1 could be nil, which invalidates the check. Check merged
+    sym instead.
+    
+    Fixes #19137.
+    
+    Change-Id: I8574da22ced1216bb5850403d8f08ec60a8d1005
+    Reviewed-on: https://go-review.googlesource.com/37145
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 30 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 60 ++++++++++++++--------------
+ test/fixedbugs/issue19137.go                 | 22 ++++++++++
+ 3 files changed, 67 insertions(+), 45 deletions(-)

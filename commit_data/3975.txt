@@ -1,0 +1,13 @@
+commit 022e3ae2659491e519d392e266acd86223a510f4
+Author: Kevin Ballard <kevin@sb.org>
+Date:   Tue Nov 10 20:04:14 2009 -0800
+
+    Fix go-mode.el to work on empty buffers
+    
+    Fixes #8.
+    
+    R=agl, agl1, rsc
+    https://golang.org/cl/153056
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

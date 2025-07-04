@@ -1,0 +1,40 @@
+commit dfbecc06e73b79aaeee4220b3e760cbd76050ae5
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Aug 10 09:57:51 2022 -0500
+
+    misc/cgo/testsanitizers: fix code to detect gcc version correctly
+    
+    The current implementation of compilerVersion incorrectly gives an
+    error message that the compiler version is too old even though the
+    system has a recent compiler. This happens for specifically for the
+    gcc compiler and causes ASAN tests to be skipped.
+    Replacing -v with gcc dump version options seems to fix it. Running
+    ./testsanitizers.test -test.v now shows the ASAN tests being run.
+    --- PASS: TestASAN (16.81s)
+        --- PASS: TestASAN/asan_useAfterReturn (0.60s)
+        --- PASS: TestASAN/asan_global5 (0.61s)
+        --- PASS: TestASAN/asan_unsafe_fail1 (0.73s)
+        --- PASS: TestASAN/asan_unsafe_fail3 (0.73s)
+        --- PASS: TestASAN/asan_unsafe_fail2 (0.74s)
+        --- PASS: TestASAN/asan_global4_fail (0.74s)
+        --- PASS: TestASAN/asan5_fail (0.74s)
+        --- PASS: TestASAN/asan3_fail (0.88s)
+        --- PASS: TestASAN/asan4_fail (0.89s)
+        --- PASS: TestASAN/asan2_fail (0.99s)
+        --- PASS: TestASAN/asan_global3_fail (1.00s)
+        --- PASS: TestASAN/asan_global1_fail (1.01s)
+        --- PASS: TestASAN/asan1_fail (1.01s)
+        --- PASS: TestASAN/asan_global2_fail (1.02s)
+    PASS
+    
+    Fixes #54370
+    
+    Change-Id: Iac13a1cf37de54432a6e49555f61e9ec1d781ab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422574
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testsanitizers/cc_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

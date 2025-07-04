@@ -1,0 +1,17 @@
+commit 78c89d21bcb33b71d716165a9204c397cf1eaf63
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jul 21 08:38:35 2011 +1000
+
+    http: sniffing algorithm.
+    
+    This follows draft-ietf-websec-mime-sniff-03 in its intent,
+    though not its algorithmic specification.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4746042
+
+ src/pkg/http/server.go     |   5 +-
+ src/pkg/http/sniff.go      | 170 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/http/sniff_test.go |  40 +++++++++++
+ 3 files changed, 205 insertions(+), 10 deletions(-)

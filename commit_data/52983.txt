@@ -1,0 +1,21 @@
+commit 3e9876cd3a5a83be9bb0f5cbc600aadf9b599558
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 9 19:36:13 2023 +0000
+
+    runtime: add traceEnabled function
+    
+    This change introduces the trivial traceEnabled function to help tighten
+    up the execution tracer's API in preparation for the execution trace
+    redesign GOEXPERIMENT.
+    
+    A follow-up change will refactor the runtime to use it.
+    
+    Change-Id: I19c8728e30aefe543b4a826d95446affa14897e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494180
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace.go | 5 +++++
+ 1 file changed, 5 insertions(+)

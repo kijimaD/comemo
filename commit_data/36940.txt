@@ -1,0 +1,19 @@
+commit 689321e1087180ef8e823bee7befe4609d67b727
+Author: Florian <sinnlosername@users.noreply.github.com>
+Date:   Wed Oct 3 15:31:35 2018 +0000
+
+    doc: add link to the Go Discord forum
+    
+    I've linked the  gophers discord. It's a well administered discord which already got many members, but it was never officially linked. For many people it's a quality proof if a discord is linked on the official page. I think there are much more people out there, who would prefer to use discord instead of slack or irc.
+    
+    The discord already got many users without even being promoted, so it's very likely there are many people who are interested in a discord, but they don't want to use unofficial discords. This discord shouldn't be seen as a competitor for the slack, it's a platform for those, who don't want to use slack.
+    
+    Change-Id: Ib1ee7173f394b810f5cccf67b498485ecbf8a7db
+    GitHub-Last-Rev: 286ebad994a52f55b685deeda8a86cfac4a9964b
+    GitHub-Pull-Request: golang/go#24176
+    Reviewed-on: https://go-review.googlesource.com/c/97718
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/help.html | 5 +++++
+ 1 file changed, 5 insertions(+)

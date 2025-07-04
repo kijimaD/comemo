@@ -1,0 +1,13 @@
+commit 0d93dbcf9bcb1e255f284d450c0687991e5ae658
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 8 22:03:12 2009 -0800
+
+    link the course slides from early in the tutorial
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1026031
+
+ doc/go_tutorial.html | 4 ++++
+ doc/go_tutorial.txt  | 4 ++++
+ 2 files changed, 8 insertions(+)

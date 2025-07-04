@@ -1,0 +1,21 @@
+commit c941e27e70c3e06e1011d2dd71d72a7a06a9bcbc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 15 15:57:13 2018 -0800
+
+    cmd/go: restrict meta imports to valid schemes
+    
+    Before this change, when using -insecure, we permitted any meta import
+    repo root as long as it contained "://". When not using -insecure, we
+    restrict meta import repo roots to be valid URLs. People may depend on
+    that somehow, so permit meta import repo roots to be invalid URLs, but
+    require them to have valid schemes per RFC 3986.
+    
+    Fixes #23867
+    
+    Change-Id: Iac666dfc75ac321bf8639dda5b0dba7c8840922d
+    Reviewed-on: https://go-review.googlesource.com/94603
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/get/vcs.go      | 34 +++++++++++++++++++++++++++--
+ src/cmd/go/internal/get/vcs_test.go | 43 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 2 deletions(-)

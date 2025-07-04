@@ -1,0 +1,21 @@
+commit 3107fa99acdcf26394e4bd96a176622d4034b10f
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 20:54:16 2023 +0800
+
+    runtime: make duff device as ABIInternal for loong64
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I243e60489dc5fd162ad91d6426bf32cf0e13d9e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521782
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
+
+ src/runtime/duff_loong64.s | 4 ++--
+ src/runtime/mkduff.go      | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

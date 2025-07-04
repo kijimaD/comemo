@@ -1,0 +1,15 @@
+commit bb2b73635f391def286b3adc4eae2e2bb4a4ade0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue May 21 01:44:41 2024 +0800
+
+    reflect: add line breaks for long sentences
+    
+    Change-Id: Id63ede5d50a8b287bc0b96382f9f3ee6c2e0b834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586856
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/iter.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

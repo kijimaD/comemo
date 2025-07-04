@@ -1,0 +1,19 @@
+commit 88562dc83ecc3e0c5ce85f22356cb7114e4756df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:03:13 2016 -0400
+
+    math/big: move ProbablyPrime into its own source file
+    
+    A later CL will be adding more code here.
+    It will help to keep it separate from the other code.
+    
+    Change-Id: I971ba53de819cd10991b51fdec665984939a5f9b
+    Reviewed-on: https://go-review.googlesource.com/30709
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/int.go        |  13 ------
+ src/math/big/int_test.go   |  90 -------------------------------------
+ src/math/big/nat.go        |  90 -------------------------------------
+ src/math/big/prime.go      | 110 +++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/prime_test.go | 100 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 210 insertions(+), 193 deletions(-)

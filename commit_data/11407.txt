@@ -1,0 +1,25 @@
+commit 5c04272ff33d90f2417c1db40be8675dd74fdad9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 17:47:57 2012 -0800
+
+    cmd/goapi: new tool for tracking exported API over time
+    
+    The idea is that we add files to the api/ directory which
+    are sets of promises for the future.  Each line in a file
+    is a stand-alone feature description.
+    
+    When we do a release, we make sure we haven't broken or changed
+    any lines from the past (only added them).
+    
+    We never change old files, only adding new ones. (go-1.1.txt,
+    etc)
+    
+    R=dsymonds, adg, r, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/5570051
+
+ src/cmd/goapi/goapi.go               | 722 +++++++++++++++++++++++++++++++++++
+ src/cmd/goapi/goapi_test.go          |  73 ++++
+ src/cmd/goapi/testdata/p1/golden.txt |  57 +++
+ src/cmd/goapi/testdata/p1/p1.go      | 123 ++++++
+ 4 files changed, 975 insertions(+)

@@ -1,0 +1,16 @@
+commit 2d75c332cca28678ff61d9f7cd58a82acb75e197
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jun 10 12:18:44 2019 -0700
+
+    syscall: fix freebsd 64-bit test
+    
+    64 bits is 8 bytes. Duh.
+    
+    Change-Id: I991b359df6241889bdef13152f551af9db6e14c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181557
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_freebsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

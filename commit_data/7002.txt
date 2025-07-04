@@ -1,0 +1,14 @@
+commit 8f68b23b8d847868c3ec3af3358a5ce9d3dd7b89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 17 13:54:37 2010 -0800
+
+    go/scanner: interpret filenames in //line filename:line comments
+                relative to the source file directory
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3752041
+
+ src/pkg/go/scanner/scanner.go      | 10 +++++++++-
+ src/pkg/go/scanner/scanner_test.go | 30 +++++++++++++++---------------
+ 2 files changed, 24 insertions(+), 16 deletions(-)

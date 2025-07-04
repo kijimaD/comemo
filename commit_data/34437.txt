@@ -1,0 +1,17 @@
+commit 9b95611e38ce59733ccc8306c49acea0403bab4b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 1 12:24:56 2017 -0500
+
+    cmd/compile: add DWARF register mappings for ARM64.
+    
+    Add DWARF register mappings for ARM64, so that that arch will become
+    usable with "-dwarflocationlists". [NB: I've plugged in a set of
+    numbers from the doc, but this will require additional manual testing.]
+    
+    Change-Id: Id9aa63857bc8b4f5c825f49274101cf372e9e856
+    Reviewed-on: https://go-review.googlesource.com/82515
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/obj/arm64/a.out.go | 103 ++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go  |  13 ++---
+ 2 files changed, 110 insertions(+), 6 deletions(-)

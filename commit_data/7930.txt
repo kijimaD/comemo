@@ -1,0 +1,13 @@
+commit 57c6d36f954bdc0fa60f4312d2e7b93e0fab7a46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 15:04:19 2011 -0700
+
+    test: add test for interfaces with unexported methods.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4271086
+
+ test/interface/private.go  | 32 ++++++++++++++++++++++++++++++++
+ test/interface/private1.go | 18 ++++++++++++++++++
+ 2 files changed, 50 insertions(+)

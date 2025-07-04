@@ -1,0 +1,22 @@
+commit 50ab37d008fa830a6a1a7e27856ab248d5de816b
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Feb 12 15:12:52 2017 -0800
+
+    database/sql: convert test timeouts to explicit waits with checks
+    
+    When testing context cancelation behavior do not rely on context
+    timeouts. Use explicit checks in all such tests. In closeDB
+    convert the simple check for zero open conns with a wait loop
+    for zero open conns.
+    
+    Fixes #19024
+    Fixes #19041
+    
+    Change-Id: Iecfcc4467e91249fceb21ffd1f7c62c58140d8e9
+    Reviewed-on: https://go-review.googlesource.com/36902
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/sql_test.go | 57 ++++++++++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 20 deletions(-)

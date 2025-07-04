@@ -1,0 +1,15 @@
+commit d72c96df2a4f9b1b6b83cd7be55b4e53ac3a3c9c
+Author: Aleksandar Dezelin <dezelin@gmail.com>
+Date:   Tue Aug 16 18:36:51 2011 -0400
+
+    net: Added function SetTimeout() to interface Listener.
+    Fixes #2148.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4905042
+
+ src/pkg/net/fd.go       | 7 ++++++-
+ src/pkg/net/tcpsock.go  | 8 ++++++++
+ src/pkg/net/unixsock.go | 8 ++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)

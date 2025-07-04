@@ -1,0 +1,20 @@
+commit 108218453a2cd26920f9be899b4a5102e80007a8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 19 16:36:03 2016 +1100
+
+    cmd/doc: handle embedded fields properly
+    
+    The structure of the code meant that an embedded field was never
+    checked for export status. We need to check the name of the type,
+    which is either of type T or type *T, and T might be unexported.
+    
+    Fixes #14356.
+    
+    Change-Id: I56f468e9b8ae67e9ed7509ed0b91d860507baed2
+    Reviewed-on: https://go-review.googlesource.com/19701
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/doc/doc_test.go     |  9 +++++++--
+ src/cmd/doc/pkg.go          | 20 +++++++++++++++++++-
+ src/cmd/doc/testdata/pkg.go |  8 ++++++--
+ 3 files changed, 32 insertions(+), 5 deletions(-)

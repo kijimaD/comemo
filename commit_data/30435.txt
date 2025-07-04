@@ -1,0 +1,14 @@
+commit 9bc67bb4f4caba59443c504e09758812ac63a046
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 28 11:34:56 2017 -0800
+
+    cmd/internal/obj: remove unused Getcallerpc function
+    
+    Change-Id: I0c7b677657326f318e906e109cbda0cfa78c4973
+    Reviewed-on: https://go-review.googlesource.com/37537
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/internal/obj/util.go | 4 ----
+ 1 file changed, 4 deletions(-)

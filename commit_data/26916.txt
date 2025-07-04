@@ -1,0 +1,15 @@
+commit ae9804595879eb07efd23b9c98eab46693573447
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 13 16:57:23 2016 -0700
+
+    cmd/compile: use correct export function (fix debugFormat)
+    
+    Tested with debugFormat enabled and running
+    (export GO_GCFLAGS=-newexport; sh all.bash).
+    
+    Change-Id: If7d43e1e594ea43c644232b89e670f7abb6b003e
+    Reviewed-on: https://go-review.googlesource.com/22033
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

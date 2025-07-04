@@ -1,0 +1,13 @@
+commit 34c1b13c2a0d8d66db353b7b62e9379c2a887a2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 00:02:59 2011 -0500
+
+    release.2011-01-20
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/3998045
+
+ .hgtags                |  1 -
+ doc/devel/release.html | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

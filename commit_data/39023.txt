@@ -1,0 +1,20 @@
+commit 9f513254ae92e2a62c3197cf16f7f22a8ca2879a
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu May 2 03:12:12 2019 -0400
+
+    net: skip DNS tests on self-hosted Android
+    
+    They were already skipped on tethered Android builders because
+    the tests are gated on GO_BUILDER_NAME being set and the Android
+    exec wrapper does not propagate GO_BUILDER_NAME.
+    
+    Updates #31722
+    
+    Change-Id: Ifd2c7daecc19a4e540d86d1f38083f43cc3e6b15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175177
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

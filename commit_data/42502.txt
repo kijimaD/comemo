@@ -1,0 +1,12 @@
+commit b9332ed31aa4c2b73134a1b968761fc4c259ccac
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 13:51:17 2020 -0400
+
+    doc: document encoding/xml change in CL 203417
+    
+    Change-Id: Ibc0228f166f449ec28d813f33bdb550fe7ba2b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236739
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

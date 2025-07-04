@@ -1,0 +1,13 @@
+commit cec67568e98d884b9cc2a9be88c8306fd2556800
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 22 17:59:06 2012 +1100
+
+    doc/articles/go_command.html: nits
+    Fix some English mistakes and minor inaccuracies.
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/5885046
+
+ doc/articles/go_command.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

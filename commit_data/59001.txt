@@ -1,0 +1,21 @@
+commit e5d3ece35d34a0d00ad8131d4dd7af7951aada68
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 16:06:55 2025 -0800
+
+    go/types, types2: remove need for coreString in signature.go
+    
+    Also, add additional test cases for NewSignatureType
+    to check expected panic behavior.
+    
+    Change-Id: If26cd81a2af384bf2084dd09119483c0584715c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 42 ++++++++++++++++++++------
+ src/cmd/compile/internal/types2/signature.go   | 32 ++++++++++++++++----
+ src/go/types/issues_test.go                    | 42 ++++++++++++++++++++------
+ src/go/types/signature.go                      | 32 ++++++++++++++++----
+ 4 files changed, 118 insertions(+), 30 deletions(-)

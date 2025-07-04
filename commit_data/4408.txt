@@ -1,0 +1,14 @@
+commit 6112e809d2bd92240637b86e9c12328358ce21ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 13 18:39:04 2009 -0800
+
+    A+C: two more names
+            Andy Davis (individual CLA)
+            Arvindh Rajesh Tamilmani (individual CLA)
+    
+    R=r
+    https://golang.org/cl/176067
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

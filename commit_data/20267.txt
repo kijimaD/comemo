@@ -1,0 +1,25 @@
+commit f44073785a99c2b6656156fe42055f81d29f5e1a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 3 08:49:43 2014 -0700
+
+    runtime: deferproc/deferreturn in Go
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/139900043
+
+ src/cmd/api/goapi.go           |   3 +-
+ src/pkg/runtime/asm_386.s      |   4 +
+ src/pkg/runtime/asm_amd64.s    |   4 +
+ src/pkg/runtime/asm_amd64p32.s |   4 +
+ src/pkg/runtime/asm_arm.s      |   3 +
+ src/pkg/runtime/extern.go      |   9 --
+ src/pkg/runtime/malloc.c       |   6 +-
+ src/pkg/runtime/malloc.h       |   1 +
+ src/pkg/runtime/panic.c        | 219 ++++-------------------------------------
+ src/pkg/runtime/panic.go       | 199 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stubs.go       |  18 +++-
+ src/pkg/runtime/traceback.go   |   4 +-
+ src/pkg/runtime/vlrt.go        |   2 -
+ 13 files changed, 259 insertions(+), 217 deletions(-)

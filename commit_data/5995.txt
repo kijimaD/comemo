@@ -1,0 +1,12 @@
+commit 753c9b57101a0ae8964ee0fcb539a910e40e11ea
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 11 10:10:17 2010 +1000
+
+    exp/draw: fix drawRGBA when x0 > x1 and we have to draw right-to-left.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1940042
+
+ src/pkg/exp/draw/draw.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

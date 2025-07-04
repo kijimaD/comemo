@@ -1,0 +1,14 @@
+commit 4eb33f6b8d6d1de70d7c08ab1258dd2852ecebe4
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 21 13:44:16 2016 -0500
+
+    runtime: eliminate a conditional branch from heapBits.bits
+    
+    Change-Id: I1fa5e629b2890a8509559ce4ea17b74f47d71925
+    Reviewed-on: https://go-review.googlesource.com/19637
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 5ab935f68a43a503b791e4513a6e76ee615929ff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 14:52:00 2012 +1100
+
+    godoc: list examples in index
+    
+    Fixes #2897.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5658047
+
+ doc/godocs.js          | 22 ++++++++++++++++++----
+ lib/godoc/example.html |  2 +-
+ lib/godoc/package.html |  9 +++++++++
+ src/cmd/godoc/godoc.go |  4 ++--
+ 4 files changed, 30 insertions(+), 7 deletions(-)

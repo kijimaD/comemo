@@ -1,0 +1,16 @@
+commit d853b594b431ad86cfea78e06847a8319280982b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 18 10:26:41 2010 -0800
+
+    6c: automatically #define _64BIT.
+    
+    This makes it much easier to use a tool like Swig which needs
+    to run either 8c or 6c on generated code which #include's
+    "runtime.h".
+    
+    R=ken2, rsc
+    CC=golang-dev
+    https://golang.org/cl/3205041
+
+ src/cmd/6c/txt.c | 1 +
+ 1 file changed, 1 insertion(+)

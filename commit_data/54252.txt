@@ -1,0 +1,19 @@
+commit 4e48e46791ba5d9699b0b07cf6c8ca6b05d59e76
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Aug 28 18:13:29 2023 -0700
+
+    image: add a security considerations section to package doc
+    
+    Internally the security model for the image package has always been,
+    if you don't call DecodeConfig before Decode, you cannot complain if
+    Decode attempts to create an arbitrarily large image (with the
+    assumption that DecodeConfig would've told you this information). This
+    should be explicitly documented.
+    
+    Change-Id: I5c37b91131d6352637e725fe415f37a28f12f66d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523578
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/image/image.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

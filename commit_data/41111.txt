@@ -1,0 +1,14 @@
+commit 9ead772a921f0792db5630a3485a95c5a10c85df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 13 13:01:28 2020 -0800
+
+    spec: uniformly format empty interfaces as "interface{}"
+    
+    Fixes #36526.
+    
+    Change-Id: Ic51a287579f139422cc1a7b2fb82d6732114b031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,32 @@
+commit 2ff75551030c7e54bd1cec3e88805d4ea3232276
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Thu Sep 21 01:53:13 2017 -0400
+
+    net/http: set Content-Type header for HEAD as well
+    
+    In CL 50510, the Content-Type header started to be set in Redirect when
+    request method is GET. (Prior to that, it wasn't set at all, which is
+    what said CL was fixing.) However, according to HTTP specification,
+    the expected response for a HEAD request is identical to that of a
+    GET request, but without the response body.
+    
+    This CL updates the behavior to set the Content-Type header for HEAD
+    method in addition to GET.
+    
+    This actually allows a simpler implementation than before. This change
+    largely reverts CL 50510, and applies the simpler implementation.
+    
+    Add a test for Content-Type header and body for GET, HEAD requests.
+    
+    Updates CL 50510.
+    
+    Change-Id: If33ea3f4bbc5246bb5dc751458004828cfe681b9
+    Reviewed-on: https://go-review.googlesource.com/65190
+    Run-TryBot: Dmitri Shuralyov <shurcool@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 13 ++++++-------
+ 2 files changed, 37 insertions(+), 7 deletions(-)

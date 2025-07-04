@@ -1,0 +1,18 @@
+commit 3f2bf706f7f6c260cb83410131d3c2d508e05a94
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:12:25 2023 -0500
+
+    runtime/metrics: document runtime-internal locks in /sync/mutex/wait/total:seconds
+    
+    For #57071.
+    
+    Change-Id: I7ce6c35bed95a6ea3cdc17007f861c5dd82404d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547056
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/metrics/description.go |  2 +-
+ src/runtime/metrics/doc.go         | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

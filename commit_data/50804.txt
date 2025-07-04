@@ -1,0 +1,20 @@
+commit 3a37b112816d0002ed29804401560e0419b11a92
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Tue Oct 4 10:30:55 2022 +0800
+
+    cmd/go: add @latest suffix for go install
+    
+    Fixes #56014.
+    
+    Change-Id: I75a3960e092459531de43868750f1684ed2ccb70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437998
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go          | 2 +-
+ src/cmd/go/internal/vet/vet.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

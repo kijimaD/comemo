@@ -1,0 +1,13 @@
+commit ea8197cb4594ce5abd0b2bdb711d38b525b9edc5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 10 17:04:59 2009 -0700
+
+    new timing data after compiler updates (fp regs, integer div and mod)
+    
+    R=rsc
+    DELTA=90  (90 added, 0 deleted, 0 changed)
+    OCL=32993
+    CL=33001
+
+ test/bench/timing.log | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

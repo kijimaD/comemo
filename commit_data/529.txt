@@ -1,0 +1,13 @@
+commit 9b1e6fddba4c57065aa66aa6fefe328498a4c6e2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 13:21:49 2008 -0700
+
+    fix one syntax error in declaration.
+    reformat the bullet list about strings
+    
+    R=gri
+    OCL=14128
+    CL=14128
+
+ doc/go_lang.txt | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

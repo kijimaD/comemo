@@ -1,0 +1,16 @@
+commit c3458e35f4166473053dadeb645130b118c43ce7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 17 10:39:00 2023 -0400
+
+    doc/go1.21: use consistent capitalization for amd64
+    
+    Fixes #61388
+    
+    Change-Id: I173498b57081aacf772f0d3a9ce0a76ed7b19385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510295
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

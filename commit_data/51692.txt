@@ -1,0 +1,35 @@
+commit 12befc3ce3f44d500174d2b4a0aa524feb74e16b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 17 15:32:45 2020 -0800
+
+    cmd/compile: improve scheduling pass
+    
+    Convert the scheduling pass from scheduling backwards to scheduling forwards.
+    
+    Forward scheduling makes it easier to prioritize scheduling values as
+    soon as they are ready, which is important for things like nil checks,
+    select ops, etc.
+    
+    Forward scheduling is also quite a bit clearer. It was originally
+    backwards because computing uses is tricky, but I found a way to do it
+    simply and with n lg n complexity. The new scheme also makes it easy
+    to add new scheduling edges if needed.
+    
+    Fixes #42673
+    Update #56568
+    
+    Change-Id: Ibbb38c52d191f50ce7a94f8c1cbd3cd9b614ea8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270940
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go  |   2 +-
+ src/cmd/compile/internal/ssa/_gen/S390XOps.go    |   4 +-
+ src/cmd/compile/internal/ssa/debug_lines_test.go |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go            |   6 +-
+ src/cmd/compile/internal/ssa/schedule.go         | 381 ++++++++---------------
+ src/cmd/compile/internal/ssagen/ssa.go           |   3 +-
+ test/nilptr3.go                                  |   7 +
+ 7 files changed, 143 insertions(+), 262 deletions(-)

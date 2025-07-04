@@ -1,0 +1,26 @@
+commit 45205bc47b88f49020edabed18f99153cadf718e
+Author: Alwin Doss <alwindoss84@gmail.com>
+Date:   Sun Nov 1 04:43:20 2020 +0000
+
+    os: export ErrProcessDone variable in windows and plan9
+    
+    Exposes ErrProcessDone variable in windows and plan9
+    also returns this error code instead of
+    errors.New("os: process already finished")
+    
+    Fixes #42311
+    
+    Change-Id: Ie807b6526e7b6c27636e6bffe5ff0c904b319be4
+    GitHub-Last-Rev: 2153e0d7020d8ee9e94087d02977ea049b7fd6a0
+    GitHub-Pull-Request: golang/go#42313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266997
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/os/exec.go         | 4 ++++
+ src/os/exec_plan9.go   | 3 +--
+ src/os/exec_unix.go    | 3 ---
+ src/os/exec_windows.go | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

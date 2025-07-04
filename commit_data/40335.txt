@@ -1,0 +1,19 @@
+commit b282efa0221f6298f1e407ba947c5a7bc8f58871
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 21 12:44:42 2019 -0700
+
+    cmd/compile: recognize reflect.{Slice,String}Header for -d=checkptr
+    
+    Avoids false positive pointer arithmetic panic.
+    
+    Fixes #35027.
+    
+    Change-Id: Idd008caaab25fcf739327ac50a021b835ef13def
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202560
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  4 ++++
+ test/fixedbugs/issue35027.go        | 23 +++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

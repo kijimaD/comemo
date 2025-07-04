@@ -1,0 +1,19 @@
+commit f379ea0b07a28aad1f95abcc5ec26254978c0745
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 10:54:02 2008 -0800
+
+    more accurate Log, Exp, Pow.
+    move test.go to alll_test.go.
+    
+    R=r
+    DELTA=1024  (521 added, 425 deleted, 78 changed)
+    OCL=19687
+    CL=19695
+
+ src/lib/math/Makefile                 |  19 ++---
+ src/lib/math/{test.go => all_test.go} |  36 ++++----
+ src/lib/math/exp.go                   | 154 +++++++++++++++++++++++++++-------
+ src/lib/math/log.go                   | 146 ++++++++++++++++++++++++--------
+ src/lib/math/pow.go                   | 106 ++++++++++++++---------
+ src/lib/math/sin.go                   |   4 +
+ 6 files changed, 329 insertions(+), 136 deletions(-)

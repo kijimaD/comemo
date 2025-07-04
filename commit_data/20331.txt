@@ -1,0 +1,15 @@
+commit 2034dae94fe8d627c3f746b8a14b4b4c83aecaee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 07:31:53 2014 -0400
+
+    build: fix windows make.bat
+    
+    The Unix make.bash builds cmd/dist from *.c.
+    make.bat apparently does not.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/137280043
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

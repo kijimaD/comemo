@@ -1,0 +1,22 @@
+commit 6dbaa206fbe7345fac181ec3d91a4157d5532fbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 29 14:02:29 2012 -0400
+
+    runtime: replace runtime·rnd function with ROUND macro
+    
+    It's sad to introduce a new macro, but rnd shows up consistently
+    in profiles, and the function call overwhelms the two arithmetic
+    instructions it performs.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6260051
+
+ src/cmd/gc/reflect.c      | 32 ++++++++++++++++++++------------
+ src/pkg/runtime/chan.c    | 20 ++++++++++----------
+ src/pkg/runtime/hashmap.c | 22 +++++++++++-----------
+ src/pkg/runtime/iface.c   |  8 ++++----
+ src/pkg/runtime/print.c   | 18 +++++++++---------
+ src/pkg/runtime/runtime.c | 13 -------------
+ src/pkg/runtime/runtime.h |  2 +-
+ 7 files changed, 55 insertions(+), 60 deletions(-)

@@ -1,0 +1,24 @@
+commit af12feb8d514b5970c984be61b07c56e0e72b2ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 22:10:34 2010 -0400
+
+    6l, 8l: clean up ELF code, fix NaCl
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2221042
+
+ src/cmd/6l/asm.c                   | 102 ++++++++-------------------
+ src/cmd/6l/pass.c                  |  17 +++++
+ src/cmd/6l/span.c                  |  37 +++++++---
+ src/cmd/8l/asm.c                   | 141 ++++++++++++-------------------------
+ src/cmd/8l/pass.c                  |  15 ++++
+ src/cmd/8l/span.c                  |  59 +++++++++++++---
+ src/cmd/ld/dwarf.c                 |   2 +-
+ src/cmd/ld/elf.c                   |  80 +++++++++++++++++++++
+ src/cmd/ld/elf.h                   |   3 +
+ src/cmd/ld/lib.c                   |  16 +++++
+ src/cmd/ld/lib.h                   |  34 +++++++++
+ src/pkg/runtime/nacl/386/closure.c |   6 +-
+ src/pkg/runtime/nacl/mem.c         |   6 ++
+ 13 files changed, 324 insertions(+), 194 deletions(-)

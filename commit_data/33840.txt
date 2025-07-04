@@ -1,0 +1,14 @@
+commit b9ba337aae3fd62f89a23c2098dec6dfe0d1f9f1
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Dec 8 02:11:05 2017 -0800
+
+    strings: delete unused constant
+    
+    Change-Id: I235c5bc7ce598047eccc1518984dd27f568046a2
+    Reviewed-on: https://go-review.googlesource.com/82776
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/builder.go | 2 --
+ 1 file changed, 2 deletions(-)

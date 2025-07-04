@@ -1,0 +1,12 @@
+commit a8abb64a7165a2d673449306adf0aa68686d9091
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 26 20:30:35 2010 -0700
+
+    go spec: note re: append() not being implemented yet
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2761041
+
+ doc/go_spec.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit e2cdec77c6aed0838631289bce5c17bbfe7c4dfc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 18 16:34:44 2017 +1000
+
+    misc/cgo/testcshared: cd into work directory before running android command
+    
+    Hopefully this will fix android build.
+    
+    Maybe fixes #21513
+    
+    Change-Id: I98f760562646f06b56e385c36927e79458465b92
+    Reviewed-on: https://go-review.googlesource.com/56790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit faff49aae6e90f7c6a8333f7974a6ca368c01228
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 28 23:43:33 2021 +1100
+
+    runtime: switch runtime to libc for openbsd/386
+    
+    Use libc rather than performing direct system calls for the runtime on
+    openbsd/386.
+    
+    Updates #36435
+    
+    Change-Id: I0cd65368bc824c81f5f98ea24e4f82db5468b170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287653
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/defs_openbsd_386.go    |   5 +
+ src/runtime/os_openbsd_syscall2.go |   4 +-
+ src/runtime/proc.go                |   2 +-
+ src/runtime/sys_openbsd2.go        |   4 +-
+ src/runtime/sys_openbsd_386.s      | 649 +++++++++++++++++++++----------------
+ 5 files changed, 375 insertions(+), 289 deletions(-)

@@ -1,0 +1,20 @@
+commit a5ab4a9471d6745b604a0dc480524229106b0728
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 23 15:57:48 2023 -0700
+
+    net/http: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: I9e4044d9c2694fe86aab1f5220622c8d952b1a90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522338
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/transfer_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit edcc062bdc35a7dd6ac5d33aa85a135b020b72a8
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 16:27:32 2015 +0300
+
+    test: add tests for escape analysis of interface conversions
+    
+    The false positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: If64fabb6ea96de44a1177d9ab12e2ccc579fe0c4
+    Reviewed-on: https://go-review.googlesource.com/5294
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/gc/esc.go |  19 ++--
+ test/escape2.go            |  73 +++++++++-------
+ test/escape2n.go           |  73 +++++++++-------
+ test/escape5.go            |   3 +-
+ test/escape_closure.go     |   8 +-
+ test/escape_field.go       |  40 ++++-----
+ test/escape_iface.go       | 211 +++++++++++++++++++++++++++++++++++++++++++++
+ test/escape_indir.go       |   4 +-
+ test/escape_level.go       |  16 ++--
+ test/escape_map.go         |   2 +-
+ 10 files changed, 343 insertions(+), 106 deletions(-)

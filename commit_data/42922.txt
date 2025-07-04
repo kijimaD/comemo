@@ -1,0 +1,14 @@
+commit a52a5d8a43ac23c34231e92da3aba61cd8cf7d97
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 3 17:51:01 2020 -0400
+
+    cmd/link: mark ELF PLT sections executable
+    
+    Change-Id: Ie0316a06c30485f783c2175590d7e9fc4fa3e0cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253021
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

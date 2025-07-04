@@ -1,0 +1,20 @@
+commit 4720f49e189fcfd52d8bc61cbf0fc913f3336542
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 14:31:22 2016 -0800
+
+    cmd/compile: relocate a bunch of Type-related code
+    
+    Some cleaned up documentation, but no code changes.
+    
+    Change-Id: I145398bb6d118c626ab3873ef75dbb64ebc286e9
+    Reviewed-on: https://go-review.googlesource.com/20404
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |   7 -
+ src/cmd/compile/internal/gc/go.go      | 135 ----------------
+ src/cmd/compile/internal/gc/lex.go     |   6 -
+ src/cmd/compile/internal/gc/subr.go    | 122 --------------
+ src/cmd/compile/internal/gc/type.go    | 280 +++++++++++++++++++++++++++++++++
+ 5 files changed, 280 insertions(+), 270 deletions(-)

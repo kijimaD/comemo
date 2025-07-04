@@ -1,0 +1,24 @@
+commit ab9e8d068aafce0df7edca629af0549b5f54d3c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 23:56:53 2014 -0500
+
+    cmd/gc: correct liveness for func ending in panic
+    
+    The registerization code needs the function to end in a RET,
+    even if that RET is actually unreachable.
+    
+    The liveness code needs to avoid such unreachable RETs.
+    It had a special case for final RET after JMP, but no case
+    for final RET after UNDEF. Instead of expanding the special
+    cases, let fixjmp - which already knows what is and is not
+    reachable definitively - mark the unreachable RET so that
+    the liveness code can identify it.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63680043
+
+ src/cmd/gc/plive.c | 8 +++-----
+ src/cmd/gc/popt.c  | 8 +++++++-
+ test/live.go       | 8 ++++++++
+ 3 files changed, 18 insertions(+), 6 deletions(-)

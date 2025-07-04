@@ -1,0 +1,37 @@
+commit fa9efd9171eac65321b02724d72a46cfb395ed52
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 14 15:13:50 2023 -0800
+
+    cmd/compile/internal/noder: correct positions for synthetic closures
+    
+    When inlining functions that contain function literals, we need to be
+    careful about position information. The OCLOSURE node should use the
+    inline-adjusted position, but the ODCLFUNC and its body should use the
+    original positions.
+    
+    However, the same problem can arise with certain generic constructs,
+    which require the compiler to synthesize function literals to insert
+    dictionary arguments.
+    
+    go.dev/cl/425395 fixed the issue with user-written function literals
+    in a somewhat kludgy way; this CL extends the same solution to
+    synthetic function literals.
+    
+    This is all quite subtle and the solutions aren't terribly robust, so
+    longer term it's probably desirable to revisit how we track inlining
+    context for positions. But for now, this seems to be the least bad
+    solution, esp. for backporting to 1.20.
+    
+    Updates #54625.
+    Fixes #58513.
+    
+    Change-Id: Icc43a70dbb11a0e665cbc9e6a64ef274ad8253d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/reader.go | 53 ++++++++++++++++++----------
+ test/typeparam/issue58513.go             | 60 ++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 18 deletions(-)

@@ -1,0 +1,24 @@
+commit f74e21c150cfbcb193742844bd9651f2e4a58d60
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 13:30:37 2020 -0500
+
+    cmd/go: convert some generate tests to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I7110e460e18542aff90a7ae078b996ec45816d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213424
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                       | 76 ------------------------
+ src/cmd/go/testdata/generate/test1.go       | 13 -----
+ src/cmd/go/testdata/generate/test2.go       | 10 ----
+ src/cmd/go/testdata/generate/test3.go       |  9 ---
+ src/cmd/go/testdata/generate/test4.go       | 10 ----
+ src/cmd/go/testdata/script/generate.txt     | 91 +++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/generate_env.txt | 31 ++++++++++
+ 7 files changed, 122 insertions(+), 118 deletions(-)

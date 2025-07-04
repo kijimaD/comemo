@@ -1,0 +1,33 @@
+commit 872db7998937b310635a99055e066904425559bb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 18 10:16:03 2017 -0700
+
+    cmd/compile: add more types to ssa.Types
+    
+    This reduces the number of calls back into the
+    gc Type routines, which will help performance
+    in a concurrent backend.
+    It also reduces the number of callsites
+    that must be considered in making the transition.
+    
+    Passes toolstash-check -all. No compiler performance changes.
+    
+    Updates #15756
+    
+    Change-Id: Ic7a8f1daac7e01a21658ae61ac118b2a70804117
+    Reviewed-on: https://go-review.googlesource.com/38340
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           | 89 +++++++++++++++-------------
+ src/cmd/compile/internal/ssa/config.go       | 37 +++++++-----
+ src/cmd/compile/internal/ssa/export_test.go  | 37 +++++++-----
+ src/cmd/compile/internal/ssa/gen/MIPS.rules  |  8 +--
+ src/cmd/compile/internal/ssa/gen/dec.rules   | 24 ++++----
+ src/cmd/compile/internal/ssa/gen/dec64.rules |  8 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  | 16 ++---
+ src/cmd/compile/internal/ssa/rewritedec.go   | 44 +++++++-------
+ src/cmd/compile/internal/ssa/rewritedec64.go | 16 ++---
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ 10 files changed, 151 insertions(+), 130 deletions(-)

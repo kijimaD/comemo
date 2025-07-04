@@ -1,0 +1,12 @@
+commit 2e632088ce006505d924cfc40950fb4eb616d490
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 3 00:56:53 2010 -0700
+
+    Fix typo in xml comments.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1503041
+
+ src/pkg/xml/xml.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,30 @@
+commit a1674f3ee30bf46d22fcac115529ce830f8c9ac9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 16 16:03:38 2023 -0700
+
+    runtime: publish netpoll info after incrementing fdseq
+    
+    I think there is a theoretical possibility of a mistake before this CL.
+    pollCache.free would increment fdseq, but would not update atomicInfo.
+    The epoll code could compare to fdseq before the increment, but suspend
+    before calling setEventErr. The pollCache could get reallocated,
+    and pollOpen could clear eventErr. Then the setEventErr could continue
+    and set it again. Then pollOpen could call publishInfo.
+    
+    Avoid this rather remote possibility by calling publishInfo after
+    incrementing fdseq. That ensures that delayed setEventErr will not
+    modify the eventErr flag.
+    
+    Fixes #60133
+    
+    Change-Id: I69e336535312544690821c9fd53f3023ff15b80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/netpoll.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

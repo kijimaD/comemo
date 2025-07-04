@@ -1,0 +1,20 @@
+commit 9848e93cb76f068b97e8ea342c33cc09b553790f
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Oct 11 13:33:53 2020 +0200
+
+    misc/wasm: make sure sp is unsigned
+    
+    An i32 passed from WebAssembly to JavaScript is always read as a signed
+    integer. Use the bitshift operator to turn it into an unsigned integer.
+    
+    Fixes #40923
+    
+    Change-Id: Ia91ed2145dd2fc3071e2fc22b86ebfcb3c1e9f4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261358
+    Trust: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js | 32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)

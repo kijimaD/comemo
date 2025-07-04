@@ -1,0 +1,14 @@
+commit 3f98b6a573a98470ce02344c5b91bf4d3cd38e14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 10:34:11 2015 -0700
+
+    go/internal/gcimporter: only run compile test if go tool is available
+    
+    Fixes build dashboard failures for android and nacl.
+    
+    Change-Id: Id13896570061d3d8186f7b666ca1c37bcc789b0f
+    Reviewed-on: https://go-review.googlesource.com/12703
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

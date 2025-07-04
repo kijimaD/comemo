@@ -1,0 +1,17 @@
+commit cb2353deb74ecc1ca2105be44881c5d563a00fb8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 5 11:36:39 2019 -0800
+
+    doc/go1.14: preannounce dropping macOS 10.11 support
+    
+    Go 1.14 will be the last to support macOS 10.11.
+    Go 1.15 will require macOS 10.12 (Sierra).
+    
+    Updates #23011
+    
+    Change-Id: I8fff555e5b8fffe088e7e960e77fac9558cb74e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210137
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

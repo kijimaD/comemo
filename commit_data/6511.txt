@@ -1,0 +1,12 @@
+commit dd8afb800b64aeab5054706cf081fe506609138a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 13 11:05:45 2010 -0700
+
+    log: fix out-of-date package comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2485041
+
+ src/pkg/log/log.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

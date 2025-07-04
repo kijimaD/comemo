@@ -1,0 +1,20 @@
+commit 3ca52f4c319e56986586e3d519924876320b29fb
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 16 11:02:12 2023 -0500
+
+    slices: add in-place Reverse function
+    
+    Fixes #58565
+    
+    Change-Id: I583f8380c12386178fb18e553322bbb019d9fae0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468855
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Shay Nehmad <dude500@gmail.com>
+
+ api/next/58565.txt        |  1 +
+ doc/go1.21.html           | 10 ++++++++++
+ src/slices/slices.go      |  7 +++++++
+ src/slices/slices_test.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 46 insertions(+)

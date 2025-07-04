@@ -1,0 +1,24 @@
+commit 4b09c8ad6fb9d30b9c3417b5364809ff0006749d
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jul 8 09:40:33 2020 -0400
+
+    crypto: fix PKCS space in docs
+    
+    Change-Id: Iee53acb963a889410f8c6daaa9a7841f1b12c6fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241497
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/crypto.go            |  2 +-
+ src/crypto/rsa/example_test.go  |  2 +-
+ src/crypto/rsa/pkcs1v15.go      | 14 +++++++-------
+ src/crypto/rsa/rsa.go           | 14 +++++++-------
+ src/crypto/tls/auth.go          |  4 ++--
+ src/crypto/tls/key_agreement.go |  2 +-
+ src/crypto/tls/tls.go           |  2 +-
+ src/crypto/tls/tls_test.go      |  4 ++--
+ src/crypto/x509/pkcs1.go        | 12 ++++++------
+ src/crypto/x509/pkcs8.go        |  6 +++---
+ src/crypto/x509/x509.go         |  2 +-
+ 11 files changed, 32 insertions(+), 32 deletions(-)

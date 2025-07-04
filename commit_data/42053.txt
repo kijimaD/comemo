@@ -1,0 +1,26 @@
+commit e5bd6e1c7944713c816cf94ae412a700c271cfca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 18 20:11:46 2020 -0700
+
+    runtime: crash on SI_USER SigPanic signal
+    
+    Clean up the code a little bit to make it clearer:
+    
+    Don't check throwsplit for a SI_USER signal.
+    
+    If throwsplit is set for a SigPanic signal, always throw;
+    discard any other flags.
+    
+    Fixes #36420
+    
+    Change-Id: Ic9dcd1108603d241f71c040504dfdc6e528f9767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228900
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.15.html                          | 11 ++++++
+ src/runtime/crash_cgo_test.go            | 18 ++++++++++
+ src/runtime/signal_unix.go               | 10 ++++--
+ src/runtime/testdata/testprogcgo/segv.go | 60 ++++++++++++++++++++++++++++++++
+ 4 files changed, 96 insertions(+), 3 deletions(-)

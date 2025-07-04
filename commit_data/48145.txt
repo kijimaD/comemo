@@ -1,0 +1,22 @@
+commit 18e1a5a0859a268af83d3bbe855b8bf3b2d25298
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 21:51:04 2022 -0800
+
+    spec: combine section on type parameters and type parameter lists
+    
+    This change moves the relevant prose of the section on type parameters
+    into the section on type parameter lists and eliminates the former.
+    
+    With this change, the section on types now exclusively describes all
+    Go composite types.
+    
+    User-defined named types (defined types and type parameters) are
+    described with their declarations.
+    
+    Change-Id: I3e421cd236e8801d31a4a81ff1e5ec9933e3ed20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385037
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 58 ++++++++++++++++++++++----------------------------------
+ 1 file changed, 23 insertions(+), 35 deletions(-)

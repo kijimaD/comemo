@@ -1,0 +1,19 @@
+commit 12a405b96aadc0174d3b63e61f593bcc28465af0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 19 13:54:28 2021 +0700
+
+    cmd/compile: do not set type for OPACK
+    
+    That's an invalid operation and depend on gc.hidePanic to report error.
+    
+    Updates #43311
+    
+    Change-Id: I78d615c40ab1e7887f612491e215c1c2bb758ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294031
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

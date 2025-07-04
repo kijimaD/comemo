@@ -1,0 +1,23 @@
+commit 60f271358f07647be0de9ee8225b50a391ea5def
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Sep 28 23:47:37 2019 +0200
+
+    syscall/js: add Value.Delete for deleting JavaScript properties
+    
+    This change adds the method Value.Delete, which implements
+    JavaScript's "delete" operator for deleting properties.
+    
+    Fixes #33079.
+    
+    Change-Id: Ia5b190240bd59daca48094fcbc32f8d0a06f19d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197840
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js    |  5 +++++
+ src/syscall/js/js.go      | 11 +++++++++++
+ src/syscall/js/js_js.s    |  4 ++++
+ src/syscall/js/js_test.go | 12 ++++++++++++
+ 4 files changed, 32 insertions(+)

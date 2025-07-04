@@ -1,0 +1,21 @@
+commit c83b5fefabe514ce5315135621b962f120277d23
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 16 09:05:30 2023 +0800
+
+    runtime: add regABI support in memclr and memmove functions on loong64
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I55c78bab5c697ea6c30f9d81f5f8fb75abb3987c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521786
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/memclr_loong64.s  | 32 +++++++++++++++++---------------
+ src/runtime/memmove_loong64.s |  4 +++-
+ 2 files changed, 20 insertions(+), 16 deletions(-)

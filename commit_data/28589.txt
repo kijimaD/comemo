@@ -1,0 +1,16 @@
+commit 6dc356a76a405ff12c884ab0a4acb2296d1618b7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 15:08:37 2016 -0700
+
+    cmd/compile/internal/ssa: erase register copies deterministically
+    
+    Fixes #17288.
+    
+    Change-Id: I2ddd01d14667d5c6a2e19bd70489da8d9869d308
+    Reviewed-on: https://go-review.googlesource.com/30072
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

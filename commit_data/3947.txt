@@ -1,0 +1,15 @@
+commit cc6720aab7555190d0e19a04fd7b8e69caa17923
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 10 00:09:53 2009 -0800
+
+    Minor tweaks.
+    
+    The text changes are trivial and may be ignored, but there are
+    two code corrections.
+    
+    R=r, rsc
+    CC=go-dev
+    http://go/go-review/1024045
+
+ doc/effective_go.html | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

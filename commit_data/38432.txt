@@ -1,0 +1,19 @@
+commit 653579138555ff2728ba16f841b640e06deab8df
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 13 16:46:10 2019 -0400
+
+    math: fix math.Remainder(-x,x) (for Inf > x > 0)
+    
+    Modify the |x| == |y| case to return -0 when x < 0.
+    
+    Fixes #30814.
+    
+    Change-Id: Ic4cd48001e0e894a12b5b813c6a1ddc3a055610b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167479
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go  | 14 ++++++++++++++
+ src/math/remainder.go |  4 ++++
+ 2 files changed, 18 insertions(+)

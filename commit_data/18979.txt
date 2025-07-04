@@ -1,0 +1,13 @@
+commit 753bdc0f47a4224387a31b92403ab543e9fbebfe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 28 13:27:14 2014 +0900
+
+    syscall: don't generate RTF_BITS constant on OS X Mavericks and beyond
+    
+    LGTM=iant
+    R=iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/80700044
+
+ src/pkg/syscall/mkerrors.sh | 1 +
+ 1 file changed, 1 insertion(+)

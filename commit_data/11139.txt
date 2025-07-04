@@ -1,0 +1,13 @@
+commit ba0e02b207930f3c4cda364d823820a40bb99f8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 15:04:31 2012 -0800
+
+    cgo: write _cgo_export.h to object directory, not source dir
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5540048
+
+ src/cmd/cgo/out.go        | 2 +-
+ src/pkg/go/build/build.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

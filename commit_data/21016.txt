@@ -1,0 +1,14 @@
+commit 340ef004d63bd02740b31c5abb2f1105533a87b1
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 17 23:52:39 2014 -0500
+
+    runtime/cgo: guard against redefinition of PTHREAD_KEYS_MAX
+    
+    Fixes #9374.
+    
+    Change-Id: Ic53757eba98fc43bcd24e25e03876fef917b4da1
+    Reviewed-on: https://go-review.googlesource.com/1751
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/gcc_android_arm.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

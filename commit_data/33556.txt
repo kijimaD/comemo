@@ -1,0 +1,13 @@
+commit 894743b56e83b2d125b18193208323c80b129938
+Author: Marko Mudrinic <mudrinic.mare@gmail.com>
+Date:   Wed Nov 15 12:56:01 2017 +0000
+
+    crypto/sha1, crypto/sha256: fix typo fisrt -> first
+    
+    Change-Id: I9bb7568ca16b420254796eb38dfb86c5ca3399d7
+    Reviewed-on: https://go-review.googlesource.com/77890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/sha1/sha1block_arm64.s     | 2 +-
+ src/crypto/sha256/sha256block_arm64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit b32f22b3f8c6a3c1a791bbdff13fdbf1e7456ec9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 15 15:42:09 2010 -0700
+
+    gofmt: fix for gofmt rewrite feature
+    
+    Fixes #643.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/576041
+
+ src/cmd/gofmt/doc.go     |  4 ++--
+ src/cmd/gofmt/rewrite.go | 16 +++++++++++++---
+ 2 files changed, 15 insertions(+), 5 deletions(-)

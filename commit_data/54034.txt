@@ -1,0 +1,24 @@
+commit 5a3048bf0eefd2f99382a980f975d6a1fb6b921a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 16 11:18:02 2023 -0400
+
+    cmd/api: rename api.go to main_test.go
+    
+    This makes cmd/api no longer an importable package.
+    In CL 453258 I forgot that there was no direct prohibition
+    on importing packages from cmd - we just rely on the
+    fact that cmd/* is all package main and everything else
+    is cmd/internal.
+    
+    Fixes #62069.
+    
+    Change-Id: Ifed738d333b40663f85eca8f83025fcea5df89a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520038
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/api/api_test.go              | 2 +-
+ src/cmd/api/boring_test.go           | 2 +-
+ src/cmd/api/{api.go => main_test.go} | 5 +++--
+ 3 files changed, 5 insertions(+), 4 deletions(-)

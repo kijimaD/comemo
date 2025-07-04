@@ -1,0 +1,18 @@
+commit b59467e0365776761c3787a4d541b5e74fe24b24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 14 08:45:16 2021 -0700
+
+    net/http: also use Server.ReadHeaderTimeout for TLS handshake deadline
+    
+    Fixes #48120
+    
+    Change-Id: I72e89af8aaf3310e348d8ab639925ce0bf84204d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355870
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/server.go      | 37 ++++++++++++++++++++++++++-----
+ src/net/http/server_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 5 deletions(-)

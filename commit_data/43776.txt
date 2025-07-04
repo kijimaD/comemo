@@ -1,0 +1,36 @@
+commit b2ef159db237ba09278704ec2970f6ae41f130b1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 27 18:12:03 2020 +0000
+
+    cmd/go: introduce the GOVERSION env variable
+    
+    This is an extra variable available via 'go env', but not read from the
+    user's environment. It corresponds to the same string that
+    runtime.Version returns, assuming a program is built by the same version
+    of Go.
+    
+    It's similar to the output of 'go version', but without the "go version"
+    prefix nor the "$GOOS/$GOARCH" suffix.
+    
+    The main use case here is tools, which often use 'go env' to query basic
+    information about the installed Go tree. Its version was one missing
+    piece of information, which required an extra call to 'go version'
+    before this change.
+    
+    Fixes #41116.
+    
+    Change-Id: I5c9d8c2ba856c816c9f4c462ba73c907b3441445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265637
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/alldocs.go                    |  2 ++
+ src/cmd/go/go_test.go                    | 12 ++++++++++++
+ src/cmd/go/internal/envcmd/env.go        |  3 ++-
+ src/cmd/go/internal/help/helpdoc.go      |  2 ++
+ src/cmd/go/testdata/script/env_write.txt |  2 ++
+ 5 files changed, 20 insertions(+), 1 deletion(-)

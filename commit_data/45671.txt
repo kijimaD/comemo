@@ -1,0 +1,18 @@
+commit 8876b9bd6a8a0c206c0a5d59302ce5167f26e9f3
+Author: Adam Mitha <adam.mitha@gmail.com>
+Date:   Fri May 14 10:58:01 2021 -0700
+
+    doc/go1.17: document io/fs changes for Go 1.17
+    
+    For #44513
+    Fixes #46011
+    
+    Change-Id: I862ef9a4314cd34fb8c828a8cd7d0a7b36c6f683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320151
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

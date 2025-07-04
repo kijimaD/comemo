@@ -1,0 +1,28 @@
+commit 4a13f6f42ded127dc0d097f7d1f89916cbd9e729
+Author: Phil Bracikowski <pbracikowski@influxdata.com>
+Date:   Wed Mar 2 01:51:28 2022 +0000
+
+    compress/gzip: return unexpected EOF for certain truncated streams
+    
+    For cases where RFC 1952 requires a field, the code returns the error
+    io.ErrUnexpectedEOF except in two places: for the FNAME flag or the
+    FCOMMENT flag. These flags expect a null-terminated string and
+    readString may return an EOF if the Reader is truncated before a
+    null byte is found. For consistency with parsing other parts of the
+    header, this is converted to an unexpected EOF herein.
+    
+    Follow-up to CL 14832.
+    
+    Fixes #51417
+    
+    Change-Id: I173283a6ae309e4a8e52fc15df404ce5db06eff1
+    GitHub-Last-Rev: 2e573cd961c0b1e4296fbde53097cf5723a2ca29
+    GitHub-Pull-Request: golang/go#51418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389034
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/compress/gzip/gunzip.go      |  4 +-
+ src/compress/gzip/gunzip_test.go | 80 +++++++++++++++++++++++++++++++++-------
+ 2 files changed, 69 insertions(+), 15 deletions(-)

@@ -1,0 +1,19 @@
+commit fc1e5a8acdfba04482bb17b4ad5bbd3778c50fb3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 23:38:26 2014 -0400
+
+    encoding/json: document what unmarshal of `null` into non-reference type does
+    
+    Originally it was an error, which made perfect sense, but in issue 2540
+    I got talked out of this sensible behavior. I'm not thrilled with the "new"
+    behavior but it's been there since Go 1.1 so we're stuck with it now.
+    
+    Fixes #6724.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/100430043
+
+ src/pkg/encoding/json/decode.go | 5 +++++
+ 1 file changed, 5 insertions(+)

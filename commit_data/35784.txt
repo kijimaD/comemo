@@ -1,0 +1,17 @@
+commit 82d1c2a8aafe68daf2ed66df7422cf173d68e014
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Wed Jun 20 13:15:44 2018 -0400
+
+    doc/go1.11: clarify GOOS/GOARCH pair of WebAssembly port
+    
+    It's more common to specify GOOS/GOARCH values in that order,
+    rather than the inverse. Fix the order.
+    
+    Updates #18892.
+    
+    Change-Id: I8551508599e019f6617dc007397b562c9926418d
+    Reviewed-on: https://go-review.googlesource.com/120057
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

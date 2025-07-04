@@ -1,0 +1,30 @@
+commit d17d41e58d2f69d284398f1d86d93c0f31648b16
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed May 16 06:25:07 2018 +0000
+
+    math/big: optimize mulAddVWW on arm64 for better performance
+    
+    Unroll the cycle 4 times to reduce load overhead.
+    
+    Benchmarks:
+    name                old time/op    new time/op    delta
+    MulAddVWW/1-8         15.9ns ± 0%    11.9ns ± 0%  -24.92%  (p=0.000 n=8+8)
+    MulAddVWW/2-8         16.1ns ± 0%    13.9ns ± 1%  -13.82%  (p=0.000 n=8+8)
+    MulAddVWW/3-8         18.9ns ± 0%    17.3ns ± 0%   -8.47%  (p=0.000 n=8+8)
+    MulAddVWW/4-8         21.7ns ± 0%    19.5ns ± 0%  -10.14%  (p=0.000 n=8+8)
+    MulAddVWW/5-8         25.1ns ± 0%    22.5ns ± 0%  -10.27%  (p=0.000 n=8+8)
+    MulAddVWW/10-8        41.6ns ± 0%    40.0ns ± 0%   -3.79%  (p=0.000 n=8+8)
+    MulAddVWW/100-8        368ns ± 0%     363ns ± 0%   -1.36%  (p=0.000 n=8+8)
+    MulAddVWW/1000-8      3.52µs ± 0%    3.52µs ± 0%   -0.14%  (p=0.000 n=8+8)
+    MulAddVWW/10000-8     35.1µs ± 0%    35.1µs ± 0%   -0.01%  (p=0.000 n=7+6)
+    MulAddVWW/100000-8     351µs ± 0%     351µs ± 0%   +0.15%  (p=0.038 n=8+8)
+    
+    Change-Id: I052a4db286ac6e4f3293289c7e9a82027da0405e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/155780
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/big/arith_arm64.s | 51 ++++++++++++++++++++++++++++++++++++++--------
+ src/math/big/arith_test.go | 18 ++++++++++++++++
+ 2 files changed, 61 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit a4df525a79d3db1ede99a885724943715ea2abc4
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Mar 25 20:45:21 2011 -0700
+
+    gob: trivial cleanup
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4279074
+
+ src/pkg/gob/type.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,30 @@
+commit 2083b5d673736c065e98643c36dadde76f7593ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 24 13:53:35 2018 -0700
+
+    cmd/compile/internal/types: replace Type.Val with Type.Elem
+    
+    This reduces the API surface of Type slightly (for #25056), but also
+    makes it more consistent with the reflect and go/types APIs.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ief9a8eb461ae6e88895f347e2a1b7b8a62423222
+    Reviewed-on: https://go-review.googlesource.com/109138
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  2 +-
+ src/cmd/compile/internal/gc/bexport.go   |  7 ++-----
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 25 ++++++++++++-------------
+ src/cmd/compile/internal/gc/iexport.go   |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/sinit.go     |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  1 -
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 24 ++++++++++++------------
+ src/cmd/compile/internal/types/type.go   | 24 ++++++++++--------------
+ 12 files changed, 54 insertions(+), 63 deletions(-)

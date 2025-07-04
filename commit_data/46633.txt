@@ -1,0 +1,16 @@
+commit cd4d59232e01f8b351cf83c0a669e56b10e8945d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 24 10:57:27 2021 -0700
+
+    runtime: fix and simplify printing on bad ftab
+    
+    Unilaterally print plugin.
+    Use println instead of print.
+    
+    Change-Id: Ib58f187bff9c3dbedfa2725c44754a222807cc36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352072
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

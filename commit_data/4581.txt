@@ -1,0 +1,15 @@
+commit 72b97e46a3b76ac4a7bed3d0c11bcb298e9c3bea
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 11 18:53:58 2010 -0800
+
+    asn1: fix parsing of elements after a string in a structure.
+    
+    Fixes #516.
+    
+    R=rsc
+    CC=golang-dev, golang-dev
+    https://golang.org/cl/184080
+
+ src/pkg/asn1/asn1.go      | 11 ++---------
+ src/pkg/asn1/asn1_test.go |  6 ++++++
+ 2 files changed, 8 insertions(+), 9 deletions(-)

@@ -1,0 +1,21 @@
+commit d0d7416d3f9065141e1abe85528803afa9217371
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 09:24:17 2013 -0500
+
+    runtime: more build fixing
+    
+    Move the mstartfn into its own field.
+    Simpler, more likely to be correct.
+    
+    R=golang-dev, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/7414046
+
+ src/pkg/runtime/runtime.h           | 3 ++-
+ src/pkg/runtime/sys_freebsd_386.s   | 5 +++--
+ src/pkg/runtime/sys_freebsd_amd64.s | 6 +++---
+ src/pkg/runtime/sys_windows_386.s   | 5 +++--
+ src/pkg/runtime/sys_windows_amd64.s | 4 ++--
+ src/pkg/runtime/thread_freebsd.c    | 2 +-
+ src/pkg/runtime/thread_windows.c    | 2 +-
+ 7 files changed, 15 insertions(+), 12 deletions(-)

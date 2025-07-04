@@ -1,0 +1,27 @@
+commit 3a124de515e0e5043294604c95aee99c4e4d2ada
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 7 22:51:39 2023 +0200
+
+    syscall: remove unused ptracePtr on darwin
+    
+    ptracePtr was introduced in CL 470299 for darwin but it's not used on
+    this platform. Also, the argument types for addr and data were swapped
+    in the generated ptrace1Ptr (probably because the change was not
+    generated but done manually).
+    
+    For #58387
+    
+    Change-Id: I429ab0c741e19020d98729c34efabce1d9003f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526475
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/ptrace_darwin.go         |  7 -------
+ src/syscall/ptrace_ios.go            |  7 -------
+ src/syscall/syscall_darwin_amd64.go  |  1 -
+ src/syscall/syscall_darwin_arm64.go  |  1 -
+ src/syscall/zsyscall_darwin_amd64.go | 11 -----------
+ src/syscall/zsyscall_darwin_arm64.go | 11 -----------
+ 6 files changed, 38 deletions(-)

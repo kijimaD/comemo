@@ -1,0 +1,13 @@
+commit 13584f4a23f2b6a431c3733f8d3469702890d7a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 23 18:50:35 2009 -0700
+
+    add test for close/closed, fix a few implementation bugs.
+    
+    R=ken
+    OCL=26664
+    CL=26664
+
+ src/runtime/chan.c |  58 ++++++++--------
+ test/closedchan.go | 197 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 227 insertions(+), 28 deletions(-)

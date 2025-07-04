@@ -1,0 +1,20 @@
+commit 4556c04d8b679a0fdfdfb597824196558cc02d9f
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jun 26 04:08:20 2009 -0700
+
+    more changes to make 5g code generation arm compatible.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=72  (12 added, 52 deleted, 8 changed)
+    OCL=30748
+    CL=30793
+
+ src/cmd/5g/galign.c |  3 +++
+ src/cmd/5g/ggen.c   |  1 +
+ src/cmd/5g/gobj.c   | 10 +++++-----
+ src/cmd/5g/gsubr.c  |  4 ++++
+ src/cmd/5g/list.c   | 55 +++--------------------------------------------------
+ src/cmd/5l/5.out.h  |  3 ++-
+ src/cmd/5l/span.c   |  4 ++--
+ 7 files changed, 20 insertions(+), 60 deletions(-)

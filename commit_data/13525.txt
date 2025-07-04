@@ -1,0 +1,18 @@
+commit 538b2122f1d535e5a4ad11a69fddb1da3c10f9de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 30 13:57:30 2012 +1000
+
+    net/http: don't allow zero byte in FileServer paths
+    
+    Should probably be fixed in the syscall package, either
+    additional or instead of this CL.
+    
+    Fixes #3842
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6442061
+
+ src/pkg/net/http/fs.go      |  3 ++-
+ src/pkg/net/http/fs_test.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

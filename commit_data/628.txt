@@ -1,0 +1,15 @@
+commit e9047d1fc29abe809cec69ca4aa73a8942934635
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 12 12:17:13 2008 -0700
+
+    fix silly portability bug
+    
+    R=gri
+    OCL=15238
+    CL=15238
+
+ src/runtime/rt1_amd64_darwin.c | 3 +++
+ src/runtime/rt1_amd64_linux.c  | 3 +++
+ src/runtime/rt2_amd64.c        | 3 +--
+ src/runtime/runtime.h          | 1 +
+ 4 files changed, 8 insertions(+), 2 deletions(-)

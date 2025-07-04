@@ -1,0 +1,17 @@
+commit 731dcb7680303792315625a86ec0390ca41c03b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 13:43:34 2013 -0700
+
+    net/url: use strings.Index instead of a loop
+    
+    We already depend on strings in this file, so use it.
+    
+    Plus strings.Index will be faster than a manual loop
+    once issue 3751 is finished.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/8116043
+
+ src/pkg/net/url/url.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

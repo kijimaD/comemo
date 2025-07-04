@@ -1,0 +1,14 @@
+commit 9b8d4e0977073b28a9094213358dd808f66e88a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 08:14:34 2011 -0700
+
+    json: keep track of error offset in SyntaxError
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4430043
+
+ src/pkg/json/decode_test.go |  6 +++---
+ src/pkg/json/scanner.go     | 16 +++++++++++-----
+ src/pkg/json/stream.go      |  5 +++--
+ 3 files changed, 17 insertions(+), 10 deletions(-)

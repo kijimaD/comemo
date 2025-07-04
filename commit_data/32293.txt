@@ -1,0 +1,26 @@
+commit 9de7990054184381f1c520563d60175f821e7d7f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 21 15:18:08 2017 -0700
+
+    cmd/compile: insert ' ' and \n at beginning of walkprint
+    
+    Rather than emitting spaces and newlines for println
+    as we walk the expression, construct it all up front.
+    This enables further optimizations.
+    
+    This requires using printstring instead of print in
+    the implementation of printsp and printnl,
+    on pain of infinite recursion.
+    That's ok; it's more efficient anyway, and just as simple.
+    While we're here, do it for other print routines as well.
+    
+    Change-Id: I61d7df143810e00710c4d4d948d904007a7fd190
+    Reviewed-on: https://go-review.googlesource.com/55097
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  4 +++
+ src/cmd/compile/internal/gc/walk.go | 54 +++++++++++++++++++++++--------------
+ src/runtime/print.go                | 18 ++++++-------
+ 3 files changed, 47 insertions(+), 29 deletions(-)

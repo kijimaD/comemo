@@ -1,0 +1,20 @@
+commit ac2bf8ad06e435f1cfdcd1acc87f7e9f51794a79
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Sun Apr 26 12:05:37 2015 -0400
+
+    crypto/tls: add OCSP response to ConnectionState
+    
+    The OCSP response is currently only exposed via a method on Conn,
+    which makes it inaccessible when using wrappers like net/http. The
+    ConnectionState structure is typically available even when using
+    wrappers and contains many of the other handshake details, so this
+    change exposes the stapled OCSP response in that structure.
+    
+    Change-Id: If8dab49292566912c615d816321b4353e711f71f
+    Reviewed-on: https://go-review.googlesource.com/9361
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go | 1 +
+ src/crypto/tls/conn.go   | 1 +
+ 2 files changed, 2 insertions(+)

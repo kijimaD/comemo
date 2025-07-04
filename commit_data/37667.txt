@@ -1,0 +1,26 @@
+commit 3ae2c6c52eb4b8714245b91d094e0ccdfdbe585c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 12 14:38:03 2018 -0500
+
+    go/internal/gccgoimporter: permit fixups for V2 export data
+    
+    The changes added in https://golang.org/cl/151997 to fix problems when
+    reading older export data introduced the ability to add "fixups" to
+    handle references to a type whose definition has not yet been
+    finalized. It turns out we need to allow for fixups even for more
+    recent export data (V2 and V3); this patch removes a version guard for
+    the fixup generation logic.
+    
+    Fixes #29198.
+    
+    Change-Id: I82136ac45b53e4a59c05ff0879ac6bb545d0ff31
+    Reviewed-on: https://go-review.googlesource.com/c/153821
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            |  9 +--
+ .../internal/gccgoimporter/testdata/issue29198.go  | 37 ++++++++++
+ .../internal/gccgoimporter/testdata/issue29198.gox | 86 ++++++++++++++++++++++
+ 4 files changed, 127 insertions(+), 6 deletions(-)

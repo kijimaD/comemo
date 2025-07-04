@@ -1,0 +1,21 @@
+commit 4671da0414b31c7bd234e96b5af414fecb79e861
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 22 15:29:03 2017 -0500
+
+    runtime: print runtime frames in throwsplit trace
+    
+    newstack manually prints the stack trace if we try to grow the stack
+    when throwsplit is set. However, the default behavior is to omit
+    runtime frames. Since runtime frames can be critical to understanding
+    this crash, this change fixes this traceback to include them.
+    
+    Updates #21431.
+    
+    Change-Id: I5aa43f43aa2f10a8de7d67bcec743427be3a3b5d
+    Reviewed-on: https://go-review.googlesource.com/79518
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/stack.go | 1 +
+ 1 file changed, 1 insertion(+)

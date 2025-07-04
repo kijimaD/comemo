@@ -1,0 +1,29 @@
+commit 18ae633472f312026cff8b31c899102e509ab96d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 16:39:33 2010 -0800
+
+    token/position: implemented Pos
+    
+    A pos value represents a file-set specific, accurate
+    source position value. It is 8x smaller in size than
+    the corresponding Position value (4 bytes vs 32 bytes).
+    
+    Using Pos values instead of Position values in AST
+    saves approx. 25MBytes of memory when running godoc
+    on the current repository.
+    
+    This CL introduces the Pos, File, and FileSet data
+    types; it does not affect existing code. Another
+    (pending CL) will make the change to all dependent
+    source files.
+    
+    Missing: tests
+    
+    R=r
+    CC=golang-dev, rsc
+    https://golang.org/cl/2936041
+
+ src/pkg/go/token/Makefile    |   1 +
+ src/pkg/go/token/position.go | 315 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/token/token.go    |  41 +-----
+ 3 files changed, 317 insertions(+), 40 deletions(-)

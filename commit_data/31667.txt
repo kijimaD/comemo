@@ -1,0 +1,20 @@
+commit daa0ddde931f1c08bffe86c7a67787d0c756993e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 24 15:01:49 2017 -0700
+
+    runtime: fix ppc64le c-archive init
+    
+    We weren't setting r0 to 0, as required by our generated code.
+    
+    Before this patch, the misc/cgo/testcarchive tests failed on ppc64le.
+    After this patch, they work, so enable them.
+    
+    Change-Id: I53b16746961da9f7c34f59030a1e40953c9c1e05
+    Reviewed-on: https://go-review.googlesource.com/44093
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go            | 3 ++-
+ src/runtime/rt0_linux_ppc64le.s | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

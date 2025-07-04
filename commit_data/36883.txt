@@ -1,0 +1,17 @@
+commit 30c1ed7d0bd4a7bdb544bf8c190668d647b4faac
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Oct 5 03:19:03 2018 +0000
+
+    cmd/compile: simplify 386's rules
+    
+    This CL combines several rules together via regular expression,
+    but won't impact generated 386 code.
+    
+    Change-Id: I354006fe801fc952e3a9431cae63229922c9ba48
+    Reviewed-on: https://go-review.googlesource.com/c/139957
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 122 +++++++----------------------
+ 1 file changed, 30 insertions(+), 92 deletions(-)

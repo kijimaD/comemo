@@ -1,0 +1,14 @@
+commit 1a304e1d93cef13b61b2ebd4229586fab344ed0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 8 10:25:06 2009 -0700
+
+    - document string([]int{...}) conversion
+    - cleanup of open issues section
+    
+    R=r
+    DELTA=31  (12 added, 9 deleted, 10 changed)
+    OCL=28450
+    CL=28513
+
+ doc/go_spec.html | 37 ++++++++++++++++++++-----------------
+ 1 file changed, 20 insertions(+), 17 deletions(-)

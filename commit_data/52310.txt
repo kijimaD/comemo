@@ -1,0 +1,27 @@
+commit 785ab2fa65bec7fc8d244277c8962009d3a83271
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Tue Mar 14 13:06:20 2023 +0000
+
+    flag: add BoolFunc; FlagSet.BoolFunc
+    
+    Fixes #53747
+    
+    Based on CL 416514
+    
+    Change-Id: I1ff79c6290b06dfa8672a473045e8fe80c22afcf
+    GitHub-Last-Rev: 74fba9b3096487c04c8dc1f2237f67f3558212f1
+    GitHub-Pull-Request: golang/go#59013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/53747.txt            |  2 ++
+ src/flag/example_func_test.go | 16 ++++++++++++++
+ src/flag/flag.go              | 23 +++++++++++++++++++
+ src/flag/flag_test.go         | 51 +++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 90 insertions(+), 2 deletions(-)

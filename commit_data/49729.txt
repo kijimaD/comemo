@@ -1,0 +1,17 @@
+commit f755e16726d954fee279935ef6ce64e0a89c6757
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 12:40:56 2022 -0400
+
+    bootstrap.bash: delete BOOTSTRAP_FORMAT=mintgz code
+    
+    It has been superceded by golang.org/x/build/cmd/genbootstrap.
+    
+    Change-Id: Ifc00cd1de769bf807a0f6df643897c2f2339a073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/bootstrap.bash | 46 ++--------------------------------------------
+ 1 file changed, 2 insertions(+), 44 deletions(-)

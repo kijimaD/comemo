@@ -1,0 +1,18 @@
+commit f0433e422b3b71df54957fcd5ab1db31b02e58d4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 15 13:43:02 2014 +0900
+
+    net: make use of testing.Errorf instead of testing.Fatalf in non-test function goroutines
+    
+    See testing.FailNow for further information.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/75900043
+
+ src/pkg/net/fd_mutex_test.go | 27 ++++++++++++++++++---------
+ src/pkg/net/net_test.go      | 15 ++++++++++-----
+ src/pkg/net/tcp_test.go      | 15 ++++++++++-----
+ src/pkg/net/timeout_test.go  | 15 ++++++++++-----
+ 4 files changed, 48 insertions(+), 24 deletions(-)

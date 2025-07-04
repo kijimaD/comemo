@@ -1,0 +1,14 @@
+commit 931c43328a27ef763a6b0bacf9d5d55cd2c1a1b8
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Aug 28 17:34:33 2017 -0400
+
+    runtime/trace: improve package doc
+    
+    Explaining how to enable tracing.
+    
+    Change-Id: Ic8391cb290742b4dc1efab15deba85853e182b4d
+    Reviewed-on: https://go-review.googlesource.com/59612
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/trace/trace.go | 37 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 30 insertions(+), 7 deletions(-)

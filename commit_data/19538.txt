@@ -1,0 +1,16 @@
+commit eb788045d85f48980b8513a71661fcf3100c98c8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 13 17:43:02 2014 +1000
+
+    image/png: fix compare-to-golden-file test.
+    
+    bufio.Scanner.Scan returns whether the scan succeeded, not whether it
+    is done, so the test was mistakenly breaking early.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/93670045
+
+ src/pkg/image/png/reader_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

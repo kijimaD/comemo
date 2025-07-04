@@ -1,0 +1,14 @@
+commit 9dfb2ea7af3b8a580c0281776f4881995d9d82a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 12 10:30:10 2008 -0800
+
+    closing a TODO:
+    - define integer overflow as wrap-around
+    - be more specific about machine representation
+    
+    DELTA=54  (34 added, 7 deleted, 13 changed)
+    OCL=20870
+    CL=21070
+
+ doc/go_spec.txt | 63 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 45 insertions(+), 18 deletions(-)

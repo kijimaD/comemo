@@ -1,0 +1,26 @@
+commit cbc26869b7835e45359dad7dfb70e85c02c820cd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 8 22:22:35 2016 -0400
+
+    runtime: set $sp before $pc in gdb python script
+    
+    When setting $pc, gdb does a backtrace using the current value of $sp,
+    and it may complain if $sp does not match that $pc (although the
+    assignment went through successfully).
+    
+    This happens with ARM SSA backend: when setting $pc it prints
+    > Cannot access memory at address 0x0
+    
+    As well as occasionally on MIPS64:
+    > warning: GDB can't find the start of the function at 0xc82003fe07.
+    > ...
+    
+    Setting $sp before setting $pc makes it happy.
+    
+    Change-Id: Idd96dbef3e9b698829da553c6d71d5b4c6d492db
+    Reviewed-on: https://go-review.googlesource.com/23940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

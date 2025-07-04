@@ -1,0 +1,18 @@
+commit 987f94fa038d4a66fa174ddc4267d8718a029581
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Aug 13 16:37:09 2022 +0000
+
+    runtime: factor out GC assist credit accounting
+    
+    No-op change in preparation for arenas.
+    
+    For #51317.
+    
+    Change-Id: I0777f21763fcd34957b7e709580cf2b7a962ba67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423365
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/malloc.go | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)

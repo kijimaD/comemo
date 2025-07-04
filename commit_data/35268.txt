@@ -1,0 +1,15 @@
+commit 17fbb83693d5d4b880bb128d7afdb137840f76ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 19:01:57 2018 +0000
+
+    cmd/go, cmd/compile: use Windows response files to avoid arg length limits
+    
+    Fixes #18468
+    
+    Change-Id: Ic88a8daf67db949e5b59f9aa466b37e7f7890713
+    Reviewed-on: https://go-review.googlesource.com/110395
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 78 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/objabi/flag.go  | 39 ++++++++++++++++++++
+ 2 files changed, 117 insertions(+)

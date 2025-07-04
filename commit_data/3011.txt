@@ -1,0 +1,17 @@
+commit 116b52d276daa30a88b028208de2b4f67bdd15fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 18 11:48:47 2009 -0700
+
+    - fix performance bug (makeN always allocated a new vector)
+    - removed defs.go (moved declarations into arith.go where they belong)
+    
+    R=r
+    DELTA=40  (16 added, 20 deleted, 4 changed)
+    OCL=33464
+    CL=33464
+
+ src/pkg/big/Makefile |  1 -
+ src/pkg/big/arith.go | 12 ++++++++++++
+ src/pkg/big/defs.go  | 19 -------------------
+ src/pkg/big/nat.go   |  8 ++++++--
+ 4 files changed, 18 insertions(+), 22 deletions(-)

@@ -1,0 +1,53 @@
+commit 05a1b7ec4139f0b6affd4ac0b2dcb28dec8825b6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 07:31:24 2011 -0700
+
+    http: remove finalURL from Client.Get; move to Response
+    
+    This CL:
+    
+    -- removes Response.RequestMethod string
+    -- adds Response.Request *Request
+    -- removes the finalURL result parameter from client.Get()
+    -- adds a gofix rule for callers of http.Get which assign
+       the final url to the blank identifier; warning otherwise
+    
+    Caller who did:
+    
+    res, finalURL, err := http.Get(...)
+    
+    now need to do:
+    
+    res, err := http.Get(...)
+    if err != nil {
+       ...
+    }
+    finalURL := res.Request.URL.String()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4535056
+
+ doc/codelab/wiki/get.go             |  2 +-
+ misc/dashboard/builder/http.go      |  2 +-
+ src/cmd/godoc/main.go               |  2 +-
+ src/cmd/gofix/Makefile              |  1 +
+ src/cmd/gofix/httpfinalurl.go       | 56 +++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/httpfinalurl_test.go  | 37 +++++++++++++++++++++++
+ src/pkg/http/client.go              | 11 ++-----
+ src/pkg/http/client_test.go         | 10 ++++---
+ src/pkg/http/fs_test.go             |  2 +-
+ src/pkg/http/persist.go             |  4 +--
+ src/pkg/http/request_test.go        |  3 +-
+ src/pkg/http/response.go            | 29 +++++++++++--------
+ src/pkg/http/response_test.go       | 58 ++++++++++++++++++++-----------------
+ src/pkg/http/responsewrite_test.go  | 14 ++++-----
+ src/pkg/http/reverseproxy_test.go   |  2 +-
+ src/pkg/http/serve_test.go          | 22 +++++++-------
+ src/pkg/http/transfer.go            |  4 +--
+ src/pkg/http/transport.go           | 18 +++++++-----
+ src/pkg/http/transport_test.go      | 14 ++++-----
+ src/pkg/rpc/client.go               |  2 +-
+ src/pkg/websocket/client.go         |  4 +--
+ src/pkg/websocket/websocket_test.go |  4 +--
+ 22 files changed, 202 insertions(+), 99 deletions(-)

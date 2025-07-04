@@ -1,0 +1,15 @@
+commit fb28f5ba3aa1ca704295b9960c332b0178335788
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 19 13:48:33 2017 -0400
+
+    runtime: avoid restricting GOARCH values in documentation
+    
+    Changes the text to match GOOS which appends 'and so on' at the
+    end to avoid restricting the set of possible values.
+    
+    Change-Id: I54bcde71334202cf701662cdc2582c974ba8bf53
+    Reviewed-on: https://go-review.googlesource.com/41074
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

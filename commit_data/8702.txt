@@ -1,0 +1,16 @@
+commit d164b6081de197612b99b405feb9a2d6e73028a3
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jun 13 16:56:43 2011 +0200
+
+    ld: dwarf emit filenames in debug_line header instead of as extended opcodes.
+    
+    Makes it possible for older tools like objdump to find the filenames,
+    fixes  objdump -d -l --start-address=0x400c00 --stop-address=0x400c36 6.out
+    fixes #1950
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4609043
+
+ src/cmd/ld/dwarf.c | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

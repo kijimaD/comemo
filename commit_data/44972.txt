@@ -1,0 +1,27 @@
+commit d6a90d06d2883c6ae4bbd9bff2aafc338cc8f339
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 23:12:48 2021 -0700
+
+    cmd/compile/internal/types2: simplify Checker.Call
+    
+    Now that we use square brackets for instantiations, we
+    can tell type arguments from ordinary arguments without
+    "guessing" which permits a simpler implementation.
+    
+    Specifically, replace use of Checker.exprOrTypeList with
+    Checker.exprList, and delete Checker.exprOrTypeList and
+    Checker.multiExprOrType.
+    
+    Disable a test for an (esoteric) failure due to an
+    unrelated problem with error matching when running
+    the test.
+    
+    Change-Id: I17f18fffc32f03fa90d93a68ebf56e5f2fcc9dab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306171
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 62 +---------------------
+ src/cmd/compile/internal/types2/expr.go            |  6 ---
+ .../internal/types2/fixedbugs/issue39634.go2       |  3 +-
+ 3 files changed, 3 insertions(+), 68 deletions(-)

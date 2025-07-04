@@ -1,0 +1,23 @@
+commit fbfbf03b2811eb3611e4677da6cdb7c099922e6e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue May 8 16:30:48 2018 +0100
+
+    cmd/compile: fix Zero-to-Load forwarding rules
+    
+    Avoid using values that do not dominate the block the Zero op is in.
+    Should fix the SSA check builder.
+    
+    The additional OffPtr ops inserted by these rules should always be
+    optimized away when the Load is replaced with a const zero.
+    
+    Fixes #25288.
+    
+    Change-Id: I4163b58e60364f77c8a206ba084073a58ca6320a
+    Reviewed-on: https://go-review.googlesource.com/112136
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 12 ++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 46 +++++++++++++++++---------
+ 2 files changed, 38 insertions(+), 20 deletions(-)

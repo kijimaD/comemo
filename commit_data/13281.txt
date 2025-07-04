@@ -1,0 +1,16 @@
+commit 7ab62b0baceb5bf72b5dcdd819159ca5120a6eeb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jun 4 23:31:31 2012 +0200
+
+    test: avoid interface conversion in rotate.go
+    
+    It is not necessary for the test to be effective and uses a
+    lot of resources in the compiler. Memory usage is halved and
+    compilation around 8x faster.
+    
+    R=golang-dev, r, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6290044
+
+ test/rotate.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

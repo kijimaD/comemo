@@ -1,0 +1,16 @@
+commit a9e7c9381e56e30e1fa2cfa577ab9bc7c01b5790
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 17 10:23:46 2010 -0800
+
+    regexp: change Expr() to String(); add HasOperator method to Regexp.
+    It reports whether a regular expression has operators
+    as opposed to matching literal text.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3731041
+
+ src/pkg/regexp/all_test.go  | 35 ++++++++++++++++++++---------------
+ src/pkg/regexp/find_test.go |  4 ++--
+ src/pkg/regexp/regexp.go    | 34 ++++++++++++++++++++--------------
+ 3 files changed, 42 insertions(+), 31 deletions(-)

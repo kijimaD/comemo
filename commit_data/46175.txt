@@ -1,0 +1,25 @@
+commit eb6a07fcf99050c447097a8ff6358c484c0f8715
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 12:05:45 2021 -0700
+
+    cmd/compile: unexport Type.Vargen
+    
+    This field is only used outside of packages types in two places, and
+    they follow the same pattern. So this CL creates a Type.Setvargen
+    function that they can use instead, so that Type.Vargen can be
+    unexported.
+    
+    A bit clumsy, but it works for now.
+    
+    Change-Id: I7b4f33fac635e2464df2fbc0607ab40902f6f09f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345469
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/decl.go          |  3 +--
+ src/cmd/compile/internal/typecheck/typecheck.go |  8 +-------
+ src/cmd/compile/internal/types/fmt.go           |  4 ++--
+ src/cmd/compile/internal/types/type.go          | 25 ++++++++++++++++++++++---
+ 4 files changed, 26 insertions(+), 14 deletions(-)

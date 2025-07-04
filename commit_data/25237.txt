@@ -1,0 +1,53 @@
+commit fb6f8a96f24f6b30e99cc77d78bc0194ffec7a41
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Dec 8 15:11:27 2015 +0100
+
+    runtime: remove unnecessary wakeups of worker threads
+    
+    Currently we wake up new worker threads whenever we pass
+    through the scheduler with nmspinning==0. This leads to
+    lots of unnecessary thread wake ups.
+    Instead let only spinning threads wake up new spinning threads.
+    
+    For the following program:
+    
+    package main
+    import "runtime"
+    func main() {
+            for i := 0; i < 1e7; i++ {
+                    runtime.Gosched()
+            }
+    }
+    
+    Before:
+    $ time ./test
+    real    0m4.278s
+    user    0m7.634s
+    sys     0m1.423s
+    
+    $ strace -c ./test
+    % time     seconds  usecs/call     calls    errors syscall
+     99.93    9.314936           3   2685009     17536 futex
+    
+    After:
+    $ time ./test
+    real    0m1.200s
+    user    0m1.181s
+    sys     0m0.024s
+    
+    $ strace -c ./test
+    % time     seconds  usecs/call     calls    errors syscall
+      3.11    0.000049          25         2           futex
+    
+    Fixes #13527
+    
+    Change-Id: Ia1f5bf8a896dcc25d8b04beb1f4317aa9ff16f74
+    Reviewed-on: https://go-review.googlesource.com/17540
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go      | 142 +++++++++++++++++++++++++++++++++++------------
+ src/runtime/proc_test.go |  74 ++++++++++++++++++++++++
+ src/runtime/runtime2.go  |   2 +-
+ 3 files changed, 181 insertions(+), 37 deletions(-)

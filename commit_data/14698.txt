@@ -1,0 +1,21 @@
+commit 1dcf658f6dbc6b09ead3fb7561cd1832d9a697a1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 20 23:27:28 2012 +0100
+
+    cmd/gc: remove an incorrect assertion in escape analysis.
+    
+    A fatal error used to happen when escassign-ing a multiple
+    function return to a single node. However, the situation
+    naturally appears when using "go f(g())" or "defer f(g())",
+    because g() is escassign-ed to sink.
+    
+    Fixes #4529.
+    
+    R=golang-dev, lvd, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6920060
+
+ src/cmd/gc/esc.c            |   8 +--
+ test/escape2.go             | 117 +++++++++++++++++++++++++-------------------
+ test/fixedbugs/issue4529.go |  33 +++++++++++++
+ 3 files changed, 104 insertions(+), 54 deletions(-)

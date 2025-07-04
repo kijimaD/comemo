@@ -1,0 +1,12 @@
+commit f4568882eb8d7638031430b8c5b1f248aa2155c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:19:09 2011 -0700
+
+    exp/types: add rune to universe
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5295045
+
+ src/pkg/exp/types/universe.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 910a6faa93c6c003ff71ca40500ec03f5a54bd51
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 23 14:26:52 2013 +0900
+
+    net: fix race in TestDNSThreadLimit
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13141045
+
+ src/pkg/net/dialgoogle_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

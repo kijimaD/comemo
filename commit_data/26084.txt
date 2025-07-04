@@ -1,0 +1,24 @@
+commit 6bd63ca3468290003609ba3244f2aa3bede4e36a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 9 18:37:26 2015 -0700
+
+    cmd/compile: hide NodeList details in evconst
+    
+    The new code is a bit less efficient,
+    but it does not involve altering the structure
+    of any linked lists.
+    This will make it easier to replace NodeLists
+    with Node slices.
+    We can return to a more efficient algorithm
+    when NodeLists have been replaced.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I0bb5ee75e7c0646e6d37fe558c8f0548729d8aa1
+    Reviewed-on: https://go-review.googlesource.com/20277
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 49 ++++++++++++++++++------------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)

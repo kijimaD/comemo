@@ -1,0 +1,12 @@
+commit 63623ba2d8d79949aecfad694daa698619af31b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 19:44:52 2010 -0400
+
+    5l: avoid fixed buffers in list
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2204045
+
+ src/cmd/5l/list.c | 84 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 41 insertions(+), 43 deletions(-)

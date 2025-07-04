@@ -1,0 +1,14 @@
+commit 7d1d8fe430a3e1463bced18cd4e5bf08a0fa6c75
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 16 17:55:35 2011 -0500
+
+    go/printer: make //line formatting idempotent
+    
+    Fixes "test.sh" (long test) in src/cmd/gofmt.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5307081
+
+ src/pkg/go/printer/printer.go | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)

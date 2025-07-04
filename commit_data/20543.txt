@@ -1,0 +1,16 @@
+commit dd84cf4ea0aefe7758dea21a6d123f8283941bf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 15:57:52 2014 -0400
+
+    cmd/go: install dependencies for 'go build -i' on a command
+    
+    Fixes #8242.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/147150043
+
+ src/cmd/go/build.go  |  11 ++---
+ src/cmd/go/test.bash | 114 ++++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 78 insertions(+), 47 deletions(-)

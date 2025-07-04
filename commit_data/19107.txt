@@ -1,0 +1,22 @@
+commit 7b6bc3ebb3a4088506d3d9c324d85aa49c035074
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 10 21:46:00 2014 -0700
+
+    bufio: fix potential endless loop in ReadByte
+    
+    Also: Simplify ReadSlice implementation and
+    ensure that it doesn't call fill() with a full
+    buffer (this caused a failure in net/textproto
+    TestLargeReadMIMEHeader because fill() wasn't able
+    to read more data).
+    
+    Fixes #7745.
+    
+    LGTM=bradfitz
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86590043
+
+ src/pkg/bufio/bufio.go      | 84 +++++++++++++++++++++++++++------------------
+ src/pkg/bufio/bufio_test.go | 29 ++++++++++++++++
+ 2 files changed, 79 insertions(+), 34 deletions(-)

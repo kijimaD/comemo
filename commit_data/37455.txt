@@ -1,0 +1,19 @@
+commit 77807093692070801b66960b6918fb59c9b470cd
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Nov 18 17:18:37 2018 +0100
+
+    os: return PathError on RemoveAll with trailing dots
+    
+    Return a PathError instead of an unwrapped syscall.EINVAL if the path
+    ends with dots.
+    
+    As suggested by Roger Peppe in CL 150158.
+    
+    Change-Id: I4d82a6ff64a979b67a843a1cc4fea58ed9326aed
+    Reviewed-on: https://go-review.googlesource.com/c/150160
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/removeall_at.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

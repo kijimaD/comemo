@@ -1,0 +1,16 @@
+commit 0ac317817bfdde4de178893b9489aac007210280
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Nov 8 08:22:40 2012 +1100
+
+    archive/tar: avoid writing ModTime that is out of range.
+    
+    Update #4358
+    Still to do: support binary numeric format in Reader.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6818101
+
+ src/pkg/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/writer.go   | 39 ++++++++++++++++++++++++-------------
+ 2 files changed, 69 insertions(+), 13 deletions(-)

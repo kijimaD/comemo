@@ -1,0 +1,14 @@
+commit a9b9afa9305b1ddaeb82291b7a31445b0879f630
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 5 19:29:14 2010 -0800
+
+    gc: fix crash on complicated arg to make slice.
+    
+    Fixes #615.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/255043
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

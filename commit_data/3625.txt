@@ -1,0 +1,12 @@
+commit 6d96b24ef345ee5845aec118486ec8188b63795c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 11:07:39 2009 -0700
+
+    tell Mercurial which files to ignore
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1012005
+
+ .hgignore | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

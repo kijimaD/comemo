@@ -1,0 +1,34 @@
+commit f28cf8346c4ce7cb74bf97c7c69da21c43a78034
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Dec 23 02:03:44 2015 +0000
+
+    crypto/tls: implement countermeasures against CBC padding oracles
+    
+    The aim is to make the decrypt() timing profile constant, irrespective of
+    the CBC padding length or correctness.  The old algorithm, on valid padding,
+    would only MAC bytes up to the padding length threshold, making CBC
+    ciphersuites vulnerable to plaintext recovery attacks as presented in the
+    "Lucky Thirteen" paper.
+    
+    The new algorithm Write()s to the MAC all supposed payload, performs a
+    constant time Sum()---which required implementing a constant time Sum() in
+    crypto/sha1, see the "Lucky Microseconds" paper---and then Write()s the rest
+    of the data. This is performed whether the padding is good or not.
+    
+    This should have no explicit secret-dependent timings, but it does NOT
+    attempt to normalize memory accesses to prevent cache timing leaks.
+    
+    Updates #13385
+    
+    Change-Id: I15d91dc3cc6eefc1d44f317f72ff8feb0a9888f7
+    Reviewed-on: https://go-review.googlesource.com/18130
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/sha1/sha1.go         | 70 ++++++++++++++++++++++++++++++++++++++++-
+ src/crypto/sha1/sha1_test.go    | 17 +++++++---
+ src/crypto/tls/cipher_suites.go | 42 ++++++++++++++++++++++---
+ src/crypto/tls/conn.go          | 62 ++++++++++++++++++------------------
+ src/crypto/tls/conn_test.go     |  6 ++--
+ 5 files changed, 152 insertions(+), 45 deletions(-)

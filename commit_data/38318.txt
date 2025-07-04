@@ -1,0 +1,15 @@
+commit 359fb4a9afe273c1ef5600c0c7308dc167c0d4eb
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:26:54 2019 +0100
+
+    cmd/link: on AIX generate export file for host linker
+    
+    Change-Id: I6638cb0f9ed751c76a29cae62a93a923f18f14f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164005
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go   |  4 +++
+ src/cmd/link/internal/ld/xcoff.go | 57 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 60 insertions(+), 1 deletion(-)

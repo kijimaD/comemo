@@ -1,0 +1,12 @@
+commit 583dac04e308046f109feb95051e0ab252ba2583
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 9 18:03:16 2008 -0700
+
+    - more cleanups (simpler code for optional semi's, bug fixes)
+    
+    R=r
+    OCL=16869
+    CL=16869
+
+ usr/gri/pretty/parser.go | 167 +++++++++++++++++++++--------------------------
+ 1 file changed, 73 insertions(+), 94 deletions(-)

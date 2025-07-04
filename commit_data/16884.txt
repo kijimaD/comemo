@@ -1,0 +1,24 @@
+commit c44e483542b7b9d8954d896f32c82f89bc86d9fc
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Sat Jul 27 08:12:42 2013 +1000
+
+    misc/notepadplus: use new User Defined Language system (UDL2)
+    
+    Add missing single quotation and backslash marks.
+    
+    Change dot and underscore character keyword type.
+    "_" is a predeclared identifier, not a operator.
+    "." is a selector, x.f should be one identifier highlight.
+    So the fix is to change it.
+    
+    Fixes #5775.
+    Fixes #5788.
+    Fixes #5798.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10480044
+
+ misc/notepadplus/README             | 41 ++++++++++++++++---
+ misc/notepadplus/userDefineLang.xml | 82 +++++++++++++++++++++++++------------
+ 2 files changed, 90 insertions(+), 33 deletions(-)

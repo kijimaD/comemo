@@ -1,0 +1,15 @@
+commit d8dd9c714b9700bfb3e79a06172d37738179d511
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 12:41:04 2015 -0500
+
+    cmd/dist: default to clang, not gcc, on freebsd
+    
+    Fixes #11380.
+    
+    Change-Id: I0a284ad2a46826ce82486479ea4e79f0f470292f
+    Reviewed-on: https://go-review.googlesource.com/16635
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.txt        | 1 +
+ src/cmd/dist/util.go | 3 +++
+ 2 files changed, 4 insertions(+)

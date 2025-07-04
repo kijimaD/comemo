@@ -1,0 +1,13 @@
+commit 552d7b918697e0a5ab1ff22f91abf3e1cfde2e1d
+Author: Santhosh Kumar Tekuri <santhosh.tekuri@gmail.com>
+Date:   Tue Feb 6 12:00:13 2018 +0530
+
+    encoding/pem: test getLine does not include trailing whitespace
+    
+    Change-Id: I7a1046f5e0aedbbdd1106a616de410fe4e0cb7d8
+    Reviewed-on: https://go-review.googlesource.com/c/92295
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/pem/pem_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

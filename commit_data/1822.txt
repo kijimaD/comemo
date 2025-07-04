@@ -1,0 +1,11 @@
+commit 9b5d82327b1498b74611d539f9812d3cce13cbc3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 18:47:49 2009 -0700
+
+    s/expressios/expressions/
+    
+    OCL=26222
+    CL=26222
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

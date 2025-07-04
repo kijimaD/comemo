@@ -1,0 +1,23 @@
+commit 4cb921bbf1f5d7d161e45e362be1cce35b73fc8b
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Mar 25 14:10:28 2013 -0700
+
+    runtime: store asmcgocall return PC where the ARM unwind expects it
+    
+    The ARM implementation of runtime.cgocallback_gofunc diverged
+    from the calling convention by leaving a word of garbage at
+    the top of the stack and storing the return PC above the
+    locals.  This change stores the return PC at the top of the
+    stack and removes the save area above the locals.
+    
+    Update #5124
+    This CL fixes first part of the ARM issues and added the unwind test.
+    
+    R=golang-dev, bradfitz, minux.ma, cshapiro, rsc
+    CC=golang-dev
+    https://golang.org/cl/7728045
+
+ misc/cgo/test/callback.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/cgo_test.go |  1 +
+ src/pkg/runtime/asm_arm.s | 26 +++++++++++-------------
+ 3 files changed, 62 insertions(+), 15 deletions(-)

@@ -1,0 +1,43 @@
+commit 798e0b38ed8b23da010b1a8cd6c91f201248e40d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 16 10:00:10 2019 -0400
+
+    misc/cgo/errors: consolidate test work
+    
+    Build a single binary containing all the TestPointerChecks
+    instead of building many small binaries,
+    each with its own cgo+compile+link invocation.
+    This cuts 'go test -run=TestPointerChecks'
+    from 6.7r 35.5u 26.1s to 2.1r 2.1u 1.4s.
+    
+    Move as many cgo checks as possible into fewer test files
+    for TestReportsTypeErrors too.
+    This cuts 'go test -run=TestReportsTypeErrors'
+    from 2.1r 6.7u 6.7s to 1.5r 2.5u 2.5s.
+    
+    After this change, all.bash runs in ~4:30 on my laptop.
+    
+    For #26473.
+    
+    Change-Id: I3787448b03689a1f62dd810957ab6013bb75582f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177599
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/errors_test.go         |  13 +-
+ misc/cgo/errors/ptr_test.go            | 482 ++++++++++++++++++---------------
+ misc/cgo/errors/testdata/err1.go       |   4 +
+ misc/cgo/errors/testdata/err2.go       |  89 ++++++
+ misc/cgo/errors/testdata/err3.go       |  18 --
+ misc/cgo/errors/testdata/issue13129.go |  14 -
+ misc/cgo/errors/testdata/issue13423.go |  12 -
+ misc/cgo/errors/testdata/issue13467.go |  15 -
+ misc/cgo/errors/testdata/issue13635.go |  24 --
+ misc/cgo/errors/testdata/issue13830.go |  26 --
+ misc/cgo/errors/testdata/issue16116.go |  12 -
+ misc/cgo/errors/testdata/issue16591.go |  17 --
+ misc/cgo/errors/testdata/issue26745.go |  17 --
+ misc/cgo/errors/testdata/issue7757.go  |  14 -
+ misc/cgo/errors/testdata/issue8442.go  |  17 --
+ 15 files changed, 356 insertions(+), 418 deletions(-)

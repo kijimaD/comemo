@@ -1,0 +1,17 @@
+commit e4dcf5c8c22d98ac9eac7b9b226596229624cb1d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 23 17:35:46 2015 +1100
+
+    image/color: have NYCbCrA.RGBA work in 16-bit color.
+    
+    This makes NYCbCrA consistent with YCbCr.
+    
+    Fixes #13706.
+    
+    Change-Id: Ifced84372e4865925fa6efef9ca2f1de43da70e0
+    Reviewed-on: https://go-review.googlesource.com/18115
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/ycbcr.go      | 36 ++++++++++++++++++++++++++++--------
+ src/image/color/ycbcr_test.go | 26 +++++++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 9 deletions(-)

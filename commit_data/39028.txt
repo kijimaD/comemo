@@ -1,0 +1,39 @@
+commit 8b2bd6f5ff3edf24b39294c7d1a86afbd1cfc4f1
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Thu Aug 2 12:41:14 2018 +0100
+
+    cmd/go: update go bug to be more consistent with Github issue template
+    
+    As a result of using go env, the following new environment variables are
+    shown as part of the env section:
+    
+    +CGO_CFLAGS="-g -O2"
+    +CGO_CPPFLAGS=""
+    +CGO_CXXFLAGS="-g -O2"
+    +CGO_FFLAGS="-g -O2"
+    +CGO_LDFLAGS="-g -O2"
+    +PKG_CONFIG="pkg-config"
+    +GOGCCFLAGS="-fPIC -m64 -pthread -fmessage-length=0 -fdebug-prefix-map=/tmp/go-build612849170=/tmp/go-build -gno-record-gcc-switches"
+    
+    The diff between the web-based template and the result of go bug is now:
+    
+    +GOROOT/bin/go version: go version devel +478f3a5384 Wed Mar 27 16:21:00 2019 +0000 linux/amd64
+    +GOROOT/bin/go tool compile -V: compile version devel +478f3a5384 Wed Mar 27 16:21:00 2019 +0000
+    +uname -sr: Linux 4.15.0-46-generic
+    +Distributor ID:        Ubuntu
+    +Description:   Ubuntu 18.04.2 LTS
+    +Release:       18.04
+    +Codename:      bionic
+    +/lib/x86_64-linux-gnu/libc.so.6: GNU C Library (Ubuntu GLIBC 2.27-3ubuntu1) stable release version 2.27.
+    
+    Fixes #26751
+    
+    Change-Id: I32baca1c3c06d08068dad0041a43a1f5532bd91e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/127495
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/internal/bug/bug.go     | 84 +++++++++++++++-----------------------
+ src/cmd/go/testdata/script/bug.txt | 47 +++++++++++++++++++++
+ 2 files changed, 80 insertions(+), 51 deletions(-)

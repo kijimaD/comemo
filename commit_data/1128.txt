@@ -1,0 +1,13 @@
+commit 23c8faaf856f7ee531c118a90efba2dbbe50eda2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 14 15:13:29 2008 -0800
+
+    buf fix: make FD.Read, FD.Write work for empty buffers
+    
+    R=r
+    DELTA=8  (6 added, 0 deleted, 2 changed)
+    OCL=19273
+    CL=19275
+
+ src/lib/os/os_file.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

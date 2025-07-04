@@ -1,0 +1,18 @@
+commit d5b299eda2cc8388bbf8acd9fa03c05a5b76aa2c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Apr 29 20:41:13 2012 +1000
+
+    compress/flate: add Encoder/Decoder benchmarks
+    
+    In CL 6127051, nigeltao suggested that further gains
+    were possible by improving the performance of flate.
+    This CL adds a set of benchmarks (based on compress/lzw)
+    that can be used to judge any future improvements.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6128049
+
+ src/pkg/compress/flate/reader_test.go | 75 +++++++++++++++++++++++++++++++++++
+ src/pkg/compress/flate/writer_test.go | 72 +++++++++++++++++++++++++++++++++
+ 2 files changed, 147 insertions(+)

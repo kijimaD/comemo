@@ -1,0 +1,27 @@
+commit 319787a528284aefe23424056a19bda71f7cc2b1
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Oct 23 20:54:56 2018 -0600
+
+    cmd/compile: intrinsify math/bits.Div on amd64
+    
+    Note that the intrinsic implementation panics separately for overflow and
+    divide by zero, which matches the behavior of the pure go implementation.
+    There is a modest performance improvement after intrinsic implementation.
+    
+    name     old time/op  new time/op  delta
+    Div-4    53.0ns ± 1%  47.0ns ± 0%  -11.28%  (p=0.008 n=5+5)
+    Div32-4  18.4ns ± 0%  18.5ns ± 1%     ~     (p=0.444 n=5+5)
+    Div64-4  53.3ns ± 0%  47.5ns ± 4%  -10.77%  (p=0.008 n=5+5)
+    
+    Updates #28273
+    
+    Change-Id: Ic1688ecc0964acace2e91bf44ef16f5fb6b6bc82
+    Reviewed-on: https://go-review.googlesource.com/c/144378
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  |  1 +
+ src/cmd/compile/internal/gc/ssa.go | 14 ++++++++++++--
+ test/codegen/mathbits.go           | 14 ++++++++++++++
+ 3 files changed, 27 insertions(+), 2 deletions(-)

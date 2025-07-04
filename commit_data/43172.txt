@@ -1,0 +1,17 @@
+commit 44a15a7262b14d517fefab5b7c13ca97ab099a30
+Author: Dai Jie <gzdaijie@163.com>
+Date:   Fri Oct 2 09:09:24 2020 +0000
+
+    net/http: remove duplicate declaration of error
+    
+    there is no need to declare a error variable here.
+    
+    Change-Id: I9ea5bcf568d800efed19c90caf751aaf9abe5555
+    GitHub-Last-Rev: 538d1f9cee0b8564a8bec262529f567da847f1b0
+    GitHub-Pull-Request: golang/go#41751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259037
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/net/rpc/client.go | 1 -
+ 1 file changed, 1 deletion(-)

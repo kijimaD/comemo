@@ -1,0 +1,17 @@
+commit c0271c4bc2127ca13ceb30ef7331290df9ffdec8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 08:21:42 2009 -0700
+
+    fix bug in decoders: got indirection wrong when allocation not required.
+    write indirection test.
+    
+    next step: cut down scalar tests since indirection is centralized.
+    
+    R=rsc
+    DELTA=114  (83 added, 3 deleted, 28 changed)
+    OCL=31020
+    CL=31037
+
+ src/pkg/gob/codec_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/gob/decode.go     | 28 +++++++--------
+ 2 files changed, 97 insertions(+), 17 deletions(-)

@@ -1,0 +1,26 @@
+commit 1b36bcc3b59a3e123c5b1ac2617cadcb69d0e94a
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Mar 5 21:40:37 2013 +1100
+
+    syscall: handle getsockname for unix sockets on openbsd 5.2
+    
+    On OpenBSD 5.2, calling getsockname on an unbound Unix domain socket
+    results in a successful syscall, however the AF is unset and the length
+    is returned as zero. This has been changed to more portable behaviour,
+    which will be included in the OpenBSD 5.3 release.
+    
+    For now, work around this by treating a successful getsockname() call
+    that returns a family of AF_UNSPEC and length of zero as a AF_UNIX
+    socket.
+    
+    Makes TestPassFD work on OpenBSD 5.2.
+    
+    Fixes #4956.
+    
+    R=golang-dev, minux.ma, rsc, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7449046
+
+ src/pkg/syscall/passfd_test.go | 4 ----
+ src/pkg/syscall/syscall_bsd.go | 5 +++++
+ 2 files changed, 5 insertions(+), 4 deletions(-)

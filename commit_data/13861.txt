@@ -1,0 +1,16 @@
+commit 0e60019a42b6c5c98ddb6b6418481133e3c42854
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 18 15:02:08 2012 -0400
+
+    bytes, strings: add Fields benchmarks
+    
+    The performance changes will be a few different CLs.
+    Start with benchmarks as a baseline.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6537043
+
+ src/pkg/bytes/bytes_test.go     | 45 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

@@ -1,0 +1,18 @@
+commit 40192594111cc3e720e212ca519fd8c3f9b8d7cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 15:47:57 2009 -0700
+
+    - interpret form feed char as newline + flush
+    - cleanups:
+      - replaced internal byte buffer implementation with io.ByteBuffer (now that we have one)
+      - removed all uses of goto statements in favor of structured code
+      - converted tests into a table-driven test
+    
+    R=r
+    DELTA=277  (48 added, 67 deleted, 162 changed)
+    OCL=29890
+    CL=29901
+
+ src/lib/tabwriter/tabwriter.go      | 164 ++++++++++------------------
+ src/lib/tabwriter/tabwriter_test.go | 207 +++++++++++++++++++++---------------
+ 2 files changed, 176 insertions(+), 195 deletions(-)

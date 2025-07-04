@@ -1,0 +1,23 @@
+commit f1eed92fd04cc93db44655a5a1870d361c9c5137
+Author: David Chase <drchase@google.com>
+Date:   Sat Oct 8 16:45:58 2016 -0400
+
+    cmd/compile: escape analysis needs to run "flood" to fixed point
+    
+    In some cases the members of the root set from which flood
+    runs themselves escape, without their referents being also
+    tagged as escaping.  Fix this by reflooding from those roots
+    whose escape increases, and also enhance the "leak" test to
+    include reachability from a heap-escaped root.
+    
+    Fixes #17318.
+    
+    Change-Id: Ied1e75cee17ede8ca72a8b9302ce8201641ec593
+    Reviewed-on: https://go-review.googlesource.com/30693
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 21 +++++++++++++++++
+ test/fixedbugs/issue17318.go       | 47 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

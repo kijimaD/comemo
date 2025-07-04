@@ -1,0 +1,12 @@
+commit e6f76aac32dc1b1b467559de63a52e9ee69ae8e6
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Jan 1 22:16:38 2015 -0500
+
+    math: be consistent in how we document special cases
+    
+    Change-Id: Ic6bc4af7bcc89b2881b2b9e7290aeb6fd54804e2
+    Reviewed-on: https://go-review.googlesource.com/2239
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/nextafter.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

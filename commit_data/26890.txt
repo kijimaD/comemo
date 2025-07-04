@@ -1,0 +1,28 @@
+commit 3f66d8c84b4b3d685db1031954d3343a7a8c9d0f
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Apr 12 01:55:14 2016 -0700
+
+    html/template: add examples of loading templates from files
+    
+    Adds examples showing loading templates from files and
+    executing them.
+    
+    Shows examples:
+    - Using ParseGlob.
+    - Using ParseFiles.
+    - Using helper functions to share and use templates
+    in different contexts by adding them to an existing
+    bundle of templates.
+    - Using a group of driver templates with distinct sets
+    of helper templates.
+    
+    Almost all of the code was directly copied from text/template.
+    
+    Fixes #8500
+    
+    Change-Id: Ic3d91d5232afc5a1cd2d8cd3d9a5f3b754c64225
+    Reviewed-on: https://go-review.googlesource.com/21854
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/examplefiles_test.go | 226 +++++++++++++++++++++++++++++++++
+ 1 file changed, 226 insertions(+)

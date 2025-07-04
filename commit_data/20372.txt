@@ -1,0 +1,16 @@
+commit b6571a0713416ae0d26816af2c1e92f90fe266a6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 11:45:36 2014 -0700
+
+    strconv: fix documentation for CanBackquote.
+    Space is not a control character.
+    
+    Fixes #8571.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/137380043
+
+ src/strconv/quote.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

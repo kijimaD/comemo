@@ -1,0 +1,12 @@
+commit 36ed57931b1f9ae95e2eaf7beb88dbd5b63fa701
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 16 14:53:12 2013 -0700
+
+    make.bash: delete vestigial TODO, now resolved
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7789050
+
+ src/make.bash | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,16 @@
+commit ea23ba3e2dc47b24846e95a6bffe4ba19693c838
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 1 15:17:25 2011 -0400
+
+    sync/atomic: add LoadUintptr
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4985041
+
+ src/pkg/sync/atomic/asm_386.s       |  6 +++
+ src/pkg/sync/atomic/asm_amd64.s     |  8 ++++
+ src/pkg/sync/atomic/asm_linux_arm.s |  6 +++
+ src/pkg/sync/atomic/atomic_test.go  | 89 ++++++++++++++++++++++++++++++++++---
+ src/pkg/sync/atomic/doc.go          | 10 +++++
+ 5 files changed, 113 insertions(+), 6 deletions(-)

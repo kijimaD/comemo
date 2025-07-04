@@ -1,0 +1,14 @@
+commit 994c486aa93a443a6cd32a4caa0884b2129392d5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 22 16:57:23 2013 +0200
+
+    doc: fix typo in Effective Go
+    
+    Fixes #5329.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8897044
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

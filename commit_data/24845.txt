@@ -1,0 +1,15 @@
+commit 87a65f6ce7322de799843cfa991a5e7e36de90d5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 10:44:37 2015 -0500
+
+    cmd/compile: delete the runtime_internal_atomic.go builtin defs file
+    
+    The file was automatically placed in the cl by a tool I had built.
+    Since the compiler doesn't hook into the atomic package, it's unnecessary.
+    
+    Change-Id: I631fd876813b381bb12604865b00fc5b268dce84
+    Reviewed-on: https://go-review.googlesource.com/16844
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/builtin/runtime_internal_atomic.go | 3 ---
+ 1 file changed, 3 deletions(-)

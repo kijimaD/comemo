@@ -1,0 +1,22 @@
+commit 5d637b83a90cd16ea6badbe716f5e964bd9e06db
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 6 14:56:50 2013 +0400
+
+    runtime: speedup malloc stats collection
+    Count only number of frees, everything else is derivable
+    and does not need to be counted on every malloc.
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkMalloc8                    68           66   -3.07%
+    BenchmarkMalloc16                   75           70   -6.48%
+    BenchmarkMallocTypeInfo8           102           97   -4.80%
+    BenchmarkMallocTypeInfo16          108          105   -2.78%
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/9776043
+
+ src/pkg/runtime/malloc.goc |  44 +++++--------------
+ src/pkg/runtime/malloc.h   |  24 +++++-----
+ src/pkg/runtime/mcache.c   |   1 -
+ src/pkg/runtime/mgc0.c     | 106 ++++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 108 insertions(+), 67 deletions(-)

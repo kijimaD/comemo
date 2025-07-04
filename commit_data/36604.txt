@@ -1,0 +1,12 @@
+commit 6b7099caa17e50410821f4a66ebb5c48717ad3c7
+Author: Warren Fernandes <warren.f.fernandes@gmail.com>
+Date:   Wed Sep 5 22:35:01 2018 -0600
+
+    expvar: fix name of Var interface
+    
+    Change-Id: Ibc40237981fdd20316f73f7f6f3dfa918dd0af5d
+    Reviewed-on: https://go-review.googlesource.com/133658
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/expvar/expvar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

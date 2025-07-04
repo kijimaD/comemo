@@ -1,0 +1,14 @@
+commit a0efca84e61f6d98587d8b49d69c78bdc1acc6b4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 29 22:30:56 2012 +0400
+
+    time: fix deadlock in Sleep(0)
+    See time/sleep_test.go for repro.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev, patrick.allen.higgins
+    https://golang.org/cl/6250072
+
+ src/pkg/runtime/time.goc   |  5 ++++-
+ src/pkg/time/sleep_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

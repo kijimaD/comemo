@@ -1,0 +1,15 @@
+commit fea18f5a341e442783f84703a78924b882aceb5e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jun 29 16:22:54 2015 +1000
+
+    compress/lzw: return the partial decoding for a truncated input.
+    
+    This is needed by issue #9856.
+    
+    Change-Id: Idad570a7e55ad903aab55372d390bc746c4e19cf
+    Reviewed-on: https://go-review.googlesource.com/11661
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/compress/lzw/reader.go      | 2 ++
+ src/compress/lzw/reader_test.go | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

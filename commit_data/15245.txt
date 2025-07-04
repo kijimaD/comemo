@@ -1,0 +1,14 @@
+commit da6207f7a48a0e0bb961e0d80ca454ebd02180da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:46:03 2013 -0500
+
+    go/types: avoid os.Getwd if not necessary
+    
+    Getwd can be very expensive.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7312100
+
+ src/pkg/go/types/gcimporter.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

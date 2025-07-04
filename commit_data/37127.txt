@@ -1,0 +1,20 @@
+commit 18b84cbd42f4b86cb551b0ccd70154a8bbe30a8a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Oct 26 10:07:36 2018 +0200
+
+    runtime: remove instruction linked with AIX new stack layout
+    
+    This instruction was linked with a new stack layout which might be
+    needed for AIX. This change might not be taken finally. So, this
+    instruction must be removed.
+    
+    See https://go-review.googlesource.com/c/go/+/138733
+    
+    Change-Id: Ic4a2566e2882696b437eb817d980b7c4bfc03b18
+    Reviewed-on: https://go-review.googlesource.com/c/144957
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_ppc64x.s | 3 ---
+ 1 file changed, 3 deletions(-)

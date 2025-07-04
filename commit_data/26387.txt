@@ -1,0 +1,12 @@
+commit f693015be62a6571e053e15040664d01a450c0e0
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 17:16:56 2016 +0100
+
+    sync: don't assume b.N > 0
+    
+    Change-Id: I6eb91ea73ef887b025e5a8de1dd55f30618e1aa6
+    Reviewed-on: https://go-review.googlesource.com/20857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sync/runtime_sema_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

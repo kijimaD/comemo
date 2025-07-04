@@ -1,0 +1,16 @@
+commit aa22c42d704f9c6d9d8e65f972ac819678629ff2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 16 07:13:10 2016 -0800
+
+    cmd/go: avoid race on test environment
+    
+    Fixes #14337.
+    
+    Change-Id: I58aef7e08d936b0712da577dd1ce5c9ed5d8bfd2
+    Reviewed-on: https://go-review.googlesource.com/19513
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go  |  5 +++++
+ src/cmd/go/go_test.go | 26 +++++++++++++++++++++++++-
+ src/cmd/go/main.go    |  2 ++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

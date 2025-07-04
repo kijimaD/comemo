@@ -1,0 +1,18 @@
+commit ae5a5132eb105e712799be4717929d55d75a04b2
+Author: zxc111 <zxc9007@gmail.com>
+Date:   Tue May 11 12:57:36 2021 +0000
+
+    net/http: add test for proxyAuth
+    
+    Change-Id: Ib4edae749ce8da433e992e08a90c9cf3d4357081
+    GitHub-Last-Rev: 19d87d12ab6b299b37e8907429f4dff52ab53745
+    GitHub-Pull-Request: golang/go#46102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318690
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/proxy_test.go | 42 +++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 39 insertions(+), 3 deletions(-)

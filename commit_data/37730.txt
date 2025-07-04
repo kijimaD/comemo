@@ -1,0 +1,34 @@
+commit d924c3336c39a256c832512ecd24fcdeed0ca266
+Author: David Chase <drchase@google.com>
+Date:   Mon Dec 17 12:01:56 2018 -0500
+
+    cmd/compile: prevent double-walk of switch for OPRINT/OPRINTN
+    
+    When a println arg contains a call to an inlineable function
+    that itself contains a switch, that switch statement will be
+    walked twice, once by the walkexprlist formerly in the
+    OPRINT/OPRINTN case, then by walkexprlistcheap in walkprint.
+    
+    Remove the first walkexprlist, it is not necessary.
+    walkexprlist =
+                    s[i] = walkexpr(s[i], init)
+    walkexprlistcheap = {
+                    s[i] = cheapexpr(n, init)
+                    s[i] = walkexpr(s[i], init)
+    }
+    
+    Seems like this might be possible in other places, i.e.,
+    calls to inlineable switch-containing functions.
+    
+    See also #25776.
+    Fixes #29220.
+    
+    Change-Id: I3781e86aad6688711597b8bee9bc7ebd3af93601
+    Reviewed-on: https://go-review.googlesource.com/c/154497
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  1 -
+ test/fixedbugs/issue29220.go        | 26 ++++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

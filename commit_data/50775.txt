@@ -1,0 +1,19 @@
+commit a8d180409d071ad327afeaf6f64fef635d8f6053
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:03:15 2022 +0800
+
+    cmd/trace: replace loop with append(slice, slice2...)
+    
+    Change-Id: I4686f36a8f718fea1a08d816bc14e24e3528bb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436706
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/trace/annotations.go | 4 +---
+ src/cmd/trace/trace.go       | 6 ++----
+ 2 files changed, 3 insertions(+), 7 deletions(-)

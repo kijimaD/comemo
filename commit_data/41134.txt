@@ -1,0 +1,17 @@
+commit 02816a2cad23a9399a6ad18033db0586c110de70
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 20 02:00:44 2020 +1100
+
+    reflect: correct riscv64 assembly
+    
+    R0 is not a thing in riscv64 assembly - use ZERO (rather than X0) since
+    the rest of this currently uses ABI names.
+    
+    Updates #27532
+    
+    Change-Id: I28fb68e9f80d05231a07c5921e7062777234e2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/asm_riscv64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

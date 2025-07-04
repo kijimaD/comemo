@@ -1,0 +1,19 @@
+commit 599de4b2c348738a5d6d2f5d475c74ac835e091a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 13:41:32 2021 -0700
+
+    cmd/compile/internal/types2: adjust printing of type parameter in error
+    
+    For constraint type inference failures where the type parameter doesn't
+    match the constraint, print the type parameter rather than its type name
+    object. This provides more flexibility for improving the error message
+    down the road.
+    
+    Change-Id: I188871d6f26a16cd96e59770966a1ec65607b128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360514
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go                          | 7 ++++---
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

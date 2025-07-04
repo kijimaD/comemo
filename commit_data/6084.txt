@@ -1,0 +1,20 @@
+commit b0729cdfe59835a697187f0ed3a70add2538779b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 11:00:38 2010 -0400
+
+    go/doc: use correct escaper for URL
+    
+    Despite the name, URL escaping is for a small subpiece of the URL only.
+    This particular URL is being emitted in an <a href=""> tag and in that
+    context it should be HTML escaped, not URL escaped.
+    
+    In addition to fixing a bug, this change cuts a dependency chain
+    from go/doc to net, clearing the way for use of cgo
+    (which imports go/doc) during the compilation of package net.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1960050
+
+ src/pkg/go/doc/comment.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

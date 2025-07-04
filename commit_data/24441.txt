@@ -1,0 +1,22 @@
+commit 4a6326e7b5f326e6079073fb843b4ab096cbf652
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sun Sep 27 14:53:18 2015 +0100
+
+    net/http: add response body to 413 and 400 errors
+    
+    The existing serve() method returns a zero-length response body when
+    it encounters an error, which results in a blank page and no visible
+    error in browsers.
+    
+    This change sends a response body explaining the error for display in browsers.
+    
+    Fixes #12745
+    
+    Change-Id: I9dc3b95ad88cb92c18ced51f6b52bd3b2c1b974c
+    Reviewed-on: https://go-review.googlesource.com/15018
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

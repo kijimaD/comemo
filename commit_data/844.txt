@@ -1,0 +1,19 @@
+commit 89319cfbf97066ebf985d9a1620d8402cf53a322
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 10 16:03:32 2008 -0700
+
+    - implemented heuristic for composite literals starting with a type name:
+      if in a if, for, or switch header, must be parenthesized
+    - implemented string concatenation
+    - simplified a lot of code
+    - added many more tests: can now parse all *.go files I got my hands on
+    - printing output currently broken in some cases, use with -s (silent) option
+    
+    R=r
+    OCL=16932
+    CL=16934
+
+ usr/gri/pretty/Makefile   |  26 +++---
+ usr/gri/pretty/parser.go  | 231 ++++++++++++++++++++--------------------------
+ usr/gri/pretty/scanner.go |   3 -
+ 3 files changed, 116 insertions(+), 144 deletions(-)

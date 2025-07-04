@@ -1,0 +1,22 @@
+commit 189053aee2705a16ed660b7e036e9b6d825c0e9b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Mar 22 14:25:30 2017 -0300
+
+    runtime/internal/atomic: Remove unnecessary checks for GOARCH_ppc64
+    
+    Starting in go1.9, the minimum processor requirement for ppc64 is POWER8. This
+    means the checks for GOARCH_ppc64 in asm_ppc64x.s can be removed, since we can
+    assume LBAR and STBCCC instructions (both from ISA 2.06) will always be
+    available.
+    
+    Updates #19074
+    
+    Change-Id: Ib4418169cd9fc6f871a5ab126b28ee58a2f349e2
+    Reviewed-on: https://go-review.googlesource.com/38406
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/asm_ppc64x.s | 43 --------------------------------
+ 1 file changed, 43 deletions(-)

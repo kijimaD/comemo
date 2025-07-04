@@ -1,0 +1,18 @@
+commit 719cde2c47f9a8d8dda77256ae8d1d0ff66d9a63
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Jul 28 11:30:00 2010 -0700
+
+    io: MultiReader and MultiWriter
+    
+    Little helpers I've found useful.
+    
+    R=adg, rsc, r, gri
+    CC=golang-dev
+    https://golang.org/cl/1764043
+
+ src/pkg/io/Makefile             |  2 ++
+ src/pkg/io/multi_reader.go      | 36 +++++++++++++++++++++++++
+ src/pkg/io/multi_reader_test.go | 58 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/io/multi_writer.go      | 31 ++++++++++++++++++++++
+ src/pkg/io/multi_writer_test.go | 41 +++++++++++++++++++++++++++++
+ 5 files changed, 168 insertions(+)

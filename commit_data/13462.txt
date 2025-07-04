@@ -1,0 +1,16 @@
+commit 6a135a0894fff5bbb1885c27fd9eb41b9a2b4e51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 12 14:19:09 2012 -0700
+
+    mat/big: more optimal Karatsuba threshold
+    
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkHilbert      6253043      6267289   +0.23%
+    BenchmarkMul         45355940     39490633  -12.93%
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6355104
+
+ src/pkg/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

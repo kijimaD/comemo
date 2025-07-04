@@ -1,0 +1,14 @@
+commit e8a1de720fb47987b69c15ec7c002c85f90bf9be
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 13 09:31:49 2013 +1100
+
+    doc: add Go 1.2 to release history page
+    
+    Fixes #6939.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/41540043
+
+ doc/devel/release.html | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

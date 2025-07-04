@@ -1,0 +1,21 @@
+commit 79c50c4d5728d785485fce8c75b9c2b2f93641ea
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Jan 7 02:06:38 2019 +0200
+
+    os: disable the use of netpoll on regular files on *BSDs.
+    
+    The kqueue based netpoller always registers file descriptors with EVFILT_READ and EVFILT_WRITE.
+    However only EVFILT_READ notification is supported for regular files.
+    On FreeBSD a regular file is always reported as ready for writing, resulting in a busy wait.
+    On Darwin, Dragonfly, NetBSD and OpenBSD, a regular file is reported as ready for both reading and writing only once.
+    
+    Updates #19093
+    
+    Change-Id: If284341f60c6c2332fb5499637d4cfa7a4e26b7b
+    Reviewed-on: https://go-review.googlesource.com/c/156379
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_unix.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

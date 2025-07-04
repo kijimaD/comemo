@@ -1,0 +1,25 @@
+commit 5b123aeaf5af3044cefeaaeac496443f85344983
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 18 15:50:27 2023 -0400
+
+    cmd/go: avoid writing non-JSON "build failed" errors from 'go test -json'
+    
+    In 'go test -json' we expect stdout to contain only JSON events,
+    not unstructured text. Unstructured text should either go to stderr
+    or be wrapped in a JSON event.
+    
+    (If we add structured build output in #62067, we can emit this output
+    as a build event instead of a test event.)
+    
+    Fixes #35169.
+    For #54378.
+    
+    Change-Id: Ibedd28e79b5adf8d6ae56165b9f0393b14ece9aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529120
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/test/test.go                   | 22 ++++++++---------
+ .../go/testdata/script/test_json_issue35169.txt    | 28 ++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 12 deletions(-)

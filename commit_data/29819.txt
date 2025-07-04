@@ -1,0 +1,15 @@
+commit 627af57b5464e025422356dc3f7442465f79991f
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 22:57:18 2016 +0100
+
+    cmd/dist: enable cgo by default for GOARCH=mips{,le}
+    
+    Change-Id: I7dd927be1e702e8fd469f4834ab918e0bcd9bafc
+    Reviewed-on: https://go-review.googlesource.com/34318
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 4 ++--
+ src/cmd/dist/test.go  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

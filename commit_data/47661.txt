@@ -1,0 +1,27 @@
+commit 1b2930d70c8bad5ecae08275e56e228e0f424b02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 1 11:04:39 2021 -0500
+
+    net: remove arbitrary deadlines in PacketConn tests
+    
+    When TestPacketConn was added (in CL 6501057) it included arbitrary
+    100ms deadlines. Those deadlines were arbitrarily increased to 500ms
+    in CL 4922.
+    
+    If the test is actually provoking a deadlock, allowing it to deadlock
+    will give us a more useful goroutine dump. Otherwise, the deadlines
+    don't seem all that useful — they appear to increase code coverage,
+    but have no effect on the test in the typical case, and can only
+    cause flakes on particularly-slow machines.
+    
+    For #43627
+    
+    Change-Id: I83de5217c54c743b83adddf51d4f6f2bd5b91732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368215
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/packetconn_test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

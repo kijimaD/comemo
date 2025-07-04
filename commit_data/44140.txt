@@ -1,0 +1,18 @@
+commit 61debffd977889cd3f7f63b4f71d5a8ef1fc604e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Oct 4 01:44:41 2020 +1000
+
+    runtime: factor out usesLibcall
+    
+    Rather than inline lists of GOOS values, factor out the code that checks
+    if a runtime makes system calls via libcall.
+    
+    Change-Id: Ib19d7e63a2b4b8314f1841c0ff26e1b3a16b4b22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259239
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/proc.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

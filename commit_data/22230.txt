@@ -1,0 +1,19 @@
+commit dd95244d4b9be2dda0e899535fa6f7c637937617
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 30 08:47:07 2015 -0400
+
+    iostest.bash: build script for iOS
+    
+    In the spirit of nacltest.bash and androidtest.bash. Sets up the
+    exec script and reboots the device.
+    
+    The reboot helps make sure previous runs do not interfere with the
+    current run. It is reasonably easy for a bad program, e.g. one with
+    a corrupt stack, to get the device stuck.
+    
+    Change-Id: I61317527741c45a70c390fe21adc4895510fc79f
+    Reviewed-on: https://go-review.googlesource.com/8242
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/iostest.bash | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

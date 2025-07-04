@@ -1,0 +1,17 @@
+commit 88f84b3e415ad226f9724dc486be0f1b363b9f05
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 14 21:33:55 2014 +0100
+
+    liblink, runtime: make nacl/386 binaries valid.
+    
+    They were rejected by NaCl due to AES instructions and
+    accesses to %gs:0x8, caused by wrong tlsoffset value.
+    
+    LGTM=iant
+    R=rsc, dave, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76050044
+
+ src/liblink/sym.c       | 13 +++++++++++--
+ src/pkg/runtime/alg.goc |  5 ++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

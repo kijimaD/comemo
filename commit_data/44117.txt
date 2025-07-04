@@ -1,0 +1,20 @@
+commit 81ea89adf38b90c3c3a8c4eed9e6c093a8634d59
+Author: Jakub Warczarek <jakub.warczarek@gmail.com>
+Date:   Sat Dec 12 17:43:52 2020 +0000
+
+    cmd/go: fix non-script staleness checks interacting badly with GOFLAGS
+    
+    Fixes #43012.
+    
+    Change-Id: Idc7a64b53c411e6dadd98521a48e15e664737d42
+    GitHub-Last-Rev: b56c0880c3b5ceb86c6fa2ba6bf82f8969e10472
+    GitHub-Pull-Request: golang/go#43155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277453
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

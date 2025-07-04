@@ -1,0 +1,12 @@
+commit 6edfd2d35b311b4c6b9d0d2ee585d6657ac0cee7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Nov 4 15:05:32 2011 -0400
+
+    CONTRIBUTORS: add Rietveld address for Jani Monoses
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5340046
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

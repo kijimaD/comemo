@@ -1,0 +1,57 @@
+commit 41298239cf8b0de14fd3ac43e4af65fad6ab5cc4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 28 11:27:22 2025 -0800
+
+    all: remove coverageredesign experiment
+    
+    The coverageredesign experiment was turned on by default by
+    CL 436236 in September, 2022. We've documented it and people
+    are using it. This CL removes the ability to turn off the experiment.
+    This removes some old code that is no longer being executed.
+    
+    For #51430
+    
+    Change-Id: I88d4998c8b5ea98eef8145d7ca6ebd96f64fbc2b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-darwin-amd64-longtest,gotip-linux-arm64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644997
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go          |   4 -
+ src/cmd/covdata/tool_test.go                       |   4 -
+ src/cmd/go/alldocs.go                              |   1 -
+ src/cmd/go/internal/help/helpdoc.go                |   1 -
+ src/cmd/go/internal/list/list.go                   |   6 +-
+ src/cmd/go/internal/load/pkg.go                    |  97 +++---------
+ src/cmd/go/internal/load/test.go                   | 171 +--------------------
+ src/cmd/go/internal/run/run.go                     |   6 +-
+ src/cmd/go/internal/test/test.go                   |  10 +-
+ src/cmd/go/internal/work/build.go                  |  35 ++---
+ src/cmd/go/internal/work/exec.go                   |  81 +++-------
+ .../testdata/script/cover_build_cmdline_pkgs.txt   |   1 -
+ .../go/testdata/script/cover_build_pkg_select.txt  |   3 -
+ src/cmd/go/testdata/script/cover_build_simple.txt  |   3 -
+ .../go/testdata/script/cover_coverpkg_partial.txt  |   1 -
+ .../testdata/script/cover_coverpkg_with_init.txt   |   1 -
+ src/cmd/go/testdata/script/cover_list.txt          |   1 -
+ .../go/testdata/script/cover_main_import_path.txt  |   1 -
+ src/cmd/go/testdata/script/cover_statements.txt    |  15 +-
+ .../testdata/script/cover_sync_atomic_import.txt   |   1 -
+ .../go/testdata/script/cover_test_pkgselect.txt    |   3 -
+ .../go/testdata/script/cover_var_init_order.txt    |   3 -
+ src/cmd/go/testdata/script/testing_coverage.txt    |   1 -
+ src/cmd/internal/cov/read_test.go                  |   4 -
+ src/internal/buildcfg/exp.go                       |  13 +-
+ src/internal/coverage/cfile/emitdata_test.go       |   7 -
+ src/internal/coverage/cfile/ts_test.go             |   7 -
+ .../goexperiment/exp_coverageredesign_off.go       |   8 -
+ .../goexperiment/exp_coverageredesign_on.go        |   8 -
+ src/internal/goexperiment/flags.go                 |   4 -
+ src/testing/cover.go                               |  87 -----------
+ src/testing/newcover.go                            |  41 ++---
+ src/testing/testing.go                             |   8 +-
+ 33 files changed, 106 insertions(+), 531 deletions(-)

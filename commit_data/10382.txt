@@ -1,0 +1,12 @@
+commit 39b255768265ef93496755c968647f68ddb6d985
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Nov 14 11:16:06 2011 -0800
+
+    kate: add error and rune
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5370078
+
+ misc/kate/go.xml | 2 ++
+ 1 file changed, 2 insertions(+)

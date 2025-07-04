@@ -1,0 +1,12 @@
+commit 1fbff651331ca03d33200658373629f66bfc8d71
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 9 10:54:33 2015 -0700
+
+    doc: go1.6.txt: text/template and space trimming
+    
+    Change-Id: I33c0425361c98b175d8d87e0f7e44946bfb3e3fa
+    Reviewed-on: https://go-review.googlesource.com/14440
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

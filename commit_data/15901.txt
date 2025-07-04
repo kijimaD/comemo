@@ -1,0 +1,35 @@
+commit f6d0adedb663306af179b4f6e2d6745b49fe881f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 17:28:22 2013 -0400
+
+    build: remove dead code
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7877045
+
+ src/cmd/go/discovery.go                   | 1 -
+ src/cmd/yacc/yacc.go                      | 1 -
+ src/pkg/compress/flate/inflate.go         | 1 -
+ src/pkg/compress/gzip/gunzip.go           | 1 -
+ src/pkg/compress/lzw/reader.go            | 1 -
+ src/pkg/crypto/dsa/dsa_test.go            | 5 +++--
+ src/pkg/crypto/rand/util.go               | 4 ----
+ src/pkg/encoding/asn1/marshal.go          | 1 -
+ src/pkg/encoding/csv/reader.go            | 2 --
+ src/pkg/encoding/gob/decode.go            | 1 -
+ src/pkg/encoding/gob/type.go              | 1 -
+ src/pkg/encoding/json/decode.go           | 1 -
+ src/pkg/html/template/transition.go       | 2 --
+ src/pkg/math/big/nat.go                   | 2 --
+ src/pkg/net/http/httputil/reverseproxy.go | 1 -
+ src/pkg/net/ip.go                         | 1 -
+ src/pkg/net/unixsock_posix.go             | 1 -
+ src/pkg/os/file_posix.go                  | 2 --
+ src/pkg/os/getwd.go                       | 2 --
+ src/pkg/reflect/tostring_test.go          | 1 -
+ src/pkg/strconv/extfloat.go               | 1 -
+ src/pkg/syscall/exec_bsd.go               | 5 -----
+ src/pkg/testing/quick/quick.go            | 2 --
+ src/pkg/text/template/parse/parse.go      | 1 -
+ 24 files changed, 3 insertions(+), 38 deletions(-)

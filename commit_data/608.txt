@@ -1,0 +1,16 @@
+commit 0a7e4a7415fd488ad4daeec2d73eea4adf4d6c3c
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Sep 10 19:49:35 2008 -0700
+
+    bug generating duplicate interface signatures
+    
+    R=r
+    OCL=15119
+    CL=15119
+
+ src/cmd/6g/gsubr.c |  6 +++++-
+ src/cmd/6g/obj.c   | 42 ++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/dcl.c   |  1 +
+ src/cmd/gc/go.h    |  4 +++-
+ src/cmd/gc/walk.c  |  4 ----
+ 5 files changed, 49 insertions(+), 8 deletions(-)

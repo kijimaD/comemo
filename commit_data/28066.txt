@@ -1,0 +1,34 @@
+commit 14efaa0dc3d3ff5a3919c27297297ef0cd5bb625
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 14:31:50 2016 -0400
+
+    cmd/compile: qualify unexported fields of unnamed types
+    
+    The compiler was canonicalizing unnamed types of the form
+    
+            struct { i int }
+    
+    across packages, even though an unexported field i should not be
+    accessible from other packages.
+    
+    The fix requires both qualifying the field name in the string used by
+    the compiler to distinguish the type, and ensuring the struct's pkgpath
+    is set in the rtype version of the data when the type being written is
+    not part of the localpkg.
+    
+    Fixes #16616
+    
+    Change-Id: Ibab160b8b5936dfa47b17dbfd48964a65586785b
+    Reviewed-on: https://go-review.googlesource.com/27791
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go          |  5 ++++-
+ src/cmd/compile/internal/gc/reflect.go      |  9 +++++++++
+ test/fixedbugs/issue16616.dir/a.go          |  7 +++++++
+ test/fixedbugs/issue16616.dir/b.go          | 14 ++++++++++++++
+ test/fixedbugs/issue16616.dir/issue16616.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue16616.go                |  9 +++++++++
+ 6 files changed, 69 insertions(+), 1 deletion(-)

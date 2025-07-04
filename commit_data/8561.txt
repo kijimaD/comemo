@@ -1,0 +1,12 @@
+commit 4706ce309f9176f7726f824fe88ebae79ccda6e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 31 16:15:23 2011 -0400
+
+    net: stop Mac popups
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4559059
+
+ src/pkg/net/server_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit f586870ec20c122f60c3a1339bb154a60a0c7e6e
+Author: Trevor Strohman <trevor.strohman@gmail.com>
+Date:   Tue Nov 24 00:21:50 2009 -0800
+
+    Add benchmarks for commonly used routines.
+    
+    R=rsc, r, r1
+    https://golang.org/cl/160046
+
+ src/pkg/fmt/fmt_test.go          | 18 +++++++++++++++
+ src/pkg/hash/crc32/crc32_test.go | 14 +++++++++++
+ src/pkg/sort/sort_test.go        | 40 ++++++++++++++++++++++++++++++++
+ src/pkg/strconv/atof_test.go     | 24 +++++++++++++++++++
+ src/pkg/strconv/atoi_test.go     | 24 +++++++++++++++++++
+ src/pkg/sync/mutex_test.go       | 50 +++++++++++++++++++++++++++++++++++-----
+ src/pkg/time/time_test.go        | 12 ++++++++++
+ 7 files changed, 176 insertions(+), 6 deletions(-)

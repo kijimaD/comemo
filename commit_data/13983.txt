@@ -1,0 +1,12 @@
+commit 32eb110277c02f2d6f7f86c658ebd4c84ca19072
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 28 14:19:31 2012 -0700
+
+    CONTRIBUTORS: added Paul Chang (Google CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6569078
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

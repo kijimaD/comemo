@@ -1,0 +1,17 @@
+commit 7c9e2c2b6c2e0aa3090dbd5183809e1b2f53359b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 16:42:53 2008 -0700
+
+    buffered input & output
+    
+    R=r
+    DELTA=812  (803 added, 0 deleted, 9 changed)
+    OCL=15225
+    CL=15280
+
+ src/lib/bufio.go      | 402 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/io.go         |  36 +++++
+ src/lib/make.bash     |   2 +-
+ src/lib/os/os_file.go |  16 +-
+ test/bufiolib.go      | 377 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 824 insertions(+), 9 deletions(-)

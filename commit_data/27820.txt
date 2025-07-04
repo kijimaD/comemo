@@ -1,0 +1,12 @@
+commit 7c31043ccad67e193cd1d88cb1a62b97cd2ba294
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 16 09:38:26 2016 +0900
+
+    os/exec: fix nit found by vet
+    
+    Change-Id: I8085ed43d63215237a4871cc1e44257132a7f5de
+    Reviewed-on: https://go-review.googlesource.com/27130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

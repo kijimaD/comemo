@@ -1,0 +1,17 @@
+commit 024a92c1da0b5e147df01ed184fe8d655af62900
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Nov 7 18:29:31 2012 -0800
+
+    runtime: use vDSO for gettimeofday on linux/amd64
+    
+    Intel Core 2 Duo (2.16 GHz) running 3.6.5-1-ARCH
+    
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow         1856         1034  -44.29%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6826072
+
+ src/pkg/runtime/sys_linux_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

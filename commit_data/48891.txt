@@ -1,0 +1,23 @@
+commit 8140a605feee9058e28195fcb047d3f1906e77e5
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Apr 22 11:47:11 2022 -0400
+
+    go/types, types2: add loong64 to gcArchSizes
+    
+    Values are taken from cmd/internal/sys/arch.go. Also fix some incorrect
+    alphabetical sorting to put arm > amd.
+    
+    Updates #46229
+    Fixes #52495
+    
+    Change-Id: If7d2c675238093692060358003915f1649792cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401576
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+
+ src/cmd/compile/internal/types2/sizes.go | 7 ++++---
+ src/go/types/sizes.go                    | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

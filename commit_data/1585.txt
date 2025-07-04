@@ -1,0 +1,12 @@
+commit eecce5f13055eaddde6343450b7205cc6f2df286
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 29 15:16:22 2009 -0800
+
+    - make test work with 6g
+    
+    R=r
+    OCL=23821
+    CL=23823
+
+ usr/gri/pretty/selftest2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

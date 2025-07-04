@@ -1,0 +1,17 @@
+commit c7f69a2897b8fdc16c07aaa0a152060e60449f89
+Author: alkesh26 <alkesh26@gmail.com>
+Date:   Thu Mar 7 07:29:34 2019 +0000
+
+    misc: fix typos in various docs
+    
+    Change-Id: Ib03d7e5686e510152042e403b00fb2d65572f393
+    GitHub-Last-Rev: 57aeedf077cb4f82af68cc5cb2de5d53a447565e
+    GitHub-Pull-Request: golang/go#30156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161723
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ misc/cgo/test/env.go                   | 4 ++--
+ misc/cgo/testcarchive/testdata/main4.c | 4 ++--
+ misc/cgo/testcarchive/testdata/main5.c | 2 +-
+ misc/nacl/testdata/mime.types          | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

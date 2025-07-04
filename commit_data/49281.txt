@@ -1,0 +1,33 @@
+commit 6b6813fdb79d426c3693eef2cc423263185cb3a2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 17 15:52:20 2022 -0700
+
+    runtime: test alignment of fields targeted by 64-bit atomics
+    
+    Make sure that all the targets of 64-bit atomic operations
+    are actually aligned to 8 bytes. This has been a source of
+    bugs on 32-bit systems. (e.g. CL 399754)
+    
+    The strategy is to have a simple test that just checks the
+    alignment of some explicitly listed fields and global variables.
+    
+    Then there's a more complicated test that makes sure the list
+    used in the simple test is exhaustive. That test has some
+    limitations, but it should catch most cases, particularly new
+    uses of atomic operations on new or existing fields.
+    
+    Unlike a runtime assert, this check is free and will catch
+    accesses that occur even in very unlikely code paths.
+    
+    Change-Id: I25ac78df471ac33b57cb91375bd8453d6ce2814f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407034
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/align_runtime_test.go |  71 ++++++++++++++
+ src/runtime/align_test.go         | 198 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgc.go                |   4 +-
+ src/runtime/runtime.go            |   4 +-
+ 4 files changed, 275 insertions(+), 2 deletions(-)

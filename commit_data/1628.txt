@@ -1,0 +1,28 @@
+commit 187cf78a7c2fff4c1f606dacc412d5dda84f45b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 11:10:25 2009 -0800
+
+    - preparation for setting up types
+      - moved Object, Type, Scope  out of AST into symboltable
+      - moved universe into symboltable
+      - removed dead code
+    - fixed dependency computation (pretty -d filename.go)
+    - lots of cleanups
+    - removed tocken channel connection between parser and scanner
+      (was cute, but not really needed)
+    
+    R=r
+    OCL=24545
+    CL=24545
+
+ usr/gri/pretty/Makefile       |  12 +-
+ usr/gri/pretty/ast.go         | 206 +--------------------
+ usr/gri/pretty/compilation.go |  77 ++++----
+ usr/gri/pretty/parser.go      |  51 +++---
+ usr/gri/pretty/pretty.go      |   6 +-
+ usr/gri/pretty/printer.go     |   3 +-
+ usr/gri/pretty/scanner.go     |  28 ---
+ usr/gri/pretty/symboltable.go | 415 ++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/typechecker.go |   1 -
+ usr/gri/pretty/universe.go    | 123 -------------
+ 10 files changed, 495 insertions(+), 427 deletions(-)

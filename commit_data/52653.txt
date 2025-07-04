@@ -1,0 +1,21 @@
+commit 3de5b4da26b0062c9fd1b84849a0d4b7e78aaf5a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 12 13:57:21 2023 -0700
+
+    slices: amortize allocations in Insert
+    
+    Fixes #54948
+    
+    Change-Id: I467afb940b539b100dcce687b05914a9da7b9ed2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484159
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Valentin Deleplace <deleplace@google.com>
+
+ src/slices/slices.go      |  6 +++++-
+ src/slices/slices_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

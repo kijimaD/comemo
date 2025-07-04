@@ -1,0 +1,12 @@
+commit b7d9ffeecd4fd9afe0922b08998e85f0d0672582
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 16:47:18 2010 -0800
+
+    spec: disallow NUL in source files
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/209042
+
+ doc/go_spec.html | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,21 @@
+commit 5afada035ced1f89267d3177a9fb75fab4df81ff
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 14 16:15:40 2025 -0400
+
+    go/ast: add PreorderStack, a variant of Inspect that builds a stack
+    
+    + doc, test, relnote
+    
+    Fixes #73319
+    
+    Change-Id: Ib7c9d0d7107cd62dc7f09120dfb475c4a469ddc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672696
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ api/next/73319.txt                         |  1 +
+ doc/next/6-stdlib/99-minor/go/ast/73319.md |  4 +++
+ src/go/ast/walk.go                         | 39 ++++++++++++++++++++-
+ src/go/ast/walk_test.go                    | 56 +++++++++++++++++++++++++++++-
+ 4 files changed, 98 insertions(+), 2 deletions(-)

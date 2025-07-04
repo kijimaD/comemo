@@ -1,0 +1,14 @@
+commit 1fa0a8cec5f46bee1d652202934665a2ecdfc8d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 1 13:25:03 2015 +0900
+
+    runtime: fix data race in BenchmarkChanPopular
+    
+    Fixes #11014.
+    
+    Change-Id: I9a18dacd10564d3eaa1fea4d77f1a48e08e79f53
+    Reviewed-on: https://go-review.googlesource.com/10563
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/chan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

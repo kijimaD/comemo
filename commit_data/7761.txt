@@ -1,0 +1,14 @@
+commit f192891786893c9352e15698159b3929057cdb7e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 15 10:13:25 2011 -0700
+
+    httptest: default the Recorder status code to 200 on a Write
+    
+    This matches the real ResponseWriter behavior.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4291048
+
+ src/pkg/http/httptest/recorder.go | 3 +++
+ 1 file changed, 3 insertions(+)

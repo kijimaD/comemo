@@ -1,0 +1,20 @@
+commit cfdb3a5639569a2723dacbdf5475eef2f051fff8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 22:03:47 2009 -0700
+
+    make reader more useful
+    for lower-level clients:
+            * expose p.Skip
+            * expose p.Unmarshal
+            * wildcard struct field "Any"
+            * unmarshal into bool
+            * unmarshal into xml.Name
+            * unmarshal into pointer
+    
+    R=r
+    DELTA=61  (50 added, 5 deleted, 6 changed)
+    OCL=35372
+    CL=35422
+
+ src/pkg/xml/read.go | 67 ++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 56 insertions(+), 11 deletions(-)

@@ -1,0 +1,36 @@
+commit 56b54912628934707977a2a0a3824288c0286830
+Merge: d8d33514f9 e9eaa181fc
+Author: Rick Hudson <rlh@golang.org>
+Date:   Fri Apr 29 13:49:18 2016 -0400
+
+    Merge remote-tracking branch 'origin/dev.garbage'
+    
+    This commit moves the GC from free list allocation to
+    bit mark allocation. Instead of using the bitmaps
+    generated during the mark phases to generate free
+    list and then using the free lists for allocation we
+    allocate directly from the bitmaps.
+    
+    The change in the garbage benchmark
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.22ms ± 1%  2.13ms ± 1%  -3.90%  (p=0.000 n=18+18)
+    
+    Change-Id: I17f57233336f0ca5ef5404c3be4ecb443ab622aa
+
+ dev.garbage             |   1 +
+ src/runtime/cgocall.go  |   2 +-
+ src/runtime/heapdump.go |  16 +-
+ src/runtime/malloc.go   | 122 ++++++++----
+ src/runtime/mbitmap.go  | 479 +++++++++++++++++++++++++++++++++---------------
+ src/runtime/mcache.go   |  13 +-
+ src/runtime/mcentral.go |  82 ++++-----
+ src/runtime/mfinal.go   |   2 +-
+ src/runtime/mgcmark.go  |  45 +++--
+ src/runtime/mgcsweep.go | 148 ++++++---------
+ src/runtime/mgcwork.go  |  33 ++++
+ src/runtime/mheap.go    | 257 +++++++++++++++++++++-----
+ src/runtime/msize.go    |  28 ++-
+ src/runtime/mstats.go   |   6 +-
+ src/runtime/stack.go    |  42 ++---
+ 15 files changed, 849 insertions(+), 427 deletions(-)

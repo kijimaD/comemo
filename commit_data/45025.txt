@@ -1,0 +1,23 @@
+commit a9e475a15a7211c356157d1d0e5dc7cef7dd970e
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 8 12:44:05 2021 -0400
+
+    cmd/compile: add recursive-invalidate Value method, use in expand_calls
+    
+    This removes more unused values during transformation.
+    Leaving them in the tree can create type conflicts in OpArg* references.
+    
+    Updates #40724.
+    Updates #44816.
+    Fixes #45417.
+    
+    Change-Id: I07dcb7b4b2bf8d79e22e0543cb2fb52c2ececb96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308589
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 11 +++++++----
+ src/cmd/compile/internal/ssa/value.go        | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

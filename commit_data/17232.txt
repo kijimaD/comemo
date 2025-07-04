@@ -1,0 +1,14 @@
+commit dc48e9516c3b46f061af16f595a7c7dcb46434d1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 14 13:50:12 2013 -0400
+
+    runtime: Fix build on older ARM
+    
+            The ARM external linking CL used BLX instructions in gcc assembler. Replace with BL to retain support on older ARM processors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12938043
+
+ src/pkg/runtime/cgo/gcc_arm.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

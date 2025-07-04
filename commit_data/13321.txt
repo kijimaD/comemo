@@ -1,0 +1,12 @@
+commit 0c2f0cca7cc29a38e710f23fa752eecfa2368392
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 13:44:13 2012 -0400
+
+    cmd/api: handle empty API file, ignore -next in release
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6298063
+
+ src/cmd/api/goapi.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

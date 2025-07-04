@@ -1,0 +1,20 @@
+commit 85b49d7f21dfbee9946bece01a168de239094716
+Author: fangguizhen <1297394526@qq.com>
+Date:   Fri Jan 20 09:43:40 2023 +0000
+
+    bytes,strings: add some examples
+    
+    Change-Id: Ic93ad59119f3549c0f13c4f366f71e9d01b88c47
+    GitHub-Last-Rev: afb518047288976f440d3fe0d65923c1905a9b26
+    GitHub-Pull-Request: golang/go#57907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462283
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/example_test.go   | 62 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/example_test.go | 45 ++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+)

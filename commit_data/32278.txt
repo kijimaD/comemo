@@ -1,0 +1,16 @@
+commit e4ba9e3c546251c742b6496752c376f6a253c4a9
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Aug 4 17:38:46 2017 -0400
+
+    .gitignore: exclude /.idea/
+    
+    Some IDEs (e.g. intellij IDE based ones) create the .idea folder
+    to store project specific settings. This is irrelevant to Go project
+    that does not assume any specific IDEs, but interferes with git.
+    
+    Change-Id: I0c93d9a3f7edff095fbe0c7a53b06c92b391c970
+    Reviewed-on: https://go-review.googlesource.com/53770
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .gitignore | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,17 @@
+commit 09833da6b4cfb494ba61a398ab2063ab016d3890
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:44:56 2020 -0400
+
+    cmd/fix: always format source file before fixing
+    
+    This makes the changes to the file easier to explain.
+    Not all the changes may come from the fixers directly,
+    if the file is not gofmt-ed already.
+    
+    Change-Id: I81776da446a34a1239a3130317d2aae1437d61a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240555
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/fix/main.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

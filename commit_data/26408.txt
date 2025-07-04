@@ -1,0 +1,29 @@
+commit a9407b5797c0d4dcbed965462204cdc4e38bb621
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 20 10:25:46 2016 -0700
+
+    cmd/compile: fix varexpr handling of ODOT
+    
+    For a long time varexpr has handled ODOT incorrectly: it has always
+    returned false.  Before https://golang.org/cl/20890 this has been
+    because an ODOT had a Right field with an ONAME with no Class, for which
+    varexpr returns false.  CL 20890 preserved the behavior of varexpr for
+    ODOT, so that the change would pass toolstash -cmp.
+    
+    This CL fixes varexpr so that ODOT can return true in some cases.  This
+    breaks toolstash -cmp.  While the changed compiler allocates temporary
+    variables in a different order, I have not been able to find any
+    examples where the generated code is different, other than using
+    different stack offsets and, in some cases, registers.  It seems that
+    other parts of the compiler will force the ODOT into a temporary anyhow.
+    
+    Still, this change is clearly correct, and is a minor compiler cleanup.
+    
+    Change-Id: I71506877aa3c13966bb03c281aa16271ee7fe80a
+    Reviewed-on: https://go-review.googlesource.com/20907
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit c63dc6d45956ba471cc88658df4674df3f679a70
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 26 11:56:19 2019 -0800
+
+    cmd/compile: remove badgerbadgerbadger optimization
+    
+    As discussed in #29242, this optimization is for a bash-ism.
+    No one writes Go code like this.
+    
+    In this repo, it triggers only in test/fixedbugs/bug425.go
+    and that appears to be accidental.
+    
+    Fixes #29242
+    
+    Change-Id: I257e6ecc73f24680f7282c6ab28729de4e8b27af
+    Reviewed-on: https://go-review.googlesource.com/c/163728
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 6 ------
+ 1 file changed, 6 deletions(-)

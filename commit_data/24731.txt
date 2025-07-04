@@ -1,0 +1,34 @@
+commit f54bcedce19a2c5aed897a8697e65ba037a8f53d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 14:15:18 2015 -0400
+
+    runtime: beginning of decentralized off->mark transition
+    
+    This begins the conversion of the centralized GC coordinator to a
+    decentralized state machine by introducing the internal API that
+    triggers the first state transition from _GCoff to _GCmark (or
+    _GCmarktermination).
+    
+    This change introduces the transition lock, the off->mark transition
+    condition (which is very similar to shouldtriggergc()), and the
+    general structure of a state transition. Since we're doing this
+    conversion in stages, it then falls back to the GC coordinator to
+    actually execute the cycle. We'll start moving logic out of the GC
+    coordinator and in to transition functions next.
+    
+    This fixes a minor bug in gcstoptheworld debug mode where passing the
+    heap trigger once could trigger multiple STW GCs.
+    
+    Updates #11970.
+    
+    Change-Id: I964087dd190a639eb5766398f8e1bbf8b352902f
+    Reviewed-on: https://go-review.googlesource.com/16355
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go |   4 +-
+ src/runtime/mgc.go    | 142 +++++++++++++++++++++++++++++++++-----------------
+ src/runtime/mheap.go  |   2 +-
+ src/runtime/proc.go   |   2 +-
+ src/runtime/trace.go  |   2 +-
+ 5 files changed, 98 insertions(+), 54 deletions(-)

@@ -1,0 +1,37 @@
+commit 1f354a60ff7e8e047e4dfecb1033a20ee8c266dc
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 11 10:49:44 2024 +0100
+
+    runtime: don't call lockOSThread for every syscall call on Windows
+    
+    Windows syscall.SyscallN currently calls lockOSThread for every syscall.
+    This can be expensive and produce unnecessary context switches,
+    especially when the syscall is called frequently under high contention.
+    
+    The lockOSThread was necessary to ensure that cgocall wouldn't
+    reschedule the goroutine to a different M, as the syscall return values
+    are reported back in the M struct.
+    
+    This CL instructs cgocall to copy the syscall return values into the
+    the M that will see the caller on return, so the caller no longer needs
+    to call lockOSThread.
+    
+    Updates #58336.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64,gotip-windows-amd64-longtest
+    Change-Id: If6644fd111dbacab74e7dcee2afa18ca146735da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562915
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgocall.go         | 12 +++++++++---
+ src/runtime/nonwindows_stub.go |  5 +++++
+ src/runtime/os_windows.go      |  2 ++
+ src/runtime/runtime2.go        | 10 +++++-----
+ src/runtime/syscall_windows.go | 10 ++++++----
+ 5 files changed, 27 insertions(+), 12 deletions(-)

@@ -1,0 +1,16 @@
+commit fcca9d265c871863392d821723a9a4ddd29ac2ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 26 11:20:20 2016 -0700
+
+    cmd/compile: remove pointless conversions in copytype
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8b000d4e90e6aa1a0e60bd46fb7cba2ddc1774b5
+    Reviewed-on: https://go-review.googlesource.com/21210
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

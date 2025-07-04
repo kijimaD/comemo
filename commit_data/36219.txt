@@ -1,0 +1,33 @@
+commit 79faf9246e978628373999801279038a2ebc21ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 3 13:43:17 2018 -0400
+
+    cmd/go/internal/load: pass the importer's package path when checking visibility
+    
+    A module like "gopkg.in/macaroon.v2" might have a test with a "_test" package
+    suffix (see https://golang.org/cmd/go/#hdr-Test_packages).
+    When we compile that test, its ImportStack entry includes the "_test" suffix
+    even though nothing else can actually import it via that path.
+    When we look up the module containing such a package, we must use the original
+    path, not the suffixed one.
+    
+    On the other hand, an actual importable package may also be named with the
+    suffix "_test", so we need to be careful not to strip the suffix if it is
+    legitimately part of the path. We cannot distinguish that case by examining
+    srcDir or the ImportStack: the srcDir contaning a module doesn't necessarily
+    bear any relationship to its import path, and the ImportStack doesn't tell us
+    whether the suffix is part of the original path.
+    
+    Fortunately, LoadImport usually has more information that we can use: it
+    receives a parent *Package that includes the original import path.
+    
+    Fixes #26722
+    
+    Change-Id: I1f7a4b37dbcb70e46af1caf9a496dfdd59ae8b17
+    Reviewed-on: https://go-review.googlesource.com/127796
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go             | 38 +++++++--------
+ src/cmd/go/testdata/script/mod_internal.txt | 32 +++++++++----
+ src/cmd/go/testdata/script/mod_test.txt     | 74 ++++++++++++++++++++++++++++-
+ 3 files changed, 116 insertions(+), 28 deletions(-)

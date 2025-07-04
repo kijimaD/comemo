@@ -1,0 +1,28 @@
+commit 7f8608047644ca34bad1728d5e2dbef041a1b3f2
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Jul 24 11:00:36 2020 +0800
+
+    cmd/compile: don't addLocalInductiveFacts if there is no direct edge from if block to phi block
+    
+    Currently in addLocalInductiveFacts, we only check whether
+    direct edge from if block to phi block exists. If not, the
+    following logic will treat the phi block as the first successor,
+    which is wrong.
+    
+    This patch makes prove pass more conservative, so we disable
+    some cases in test/prove.go. We will do some optimization in
+    the following CL and enable these cases then.
+    
+    Fixes #40367.
+    
+    Change-Id: I27cf0248f3a82312a6f7dabe11c79a1a34cf5412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244579
+    Reviewed-by: Zach Jones <zachj1@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go |  8 +++++++
+ test/fixedbugs/issue40367.go          | 41 +++++++++++++++++++++++++++++++++++
+ test/prove.go                         |  6 +++--
+ 3 files changed, 53 insertions(+), 2 deletions(-)

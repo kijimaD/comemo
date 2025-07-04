@@ -1,0 +1,15 @@
+commit aa6e81dd719271b605be40ab277daeba85541e05
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 16:59:41 2009 -0700
+
+    a few more blank tests
+    
+    R=ken
+    OCL=34500
+    CL=34500
+
+ src/cmd/gc/dcl.c       |  4 ++--
+ src/cmd/gc/go.y        |  7 +++++--
+ src/cmd/gc/typecheck.c |  9 +++++----
+ test/blank.go          | 11 +++++++++--
+ 4 files changed, 21 insertions(+), 10 deletions(-)

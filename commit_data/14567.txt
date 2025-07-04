@@ -1,0 +1,12 @@
+commit b46d56ae7215ca1f56f4556f76408bab26a85669
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 5 20:32:12 2012 -0800
+
+    test: add some tests where go/defer arg starts with parenthesis
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6890047
+
+ test/fixedbugs/issue4468.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

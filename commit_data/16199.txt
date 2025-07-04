@@ -1,0 +1,12 @@
+commit 1f4055a0ec47c86ebc35bf6f937797b2f2f1c32e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 18 17:37:09 2013 -0700
+
+    doc/go1.1.html: document io.ErrNoProgress
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8833050
+
+ doc/go1.1.html | 2 ++
+ 1 file changed, 2 insertions(+)

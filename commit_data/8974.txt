@@ -1,0 +1,12 @@
+commit e67a2504a15ac579758f8dc494d4d4e2b5fc13ab
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jul 8 10:51:56 2011 +1000
+
+    gob: export fields in structs in the package documentation.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4648075
+
+ src/pkg/gob/doc.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,23 @@
+commit 1fd3cc7cd095377f8a742d55b6c04516b9139b03
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 9 19:59:37 2023 -0700
+
+    cmp, builtin: document NaN behavior
+    
+    Add notes for cmp.Ordered and builtin.{min,max}.
+    
+    Fixes #60648
+    
+    Change-Id: I81806af2d9a0613befde3f2bbfbc2720f0726912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502235
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/builtin/builtin.go | 4 ++++
+ src/cmp/cmp.go         | 5 +++++
+ 2 files changed, 9 insertions(+)

@@ -1,0 +1,14 @@
+commit bd77eedacf67a220dc69afa42ba9abab29aec362
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 09:33:53 2011 -0400
+
+    gc: fix use of typekind array in error messages
+    
+    Fixes #1697.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4395045
+
+ src/cmd/gc/typecheck.c | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

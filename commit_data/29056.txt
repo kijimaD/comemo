@@ -1,0 +1,20 @@
+commit 5a9549260df1f5ffcbdd5938861fea9f74478661
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Oct 25 19:33:50 2016 +0530
+
+    math/cmplx: prevent infinite loop in tanSeries
+    
+    The condition to determine if any further iterations are needed is
+    evaluated to false in case it encounters a NaN. Instead, flip the
+    condition to keep looping until the factor is greater than the machine
+    roundoff error.
+    
+    Updates #17577
+    
+    Change-Id: I058abe73fcd49d3ae4e2f7b33020437cc8f290c3
+    Reviewed-on: https://go-review.googlesource.com/31952
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/cmplx/cmath_test.go | 8 ++++++++
+ src/math/cmplx/tan.go        | 4 +++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

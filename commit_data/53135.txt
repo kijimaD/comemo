@@ -1,0 +1,19 @@
+commit 9ed2b115fb405bf730772d0e825876d85deb7340
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 17 09:38:20 2023 +0200
+
+    runtime: report correct fcntl syscall error in checkCloseonexec
+    
+    runtime.fcntl returns the error value as a negative value, so it needs
+    to be inverted before being converted to syscall.Errno.
+    
+    Change-Id: I43cd0b035150424ac59e623b17a9396c7d62c186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/nbpipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

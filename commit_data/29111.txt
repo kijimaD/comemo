@@ -1,0 +1,15 @@
+commit f697cf22558157b9c0bc287287c5668c758f16c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 22:49:13 2016 +0000
+
+    net/http/httptest: doc tweaks
+    
+    From lost-in-flight comments on CL 32190.
+    
+    Change-Id: I2029cbac6d24b5944a796b359080011ec3a8da92
+    Reviewed-on: https://go-review.googlesource.com/32210
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/net/http/httptest/recorder.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

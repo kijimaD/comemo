@@ -1,0 +1,14 @@
+commit 4f7aa318628ce1d08bd2f0fccf18e5e11ca5c7f1
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 15 22:30:57 2009 -0700
+
+    fix minor typo in float conversions
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35820
+    CL=35820
+
+ src/cmd/5g/gsubr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

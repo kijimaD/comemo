@@ -1,0 +1,18 @@
+commit 1b591dfb1f071d978448966e979e40b1f265c1a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 15:16:46 2016 -0500
+
+    os/exec: fix variable shadow, don't leak goroutine
+    
+    Goroutine leak checking is still too tedious, so untested.
+    
+    See #6705 which is my fault for forgetting to mail out.
+    
+    Change-Id: I899fb311c9d4229ff1dbd3f54fe307805e17efee
+    Reviewed-on: https://go-review.googlesource.com/22581
+    Reviewed-by: Ahmed W. <oneofone@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

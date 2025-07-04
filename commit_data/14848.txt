@@ -1,0 +1,14 @@
+commit 9204eb4d3ce3ba49cce7d24f4e373d230f865848
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Jan 10 15:45:46 2013 -0500
+
+    runtime: interpret type information during garbage collection
+    
+    R=rsc, dvyukov, remyoudompheng, dave, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6945069
+
+ src/pkg/runtime/malloc.h |   1 +
+ src/pkg/runtime/mgc0.c   | 259 ++++++++++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/mgc0.go  |   5 +
+ 3 files changed, 228 insertions(+), 37 deletions(-)

@@ -1,0 +1,15 @@
+commit a225706e5f49c696348cfbc5e3198319d14c9cfa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Jul 25 17:18:05 2009 -0700
+
+    container/list: Add Len() method to List.
+    
+    R=r
+    APPROVED=gri
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=32106
+    CL=32189
+
+ src/pkg/container/list/list.go      | 10 ++++++++++
+ src/pkg/container/list/list_test.go | 13 +++++++++++++
+ 2 files changed, 23 insertions(+)

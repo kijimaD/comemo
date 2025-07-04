@@ -1,0 +1,23 @@
+commit afd181cf0b69c3591d7e47ceca4fabf14434d77e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 17 15:38:35 2022 +0700
+
+    test,misc: fix builders that do not support plugin
+    
+    CL 406358 added test that use -buildmode=plugin. But plugin mode only
+    supports on some os/arch pairs, so this CL moving the test to
+    misc/cgo/testplugin directory instead.
+    
+    Updates #52937
+    
+    Change-Id: Iad049443c1f6539f6af1988bebd4dff56c6e1bf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406774
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testplugin/plugin_test.go                                   | 4 ++++
+ .../issue52937.go => misc/cgo/testplugin/testdata/issue52937/main.go | 5 -----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

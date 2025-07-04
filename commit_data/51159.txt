@@ -1,0 +1,29 @@
+commit 12ab0ac184f45e4fc04ffa77a73e211a0aa86d5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 8 14:04:24 2022 -0500
+
+    net: pass C string to res_nsearch, in case it stores the pointer
+    
+    The current code passes a Go pointer to a NUL-terminated C string
+    to the C function res_nsearch (or res_search), but that function may
+    in turn store the pointer into the res_state, which is a violation of the
+    cgo pointer rules and is being detected on the linux-amd64-wsl builder.
+    
+    Allocating the string in C memory is safer and should resolve
+    the cgo pointer check. When using libc/syscall mode, the memory
+    is still allocated Go-side, which could potentially be a problem
+    if we ever add a moving collector. For now it is OK.
+    
+    Fixes #56658.
+    
+    Change-Id: Ibd84a9665be16c71994ddb1eedf09d45a6553a3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448795
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+
+ src/net/cgo_unix.go         | 16 ++++++++--------
+ src/net/cgo_unix_cgo.go     |  8 +++++++-
+ src/net/cgo_unix_syscall.go | 17 +++++++++++++++++
+ 3 files changed, 32 insertions(+), 9 deletions(-)

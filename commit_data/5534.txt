@@ -1,0 +1,12 @@
+commit c95e11db5698b56336e6a637795c9580a66cd8e8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 24 15:07:47 2010 -0700
+
+    Fix typo in exp/draw/x11.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1282041
+
+ src/pkg/exp/draw/x11/conn.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

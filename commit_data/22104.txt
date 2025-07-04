@@ -1,0 +1,19 @@
+commit 564eab891a2a0da77aeec29d94a5a4c0c9d002b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 20:56:15 2015 -0400
+
+    runtime: add GODEBUG=sbrk=1 to bypass memory allocator (and GC)
+    
+    To reduce lock contention in this mode, makes persistent allocation state per-P,
+    which means at most 64 kB overhead x $GOMAXPROCS, which should be
+    completely tolerable.
+    
+    Change-Id: I34ca95e77d7e67130e30822e5a4aff6772b1a1c5
+    Reviewed-on: https://go-review.googlesource.com/7740
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go   | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/mfinal.go   |  5 +++++
+ src/runtime/runtime1.go |  2 ++
+ src/runtime/runtime2.go |  2 ++
+ 4 files changed, 41 insertions(+), 7 deletions(-)

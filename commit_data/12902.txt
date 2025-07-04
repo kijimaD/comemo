@@ -1,0 +1,12 @@
+commit b20163e9e48fe300112de18f75cfa77c04968f2a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 17 16:37:35 2012 +1000
+
+    flag: update style.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/6051044
+
+ src/pkg/flag/flag.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

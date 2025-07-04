@@ -1,0 +1,24 @@
+commit 6e7bc021eed9e039aa4cf4c2800e91f3145b5930
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Mar 21 15:18:04 2019 -0400
+
+    cmd/dist: set GOPATH to internal directory during build
+    
+    Since GO111MODULE=on by default, the Go command needs a location for
+    the module cache, even though it doesn't need to be written when
+    building std and cmd. If GOROOT is checked out to $HOME/go, which is
+    also the default location for GOPATH, this causes unnecessary problems
+    late in the build.
+    
+    With this change, dist sets GOPATH to $GOROOT/pkg/obj/go-path. This is
+    next to the temporary GOCACHE, $GOROOT/pkg/obj/go-build.
+    
+    Fixes #30960
+    
+    Change-Id: I60771ee7f7c67ced1d2dc7c66b5885703fad1b63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168697
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,13 @@
+commit c27c3aa6d800c5e9c8f2027b43eadb0f7a51eac3
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Wed Feb 10 17:29:03 2010 -0800
+
+    Added tests for http.Request/Response.Write()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/199070
+
+ src/pkg/http/requestwrite_test.go  | 104 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/responsewrite_test.go |  69 ++++++++++++++++++++++++
+ 2 files changed, 173 insertions(+)

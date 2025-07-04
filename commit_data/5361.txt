@@ -1,0 +1,32 @@
+commit bec40ba516e2c8ff4cbcd0eaa3dc84a03c230289
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 10:24:00 2010 -0700
+
+    json: preserve field name case by default
+    
+    This matches the old JSON package behavior.
+    All lowercase names are not as standard as I believed,
+    and it seems less surprising to need to write
+    
+            type T struct { Field string "field" }
+    
+    to get lower case (behavior after this CL) than it does to need
+    to write
+    
+            type T struct { Field string "Field" }
+    
+    to preserve the case (behavior before this CL).
+    
+    Also test and  fix unmarshal into non-nil interface
+    value or pointer.
+    
+    Fixes #744.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1013041
+
+ src/pkg/json/decode.go      |  20 +++-
+ src/pkg/json/decode_test.go | 266 ++++++++++++++++++++++++--------------------
+ src/pkg/json/encode.go      |   5 +-
+ 3 files changed, 164 insertions(+), 127 deletions(-)

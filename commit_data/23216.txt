@@ -1,0 +1,19 @@
+commit 3007e953d01a8a1851c175d74764eb04f9f31254
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 23:42:41 2015 -0400
+
+    cmd/compile: remove Node.Escflowsrc, Node.Escretval, Node.Escloopdepth, Node.Esclevel
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 200
+    $
+    
+    Change-Id: Iba4e88eac6bee3e2349e818a5a2326deabcb96f9
+    Reviewed-on: https://go-review.googlesource.com/10528
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/esc.go    | 153 +++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/fmt.go    |   4 +-
+ src/cmd/compile/internal/gc/syntax.go |  11 +--
+ 3 files changed, 96 insertions(+), 72 deletions(-)

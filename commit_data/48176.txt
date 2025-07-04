@@ -1,0 +1,19 @@
+commit 293ecd87c10eb5eed777d220394ed63a935b2c20
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 26 16:19:47 2022 -0800
+
+    time: document that Parse truncates to nanosecond precision
+    
+    For #48685
+    Fixes #50806
+    
+    Change-Id: Ie8be40e5794c0998538890a651ef8ec92cb72d3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381155
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/time/format.go | 1 +
+ 1 file changed, 1 insertion(+)

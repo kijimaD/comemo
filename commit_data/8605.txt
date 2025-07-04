@@ -1,0 +1,17 @@
+commit ae5a972d9e4152116795e068cf328caf32a39a88
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 3 11:43:54 2011 +1000
+
+    exp/draw: fix clipping bug where sp/mp were not shifted when r.Min was.
+    
+    image: add Rectangle.ContainsRectangle method.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4517130
+
+ src/pkg/exp/draw/clip_test.go | 193 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/draw/draw.go      |  40 +++++----
+ src/pkg/exp/draw/draw_test.go |   6 +-
+ src/pkg/image/geom.go         |  15 +++-
+ 4 files changed, 231 insertions(+), 23 deletions(-)

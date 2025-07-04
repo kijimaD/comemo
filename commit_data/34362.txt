@@ -1,0 +1,18 @@
+commit a5c987fcbb95db82ee2101a46503bc21bea1f2d9
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Feb 23 16:25:18 2018 -0500
+
+    cmd/trace: trace error check and more logging in annotations test
+    
+    This is for debugging the reported flaky tests.
+    
+    Update #24081
+    
+    Change-Id: Ica046928f675d69e38251a47a6f225efedce920c
+    Reviewed-on: https://go-review.googlesource.com/96855
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations_test.go | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

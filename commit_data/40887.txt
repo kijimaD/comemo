@@ -1,0 +1,20 @@
+commit 688aa748579f07552a50d2534eccb16afda4174b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 22 14:31:13 2019 -0500
+
+    cmd/link: add new linker testpoint for "ld -r" host object
+    
+    This adds a new test that builds a small Go program with linked
+    against a *.syso file that is the result of an "ld -r" link. The
+    sysobj in question has multiple static symbols in the same section
+    with the same name, which triggered a bug in the loader in -newobj
+    mode.
+    
+    Updates #35779.
+    
+    Change-Id: Ibe1a75662dc1d49c4347279e55646ee65a81508e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208478
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/elf_test.go | 124 +++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 108 insertions(+), 16 deletions(-)

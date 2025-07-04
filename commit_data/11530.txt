@@ -1,0 +1,12 @@
+commit 82555d7b40c9523504e5eec418022a254b6b50ae
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jan 31 18:13:17 2012 -0800
+
+    libmach: add stubs for Plan 9
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5576080
+
+ src/libmach/plan9.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 72 insertions(+)

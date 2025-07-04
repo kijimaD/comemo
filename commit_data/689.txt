@@ -1,0 +1,13 @@
+commit d910e90edd64c1d7da52c9af07b8d8e3ebe6b478
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 19 18:06:53 2008 -0700
+
+    - heuristics for parsing composite literals in some cases
+    - fixed result parsing of function types
+    
+    R=r
+    OCL=15585
+    CL=15585
+
+ usr/gri/pretty/parser.go | 45 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 33 insertions(+), 12 deletions(-)

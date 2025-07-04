@@ -1,0 +1,16 @@
+commit c4b87b8d08af1243a8ef0add245f10f878879a57
+Author: Suvaditya Sur <suvaditya.sur@gmail.com>
+Date:   Thu Feb 10 11:56:55 2022 +0530
+
+    abi-internal: Fix typo in register assignment documentation
+    
+    If register assignment fails, revert back the value to stack
+    
+    Change-Id: I6f65092461ad4d793206a679a5fef1b560b387f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384455
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/abi-internal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

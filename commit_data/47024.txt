@@ -1,0 +1,22 @@
+commit 60c3069dd82eee30c00f2a8d829ba74b11bcf07e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 22 14:19:34 2021 -0700
+
+    internal/poll: avoid tiny allocator for splicePipe
+    
+    We want to set a finalizer on splicePipe, so make it large enough to
+    not use the tiny allocator. Otherwise the finalizer will not run until
+    the rest of the tiny allocation can be freed. This only matters on
+    32-bit systems.
+    
+    Fixes #48968
+    
+    Change-Id: I8eb3c9f48fdccab7dc79c5b918d4257b6151ee91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358114
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/internal/poll/splice_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

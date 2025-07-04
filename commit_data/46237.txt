@@ -1,0 +1,19 @@
+commit ae2b2dc01ac5a7e8ef3f5a78d65a7a85b2324118
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 14:57:24 2021 -0400
+
+    go/types: rename IsMethodSet to IsConstraint (cleanup)
+    
+    This is a port of CL 344872 to go/types.
+    
+    Change-Id: Id794f1fc3b86779ee32dbe5e656ffc747d44c3e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346434
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/interface.go | 2 +-
+ src/go/types/typeset.go   | 6 ++----
+ src/go/types/typexpr.go   | 2 +-
+ 3 files changed, 4 insertions(+), 6 deletions(-)

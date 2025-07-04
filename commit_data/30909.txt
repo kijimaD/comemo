@@ -1,0 +1,18 @@
+commit 371c83b594bf7af5a5b56f3ecfe1347e0b666dc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 20:39:32 2017 -0400
+
+    cmd/link: do not pass -s through to host linker on macOS
+    
+    This keeps the host linker from printing
+    ld: warning: option -s is obsolete and being ignored
+    
+    Fixes #19775.
+    
+    Change-Id: I18dd4e4b3f59cbf35dad770fd65e6baea5a7347f
+    Reviewed-on: https://go-review.googlesource.com/38851
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,16 @@
+commit b39bbf1e5b908070ee348c1ba6006da8ff1374c8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Apr 18 13:26:35 2012 +1000
+
+    exp/html: adjust beforeHTMLIM to match spec
+    
+    Add case for doctype tokens (which are ignored).
+    
+    This CL does not change the status of any tests.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6061047
+
+ src/pkg/exp/html/parse.go | 3 +++
+ 1 file changed, 3 insertions(+)

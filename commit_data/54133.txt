@@ -1,0 +1,20 @@
+commit 47645420348778a9b289e979ac5f757e64a78696
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 10:23:03 2023 -0700
+
+    cmd/compile/internal/compare: simplify unit test framework
+    
+    This CL refactors the compare unit tests to be simpler and to stop
+    using the types API in non-idiomatic ways, to facilitate further
+    refactoring of the API.
+    
+    Change-Id: I864a66b2842a0d8dd45f4e3d773144d71666caf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521275
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/compare/compare_test.go | 155 ++++++-----------------
+ 1 file changed, 37 insertions(+), 118 deletions(-)

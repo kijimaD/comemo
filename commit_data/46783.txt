@@ -1,0 +1,21 @@
+commit 8238f82bf1ddadd906585e3f11600968d95ce98c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 13:44:51 2021 -0700
+
+    runtime: streamline moduledata.textAddr
+    
+    Accept a uint32 instead of a uintptr to make call sites simpler.
+    
+    Do less work in the common case in which len(textsectmap) == 1.
+    
+    Change-Id: Idd6cdc3fdad7a9356864c83790463b5d3000171b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354132
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/plugin.go |  2 +-
+ src/runtime/symtab.go | 28 +++++++++++++---------------
+ src/runtime/type.go   |  2 +-
+ 3 files changed, 15 insertions(+), 17 deletions(-)

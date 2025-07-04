@@ -1,0 +1,44 @@
+commit 9d78e75a0a55fd5ff3d68b4cba2f0395c4b5dc88
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 15 23:30:30 2019 +0000
+
+    runtime: track ranges of address space which are owned by the heap
+    
+    This change adds a new inUse field to the allocator which tracks ranges
+    of addresses that are owned by the heap. It is updated on each heap
+    growth.
+    
+    These ranges are tracked in an array which is kept sorted. In practice
+    this array shouldn't exceed its initial allocation except in rare cases
+    and thus should be small (ideally exactly 1 element in size).
+    
+    In a hypothetical worst-case scenario wherein we have a 1 TiB heap and 4
+    MiB arenas (note that the address ranges will never be at a smaller
+    granularity than an arena, since arenas are always allocated
+    contiguously), inUse would use at most 4 MiB of memory if the heap
+    mappings were completely discontiguous (highly unlikely) with an
+    additional 2 MiB leaked from previous allocations. Furthermore, the
+    copies that are done to keep the inUse array sorted will copy at most 4
+    MiB of memory in such a scenario, which, assuming a conservative copying
+    rate of 5 GiB/s, amounts to about 800µs.
+    
+    However, note that in practice:
+    1) Most 64-bit platforms have 64 MiB arenas.
+    2) The copies should incur little-to-no page faults, meaning a copy rate
+       closer to 25-50 GiB/s is expected.
+    3) Go heaps are almost always mostly contiguous.
+    
+    Updates #35514.
+    
+    Change-Id: I3ad07f1c2b5b9340acf59ecc3b9ae09e884814fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207757
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go     |  16 ++++++
+ src/runtime/mpagealloc.go      |  20 +++++++
+ src/runtime/mpagealloc_test.go | 113 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/mranges.go         | 122 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 271 insertions(+)

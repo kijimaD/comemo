@@ -1,0 +1,14 @@
+commit 9ce6b5c2ed5d3d5251b9a6a0c548d5fb2c8567e8
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Thu Dec 7 16:34:14 2017 +0000
+
+    net/http/httputil: remove redundant call of setBody in test
+    
+    Change-Id: I5a38200b9e050b484ec39f47c637e651e237390d
+    Reviewed-on: https://go-review.googlesource.com/82536
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/dump_test.go | 2 --
+ 1 file changed, 2 deletions(-)

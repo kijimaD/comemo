@@ -1,0 +1,19 @@
+commit b2a032add8e46ca03af0b2c1c72052b75e056101
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 21 19:02:11 2021 -0400
+
+    cmd/link: update machoPlatform selection
+    
+    Now that we have darwin/arm64 and ios/arm64 ports, make it based
+    on GOOS, instead of GOARCH.
+    
+    Also drop a remaining case of 32-bit ARM.
+    
+    Change-Id: I954fff980712fd3b81b561ddcb6f3a4ef73fa0b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312549
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

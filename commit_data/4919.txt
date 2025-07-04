@@ -1,0 +1,12 @@
+commit 766c3ff735807dcfb9099ae38c643e0c9971203e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 22 14:51:22 2010 -0800
+
+    effective_go: clarified small comment
+    
+    R=rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/217085
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

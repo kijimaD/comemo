@@ -1,0 +1,12 @@
+commit 8189605a9681385c8464d72a13541b683fe88cdd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 18:48:40 2013 -0800
+
+    doc: change "threads" to "goroutines"
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/40510049
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

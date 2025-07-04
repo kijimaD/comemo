@@ -1,0 +1,22 @@
+commit 1a0a09dafecddf2b63befda53aa5e54d74ce19e1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jul 4 00:38:01 2012 +0200
+
+    math/rand: avoid use of math.Pow in tests.
+    
+    The use of math.Pow for mere squaring can be extremely
+    slow on soft-float ARM. Even on systems with hardware
+    floating-point, a speedup in test duration is observed.
+    
+    On amd64
+    Before: ok      math/rand       2.009s
+    After:  ok      math/rand       0.340s
+    
+    Fixes #3740.
+    
+    R=dave, golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/6348061
+
+ src/pkg/math/rand/rand_test.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

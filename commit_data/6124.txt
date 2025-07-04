@@ -1,0 +1,14 @@
+commit 64cb9b6f4559e7aa4320e9fe8650433a6548d606
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 30 08:03:06 2010 +1000
+
+    rpc: fix bug that caused private methods to attempt to be registered.
+    
+    Fixes #1056.
+    
+    R=golang-dev, adg1
+    CC=golang-dev
+    https://golang.org/cl/2033043
+
+ src/pkg/rpc/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

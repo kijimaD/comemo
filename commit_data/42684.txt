@@ -1,0 +1,13 @@
+commit ccc951637be806e6e7a3c2c922bf4746b60e7395
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 13 12:56:57 2020 +0200
+
+    cmd/link: move comma outside quotes
+    
+    Change-Id: I2ecf8976a6289924ac7bfe7ace129a462537e11d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248339
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

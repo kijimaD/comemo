@@ -1,0 +1,24 @@
+commit d740b365b7c1ecefb91b2e2fed5719c8ec49d155
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 11 14:27:25 2023 -0400
+
+    cmd/compile/internal/pgo: move pprof graph to internal package
+    
+    graph.go is a simplified fork of github.com/google/pprof/internal/graph,
+    which is used as an intermediate data structure to construct the final
+    graph exported by package pgo (IRGraph).
+    
+    Exporting both is a bit confusing as the former is unused outside of the
+    package. Since the naming is also similar, move graph.go to its own
+    package entirely.
+    
+    Change-Id: I2bccb3ddb6c3f63afb869ea9cf34d2a261cad058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494437
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/{ => internal/graph}/graph.go | 12 ++++++------
+ src/cmd/compile/internal/pgo/irgraph.go                    |  5 +++--
+ 2 files changed, 9 insertions(+), 8 deletions(-)

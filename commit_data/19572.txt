@@ -1,0 +1,13 @@
+commit 705a028d0fef32e4bd9c43c6469847db71a756c7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Jun 19 01:49:14 2014 -0400
+
+    testing/quick: brought Check parameter name in line with function doc
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/102830043
+
+ src/pkg/testing/quick/quick.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

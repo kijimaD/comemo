@@ -1,0 +1,15 @@
+commit adb52cff581b13f06282bd8940a6ab8ee333cb4c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Apr 7 23:59:58 2018 +0200
+
+    misc/wasm: wasm_exec: non-zero exit code on compile error
+    
+    Return a non-zero exit code if the WebAssembly host fails to compile
+    the WebAssmbly bytecode to machine code.
+    
+    Change-Id: I774309db2872b6a2de77a1b0392608058414160d
+    Reviewed-on: https://go-review.googlesource.com/110097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,27 @@
+commit f1c8e2c14ad3e9d0fa62a4698163138e6fb9f7a4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Sat Nov 23 12:06:21 2019 -0500
+
+    cmd/go: enable -x in go mod download
+    
+    Lack of logging hinders debugging. Like many other go commands,
+    let's allow users to inspect what is going on underneath.
+    
+    Example:
+    
+    $ GO111MODULE=on GOPROXY=direct GOPATH=`mktemp -d` go mod download -x golang.org/x/tools/gopls@latest
+    mkdir -p /var/folders/bw/6r6k9d113sv1_vvzk_1kfxbm001py5/T/tmp.ykhTiXaS/pkg/mod/cache/vcs # git3 https://go.googlesource.com/tools
+    ...
+    
+    Update #35849
+    
+    Change-Id: I5577e683ae3c0145b11822df255b210ad9f60c87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208558
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go                       | 4 +++-
+ src/cmd/go/internal/modcmd/download.go      | 6 +++++-
+ src/cmd/go/testdata/script/mod_download.txt | 7 +++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit fa3f484800415662cc741bbb8968ebb72896e20a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 24 11:39:48 2016 -0700
+
+    encoding/csv: clarify that this package supports RFC 4180
+    
+    The intent of this comment is to reduce the number of issues opened
+    against the package to add support for new kinds of CSV formats, such as
+    issues #3150, #8458, #12372, #12755.
+    
+    Change-Id: I452c0b748e4ca9ebde3e6cea188bf7774372148e
+    Reviewed-on: https://go-review.googlesource.com/23401
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/csv/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

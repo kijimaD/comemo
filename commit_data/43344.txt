@@ -1,0 +1,24 @@
+commit c8f6135d4fd0be14bfc63c2bbb911cc9647e00a6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 16 17:48:29 2020 +0200
+
+    test: add regression test from #41474
+    
+    This issue was fixed with multiple individual compiler optimizations,
+    each of which had their own respective test cases. This CL just adds
+    the capstone test case to demonstrate that the issue has been fixed
+    and doesn't regress again.
+    
+    Updates #41474.
+    
+    Change-Id: Iae752d4b0e7b83ee356b946843340a4fbc254058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263097
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

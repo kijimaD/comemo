@@ -1,0 +1,20 @@
+commit 1ce8a3f08170c81085a26165d6c4e1a058d1e0d6
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Fri Sep 8 08:21:58 2023 +0900
+
+    io: add (*SectionReader).Outer()
+    
+    Fixes #61870
+    Updates #61727
+    
+    Change-Id: Iaef9b59c402d68f6bf64be212db2b6746abe8900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/61870.txt |  1 +
+ src/io/io.go       | 17 +++++++++++++----
+ src/io/io_test.go  |  6 ++++++
+ 3 files changed, 20 insertions(+), 4 deletions(-)

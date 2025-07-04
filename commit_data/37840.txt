@@ -1,0 +1,16 @@
+commit f7248ba75321ace8e76f9723e9ef3badea2bdd4d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Jan 5 23:39:24 2019 +0700
+
+    archive/zip: fix casting overflow on 32-bit arch
+    
+    Fixes #29555
+    
+    Change-Id: Ia3c0dd65bcf94dea3f6e04c23c1fe5d6d0b2c1e9
+    Reviewed-on: https://go-review.googlesource.com/c/156399
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/zip_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

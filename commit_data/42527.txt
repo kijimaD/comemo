@@ -1,0 +1,23 @@
+commit 1c95530b0d7f494df30e75ae3e3da315945457e4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 16 10:03:48 2020 -0400
+
+    cmd: update golang.org/x/tools
+    
+    This pulls in CL 235797.
+    
+    Fixes #39151
+    
+    Change-Id: I367cff2e9b432a778213501c42fb510c1514643f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238157
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                                   | 2 +-
+ src/cmd/go.sum                                                   | 4 ++--
+ src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go             | 9 +++++++++
+ .../x/tools/go/analysis/passes/stringintconv/string.go           | 2 +-
+ src/cmd/vendor/modules.txt                                       | 2 +-
+ 5 files changed, 14 insertions(+), 5 deletions(-)

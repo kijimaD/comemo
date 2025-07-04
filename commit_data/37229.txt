@@ -1,0 +1,17 @@
+commit 745ec8b922d236016dac99ae270084447dd4758f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 07:34:52 2018 -0700
+
+    cmd/go: don't let "go test -c -o /dev/null" overwrite /dev/null
+    
+    Fixes #28549
+    
+    Change-Id: Iba71bb2edd0759004e0c7df92b2b8f1197bd62d3
+    Reviewed-on: https://go-review.googlesource.com/c/146901
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go            | 30 ++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 20 ++++++++++++--------
+ 2 files changed, 42 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit 02dd98e9e7f0243606594dcf32177b63d33167f0
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jul 23 18:34:31 2015 +0000
+
+    Revert "bytes: document that Buffer values must not be copied"
+    
+    This reverts commit b1177d390cf0c3733836e5941f77b828e21c8a09.
+    
+    Change-Id: Iffbd63d5993633143a81572b223e3c5dd2353206
+    Reviewed-on: https://go-review.googlesource.com/12581
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/bytes/buffer.go | 1 -
+ 1 file changed, 1 deletion(-)

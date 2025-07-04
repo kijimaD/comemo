@@ -1,0 +1,15 @@
+commit 708013064f65f4fd0285534235657db2076dfbe2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 21 14:43:38 2011 -0700
+
+    cgi: extra failure debugging in host_test
+    
+    Trying to track down why this fails on some
+    people's machines.
+    
+    R=rsc, adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4304041
+
+ src/pkg/http/cgi/host_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

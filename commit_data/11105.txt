@@ -1,0 +1,12 @@
+commit b1bad5530a3f06fe4cfcd37f13d67ec9974ccd52
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 11 08:39:29 2012 -0500
+
+    Makefile: update openpgp/error -> openpgp/errors
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5530078
+
+ src/pkg/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

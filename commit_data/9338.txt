@@ -1,0 +1,18 @@
+commit bca65e395e1786f321266da81fb3ed46f5d4e854
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 11 18:49:09 2011 +1000
+
+    html: parse more malformed tags.
+    
+    This continues the work in revision 914a659b44ff, now passing more test
+    cases. As before, the new tokenization tests match html5lib's behavior.
+    
+    Fixes #2124.
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4867042
+
+ src/pkg/html/token.go      |  2 +-
+ src/pkg/html/token_test.go | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

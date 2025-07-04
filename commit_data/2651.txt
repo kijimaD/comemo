@@ -1,0 +1,22 @@
+commit 600d7828a7733032b346e6f7b72825c4e914d0ce
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 8 18:31:14 2009 -0700
+
+    archive/tar cleanups:
+      - rename untar{,_test}.go to reader{,_test}.go.
+      - fix up some comments.
+      - improve test output if it fails.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=821  (400 added, 392 deleted, 29 changed)
+    OCL=31376
+    CL=31378
+
+ src/pkg/Make.deps                                  |  2 +-
+ src/pkg/archive/tar/Makefile                       |  4 +-
+ src/pkg/archive/tar/{untar.go => reader.go}        |  9 ++---
+ .../archive/tar/{untar_test.go => reader_test.go}  |  0
+ src/pkg/archive/tar/writer.go                      | 28 +++++++-------
+ src/pkg/archive/tar/writer_test.go                 | 43 +++++++++++++---------
+ 6 files changed, 47 insertions(+), 39 deletions(-)

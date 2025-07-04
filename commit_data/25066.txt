@@ -1,0 +1,18 @@
+commit e9081b3c76f21efb0538cce54f04cf1a9a8cdb31
+Author: sergey.arseev <sergey.arseev@intel.com>
+Date:   Mon Nov 2 14:53:31 2015 +0300
+
+    cmd/internal/obj/x86: add support for TSX instructions
+    
+    Transactional memory, will later be used for semaphore implementation.
+    Nacl not supported yet.
+    
+    Change-Id: Ic18453dcaa08d07bb217c0b95461584f007d518b
+    Reviewed-on: https://go-review.googlesource.com/16479
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go  |  2 +-
+ src/cmd/internal/obj/x86/a.out.go  |  8 ++++++++
+ src/cmd/internal/obj/x86/anames.go |  6 ++++++
+ src/cmd/internal/obj/x86/asm6.go   | 31 ++++++++++++++++++++++++++++---
+ 4 files changed, 43 insertions(+), 4 deletions(-)

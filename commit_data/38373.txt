@@ -1,0 +1,39 @@
+commit 53948127d32cd8ab2d67941542122491a9cd22c9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 17 17:12:00 2018 -0800
+
+    cmd/compile: make rulegen magic variable prediction more precise
+    
+    The sheer length of the generated rules files makes my
+    editor and git client unhappy.
+    This change is a small step towards shortening them.
+    
+    We recognize a few magic variables during rulegen: b, config, fe, typ.
+    Of these, only b appears prone to false positives.
+    By tightening the heuristic and fixing one case in MIPS.rules,
+    we can make the heuristic enough that it has no failures.
+    That allows us to remove the hedge assignments to _,
+    removing 3000 pointless lines of code.
+    
+    Change-Id: I080cde5db28c8277cb3fd9ddcd829306c9a27785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166979
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  13 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 256 ---------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 427 -------------------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 287 -----------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 348 --------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 212 +-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 258 ---------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 321 -------------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 375 ----------------------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 268 ----------------
+ src/cmd/compile/internal/ssa/rewritedec.go     |   8 -
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 105 ------
+ src/cmd/compile/internal/ssa/rewritedecArgs.go |   6 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 206 ------------
+ 15 files changed, 11 insertions(+), 3081 deletions(-)

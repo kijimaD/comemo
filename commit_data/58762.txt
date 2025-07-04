@@ -1,0 +1,22 @@
+commit d7c242a19ae0fd9adae1c6d6222df2f1d93646da
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jul 2 00:31:53 2024 +1000
+
+    cmd/internal/obj/riscv: support MOVD with floating point constants
+    
+    Currently, we only support loading of values from memory (or other
+    registers). Add floating point constant support to MOVD. This is
+    implemented by storing the floating point constant to a symbol,
+    which is then loaded into the floating point register.
+    
+    Change-Id: I6db242d27f606f0d5d084a3ab93538698d3a4f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631876
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  3 +++
+ src/cmd/internal/obj/riscv/obj.go           | 22 +++++++++++++++++++---
+ 2 files changed, 22 insertions(+), 3 deletions(-)

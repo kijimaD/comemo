@@ -1,0 +1,25 @@
+commit da4a22993e095acf84d00f6b3f87db9be6493242
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 24 08:25:14 2009 -0700
+
+    Fix declared and not used errors and unused import errors in
+    the interpreter and update code to use ast.BasicDecl and
+    multi-type switch.  There are still a lot of "switch _ :=
+    x.(type)" that should make use of the new type switch syntax,
+    but those will be a different CL.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=58  (16 added, 23 deleted, 19 changed)
+    OCL=34853
+    CL=34963
+
+ usr/austin/eval/compiler.go |  1 -
+ usr/austin/eval/expr.go     | 42 +++++++++++++++++++-----------------------
+ usr/austin/eval/scope.go    |  1 -
+ usr/austin/eval/stmt.go     |  9 +++------
+ usr/austin/eval/type.go     |  8 ++++----
+ usr/austin/eval/typec.go    |  4 ++--
+ usr/austin/eval/util.go     |  2 --
+ usr/austin/eval/world.go    | 10 +++++++---
+ 8 files changed, 35 insertions(+), 42 deletions(-)

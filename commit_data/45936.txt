@@ -1,0 +1,24 @@
+commit fdb45acd1f062884c77ea6961fb638e004af1b8e
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 21 18:38:05 2021 -0400
+
+    runtime: move mem profile sampling into m-acquired section
+    
+    It was not safe to do mcache profiling updates outside the critical
+    section, but we got lucky because the runtime was not preemptible.
+    Adding chunked memory clearing (CL 270943) created preemption
+    opportunities, which led to corruption of runtime data structures.
+    
+    Fixes #47304.
+    Fixes #47302.
+    
+    Change-Id: I461615470d62328a83ccbac537fbdc6dcde81c85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336449
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

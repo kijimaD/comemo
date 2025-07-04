@@ -1,0 +1,16 @@
+commit 890be5ced0008a9a4d4780443170cb22d8bb6378
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 3 14:25:11 2012 -0700
+
+    test: add bug437, a test that used to fail with gccgo at link time
+    
+    Updates #3391.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6177045
+
+ test/fixedbugs/bug437.dir/one.go | 18 ++++++++++++++++++
+ test/fixedbugs/bug437.dir/two.go | 11 +++++++++++
+ test/fixedbugs/bug437.go         | 27 +++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)

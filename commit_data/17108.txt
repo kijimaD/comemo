@@ -1,0 +1,12 @@
+commit d2bff757f6043d9a6f61616ac7dd78ca30442cb4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Aug 9 10:17:57 2013 +1000
+
+    net/mail: comment our divergence from RFC 5322.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev, ryanslade
+    https://golang.org/cl/12588044
+
+ src/pkg/net/mail/message.go | 2 ++
+ 1 file changed, 2 insertions(+)

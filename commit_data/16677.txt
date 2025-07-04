@@ -1,0 +1,16 @@
+commit 7a0dc1c9ecfa899d6b739caf0a2f55989f0f6ec4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jun 28 23:08:07 2013 +0200
+
+    test: match gccgo error strings.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10741043
+
+ test/fixedbugs/issue4232.go | 28 ++++++++++++++--------------
+ test/fixedbugs/issue4452.go |  2 +-
+ test/fixedbugs/issue4463.go | 44 ++++++++++++++++++++++----------------------
+ test/fixedbugs/issue4813.go | 12 ++++++------
+ test/fixedbugs/issue5609.go |  2 +-
+ 5 files changed, 44 insertions(+), 44 deletions(-)

@@ -1,0 +1,13 @@
+commit 4feee8c6590c3df6a474931512d7d61de2c56121
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Dec 24 02:08:58 2014 +1100
+
+    cmd/5l: make 5l work on openbsd
+    
+    Change-Id: If58ea50fbf321ae943d0890a40e0552e7bc19709
+    Reviewed-on: https://go-review.googlesource.com/2080
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/obj.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

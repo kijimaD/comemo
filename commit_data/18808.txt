@@ -1,0 +1,15 @@
+commit a35b9e496073682cefdc0a533217683204ecb667
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 7 14:44:31 2014 -0800
+
+    os: document that Process.Wait only works on child processes
+    
+    Fixes #7072
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/71900045
+
+ src/pkg/os/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,33 @@
+commit b3b65f21762fad1ec37bdb0cd47f79a53814bb16
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:14:34 2020 +1100
+
+    runtime: enable race detector on openbsd/amd64
+    
+    Now that this commit[1] has landed in LLVM the .syso file can be generated for
+    OpenBSD.
+    
+    With the changes to src/runtime running the sample race[2] detects the data
+    race as expected.
+    
+    Based on golang/go#39464 (https://go-review.googlesource.com/c/go/+/237057) from
+    Aaron Bieber <deftly@gmail.com>, however the race_openbsd_amd64.syso file has
+    been built on OpenBSD 6.4 and necessary changes added to race.bash.
+    
+    [1] https://github.com/llvm/llvm-project/commit/fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb
+    [2] https://golang.org/doc/articles/race_detector.html
+    
+    Change-Id: Ic2479ccfa91d6b2cb4585346a11d813d96450f68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275892
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/dist/test.go                     |   2 +-
+ src/cmd/internal/sys/supported.go        |   2 +-
+ src/race.bash                            |   7 ++++++-
+ src/runtime/race/README                  |   1 +
+ src/runtime/race/race.go                 |   4 ++--
+ src/runtime/race/race_openbsd_amd64.syso | Bin 0 -> 688784 bytes
+ 6 files changed, 11 insertions(+), 5 deletions(-)

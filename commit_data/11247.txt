@@ -1,0 +1,12 @@
+commit 2356e438274814a3dabc56541dbd5788a3c1750c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 12:23:30 2012 +0900
+
+    net: fix comments
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5557059
+
+ src/pkg/net/net.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 7340d15c85ed2412a29e08001d343df7aa53d0df
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 15:06:10 2020 -0500
+
+    cmd/go: convert TestImportCycle to the script framework
+    
+    This test already calls tg.Parallel
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I4cdb2464cd3e51f1369558c238925f036ce8d828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213426
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                 | 19 -------------------
+ .../testdata/importcycle/src/selfimport/selfimport.go |  3 ---
+ src/cmd/go/testdata/script/build_import_cycle.txt     | 10 ++++++++++
+ 3 files changed, 10 insertions(+), 22 deletions(-)

@@ -1,0 +1,12 @@
+commit 9c8f48bd0e9a31db21c691403693656404b713d0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 12:03:56 2008 -0700
+
+    use real select
+    
+    R=ken
+    OCL=13519
+    CL=13519
+
+ test/chan/powser1.go | 79 ++++++++++------------------------------------------
+ 1 file changed, 15 insertions(+), 64 deletions(-)

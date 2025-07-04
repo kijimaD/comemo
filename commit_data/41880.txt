@@ -1,0 +1,16 @@
+commit a03618500c25690ea96308030e678178641127ed
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Apr 6 23:42:55 2020 +0100
+
+    cmd/compile: simplify s390x 'operation with memory operand' rules
+    
+    The generated code remains exactly the same.
+    
+    Change-Id: Id70af46b6c3c18153789961e5589eab717c3316e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227164
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 55 +++++++++-------------------
+ 1 file changed, 18 insertions(+), 37 deletions(-)

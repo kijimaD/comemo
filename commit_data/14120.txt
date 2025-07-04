@@ -1,0 +1,15 @@
+commit bd31e62982461b9b5b10b8c2181eff56fe4085f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 09:53:37 2012 +1100
+
+    godoc: restore toy selection to playground widget
+    
+    Fixes #4225.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6640054
+
+ doc/play/playground.js | 30 ++++++++++++++++++++++++------
+ doc/root.html          |  2 --
+ 2 files changed, 24 insertions(+), 8 deletions(-)

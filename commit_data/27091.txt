@@ -1,0 +1,17 @@
+commit f058ab09fb14afe3a51b880a6895b96aa3e07c85
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 22 15:45:24 2016 -0700
+
+    cmd/compile: remove redundant "// fallthrough" comments
+    
+    Change-Id: Ia3f262f06592b66447c213e2350402cd5e6e2ccd
+    Reviewed-on: https://go-review.googlesource.com/22389
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 9 ++-------
+ src/cmd/compile/internal/gc/init.go      | 2 --
+ src/cmd/compile/internal/gc/sinit.go     | 4 ----
+ src/cmd/compile/internal/gc/typecheck.go | 5 -----
+ 4 files changed, 2 insertions(+), 18 deletions(-)

@@ -1,0 +1,23 @@
+commit d6194c1fd1bc7ba2c89f2e0eaa9c08228088f4fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 13:56:39 2016 -0700
+
+    cmd/compile: change goarch.Main into goarch.Init
+    
+    Similar idea to golang.org/cl/28970.
+    
+    Change-Id: I9d2feb1a669d71ffda1d612cf39ee0d3c08d22d2
+    Reviewed-on: https://go-review.googlesource.com/29357
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/galign.go  |  5 +----
+ src/cmd/compile/internal/arm/galign.go    |  5 +----
+ src/cmd/compile/internal/arm64/galign.go  |  5 +----
+ src/cmd/compile/internal/mips64/galign.go |  5 +----
+ src/cmd/compile/internal/ppc64/galign.go  |  5 +----
+ src/cmd/compile/internal/s390x/galign.go  |  5 +----
+ src/cmd/compile/internal/x86/galign.go    |  5 +----
+ src/cmd/compile/main.go                   | 18 +++++++++++-------
+ 8 files changed, 18 insertions(+), 35 deletions(-)

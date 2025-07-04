@@ -1,0 +1,14 @@
+commit 349f0fb89a11c9aa579bc0facab375d6ffb7ad43
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 20 15:33:52 2016 +1000
+
+    doc: update architectures on source install instructions
+    
+    Fixes #16099
+    
+    Change-Id: I334c1f04dfc98c4a07e33745819d890b5fcb1673
+    Reviewed-on: https://go-review.googlesource.com/24243
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/install-source.html | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

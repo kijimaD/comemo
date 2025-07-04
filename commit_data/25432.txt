@@ -1,0 +1,19 @@
+commit aaabe3d84988332ea26b84985a98b9d71a99cd71
+Author: Kevin Vu <kevin.m.vu@gmail.com>
+Date:   Sun Jan 3 18:44:15 2016 -0800
+
+    cmd/compile/internal/gc: fix initialization logic
+    
+    Also add relevant test.
+    
+    Fixes #13343.
+    
+    Change-Id: Ib1e65af1d643d501de89adee3618eddbf6c69c9e
+    Reviewed-on: https://go-review.googlesource.com/18159
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go |  5 +++--
+ test/fixedbugs/bug13343.go           | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

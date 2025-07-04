@@ -1,0 +1,19 @@
+commit 3fb9e08758df3f2ace772271c73692e483d85a80
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Mon Oct 26 20:10:54 2015 +0800
+
+    cmd/vet: make "-all -shadow" mean all default checks and -shadow
+    
+    Prior to this change "go tool vet -all -shadow" ran only -shadow check.
+    
+    Also fix godoc package path in the usage text.
+    
+    Fixes #13020
+    
+    Change-Id: I87c60d6b06a02106ae8bff56adb79df032cc4646
+    Reviewed-on: https://go-review.googlesource.com/16325
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/doc.go  |  2 +-
+ src/cmd/vet/main.go | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

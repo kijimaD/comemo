@@ -1,0 +1,31 @@
+commit 508ef8702c013f74bba620faba7a5213c55bdfad
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 14:57:39 2023 -0400
+
+    cmd/dist: make it possible to filter output of background commands
+    
+    Many of the commands dist test executes are "background" commands run
+    by a work queue system. The work queue allows it to run commands in
+    parallel, but still serialize their output. Currently, the work queue
+    system assumes that exec.Cmd.Stdout and Stderr will be nil and that it
+    can take complete control over them.
+    
+    We're about to inject output filters on many of these commands, so we
+    need a way to interpose on Stdout and Stderr. This CL rearranges
+    responsibilities in the work queue system to make that possible. Now,
+    the thing enqueuing the work item is responsible to constructing the
+    Cmd to write its output to work.out. There's only one place that
+    constructs work objects (there used to be many more), so that's
+    relatively easy, and sets us up to add filters.
+    
+    For #37486.
+    
+    Change-Id: I55ab71ddd456a12fdbf676bb49f698fc08a5689b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494957
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 42 ++++++++++++++++++++++++------------------
+ 1 file changed, 24 insertions(+), 18 deletions(-)

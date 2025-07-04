@@ -1,0 +1,12 @@
+commit f16cc298d344d4db1b8bb3d941c83598abc6ba43
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:56:07 2018 +0100
+
+    test: implement negative rules in asmcheck
+    
+    Change-Id: I2b507e35cc314100eaf2ec2d1e5107cc2fc9e7cf
+    Reviewed-on: https://go-review.googlesource.com/97818
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/run.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

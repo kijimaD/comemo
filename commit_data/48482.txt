@@ -1,0 +1,24 @@
+commit a8f019e956db40e9846e635a622489e356cb3c63
+Author: Byoungchan Lee <daniel.l@hpcnt.com>
+Date:   Thu Nov 25 20:40:21 2021 +0900
+
+    cmd/link: add DT_NEEDED for all 64-bit ELF dynimplib
+    
+    Also change the relevant test to be tested on the linux-arm64 platform
+    as well.
+    
+    Fixes #49789
+    
+    Change-Id: Id2eac7a45279f037957442862f8ed63838b8e929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366855
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ AUTHORS                              | 1 +
+ CONTRIBUTORS                         | 1 +
+ src/cmd/link/internal/ld/elf.go      | 2 +-
+ src/cmd/link/internal/ld/elf_test.go | 2 +-
+ 4 files changed, 4 insertions(+), 2 deletions(-)

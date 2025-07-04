@@ -1,0 +1,12 @@
+commit 6f97ef28af33fb8c9a2ce19ae74f04cfbead7e7c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jan 13 13:24:59 2014 +0100
+
+    os: disable TestReaddirStatFailures on Plan 9
+    
+    R=rsc, dave, aram, jeremyjackins, lucio.dere
+    CC=golang-codereviews, jas
+    https://golang.org/cl/50980043
+
+ src/pkg/os/os_test.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit 25a2b3626d29b63b1afd8c695c04c1d75d18b129
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 30 15:10:22 2009 -0800
+
+    needless semicolons
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=23967
+    CL=23970
+
+ doc/progs/server.go  | 2 +-
+ doc/progs/server1.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

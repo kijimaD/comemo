@@ -1,0 +1,14 @@
+commit 1b6d4b5c0a33909c0f17328e6a45c53d939f5ace
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Tue Sep 25 09:22:13 2012 -0700
+
+    net/http: use tls host instead of proxy, when checking against a certificate
+    
+    Fixes #4152.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6570045
+
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

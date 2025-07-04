@@ -1,0 +1,38 @@
+commit 4b0bc7c3a14ac446bc13d22098de8db382205401
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 4 20:38:20 2016 +0000
+
+    net/http: relax recently-updated rules and behavior of CloseNotifier
+    
+    The CloseNotifier implementation and documentation was
+    substantially changed in https://golang.org/cl/17750 but it was a bit
+    too aggressive.
+    
+    Issue #13666 highlighted that in addition to breaking external
+    projects, even the standard library (httputil.ReverseProxy) didn't
+    obey the new rules about not using CloseNotifier until the
+    Request.Body is fully consumed.
+    
+    So, instead of fixing httputil.ReverseProxy, dial back the rules a
+    bit. It's now okay to call CloseNotify before consuming the request
+    body. The docs now say CloseNotifier may wait to fire before the
+    request body is fully consumed, but doesn't say that the behavior is
+    undefined anymore. Instead, we just wait until the request body is
+    consumed and start watching for EOF from the client then.
+    
+    This CL also adds a test to ReverseProxy (using a POST request) that
+    would've caught this earlier.
+    
+    Fixes #13666
+    
+    Change-Id: Ib4e8c29c4bfbe7511f591cf9ffcda23a0f0b1269
+    Reviewed-on: https://go-review.googlesource.com/18144
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 42 +++++++++++++++++++-
+ src/net/http/request.go                    |  8 +++-
+ src/net/http/serve_test.go                 | 53 +++++++++++++++++++++++++
+ src/net/http/server.go                     | 63 +++++++++++++++++++++++++-----
+ src/net/http/transfer.go                   | 23 ++++++++++-
+ 5 files changed, 176 insertions(+), 13 deletions(-)

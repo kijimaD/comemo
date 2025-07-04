@@ -1,0 +1,30 @@
+commit 5c2c6d3fbf4f0a1299b5e41463847d242eae19ca
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 21 11:09:45 2020 -0700
+
+    runtime: framepointers are no longer an experiment - hard code them
+    
+    I think they are no longer experimental status. Might as well promote
+    them to permanent.
+    
+    Change-Id: Id1259601b3dd2061dd60df86ee48080bfb575d2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249857
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go      |  4 ++--
+ src/cmd/compile/internal/ssa/regalloc.go |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go       | 10 +++++-----
+ src/cmd/internal/obj/link.go             |  7 +++----
+ src/cmd/internal/obj/sym.go              |  1 -
+ src/cmd/internal/obj/x86/asm6.go         |  6 +++---
+ src/cmd/internal/obj/x86/obj6.go         |  2 +-
+ src/cmd/internal/objabi/util.go          |  7 ++-----
+ src/cmd/link/internal/ld/lib.go          |  8 --------
+ src/runtime/cgocall.go                   |  9 ++-------
+ src/runtime/proc.go                      |  3 ---
+ src/runtime/runtime2.go                  |  8 +++++---
+ src/runtime/stack.go                     |  6 +-----
+ src/runtime/traceback.go                 |  6 +++---
+ 14 files changed, 28 insertions(+), 51 deletions(-)

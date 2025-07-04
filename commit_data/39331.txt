@@ -1,0 +1,24 @@
+commit 8969b051017343c31c6de8033c4c591824f86d97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jun 2 12:40:06 2019 +0100
+
+    cmd/vendor: go get -u golang.org/x/tools && go mod vendor
+    
+    To pick up the structtag vet fix for 1.13.
+    
+    Fixes #30846.
+    
+    Change-Id: I5e011a7db1ffb9435793d533097d768f209c18e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179999
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     | 17 +++++-
+ .../go/analysis/internal/analysisflags/flags.go    |  9 ++-
+ .../go/analysis/passes/structtag/structtag.go      | 69 +++++++++++++++-------
+ .../x/tools/go/analysis/passes/tests/tests.go      |  5 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 7 files changed, 78 insertions(+), 30 deletions(-)

@@ -1,0 +1,12 @@
+commit d5a8647d80fe8eeb19e4797b9d2a2235c41774c6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 28 11:47:09 2010 -0700
+
+    syscall: windows SysAlloc should use stdcall_raw not syscall
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1382041
+
+ src/pkg/runtime/windows/mem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

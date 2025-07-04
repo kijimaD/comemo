@@ -1,0 +1,23 @@
+commit afe0e97aa65be9dd0c147c4c824c12b1442ef2df
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 30 15:10:54 2012 +1000
+
+    runtime: handle windows exceptions, even in cgo programs
+    
+    Fixes #3543.
+    
+    R=golang-dev, kardianos, rsc
+    CC=golang-dev, hectorchu, vcc.163
+    https://golang.org/cl/6245063
+
+ src/cmd/dist/buildruntime.c         |   2 +
+ src/pkg/runtime/crash_cgo_test.go   |  15 ++++++
+ src/pkg/runtime/crash_test.go       | 100 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_windows.h        |   2 +
+ src/pkg/runtime/proc.c              |  10 ++++
+ src/pkg/runtime/rt0_windows_386.s   |   5 --
+ src/pkg/runtime/runtime.h           |   7 +++
+ src/pkg/runtime/sys_windows_386.s   |  27 ++++++----
+ src/pkg/runtime/sys_windows_amd64.s |   7 ++-
+ src/pkg/runtime/thread_windows.c    |   1 +
+ 10 files changed, 159 insertions(+), 17 deletions(-)

@@ -1,0 +1,26 @@
+commit 8bbb362f4c954da7c521bf2dd34b22fa3e5ab3c5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 10 20:01:48 2022 +0700
+
+    cmd/compile: remove go:notinheap pragma
+    
+    Updates #46731
+    
+    Change-Id: I247fa9c7ca97feb9053665da7ff56e7f5b571f74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422815
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/cmd/compile/internal/ir/node.go           |  3 ---
+ src/cmd/compile/internal/noder/decl.go        | 26 +-------------------------
+ src/cmd/compile/internal/noder/lex.go         |  4 ----
+ src/cmd/compile/internal/noder/noder.go       |  3 ---
+ src/cmd/compile/internal/noder/reader.go      | 13 -------------
+ src/cmd/compile/internal/noder/writer.go      |  2 +-
+ src/cmd/compile/internal/typebits/typebits.go |  2 +-
+ src/cmd/compile/internal/typecheck/func.go    |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go    |  6 +++---
+ 9 files changed, 7 insertions(+), 54 deletions(-)

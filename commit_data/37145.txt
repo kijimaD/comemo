@@ -1,0 +1,21 @@
+commit 5c359736f8d67338b53c26aaef52139ae8cd0538
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 28 14:45:12 2018 +1100
+
+    os: remove sleep in windows Process.Wait
+    
+    The wait was there, because we discovered that we could not remove
+    finished process executable without the wait on Windows XP. But
+    Windows XP is not supported by Go. Maybe we do not need the wait
+    with modern Windows versions. Remove the sleep.
+    
+    Fixes #25965
+    
+    Change-Id: I02094abee3592ce4fea98eaff9d15137dc54dc81
+    Reviewed-on: https://go-review.googlesource.com/c/145221
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec_windows.go | 5 -----
+ 1 file changed, 5 deletions(-)

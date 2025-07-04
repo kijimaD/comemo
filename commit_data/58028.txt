@@ -1,0 +1,22 @@
+commit 5ec1457941d1754a583a745259b9c308749c0bd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 19:53:18 2024 -0500
+
+    cmd/compile: avoid static init of strings in FIPS mode
+    
+    Strings have relocations, and data relocations are bad.
+    Other literals are fine.
+    
+    Fixes build failure in pending CL 628776.
+    
+    Change-Id: I7a38bbff9776a365c5823d54c4a00e068dda5d9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628915
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/staticinit/sched.go | 3 +++
+ src/cmd/compile/internal/walk/complit.go     | 4 +++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 7edd49614c91948e36f81ae8883cafeaed9e5bcf
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Jun 21 16:40:44 2010 -0700
+
+    net: Fix ICMP test.
+    
+    Ping IDs should be limited to 16-bits.  Fix failure printing.
+    
+    R=rsc
+    CC=golang-dev, jean-christophe smith <jeanchristophe.smith
+    https://golang.org/cl/1682043
+
+ src/pkg/net/ipraw_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 571d6fc5e8a77e5444390b02b25859365cdf45bc
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Feb 14 21:31:20 2012 -0800
+
+    syscall: Make Pdeathsig type Signal in SysProcAttr on Linux.
+    
+    R=rsc, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5656058
+
+ src/pkg/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

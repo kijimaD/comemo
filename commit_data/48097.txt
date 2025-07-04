@@ -1,0 +1,13 @@
+commit fa0484640479a26687608706c9f6628eac1174d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 7 10:02:30 2022 -0800
+
+    doc/go1.18: mention new x/exp generic packages
+    
+    Change-Id: I119cfb1a0da9af89ced78935b8fcdfdb8d9b4ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383794
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.18.html | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

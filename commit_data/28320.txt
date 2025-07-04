@@ -1,0 +1,29 @@
+commit dfc56a4cd313c9c5de37f4fadb14912286edc42f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 12 17:22:47 2016 -0700
+
+    cmd/compile: statically initialize some interface values
+    
+    When possible, emit static data rather than
+    init functions for interface values.
+    
+    This:
+    
+    * cuts 32k off cmd/go
+    * removes several error values from runtime init
+    * cuts the size of the image/color/palette compiled package from 103k to 34k
+    * reduces the time to build the package in #15520 from 8s to 1.5s
+    
+    Fixes #6289
+    Fixes #15528
+    
+    Change-Id: I317112da17aadb180c958ea328ab380f83e640b4
+    Reviewed-on: https://go-review.googlesource.com/26668
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go |   4 +-
+ src/cmd/compile/internal/gc/sinit.go   |  78 +++++++++++++++++++-
+ test/fixedbugs/issue15528.go           | 131 +++++++++++++++++++++++++++++++++
+ 3 files changed, 208 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit bf1c881afe33aef8aa52a74ab81e66e1cab2fd74
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Apr 26 22:50:47 2010 -0700
+
+    os: Fix build for MinGW
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1014041
+
+ src/pkg/os/stat_mingw.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

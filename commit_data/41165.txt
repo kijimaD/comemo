@@ -1,0 +1,20 @@
+commit 37981da9a4c649fe0570c84e78d9bf38a0bb90f0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:32:52 2020 +1100
+
+    cmd/vendor: cherry pick asm_linux_riscv64.s for x/sys/unix
+    
+    Manually cherry pick asm_linux_riscv64.s from x/sys/unix rev 4c3a92842,
+    as needed for the linux/riscv64 port.
+    
+    Normally this would be a vendor update, however this is significantly
+    more risky at this point in time - a full update can be done post release.
+    
+    Updates #27532
+    
+    Change-Id: I03bb191bc44dcd24b9a29243957b88d7a9091852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216260
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../golang.org/x/sys/unix/asm_linux_riscv64.s      | 54 ++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

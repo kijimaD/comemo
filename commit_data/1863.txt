@@ -1,0 +1,15 @@
+commit afee1c5f0c1907bc575e1f87fc18889f0979cab0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 20 17:41:25 2009 -0700
+
+    add simple text about & and *.
+    clean up html: PLEASE RUN TIDY WHEN YOU EDIT THIS DOCUMENT
+    deferring method value update until we decide what happens.
+    
+    R=gri
+    DELTA=50  (38 added, 4 deleted, 8 changed)
+    OCL=26609
+    CL=26612
+
+ doc/go_spec.html | 50 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 42 insertions(+), 8 deletions(-)

@@ -1,0 +1,23 @@
+commit 0fe58bf6500a615e934e1ab2a7921dfbc2803cea
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 28 14:01:59 2017 -0800
+
+    cmd/compile: simplify load+op rules
+    
+    There's no need to use @block rules, as canMergeLoad makes sure that
+    the load and op are already in the same block.
+    With no @block needed, we also don't need to set the type explicitly.
+    It can just be inherited from the op being rewritten.
+    
+    Noticed while working on #19284.
+    
+    Change-Id: Ied8bcc8058260118ff7e166093112e29107bcb7e
+    Reviewed-on: https://go-review.googlesource.com/37585
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  56 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 476 +++++++++++----------------
+ 3 files changed, 234 insertions(+), 318 deletions(-)

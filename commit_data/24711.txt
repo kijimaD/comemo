@@ -1,0 +1,20 @@
+commit 2780abd645536db2f23d6c1f47bb404bc1da8fea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 3 17:18:42 2015 -0800
+
+    cmd/cgo: add a missing newline in writeExports
+    
+    The code works without the newline, but it looks funny:
+    
+    func _cgoexp_15afe6549f62_GoFn(a unsafe.Pointer, n int32) {     fn := GoFn
+    
+    This adds a newline after the '{'.
+    
+    Change-Id: I6c465abe16f47924426d1b22b91004b3a3586ebd
+    Reviewed-on: https://go-review.googlesource.com/16612
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

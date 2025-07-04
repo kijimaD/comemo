@@ -1,0 +1,14 @@
+commit 48d111f0b929f3c22d27ea640c39bf8e5ea1df7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 5 15:27:40 2008 -0800
+
+    6g dumps core on this input file.
+    
+    R=ken,rsc
+    DELTA=14  (14 added, 0 deleted, 0 changed)
+    OCL=18555
+    CL=18598
+
+ test/bugs/bug118.go | 15 +++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 18 insertions(+)

@@ -1,0 +1,12 @@
+commit bcd3385ed6fb4e9ea3b25798a542427486972967
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 4 19:31:52 2018 +0000
+
+    doc/go1.12: flesh out net, etc
+    
+    Change-Id: I081400286544d88eec83a8b332b9f7934fd76ae2
+    Reviewed-on: https://go-review.googlesource.com/c/152539
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 58 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 21 deletions(-)

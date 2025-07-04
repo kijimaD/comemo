@@ -1,0 +1,22 @@
+commit e9267ca8259dd56ae01db3c6a6350f007c1b84f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 24 00:44:03 2016 +0900
+
+    vendor: update vendored route
+    
+    Updates golang_org/x/net/route to rev 4d38db7 for:
+    - route: don't crash or hang up with corrupted messages
+    
+    Change-Id: I22492f56a5e211b5a0479f1e07ad8f42f7b9ea03
+    Reviewed-on: https://go-review.googlesource.com/27574
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/vendor/golang_org/x/net/route/address.go       | 18 ++++++++++++++---
+ .../golang_org/x/net/route/interface_freebsd.go    | 12 +++++------
+ .../golang_org/x/net/route/interface_openbsd.go    |  9 ++++++++-
+ src/vendor/golang_org/x/net/route/message.go       |  6 ++++++
+ src/vendor/golang_org/x/net/route/message_test.go  | 23 ++++++++++++++++++++++
+ src/vendor/golang_org/x/net/route/route_openbsd.go |  6 +++++-
+ 6 files changed, 63 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 5a0333764b1de9c46b2e7fec4cb31a8cadeedb0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 22 10:27:34 2012 -0700
+
+    net/http: improve TestServerExpect
+    
+    Fail more usefully, and Logf in one place instead of Errorf where
+    an error is acceptable.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6221059
+
+ src/pkg/net/http/serve_test.go | 44 ++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)

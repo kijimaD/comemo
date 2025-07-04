@@ -1,0 +1,15 @@
+commit 5d045fb0f16ba12cdde5ad9656a71376bece0585
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Dec 9 10:42:34 2011 +1100
+
+    syscall: Remove obsolete Errstr call from commented-out example.
+    
+    syscall_windows.go contains a small demo, which calls the obsolete
+    syscall.Errstr function.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5475044
+
+ src/pkg/syscall/syscall_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

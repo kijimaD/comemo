@@ -1,0 +1,15 @@
+commit f860bc0f4e8cc8f7e9e7b00c4a2cff0f08370ba1
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 23 20:31:03 2009 -0700
+
+            fixed len/cap for chan. disable gc for now.
+    
+            go/test: passes 93% (323/345)
+    
+    R=rsc
+    http://go/go-review/1015006
+
+ src/all-arm.bash  |  4 ++++
+ src/cmd/5g/cgen.c | 27 ++++++++++++++++++++++++++-
+ test/arm-pass.txt |  6 ++++++
+ 3 files changed, 36 insertions(+), 1 deletion(-)

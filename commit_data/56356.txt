@@ -1,0 +1,35 @@
+commit 20130cc36a17ba131b80cc8674f1ef8d002e9dbe
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 19 14:50:52 2023 +1100
+
+    syscall: remove references to SYS_syscall on openbsd
+    
+    OpenBSD 7.5 no longer has a syscall symbol in libc. This will
+    typically result in external linking failures since the syscall
+    package still has a reference to an undefined `syscall' symbol.
+    Remove these references and return ENOSYS if syscall.Syscall* or
+    syscall.RawSyscall* are used for a system call number that does not
+    currently have an internal remapping.
+    
+    Fixes #63900
+    
+    Change-Id: Ic757bf8872ad98a92dd5b34cf58312c32fbc9a96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582257
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/syscall/syscall_openbsd_libc.go     | 12 +++++-------
+ src/syscall/zsyscall_openbsd_386.go     | 15 ---------------
+ src/syscall/zsyscall_openbsd_386.s      |  2 --
+ src/syscall/zsyscall_openbsd_amd64.go   | 15 ---------------
+ src/syscall/zsyscall_openbsd_amd64.s    |  2 --
+ src/syscall/zsyscall_openbsd_arm.go     | 15 ---------------
+ src/syscall/zsyscall_openbsd_arm.s      |  2 --
+ src/syscall/zsyscall_openbsd_arm64.go   | 15 ---------------
+ src/syscall/zsyscall_openbsd_arm64.s    |  2 --
+ src/syscall/zsyscall_openbsd_ppc64.go   | 15 ---------------
+ src/syscall/zsyscall_openbsd_ppc64.s    |  3 ---
+ src/syscall/zsyscall_openbsd_riscv64.go | 15 ---------------
+ src/syscall/zsyscall_openbsd_riscv64.s  |  2 --
+ 13 files changed, 5 insertions(+), 110 deletions(-)

@@ -1,0 +1,38 @@
+commit 668762c5709b61e0b442b02c81489a7fdf6f9b19
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Thu Jan 29 15:37:37 2015 +0100
+
+    cmd/go: simplify/fix handling private github repos
+    
+    Before Go 1.4, the traditional way to work with a private Github
+    repository was to run something similar the following:
+    
+    ```
+    git config --global url."git@github.com:".insteadOf "https://github.com/"
+    ```
+    
+    It would allow go get and friends to transparently work as expected,
+    automatically rewriting https URLs to use SSH for auth. This worked both
+    when pushing and pulling.
+    
+    In Go 1.4 this broke, now requiring the use of `go get -f` instead of `go get`
+    in order to fetch private repositories. This seems neither intended nor
+    practical, as it requires changing a lot of tooling.
+    
+    So just use `git config remote.origin.url` instead of `git remote -v` as
+    this reflects the actual substitution intended in the `insteadOf` config
+    directive.
+    
+    Also remove now useless parsing.
+    
+    Also add a check against supported schemes to avoid errors in later
+    commands using this URL and expecting such a scheme.
+    
+    Fixes #9697
+    
+    Change-Id: I907327f83504302288f913a68f8222a5c2d673ee
+    Reviewed-on: https://go-review.googlesource.com/3504
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/vcs.go | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)

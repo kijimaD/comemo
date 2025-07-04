@@ -1,0 +1,13 @@
+commit b7c73110b10a28cf33c45ae7117fa4f6e52871a7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 9 11:01:32 2010 -0500
+
+    gob: fix bug sending zero-length top-level slices and maps
+    Fixes #1278.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3434046
+
+ src/pkg/gob/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

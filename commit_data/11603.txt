@@ -1,0 +1,16 @@
+commit 3fe3ae74765e61eebda2cfdaa30772896f7da77c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 15:22:19 2012 -0500
+
+    test: fix bug headers
+    
+    The letter is $A, not $O.
+    ($O is set accidentally, but not for long.)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5629045
+
+ test/fixedbugs/bug385_32.go | 2 +-
+ test/fixedbugs/bug385_64.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

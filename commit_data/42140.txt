@@ -1,0 +1,17 @@
+commit f1a2a0e0bf1a31f0f32c7756229afbca98473237
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Apr 25 14:37:33 2020 +0700
+
+    cmd/compile: rewrite decArgs rules to use typed aux field
+    
+    Passes toolstash-check.
+    
+    Change-Id: I386fb9d52709c4844b313f59f62a4f47c10e490d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230117
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/decArgs.rules |  52 ++++-----
+ src/cmd/compile/internal/ssa/rewritedecArgs.go | 142 ++++++++++++-------------
+ 2 files changed, 97 insertions(+), 97 deletions(-)

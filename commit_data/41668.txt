@@ -1,0 +1,30 @@
+commit 971f8a2f9a5beb0473f82d7299613c86d2b4a5b9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 14:45:46 2019 -0700
+
+    database/sql: process all Session Resets synchronously
+    
+    Adds a new interface, driver.ConnectionValidator, to allow
+    drivers to signal they should not be used again,
+    separatly from the session resetter interface.
+    This is done now that the session reset is done
+    after the connection is put into the connection pool.
+    
+    Previous behavior attempted to run Session Resets
+    in a background worker. This implementation had two
+    problems: untested performance gains for additional
+    complexity, and failures when the pool size
+    exceeded the connection reset channel buffer size.
+    
+    Fixes #31480
+    
+    Change-Id: I7d483b883c24a362c292471e87a88db5b204d1d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174122
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go |  20 +++++--
+ src/database/sql/fakedb_test.go   |   6 ++
+ src/database/sql/sql.go           | 115 ++++++++++++++------------------------
+ 3 files changed, 63 insertions(+), 78 deletions(-)

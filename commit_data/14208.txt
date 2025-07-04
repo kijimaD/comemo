@@ -1,0 +1,13 @@
+commit 7c44edf4250d8e1ad0ed37bf4ae27ec7f6c07ab6
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 23 02:33:51 2012 +0800
+
+    runtime, runtime/race: add missing if(raceenabled), update package docs of pkg race
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6733058
+
+ src/pkg/runtime/malloc.goc   | 3 ++-
+ src/pkg/runtime/race/race.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

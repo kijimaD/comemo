@@ -1,0 +1,16 @@
+commit a8a18f6566dd4af3335a587d10cec77f6c5a3e90
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 18:32:51 2011 -0400
+
+    strings: add EqualFold
+    
+    Case-insensitive strcmp without using ToLower.
+    (Using ToLower is not always correct, and it allocates.)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5143044
+
+ src/pkg/strings/strings.go      |  54 ++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 107 ++++++++++++++++++++++------------------
+ 2 files changed, 112 insertions(+), 49 deletions(-)

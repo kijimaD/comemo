@@ -1,0 +1,12 @@
+commit ba1424ba510053a34288eaaa7413915055b1ebd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 2 18:21:16 2009 -0800
+
+    recompress go_talk.pdf by running through ghostscript.
+    was 1153 kB now 247 kB
+    
+    R=r
+    http://go/go-review/1018025
+
+ doc/go_talk-20091030.pdf | Bin 1152305 -> 247502 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

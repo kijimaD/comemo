@@ -1,0 +1,14 @@
+commit b213891c06aece21cdfe0e8ebb672f061bb2d7e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jul 5 16:52:13 2012 -0400
+
+    misc/chrome/gophertool: fix manifest
+    according to http://code.google.com/chrome/extensions/browserAction.html,
+    it should use "default_popup" instead of "popup".
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6349077
+
+ misc/chrome/gophertool/manifest.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

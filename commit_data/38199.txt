@@ -1,0 +1,16 @@
+commit 5edb175b40a87f3dba90aed14390de9affee77f2
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:44:00 2019 +0000
+
+    cmd/compile/internal/ssa: ignore error from second call to MatchString in test
+    
+    Change-Id: I714612b41facc8d1ec22974e8aaf2a5a3592e8f5
+    GitHub-Last-Rev: a0b3917e45bc1d24590e9c9cb3550da4c4008c49
+    GitHub-Pull-Request: golang/go#29998
+    Reviewed-on: https://go-review.googlesource.com/c/160422
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

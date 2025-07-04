@@ -1,0 +1,16 @@
+commit 6f2c92e1e11b61dfede9ce861f2fe6217b5ce130
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Oct 3 11:27:04 2020 +0200
+
+    iostest.bash: remove
+    
+    There are no tethered iOS builders left, and should they appear in
+    the future, they should use all.bash.
+    
+    Change-Id: I3217789514ffa725e4d2584e4991d899c5fda995
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259278
+    Trust: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/iostest.bash | 66 --------------------------------------------------------
+ 1 file changed, 66 deletions(-)

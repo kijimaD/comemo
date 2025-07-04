@@ -1,0 +1,28 @@
+commit 141b09726dcfc1fa9f04ee9e08e6fa4af00fa57b
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Aug 20 23:11:22 2019 -0400
+
+    net/http: make copyValues append instead of calling Add
+    
+    This results in a performance boost:
+    
+    name          old time/op    new time/op    delta
+    CopyValues-4    3.46µs ± 3%    1.53µs ± 3%  -55.85%  (p=0.000 n=18+19)
+    
+    name          old alloc/op   new alloc/op   delta
+    CopyValues-4    1.52kB ± 0%    0.74kB ± 0%  -51.58%  (p=0.000 n=20+20)
+    
+    name          old allocs/op  new allocs/op  delta
+    CopyValues-4      24.0 ± 0%      11.0 ± 0%  -54.17%  (p=0.000 n=20+20)
+    
+    Fixes #33744.
+    
+    Change-Id: Ibc653fb076a9a6aaa775fcc9ca720fb90e68cf96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191057
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/http_test.go | 26 ++++++++++++++++++++++++++
+ src/net/http/request.go   |  4 +---
+ 2 files changed, 27 insertions(+), 3 deletions(-)

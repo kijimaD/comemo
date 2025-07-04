@@ -1,0 +1,27 @@
+commit 38f9d7519565d70b5921984e50036c55984b38a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 21 14:15:20 2017 -0800
+
+    go/types: correctly determine if panic call refers to built-in
+    
+    R=go1.11
+    
+    The terminating statement check for functions that declare result
+    parameters was using the wrong scope to look up calls to `panic`
+    which in esoteric cases lead to a false positive.
+    
+    Instead of looking up a panic call again at a time when correct
+    scope information would have to be recomputed, collect calls to
+    predeclared panic in a set when type-checking that call.
+    
+    Fixes #23218.
+    
+    Change-Id: I35eaf010e5cb8e43696efba7d77cefffb6f3deb2
+    Reviewed-on: https://go-review.googlesource.com/85198
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/builtins.go        | 13 +++++++++++++
+ src/go/types/check.go           | 15 ++++++++-------
+ src/go/types/return.go          | 12 +++---------
+ src/go/types/testdata/stmt1.src | 18 ++++++++++++++++++
+ 4 files changed, 42 insertions(+), 16 deletions(-)

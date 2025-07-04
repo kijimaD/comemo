@@ -1,0 +1,17 @@
+commit d91219e458823a26a447c57c616f8ddf5adf4c9a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 29 22:59:30 2013 +0400
+
+    runtime: fix linux/arm build
+    notetsleep: nosplit stack overflow
+            128     assumed on entry to notetsleep
+            80      after notetsleep uses 48
+            44      after runtime.futexsleep uses 36
+            -12     after runtime.timediv uses 56
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12049043
+
+ src/pkg/runtime/lock_futex.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

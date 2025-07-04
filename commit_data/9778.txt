@@ -1,0 +1,14 @@
+commit 7249fa773a452b57f9b6834e540fa4848d5fdd9a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 23 18:16:13 2011 +1000
+
+    syscall: mark stdin, stdout and stderr as non-inheritable by child process
+    
+    Fixes #2250.
+    
+    R=golang-dev, hectorchu
+    CC=golang-dev, vincent.vanackere
+    https://golang.org/cl/5086050
+
+ src/pkg/syscall/syscall_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

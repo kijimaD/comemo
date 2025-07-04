@@ -1,0 +1,15 @@
+commit fdc45367f97b9cea81b3f8c045b426d6e4a11766
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu May 17 00:04:00 2012 -0300
+
+    encoding/xml: fix decoding of unknown entities in non-strict mode
+    
+    Fixes #3447.
+    
+    R=rsc, gustavo
+    CC=golang-dev
+    https://golang.org/cl/6039045
+
+ src/pkg/encoding/xml/xml.go      | 20 ++++++++++++++--
+ src/pkg/encoding/xml/xml_test.go | 51 +++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 66 insertions(+), 5 deletions(-)

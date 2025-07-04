@@ -1,0 +1,20 @@
+commit 3b226f9886faffc62c4f1b7b5adeebf0b2cb7a8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 18:24:14 2010 -0400
+
+    codereview: consistent indent, cut dead code
+    
+    End the charade (farce?) that we are using upload.py unaltered.
+    Cut all the unused stuff.
+    Indent using tabs to match the rest of the file.
+    
+    Next: rewrite MercurialVCS to use mercurial package,
+    to avoid overhead of forking off a new hg command
+    multiple times for every file.  And parallelize upload.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2009046
+
+ lib/codereview/codereview.py | 2262 +++++++++++++++---------------------------
+ 1 file changed, 784 insertions(+), 1478 deletions(-)

@@ -1,0 +1,12 @@
+commit 62be24d949cb85e70d64395f0d4d3cf510688aeb
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 3 20:28:24 2009 -0800
+
+    6g code gen bug
+    
+    R=rsc
+    https://golang.org/cl/166052
+
+ src/cmd/6g/ggen.c |  3 ++-
+ src/cmd/8g/ggen.c | 14 ++++----------
+ 2 files changed, 6 insertions(+), 11 deletions(-)

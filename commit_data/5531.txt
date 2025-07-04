@@ -1,0 +1,13 @@
+commit e30bf71b6c87435ab720865dea3ae04526091bcb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 14:32:08 2010 -0700
+
+    A+C: add Peter Williams (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1221043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

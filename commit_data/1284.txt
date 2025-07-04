@@ -1,0 +1,19 @@
+commit 77aaf4f3a2584bdaf6691b0f938c0fe8a789028d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 4 18:18:41 2008 -0800
+
+    - adjusted const decl grammar to reflect spec changes
+    - first cut at html writer (will do html escaping, html tag production)
+    - first cut at generating basic html output via pretty
+    - some cleanups
+    
+    R=r
+    OCL=20550
+    CL=20550
+
+ usr/gri/pretty/Makefile      |  2 +-
+ usr/gri/pretty/htmlwriter.go | 43 +++++++++++++++++++++++
+ usr/gri/pretty/parser.go     |  4 +--
+ usr/gri/pretty/printer.go    | 84 +++++++++++++++++++++++++++++++-------------
+ usr/gri/pretty/selftest2.go  |  2 +-
+ 5 files changed, 107 insertions(+), 28 deletions(-)

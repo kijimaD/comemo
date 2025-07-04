@@ -1,0 +1,21 @@
+commit a4b6fc7b1ddcec937b605b76068f8e800c1487e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 22:19:56 2022 -0800
+
+    go/types, types2: fix tracing output for type and expr lists
+    
+    - support printing of expression and type lists in sprintf
+    - simplified some code in go/types/exprstring.go
+    - fixed a typo in syntax package
+    
+    Change-Id: Ic4bc154200aad95958d5bc2904a9ea17cf518388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377974
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/printer.go |  2 +-
+ src/cmd/compile/internal/types2/errors.go  | 22 ++++++++++++++++++++++
+ src/go/types/errors.go                     | 18 ++++++++++++++++++
+ src/go/types/exprstring.go                 |  7 +------
+ 4 files changed, 42 insertions(+), 7 deletions(-)

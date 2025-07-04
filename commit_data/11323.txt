@@ -1,0 +1,13 @@
+commit abd5bd7d54b1b5e1631dacb3733a44d2cf39d37d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jan 22 18:53:18 2012 -0800
+
+    go/doc: add more test cases
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5571043
+
+ src/pkg/go/doc/testdata/c.go  | 62 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/c.out | 48 +++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+)

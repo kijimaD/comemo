@@ -1,0 +1,16 @@
+commit ed628ca79beefd78bb901b7ab3712391927c6f3b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 17:22:51 2008 -0800
+
+    * faster atof for common cases
+      (gets 3x speedup in go; got 40x in c)
+    * handle and test overflow
+    
+    R=r
+    DELTA=217  (200 added, 0 deleted, 17 changed)
+    OCL=19399
+    CL=19422
+
+ src/lib/strconv/atof.go     | 162 ++++++++++++++++++++++++++++++++++++++++----
+ src/lib/strconv/testatof.go |  66 +++++++++++++++++-
+ 2 files changed, 214 insertions(+), 14 deletions(-)

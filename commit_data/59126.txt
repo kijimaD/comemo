@@ -1,0 +1,17 @@
+commit a4a5ef08bd15201772021620cc3a8331b30643f5
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 20 09:41:28 2025 +0100
+
+    cmd/cgo/internal/testshared: log stdout when go command fails
+    
+    Understanding a failure in the goCmd call is difficult because the
+    important information might be in the stdout instead of stderr.
+    
+    Change-Id: Icf42974679103c69016129fe2ebb15d5a0a3b51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/testshared/shared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

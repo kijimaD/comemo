@@ -1,0 +1,12 @@
+commit 876c637e420ffa10214f2781f2d3eb6cec024b02
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed May 6 12:43:09 2009 -0700
+
+    added a distinguishing string to the error prints
+    
+    R=r
+    OCL=28321
+    CL=28357
+
+ test/ken/divmod.go | 89 +++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 58 insertions(+), 31 deletions(-)

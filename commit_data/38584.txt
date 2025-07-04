@@ -1,0 +1,24 @@
+commit c196d38d5e1d35c5b1eb1b19648532ea91442979
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 29 01:26:45 2019 +1100
+
+    cmd/dist: pass cgotest linkmode via GOFLAGS
+    
+    cgotest attempts to exercise various linkmodes, however with recent refactoring
+    TestCrossPackageTests is no longer running tests with these linkmodes. Specifying
+    the linkmode via GOFLAGS restores previous behaviour.
+    
+    Note that the -ldflags="-linkmode=external -s" case cannot be passed through
+    as GOFLAGS does not permit spaces in values and -ldflags can only be specified
+    once.
+    
+    Fixes #31083.
+    
+    Change-Id: I2ce6c60da3f3d60495af283ea9122fb68a7a4f41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169779
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 41a005d458558b41b4bc7a4c837953b35609c9a2
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Sep 9 11:14:41 2016 -0400
+
+    test: add test for issue 17039
+    
+    Change-Id: Ieb3d605f03a7185a707621bef7160090c9bdb51f
+    Reviewed-on: https://go-review.googlesource.com/28873
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ test/fixedbugs/issue17039.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

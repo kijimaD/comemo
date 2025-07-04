@@ -1,0 +1,20 @@
+commit d7edc91643dbc76542930ee95ff66beea6eefa02
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 19:57:46 2019 +0200
+
+    cmd/dist: set the default external linker on platforms without gcc
+    
+    The go tool already sets -extld to the appropriate compiler. This
+    CL changes cmd/dist to do the same, to fix bootstrapping on platforms
+    that only have clang (Android and iOS).
+    
+    Updates #31722
+    
+    Change-Id: I8a4fd227f85a768053a8946198eab68bbbdf9ae5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174305
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,19 @@
+commit 1100df58238a1b1c55af148a880b48caf4be6504
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Oct 30 22:58:24 2018 +0000
+
+    go/internal/gcimporter: ensure tests pass even if GOROOT is read-only
+    
+    This mainly entails writing compiler output files to a temporary
+    directory, as well as the corrupted files in TestVersionHandling.
+    
+    Updates #28387
+    
+    Change-Id: I6b3619a91fff27011c7d73daa4febd14a6c5c348
+    Reviewed-on: https://go-review.googlesource.com/c/146119
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 113 ++++++++++++++++----------
+ 1 file changed, 69 insertions(+), 44 deletions(-)

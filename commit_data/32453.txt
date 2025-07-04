@@ -1,0 +1,19 @@
+commit 84ac90ebf1b2e6a747eec1469230087fe71c0ce9
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 24 15:05:53 2017 +0200
+
+    spec: clarify nil case in type switches
+    
+    The old wording seemed to imply that nil is a kind of type.
+    Slightly reworded for clarity.
+    
+    Fixes #21580.
+    
+    Change-Id: I29898bf0125a10cb8dbb5c7e63ec5399ebc590ca
+    Reviewed-on: https://go-review.googlesource.com/58490
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

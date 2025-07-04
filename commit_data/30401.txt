@@ -1,0 +1,30 @@
+commit e458264aca63432b225a83267690baced3eb8f26
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 24 21:40:57 2017 -0800
+
+    cmd/compile: fix dolinkobj flag in TestAssembly
+    
+    Follow-up to CL 37270.
+    
+    This considerably reduces the time to run the test.
+    
+    Before:
+    
+    real    0m7.638s
+    user    0m14.341s
+    sys     0m2.244s
+    
+    After:
+    
+    real    0m4.867s
+    user    0m7.107s
+    sys     0m1.842s
+    
+    Change-Id: I8837a5da0979a1c365e1ce5874d81708249a4129
+    Reviewed-on: https://go-review.googlesource.com/37461
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

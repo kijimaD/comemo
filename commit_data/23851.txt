@@ -1,0 +1,26 @@
+commit 4f188c2d1c88d68d3f74a82c148cde804573d691
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 15:14:54 2015 -0400
+
+    runtime: disallow GC assists in non-preemptible contexts
+    
+    Currently it's possible to perform GC work on a system stack or when
+    locks are held if there's an allocation that triggers an assist. This
+    is generally a bad idea because of the fragility of these contexts,
+    and it's incompatible with two changes we're about to make: one is to
+    yield after signaling mark completion (which we can't do from a
+    non-preemptible context) and the other is to make assists block if
+    there's no other way for them to pay off the assist debt.
+    
+    This commit simply skips the assist if it's called from a
+    non-preemptible context. The allocation will still count toward the
+    assist debt, so it will be paid off by a later assist. There should be
+    little allocation from non-preemptible contexts, so this shouldn't
+    harm the overall assist mechanism.
+    
+    Change-Id: I7bf0e6c73e659fe6b52f27437abf39d76b245c79
+    Reviewed-on: https://go-review.googlesource.com/12649
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgcmark.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

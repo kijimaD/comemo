@@ -1,0 +1,29 @@
+commit 2db1769d7b3119278ade0741502f20c6df73a4b6
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 5 15:23:40 2011 -0400
+
+    crypto/block: remove deprecated package.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4315051
+
+ src/pkg/Makefile                      |   1 -
+ src/pkg/crypto/block/Makefile         |  19 ---
+ src/pkg/crypto/block/cbc.go           |  71 --------
+ src/pkg/crypto/block/cfb.go           |  96 -----------
+ src/pkg/crypto/block/cfb_aes_test.go  | 311 ----------------------------------
+ src/pkg/crypto/block/cipher.go        |  57 -------
+ src/pkg/crypto/block/cmac.go          | 105 ------------
+ src/pkg/crypto/block/cmac_aes_test.go | 130 --------------
+ src/pkg/crypto/block/ctr.go           |  67 --------
+ src/pkg/crypto/block/eax.go           | 253 ---------------------------
+ src/pkg/crypto/block/eax_aes_test.go  | 140 ---------------
+ src/pkg/crypto/block/ecb.go           | 270 -----------------------------
+ src/pkg/crypto/block/ecb_aes_test.go  | 127 --------------
+ src/pkg/crypto/block/ecb_test.go      | 181 --------------------
+ src/pkg/crypto/block/ofb.go           |  60 -------
+ src/pkg/crypto/block/ofb_aes_test.go  | 108 ------------
+ src/pkg/crypto/block/xor.go           | 124 --------------
+ src/pkg/crypto/block/xor_test.go      | 168 ------------------
+ 18 files changed, 2288 deletions(-)

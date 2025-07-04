@@ -1,0 +1,29 @@
+commit 2bba267120ad8ce7e9ecd97f3ce4b08bce80b41b
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Tue Aug 22 17:10:46 2017 +1200
+
+    sort: fix mix-up between "!less" and "greater" in examples
+    
+    If Less(a, b) returns true when a is less than b, the correct way to
+    check if a is greater than b is to use Less(b, a). It is wrong to use
+    !Less(a, b) because that checks if a is greater than *or equal to* b.
+    
+    1. The decreasingDistance function in Example_sortKeys makes this
+       mistake. Fix it.
+    
+    2. The documentation of multiSorter.Less says it loops along the less
+       functions until it finds a comparison "that is either Less or
+       !Less". This is nonsense, because (Less(a, b) or !Less(a, b)) is
+       always true. Fix the documentation to say that it finds a
+       comparison "that discriminates between the two items (one is less
+       than the other)". The implementation already does this correctly.
+    
+    Change-Id: If52b79f68e4fdb0d1095edf29bdecdf154a61b8d
+    Reviewed-on: https://go-review.googlesource.com/57752
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sort/example_keys_test.go  | 2 +-
+ src/sort/example_multi_test.go | 9 +++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

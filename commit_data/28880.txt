@@ -1,0 +1,15 @@
+commit 5a0d50f4eb7e35a57364ed5d2f7b79c0b1a80b36
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 18 10:43:47 2016 +1100
+
+    cmd/vet: fix formatting of headings in doc.go.
+    
+    This will cause godoc to correctly render these docs,
+    since go/doc.ToHTML requires no punctuation for headings.
+    
+    Change-Id: Ic95245147d3585f2ccc59d4424fcab17d2a5617b
+    Reviewed-on: https://go-review.googlesource.com/31319
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/doc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

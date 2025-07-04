@@ -1,0 +1,15 @@
+commit 9f60a0a2b01c9d1079ea8991125b471cdaa7eb56
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Oct 15 10:25:56 2015 +1100
+
+    net/http/httputil: clarify where DumpRequest(Out)? can be used.
+    
+    The clues to this were already there, but as a user I was still unsure.
+    Make this more explicit.
+    
+    Change-Id: I68564f3498dcd4897772a303588f03a6b65f111d
+    Reviewed-on: https://go-review.googlesource.com/15172
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/dump.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

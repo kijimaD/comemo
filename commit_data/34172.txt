@@ -1,0 +1,74 @@
+commit 39eea62340a129154d3c2c2347386e8af762d6d1
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jan 22 17:06:26 2018 -0500
+
+    cmd/compile/internal/ssa: reduce location list memory use
+    
+    Put everything that showed up in the allocation profile into the cache,
+    and reuse it across functions.
+    
+    After this CL, the overhead of enabling location lists is getting
+    pretty close to the desired 5%:
+    
+    compilecmp -all -beforeflags -dwarflocationlists=0 -afterflags -dwarflocationlists=1 -n 30 4ebad42292b6a4090faf37753dd768d2965e38c4 4ebad42292b6a4090faf37753dd768d2965e38c4
+    compilecmp  -dwarflocationlists=0 4ebad42292b6a4090faf37753dd768d2965e38c4  -dwarflocationlists=1 4ebad42292b6a4090faf37753dd768d2965e38c4
+    benchstat -geomean  /tmp/869550129 /tmp/143495132
+    completed   30 of   30, estimated time remaining 0s (eta 3:24PM)
+    name        old time/op       new time/op       delta
+    Template          199ms ± 4%        209ms ± 6%   +5.17%  (p=0.000 n=29+30)
+    Unicode          99.2ms ± 8%      100.5ms ± 6%     ~     (p=0.112 n=30+30)
+    GoTypes           642ms ± 3%        684ms ± 3%   +6.54%  (p=0.000 n=29+30)
+    SSA               8.00s ± 1%        8.71s ± 1%   +8.78%  (p=0.000 n=29+29)
+    Flate             129ms ± 7%        134ms ± 5%   +3.77%  (p=0.000 n=30+30)
+    GoParser          157ms ± 4%        164ms ± 5%   +4.35%  (p=0.000 n=29+30)
+    Reflect           428ms ± 3%        450ms ± 4%   +5.09%  (p=0.000 n=30+30)
+    Tar               195ms ± 5%        204ms ± 8%   +4.78%  (p=0.000 n=30+30)
+    XML               228ms ± 4%        241ms ± 4%   +5.62%  (p=0.000 n=30+29)
+    StdCmd            15.4s ± 1%        16.7s ± 1%   +8.29%  (p=0.000 n=29+29)
+    [Geo mean]        476ms             502ms        +5.35%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          294ms ±18%        304ms ±15%     ~     (p=0.242 n=29+29)
+    Unicode           182ms ±27%        172ms ±28%     ~     (p=0.104 n=30+30)
+    GoTypes           957ms ±15%       1016ms ±12%   +6.16%  (p=0.000 n=30+30)
+    SSA               13.3s ± 5%        14.3s ± 3%   +7.32%  (p=0.000 n=30+28)
+    Flate             188ms ±17%        193ms ±17%     ~     (p=0.288 n=28+29)
+    GoParser          232ms ±16%        238ms ±13%     ~     (p=0.065 n=30+29)
+    Reflect           585ms ±13%        620ms ±10%   +5.88%  (p=0.000 n=30+30)
+    Tar               298ms ±21%        332ms ±23%  +11.32%  (p=0.000 n=30+30)
+    XML               329ms ±17%        343ms ±12%   +4.18%  (p=0.032 n=30+30)
+    [Geo mean]        492ms             513ms        +4.13%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.3MB ± 0%       40.3MB ± 0%   +5.29%  (p=0.000 n=30+30)
+    Unicode          29.3MB ± 0%       29.6MB ± 0%   +1.28%  (p=0.000 n=30+29)
+    GoTypes           110MB ± 0%        118MB ± 0%   +6.97%  (p=0.000 n=29+30)
+    SSA              1.48GB ± 0%       1.61GB ± 0%   +9.06%  (p=0.000 n=30+30)
+    Flate            24.8MB ± 0%       26.0MB ± 0%   +4.99%  (p=0.000 n=29+30)
+    GoParser         30.9MB ± 0%       32.2MB ± 0%   +4.20%  (p=0.000 n=30+30)
+    Reflect          76.8MB ± 0%       80.6MB ± 0%   +4.97%  (p=0.000 n=30+30)
+    Tar              39.6MB ± 0%       41.7MB ± 0%   +5.22%  (p=0.000 n=29+30)
+    XML              42.0MB ± 0%       45.4MB ± 0%   +8.22%  (p=0.000 n=29+30)
+    [Geo mean]       63.9MB            67.5MB        +5.56%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           383k ± 0%         405k ± 0%   +5.69%  (p=0.000 n=30+30)
+    Unicode            343k ± 0%         346k ± 0%   +0.98%  (p=0.000 n=30+27)
+    GoTypes           1.15M ± 0%        1.22M ± 0%   +6.17%  (p=0.000 n=29+29)
+    SSA               12.2M ± 0%        13.2M ± 0%   +8.15%  (p=0.000 n=30+30)
+    Flate              234k ± 0%         249k ± 0%   +6.44%  (p=0.000 n=30+30)
+    GoParser           315k ± 0%         332k ± 0%   +5.31%  (p=0.000 n=30+28)
+    Reflect            972k ± 0%        1010k ± 0%   +3.89%  (p=0.000 n=30+30)
+    Tar                394k ± 0%         415k ± 0%   +5.35%  (p=0.000 n=28+30)
+    XML                404k ± 0%         429k ± 0%   +6.31%  (p=0.000 n=29+29)
+    [Geo mean]         651k              686k        +5.35%
+    
+    Change-Id: Ia005a8d6b33ce9f8091322f004376a3d6e5c1a94
+    Reviewed-on: https://go-review.googlesource.com/89357
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/cache.go |  23 ++++
+ src/cmd/compile/internal/ssa/debug.go | 236 ++++++++++++++++++++++++----------
+ 2 files changed, 190 insertions(+), 69 deletions(-)

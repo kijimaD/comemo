@@ -1,0 +1,22 @@
+commit e5e0e5fc3e608046a3dcc2db1ac195769a542b97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 24 11:34:56 2017 +0100
+
+    cmd/compile: don't use ."" as a pkg prefix
+    
+    This results in names to unexported fields like
+    net.(*Dialer)."".deadline instead of net.(*Dialer).deadline.
+    
+    Fixes #18419.
+    
+    Change-Id: I0415c68b77cc16125c2401320f56308060ac3f25
+    Reviewed-on: https://go-review.googlesource.com/44070
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ test/fixedbugs/issue18419.dir/other.go | 11 +++++++++++
+ test/fixedbugs/issue18419.dir/test.go  | 15 +++++++++++++++
+ test/fixedbugs/issue18419.go           |  7 +++++++
+ 4 files changed, 34 insertions(+), 1 deletion(-)

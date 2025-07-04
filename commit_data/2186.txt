@@ -1,0 +1,15 @@
+commit 5a11a46e2dff0e31d8568fe4680f71175c2e38b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 11 09:47:53 2009 -0700
+
+    weekly snapshot
+    - godoc updated to work w/new directory structure
+    
+    TBR=r
+    OCL=28624
+    CL=28624
+
+ usr/gri/pretty/dirlist.html |   3 +
+ usr/gri/pretty/dirlist.txt  |   4 +
+ usr/gri/pretty/godoc.go     | 318 ++++++++++++++++----------------------------
+ 3 files changed, 119 insertions(+), 206 deletions(-)

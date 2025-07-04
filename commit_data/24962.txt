@@ -1,0 +1,13 @@
+commit fe762b64660d0546821133922182a89f402a3161
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 11:24:48 2015 -0800
+
+    cmd/compile/internal/gc: better error message for parenthesized go/defer exprs
+    
+    Change-Id: Ie24d56422ae2196198a6c306716fa867c1442d6e
+    Reviewed-on: https://go-review.googlesource.com/17043
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 17 +++++++++++------
+ test/fixedbugs/issue4468.go           |  8 ++++++--
+ 2 files changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 2de2dc26b08f2781981fe3c3a1e6c7004e1caca0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Dec 12 03:36:39 2018 +1100
+
+    syscall: regenerate ztypes for openbsd/arm
+    
+    Regenerate ztypes for openbsd/arm - most of the changes relate to the OpenBSD armv7 port
+    switching to EABI in September 2016.
+    
+    Also use signed char when generating openbsd/arm ztypes, to avoid inconsistencies between
+    architectures impacting MI code.
+    
+    Change-Id: I9d2e19c1ac045922e270896861c830f94fc59c10
+    Reviewed-on: https://go-review.googlesource.com/c/153578
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/mkall.sh              |  4 ++-
+ src/syscall/ztypes_openbsd_arm.go | 54 ++++++++++++++++++++++-----------------
+ 2 files changed, 33 insertions(+), 25 deletions(-)

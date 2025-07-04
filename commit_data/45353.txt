@@ -1,0 +1,15 @@
+commit c249491572db67acd226210dbcfb4f349614a632
+Author: lixianyang <lee1300394324@gmail.com>
+Date:   Tue Apr 27 02:29:59 2021 +0000
+
+    doc: change <a/> to </a> in spec
+    
+    Change-Id: I21d0ee83c9204d51c587bd944209df2232b460ad
+    GitHub-Last-Rev: 47fab8dc582baaab5f5cd58a1d53f1c24604c769
+    GitHub-Pull-Request: golang/go#45771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

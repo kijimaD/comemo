@@ -1,0 +1,21 @@
+commit 81a4fe6fd29a427c613038260ea12c5374cc5894
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 13 17:26:03 2021 +0200
+
+    cmd/link/internal/ld: re-enable DWARF tests on solaris/illumos
+    
+    It looks like these are fixed on current tip after CL 84655
+    marked them to be skipped.
+    
+    Fixes #23168
+    
+    Change-Id: I0020e6da1042f723eb54186ef0fe925df5326230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349250
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 12 ------------
+ 1 file changed, 12 deletions(-)

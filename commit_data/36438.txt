@@ -1,0 +1,21 @@
+commit e34f660a52b810e7f4d4a186c7502324c67390ea
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Jul 24 13:04:35 2018 +0300
+
+    cmd/compile: cache the value of environment variable GOSSAFUNC
+    
+    Store the value of GOSSAFUNC in a global variable to avoid
+    multiple calls to os.Getenv from gc.buildssa and gc.mkinlcall1.
+    The latter is implemented in the CL 126606.
+    
+    Updates #25942
+    
+    Change-Id: I58caaef2fee23694d80dc5a561a2e809bf077fa4
+    Reviewed-on: https://go-review.googlesource.com/126604
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 ++
+ src/cmd/compile/internal/gc/ssa.go  | 7 +++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit ca15ac36ede807c53c5f1b8778061eb70cbff616
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 15 22:23:35 2013 +0400
+
+    net: fix build with CGO_ENABLED=0
+    
+    R=golang-dev, rsc, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7857044
+
+ src/pkg/net/empty.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

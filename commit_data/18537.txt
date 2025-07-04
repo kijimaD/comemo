@@ -1,0 +1,13 @@
+commit 7056b05f7a918a95e4ce6d118ae2bc0892c256f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 15 20:00:15 2014 -0500
+
+    debug/elf: correct test failure print
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/64380043
+
+ src/pkg/debug/elf/elf_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

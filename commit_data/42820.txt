@@ -1,0 +1,15 @@
+commit 91a52de5274a13fcaab68c0a78115eff632f68fc
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Aug 25 11:30:32 2020 -0400
+
+    crypto/x509: fix duplicate import
+    
+    Updates dave/dst#45.
+    
+    Change-Id: I165e6b3d002407a33908bf90a66ad01f8003b260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250497
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 1 -
+ 1 file changed, 1 deletion(-)

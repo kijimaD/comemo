@@ -1,0 +1,14 @@
+commit 391e082ca9176f05be96a8853cc2bf9d93771756
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Nov 15 14:00:46 2009 -0800
+
+    crypto/md5: fix comment typo.
+    
+    Fixes #210.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/155057
+
+ src/pkg/crypto/md5/md5.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit e8534640557939755917edc3e6afc16d93b2e70b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 13:45:50 2022 -0400
+
+    cmd/compile, cmd/link: produce unlinkable object when compile without -p
+    
+    CL 391014 requires the compiler to be invoked with the -p flag, to
+    specify the package path. People are used to run "go tool compile"
+    from the command line with the -p flag. This is mostly for simple
+    testing, or debugging the compiler. The produced object file is
+    almost never intended to be linked.
+    
+    This CL makes the compiler allow "go tool compile" without the -p
+    flag again. It will produce an unlinkable object. If the linker
+    sees such an object it will error out.
+    
+    Change-Id: I7bdb162c3cad61dadd5c456d903b92493a3df20f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394217
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/flag.go  |  3 ++-
+ src/cmd/internal/goobj/objfile.go      |  2 ++
+ src/cmd/internal/obj/objfile.go        |  5 +++++
+ src/cmd/link/internal/loader/loader.go |  4 ++++
+ src/cmd/link/link_test.go              | 28 ++++++++++++++++++++++++++++
+ 5 files changed, 41 insertions(+), 1 deletion(-)

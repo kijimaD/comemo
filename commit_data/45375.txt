@@ -1,0 +1,24 @@
+commit 8ab7064e33667f17b8d23b5db63468199c3eac02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 27 02:31:23 2021 -0400
+
+    cmd/go: use a real Go version in the go.mod files in TestScript/mod_readonly
+    
+    For some reason, the go.mod file added to this test in CL 147281 lists
+    'go 1.20' instead of the version that was actually current when the
+    go.mod file was added.
+    
+    That causes the test's behavior to change under lazy loading, because
+    1.20 is above the threshold to trigger lazy-loading invariants (1.17).
+    
+    For #36460
+    
+    Change-Id: I92400996cb051ab30e99bfffafd91ff32a1e7087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314049
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_readonly.txt | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

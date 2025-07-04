@@ -1,0 +1,13 @@
+commit 02717bdc20f0c4d3472c2cba6fce292c9a5c3777
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:49:48 2016 -0500
+
+    cmd/asm: add -e flag (no limit on errors) to match compiler
+    
+    Change-Id: I5b749c575e0ec78fb3c50d056899bd1fe5d91853
+    Reviewed-on: https://go-review.googlesource.com/18847
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go   | 3 ++-
+ src/cmd/asm/internal/flags/flags.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

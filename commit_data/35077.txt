@@ -1,0 +1,14 @@
+commit f6ca6eddaa0ce78093094b3485aa21669c6c76b4
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Tue Apr 17 14:28:00 2018 -0700
+
+    net: document caveats for (*syscall.RawConn).Write on Windows
+    
+    Change-Id: I6e1fa67dc9d4d151c90eb19a6f736e4daa7d4fb3
+    Reviewed-on: https://go-review.googlesource.com/107615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 10 ++++++----
+ src/net/rawconn.go              |  6 ++++++
+ 2 files changed, 12 insertions(+), 4 deletions(-)

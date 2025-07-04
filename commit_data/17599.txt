@@ -1,0 +1,15 @@
+commit aa53b37fa6aeb4ea378b5fc833f0aea5d6f9711e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 15 11:29:47 2013 -0400
+
+    go/build: add ctxt.MatchFile
+    
+    Fixes #6369.
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/13708043
+
+ src/pkg/go/build/build.go      | 152 +++++++++++++++++++++++++++--------------
+ src/pkg/go/build/build_test.go |  42 ++++++++++++
+ 2 files changed, 143 insertions(+), 51 deletions(-)

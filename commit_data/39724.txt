@@ -1,0 +1,29 @@
+commit e87fe0f1f521150641c8c64db6b919555c255c65
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 25 23:29:32 2019 +0700
+
+    cmd/compile: make typecheck set n.Type.Nod when returning OTYPE
+    
+    typecheck only set n.Type.Nod for declared type, and leave it nil for
+    anonymous types, type alias. It leads to compiler crashes, because
+    n.Type.Nod is nil at the time dowidth was called.
+    
+    Fixing it by set n.Type.Nod right after n.Type initialization if n.Op is
+    OTYPE.
+    
+    When embedding interface cycles involve in type alias, it also helps
+    pointing the error message to the position of the type alias
+    declaration, instead of position of embedding interface.
+    
+    Fixes #31872
+    
+    Change-Id: Ia18391e987036a91f42ba0c08b5506f52d07f683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191540
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go     | 11 +-------
+ src/cmd/compile/internal/gc/typecheck.go | 43 ++++++++++++++------------------
+ test/fixedbugs/issue23823.go             |  4 +--
+ 3 files changed, 22 insertions(+), 36 deletions(-)

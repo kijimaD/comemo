@@ -1,0 +1,75 @@
+commit 551af5f50a29366260e82fc636c7c6def50b1101
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 10:17:22 2019 -0500
+
+    misc/cgo/test: fix tests in module mode
+    
+    This change preserves the ability to test misc/cgo/test in GOPATH
+    mode, at the cost of indirection through a 'go test' subprocess.
+    
+    Updates #30228
+    
+    Change-Id: I08de855e62278d30fa622b2f7478e43dd2ab0e96
+    Reviewed-on: https://go-review.googlesource.com/c/163418
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/callback.go                          |  4 +
+ misc/cgo/test/cgo_linux_test.go                    |  1 -
+ misc/cgo/test/cgo_test.go                          | 96 ++++++++++------------
+ misc/cgo/test/overlaydir_test.go                   | 81 ++++++++++++++++++
+ misc/cgo/test/pkg_test.go                          | 58 +++++++++++++
+ misc/cgo/test/testdata/cgo_linux_test.go           |  9 ++
+ misc/cgo/test/testdata/cgo_test.go                 | 18 ++++
+ misc/cgo/test/{ => testdata}/gcc68255.go           |  2 +-
+ misc/cgo/test/{ => testdata}/gcc68255/a.go         |  0
+ misc/cgo/test/{ => testdata}/gcc68255/c.c          |  0
+ misc/cgo/test/{ => testdata}/gcc68255/c.h          |  0
+ misc/cgo/test/{ => testdata}/issue20266.go         |  0
+ .../test/{ => testdata}/issue20266/issue20266.h    |  0
+ misc/cgo/test/{ => testdata}/issue23555.go         |  4 +-
+ misc/cgo/test/{ => testdata}/issue23555a/a.go      |  0
+ misc/cgo/test/{ => testdata}/issue23555b/a.go      |  0
+ .../test/{ => testdata}/issue24161_darwin_test.go  | 10 +--
+ misc/cgo/test/{ => testdata}/issue24161arg/def.go  |  0
+ misc/cgo/test/{ => testdata}/issue24161arg/use.go  |  0
+ misc/cgo/test/{ => testdata}/issue24161e0/main.go  |  0
+ misc/cgo/test/{ => testdata}/issue24161e1/main.go  |  0
+ misc/cgo/test/{ => testdata}/issue24161e2/main.go  |  0
+ .../test/{ => testdata}/issue24161res/restype.go   |  0
+ misc/cgo/test/{ => testdata}/issue26213/jni.h      |  0
+ .../test/{ => testdata}/issue26213/test26213.go    |  0
+ misc/cgo/test/{ => testdata}/issue26430.go         |  2 +-
+ misc/cgo/test/{ => testdata}/issue26430/a.go       |  0
+ misc/cgo/test/{ => testdata}/issue26430/b.go       |  0
+ misc/cgo/test/{ => testdata}/issue26743.go         |  2 +-
+ misc/cgo/test/{ => testdata}/issue26743/a.go       |  0
+ misc/cgo/test/{ => testdata}/issue26743/b.go       |  0
+ misc/cgo/test/{ => testdata}/issue27054/egl.h      |  0
+ .../test/{ => testdata}/issue27054/test27054.go    |  0
+ misc/cgo/test/{ => testdata}/issue27340.go         |  2 +-
+ misc/cgo/test/{ => testdata}/issue27340/a.go       |  0
+ misc/cgo/test/{ => testdata}/issue8756.go          |  2 +-
+ .../cgo/test/{ => testdata}/issue8756/issue8756.go |  0
+ misc/cgo/test/{ => testdata}/issue8828.go          |  2 +-
+ misc/cgo/test/{ => testdata}/issue8828/issue8828.c |  0
+ misc/cgo/test/{ => testdata}/issue8828/trivial.go  |  0
+ misc/cgo/test/{ => testdata}/issue9026.go          |  2 +-
+ .../cgo/test/{ => testdata}/issue9026/issue9026.go |  0
+ misc/cgo/test/{ => testdata}/issue9400/asm_386.s   |  0
+ .../cgo/test/{ => testdata}/issue9400/asm_amd64x.s |  0
+ misc/cgo/test/{ => testdata}/issue9400/asm_arm.s   |  0
+ misc/cgo/test/{ => testdata}/issue9400/asm_arm64.s |  0
+ .../test/{ => testdata}/issue9400/asm_mips64x.s    |  0
+ misc/cgo/test/{ => testdata}/issue9400/asm_mipsx.s |  0
+ .../cgo/test/{ => testdata}/issue9400/asm_ppc64x.s |  0
+ misc/cgo/test/{ => testdata}/issue9400/asm_s390x.s |  0
+ misc/cgo/test/{ => testdata}/issue9400/gccgo.go    |  0
+ misc/cgo/test/{ => testdata}/issue9400/stubs.go    |  0
+ misc/cgo/test/{ => testdata}/issue9400_linux.go    |  2 +-
+ misc/cgo/test/{ => testdata}/issue9510.go          |  4 +-
+ misc/cgo/test/{ => testdata}/issue9510a/a.go       |  0
+ misc/cgo/test/{ => testdata}/issue9510b/b.go       |  0
+ misc/cgo/test/{ => testdata}/test26213.go          |  2 +-
+ 57 files changed, 233 insertions(+), 70 deletions(-)

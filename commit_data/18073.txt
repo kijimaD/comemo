@@ -1,0 +1,16 @@
+commit b682f6de5a9d645a92792e2ffad1956c64b7840f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 16:43:19 2013 -0800
+
+    regexp: use sync.Pool
+    
+    For machines, not threads.
+    
+    Update #4720
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/44150043
+
+ src/pkg/regexp/regexp.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

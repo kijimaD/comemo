@@ -1,0 +1,24 @@
+commit dc57ed8cafe7c6e8940231c46cdcf3633e6c5eaa
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Mar 8 12:13:41 2012 -0500
+
+    misc/cgo: re-enable testso
+    
+    The test.bash file generates .so file using gcc, builds the executable
+    using the go tool and then run it with the $LD_LIBRARY_PATH variable
+    pointing to the directory where the .so file lives.
+    
+    Fixes #2982.
+    
+    R=rsc, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5788043
+
+ .hgignore                 |  1 +
+ misc/cgo/testso/Makefile  | 22 ----------------------
+ misc/cgo/testso/cgoso.go  |  5 ++++-
+ misc/cgo/testso/cgoso_c.c |  2 ++
+ misc/cgo/testso/main.go   |  4 +++-
+ misc/cgo/testso/test.bash |  7 ++++---
+ src/run.bash              |  2 --
+ 7 files changed, 14 insertions(+), 29 deletions(-)

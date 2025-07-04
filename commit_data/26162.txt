@@ -1,0 +1,30 @@
+commit dfcb853d9d75116e939b31fa12316fc3e8494845
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Mar 3 11:13:43 2016 +0100
+
+    cmd/compile/internal/ssa: lower builtins much later
+    
+    * Move lowering into a separate pass.
+    * SliceLen/SliceCap is now available to various intermediate passes
+    which use useful for bounds checking.
+    * Add a second opt pass to handle the new opportunities
+    
+    Decreases the code size of binaries in pkg/tool/linux_amd64
+    by ~45K.
+    
+    Updates #14564 #14606
+    
+    Change-Id: I5b2bd6202181c50623a3585fbf15c0d6db6d4685
+    Reviewed-on: https://go-review.googlesource.com/20172
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go        |   2 +
+ src/cmd/compile/internal/ssa/gen/dec.rules     |   6 ++
+ src/cmd/compile/internal/ssa/gen/decOps.go     |  13 +++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  10 +--
+ src/cmd/compile/internal/ssa/opt.go            |   4 +
+ src/cmd/compile/internal/ssa/rewritedec.go     | 118 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  80 ++++++++++-------
+ 7 files changed, 198 insertions(+), 35 deletions(-)

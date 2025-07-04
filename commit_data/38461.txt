@@ -1,0 +1,18 @@
+commit 66b264d2c1119ffefd7cd99def02b9f533651678
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 17:01:15 2019 +0100
+
+    runtime: fix TestSigStackSwapping on aix/ppc64
+    
+    This commit fixes TestSigStackSwapping by increasing the signal stack
+    size. This is needed because SIGSTKSZ is too small when VMX is used on
+    AIX.
+    
+    Change-Id: Ic2b5faa65745228d0768383b3d6ebd4b6f9f532c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164012
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/testdata/testprogcgo/sigstack.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

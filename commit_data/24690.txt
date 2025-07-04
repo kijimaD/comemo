@@ -1,0 +1,21 @@
+commit 3d5163cf4348b5e697dcbf09897a62893876ac3c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 21 16:12:24 2015 +1000
+
+    path/filepath: fix EvalSymlinks(".") on windows
+    
+    Also new tests added. So, perhaps, this CL corrects
+    even more broken EvalSymlinks behaviour.
+    
+    Fixes #12451
+    
+    Change-Id: I81b9d92bab74bcb8eca6db6633546982fe5cec87
+    Reviewed-on: https://go-review.googlesource.com/16192
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_test.go       |  85 +++++++++++++++++++++++-
+ src/path/filepath/symlink.go         | 125 ++++++++++++++++++++++-------------
+ src/path/filepath/symlink_windows.go |   6 +-
+ 3 files changed, 166 insertions(+), 50 deletions(-)

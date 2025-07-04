@@ -1,0 +1,12 @@
+commit a593a36b532dad34a557527fc344e0f886d00376
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 30 08:34:21 2015 -0700
+
+    doc/go1.5.txt: add Jacobi and Int.ModSqrt to math/big
+    
+    Change-Id: I187e97592cd0403d84ca25c4acb1a4b25495041b
+    Reviewed-on: https://go-review.googlesource.com/9534
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

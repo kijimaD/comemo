@@ -1,0 +1,14 @@
+commit 2845e5881f80a717b33b3ab515e1306a7c0001dd
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 20 10:56:06 2012 +0200
+
+    exp/locale/collate: changed default AlternateHandling to non-ignorable, the same
+    default as ICU.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6445080
+
+ src/pkg/exp/locale/collate/collate.go      | 10 +++++-----
+ src/pkg/exp/locale/collate/collate_test.go | 17 +++++++++--------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

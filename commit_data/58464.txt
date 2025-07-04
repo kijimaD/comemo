@@ -1,0 +1,26 @@
+commit e7a8bd5d8bd950764cbc48656fcc5456df7b1e9a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 17 20:03:22 2024 +0100
+
+    crypto/internal/fips140/check: remove Enabled
+    
+    check.Enabled, internal/fips140.Enabled, and crypto/fips140.Enabled were
+    redundant. Package check can just use internal/fips140.Enabled.
+    
+    check.Verified is still there for the tests and belt-and-suspenders
+    assurance in crypto/fips140.Enabled, although it's implied by Enabled.
+    
+    For #69536
+    
+    Change-Id: I83921cc925da841aba4da79a9a5e9ac526a3f2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638855
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/fips140/fips140.go              |  2 +-
+ src/crypto/internal/fips140/check/check.go | 28 +++++++---------------------
+ src/crypto/internal/fips140/fips140.go     |  6 +++++-
+ 3 files changed, 13 insertions(+), 23 deletions(-)

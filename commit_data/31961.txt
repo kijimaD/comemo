@@ -1,0 +1,19 @@
+commit 25de52eb57e085fae854f6162c42482f6703d5ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 29 19:44:07 2017 +0000
+
+    doc: update binary requirements
+    
+    FreeBSD 9.3.
+    Add Linux arm64. (required second line)
+    Clarify glibc requirement now that we have second line in notes.
+    OS X to macOS
+    
+    Updates #20850
+    
+    Change-Id: I684d464ed32a072081726b7c805a346c22c42f97
+    Reviewed-on: https://go-review.googlesource.com/47252
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 479018150c0575d46495689315448f5524813ed5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 18:57:44 2018 +0000
+
+    all: remove support for macOS 10.9 and earlier
+    
+    Updates #23122
+    
+    Change-Id: I4c12ec5cb1a1f15d7858f3deab636710c0660e26
+    Reviewed-on: https://go-review.googlesource.com/115038
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 57 --------------------------------------
+ src/net/fd_unix.go                 | 13 ---------
+ src/runtime/crash_cgo_test.go      | 13 ---------
+ 3 files changed, 83 deletions(-)

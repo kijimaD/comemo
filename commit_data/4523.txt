@@ -1,0 +1,12 @@
+commit 0281b715804ce5e4040729d904d41b0da0969ca5
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jan 5 09:20:02 2010 -0800
+
+    net: make Dial correctly return nil on error.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181135
+
+ src/pkg/net/net.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

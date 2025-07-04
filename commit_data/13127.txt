@@ -1,0 +1,18 @@
+commit 77f00e5e5ae39443174351ea514bbdf02ad59edd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 13:53:57 2012 -0400
+
+    unicode: fix comment about variable types
+    
+    In both the web and command line tool,
+    the comment is shown after the declaration.
+    But in the code the comment is obviously before.
+    Make the text not refer to a specific order.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6206094
+
+ src/pkg/unicode/maketables.go | 4 ++--
+ src/pkg/unicode/tables.go     | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

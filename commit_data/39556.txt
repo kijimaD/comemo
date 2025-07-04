@@ -1,0 +1,16 @@
+commit e81b7315927d025a1eb3933542211b899880b982
+Author: Eli Bendersky <eliben@google.com>
+Date:   Wed Jul 31 13:42:16 2019 -0700
+
+    encoding/json: clarify Marshal behavior for string keys of maps
+    
+    This is a documentation-only change.
+    
+    Fixes #28827
+    
+    Change-Id: Ife9ab997809048784f35872b09905bc209a05eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

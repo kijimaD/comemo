@@ -1,0 +1,43 @@
+commit 042264ef1b073b1b485e6e24977e506e1a6bdb3f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Oct 28 17:12:39 2016 +0200
+
+    runtime/race: update race runtime
+    
+    This updates the runtime to HEAD to keep it aligned and fixes some bugs.
+    
+    http://llvm.org/viewvc/llvm-project?view=revision&revision=285454
+    fixes the crash on darwin related to unaligned data section (#17065).
+    
+    http://llvm.org/viewvc/llvm-project?view=revision&revision=285451
+    enables core dumps by default (#16527).
+    
+    http://llvm.org/viewvc/llvm-project?view=revision&revision=285455
+    adds a hook to obtain number of races reported so far (#15972).
+    Can now be obtained with:
+    
+    //go:nosplit
+    func RaceReportCount() int {
+            var n uint64
+            racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)
+            return int(n)
+    }
+    
+    Fixes #16527.
+    Fixes #17065.
+    Update #15972.
+    
+    Change-Id: I8f869cb6275c9521a47303f3810a9965e9314357
+    Reviewed-on: https://go-review.googlesource.com/32160
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go                     |   3 +--
+ src/runtime/race.go                      |   4 ++++
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_darwin_amd64.syso  | Bin 326172 -> 328168 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 404216 -> 405576 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 376048 -> 378032 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 367717 -> 369467 bytes
+ 7 files changed, 6 insertions(+), 3 deletions(-)

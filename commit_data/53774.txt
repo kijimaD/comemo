@@ -1,0 +1,22 @@
+commit a3c1836d80314607f01a5732ae1fc22a0ae17671
+Author: chanxuehong <chanxuehong@gmail.com>
+Date:   Mon Jul 24 08:58:16 2023 +0000
+
+    encoding/base32: reduce overflow risk when calc encode/decode len
+    
+    Same as https://go-review.googlesource.com/c/go/+/510635, reduces risk of overflow
+    
+    Change-Id: I18f5560d73af76c3e853464a89ad7e42dbbd5894
+    GitHub-Last-Rev: 652c8c6712886184e59a110c3fa1e6dcb643d93b
+    GitHub-Pull-Request: golang/go#61547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512200
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/encoding/base32/base32.go      |   5 +-
+ src/encoding/base32/base32_test.go | 126 ++++++++++++++++++++++++-------------
+ 2 files changed, 83 insertions(+), 48 deletions(-)

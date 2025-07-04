@@ -1,0 +1,12 @@
+commit f984cea71dfe751066a99b0aae615b69530395ad
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 12 12:29:37 2015 +1100
+
+    runtime: remove unused signals_windows.h
+    
+    Change-Id: I35fe76661c80ca808a711acf608a23c77aeb0608
+    Reviewed-on: https://go-review.googlesource.com/4651
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signals_windows.h | 3 ---
+ 1 file changed, 3 deletions(-)

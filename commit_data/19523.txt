@@ -1,0 +1,16 @@
+commit 0476693eaf871653139735cc231c3c80f4daf7c9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 12 10:08:54 2014 -0400
+
+           doc: add release note for 'godoc -analysis'
+    
+            Contains a link to /lib/godoc/analysis/help.html
+           which is not yet live.
+    
+    LGTM=r
+    R=r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/88560044
+
+ doc/go1.3.html | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

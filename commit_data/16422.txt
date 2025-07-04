@@ -1,0 +1,21 @@
+commit 671814b9044bebd9f5801cf83df74acbdf31d732
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 28 22:04:34 2013 +0400
+
+    runtime: allocate page table lazily
+    This removes the 256MB memory allocation at startup,
+    which conflicts with ulimit.
+    Also will allow to eliminate an unnecessary memory dereference in GC,
+    because the page table is usually mapped at known address.
+    Update #5049.
+    Update #5236.
+    
+    R=golang-dev, khr, r, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/9791044
+
+ src/pkg/runtime/malloc.goc | 27 ++++++++++++++++++---------
+ src/pkg/runtime/malloc.h   |  4 +++-
+ src/pkg/runtime/mgc0.c     |  2 +-
+ src/pkg/runtime/mheap.c    | 18 ++++++++++++++++++
+ 4 files changed, 40 insertions(+), 11 deletions(-)

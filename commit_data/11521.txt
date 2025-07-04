@@ -1,0 +1,13 @@
+commit 33f3afa7afac66f91ba281521db26ea932ead5a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 17:29:59 2012 -0500
+
+    gc: diagnose \ in import path
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5609044
+
+ src/cmd/gc/lex.c |  5 +++++
+ test/import5.go  | 11 +++++++++++
+ 2 files changed, 16 insertions(+)

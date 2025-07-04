@@ -1,0 +1,15 @@
+commit f14f458640c2444c77a68a79744338880cc80e3c
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed Jan 9 10:26:34 2013 -0500
+
+    misc/emacs: update go-mode syntax table and comment handling as
+    suggested by pkleiweg.
+    
+    Fixes #3471.
+    
+    R=adonovan, pkleiweg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7060056
+
+ misc/emacs/go-mode.el | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

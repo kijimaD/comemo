@@ -1,0 +1,13 @@
+commit b199035ba83f46cff2a227cd3d787d3d30158ddf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 31 00:19:38 2009 -0700
+
+    move tiny gsubr functions together at the top of the file.
+    delete unused mkenam file
+    
+    R=ken
+    OCL=26940
+    CL=26940
+
+ src/cmd/6g/gsubr.c | 150 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 75 insertions(+), 75 deletions(-)

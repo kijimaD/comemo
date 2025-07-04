@@ -1,0 +1,86 @@
+commit 8b4692096bf85f04df53d4104cb82cc3c8095df7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Nov 5 15:51:35 2018 -0500
+
+    cmd/vendor: add x/tools/go/analysis/cmd/vet-lite + deps
+    
+    This change adds the vet-lite command (the future cmd/vet) and all its
+    dependencies from x/tools, but not its tests and their dependencies.
+    It was created with these commands:
+    
+      $ (cd $GOPATH/src/golang.org/x/tools && git checkout c76e1ad)
+      $ cd GOROOT/src/cmd
+      $ govendor add $(go list -deps golang.org/x/tools/go/analysis/cmd/vet-lite | grep golang.org/x/tools)
+      $ rm -fr $(find vendor/golang.org/x/tools/ -name testdata)
+      $ rm $(find vendor/golang.org/x/tools/ -name \*_test.go)
+    
+    I feel sure I am holding govendor wrong. Please advise.
+    
+    A followup CL will make cmd/vet behave like vet-lite, initially just
+    for users that opt in, and soon after for all users, at which point
+    cmd/vet will be replaced in its entirety by a copy of vet-lite's small
+    main.go.
+    
+    In the meantime, anyone can try the new tool using these commands:
+    
+     $ go build cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite
+     $ export GOVETTOOL=$(which vet-lite)
+     $ go vet your/project/...
+    
+    Change-Id: Iea168111a32ce62f82f9fb706385ca0f368bc869
+    Reviewed-on: https://go-review.googlesource.com/c/147444
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vendor/golang.org/x/tools/LICENSE          |  27 +
+ src/cmd/vendor/golang.org/x/tools/PATENTS          |  22 +
+ .../golang.org/x/tools/go/analysis/analysis.go     | 192 ++++
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       |  83 ++
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   | 328 +++++++
+ .../go/analysis/internal/analysisflags/flags.go    | 223 +++++
+ .../x/tools/go/analysis/internal/facts/facts.go    | 299 +++++++
+ .../x/tools/go/analysis/internal/facts/imports.go  |  88 ++
+ .../analysis/internal/unitchecker/unitchecker.go   | 306 +++++++
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  | 759 ++++++++++++++++
+ .../x/tools/go/analysis/passes/assign/assign.go    |  68 ++
+ .../x/tools/go/analysis/passes/atomic/atomic.go    |  96 ++
+ .../x/tools/go/analysis/passes/bools/bools.go      | 214 +++++
+ .../tools/go/analysis/passes/buildtag/buildtag.go  | 159 ++++
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  | 226 +++++
+ .../go/analysis/passes/composite/composite.go      | 108 +++
+ .../go/analysis/passes/composite/whitelist.go      |  33 +
+ .../tools/go/analysis/passes/copylock/copylock.go  | 300 +++++++
+ .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  | 225 +++++
+ .../analysis/passes/httpresponse/httpresponse.go   | 177 ++++
+ .../x/tools/go/analysis/passes/inspect/inspect.go  |  45 +
+ .../analysis/passes/internal/analysisutil/util.go  | 106 +++
+ .../go/analysis/passes/loopclosure/loopclosure.go  | 130 +++
+ .../go/analysis/passes/lostcancel/lostcancel.go    | 304 +++++++
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |  74 ++
+ .../x/tools/go/analysis/passes/pkgfact/pkgfact.go  | 127 +++
+ .../x/tools/go/analysis/passes/printf/printf.go    | 964 +++++++++++++++++++++
+ .../x/tools/go/analysis/passes/printf/types.go     | 223 +++++
+ .../x/tools/go/analysis/passes/shift/dead.go       | 101 +++
+ .../x/tools/go/analysis/passes/shift/shift.go      | 128 +++
+ .../go/analysis/passes/stdmethods/stdmethods.go    | 211 +++++
+ .../go/analysis/passes/structtag/structtag.go      | 260 ++++++
+ .../x/tools/go/analysis/passes/tests/tests.go      | 175 ++++
+ .../go/analysis/passes/unreachable/unreachable.go  | 314 +++++++
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      | 130 +++
+ .../analysis/passes/unusedresult/unusedresult.go   | 131 +++
+ .../golang.org/x/tools/go/analysis/validate.go     | 104 +++
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go | 627 ++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/imports.go   | 471 ++++++++++
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   | 477 ++++++++++
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  14 +
+ .../x/tools/go/ast/inspector/inspector.go          | 182 ++++
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  | 216 +++++
+ .../vendor/golang.org/x/tools/go/cfg/builder.go    | 510 +++++++++++
+ src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go    | 150 ++++
+ .../x/tools/go/types/objectpath/objectpath.go      | 523 +++++++++++
+ .../golang.org/x/tools/go/types/typeutil/callee.go |  46 +
+ .../x/tools/go/types/typeutil/imports.go           |  31 +
+ .../golang.org/x/tools/go/types/typeutil/map.go    | 313 +++++++
+ .../x/tools/go/types/typeutil/methodsetcache.go    |  72 ++
+ .../golang.org/x/tools/go/types/typeutil/ui.go     |  52 ++
+ src/cmd/vendor/vendor.json                         | 204 +++++
+ 52 files changed, 11348 insertions(+)

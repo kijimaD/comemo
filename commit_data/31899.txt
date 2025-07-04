@@ -1,0 +1,25 @@
+commit 53e4b8fc02bb9440a35b20f383c0bc86eece80a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 15:49:42 2017 -0400
+
+    cmd/go: require -buildmode=c-shared to take one main package
+    
+    The current behavior is to filter out the non-main packages silently,
+    which is confusing if there are only non-main packages.
+    Instead, report an error unless it's used with a single main package.
+    
+    To be clear, I don't really know what I'm doing.
+    It might be that multiple main packages are allowed, or even
+    that we do want the filtering, but all.bash passes with this change,
+    so I am taking that as a sign that we don't need that extra flexibility.
+    
+    Fixes #15082.
+    
+    Change-Id: I984d0f444a01c0ee0c3cd6646a75527ea99a9ebe
+    Reviewed-on: https://go-review.googlesource.com/46421
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 82ec4cd79f117191d12fc14060c4b4b786feca5b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 13 12:13:00 2016 +0900
+
+    net: don't crash DNS flood test on darwin
+    
+    Also renames the test function to TestDNSFlood.
+    
+    Updates #15659.
+    
+    Change-Id: Ia562004c43bcc19c2fee9440321c27b591f85da5
+    Reviewed-on: https://go-review.googlesource.com/23077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

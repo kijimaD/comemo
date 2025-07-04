@@ -1,0 +1,14 @@
+commit 35a95df5710e485f0621cb123dc2e528d0a6146c
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Feb 7 15:49:43 2017 -0500
+
+    cmd/compile/internal/ssa: display NamedValues in SSA html output.
+    
+    Change-Id: If268b42b32e6bcd6e7913bffa6e493dc78af40aa
+    Reviewed-on: https://go-review.googlesource.com/36539
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/html.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

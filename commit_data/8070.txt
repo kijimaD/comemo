@@ -1,0 +1,12 @@
+commit e6cf42c39a77efd911b60bd4c1eb6e3bc88d1fc8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 13:49:24 2011 -0700
+
+    gofix: fix embarrassing typo in osopen.go
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4411044
+
+ src/cmd/gofix/osopen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

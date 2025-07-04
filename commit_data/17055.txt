@@ -1,0 +1,14 @@
+commit 905f29655230cac74f0b91bd1f1de112451e61f3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 6 21:29:35 2013 +0400
+
+    net: test that Read/Write do 0 allocations
+    It turned out that change 12413043 did not break
+    any builders. So let's lock this in.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12545043
+
+ src/pkg/net/tcp_test.go | 125 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 124 insertions(+), 1 deletion(-)

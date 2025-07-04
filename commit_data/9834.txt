@@ -1,0 +1,22 @@
+commit 357f2cb1a385f4d1418e48856f9abe0cced3bcd1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 29 16:12:21 2011 -0700
+
+    exp/sql{,/driver}: new database packages
+    
+    R=gustavo, rsc, borman, dave, kevlar, nigeltao, dvyukov, kardianos, fw, r, r, david.crawshaw
+    CC=golang-dev
+    https://golang.org/cl/4973055
+
+ src/pkg/Makefile                 |   3 +
+ src/pkg/exp/sql/Makefile         |  12 +
+ src/pkg/exp/sql/convert.go       | 106 +++++++
+ src/pkg/exp/sql/convert_test.go  | 108 ++++++++
+ src/pkg/exp/sql/doc.txt          |  46 ++++
+ src/pkg/exp/sql/driver/Makefile  |  12 +
+ src/pkg/exp/sql/driver/driver.go | 169 ++++++++++++
+ src/pkg/exp/sql/driver/types.go  | 161 +++++++++++
+ src/pkg/exp/sql/fakedb_test.go   | 497 +++++++++++++++++++++++++++++++++
+ src/pkg/exp/sql/sql.go           | 578 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/sql/sql_test.go      | 145 ++++++++++
+ 11 files changed, 1837 insertions(+)

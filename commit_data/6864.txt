@@ -1,0 +1,20 @@
+commit ce89f213a822b7a6277282ae2feb9ce9dda96a1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 7 13:44:01 2010 -0800
+
+    go/parser: Better comment for ParseFile.
+    
+    The name ParseFile was kept as it indicates that
+    this function parses a Go 'SourceFile' per the
+    Go spec. Similarly, the other functions (ParseExpr,
+    ParseStmtList, ParseDeclList) parse the corresponding
+    constructs as defined in the Go spec.
+    
+    Fixes #1311.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3453042
+
+ src/pkg/go/parser/interface.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit 614a9c2613484de952785dc851e08ae81197df2c
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 22:23:14 2021 -0400
+
+    go/types: simplify Checker.funcInst
+    
+    This is a port of CL 306169 to go/types, adjusted only for use of the
+    typeparams package, and the different positioning API.
+    
+    Change-Id: I3095f4b0dae4473e75ec2a988ea282bac1a4bab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312189
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/call.go | 37 +++++++++----------------------------
+ 1 file changed, 9 insertions(+), 28 deletions(-)

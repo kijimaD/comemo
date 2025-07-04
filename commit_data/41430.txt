@@ -1,0 +1,24 @@
+commit 987e4e892325ea91a15a34f7a858ab007fea39c4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 25 14:58:30 2020 +0000
+
+    Revert "Revert "cmd/go/internal/modload: record the replacement for the module containing package main in BuildInfo""
+    
+    This reverts CL 220722.
+    
+    Reason for revert: rolling forward with fix.
+    
+    Fixes #37392
+    
+    Change-Id: Iba8b0c645267777fbb7019976292d691a10b906a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/build.go               | 30 ++++++-------
+ .../mod/example.com_printversion_v0.1.0.txt        |  6 +++
+ .../mod/example.com_printversion_v1.0.0.txt        |  6 +++
+ src/cmd/go/testdata/script/version_replace.txt     | 33 ++++++++++++++
+ src/runtime/debug/mod.go                           | 51 +++++++++++++---------
+ 5 files changed, 90 insertions(+), 36 deletions(-)

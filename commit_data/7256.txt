@@ -1,0 +1,16 @@
+commit c2ea38ac7ea1f73f82bf017bcdf6a52affb9d1d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 21:49:10 2011 -0800
+
+    token/position: added SetLinesForContent
+    
+    godoc uses this to provide full text index position information for
+    non-Go files.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4041045
+
+ src/pkg/go/token/position.go      | 38 +++++++++++++++++++++++++------
+ src/pkg/go/token/position_test.go | 47 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 70 insertions(+), 15 deletions(-)

@@ -1,0 +1,22 @@
+commit 70c9a8187a2732f969aaaa78e0e6f139d04ef3eb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 19 10:17:10 2015 -0800
+
+    runtime: set new m signal mask to program startup mask
+    
+    We were setting the signal mask of a new m to the signal mask of the m
+    that created it.  That failed when that m happened to be the one created
+    by ensureSigM, which sets its signal mask to only include the signals
+    being caught by os/signal.Notify.
+    
+    Fixes #13164.
+    Update #9896.
+    
+    Change-Id: I705c196fe9d11754e10bab9e9b2e7530ecdfa367
+    Reviewed-on: https://go-review.googlesource.com/18064
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/crash_cgo_test.go            | 13 +++++
+ src/runtime/proc.go                      |  8 ++-
+ src/runtime/testdata/testprogcgo/exec.go | 89 ++++++++++++++++++++++++++++++++
+ 3 files changed, 109 insertions(+), 1 deletion(-)

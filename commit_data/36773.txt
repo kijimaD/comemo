@@ -1,0 +1,14 @@
+commit 38861b5127b2de907e879420f29f3ef4bab75f84
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Fri Sep 28 02:02:22 2018 -0700
+
+    doc: add go1.11 to contrib.html
+    
+    Missing from https://golang.org/project
+    
+    Change-Id: I6cb769ae861a81f0264bae624b5fe8d70aa92497
+    Reviewed-on: https://go-review.googlesource.com/138355
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

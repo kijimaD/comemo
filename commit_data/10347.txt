@@ -1,0 +1,15 @@
+commit 351daf878843dd782b8e42276f568d6130cf7c62
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Nov 11 14:56:18 2011 -0500
+
+    env.bash: Check for presence of make/gmake
+    
+    Without this, a missing gmake will result in bogus error "Did not find
+    Go environment variables".
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5369066
+
+ src/env.bash | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,19 @@
+commit 4e10ce45f5ea4f1328876c0defd7d8c8150fc397
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 28 16:47:17 2019 -0500
+
+    go/build: set GO111MODULE=off explicitly in TestImportVendor*
+    
+    These tests check for GOPATH-mode vendoring behavior, so make sure
+    they're in GOPATH mode.
+    
+    Updates #30228
+    
+    Change-Id: I646f59b67cb76dacd07adc3f6ed15ed63f4e22a4
+    Reviewed-on: https://go-review.googlesource.com/c/164620
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

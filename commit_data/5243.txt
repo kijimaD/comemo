@@ -1,0 +1,12 @@
+commit a3db32d2a641f8d2d8a0e37e8ae226134b85dd79
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 7 16:13:14 2010 -0700
+
+    Language FAQ: editing tweaks after iant.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/874043
+
+ doc/go_lang_faq.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

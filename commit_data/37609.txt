@@ -1,0 +1,28 @@
+commit d6c12ec0eff53a4b11186eb0bb11cb683afe2779
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 5 09:52:58 2018 -0500
+
+    cmd/go/internal/modload: use replacements to resolve missing imports
+    
+    If the replacements specify one or more versions, we choose the latest
+    (for consistency with the QueryPackage path, with resolves the latest
+    version from upstream).
+    
+    Otherwise, we synthesize a pseudo-version with a zero timestamp and an
+    appropriate major version.
+    
+    Fixes #26241
+    
+    RELNOTE=yes
+    
+    Change-Id: I14b4c63858c8714cc3e1b05ac52c33de5a16dea9
+    Reviewed-on: https://go-review.googlesource.com/c/152739
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/import.go             |  52 ++++++++++-
+ src/cmd/go/testdata/script/mod_replace.txt        |   3 +-
+ src/cmd/go/testdata/script/mod_replace_import.txt | 109 ++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 3 deletions(-)

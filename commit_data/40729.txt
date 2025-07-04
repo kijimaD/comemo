@@ -1,0 +1,17 @@
+commit c31bcd13909edb53621c3dc47aa987365247df8d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 21:50:35 2019 -0500
+
+    runtime/pprof: skip checks for inlined functions when inlining is disabled
+    
+    Fixes #35463
+    
+    Change-Id: I29af27b77cc651395c20570943847729ff12586c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206297
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/mprof_test.go |  6 ++++++
+ src/runtime/pprof/pprof_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

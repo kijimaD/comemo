@@ -1,0 +1,23 @@
+commit 8c2ff88c61630c566ce1346d6d6eff973e6736d7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 09:56:45 2023 -0400
+
+    os: check for ErrNotExist instead of ErrExist in TestNonPollable
+    
+    An apparent typo in CL 484837 caused the test to check for ErrExist
+    instead of ErrNotExist when opening /dev/net/tun for read. That causes
+    the test to fail on platforms where /dev/net/ton does not exist,
+    such as on the darwin-amd64-longtest builder.
+    
+    Updates #59545.
+    
+    Change-Id: I9402ce0dba11ab459674e8358ae9a8b97eabc8d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486255
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/fifo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit ff8e45828c044665b60c37287e4f2d9e91754333
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 12:25:32 2013 -0800
+
+    os: avoid a string concat in readdir
+    
+    R=golang-dev, crawshaw
+    CC=golang-dev
+    https://golang.org/cl/37690045
+
+ src/pkg/os/file_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

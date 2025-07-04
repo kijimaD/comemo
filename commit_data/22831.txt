@@ -1,0 +1,23 @@
+commit 8d16253c90aea7f0c6eaef7741e0f32ecc86100e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 15:29:11 2015 +1000
+
+    cmd/internal/obj: remove Biobuf unget
+    
+    This change applies CL 9365 to the copy of Biobuf in cmd/internal/obj.
+    
+    In the process I discovered that some of the methods that should have been
+    checking the unget buffer before reading were not and it was probably just
+    dumb luck that we handn't hit these issues before; Bungetc is only used in
+    one place in cmd/internal/gc and only an unlikely code path.
+    
+    Change-Id: Ifa0c5c08442e9fe951a5078c6e9ec77a8a4dc2ff
+    Reviewed-on: https://go-review.googlesource.com/9529
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/gc/lex.go   | 17 +++++++++--------
+ src/cmd/internal/obj/util.go | 29 ++++++++++-------------------
+ 2 files changed, 19 insertions(+), 27 deletions(-)

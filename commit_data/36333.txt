@@ -1,0 +1,14 @@
+commit c9b018918d461da758e448ac370c2df8c6f77ab3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 2 10:36:49 2018 -0700
+
+    testing: exit with error if testing.Short is called before flag.Parse
+    
+    Change-Id: I2fa547d1074ef0931196066678fadd7250a1148d
+    Reviewed-on: https://go-review.googlesource.com/121936
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

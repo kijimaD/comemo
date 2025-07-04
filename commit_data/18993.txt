@@ -1,0 +1,13 @@
+commit cc562e40b49126504f99bf00d8b769142dfe5b38
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 1 13:14:45 2014 -0400
+
+    api: update next.txt
+    
+    LGTM=bradfitz
+    R=golang-codereviews, gobot, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/81890044
+
+ api/next.txt | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

@@ -1,0 +1,17 @@
+commit 672ab62981190504b8524ee093dd67780e589473
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 23 15:10:38 2014 -0500
+
+    lib/codereview: add LGTM= line to commit messages
+    
+    The R= is populated by Rietveld, so it's basically
+    anyone who replied to the CL. The LGTM= is meant
+    to record who actually signed off on the CL.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/55390043
+
+ lib/codereview/codereview.py | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

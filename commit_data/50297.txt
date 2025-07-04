@@ -1,0 +1,13 @@
+commit 9154d4a2a4952e35cb091fc254c9f5f1d3f0d409
+Author: Julie Qiu <julie@golang.org>
+Date:   Fri Sep 2 15:38:45 2022 -0400
+
+    .github: add quotations around label
+    
+    Change-Id: I69eaf470ba2c241a99e3693a0a93d9b24c78a2af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427959
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+
+ .github/ISSUE_TEMPLATE/04-vuln.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 6096b85b1326c22ec07c2aed2d78f3bef513ea69
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 20:39:59 2018 -0400
+
+    runtime: avoid variable/function alias on runtime._cgo_panic_internal
+    
+    The symbol runtime._cgo_panic_internal is defined both as a function
+    in package runtime and as a (linknamed) variable in package
+    runtime/cgo. Since we're introducing function ABIs, this is going to
+    cause problems with resolving the ABI-marked function symbol with the
+    unmarked data symbol. It's also confusing.
+    
+    Fix this by declaring runtime._cgo_panic_internal as a function in
+    runtime/cgo as well and extracting the PC from the function object.
+    
+    For #27539.
+    
+    Change-Id: I148a458a600cf9e57791cf4cbe92e79bddbf58d4
+    Reviewed-on: https://go-review.googlesource.com/c/146821
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/callbacks.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

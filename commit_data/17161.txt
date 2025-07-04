@@ -1,0 +1,17 @@
+commit a07218385ce652f55547dc06e664eaab6a47be43
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 13:42:23 2013 -0400
+
+    cmd/5g: factor out prog information
+    
+    Like CL 12637051, but for 5g instead of 6g.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/12779043
+
+ src/cmd/5g/opt.h  |  52 ++++++++++++++++++
+ src/cmd/5g/peep.c |  84 ++++++++--------------------
+ src/cmd/5g/prog.c | 135 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5g/reg.c  | 160 ++++++++----------------------------------------------
+ 4 files changed, 231 insertions(+), 200 deletions(-)

@@ -1,0 +1,19 @@
+commit 47b450997778163dfed6f58cae379d928fc37687
+Author: ShihCheng Tu <mrtoastcheng@gmail.com>
+Date:   Mon Jun 15 00:07:10 2020 +0800
+
+    doc/go1.14: document json.Umarshal map key support of TextUnmarshaler
+    
+    Document that json.Unmarshal supports map keys whose underlying
+    types implement encoding.TextUnmarshaler.
+    
+    Fixes #38801
+    
+    Change-Id: Icb9414e9067517531ba0da910bd4a2bb3daace65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237857
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

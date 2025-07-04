@@ -1,0 +1,12 @@
+commit f18aeb3a54bf4490af68047e31d6cca8cb845297
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jun 12 13:54:50 2019 -0400
+
+    doc: release notes for syscall and syscall/js
+    
+    Change-Id: I0ee4b4f0211cd12803ab33976669350d9dd615f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181944
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

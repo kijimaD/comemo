@@ -1,0 +1,13 @@
+commit bdbe0decc62dd63733ea37830aaa3c44ca16be43
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 25 06:00:07 2011 +1000
+
+    spec: add missing comma.
+    A real humdinger.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4538089
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

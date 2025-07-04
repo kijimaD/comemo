@@ -1,0 +1,22 @@
+commit 30533d607a3e10ae1a688ea88ee5976115681cba
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 24 19:02:29 2009 -0700
+
+    Change strings.Split, bytes.Split to take a maximum substring count argument.
+    
+    R=rsc
+    APPROVED=r
+    DELTA=131  (39 added, 10 deleted, 82 changed)
+    OCL=30669
+    CL=30723
+
+ src/pkg/bytes/bytes.go          | 43 ++++++++++++++++++++++++--------------
+ src/pkg/bytes/bytes_test.go     | 46 +++++++++++++++++++++++------------------
+ src/pkg/exec/exec.go            |  2 +-
+ src/pkg/go/doc/comment.go       |  2 +-
+ src/pkg/http/client.go          |  9 ++++----
+ src/pkg/http/request.go         |  6 +++---
+ src/pkg/strconv/fp_test.go      |  6 +++---
+ src/pkg/strings/strings.go      | 41 ++++++++++++++++++++++--------------
+ src/pkg/strings/strings_test.go | 45 ++++++++++++++++++++++------------------
+ 9 files changed, 116 insertions(+), 84 deletions(-)

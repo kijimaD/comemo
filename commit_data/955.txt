@@ -1,0 +1,21 @@
+commit c14c961ae42a8555578c1ecacddca375929895bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 14:32:48 2008 -0700
+
+    Automated g4 rollback of changelist 17815.
+    
+    *** Reason for rollback ***
+    
+      now it's comparing function parameter names...
+    
+    *** Original change description ***
+    
+    fix method function type compare bug
+    
+    R=ken
+    OCL=17816
+    CL=17816
+
+ src/cmd/gc/dcl.c  | 7 ++-----
+ src/cmd/gc/subr.c | 2 +-
+ 2 files changed, 3 insertions(+), 6 deletions(-)

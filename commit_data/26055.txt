@@ -1,0 +1,23 @@
+commit 7f13fbf76656790187c53c05d1b3d00c68d844a6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 07:55:39 2016 -0800
+
+    cmd/compile: small cleanup to syslook calls
+    
+    Passing copy==1 to syslook is only necessary to support subsequent
+    calls to substArgTypes.  typ2Itab and concatstring* don't have "any"
+    parameters, so no point in deep copying their function signatures at
+    every call site.
+    
+    For a couple other syslook calls (makemap and conv[IET]2[IET]), move
+    them closer to their corresponding substArgTypes calls so it's easier
+    to see that all syslook(fn, 1) calls are necessary.
+    
+    Change-Id: I4a0588ab2b8b5b8ce7a0a44b24c8cf8fda489af6
+    Reviewed-on: https://go-review.googlesource.com/20215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

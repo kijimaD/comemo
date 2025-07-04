@@ -1,0 +1,17 @@
+commit 8db4d02e8fed0b42d71ef311c3b5481b2e72b26d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 21 14:32:58 2017 +0200
+
+    cmd/go: reject buildmode=pie when -race is enabled
+    
+    Fixes #20038
+    
+    Change-Id: Id692790ea406892bbe29090d461356bac28b6150
+    Reviewed-on: https://go-review.googlesource.com/41333
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

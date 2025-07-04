@@ -1,0 +1,28 @@
+commit 705d7c164fa61181f2f943fb2541b39b39ced637
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 20:05:55 2014 +0100
+
+    lib9: fix inconsistencies and warnings on Plan 9
+    
+    warning: src/lib9/fmt/dorfmt.c:64 unreachable code RETURN
+    warning: src/lib9/fmt/fltfmt.c:184 set and not used: p
+    warning: src/lib9/utf/utflen.c:35 unreachable code RETURN
+    warning: src/lib9/utf/utfrrune.c:45 unreachable code RETURN
+    warning: src/lib9/utf/utfrune.c:44 unreachable code RETURN
+    
+    LGTM=rsc
+    R=rsc, iant, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/57170052
+
+ src/lib9/errstr.c       |  3 ++-
+ src/lib9/fmt/dorfmt.c   |  1 -
+ src/lib9/fmt/errfmt.c   | 32 ++++++++++++++++++++++++++++++++
+ src/lib9/fmt/fltfmt.c   |  6 ++++--
+ src/lib9/fmt/fmtfd.c    |  2 +-
+ src/lib9/utf/utfecpy.c  |  4 ++--
+ src/lib9/utf/utflen.c   |  1 -
+ src/lib9/utf/utfrrune.c |  4 ++--
+ src/lib9/utf/utfrune.c  |  4 ++--
+ src/lib9/utf/utfutf.c   |  3 ++-
+ 10 files changed, 47 insertions(+), 13 deletions(-)

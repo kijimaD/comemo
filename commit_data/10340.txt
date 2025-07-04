@@ -1,0 +1,38 @@
+commit 0a61c846ef36dc43437e37c6494a40b47824124f
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 11 21:44:01 2011 +1100
+
+    html: ignore <col> tag outside tables
+    
+    Pass tests1.dat, test 109:
+    <table><col><tbody><col><tr><col><td><col></table><col>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |         <tr>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |         <tr>
+    |           <td>
+    |       <colgroup>
+    |         <col>
+    
+    Also pass test 110:
+    <table><colgroup><tbody><colgroup><tr><colgroup><td><colgroup></table><colgroup>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5369069
+
+ src/pkg/html/parse.go      | 2 ++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

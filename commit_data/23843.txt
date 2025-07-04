@@ -1,0 +1,23 @@
+commit 7eeeae2a5cc5087347c2fcdfc9731c87143dab4a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 21 11:38:14 2015 -0400
+
+    runtime: always report starting heap size in gctrace
+    
+    Currently the gctrace output reports the trigger heap size, rather
+    than the actual heap size at the beginning of GC. Often these are the
+    same, or at least very close. However, it's possible for the heap to
+    already have exceeded this trigger when we first check the trigger and
+    start GC; in this case, this output is very misleading. We've
+    encountered this confusion a few times when debugging and this
+    behavior is difficult to document succinctly.
+    
+    Change the gctrace output to report the actual heap size when GC
+    starts, rather than the trigger.
+    
+    Change-Id: I246b3ccae4c4c7ea44c012e70d24a46878d7601f
+    Reviewed-on: https://go-review.googlesource.com/12452
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit fca6ad45e25647d8d156a8ecd29137000408efeb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 12 12:49:47 2017 -0700
+
+    text/scanner: clarify documentation on Pos and Position
+    
+    For #20292. (See discussion in that issue.)
+    
+    Change-Id: I44cd69394fc47a01776905ec34305ba524c89883
+    Reviewed-on: https://go-review.googlesource.com/43452
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/scanner/scanner.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

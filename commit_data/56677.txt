@@ -1,0 +1,14 @@
+commit 2785f4fad60a3cdee2edc1efbe860b8ccba519cc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 24 11:19:15 2024 -0400
+
+    cmd/go/internal/telemetrystats: fix assignment to ok
+    
+    Change-Id: I7ee6198949bd2ea7e92d3e75c94ead04c31be491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588236
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/telemetrystats/version_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

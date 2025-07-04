@@ -1,0 +1,20 @@
+commit 44cf814d5002faf92bce26d21c3bf676d6a2c581
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 1 11:24:49 2013 -0800
+
+    runtime, cmd/ld: make code more position-independent
+    
+    Change the stack unwinding code to compensate for the dynamic
+    relocation of symbols.
+    Change the gc instruction GC_CALL to use a relative offset instead of
+    an absolute address.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7248048
+
+ src/cmd/ld/data.c        | 4 +---
+ src/pkg/runtime/mgc0.c   | 2 +-
+ src/pkg/runtime/mgc0.h   | 3 ++-
+ src/pkg/runtime/symtab.c | 3 ++-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

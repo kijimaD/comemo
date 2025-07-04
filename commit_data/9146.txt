@@ -1,0 +1,12 @@
+commit bf768294eddebac54ab08eb40dd297de0ccb7142
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 20 11:38:18 2011 -0700
+
+    os: point readers at the exec package
+    
+    R=golang-dev, evan, rsc
+    CC=golang-dev
+    https://golang.org/cl/4802046
+
+ src/pkg/os/exec_posix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit c4be790c0e20bfa4def3103392f404de201b3487
+Author: Erik Dubbelboer <erik@dubbelboer.com>
+Date:   Wed Jul 15 16:12:05 2015 +0200
+
+    encoding/json: check if Number is valid
+    
+    json.Number is a special case which didn't have any checks and could result in invalid JSON.
+    
+    Fixes #10281
+    
+    Change-Id: Ie3e726e4d6bf6a6aba535d36f6107013ceac913a
+    Reviewed-on: https://go-review.googlesource.com/12250
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/decode.go      | 121 +++++++++++++++++++++++++++++++++++
+ src/encoding/json/encode.go      |   5 ++
+ src/encoding/json/encode_test.go |  12 ++++
+ src/encoding/json/number_test.go | 133 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 271 insertions(+)

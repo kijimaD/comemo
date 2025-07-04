@@ -1,0 +1,39 @@
+commit fbfb41e6389089b637562b41e05d40f5581b3bbd
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Aug 20 11:03:13 2019 -0700
+
+    runtime: switch default order of hashing algorithms
+    
+    Currently the standard hasher is memhash, which checks whether aes
+    instructions are available, and if so redirects to aeshash.
+    
+    With this CL, we call aeshash directly, which then redirects to the
+    fallback hash if aes instructions are not available.
+    
+    This reduces the overhead for the hash function in the common case,
+    as it requires just one call instead of two. On architectures which
+    have no assembly hasher, it's a single jump slower.
+    
+    Thanks to Martin for this idea.
+    
+    name         old time/op  new time/op  delta
+    BigKeyMap-4  22.6ns ± 1%  21.1ns ± 2%  -6.55%  (p=0.000 n=9+10)
+    
+    Change-Id: Ib7ca77b63d28222eb0189bc3d7130531949d853c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190998
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/alg.go         | 19 ++++++-------------
+ src/runtime/asm_386.s      | 24 ++++++++++++++++++++----
+ src/runtime/asm_amd64.s    | 36 +++++++++++++++++++++++++++---------
+ src/runtime/asm_amd64p32.s | 20 ++++++++------------
+ src/runtime/asm_arm.s      | 20 ++++++++------------
+ src/runtime/asm_arm64.s    | 36 ++++++++++++++++++++++++++++--------
+ src/runtime/asm_mips64x.s  | 16 ++++++++--------
+ src/runtime/asm_mipsx.s    | 24 +++++++++---------------
+ src/runtime/asm_ppc64x.s   | 16 ++++++++--------
+ src/runtime/asm_s390x.s    | 16 ++++++++--------
+ src/runtime/asm_wasm.s     | 10 ++++++++++
+ src/runtime/hash32.go      |  9 +++------
+ src/runtime/hash64.go      | 10 +++-------
+ 13 files changed, 146 insertions(+), 110 deletions(-)

@@ -1,0 +1,20 @@
+commit 0a655598e150ee8ddd96573744c4b60735658f32
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 10 14:32:27 2021 -0600
+
+    cmd/link: fix glink resolver generation on ppc64le
+    
+    AddSymRef grows the section to fit the relocation. This was not
+    being accounted for. Instead, add a relocation and explicitly
+    populate it so we patch the desired instructions.
+    
+    Change-Id: I583147e2545aea34c854f9d35ca920c57be60b90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300949
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

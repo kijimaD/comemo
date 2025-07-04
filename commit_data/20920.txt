@@ -1,0 +1,16 @@
+commit b2950a2931bd89323569c1389f780f2cd744e12c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 3 20:07:48 2014 -0800
+
+    lib/time: update to ICANN time zone database 2014j
+    
+    Fixes #9189.
+    
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/178660043
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 358933 -> 360713 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

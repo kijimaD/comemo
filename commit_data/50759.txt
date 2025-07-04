@@ -1,0 +1,24 @@
+commit c9a62b7e711f5c1f1a73e0c3a5b6a2e5b67033e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 30 12:46:40 2022 -0400
+
+    os/exec: recombine goroutinePipes and userPipes
+    
+    This change undoes CL 401894, because on further consideration
+    it turns out not to be needed.
+    
+    This also makes (*Cmd).closeDescriptors a free function, since it does
+    not actually use the receiver in any way and is not needed to satisfy
+    any interfaces.
+    
+    For #50436.
+    
+    Change-Id: I7915265b0e6398ed5a34fae0c12873ab08a14194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437175
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/exec.go | 40 +++++++++++++++-------------------------
+ 1 file changed, 15 insertions(+), 25 deletions(-)

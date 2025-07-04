@@ -1,0 +1,14 @@
+commit 9031f952e2b17752f4eb716d4d96575026ce5338
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 12:46:46 2012 +1100
+
+    doc: remove cov and prof from /ref/cmd
+    
+    Update #3400
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5921044
+
+ doc/reference-cmd.html | 38 ++++++++++++--------------------------
+ 1 file changed, 12 insertions(+), 26 deletions(-)

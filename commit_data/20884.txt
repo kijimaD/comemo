@@ -1,0 +1,13 @@
+commit e522a477c298dac1e26e8bbd6ac262911d7ed8f9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 11 16:06:47 2014 +1100
+
+    doc: update go1.4.html's minor library changes.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/173920043
+
+ doc/go1.4.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

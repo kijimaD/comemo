@@ -1,0 +1,12 @@
+commit 6a19ae74d4a2eb4d36fa401891053f3711d2746d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 17:30:45 2012 -0500
+
+    go/build: add NoGoError
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5781063
+
+ src/pkg/go/build/build.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

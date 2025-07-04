@@ -1,0 +1,15 @@
+commit bfb486875a3bd8cf5c9fd978c557eeb8ff9b4908
+Author: Ross Light <rlight2@gmail.com>
+Date:   Fri Apr 15 15:32:03 2011 -0700
+
+    compress/zlib: add FDICT flag in Reader/Writer
+    
+    R=bradfitzgo, rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4406046
+
+ src/pkg/compress/zlib/reader.go      | 22 +++++++++++---
+ src/pkg/compress/zlib/reader_test.go | 35 ++++++++++++++++++++-
+ src/pkg/compress/zlib/writer.go      | 59 ++++++++++++++++++++++++++++--------
+ src/pkg/compress/zlib/writer_test.go | 51 ++++++++++++++++++++-----------
+ 4 files changed, 132 insertions(+), 35 deletions(-)

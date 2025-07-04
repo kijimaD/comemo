@@ -1,0 +1,17 @@
+commit 5fd75810060e72ba9da44be85c7767417c8bbee7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 5 23:55:39 2019 +0100
+
+    cmd/go: fix check for -Wp,-U in cgo CFLAGS
+    
+    There should be no space after comma.
+    
+    Change-Id: I6a5c85a386d9d1611b71d5b15a31a00c24c316b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210120
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 2 +-
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

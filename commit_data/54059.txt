@@ -1,0 +1,28 @@
+commit 6c431fab3701b5f07357a358ab232062353f5bed
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 22 11:03:17 2023 -0700
+
+    encoding: reject negative runes in Encoding.WithPadding
+    
+    A negative rune (other than NoPadding) makes no semantic sense.
+    Doing so relies on integer overflow of converting a rune to a byte
+    and would thus be equivalent to passing the positive byte value
+    of byte(padding).
+    
+    This may cause existing code to panic.
+    An alternative is treat negative runes as equivalent to NoPadding.
+    However, the code already panics to report erroneous padding values,
+    so this is in line with the existing API.
+    
+    Change-Id: I02499705519581598adc0c8525d90e25278dc056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505236
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/base32/base32.go | 8 ++++----
+ src/encoding/base64/base64.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

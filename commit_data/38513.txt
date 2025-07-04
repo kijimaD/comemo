@@ -1,0 +1,16 @@
+commit cf952e9e62a464e5df6773dd22907497078fbd90
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:54:37 2019 +0100
+
+    cmd: enable -buildmode=pie on aix/ppc64
+    
+    Change-Id: I939518462c931ba9feb125b2f299ef0706b124ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168879
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go               | 3 ++-
+ src/cmd/go/internal/work/init.go   | 1 +
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 4 ++--
+ 4 files changed, 6 insertions(+), 4 deletions(-)

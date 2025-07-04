@@ -1,0 +1,30 @@
+commit 32851587d1adeb07503c2b6168ab11f008972606
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 3 19:07:39 2022 -0400
+
+    cmd/go: add PGO auto mode
+    
+    Add "auto" mode for the -pgo build flag. When -pgo=auto is
+    specified, if there is a default.pgo file in the directory of the
+    main package, it will be selected and used for the build.
+    
+    Currently it requires exactly one main package when -pgo=auto is
+    specified. (We'll support multiple main packages in the future.)
+    
+    Also apply to other build-related subcommands, "go install", "go
+    run", "go test", and "go list".
+    
+    For #55022.
+    
+    Change-Id: Iab7974ab8932daf0e83506de505e044a8e412466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438737
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                         |  2 +
+ src/cmd/go/internal/load/pkg.go               | 55 ++++++++++++++++++++-
+ src/cmd/go/internal/work/build.go             |  2 +
+ src/cmd/go/internal/work/init.go              | 20 --------
+ src/cmd/go/testdata/script/build_pgo_auto.txt | 69 +++++++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 21 deletions(-)

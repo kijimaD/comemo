@@ -1,0 +1,15 @@
+commit cabf73ffb8f1d15f0509546dec81fb9069ea57d4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 27 15:31:50 2016 -0700
+
+    cmd/compile: add EType.String and missing EType names
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Icc387eb557d5029e903923a051b565812fd2246b
+    Reviewed-on: https://go-review.googlesource.com/21234
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

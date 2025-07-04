@@ -1,0 +1,16 @@
+commit 8fb55f9d4155f0f4dcbd6e783b8b076d963b4ff2
+Author: Minux Ma <minux@golang.org>
+Date:   Tue May 5 07:35:08 2015 +0000
+
+    Revert "cmd/internal: disable OSQRT on GOARM=5"
+    
+    I just submitted the real fix for #10641.
+    
+    This reverts commit 3120adc21294829c230005a89e9bb0ad63de606b.
+    
+    Change-Id: I55051515f697e27ca887ed21c2ac985f0b9b062b
+    Reviewed-on: https://go-review.googlesource.com/9720
+    Reviewed-by: Joel Sing <jsing@google.com>
+
+ src/cmd/internal/gc/walk.go | 5 -----
+ 1 file changed, 5 deletions(-)

@@ -1,0 +1,34 @@
+commit fa466a4f5a836fa5ac971e709d1e2d9df4a2e74d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 1 08:02:46 2018 +0000
+
+    os: add support for long path names on freebsd RemoveAll
+    
+    Follow CL 146020 and enable RemoveAll based on Unlinkat and Openat on
+    freebsd.
+    
+    Since the layout of syscall.Stat_t changes in FreeBSD 12, Fstatat needs
+    a compatibility wrapper akin to Fstatat in x/sys/unix. See CL 138595 and
+    CL 136816 for details.
+    
+    Updates #27029
+    
+    Change-Id: I8851a5b7fa658eaa6e69a1693150b16d9a68f36a
+    Reviewed-on: https://go-review.googlesource.com/c/146597
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/at.go                |  2 +-
+ src/internal/syscall/unix/at_freebsd.go        | 47 ++++++++++++++++++++++++++
+ src/internal/syscall/unix/at_sysnum_freebsd.go | 14 --------
+ src/os/removeall_at.go                         |  2 +-
+ src/os/removeall_noat.go                       |  2 +-
+ src/os/removeall_test.go                       |  4 +--
+ src/syscall/syscall_freebsd.go                 | 15 ++++++++
+ src/syscall/zsyscall_freebsd_386.go            | 15 ++++++++
+ src/syscall/zsyscall_freebsd_amd64.go          | 15 ++++++++
+ src/syscall/zsyscall_freebsd_arm.go            | 15 ++++++++
+ 10 files changed, 112 insertions(+), 19 deletions(-)

@@ -1,0 +1,16 @@
+commit 117164f9e35e34f3d78cf635dd3c8352b2110ca1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 30 16:47:34 2024 -0500
+
+    cmd/go: add telemetry counters for flag names and subcommand
+    
+    For #58894
+    
+    Change-Id: I6b5d5b14be9858f5855eeac0110aa44e762cee03
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559519
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)

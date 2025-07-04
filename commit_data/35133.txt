@@ -1,0 +1,16 @@
+commit 90083e658ad99594a217fcbc060745bc18e6159d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 12:25:28 2018 -0400
+
+    cmd/go/internal/load: split test logic out of pkg.go into test.go
+    
+    It's going to grow.
+    
+    Change-Id: I4f5d3cce6e03250508d1ae0981a6d82a4192ae31
+    Reviewed-on: https://go-review.googlesource.com/107915
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go  | 197 ------------------------------------
+ src/cmd/go/internal/load/test.go | 208 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 208 insertions(+), 197 deletions(-)

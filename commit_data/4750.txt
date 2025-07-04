@@ -1,0 +1,26 @@
+commit d2fc5d68da4c6410d71366e04b61d9e8fcb679b3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 2 10:53:37 2010 +1100
+
+    Change type of Printf's args to ... interface{}
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/197043
+
+ src/cmd/cgo/util.go              |   4 +-
+ src/cmd/goyacc/goyacc.go         |   2 +-
+ src/pkg/debug/proc/proc_linux.go |   6 +-
+ src/pkg/exp/eval/compiler.go     |   2 +-
+ src/pkg/exp/eval/expr.go         |   2 +-
+ src/pkg/exp/eval/stmt.go         |   2 +-
+ src/pkg/exp/parser/parser.go     |   2 +-
+ src/pkg/fmt/print.go             | 301 ++++++++++++++++++++++++++-------------
+ src/pkg/go/parser/parser.go      |   2 +-
+ src/pkg/go/printer/printer.go    |   2 +-
+ src/pkg/log/log.go               |  22 +--
+ src/pkg/template/template.go     |   4 +-
+ src/pkg/testing/testing.go       |  12 +-
+ test/bench/pidigits.go           |   2 +-
+ test/defer.go                    |  24 ++--
+ 15 files changed, 248 insertions(+), 141 deletions(-)

@@ -1,0 +1,17 @@
+commit 7f1dd3ae4df08a8619311c95f3e4c91b96132efd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 1 22:04:02 2018 -0400
+
+    test: minor simplification to run.go
+    
+    This is a little clearer, and we're about to need the .s file list in
+    one more place, so this will cut down on duplication.
+    
+    Change-Id: I4da8bf03a0469fb97565b0841c40d505657b574e
+    Reviewed-on: https://go-review.googlesource.com/c/146998
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/run.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

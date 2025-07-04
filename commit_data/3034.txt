@@ -1,0 +1,19 @@
+commit 7c4f7cc7eb662d08a73c5e69407067c71e03adc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 11:11:03 2009 -0700
+
+    introduce meaningful section names, so that
+    
+            go_spec.html#Return_statements
+    
+    can be used to link to spec sections.  passes hlint.
+    renamed final section to simply "Implementation differences"
+    to shorten the name, but otherwise no non-formatting changes
+    
+    R=gri
+    DELTA=230  (10 added, 0 deleted, 220 changed)
+    OCL=33598
+    CL=33598
+
+ doc/go_spec.html | 374 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 187 insertions(+), 187 deletions(-)

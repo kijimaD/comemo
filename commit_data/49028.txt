@@ -1,0 +1,17 @@
+commit 1926fa5f84b87a7a6cb9f153337424baf367937a
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed May 4 07:26:21 2022 -0700
+
+    runtime: use profile data before advancing index
+    
+    Fixes #52704
+    
+    Change-Id: Ia2104c62d7ea9d67469144948b2ceb5d9f1313b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404054
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/trace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

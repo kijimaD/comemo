@@ -1,0 +1,16 @@
+commit 413afcafbfd45b6b58023a49484d8480143960e0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Oct 12 12:45:16 2016 -0400
+
+    cmd/link: force external linking for plugins
+    
+    Fixes #17415
+    
+    Change-Id: I6f896d549092e5e0dba72351e5385992b4cbe90f
+    Reviewed-on: https://go-review.googlesource.com/30933
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 2 ++
+ 1 file changed, 2 insertions(+)

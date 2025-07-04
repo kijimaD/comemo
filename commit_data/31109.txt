@@ -1,0 +1,22 @@
+commit 4eb48a336e5a7ac519611cf8360909e0ac37f018
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 12 11:24:03 2017 -0700
+
+    cmd/compile/internal/ssa: refactor ARM64 address folding
+    
+    These patterns are the only uses of isArg and isAuto, and they all
+    follow a common pattern too. Extract out so that we can more easily
+    tweak the interface for isArg/isAuto.
+    
+    Passes toolstash -cmp for linux/arm64.
+    
+    Change-Id: I9c509dabdc123c93cb1ad2f34fe8c12a9f313f6d
+    Reviewed-on: https://go-review.googlesource.com/40490
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 165 ++++++++++-----------------
+ src/cmd/compile/internal/ssa/rewrite.go      |  14 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 156 ++++++++++++-------------
+ 3 files changed, 150 insertions(+), 185 deletions(-)

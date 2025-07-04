@@ -1,0 +1,24 @@
+commit 64cc5fd0b3ad20c6e7e8b875317629df8207d9ba
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 19 17:41:57 2015 -0800
+
+    hash/crc32: add noescape tags to assembly functions
+    
+    CRC-32 computation is stateless and the p slice does not get stored
+    anywhere. Thus, we mark the assembly functions as noescape so that
+    it doesn't believe that p leaks in:
+            func Update(crc uint32, tab *Table, p []byte) uint32
+    
+    Before:
+            ./crc32.go:153: leaking param: p
+    
+    After:
+            ./crc32.go:153: Update p does not escape
+    
+    Change-Id: I52ba35b6cc544fff724327140e0c27898431d1dc
+    Reviewed-on: https://go-review.googlesource.com/17069
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/hash/crc32/crc32_amd64.go    | 2 ++
+ src/hash/crc32/crc32_amd64p32.go | 1 +
+ 2 files changed, 3 insertions(+)

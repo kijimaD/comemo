@@ -1,0 +1,18 @@
+commit 68f3344fe95dde95685b0d7fbbf74d13f3e9ee04
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:05:00 2021 +0000
+
+    cmd/compile: remove 8-byte alignment requirement of stack slot on ppc64
+    
+    This CL applies CL 267999 to ppc64.
+    
+    Fixes #42385
+    
+    Change-Id: I6462d647d1abdf7cec99607c40ef4d1fed1941e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297770
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 79a3b561b5497db2caeb76ea18cac852981b7b87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 14:14:41 2015 -0700
+
+    cmd/compile/internal/gc: remove special handling for -0.0
+    
+    Per the latest spec change, Go doesn't have -0 constants.
+    
+    Change-Id: Ic2bcdc3bf507d121ed204f30f6744bb8764202c0
+    Reviewed-on: https://go-review.googlesource.com/16232
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

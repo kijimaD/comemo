@@ -1,0 +1,18 @@
+commit 57da8dd459e705888c4c49a487df5f6d58eb6877
+Author: Stephen L <36011612+steuhs@users.noreply.github.com>
+Date:   Fri Jun 29 16:36:04 2018 +0000
+
+    src/testing/cover: document the CoverBlock struct fields
+    
+    Fill in the missing descriptions for the CoverBlock struct fields
+    
+    Change-Id: I9257881a19b01e5cfe61cf19a91375b6d7cc68ef
+    GitHub-Last-Rev: f5b9e1d49d1c00f59ce4d3684915e5e93ec0297a
+    GitHub-Pull-Request: golang/go#24079
+    Reviewed-on: https://go-review.googlesource.com/96756
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/cover.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

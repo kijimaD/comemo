@@ -1,0 +1,15 @@
+commit 0d9bf2757e71e64938b02c397d1d6e5666c5a213
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 6 10:08:46 2013 +1100
+
+    image/jpeg: for progressive JPEGs, the first SOS segment doesn't
+    necessarily contain all components.
+    
+    Fixes #4975.
+    
+    R=r, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7469043
+
+ src/pkg/image/jpeg/scan.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 640d818f2ada4997c6cea1ab435de625f5ef944a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 31 03:51:59 2012 +1100
+
+    archive/zip: handle corrupt extra data records
+    
+    Fixes #4302.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/6811048
+
+ src/pkg/archive/zip/reader.go   |  3 +++
+ src/pkg/archive/zip/zip_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

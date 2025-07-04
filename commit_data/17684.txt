@@ -1,0 +1,15 @@
+commit d9f034dc9eeea52e42a3138dcc8677db3554c879
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 23 17:16:59 2013 -0400
+
+    net/http: accept Content-Range for entire file
+    
+    Fixes a bug reported privately.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13846043
+
+ src/pkg/net/http/fs.go      | 2 +-
+ src/pkg/net/http/fs_test.go | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

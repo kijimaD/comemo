@@ -1,0 +1,28 @@
+commit d9b006a7057d4666cb4fa9c421f2360ef3994b0f
+Author: Eric Daniels <eric@erdaniels.com>
+Date:   Tue Apr 3 21:35:46 2018 -0400
+
+    runtime/traceback: support tracking goroutine ancestor tracebacks with GODEBUG="tracebackancestors=N"
+    
+    Currently, collecting a stack trace via runtime.Stack captures the stack for the
+    immediately running goroutines. This change extends those tracebacks to include
+    the tracebacks of their ancestors. This is done with a low memory cost and only
+    utilized when debug option tracebackancestors is set to a value greater than 0.
+    
+    Resolves #22289
+    
+    Change-Id: I7edacc62b2ee3bd278600c4a21052c351f313f3a
+    Reviewed-on: https://go-review.googlesource.com/70993
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/extern.go                              |  6 ++
+ src/runtime/proc.go                                | 40 ++++++++-
+ src/runtime/runtime1.go                            | 30 +++----
+ src/runtime/runtime2.go                            | 12 ++-
+ src/runtime/sizeof_test.go                         |  2 +-
+ src/runtime/stack_test.go                          | 40 +++++++++
+ .../testdata/testprog/traceback_ancestors.go       | 53 ++++++++++++
+ src/runtime/traceback.go                           | 95 +++++++++++++++++++---
+ 8 files changed, 248 insertions(+), 30 deletions(-)

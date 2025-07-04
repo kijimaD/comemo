@@ -1,0 +1,17 @@
+commit c5c52f072b3d33f1a40ffda6d5334d38d0a11fa5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 17 18:02:21 2013 -0700
+
+    cmd/cgo: don't emit #pragma declarations when using gccgo
+    
+    Update #5905
+    
+    Don't emit #pragma cgo_ldflag and cgo_import_static
+    declarations that gccgo doesn't understand and can't use.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11490043
+
+ src/cmd/cgo/out.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

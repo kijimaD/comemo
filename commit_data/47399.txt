@@ -1,0 +1,18 @@
+commit 3949faf72e8285622ebfdf3bd573125dcd5453d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 16:06:18 2021 -0800
+
+    test: add test that was miscompiled by gccgo
+    
+    For #49512
+    
+    Change-Id: Ic08652a4ec611b27150bf10b1118c1395715e5d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363156
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/issue49512.go | 54 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

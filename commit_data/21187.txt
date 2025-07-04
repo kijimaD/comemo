@@ -1,0 +1,18 @@
+commit e32fe2049d41cefabe0380212beb2aea86a1789b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 14:01:08 2014 -0500
+
+    cmd/ld: decode local entry offset from ppc64 symbols
+    
+    ppc64 function symbols have both a global entry point and a local
+    entry point, where the difference is stashed in sym.other.  We'll need
+    this information to generate calls to ELF ABI functions.
+    
+    Change-Id: Ibe343923f56801de7ebec29946c79690a9ffde57
+    Reviewed-on: https://go-review.googlesource.com/2002
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ include/link.h     | 1 +
+ src/cmd/ld/ldelf.c | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

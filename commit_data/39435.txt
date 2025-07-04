@@ -1,0 +1,24 @@
+commit 19690053606dd14dedcf028bb37df79e3e33c003
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 21 15:13:10 2019 -0400
+
+    cmd/go/internal/modfetch: filter pseudo-versions from proxy /list endpoints
+    
+    The /list files in the module cache include pseudo-versions, but the
+    documentation for (*modfetch).Repo.Versions explicitly states that
+    they are not included in the output of that method.
+    
+    Fixes #32715
+    
+    Change-Id: Ieba1500b91f52b5fa689e70e16dbe3ad40de20f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183402
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/proxy.go              | 54 +++++++++++++++++-----
+ ...modtest5_v0.0.0-20190619020302-197a620e0c9a.txt | 10 ++++
+ ..._v0.5.0-alpha.0.20190619023908-3da23a9deb9e.txt | 10 ++++
+ ...hub.com_dmitshur-test_modtest5_v0.5.0-alpha.txt | 10 ++++
+ src/cmd/go/testdata/script/mod_list_pseudo.txt     | 50 ++++++++++++++++++++
+ 5 files changed, 123 insertions(+), 11 deletions(-)

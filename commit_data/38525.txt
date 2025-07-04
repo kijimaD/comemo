@@ -1,0 +1,21 @@
+commit e770b5b3aa9a2b6a7dcdc95cacd7ad3940ad34c9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 20 15:47:56 2019 +0000
+
+    text/template: allow using -}} with many spaces
+    
+    lexSpace consumed all spaces, even if the last one was part of a right
+    delimiter like " -}}". Thus, "3  -}}" wouldn't lex as "3" and a right
+    delimiter, but as "3", "-", and "}}".
+    
+    To fix that, make lexSpace stop if it encounters a right delimiter.
+    
+    Fixes #30948.
+    
+    Change-Id: I80a5546e5809e54f6823e2bf3a57a7e8808329be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168457
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/text/template/parse/lex.go        | 69 ++++++++++++++++++++++-------------
+ src/text/template/parse/parse_test.go |  1 +
+ 2 files changed, 44 insertions(+), 26 deletions(-)

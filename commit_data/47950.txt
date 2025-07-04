@@ -1,0 +1,25 @@
+commit a99c38d66381b2a6abbc0d9c88feb3f6291cb245
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 14 15:22:51 2022 -0500
+
+    Revert "cmd/dist: log CPU model when testing"
+    
+    Fails TestRepeatBootstrap.
+    
+    This reverts CL 371474.
+    
+    For #50146.
+    
+    Change-Id: Ie4adda4e0229e153471301ca00fe2c1c694b4b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378587
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/metadata.go           | 24 ------------------------
+ src/cmd/dist/metadata_bootstrap.go | 21 ---------------------
+ src/cmd/dist/sys_windows.go        |  6 +++---
+ src/cmd/dist/test.go               | 19 -------------------
+ 4 files changed, 3 insertions(+), 67 deletions(-)

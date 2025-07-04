@@ -1,0 +1,13 @@
+commit 054354ebd410d14c023cc21d011d1bd6632f91f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 22:29:29 2009 -0800
+
+    gofmt src/cmd/goyacc
+    (with this change: gofmt -l src/cmd/ | wc
+    is 0 0 0)
+    
+    R=ken, rsc
+    http://go/go-review/1024005
+
+ src/cmd/goyacc/goyacc.go | 1028 ++++++++++++++++++++--------------------------
+ 1 file changed, 445 insertions(+), 583 deletions(-)

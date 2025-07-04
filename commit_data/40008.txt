@@ -1,0 +1,17 @@
+commit 7fc2625ef16c9e271ca3016f761157ec082cc45a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 7 16:25:05 2019 -0700
+
+    net/http: propagate Client.Timeout down into Request's context deadline
+    
+    Fixes #31657
+    
+    Change-Id: I85e9595d3ea30d410f1f4b787925a6879a72bdf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175857
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      | 90 +++++++++++++++++++++++++++++++++++----------
+ src/net/http/client_test.go | 21 ++++++++++-
+ 2 files changed, 90 insertions(+), 21 deletions(-)

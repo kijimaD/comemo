@@ -1,0 +1,16 @@
+commit 1c00deeaf96743362a103957266f92e47ff90bc6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 7 09:33:36 2019 +1000
+
+    image: deprecate ZP and ZR
+    
+    They were added a very long time ago, as a convenience before Go had
+    struct literals. Today, it is better to use the zero-valued literal. For
+    example, the compiler cannot prove that ZP or ZR have not been modified.
+    
+    Change-Id: I7469f1c751e91bf76fe1eab07b5772eccb5d6405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171097
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/geom.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,19 @@
+commit 32b9e568d8c28e63a8f1d93e69b57794350de159
+Author: Stefan Baebler <sbaebler@outbrain.com>
+Date:   Wed Aug 7 14:16:59 2019 +0000
+
+    net/url: fail TestParseErrors test when getting an unwanted error
+    
+    The TestParseErrors test function was not strict with unwanted errors
+    received from url.Parse(). It was not failing in such cases, now it does.
+    
+    Change-Id: I18a26a68c1136f5c762989a76e04b47e33dd35f1
+    GitHub-Last-Rev: c33f9842f7908f27012859e25caa79388cc2785a
+    GitHub-Pull-Request: golang/go#32954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185080
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 1e0f97ac6544ab3b7cf76e9c9d62e8c2a60bcdb6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 16:27:17 2012 +1100
+
+    faq: add entry about nil interfaces vs. nil pointers
+    
+    Fixes #2778.
+    
+    R=bradfitz, rsc, iant, adg
+    CC=golang-dev
+    https://golang.org/cl/5672078
+
+ doc/go_faq.html | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

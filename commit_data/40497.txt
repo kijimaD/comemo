@@ -1,0 +1,17 @@
+commit 47efbf0a4ec3e502b36dd0904c99d10775612228
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 10:18:25 2019 -0700
+
+    runtime: make fcntl arguments consistent across OS's
+    
+    The C fnctl takes all int parameters, so consistently use int32.
+    We already used int32 on Darwin.
+    
+    Change-Id: I69a012145d012771d7308d705d133159fc1aceaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204101
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/netpoll_solaris.go | 4 ++--
+ src/runtime/os_aix.go          | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

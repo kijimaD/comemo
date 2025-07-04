@@ -1,0 +1,41 @@
+commit 739bf6b929b66ac1715268e269da01c8199f034b
+Author: Hasit Bhatt <hasit.p.bhatt@gmail.com>
+Date:   Wed Sep 25 00:02:29 2019 +0530
+
+    cmd: update x/tools version to enforce only one %w
+    
+    As mentioned in https://golang.org/issue/34062#issuecomment-529692313
+    src/cmd refers to older version of golang.org/x/tools.
+    Hence, not checking if multiple errors are used in the same fmt.Errorf.
+    Updating golang.org/x/tools version to latest in src/cmd.
+    
+    Fixes #34062
+    
+    Change-Id: I358dec2c3d3af2b19add766b8488b919109b81d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196843
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  8 +--
+ .../golang.org/x/tools/go/analysis/analysis.go     | 21 ++----
+ .../golang.org/x/tools/go/analysis/diagnostic.go   | 48 ++++++++++++++
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   | 16 ++---
+ .../go/analysis/internal/analysisflags/flags.go    |  6 +-
+ .../x/tools/go/analysis/internal/facts/facts.go    | 22 ++++++-
+ .../x/tools/go/analysis/passes/assign/assign.go    | 10 ++-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  |  4 +-
+ .../go/analysis/passes/composite/whitelist.go      |  1 +
+ .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |  9 +--
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |  2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 76 +++++++++++++++-------
+ .../x/tools/go/analysis/passes/printf/types.go     |  8 ++-
+ .../go/analysis/passes/structtag/structtag.go      |  6 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  8 +++
+ .../golang.org/x/tools/go/analysis/validate.go     |  2 +-
+ .../vendor/golang.org/x/tools/go/cfg/builder.go    |  2 +-
+ .../x/tools/go/types/objectpath/objectpath.go      |  2 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/fmt/errors_test.go                             | 10 ++-
+ 21 files changed, 189 insertions(+), 76 deletions(-)

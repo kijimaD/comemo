@@ -1,0 +1,12 @@
+commit b266f39b85909caebd22471975573f2b8df3c196
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 23 13:15:00 2009 -0800
+
+    remove nums.sh
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181049
+
+ src/pkg/container/vector/nums.sh | 5 -----
+ 1 file changed, 5 deletions(-)

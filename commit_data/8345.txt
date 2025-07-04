@@ -1,0 +1,17 @@
+commit 3f335f80b46d0a8fbaf8c3c56011e37c959ccf35
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 10 17:00:15 2011 -0400
+
+    gc: fix unsafe.Sizeof
+    
+    Fixes #1608.
+    Fixes #1787.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4530045
+
+ src/cmd/gc/unsafe.c      |  1 +
+ test/fixedbugs/bug338.go | 22 ++++++++++++++++++++++
+ test/fixedbugs/bug339.go | 20 ++++++++++++++++++++
+ 3 files changed, 43 insertions(+)

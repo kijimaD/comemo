@@ -1,0 +1,27 @@
+commit 2ad7453bf42654a6a1615fa1cc867123570c4595
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 2 14:06:35 2017 -0800
+
+    go/types: continue type-checking with fake packages if imports failed
+    
+    This will make type-checking more robust in the presence of import errors.
+    
+    Also:
+    - import is now relative to directory containing teh file containing the import
+      (matters for relative imports)
+    - factored out package import code from main resolver loop
+    - fixed a couple of minor bugs
+    
+    Fixes #16088.
+    
+    Change-Id: I1ace45c13cd0fa675d1762877cec0a30afd9ecdc
+    Reviewed-on: https://go-review.googlesource.com/37697
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/api.go      |  24 +++++-----
+ src/go/types/api_test.go |  71 ++++++++++++++++++++++++++++++
+ src/go/types/check.go    |  14 +++++-
+ src/go/types/resolver.go | 111 +++++++++++++++++++++++++++++++----------------
+ 4 files changed, 170 insertions(+), 50 deletions(-)

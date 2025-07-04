@@ -1,0 +1,15 @@
+commit 9d59c40eabae6ae1c4f11aa9227a9fd69156599a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 11:35:28 2011 -0800
+
+    doc/go1: document rearranged package hierarchy
+    Some exciting HTML and CSS here.
+    
+    R=remyoudompheng, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5460047
+
+ doc/all.css  |   6 ++++
+ doc/go1.html | 115 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ doc/go1.tmpl | 111 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 212 insertions(+), 20 deletions(-)

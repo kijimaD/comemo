@@ -1,0 +1,13 @@
+commit 9995d216eb7442d8ec9b6f4c32f29b8289aa7dff
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 3 00:09:42 2011 +1000
+
+    template: explain that fields must be exported.
+    Fixes #1792.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4548083
+
+ src/pkg/template/template.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 046e035fcaf4727e9ac7af554beea87d02618f15
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Sat Feb 23 00:22:39 2013 +0100
+
+    all.rc: make sure the Go tools end up in /bin
+    
+    At least one test (in package runtime) depends
+    on `go' being in $path. We simply bind GOROOT/bin
+    before /bin to make sure the latest copy of the
+    binary is accessible there.
+    
+    R=rsc, rminnich, ality
+    CC=golang-dev
+    https://golang.org/cl/7391047
+
+ src/all.rc | 1 +
+ 1 file changed, 1 insertion(+)

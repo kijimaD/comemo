@@ -1,0 +1,13 @@
+commit 13b26cb36a71f93aba29b933435101aa5e5d9e8e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 16 22:52:02 2011 -0800
+
+    runtime: use correct traceback file on arm
+    reported by fred richter
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5494062
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

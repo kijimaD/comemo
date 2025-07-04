@@ -1,0 +1,17 @@
+commit e4ed92a355cebc399dc34d33a556f656fa5c7690
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Jun 29 16:06:19 2023 +0300
+
+    os, syscall: update unreachable link about =C: envs
+    
+    Change-Id: I185dec133599f9c69fda7563697bbc33e433fb78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/env_test.go         | 2 +-
+ src/syscall/env_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

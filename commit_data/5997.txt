@@ -1,0 +1,18 @@
+commit a9a62eef6b055c8764f95c346d9620a7790ff6ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 10 17:39:38 2010 -0700
+
+    gc: bug302
+    
+    Fixed by http://code.google.com/p/go/source/detail?r=d1f41e20a90e
+    This just adds a test and checks the return value of Bprint.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1949042
+
+ src/cmd/gc/export.c               |    3 +-
+ test/fixedbugs/bug302.dir/main.go |    7 +
+ test/fixedbugs/bug302.dir/p.go    | 1011 +++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug302.go          |    6 +
+ 4 files changed, 1026 insertions(+), 1 deletion(-)

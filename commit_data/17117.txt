@@ -1,0 +1,14 @@
+commit e0405b73187fddbcd685490550681d4fb742105d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 17:08:02 2013 +1000
+
+    encoding/binary: document its goals better
+    It's a modest package with modest goals and limitations.
+    Make that clear.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12694043
+
+ src/pkg/encoding/binary/binary.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

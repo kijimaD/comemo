@@ -1,0 +1,16 @@
+commit 68d5c51287cfb50a67d2395a3aeb774aeef2bc4a
+Author: Kai Backman <kaib@golang.org>
+Date:   Sat Oct 24 22:47:25 2009 -0700
+
+            fix conditional branch instructions for unsigned ints and
+            float. fix sgen endianess in sgen character copying.
+    
+            go/test: passes 97% (336/345)
+    
+    R=rsc
+    http://go/go-review/1015007
+
+ src/cmd/5g/cgen.c  | 28 ++++++++++------------------
+ src/cmd/5g/gsubr.c | 36 ++++++++++++++++++++++++------------
+ test/arm-pass.txt  | 13 +++++++++++++
+ 3 files changed, 47 insertions(+), 30 deletions(-)

@@ -1,0 +1,12 @@
+commit fd2e24727efbaaa9062e6678f19c45b90152b46f
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jun 10 00:08:57 2011 +0200
+
+    gc: nit
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4604041
+
+ src/cmd/gc/pgen.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

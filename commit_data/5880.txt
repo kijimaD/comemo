@@ -1,0 +1,14 @@
+commit ad4f95d365999c43945d427f278994b8c05bdb2f
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Jul 26 15:55:01 2010 +1000
+
+    syscall: add windows version of Pipe()
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/1715046
+
+ src/pkg/syscall/syscall_windows.go      | 22 ++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   |  8 ++++++++
+ 3 files changed, 60 insertions(+), 2 deletions(-)

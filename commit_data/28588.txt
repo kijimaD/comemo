@@ -1,0 +1,18 @@
+commit c1e06dcb611822ba3c881b170f278d18237372c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 29 08:51:29 2016 -0700
+
+    net/http: use atomic.Value for Transport's alternate protocol map
+    
+    Fix an old TODO and use atomic.Value for holding the Transport's
+    alternate protocol map. It is very frequently accessed and almost
+    never set or updated.
+    
+    Change-Id: Ic5a71c504bdac76678114c6390d1fc0673e07aa9
+    Reviewed-on: https://go-review.googlesource.com/29967
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

@@ -1,0 +1,19 @@
+commit 4aca8b00fffe2d228d6dc9d4d061148bb721efd4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 08:07:56 2017 +1200
+
+    cmd/internal/objabi: shrink SymType down to a uint8
+    
+    Now that it only takes small values.
+    
+    Change-Id: I08086d392529d8775b470d65afc2475f8d0e7f4a
+    Reviewed-on: https://go-review.googlesource.com/42030
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/objfile.go           | 2 +-
+ src/cmd/internal/objabi/symkind.go        | 2 +-
+ src/cmd/internal/objabi/symkind_string.go | 2 +-
+ src/cmd/link/internal/ld/objfile.go       | 9 +++++++--
+ 4 files changed, 10 insertions(+), 5 deletions(-)

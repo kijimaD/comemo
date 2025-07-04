@@ -1,0 +1,20 @@
+commit 391a963bbafd6f67bb95ece5d131d782ffd7a680
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue May 22 18:00:39 2018 -0400
+
+    cmd/compile: clean up debug info generation logging
+    
+    Remove the unexpected function, which is a lot less relevant now that
+    the generation basically can't detect invalid states, and make sure no
+    logging appears without -d locationlists=2.
+    
+    Updates #25404
+    
+    Change-Id: If3522df5a7397f2e7b43cb808936e319132132b6
+    Reviewed-on: https://go-review.googlesource.com/114007
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 44 +++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

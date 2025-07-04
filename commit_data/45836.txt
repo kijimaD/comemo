@@ -1,0 +1,25 @@
+commit 9401172166ee6ac64a5a74b4a8f2aa6d3f936ea1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 17 22:12:24 2021 -0700
+
+    runtime: clarify Frames.Next documentation
+    
+    I wrote code that relied on this API, but I misunderstood the original
+    description of the "more" result. As a consequence, my code always
+    stopped one frame early.
+    
+    This CL expands the documentation to be more explicit and specifically
+    call out my confusion (i.e., that the "more" result indicates whether
+    the *next* Next call will return a valid Frame, and not whether this
+    call did).
+    
+    Change-Id: If135f8f8c05425073d45377c4179e4f79e6bd6ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329389
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/example_test.go | 16 ++++++++++++----
+ src/runtime/symtab.go       | 11 +++++++++--
+ 2 files changed, 21 insertions(+), 6 deletions(-)

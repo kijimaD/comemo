@@ -1,0 +1,21 @@
+commit 4572e4848364b6098b565a2ef480e9b4e8ff5977
+Author: Tad Glines <tad.glines@gmail.com>
+Date:   Thu Aug 29 17:20:39 2013 -0700
+
+    database/sql: add SetMaxOpenConns
+    
+    Update #4805
+    
+    Add the ability to set an open connection limit.
+    Fixed case where the Conn finalCloser was being called with db.mu locked.
+    Added seperate benchmarks for each path for Exec and Query.
+    Replaced slice based idle pool with list based idle pool.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10726044
+
+ src/pkg/database/sql/fakedb_test.go |  28 +-
+ src/pkg/database/sql/sql.go         | 261 +++++++++++++---
+ src/pkg/database/sql/sql_test.go    | 594 ++++++++++++++++++++++++++++++++++--
+ 3 files changed, 813 insertions(+), 70 deletions(-)

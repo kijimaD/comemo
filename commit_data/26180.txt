@@ -1,0 +1,16 @@
+commit 49dad0f5716484ec2f3b2e1480801c134933f1ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 20:29:09 2016 -0800
+
+    cmd/compile: support arbitrarily deep embedded fields
+    
+    Fixes #13337.
+    
+    Change-Id: Ie74d00390111796619150287d3f7a147750ab456
+    Reviewed-on: https://go-review.googlesource.com/19932
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   |   6 --
+ src/cmd/compile/internal/gc/subr.go | 186 ++++++++++++++++++++----------------
+ test/fixedbugs/issue13337.go        |  30 ++++++
+ 3 files changed, 131 insertions(+), 91 deletions(-)

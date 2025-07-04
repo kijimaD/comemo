@@ -1,0 +1,37 @@
+commit d162a297ed216fb02ebe409ace2387c3a656de66
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 12 10:08:38 2018 -0800
+
+    cmd/cgo: rewrite CFTypeRef and subytes on Darwin to uintptr
+    
+    Cgo currently maps CFTypeRef and its subtypes to unsafe.Pointer
+    or a pointer to a named empty struct.
+    
+    However, Darwin sometimes encodes some of CFTypeRef's subtypes as a
+    few int fields packed in a pointer wrapper. This hackery confuses the
+    Go runtime as the pointers can look like they point to things that
+    shouldn't be pointed at.
+    
+    Switch CFTypeRef and its subtypes to map to uintptr.
+    
+    Detecting the affected set of types is tricky, there are over 200 of
+    them, and the set isn't static across Darwin versions. Fortunately,
+    downcasting from CFTypeRef to a subtype requires calling CFGetTypeID,
+    getting a CFTypeID token, and comparing that with a known id from a
+    *GetTypeID() call. So we can find all the type names by detecting all
+    the *GetTypeID() prototypes and rewriting the corresponding *Ref types
+    to uintptr. This strategy covers all the cases I've checked and is
+    unlikely to have a false positive.
+    
+    Update #23091.
+    
+    Change-Id: I487eb4105c9b4785ba564de9c38d472c8c9a76ac
+    Reviewed-on: https://go-review.googlesource.com/87615
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go    | 68 ++++-----------------------------------------------
+ src/cmd/cgo/gcc.go    | 63 +++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/fix/cftype.go |  6 ++---
+ 3 files changed, 61 insertions(+), 76 deletions(-)

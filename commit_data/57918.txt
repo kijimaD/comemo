@@ -1,0 +1,24 @@
+commit b0bbfb1e0f8f3ea55e1e286d32b57daf96495878
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 10:54:18 2024 -0800
+
+    cmd/compile/internal/importer: drop support for indexed format
+    
+    Drop support for the indexed format from the test-only Import
+    function.
+    
+    Adds several TODOs for further tech debt reduction.
+    
+    Change-Id: I45cc5ffce43082a145ccb918face067cdccc5ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626695
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/importer/exportdata.go |   8 +
+ src/cmd/compile/internal/importer/gcimporter.go |  23 +-
+ src/cmd/compile/internal/importer/iimport.go    | 803 ------------------------
+ src/cmd/compile/internal/importer/ureader.go    |   1 +
+ src/go/internal/gcimporter/gcimporter.go        |   1 +
+ 5 files changed, 26 insertions(+), 810 deletions(-)

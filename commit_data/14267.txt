@@ -1,0 +1,13 @@
+commit b602c3dbbdde9b42a90ec682921b4c90d84a0340
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 1 10:04:42 2012 +0900
+
+    all: clear execute bit
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6826044
+
+ doc/effective_go.html       | 0
+ src/pkg/database/sql/sql.go | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

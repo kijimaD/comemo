@@ -1,0 +1,24 @@
+commit 23e8f43cb1e865edeab2bad08dc01cceac3ba0b0
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 28 17:36:38 2023 -0500
+
+    cmd/compile: restore return-in-loop loopvar optimization
+    
+    but this time, correctly.
+    children of Returns can have For/Range loops in them,
+    and those must be visited.
+    
+    Includes test to verify that the optimization occurs,
+    and also that the problematic case that broke the original
+    optimization is now correctly handled.
+    
+    Change-Id: If5a94fd51c862d4bfb318fec78456b7b202f3fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472355
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/loopvar/loopvar.go      | 23 +++++++++++++
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 38 +++++++++++++++++++++
+ src/cmd/compile/internal/loopvar/testdata/opt.go | 42 ++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+)

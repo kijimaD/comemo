@@ -1,0 +1,37 @@
+commit 2a9636dc2bdbb2865dde686352de528c6953c7bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 21 16:50:59 2020 -0400
+
+    cmd/go/internal/modload: cache the Go language version for each module globally
+    
+    Previously, this cache was a member of the (ephemeral) modload.loader
+    struct. However, the Go language version for a given module version
+    does not vary based on the build list, the set of loaded packages, the
+    build tags in use, the meaning of the "all" pattern, or anything else
+    that can be configured for an instance of the package loader. The map
+    containing that information is therefore not appropriate as a field of
+    the (configurable, package-list-dependent) loader struct.
+    
+    The Go language version mapping could, in theory, be read from the
+    go.mod file in the module cache (or replacement directory) every time
+    it is needed: this map is just a cache, and as such it belongs
+    alongside the other caches and indexes in the modload package, which
+    are currently found in modfile.go.
+    
+    We may want to do the same sort of global caching for the mapping from
+    each module.Version to its list of direct requirements (which are
+    similarly idempotent), but for now that is left for a future change.
+    
+    For #36460
+    For #36876
+    
+    Change-Id: I90ac176ffea97f30c47d6540c3dfb874dc9cfa4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244078
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/build.go   | 15 ++++++++++-----
+ src/cmd/go/internal/modload/load.go    | 10 +---------
+ src/cmd/go/internal/modload/modfile.go |  7 +++++++
+ src/cmd/go/internal/modload/mvs.go     |  8 +++-----
+ 4 files changed, 21 insertions(+), 19 deletions(-)

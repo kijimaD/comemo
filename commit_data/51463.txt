@@ -1,0 +1,24 @@
+commit 483f3dc39fb187dadd28a0d06a92084a207715b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 19:37:10 2022 +0000
+
+    Revert "encoding/xml: disallow empty namespace when prefix is set"
+    
+    This reverts CL 105636.
+    
+    Reason for revert: Fails with existing XML data.  At this stage in the release cycle we should revert, and try again next time with some way to support existing XML.
+    
+    For #8068
+    
+    Change-Id: Ia84cbf3a84878ac7190f72998545dee22c36c45e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453996
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/xml/xml.go      |  4 ----
+ src/encoding/xml/xml_test.go | 29 -----------------------------
+ 2 files changed, 33 deletions(-)

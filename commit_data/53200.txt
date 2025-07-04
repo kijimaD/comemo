@@ -1,0 +1,19 @@
+commit 5cdc3874b0e44cecfadcf995091894eca978e558
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 10 07:04:58 2023 -0400
+
+    cmd/covdata: tweak output format for 'go tool covdata percent'
+    
+    Include some additional whitepace when emitting percentage of
+    statements covered per package, to make "go tool covdata percent"
+    output more like "go test -cover" output.
+    
+    Change-Id: I450cf2bfa05b1eed747cb2f99967314419fa446c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495445
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/internal/coverage/cformat/fmt_test.go | 2 +-
+ src/internal/coverage/cformat/format.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

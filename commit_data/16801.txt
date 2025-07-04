@@ -1,0 +1,12 @@
+commit a6f95ad34ea6b8c450a126d5fd783a8fc6e9d953
+Author: Andrew Bonventre <andybons@chromium.org>
+Date:   Thu Jul 18 11:11:23 2013 +1000
+
+    image/gif: don't write superfluous global color table
+    
+    R=r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/11446043
+
+ src/pkg/image/gif/writer.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

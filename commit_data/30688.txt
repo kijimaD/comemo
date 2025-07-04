@@ -1,0 +1,15 @@
+commit 5f3e7aa76ddc190b199e207f2347ffffbb06b05a
+Author: Steve Francia <spf@golang.org>
+Date:   Thu Feb 9 15:33:13 2017 -0500
+
+    doc: reorganize the contribution guidelines into a guide
+    
+    Updates #17802
+    
+    Change-Id: I65ea0f4cde973604c04051e7eb25d12e4facecd3
+    Reviewed-on: https://go-review.googlesource.com/36626
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/contribute.html | 527 ++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 343 insertions(+), 184 deletions(-)

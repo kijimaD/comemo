@@ -1,0 +1,20 @@
+commit 6af4e996e2f0408f159a8553d11122b9fe052ffb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 15:51:24 2016 -0700
+
+    runtime: simplify setPanicOnFault slightly
+    
+    No need to acquire the M just to change G's paniconfault flag, and the
+    original C implementation of SetPanicOnFault did not. The M
+    acquisition logic is an artifact of golang.org/cl/131010044, which was
+    started before golang.org/cl/123640043 (which introduced the current
+    "getg" function) was submitted.
+    
+    Change-Id: I6d1939008660210be46904395cf5f5bbc2c8f754
+    Reviewed-on: https://go-review.googlesource.com/21935
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rdebug.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

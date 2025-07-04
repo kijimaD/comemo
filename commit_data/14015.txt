@@ -1,0 +1,14 @@
+commit dfa139aaa0ec9bfb2b23a66a315a88f757fdbea7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 4 11:49:33 2012 +1000
+
+    src/run.bat: add new flag for api tool
+    Fixes build.
+    Makes me annoyed.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6591074
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

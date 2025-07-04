@@ -1,0 +1,18 @@
+commit c5368123fedba827967628943bf45ed3d1d369ac
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sun Oct 9 01:09:52 2016 +0900
+
+    cmd/compile: remove redundant function idom
+    
+    Change-Id: Ib14b5421bb5e407bbd4d3cbfc68c92d3dd257cb1
+    Reviewed-on: https://go-review.googlesource.com/30732
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/func.go          | 9 +++------
+ src/cmd/compile/internal/ssa/lca.go           | 2 +-
+ src/cmd/compile/internal/ssa/prove.go         | 2 +-
+ src/cmd/compile/internal/ssa/sparsetreemap.go | 2 +-
+ src/cmd/compile/internal/ssa/tighten.go       | 2 +-
+ 5 files changed, 7 insertions(+), 10 deletions(-)

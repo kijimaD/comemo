@@ -1,0 +1,19 @@
+commit 9c4295b574a89bf02294111f811f90ab06b9951b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 21 14:53:19 2016 -0700
+
+    time: print zero duration as 0s, not 0
+    
+    There should be a unit, and s is the SI unit name, so use that.
+    The other obvious possibility is ns (nanosecond), but the fact
+    that durations are measured in nanoseconds is an internal detail.
+    
+    Fixes #14058.
+    
+    Change-Id: Id1f8f3c77088224d9f7cd643778713d5cc3be5d9
+    Reviewed-on: https://go-review.googlesource.com/22357
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/time/time.go      | 2 +-
+ src/time/time_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

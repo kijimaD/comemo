@@ -1,0 +1,20 @@
+commit 491fe1b959bf6a0657cba2e3db831ffd4bdf7674
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 20 10:44:07 2020 +0200
+
+    cmd/go: enable link syso test on linux/riscv64
+    
+    Now that external linking is supported on linux/riscv64 (CL 243517),
+    re-enable the test previously disabled by CL 216259.
+    
+    Updates #36739
+    
+    Change-Id: I611548c587ca50f8bfab72c903ab0432e2b54198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263797
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/go/testdata/script/link_syso_issue33139.txt | 4 ----
+ 1 file changed, 4 deletions(-)

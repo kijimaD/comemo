@@ -1,0 +1,19 @@
+commit a4451e11437c2375c7451d90aac5419903629b16
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sat Apr 4 22:51:15 2020 +0100
+
+    cmd/compile: print block auxint value in HTML output
+    
+    The auxint value was being printed in LongString() but not LongHTML().
+    
+    Fixes #38250.
+    
+    Change-Id: I28e819feef8710f912bee424d1b900eb07f3abb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227160
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/block.go | 24 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/html.go  |  3 +++
+ 2 files changed, 18 insertions(+), 9 deletions(-)

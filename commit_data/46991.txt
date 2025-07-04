@@ -1,0 +1,16 @@
+commit ff8115d1a1b3bcaadfea10f6913e9fe083013799
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Oct 22 15:29:41 2021 +0800
+
+    internal/poll: fix a few function names on comments
+    
+    Change-Id: I5b1dfeeb0ae5ac32667633151ef83bcf4654c43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357957
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/poll/fd_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 2330ae8cf80e4fa5e6e2909e0c8562fd3d9beec6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jan 25 16:27:23 2016 +0100
+
+    testing: finish implementation of subtests
+    
+    API not exposed yet.
+    
+    Change-Id: Iaba0adc0fa1ae8075e6b56796f99ee8db9177a78
+    Reviewed-on: https://go-review.googlesource.com/18896
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/sub_test.go | 225 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  |  24 ++++++
+ 2 files changed, 249 insertions(+)

@@ -1,0 +1,24 @@
+commit 3778f8e07d06cabfccd1508295ad67270af078cd
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 19 18:00:48 2021 -0500
+
+    cmd/compile: fix pointer maps for morestack
+    
+    Verified with test and with single step watching changes to register
+    values across morestack calls, after reload.
+    
+    Also added stack-growth test with pointer parameters of varying lifetime.
+    
+    For #40724.
+    
+    Change-Id: Idb5fe27786ac5c6665a734d41e68d3d39de2f4da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294429
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/liveness/plive.go | 16 ++++++
+ src/cmd/compile/internal/ssa/value.go      | 12 +++--
+ test/abi/uglyfib.go                        | 79 ++++++++++++++++++++++++++++++
+ test/abi/uglyfib.out                       |  1 +
+ 4 files changed, 104 insertions(+), 4 deletions(-)

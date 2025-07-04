@@ -1,0 +1,21 @@
+commit 7e6e502f9b9a253603c43bb783b82a043a67c3d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 14:49:22 2014 -0400
+
+    cmd/go: fix 'go vet' of package with external tests
+    
+    For example, fixes 'go vet syscall', which has source
+    files in package syscall_test.
+    
+    Fixes #8511.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/152220044
+
+ src/cmd/go/test.bash                     | 14 ++++++++++++++
+ src/cmd/go/testdata/src/vetpkg/a_test.go |  1 +
+ src/cmd/go/testdata/src/vetpkg/b.go      |  7 +++++++
+ src/cmd/go/vet.go                        | 23 ++++++++++++++++++-----
+ 4 files changed, 40 insertions(+), 5 deletions(-)

@@ -1,0 +1,10 @@
+commit d5f4d94b8084848b71bd34ab4e744303673d6b20
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 9 16:40:11 2008 -0700
+
+    redefinition fix for autolib: if first ATEXT is already defined, skip this file
+    
+    SVN=126580
+
+ src/cmd/6l/obj.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

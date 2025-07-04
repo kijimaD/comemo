@@ -1,0 +1,30 @@
+commit c0840a7c720061f1293063bad5d5648267a02ba8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 23 21:43:06 2022 -0800
+
+    go/types, types2: method recv type parameter count must match base type parameter count
+    
+    Check receiver type parameter count when type checking the method
+    signature and report a suitable error (don't rely on delayed
+    instantiation and possibly constraint type inference).
+    
+    While at it, simplify blank name recoding and type bound rewriting.
+    
+    Stop-gap measure to avoid crashes in the compiler.
+    
+    Fixes #51339.
+    For #51343.
+    
+    Change-Id: Idbe2d32d69b66573ca973339f8924b349d2bc9cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387836
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go     | 13 ++++----
+ src/cmd/compile/internal/types2/signature.go       | 34 ++++++++++----------
+ .../types2/testdata/fixedbugs/issue51339.go2       | 16 ++++++++++
+ src/go/types/assignments.go                        | 13 ++++----
+ src/go/types/signature.go                          | 37 +++++++++++-----------
+ src/go/types/testdata/fixedbugs/issue51339.go2     | 16 ++++++++++
+ 6 files changed, 80 insertions(+), 49 deletions(-)

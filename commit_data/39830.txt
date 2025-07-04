@@ -1,0 +1,16 @@
+commit 2711fababd21c471dc0c64b33972c74a7c4eee20
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Sep 8 00:21:57 2019 +0200
+
+    net,os: disable more sysctl tests on iOS
+    
+    Updates #34133
+    
+    Change-Id: I27c75993176cf876f2d80f70982528258c509b68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193845
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/interface_test.go | 12 ++++++++++++
+ src/os/os_test.go         |  3 +++
+ 2 files changed, 15 insertions(+)

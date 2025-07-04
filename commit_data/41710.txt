@@ -1,0 +1,14 @@
+commit 1250a324b405c0a8f6eb4751b8471dd0ae7cb7bc
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Mar 23 02:51:26 2020 +0000
+
+    bytes: narrow the search of IndexByte in Index
+    
+    Change-Id: I5a47b18b64e7f781dcc77440b06de36966e3d01d
+    GitHub-Last-Rev: 8576f1931d6e87a0823632ee35fcbc0d4eaaeaaf
+    GitHub-Pull-Request: golang/go#37993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224589
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 606b8ff5eff5e83e92b5b7466f9682115c1a6883
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 27 14:53:33 2024 -0800
+
+    net/http: make timeout errors match context.DeadlineExceeded
+    
+    When returning an error which implements net.Error and reports
+    itself as a timeout, also report it as matching context.DeadlineExceeded.
+    This matches the behavior of timeout errors in the net package
+    and elsewhere.
+    
+    Fixes #50856
+    
+    Change-Id: I2ca911e3677a699af27ba89b1200401baa8b3b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567537
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/client.go      | 10 ++--------
+ src/net/http/client_test.go |  9 +++++++++
+ src/net/http/transport.go   | 16 +++++++++-------
+ 3 files changed, 20 insertions(+), 15 deletions(-)

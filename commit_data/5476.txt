@@ -1,0 +1,12 @@
+commit cffdb1e83025106c5ca66b6506951ba3f37382d3
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sat May 15 10:08:29 2010 -0700
+
+    build; allow MAKEFLAGS to be set outside the build scripts
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1231041
+
+ src/make.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

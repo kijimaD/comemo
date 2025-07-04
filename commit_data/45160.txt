@@ -1,0 +1,17 @@
+commit b1c4cc558958e564846eecb68ff0ee99c820d221
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 15 10:48:12 2021 +0200
+
+    mime: keep builtinTypesLower sorted alphabetically
+    
+    Updates #44602
+    
+    Change-Id: I2c32e388143e56928850821587f57d9729434220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310034
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/mime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

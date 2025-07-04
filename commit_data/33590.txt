@@ -1,0 +1,17 @@
+commit c09ee9d1ce63300d97ea1a102e9917dabbe87803
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 15 13:45:31 2017 -0500
+
+    cmd/compile: fix buglet/typo in DWARF x86 setup
+    
+    Fix typo in DWARF register config for GOOARCH=x86; was
+    picking up the AMD64 set, should have been selecting
+    x86 set.
+    
+    Change-Id: I9a4c6f1378baf3cb2f0ad8d60f3ee2f24cd5dc91
+    Reviewed-on: https://go-review.googlesource.com/77990
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

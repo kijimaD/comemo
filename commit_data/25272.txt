@@ -1,0 +1,29 @@
+commit 1e1ea66991ce840d6f52cb8385e23624f16e9f01
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 15:19:07 2015 -0500
+
+    runtime: print gctrace before releasing worldsema
+    
+    Currently we drop worldsema and then print the gctrace. We did this so
+    that if stderr is a pipe or a blocked terminal, blocking on printing
+    the gctrace would not block another GC from starting. However, this is
+    a bit of a fool's errand because a blocked runtime print will block
+    the whole M/P, so after GOMAXPROCS GC cycles, the whole system will
+    freeze. Furthermore, now this is much less of an issue because
+    allocation will block indefinitely if it can't start a GC (whereas it
+    used to be that allocation could run away). Finally, this allows
+    another GC cycle to start while the previous cycle is printing the
+    gctrace, which leads to races on reading various statistics to print
+    them and the next GC cycle overwriting those statistics.
+    
+    Fix this by moving the release of worldsema after the gctrace print.
+    
+    Change-Id: I3d044ea0f77d80f3b4050af6b771e7912258662a
+    Reviewed-on: https://go-review.googlesource.com/17812
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

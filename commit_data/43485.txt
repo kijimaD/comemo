@@ -1,0 +1,22 @@
+commit 9ec0a46a15d98db9241bca7606bb0a90a3c77b01
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 18:54:58 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (read)
+    
+    Add type casting to offset.
+    L246-L247
+    L1473-L1475
+    
+    toolstash-check successful.
+    
+    Change-Id: I816c7556609ca6dd67bff8007c2d006cab89ee2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257639
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 10 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 36 +++++++++++++++---------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

@@ -1,0 +1,37 @@
+commit a223ccae386449169774597b15a00f2d70addce7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 11 20:23:19 2016 -0400
+
+    cmd/compile/internal/s390x: add s390x support
+    
+    s390x does not require duffzero/duffcopy since it has
+    storage-to-storage instructions that can copy/clear up to 256
+    bytes at a time.
+    
+    peep contains several new passes to optimize instruction
+    sequences that match s390x instructions such as the
+    compare-and-branch and load/store multiple instructions.
+    
+    copyprop and subprop have been extended to work with moves that
+    require sign/zero extension. This work could be ported to other
+    architectures that do not used sized math however it does add
+    complexity and will probably be rendered unnecessary by ssa in
+    the near future.
+    
+    Change-Id: I1b64b281b452ed82a85655a0df69cb224d2a6941
+    Reviewed-on: https://go-review.googlesource.com/20873
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/s390x/cgen.go   |  178 ++++
+ src/cmd/compile/internal/s390x/galign.go |   66 ++
+ src/cmd/compile/internal/s390x/ggen.go   |  577 +++++++++++
+ src/cmd/compile/internal/s390x/gsubr.go  | 1115 ++++++++++++++++++++
+ src/cmd/compile/internal/s390x/peep.go   | 1664 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/s390x/prog.go   |  179 ++++
+ src/cmd/compile/internal/s390x/reg.go    |  130 +++
+ src/cmd/compile/main.go                  |    3 +
+ src/cmd/dist/buildtool.go                |    1 +
+ 9 files changed, 3913 insertions(+)

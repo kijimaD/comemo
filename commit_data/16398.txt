@@ -1,0 +1,17 @@
+commit 0806c97209505dc48dcca3bb4bbe05695d1a3dd3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri May 24 18:35:48 2013 +0400
+
+    log/syslog: fix deadlock in test
+    The problem was that server handlers block on done<-,
+    the goroutine that reads from done blocks on count<-,
+    and the main goroutine that is supposed to read from count
+    waits for server handlers to exit.
+    Fixes #5547.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9722043
+
+ src/pkg/log/syslog/syslog_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

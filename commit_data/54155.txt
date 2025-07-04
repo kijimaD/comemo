@@ -1,0 +1,19 @@
+commit 3e73802c4a40a665d505e0c906609ce771cfd219
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 5 15:16:41 2023 -0400
+
+    cmd/internal/objabi: test runtime package list
+    
+    This adds a test that all packages imported by runtime are marked as
+    runtime tests by LookupPkgSpecial. We add two packages that were
+    missing from the list.
+    
+    Change-Id: I2545980ab09474de0181cf546541527d8baaf2e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521700
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/objabi/path_test.go  | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/pkgspecial.go |  4 ++--
+ 2 files changed, 33 insertions(+), 3 deletions(-)

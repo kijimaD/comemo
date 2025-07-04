@@ -1,0 +1,22 @@
+commit 9e03dcb3fa3a024330909808d7338f0d194bf05a
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Fri Mar 16 08:21:13 2012 +1100
+
+    doc: add Gobs of data article
+    
+    Originally published on The Go Programming Language Blog, March 24, 2011.
+    
+    http://blog.golang.org/2011/03/gobs-of-data.html
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5834043
+
+ doc/Makefile                   |   1 +
+ doc/articles/gobs_of_data.html | 315 +++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                  |   2 +-
+ doc/progs/gobs1.go             |  22 +++
+ doc/progs/gobs2.go             |  43 ++++++
+ doc/progs/run                  |   7 +-
+ src/pkg/encoding/gob/doc.go    |   2 +-
+ 7 files changed, 389 insertions(+), 3 deletions(-)

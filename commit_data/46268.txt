@@ -1,0 +1,42 @@
+commit 2872496ba528d658b68a9e66f46b2b722368a3bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 31 17:43:18 2021 -0700
+
+    cmd/compile/internal/types2: systematic detection of missing instantiation
+    
+    When type-checking expressions, detection of uninstantiated generic
+    functions and types was somewhat ad-hoc.
+    
+    Add an extra parameter "allowGenerics" to rawExpr. If not set, the
+    result operand cannot be generic.
+    
+    The only place where rawExpr is called with allowGenerics != false
+    is from exprOrType, which passes an allowGenerics parameter through.
+    
+    The only place where exprOrType is called with allowGenerics == true
+    is when handling index expressions and calls. Make sure that we only
+    accept generic operands where expected, and check the other branches.
+    
+    As a result, a recently added varType call (CL 345970) can be removed
+    again.
+    
+    This also fixes a bug where an error for a conversion to generic
+    type was reported after the conversion (i.e., with the converted
+    value, rather than the generic type). Added a test case for that.
+    
+    For #48048.
+    
+    Change-Id: I8576326f5fcfb58d78b3ce8572068aa32e66c568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346471
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        |  2 +-
+ src/cmd/compile/internal/types2/call.go            | 19 +++++----
+ src/cmd/compile/internal/types2/expr.go            | 49 ++++++++++++++++++----
+ src/cmd/compile/internal/types2/index.go           | 10 ++++-
+ src/cmd/compile/internal/types2/stmt.go            |  4 +-
+ .../internal/types2/testdata/examples/types.go2    |  1 +
+ .../types2/testdata/fixedbugs/issue39634.go2       |  2 +-
+ 7 files changed, 66 insertions(+), 21 deletions(-)

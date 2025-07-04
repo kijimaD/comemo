@@ -1,0 +1,27 @@
+commit 73c93a404c16550ab1993aab1ce4a9b90c6f5772
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed Aug 7 12:47:01 2013 -0700
+
+    cmd/cc, cmd/gc, runtime: emit bitmaps for scanning locals.
+    
+    Previously, all word aligned locations in the local variables
+    area were scanned as conservative roots.  With this change, a
+    bitmap is generated describing the locations of pointer values
+    in local variables.
+    
+    With this change the argument bitmap information has been
+    changed to only store information about arguments.  The locals
+    member, has been removed.  In its place, the bitmap data for
+    local variables is now used to store the size of locals.  If
+    the size is negative, the magnitude indicates the size of the
+    local variables area.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12328044
+
+ src/cmd/cc/pgen.c          | 26 ++++++++++---
+ src/cmd/gc/pgen.c          | 97 +++++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/funcdata.h |  3 +-
+ src/pkg/runtime/mgc0.c     | 88 ++++++++++++++++++++++++-----------------
+ 4 files changed, 140 insertions(+), 74 deletions(-)

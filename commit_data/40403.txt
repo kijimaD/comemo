@@ -1,0 +1,17 @@
+commit b36f22bff04cf62f77d42d9584a050afffa2d723
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 23 16:43:55 2019 -0400
+
+    cmd/go: populate available module information for packages in vendor mode
+    
+    Updates #33848
+    
+    Change-Id: I10b4c79faef8bc3dee2ceba14d496fa049e84fb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202977
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go              | 30 +++++++++++++----------
+ src/cmd/go/testdata/script/mod_vendor_replace.txt |  7 +++++-
+ 2 files changed, 23 insertions(+), 14 deletions(-)

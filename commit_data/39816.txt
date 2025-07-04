@@ -1,0 +1,16 @@
+commit c78ac39ae9f6b570f9aa7c9b8f696cf50edace8e
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Thu Sep 5 08:50:11 2019 +0300
+
+    cmd/link: use gold when dynamic linking on arm,arm64 only on Linux and Android
+    
+    Fixes freebsd/arm build.
+    
+    Change-Id: Id9b1905a5335f86d317dab7514e0ce7cb74aba1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193537
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

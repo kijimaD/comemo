@@ -1,0 +1,25 @@
+commit eda42f7c60adab26ed1a340414c726c4bf46b1f7
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 9 09:53:44 2023 -0800
+
+    path/filepath: consider \\?\c: as a volume on Windows
+    
+    While fixing several bugs in path handling on Windows,
+    beginning with \\?\.
+    
+    Prior to #540277, VolumeName considered the first path component
+    after the \\?\ prefix to be part of the volume name.
+    After, it considered only the \\? prefix to be the volume name.
+    
+    Restore the previous behavior.
+    
+    Fixes #64028
+    
+    Change-Id: I6523789e61776342800bd607fb3f29d496257e68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/path/filepath/path_test.go    | 15 ++++++++++-----
+ src/path/filepath/path_windows.go | 20 +++++++-------------
+ 2 files changed, 17 insertions(+), 18 deletions(-)

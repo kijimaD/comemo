@@ -1,0 +1,12 @@
+commit cecddc4dd369b49e18570b2b9d2fd5bf0017a778
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 19 15:36:06 2011 +1000
+
+    doc: link to golang-france
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5059046
+
+ doc/docs.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

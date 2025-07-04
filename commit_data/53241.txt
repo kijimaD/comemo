@@ -1,0 +1,18 @@
+commit c0af7cd05f75d1ac6540bf41bbe9984a0fd35be2
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 21 15:16:48 2023 +0100
+
+    encoding: document when marshaling methods can be added
+    
+    Fixes #10275
+    
+    Change-Id: I2b3d54f3eb0f85d65324ddc3c3b2a797d42a16c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496537
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/encoding/encoding.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

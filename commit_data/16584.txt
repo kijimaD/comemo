@@ -1,0 +1,16 @@
+commit 2af974777d8e771e5c58f172876ac4c6d9fb7256
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Mon Jun 17 11:38:07 2013 -0700
+
+    net: fix LookupNS on Plan 9
+    
+    use correct field count when resolving nameservers via /net/dns on Plan 9.
+    
+    we incorrectly check for 4 fields instead of 3 when parsing the result of /net/dns, and get no results
+    
+    R=golang-dev, ality
+    CC=golang-dev
+    https://golang.org/cl/10182044
+
+ src/pkg/net/lookup_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

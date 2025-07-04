@@ -1,0 +1,13 @@
+commit 057e7d9faee72daa8e0de6cdf3dcff974e9b6e0f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 18 11:21:11 2009 -0800
+
+    fix build, enable an exp/eval's assignment check
+    now that the parser doesn't do this test anymore
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179105
+
+ src/pkg/exp/eval/stmt_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

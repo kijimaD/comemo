@@ -1,0 +1,20 @@
+commit 9f7ea616742f8d58ecc140afcb0fa53bcb84fe9b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 11:39:47 2016 -0400
+
+    math: optimize Ceil, Floor and Trunc on s390x
+    
+    Use the FIDBR instruction to round floating-point numbers to integers.
+    
+    name   old time/op  new time/op  delta
+    Ceil   14.1ns ± 0%   3.0ns ± 0%  -78.89%  (p=0.000 n=10+10)
+    Floor  6.42ns ± 0%  3.03ns ± 0%  -52.80%  (p=0.000 n=10+10)
+    Trunc  6.67ns ± 0%  3.03ns ± 0%  -54.57%   (p=0.000 n=10+9)
+    
+    Change-Id: I3b416f6d0bccaaa9b547de86356471365862399c
+    Reviewed-on: https://go-review.googlesource.com/27827
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/floor_s390x.s | 26 ++++++++++++++++++++++++++
+ src/math/stubs_s390x.s |  9 ---------
+ 2 files changed, 26 insertions(+), 9 deletions(-)

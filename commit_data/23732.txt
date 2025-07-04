@@ -1,0 +1,17 @@
+commit fb90f4c1c2a966efb3ec2af48738ad9075dee229
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Fri Jul 17 16:33:51 2015 +0200
+
+    os: improve documentation on Rename
+    
+    Rename should document that it returns *LinkError,
+    like Create and Stat do.
+    
+    Fixes #10061
+    
+    Change-Id: I7bfe8b0267f6c4a57dd6b26cba44928714711724
+    Reviewed-on: https://go-review.googlesource.com/12353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

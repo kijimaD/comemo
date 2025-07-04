@@ -1,0 +1,22 @@
+commit ff8a2c0ad982ed96aeac42f0c825219752e5d2f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 15:33:28 2024 -0800
+
+    go/types: generate mono.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 340 LOC.
+    
+    Change-Id: If7b96c30e5a2f1ff28ebf4ca2f3ac3f73d6a8865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565839
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/mono.go |  6 +++---
+ src/cmd/compile/internal/types2/util.go |  3 +++
+ src/go/types/generate_test.go           | 13 +++++++++----
+ src/go/types/mono.go                    |  4 +++-
+ src/go/types/util.go                    |  3 +++
+ 5 files changed, 21 insertions(+), 8 deletions(-)

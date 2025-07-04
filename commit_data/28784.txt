@@ -1,0 +1,22 @@
+commit 14204662c8a73ea6d5b6489b0c5a6b0345b99a0d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 21:03:57 2016 -0700
+
+    archive/tar: handle integer overflow on 32bit machines
+    
+    Most calls to strconv.ParseInt(x, 10, 0) should really be
+    calls to strconv.ParseInt(x, 10, 64) in order to ensure that they
+    do not overflow on 32b architectures.
+    
+    Furthermore, we should document a bug where Uid and Gid may
+    overflow on 32b machines since the type is declared as int.
+    
+    Change-Id: I99c0670b3c2922e4a9806822d9ad37e1a364b2b8
+    Reviewed-on: https://go-review.googlesource.com/28472
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/tar/common.go |  4 ++++
+ src/archive/tar/reader.go | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 7 deletions(-)

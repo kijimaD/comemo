@@ -1,0 +1,12 @@
+commit 86630fe6adb597b535e4a19265e38715a35fc5c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 10:51:59 2010 -0800
+
+    sort.Search: fix typo in documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3016043
+
+ src/pkg/sort/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

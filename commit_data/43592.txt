@@ -1,0 +1,17 @@
+commit 87d59bcdc354b035e17a1dadbfc4883bbcac5bf8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 5 16:00:08 2020 -0700
+
+    doc: mention Trust+1 in contribution guide
+    
+    For #40699
+    
+    Change-Id: If753a073488880433ae3319dcf2a2dfaa887fd0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259737
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/contribute.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

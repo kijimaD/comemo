@@ -1,0 +1,12 @@
+commit 3730ddcbd846fec80a588880999e8cc280ff7450
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 21 14:50:38 2012 -0500
+
+    doc: document go1.0.3
+    
+    R=rsc, r
+    CC=gobot, golang-dev
+    https://golang.org/cl/6532049
+
+ doc/devel/release.html | 4 ++++
+ 1 file changed, 4 insertions(+)

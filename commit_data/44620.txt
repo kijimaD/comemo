@@ -1,0 +1,44 @@
+commit 7fc638d6f1679f2e35862555531bf479c3e5b99c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 19:49:39 2020 -0800
+
+    cmd: move GOEXPERIMENT knob from make.bash to cmd/go
+    
+    This CL changes GOEXPERIMENT to act like other GO[CONFIG] environment
+    variables. Namely, that it can be set at make.bash time to provide a
+    default value used by the toolchain, but then can be manually set when
+    running either cmd/go or the individual tools (compiler, assembler,
+    linker).
+    
+    For example, it's now possible to test rsc.io/tmp/fieldtrack by simply
+    running:
+    
+    GOEXPERIMENT=fieldtrack go test -gcflags=-l rsc.io/tmp/fieldtrack \
+      -ldflags=-k=rsc.io/tmp/fieldtrack.tracked
+    
+    without needing to re-run make.bash. (-gcflags=-l is needed because
+    the compiler's inlining abilities have improved, so calling a function
+    with a for loop is no longer sufficient to suppress inlining.)
+    
+    Fixes #42681.
+    
+    Change-Id: I2cf8995d5d0d05f6785a2ee1d3b54b2cfb3331ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300991
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/asm/internal/lex/input.go | 10 ++++++++++
+ src/cmd/dist/build.go             | 16 ++++------------
+ src/cmd/dist/buildruntime.go      |  6 ++----
+ src/cmd/go/internal/cfg/cfg.go    | 13 +++++++------
+ src/cmd/go/internal/work/exec.go  |  8 ++++++++
+ src/cmd/go/internal/work/gc.go    | 12 ------------
+ src/cmd/internal/objabi/util.go   | 25 +++++++++++++------------
+ src/cmd/link/internal/ld/main.go  |  2 ++
+ src/internal/cfg/cfg.go           |  1 +
+ src/runtime/heapdump.go           |  2 +-
+ src/runtime/internal/sys/arch.go  |  2 ++
+ src/runtime/proc.go               |  2 +-
+ 12 files changed, 51 insertions(+), 48 deletions(-)

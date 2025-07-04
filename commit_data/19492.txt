@@ -1,0 +1,19 @@
+commit eb54079264896a8e7bd0ea79768ea4f46c47e30a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 2 21:26:32 2014 -0400
+
+    cmd/gc: fix liveness for address-taken variables in inlined functions
+    
+    The 'address taken' bit in a function variable was not
+    propagating into the inlined copies, causing incorrect
+    liveness information.
+    
+    LGTM=dsymonds, bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dsymonds, golang-codereviews, iant, khr, r
+    https://golang.org/cl/96670046
+
+ src/cmd/gc/inl.c |  1 +
+ test/live.go     | 32 ++++++++++++++++++++++++++++++++
+ test/live2.go    | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+)

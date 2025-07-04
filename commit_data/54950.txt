@@ -1,0 +1,46 @@
+commit f7c5cbb82087c55aa82081e931e0142783700ce8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 9 21:50:40 2023 +0000
+
+    runtime: fix user arena heap bits writing on big endian platforms
+    
+    Currently the user arena code writes heap bits to the (*mspan).heapBits
+    space with the platform-specific byte ordering (the heap bits are
+    written and managed as uintptrs). However, the compiler always emits GC
+    metadata for types in little endian.
+    
+    Because the scanning part of the code that loads through the type
+    pointer in the allocation header expects little endian ordering, we end
+    up with the wrong byte ordering in GC when trying to scan arena memory.
+    
+    Fix this by writing out the user arena heap bits in little endian on big
+    endian platforms.
+    
+    This means that the space returned by (*mspan).heapBits has a different
+    meaning for user arenas and small object spans, which is a little odd,
+    so I documented it. To reduce the chance of misuse of the writeHeapBits
+    API, which now writes out heap bits in a different ordering than
+    writeSmallHeapBits on big endian platforms, this change also renames
+    writeHeapBits to writeUserArenaHeapBits.
+    
+    Much of this can be avoided in the future if the compiler were to write
+    out the pointer/scalar bits as an array of uintptr values instead of
+    plain bytes. That's too big of a change for right now though.
+    
+    This change is a no-op on little endian platforms. I confirmed it by
+    checking for any assembly code differences in the runtime test binary.
+    There were none. With this change, the arena tests pass on ppc64.
+    
+    Fixes #64048.
+    
+    Change-Id: If077d003872fcccf5a154ff5d8441a58582061bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541315
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/test/inl_test.go |  2 +-
+ src/runtime/mbitmap_allocheaders.go       | 46 ++++++++++++++++++++++++-------
+ src/runtime/mbitmap_noallocheaders.go     |  2 +-
+ 3 files changed, 38 insertions(+), 12 deletions(-)

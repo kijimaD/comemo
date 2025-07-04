@@ -1,0 +1,18 @@
+commit 1e233ad0759ad4e824a6bbb4bf2347d33cceba38
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Nov 6 22:53:57 2012 +0100
+
+    cmd/6g: fix use of large integers as indexes or array sizes.
+    
+    A check for smallintconst was missing before generating the
+    comparisons.
+    
+    Fixes #4348.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6815088
+
+ src/cmd/6g/cgen.c           | 21 +++++++++++++++++++--
+ test/fixedbugs/issue4348.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 2 deletions(-)

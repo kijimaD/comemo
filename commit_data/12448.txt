@@ -1,0 +1,18 @@
+commit 7c7966a4260b9f6c7c8e13586a04ec23f433670a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 6 23:35:31 2012 -0500
+
+    net: disable use of external listen along with other external network uses
+    
+    By default the all.bash tests must not ever announce
+    on an external address.  It's not just an OS X issue.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5753067
+
+ src/pkg/net/dial_test.go    |  2 +-
+ src/pkg/net/net_test.go     |  8 --------
+ src/pkg/net/server_test.go  |  2 +-
+ src/pkg/net/unicast_test.go | 14 +++++++-------
+ 4 files changed, 9 insertions(+), 17 deletions(-)

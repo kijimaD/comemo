@@ -1,0 +1,23 @@
+commit 8d5fe682b0900a29f524910770e547f14023afcd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 8 11:20:41 2014 -0800
+
+    test/fibo: a stand-alone bignum/allocation benchmark and test
+    
+    Usage:
+    fibo <n>        compute fibonacci(n), n must be >= 0
+    fibo -bench     benchmark fibonacci computation (takes about 1 min)
+    
+    Additional flags:
+    -half           add values using two half-digit additions
+    -opt            optimize memory allocation through reuse
+    -short          only print the first 10 digits of very large fibonacci numbers
+    
+    This change was reviewed in detail as https://codereview.appspot.com/168480043 .
+    
+    Change-Id: I7c86d49c5508532ea6206d00f424cf2117d2fe41
+    Reviewed-on: https://go-review.googlesource.com/1211
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fibo.go | 310 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 310 insertions(+)

@@ -1,0 +1,16 @@
+commit 770b87275223b9b0530b73063d8ee33b796b135b
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 29 21:21:14 2009 -0700
+
+    clone and futex
+    
+    go/test: passes 99% (343/347)
+    
+    R=rsc
+    http://go/go-review/1016004
+
+ src/make-arm.bash               |  2 +-
+ src/pkg/runtime/arm/asm.s       | 14 ++++---
+ src/pkg/runtime/linux/arm/sys.s | 92 ++++++++++++++++++++++++++++++++++++++---
+ test/arm-pass.txt               |  8 ++++
+ 4 files changed, 104 insertions(+), 12 deletions(-)

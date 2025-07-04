@@ -1,0 +1,17 @@
+commit 31a996edb6303fdcd0e6c1816174b0b24a10b1f6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 11 22:10:17 2014 -0700
+
+    cmd/cgo: fix default alignment for empty structs
+    
+    Fixes #5242.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/125120043
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue5242.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         |  3 +++
+ 3 files changed, 35 insertions(+)

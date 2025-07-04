@@ -1,0 +1,20 @@
+commit eedd97d5fd9d7b773dc7b1b8d7e00e137da091bb
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 08:57:43 2023 -0400
+
+    log/slog: clarify Logger.WithGroup doc
+    
+    Make it clear that "qualified by the given name" doesn't imply
+    any particular implementation, but depends on how the Handler
+    treats groups.
+    
+    Updates golang/go#56345.
+    
+    Change-Id: Idf52553108bc1a7d2091a06cc4fc4cc0fc52cc14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478056
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/logger.go | 2 ++
+ 1 file changed, 2 insertions(+)

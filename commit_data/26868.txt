@@ -1,0 +1,22 @@
+commit 613ba6cda845fef442995d705027a622984c6b3a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Apr 12 12:26:17 2016 -0400
+
+    cmd/compile/internal/gc: add s390x support
+    
+    Allows instructions with a From3 field to be used in regopt so
+    long as From3 represents a constant. This is needed because the
+    storage-to-storage instructions on s390x place the length of the
+    data into From3.
+    
+    Change-Id: I12cd32d4f997baf2fe97937bb7d45bbf716dfcb5
+    Reviewed-on: https://go-review.googlesource.com/20875
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/cgen.go  | 4 ++--
+ src/cmd/compile/internal/gc/gsubr.go | 8 +++++---
+ src/cmd/compile/internal/gc/pgen.go  | 2 +-
+ src/cmd/compile/internal/gc/reg.go   | 2 +-
+ src/cmd/compile/internal/gc/walk.go  | 7 ++++++-
+ 5 files changed, 15 insertions(+), 8 deletions(-)

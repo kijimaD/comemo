@@ -1,0 +1,17 @@
+commit acac535c3ca571beeb168c953d6d672f61387ef1
+Author: Changkun Ou <hi@changkun.us>
+Date:   Sun Feb 16 01:11:53 2020 +0100
+
+    doc: race condition in unsynchronized send/close
+    
+    This CL documents that unsynchronized send and close operations
+    on a channel are detected as a race condition.
+    
+    Fixes #27769
+    
+    Change-Id: I7495a2d0dd834c3f3b6339f8ca18ea21ae979aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219637
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/articles/race_detector.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

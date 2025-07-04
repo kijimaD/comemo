@@ -1,0 +1,15 @@
+commit 068c745e1e44875c411de5d5aea3f96574fbee12
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 2 08:53:11 2016 +0900
+
+    vendor: update vendored route
+    
+    Updates golang.org/x/net/route to rev fac978c for:
+    - route: fix typos in test
+    
+    Change-Id: I35de1d3f8e887c6bb5fe50e7299f2fc12e4426de
+    Reviewed-on: https://go-review.googlesource.com/23660
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/vendor/golang.org/x/net/route/message_freebsd_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

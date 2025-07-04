@@ -1,0 +1,25 @@
+commit c2cdfbd1a75b74bf7b960f6904fcfaaad9edb708
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Feb 28 09:35:55 2018 +0000
+
+    runtime: don't try to shrink address space with brk in Plan 9
+    
+    Plan 9 won't let brk shrink the data segment if it's shared with
+    other processes (which it is in the go runtime).  So we keep track
+    of the notional end of the segment as it moves up and down, and
+    call brk only when it grows.
+    
+    Corrects CL 94776.
+    
+    Updates #23860.
+    Fixes #24013.
+    
+    Change-Id: I754232decab81dfd71d690f77ee6097a17d9be11
+    Reviewed-on: https://go-review.googlesource.com/97595
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mem_plan9.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

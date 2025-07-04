@@ -1,0 +1,29 @@
+commit 227e7126857df9f73863fc60090976b98fa9dd4e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 22 14:14:44 2023 -0400
+
+    cmd/go: update build info when updating PGO file
+    
+    setPGOProfilePath sets Package.Internal.PGOProfile very late in package
+    loading (because it may split/copy packages). Build info was computed
+    long before this, causing PGO packages to miss -pgo from their build
+    settings.
+    
+    Adjust BuildInfo to be stored as *debug.BuildInfo rather than eagerly
+    converting to a string. This enables setPGOProfilePath to update the
+    BuildInfo at the same point that it sets PGOProfile.
+    
+    Change-Id: Ic12266309bfd0f8ec440b0dc94d4df813b27cb04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496958
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 42 ++++++++++++++-------
+ src/cmd/go/internal/load/test.go                   |  4 +-
+ src/cmd/go/internal/work/exec.go                   | 14 ++++---
+ src/cmd/go/testdata/script/build_pgo.txt           | 18 +++++++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt      | 44 +++++++++++++++++-----
+ .../go/testdata/script/build_pgo_auto_multi.txt    | 19 ++++++++--
+ 6 files changed, 103 insertions(+), 38 deletions(-)

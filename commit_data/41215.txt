@@ -1,0 +1,14 @@
+commit 53558cb721ec7a2a6f87ff87a4095e956c587e3d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 31 14:54:21 2020 -0800
+
+    doc/go1.14: fix math/big.(*Int).GCD notes
+    
+    GCD is a method, not a function, so the link was broken.
+    
+    Change-Id: Icbb09d39959e7c71a48987b15bb82febe12c3a19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217303
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit ca49b8d7af25a51309af277c27724b01bd80453f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 12:43:04 2023 -0400
+
+    cmd/go: remove a redundant HasExec check in TestScript/README
+    
+    The test checks testenv.HasExec right before calling testenv.Command,
+    but testenv.Command already skips the test if HasExec is false.
+    
+    Change-Id: I04716bf823a1b76640394a964973ff34c65afb1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491658
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/scriptreadme_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

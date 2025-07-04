@@ -1,0 +1,16 @@
+commit 8d8225d529f6c3cff1f8bfa7ff302d5a4a8dbdd8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 17:56:23 2009 -0700
+
+    turn gc of unused data/code back on in loaders.
+    
+    turned it off while debugging 8 runtime problem,
+    checked in the change accidentally.
+    
+    R=r
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=27040
+    CL=27046
+
+ src/cmd/ld/go.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

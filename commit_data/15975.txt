@@ -1,0 +1,14 @@
+commit b735eeb323ecae3769e094045e7a908390e1f32f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 16:00:58 2013 -0700
+
+    cmd/ld: fix OpenBSD (third try)
+    
+    On OpenBSD don't mark runtime.{g,m} as STT_TLS symbols.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7867046
+
+ src/cmd/ld/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 333e90448a0e55f2e1161853caecf3d30ef3a74a
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Dec 5 18:48:21 2019 +0100
+
+    crypto/rand: generate random numbers using RtlGenRandom on Windows
+    
+    CryptGenRandom appears to be unfavorable these days, whereas the classic
+    RtlGenRandom is still going strong.
+    
+    This commit also moves the warnBlocked function into rand_unix, rather
+    than rand, because it's now only used on unix.
+    
+    Fixes #33542
+    
+    Change-Id: I5c02a5917572f54079d627972401efb6e1ce4057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210057
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/crypto/rand/rand.go         |  6 +-----
+ src/crypto/rand/rand_unix.go    |  4 ++++
+ src/crypto/rand/rand_windows.go | 40 ++++++++--------------------------------
+ src/syscall/syscall_windows.go  |  1 +
+ src/syscall/zsyscall_windows.go | 13 +++++++++++++
+ 5 files changed, 27 insertions(+), 37 deletions(-)

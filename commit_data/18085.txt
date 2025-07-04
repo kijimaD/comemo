@@ -1,0 +1,15 @@
+commit e6b023473e03762056c406a655c9fb30141752e9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 19 21:37:44 2013 +0100
+
+    runtime: reduce delays in finalizer test.
+    
+    The runtime tests are executed 4 times in all.bash
+    and there is currently a 5-second delay each time.
+    
+    R=golang-dev, minux.ma, khr, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/42450043
+
+ src/pkg/runtime/mfinal_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

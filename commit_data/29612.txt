@@ -1,0 +1,16 @@
+commit 67ce6af4567e6edb8b246494f7faa511485666ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 22:30:14 2016 +0000
+
+    cmd/dist: skip plugin tests on noopt builder for now
+    
+    Updates #17937
+    
+    Change-Id: Ic822da1786a983b3b7bca21b68c3d5fc4bdfaee2
+    Reviewed-on: https://go-review.googlesource.com/33428
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

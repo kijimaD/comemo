@@ -1,0 +1,23 @@
+commit 3875258f971ce534262020c8342e70226b770d95
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:49:46 2023 -0800
+
+    misc/wasm: use NodeJS crypto library
+    
+    The move to NodeJS 18 allows us to replace the custom
+    crypto functions with the expanded crypto primitives of
+    the NodeJS crypto library.
+    
+    Fixes #56860
+    
+    Change-Id: I8726b4003150f31521f246f613b6976641b9fa69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463975
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ misc/wasm/wasm_exec_node.js | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

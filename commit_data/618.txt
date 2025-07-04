@@ -1,0 +1,14 @@
+commit 24b3995cb655f58745545f05979294b6e029d668
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 11 17:11:16 2008 -0700
+
+    - 2 bugs with composite literals
+    
+    R=r
+    OCL=15179
+    CL=15179
+
+ test/bugs/bug096.go | 25 +++++++++++++++++++++++++
+ test/bugs/bug097.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 3 files changed, 81 insertions(+)

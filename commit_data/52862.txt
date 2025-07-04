@@ -1,0 +1,36 @@
+commit 5b09a28596492af77c7d14cd950becf05f61e89f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 3 20:59:12 2023 +0000
+
+    Revert "crypto/sha512: add WriteString and WriteByte method"
+    
+    This reverts CL 483816
+    
+    Reason for revert: can cause cgo errors when using boringcrypto.  See #59954.
+    
+    For #38776
+    For #59954
+    
+    Change-Id: I23a2a1f0aed2a08b73855b5038ccb24a4d0a02c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492355
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/internal/boring/sha.go        | 28 -------------
+ src/crypto/sha512/sha512.go              | 67 ++++++--------------------------
+ src/crypto/sha512/sha512_test.go         | 34 +---------------
+ src/crypto/sha512/sha512block.go         |  2 +-
+ src/crypto/sha512/sha512block_amd64.go   | 21 +++-------
+ src/crypto/sha512/sha512block_amd64.s    | 12 +++---
+ src/crypto/sha512/sha512block_arm64.go   | 17 ++------
+ src/crypto/sha512/sha512block_arm64.s    |  6 +--
+ src/crypto/sha512/sha512block_decl.go    | 12 +-----
+ src/crypto/sha512/sha512block_generic.go |  4 --
+ src/crypto/sha512/sha512block_ppc64x.s   |  8 ++--
+ src/crypto/sha512/sha512block_s390x.go   |  9 +----
+ src/crypto/sha512/sha512block_s390x.s    |  6 +--
+ 13 files changed, 40 insertions(+), 186 deletions(-)

@@ -1,0 +1,12 @@
+commit bd7c4aee96b5256d59a9805a2bfbb2d6394df9ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 16 10:25:20 2012 -0700
+
+    CONTRIBUTORS: add Colby Ranger (Google CLA)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6037052
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

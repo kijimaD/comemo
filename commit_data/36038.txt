@@ -1,0 +1,27 @@
+commit a371bc2dfdf1fe4166c83be1177fbecb03d8da53
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 17 17:36:15 2018 -0700
+
+    cmd/cgo: don't report inconsistency error for incomplete typedef
+    
+    In CLs 122575 and 123177 the cgo tool started explicitly looking up
+    typedefs. When there are two Go files using import "C", and the first
+    one has an incomplete typedef and the second one has a complete
+    version of the same typedef, then we will now record a version of the
+    first typedef which will not match the recorded version of the second
+    typedef, producing an "inconsistent definitions" error. Fix this by
+    silently merging incomplete typedefs with complete ones.
+    
+    Fixes #26430
+    
+    Change-Id: I9e629228783b866dd29b5c3a31acd48f6e410a2d
+    Reviewed-on: https://go-review.googlesource.com/124575
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/issue26430.go   | 10 ++++++++++
+ misc/cgo/test/issue26430/a.go | 13 +++++++++++++
+ misc/cgo/test/issue26430/b.go | 13 +++++++++++++
+ src/cmd/cgo/main.go           | 10 ++++++++++
+ 4 files changed, 46 insertions(+)

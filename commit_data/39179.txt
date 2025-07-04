@@ -1,0 +1,20 @@
+commit e7b7f874323bf105bebaf92db23fc4ba6f5c5257
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 14 14:46:15 2019 -0700
+
+    cmd/compile: invalidate CFG when fuseIf triggers
+    
+    The compiler appears to have a latent bug:
+    fusePlain calls invalidateCFG when it changes block structure,
+    but fuseIf does not.
+    
+    Fix this by hoisting the call to invalidateCFG to the top level.
+    
+    Change-Id: Ic960fb3ac963b15b4a225aad84863d58efa954e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177198
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/fuse.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

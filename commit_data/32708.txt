@@ -1,0 +1,19 @@
+commit 9f1a7192dc574b47f8fae81c16796f808806f032
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 12 16:45:26 2017 -0400
+
+    misc/cgo/test: set the traceback level instead of failing the test
+    
+    Previously, test7978 failed if the user did not invoke it with
+    GOTRACEBACK=2 already set in their environment. Environment-sensitive
+    test are awkward, and in this case there is a very simple workaround:
+    set the traceback level to the necessary value explicitly.
+    
+    Change-Id: I7d576f24138aa8a41392148eae11bbeaef558573
+    Reviewed-on: https://go-review.googlesource.com/63275
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue7978.go |  9 ++------
+ src/cmd/dist/test.go       | 54 ++++++++++++----------------------------------
+ 2 files changed, 16 insertions(+), 47 deletions(-)

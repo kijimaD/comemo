@@ -1,0 +1,228 @@
+commit 6d2b3351f6312ebc924d0014013088c69b9c1bc2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 9 18:51:12 2020 -0800
+
+    test: match gofrontend error messages
+    
+    fixedbugs/bug13343.go:10:12: error: initialization expressions for ‘b’ and ‘c’ depend upon each other
+    fixedbugs/bug13343.go:11:9: note: ‘c’ defined here
+    fixedbugs/bug13343.go:11:9: error: initialization expression for ‘c’ depends upon itself
+    fixedbugs/bug13343.go:11:9: error: initialization expressions for ‘c’ and ‘b’ depend upon each other
+    fixedbugs/bug13343.go:10:12: note: ‘b’ defined here
+    
+    fixedbugs/issue10700.dir/test.go:24:10: error: reference to method ‘Do’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:25:10: error: reference to method ‘do’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:27:10: error: reference to method ‘Dont’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:28:13: error: reference to undefined field or method ‘Dont’
+    fixedbugs/issue10700.dir/test.go:31:10: error: reference to undefined field or method ‘do’
+    fixedbugs/issue10700.dir/test.go:33:13: error: reference to undefined field or method ‘do’
+    fixedbugs/issue10700.dir/test.go:34:10: error: reference to undefined field or method ‘Dont’
+    fixedbugs/issue10700.dir/test.go:35:13: error: reference to undefined field or method ‘Dont’
+    fixedbugs/issue10700.dir/test.go:37:10: error: reference to method ‘Do’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:38:10: error: reference to method ‘do’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:40:13: error: reference to undefined field or method ‘do’
+    fixedbugs/issue10700.dir/test.go:41:10: error: reference to method ‘Dont’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:42:13: error: reference to undefined field or method ‘Dont’
+    fixedbugs/issue10700.dir/test.go:43:10: error: reference to method ‘secret’ in type that is pointer to interface, not interface
+    fixedbugs/issue10700.dir/test.go:44:13: error: reference to unexported field or method ‘secret’
+    
+    fixedbugs/issue10975.go:13:9: error: interface contains embedded non-interface
+    
+    fixedbugs/issue11326.go:26:17: error: floating-point constant overflow
+    fixedbugs/issue11326.go:27:17: error: floating-point constant overflow
+    fixedbugs/issue11326.go:28:17: error: floating-point constant overflow
+    
+    fixedbugs/issue11361.go:9:11: error: import file ‘fmt’ not found
+    fixedbugs/issue11361.go:11:11: error: reference to undefined name ‘fmt’
+    
+    fixedbugs/issue11371.go:12:15: error: floating-point constant truncated to integer
+    fixedbugs/issue11371.go:13:15: error: integer constant overflow
+    fixedbugs/issue11371.go:17:15: error: floating-point constant truncated to integer
+    
+    fixedbugs/issue11590.go:9:17: error: integer constant overflow
+    fixedbugs/issue11590.go:9:17: error: integer constant overflow
+    fixedbugs/issue11590.go:10:22: error: complex real part overflow
+    fixedbugs/issue11590.go:10:22: error: complex real part overflow
+    fixedbugs/issue11590.go:11:23: error: complex real part overflow
+    fixedbugs/issue11590.go:11:23: error: complex real part overflow
+    fixedbugs/issue11590.go:9:19: error: integer constant overflow
+    fixedbugs/issue11590.go:10:24: error: complex real part overflow
+    fixedbugs/issue11590.go:11:25: error: complex real part overflow
+    
+    fixedbugs/issue11610.go:11:7: error: import path is empty
+    fixedbugs/issue11610.go:12:4: error: invalid character 0x3f in input file
+    fixedbugs/issue11610.go:14:1: error: expected identifier
+    fixedbugs/issue11610.go:14:1: error: expected type
+    
+    fixedbugs/issue11614.go:14:9: error: interface contains embedded non-interface
+    
+    fixedbugs/issue13248.go:13:1: error: expected operand
+    fixedbugs/issue13248.go:13:1: error: missing ‘)’
+    fixedbugs/issue13248.go:12:5: error: reference to undefined name ‘foo’
+    
+    fixedbugs/issue13266.go:10:8: error: package name must be an identifier
+    fixedbugs/issue13266.go:10:8: error: expected ‘;’ or newline after package clause
+    fixedbugs/issue13266.go:10:8: error: expected declaration
+    
+    fixedbugs/issue13273.go:50:18: error: expected ‘chan’
+    fixedbugs/issue13273.go:53:24: error: expected ‘chan’
+    
+    fixedbugs/issue13274.go:11:58: error: expected ‘}’
+    
+    fixedbugs/issue13365.go:14:19: error: index expression is negative
+    fixedbugs/issue13365.go:15:21: error: index expression is negative
+    fixedbugs/issue13365.go:16:22: error: index expression is negative
+    fixedbugs/issue13365.go:19:13: error: some element keys in composite literal are out of range
+    fixedbugs/issue13365.go:22:19: error: incompatible type for element 1 in composite literal
+    fixedbugs/issue13365.go:23:21: error: incompatible type for element 1 in composite literal
+    fixedbugs/issue13365.go:24:22: error: incompatible type for element 1 in composite literal
+    
+    fixedbugs/issue13415.go:14:5: error: redefinition of ‘x’
+    fixedbugs/issue13415.go:14:5: note: previous definition of ‘x’ was here
+    fixedbugs/issue13415.go:14:5: error: ‘x’ declared but not used
+    
+    fixedbugs/issue13471.go:12:25: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:13:25: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:14:25: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:15:24: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:16:23: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:18:26: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:19:26: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:20:26: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:21:25: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:22:24: error: floating-point constant truncated to integer
+    fixedbugs/issue13471.go:24:24: error: floating-point constant truncated to integer
+    
+    fixedbugs/issue13821b.go:18:12: error: incompatible types in binary expression
+    fixedbugs/issue13821b.go:19:13: error: incompatible types in binary expression
+    fixedbugs/issue13821b.go:20:13: error: incompatible types in binary expression
+    fixedbugs/issue13821b.go:21:13: error: incompatible types in binary expression
+    fixedbugs/issue13821b.go:22:13: error: incompatible types in binary expression
+    fixedbugs/issue13821b.go:24:12: error: incompatible types in binary expression
+    
+    fixedbugs/issue14006.go:24:18: error: expected ‘;’ or ‘}’ or newline
+    fixedbugs/issue14006.go:30:18: error: expected ‘;’ or ‘}’ or newline
+    fixedbugs/issue14006.go:37:22: error: expected ‘;’ or ‘}’ or newline
+    fixedbugs/issue14006.go:43:22: error: expected ‘;’ or ‘}’ or newline
+    fixedbugs/issue14006.go:59:17: note: previous definition of ‘labelname’ was here
+    fixedbugs/issue14006.go:64:17: error: label ‘labelname’ already defined
+    fixedbugs/issue14006.go:24:17: error: value computed is not used
+    fixedbugs/issue14006.go:30:17: error: value computed is not used
+    fixedbugs/issue14006.go:37:20: error: value computed is not used
+    fixedbugs/issue14006.go:43:20: error: value computed is not used
+    fixedbugs/issue14006.go:59:17: error: label ‘labelname’ defined and not used
+    
+    fixedbugs/issue14010.go:13:14: error: invalid left hand side of assignment
+    fixedbugs/issue14010.go:14:14: error: invalid left hand side of assignment
+    fixedbugs/issue14010.go:14:9: error: invalid use of type
+    
+    fixedbugs/issue14321.go:30:10: error: method ‘F’ is ambiguous in type ‘C’
+    fixedbugs/issue14321.go:31:10: error: ‘G’ is ambiguous via ‘A’ and ‘B’
+    fixedbugs/issue14321.go:33:10: error: type ‘C’ has no method ‘I’
+    
+    fixedbugs/issue8183.go:12:14: error: integer constant overflow
+    
+    fixedbugs/issue9036.go:21:12: error: invalid prefix for floating constant
+    fixedbugs/issue9036.go:22:12: error: invalid prefix for floating constant
+    
+    fixedbugs/issue9076.go:14:5: error: incompatible type in initialization (cannot use type uintptr as type int32)
+    fixedbugs/issue9076.go:15:5: error: incompatible type in initialization (cannot use type uintptr as type int32)
+    
+    For issue9083.go avoid an error about a variable that is set but not used.
+    
+    fixedbugs/issue9370.go:105:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:106:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:107:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:108:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:109:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:110:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:112:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:113:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:114:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:115:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:116:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:117:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:119:13: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:119:18: error: cannot use ‘_’ as value
+    fixedbugs/issue9370.go:36:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:39:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:43:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:46:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:50:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:53:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:56:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:57:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:58:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:59:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:60:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:61:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:65:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:68:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:70:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:71:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:72:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:73:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:74:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:75:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:77:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:78:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:79:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:80:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:81:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:82:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:84:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:85:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:86:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:87:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:88:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:89:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:91:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:92:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:93:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:94:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:95:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:96:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:98:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:99:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:100:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:101:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:102:15: error: invalid operation (func can only be compared to nil)
+    fixedbugs/issue9370.go:103:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue9370.go:121:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:122:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:123:15: error: incompatible types in binary expression
+    fixedbugs/issue9370.go:124:15: error: incompatible types in binary expression
+    
+    Change-Id: I4089de4919112b08f5f2bbec20f84fcc7dbe3955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276832
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug13343.go            |   4 +-
+ test/fixedbugs/issue10700.dir/test.go |  30 ++++----
+ test/fixedbugs/issue10975.go          |   2 +-
+ test/fixedbugs/issue11326.go          |  16 ++--
+ test/fixedbugs/issue11361.go          |   4 +-
+ test/fixedbugs/issue11371.go          |   6 +-
+ test/fixedbugs/issue11590.go          |   6 +-
+ test/fixedbugs/issue11610.go          |   4 +-
+ test/fixedbugs/issue11614.go          |   2 +-
+ test/fixedbugs/issue13248.go          |   4 +-
+ test/fixedbugs/issue13266.go          |   2 +-
+ test/fixedbugs/issue13273.go          |   4 +-
+ test/fixedbugs/issue13274.go          |   2 +-
+ test/fixedbugs/issue13365.go          |  14 ++--
+ test/fixedbugs/issue13415.go          |   2 +-
+ test/fixedbugs/issue13471.go          |  22 +++---
+ test/fixedbugs/issue13821b.go         |  12 +--
+ test/fixedbugs/issue14006.go          |  14 ++--
+ test/fixedbugs/issue14010.go          |   4 +-
+ test/fixedbugs/issue14321.go          |   8 +-
+ test/fixedbugs/issue8183.go           |   6 +-
+ test/fixedbugs/issue9036.go           |   4 +-
+ test/fixedbugs/issue9076.go           |   4 +-
+ test/fixedbugs/issue9083.go           |   1 +
+ test/fixedbugs/issue9370.go           | 140 +++++++++++++++++-----------------
+ 25 files changed, 159 insertions(+), 158 deletions(-)

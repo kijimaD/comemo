@@ -1,0 +1,13 @@
+commit 1baffa7da0b70cfc4a85fe319bb1f6b3dfa14d74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 7 21:42:30 2011 -0700
+
+    gotype: use go/types GcImporter
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4358043
+
+ src/cmd/gotype/gotype.go      | 70 ++-----------------------------------------
+ src/cmd/gotype/gotype_test.go | 12 ++------
+ 2 files changed, 4 insertions(+), 78 deletions(-)

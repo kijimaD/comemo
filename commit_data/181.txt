@@ -1,0 +1,10 @@
+commit 3f2d542817717400e28df072fa2ac20d648ad5be
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jun 16 17:04:39 2008 -0700
+
+    added and, or, xor opcodes
+    
+    SVN=123031
+
+ src/cmd/6g/gsubr.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

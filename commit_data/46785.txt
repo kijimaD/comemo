@@ -1,0 +1,31 @@
+commit 197b32817b8619d18cd648a7ab487e933c7150df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 3 15:49:01 2021 -0700
+
+    go/build: ignore package main files in TestDependencies
+    
+    The tree has package main files scattered around
+    in it for the purposes of running go generate.
+    
+    They're all marked "// +build ignore",
+    which gets special handling in TestDependencies.
+    It would be nice to be able to use other build tags,
+    such as "generate", as suggested by the go generate
+    design doc. Plus the build tag syntax is changing.
+    
+    This change skips all "package main" files.
+    By definition these aren't importable,
+    so they can't contribute to the dependency tree.
+    
+    We can't quite eliminate the "// +build ignore"
+    check, as it is used by packages runtime and syscall.
+    But it's still a step in the right direction.
+    
+    Change-Id: Ib9449acfdba75f570b87a4200afe944910d76222
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339592
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

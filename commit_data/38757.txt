@@ -1,0 +1,18 @@
+commit 2c802e9980427a1d47384b222dcbf4c9b4e84944
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 15 14:58:55 2019 +0000
+
+    net/http: add Server BaseContext & ConnContext fields to control early context
+    
+    Fixes golang/go#30694
+    
+    Change-Id: I12a0a870e4aee6576e879d88a4868666ef448298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167681
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: JP Sugarbroad <jpsugar@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 68 insertions(+), 2 deletions(-)

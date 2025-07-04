@@ -1,0 +1,22 @@
+commit 6184765f86db05510e94e6b7f747ba080d0c84ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 24 14:05:52 2015 -0700
+
+    go/types, go/constant: remove backward-compatibility files (cleanup)
+    
+    Not needed anymore since go/types is always built against the current
+    standard library.
+    
+    Fixes #11538.
+    
+    Change-Id: I2f07d73703f4e5661c4b5df5d487939dcf530b43
+    Reviewed-on: https://go-review.googlesource.com/13897
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/constant/go13.go  | 24 ------------------------
+ src/go/constant/go14.go  | 13 -------------
+ src/go/constant/value.go |  4 ++--
+ src/go/types/expr.go     |  6 +++---
+ src/go/types/go11.go     | 17 -----------------
+ src/go/types/go12.go     | 17 -----------------
+ 6 files changed, 5 insertions(+), 76 deletions(-)

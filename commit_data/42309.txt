@@ -1,0 +1,24 @@
+commit 14ae846f54c105f4d48f1afa5aa5446e4b9e7cdc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 6 19:18:07 2020 +0000
+
+    runtime: avoid overflow in (*mheap).grow
+    
+    Currently when checking if we can grow the heap into the current arena,
+    we do an addition which may overflow. This is particularly likely on
+    32-bit systems.
+    
+    Avoid this situation by explicitly checking for overflow, and adding in
+    some comments about when overflow is possible, when it isn't, and why.
+    
+    For #35954.
+    
+    Change-Id: I2d4ecbb1ccbd43da55979cc721f0cd8d1757add2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231337
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mheap.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

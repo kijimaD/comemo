@@ -1,0 +1,26 @@
+commit 3ce29b44bb8eaecbd5000202564ad4f52ad1cf69
+Author: Jordi Martin <jordimartin@gmail.com>
+Date:   Fri Oct 4 11:56:26 2019 +0000
+
+    cmd/go: set expected filename when building a local package with -o is pointing to a folder
+    
+    In the local package build process, when -o is pointing to an existing folder, the object
+    the filename is generated from files listed on the command line like when the -o is
+    not pointing to a folder instead of using the `importPath` that is going to be `command-line-arguments`
+    
+    Fixes #34535
+    
+    Change-Id: I09a7609c17a2ccdd83da32f01247c0ef473dea1e
+    GitHub-Last-Rev: b3224226a3914aa2573e47a6daff9fd5a48ca225
+    GitHub-Pull-Request: golang/go#34562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197544
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go                 | 48 ++++++++++++++++++-------
+ src/cmd/go/internal/load/pkg_test.go            | 44 ++++++++++++++---------
+ src/cmd/go/internal/test/test.go                |  2 +-
+ src/cmd/go/internal/work/build.go               |  7 ++--
+ src/cmd/go/testdata/script/build_multi_main.txt | 10 ++++++
+ 5 files changed, 77 insertions(+), 34 deletions(-)

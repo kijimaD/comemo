@@ -1,0 +1,24 @@
+commit 2ce84c3a6e14bc2720ca635cb38cac565fab0d9b
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri May 12 10:27:33 2023 -0400
+
+    go/types, types2: be sure to type-check wrong methods in missingMethod
+    
+    In the case of a wrong method, we were not ensuring that it was
+    type-checked before passing it to funcString.
+    
+    Formatting the missing method error message requires a fully set-up
+    signature.
+    
+    Fixes #59848
+    
+    Change-Id: I1467e036afbbbdd00899bfd627a945500dc709c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go           |  4 ++++
+ src/go/types/lookup.go                              |  4 ++++
+ src/internal/types/testdata/fixedbugs/issue59848.go | 10 ++++++++++
+ 3 files changed, 18 insertions(+)

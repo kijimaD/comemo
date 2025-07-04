@@ -1,0 +1,13 @@
+commit c1c8c3c8c4194de357d1be925b2b70f6fc88b72e
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Jul 7 07:35:39 2014 -0400
+
+    runtime: export _rt0 for android
+    
+    LGTM=iant, minux
+    R=golang-codereviews, minux, iant
+    CC=golang-codereviews
+    https://golang.org/cl/109470043
+
+ src/pkg/runtime/os_android.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

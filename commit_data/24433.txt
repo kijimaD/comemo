@@ -1,0 +1,18 @@
+commit 89a68e9f1adb939e5a58ed38cf6c03119c324480
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 3 09:35:40 2015 -0700
+
+    cmd/compile/internal/gc: fix the build
+    
+    Commit acc90c5 passed the trybots, lingered for weeks, and in the
+    meantime the type of this variable changed to a bool. I didn't rebase
+    and re-run the trybots before submitting.
+    
+    Fixes #12832
+    
+    Change-Id: If24fda227edd8207f8069c67f1c45f08e6ac215a
+    Reviewed-on: https://go-review.googlesource.com/15286
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

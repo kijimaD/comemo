@@ -1,0 +1,19 @@
+commit fcd5fd2ad4c9283307c0e0b9f15c00b32c57483a
+Author: Shane Hansen <shanemhansen@gmail.com>
+Date:   Wed Oct 17 14:29:00 2012 -0400
+
+    crypto/cipher: panic on invalid IV length
+    
+    Give better user feedback when invalid IV is used
+    to construct a cipher.
+    
+    Fixes #3411
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/6652053
+
+ src/pkg/crypto/cipher/cbc.go | 6 ++++++
+ src/pkg/crypto/cipher/cfb.go | 6 ++++++
+ src/pkg/crypto/cipher/ctr.go | 2 +-
+ 3 files changed, 13 insertions(+), 1 deletion(-)

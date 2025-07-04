@@ -1,0 +1,21 @@
+commit 4b17b36b3f0ea85728d8690c93a6483764804441
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 14:23:15 2023 -0400
+
+    cmd/compile/internal/devirtualize: sort equal weight CallStat.Hottest by name
+    
+    When two callees have equal weight, we need to sort by another criteria
+    to ensure that we get stable output.
+    
+    Note that this is only for the CallStat debug JSON output. The actual
+    callee selection already does this secondary sort in
+    findHotConcreteCallee.
+    
+    Change-Id: I0de105623c5ccc793ca6f5799ea25e57bc286722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527796
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

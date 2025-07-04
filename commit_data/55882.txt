@@ -1,0 +1,18 @@
+commit a21b275a5b3e1d72e533b681406d88f6507f17bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 16:35:16 2024 -0500
+
+    runtime: gofmt
+    
+    CL 565515 introduced these non-gofmt'ed lines. Gofmt them.
+    
+    Change-Id: Id64244c204b2d6a0bd6377caa17869284eb34f45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570216
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/map_fast32.go  | 2 +-
+ src/runtime/map_fast64.go  | 2 +-
+ src/runtime/map_faststr.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

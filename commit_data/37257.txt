@@ -1,0 +1,20 @@
+commit c6c602a92612a855d8eb2f649f3dff75bb5fb9ad
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 28 12:29:07 2017 -0400
+
+    internal/trace: use MU slope to optimize MMU
+    
+    This commit speeds up MMU construction by ~10X (and reduces the number
+    of windows considered by ~20X) by using an observation about the
+    maximum slope of the windowed mutator utilization function to advance
+    the window time in jumps if the window's current mean mutator
+    utilization is much larger than the current minimum.
+    
+    Change-Id: If3cba5da0c4adc37b568740f940793e491e96a51
+    Reviewed-on: https://go-review.googlesource.com/c/60791
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/internal/traceparser/gc.go | 33 +++++++++++++++++++++++++++++++--
+ 1 file changed, 31 insertions(+), 2 deletions(-)

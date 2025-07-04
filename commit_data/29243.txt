@@ -1,0 +1,39 @@
+commit 154860ff17dacbf309ed247277d245ec887af6d4
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Oct 28 20:09:02 2016 -0700
+
+    syscall: remove X__cmsg_data from Cmsghdr
+    
+    This field is a zero length array and has little use. Since Go 1.5, trailing
+    zero-length arrays take up space. Both syscall.UnixRights() and
+    syscall.ParseSocketControlMessage() depend on being able to do an unsafe cast
+    of socket control message data to Cmsghdr this is only safe if the socket
+    control message data is greater than or equal to the size of Cmsghdr. Since
+    control message data that is equal in size to Cmsghdr without X__cmsg_data is
+    a valid socket control message, we must remove X__cmsg_data or not perform the
+    unsafe cast.
+    
+    Removing X__cmsg_data will prevent Go code that uses X__cmsg_data from
+    compiling, but removing the unsafe cast will cause Go code that uses
+    X__cmsg_data to fail or exhibit undefined behavior at runtime. It was
+    therefore decided that removing X__cmsg_data was the better option.
+    
+    Fixes #17649
+    
+    Change-Id: I39f323f978eca09d62da5785c5c5c9c7cbdf8c31
+    Reviewed-on: https://go-review.googlesource.com/32319
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ api/except.txt                       | 6 ++++++
+ src/syscall/ztypes_linux_386.go      | 7 +++----
+ src/syscall/ztypes_linux_amd64.go    | 7 +++----
+ src/syscall/ztypes_linux_arm.go      | 7 +++----
+ src/syscall/ztypes_linux_arm64.go    | 7 +++----
+ src/syscall/ztypes_linux_mips64.go   | 7 +++----
+ src/syscall/ztypes_linux_mips64le.go | 7 +++----
+ src/syscall/ztypes_linux_ppc64.go    | 7 +++----
+ src/syscall/ztypes_linux_ppc64le.go  | 7 +++----
+ 9 files changed, 30 insertions(+), 32 deletions(-)

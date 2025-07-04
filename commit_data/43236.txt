@@ -1,0 +1,15 @@
+commit 68bc950583221c972a132a2aa2813b6a1f5cd955
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 11 12:52:01 2020 -0400
+
+    cmd/compile: enable late call lowering for "callDeferStack"
+    
+    Change-Id: I773fce43d43f6e19180531e7bd1cc50bd8f31f75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248187
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

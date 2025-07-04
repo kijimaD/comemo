@@ -1,0 +1,19 @@
+commit 5ce9d9fee85bbdc952b7b20e94811fa24d36f1f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 15:03:18 2023 -0800
+
+    go/types: use the same interface method sorting as types2
+    
+    See also CL 321231 which introduces object.less to match
+    expected compiler behavior.
+    
+    Change-Id: I56fbf332a04596dc96393b71d40acf4df5d950fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461677
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/typeset.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

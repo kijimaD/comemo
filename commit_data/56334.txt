@@ -1,0 +1,18 @@
+commit c5698e31552953a0487ec23e0a015c02067065d3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 15:03:12 2023 +0800
+
+    cmd/pprof: fix exception when file or path contains colon
+    
+    Fixes #63924
+    
+    Change-Id: I4ea17979faaca04eb6b046abffca2dd77397e0cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/pprof/pprof.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

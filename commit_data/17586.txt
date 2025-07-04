@@ -1,0 +1,14 @@
+commit 73790d407c9271a356eb374006d1b23303229d72
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 13 10:28:30 2013 +1000
+
+    misc/dist: include cover and vet, add -tool flag to specify go.tools tag
+    
+    Fixes #6356.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13333052
+
+ misc/dist/bindist.go | 44 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)

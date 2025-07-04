@@ -1,0 +1,36 @@
+commit 6fd82d83d697edebbe826a028e752c96f195111f
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Sep 3 01:19:51 2015 +0300
+
+    net/http: optimize some io.Copy calls by reusing buffers
+    
+    Optimize two calls of io.Copy which cannot make use of neither
+    io.ReaderFrom nor io.WriterTo optimization tricks by replacing them with
+    io.CopyBuffer with reusable buffers.
+    
+    First is fallback call to io.Copy when server misses the optimized case
+    of using sendfile to copy from a regular file to net.TCPConn; second is
+    use of io.Copy on piped reader/writer when handler implementation uses
+    http.CloseNotifier interface. One of the notable users of
+    http.CloseNotifier is httputil.ReverseProxy.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkCloseNotifier-4     309591        303388        -2.00%
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkCloseNotifier-4     50             49             -2.00%
+    
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkCloseNotifier-4     36168         3140          -91.32%
+    
+    Fixes #12455
+    
+    Change-Id: I512e6aa2f1aeed2ed00246afb3350c819b65b87e
+    Reviewed-on: https://go-review.googlesource.com/14177
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 15 +++++++++++++--
+ 2 files changed, 45 insertions(+), 2 deletions(-)

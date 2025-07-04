@@ -1,0 +1,27 @@
+commit a51713103b5769a792b691e313254b7806855fa6
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Wed Feb 7 11:43:05 2024 -0500
+
+    cmd/trace/v2,internal/trace: use correct frame for identifying goroutines
+    
+    To determine the identity of a goroutine for displaying in the trace UI,
+    we should use the root frame from a call stack. This will be the
+    starting function for the goroutine and is the same for each call stack
+    from a given goroutine. The new tracer no longer includes starting PCs
+    for goroutines which existed at the start of tracing, so we can't use a
+    PC for grouping together goroutines any more. Instead, we just use the
+    name of the entry function for grouping.
+    
+    Fixes #65574
+    
+    Change-Id: I5324653316f1acf0ab90c30680f181060ea45dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562455
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/trace/v2/goroutines.go     | 43 +++++++++++++-------------------------
+ src/cmd/trace/v2/pprof.go          | 23 +++++++-------------
+ src/internal/trace/summary.go      | 15 ++++++++-----
+ src/internal/trace/summary_test.go | 13 ++++++++++++
+ 4 files changed, 44 insertions(+), 50 deletions(-)

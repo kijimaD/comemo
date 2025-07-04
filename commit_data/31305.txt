@@ -1,0 +1,24 @@
+commit d40bb738ff59bada723fe5f834d41531391b532a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 22 17:35:28 2017 -0700
+
+    cmd/compile: remove types.Sym.lsym
+    
+    It was just a cache, and the CL series yesterday
+    removed 40% of the calls to types.Linksym in make.bash.
+    
+    Testing atop CL 40693 (backend concurrency)
+    indicates that removing it is actually a very minor
+    performance improvement.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I97c2973036964acdd11b3cb842bc31f33ae60389
+    Reviewed-on: https://go-review.googlesource.com/41492
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/types/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/types/sym.go         | 6 +-----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

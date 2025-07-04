@@ -1,0 +1,22 @@
+commit 6dd92ea6cb09c65bd4d5251056865f451f8f15f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 21:26:15 2008 -0700
+
+    - fixed import bug (import "...")
+    - better debugging support
+    - removed dead code
+    
+    R=r
+    OCL=13680
+    CL=13680
+
+ usr/gri/gosrc/compilation.go |  13 ++++--
+ usr/gri/gosrc/decls.go       |   2 +-
+ usr/gri/gosrc/export.go      |  64 +++++++++++----------------
+ usr/gri/gosrc/globals.go     |   4 +-
+ usr/gri/gosrc/go.go          |   4 ++
+ usr/gri/gosrc/import.go      | 100 +++++++++++++++++++------------------------
+ usr/gri/gosrc/object.go      |  20 ++++++++-
+ usr/gri/gosrc/parser.go      |  29 +++++++++++--
+ usr/gri/gosrc/type.go        |  25 +++++++++++
+ 9 files changed, 156 insertions(+), 105 deletions(-)

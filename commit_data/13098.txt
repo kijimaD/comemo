@@ -1,0 +1,16 @@
+commit 4973c1fc7e050da54c3d741ceb57619a0a1ff1f7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun May 20 14:26:20 2012 +1000
+
+    exp/html: adjust inRowIM to match spec
+    
+    Delete cases that just fall down to "anything else" action.
+    
+    Handle </tbody>, </tfoot>, and </thead>.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6203061
+
+ src/pkg/exp/html/parse.go | 22 +++++++---------------
+ 1 file changed, 7 insertions(+), 15 deletions(-)

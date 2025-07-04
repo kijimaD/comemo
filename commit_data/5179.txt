@@ -1,0 +1,28 @@
+commit 01eaf780a8d09ce0b41526fa2701cfbba80f2b8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 10:53:16 2010 -0700
+
+    gc: add panic and recover (still unimplemented in runtime)
+    main semantic change is to enforce single argument to panic.
+    
+    runtime: change to 1-argument panic.
+    use String method on argument if it has one.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/812043
+
+ src/cmd/gc/align.c          |  1 +
+ src/cmd/gc/builtin.c.boot   |  3 +-
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/lex.c            |  1 +
+ src/cmd/gc/runtime.go       |  4 ++-
+ src/cmd/gc/typecheck.c      | 20 ++++++++++++-
+ src/cmd/gc/walk.c           | 10 +++++--
+ src/pkg/runtime/386/asm.s   | 27 +++++++++++++-----
+ src/pkg/runtime/amd64/asm.s | 25 +++++++++++++----
+ src/pkg/runtime/arm/asm.s   | 15 ++++++++++
+ src/pkg/runtime/print.c     | 68 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/runtime.c   | 19 +++++++++----
+ src/pkg/runtime/runtime.h   |  4 ++-
+ 13 files changed, 173 insertions(+), 25 deletions(-)

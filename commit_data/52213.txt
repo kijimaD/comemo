@@ -1,0 +1,19 @@
+commit 618fb4ab068272cc87b137d9fc527210be4b8ad2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 7 20:27:59 2023 -0800
+
+    runtime/cgo: add tsan sync for traceback function
+    
+    Change-Id: Ifb8d64f18b67c8b712feec29ffb6719c6e9718ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474198
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/testsanitizers/testdata/tsan13.go | 90 ++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/tsan_test.go       |  4 ++
+ src/runtime/cgo/gcc_traceback.c            |  2 +
+ 3 files changed, 96 insertions(+)

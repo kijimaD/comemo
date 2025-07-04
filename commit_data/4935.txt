@@ -1,0 +1,13 @@
+commit 16192c2d1001395dfe2a27414b3f7d148dc82a99
+Author: Anh Hai Trinh <anh.hai.trinh@gmail.com>
+Date:   Wed Feb 24 16:21:16 2010 +1100
+
+    Include an Eratosthenesque concurrent prime sieve to go along with the "naive" version.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/218046
+
+ test/chan/{sieve.go => sieve1.go} |   5 +-
+ test/chan/sieve2.go               | 171 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 174 insertions(+), 2 deletions(-)

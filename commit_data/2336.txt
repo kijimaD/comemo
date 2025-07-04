@@ -1,0 +1,14 @@
+commit 0a6d83567e6a2bc36961b87e0dc94d9716fa2cde
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 28 22:24:03 2009 -0700
+
+    print uint64 as uint64.
+    
+    R=ken
+    OCL=29568
+    CL=29570
+
+ src/cmd/gc/builtin.c.boot | 1 +
+ src/cmd/gc/sys.go         | 1 +
+ src/cmd/gc/walk.c         | 5 ++++-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

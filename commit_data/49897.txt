@@ -1,0 +1,21 @@
+commit 4a4e206884c64397c0b62e58be876f457b4cd477
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 15 09:58:30 2022 +0700
+
+    test: fix issue53702.go for noopt builder
+    
+    The test requires inlining happens.
+    
+    Updates #53702
+    
+    Change-Id: I0d93b5e29e271ace4098307b74c40c0e06d975e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423834
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/run.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

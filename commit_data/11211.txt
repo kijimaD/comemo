@@ -1,0 +1,14 @@
+commit f4ad8c1c5b8ec6c271a206a3ec74d57b03b7e0e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 13:14:27 2012 -0800
+
+    net/http/cgi: increase a flaky test timeout
+    
+    Fixes 2450, probably.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5540074
+
+ src/pkg/net/http/cgi/host_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

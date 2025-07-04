@@ -1,0 +1,17 @@
+commit 361cf4a8805051ac3b8829fbcd9d64a0d2f50a71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 19 20:09:02 2018 -0700
+
+    os: ignore SIGTTIN during TestTTYClose
+    
+    Otherwise, if the test is run in the background, it will stop waiting
+    for access to the terminal.
+    
+    Change-Id: Ib5224c6cb9060281e05c3b00cd2964445421e774
+    Reviewed-on: https://go-review.googlesource.com/c/136415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/timeout_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

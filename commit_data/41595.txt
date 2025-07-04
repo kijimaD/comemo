@@ -1,0 +1,16 @@
+commit 38ad3baf0054e926136d8a2cfe6458f41b544841
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 9 21:33:35 2020 -0700
+
+    cmd/cgo: always produce a parameter name for C code
+    
+    Updates #37746
+    
+    Change-Id: Ib64abe3995f310cd50ede47b0d3d159572901000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222622
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,27 @@
+commit 9e48df682c2198ba69880f9c2887bf23329720ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:41:56 2009 -0800
+
+    gofmt-ify eval
+    
+    R=rsc
+    http://go/go-review/1016054
+
+ src/pkg/exp/eval/abort.go     |    6 +-
+ src/pkg/exp/eval/bridge.go    |   16 +-
+ src/pkg/exp/eval/compiler.go  |   39 +-
+ src/pkg/exp/eval/eval_test.go |   63 +--
+ src/pkg/exp/eval/expr.go      |  122 ++--
+ src/pkg/exp/eval/expr1.go     | 1243 ++++++++++++++++++++++-------------------
+ src/pkg/exp/eval/expr_test.go |   42 +-
+ src/pkg/exp/eval/func.go      |   14 +-
+ src/pkg/exp/eval/gen.go       |  130 ++---
+ src/pkg/exp/eval/main.go      |    3 +-
+ src/pkg/exp/eval/scope.go     |   40 +-
+ src/pkg/exp/eval/stmt.go      |   78 ++-
+ src/pkg/exp/eval/stmt_test.go |   10 +-
+ src/pkg/exp/eval/type.go      |  182 +++---
+ src/pkg/exp/eval/typec.go     |    8 +-
+ src/pkg/exp/eval/value.go     |   20 +-
+ src/pkg/exp/eval/world.go     |   27 +-
+ 17 files changed, 1063 insertions(+), 980 deletions(-)

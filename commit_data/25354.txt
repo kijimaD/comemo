@@ -1,0 +1,16 @@
+commit ebf64bcc249539b6f66150ee98431301ab6ee679
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 11:09:43 2015 -0800
+
+    cmd/vet: add some checks for invalid pointer passing using cgo
+    
+    Update #12416.
+    
+    Change-Id: I21d97cbe211ccc8048e5a78ea4d89664f4d195ba
+    Reviewed-on: https://go-review.googlesource.com/17041
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/cgo.go          | 127 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/doc.go          |   6 +++
+ src/cmd/vet/testdata/cgo.go |  54 +++++++++++++++++++
+ 3 files changed, 187 insertions(+)

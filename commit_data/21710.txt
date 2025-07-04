@@ -1,0 +1,13 @@
+commit c651fdc0cf2ba7986ce0a0a23b4dbb44b6ecdae3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 11:24:27 2015 -0800
+
+    math/big: change Float.SetMantExp to always multiply mant by 2**exp
+    
+    Change-Id: If840e647376a2141f8c17729f7ef251bfff13f5f
+    Reviewed-on: https://go-review.googlesource.com/5810
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/big/float.go      | 12 +++++++-----
+ src/math/big/float_test.go | 14 ++++++++++++--
+ 2 files changed, 19 insertions(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit a4ded4b5ff90a58d1ecf55914af941c468a502f1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 13 14:35:15 2022 -0700
+
+    misc/cgo/test: remove timing dependency from TestParallelSleep
+    
+    Rename it TestIssue1560 since it no longer sleeps.
+    
+    For #1560
+    Fixes #45586
+    
+    Change-Id: I338eee9de43e871da142143943e9435218438e90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400194
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/test/callback_c.c | 31 ++++-----------------------
+ misc/cgo/test/cgo_test.go  |  2 +-
+ misc/cgo/test/testx.go     | 53 ++++++++++++++++++++++++----------------------
+ 3 files changed, 33 insertions(+), 53 deletions(-)

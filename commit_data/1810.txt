@@ -1,0 +1,20 @@
+commit 4eb7ceba58780b654c7411c6be593aaf8f23a455
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 16:06:17 2009 -0700
+
+    complain when trying to put T into an interface
+    if T has pointer methods.  this is just a heuristic
+    but it catches the problem robert ran into and
+    lets me put the larger interface issues aside for
+    now.  found one bug in pretty.
+    
+    R=ken
+    OCL=26141
+    CL=26141
+
+ src/cmd/gc/subr.c        | 17 ++++++++++++++---
+ test/golden.out          |  4 ----
+ test/interface4.go       |  6 +++---
+ test/interface6.go       | 32 ++++++++++++++++----------------
+ usr/gri/pretty/parser.go | 42 +++++++++++++++++++++---------------------
+ 5 files changed, 54 insertions(+), 47 deletions(-)

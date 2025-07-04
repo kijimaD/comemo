@@ -1,0 +1,24 @@
+commit 689f6f77f0d54b597ebc82e9bc4a8e1a59bce04d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 17 17:42:15 2019 +0000
+
+    runtime: integrate new page allocator into runtime
+    
+    This change integrates all the bits and pieces of the new page allocator
+    into the runtime, behind a global constant.
+    
+    Updates #35112.
+    
+    Change-Id: I6696bde7bab098a498ab37ed2a2caad2a05d30ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201764
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  59 ++++++++++++++++++++++-
+ src/runtime/gc_test.go     |   4 ++
+ src/runtime/malloc.go      |   3 ++
+ src/runtime/malloc_test.go |  17 +++++++
+ src/runtime/mgcscavenge.go |  22 +++++++--
+ src/runtime/mheap.go       | 113 ++++++++++++++++++++++++++++++++++++++++-----
+ 6 files changed, 199 insertions(+), 19 deletions(-)

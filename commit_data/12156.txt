@@ -1,0 +1,17 @@
+commit adbadf444dada2ac8d659818d82279252d2d1f35
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 23 12:16:43 2012 +0900
+
+    net: add a bit clarified multicast listener tests
+    
+    Also adds -external flag to allow use of external networks on tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5693043
+
+ src/pkg/net/dialgoogle_test.go |   4 +-
+ src/pkg/net/lookup_test.go     |  12 +--
+ src/pkg/net/multicast_test.go  | 185 ++++++++++++++++++++++++-----------------
+ src/pkg/net/server_test.go     |   2 +-
+ 4 files changed, 120 insertions(+), 83 deletions(-)

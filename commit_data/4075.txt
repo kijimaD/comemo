@@ -1,0 +1,16 @@
+commit e86afaf456b804398c100894b2467edf9716e623
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 14:26:29 2009 -0800
+
+    Don't emit line tags when source code is printed as part of
+    package documentation using templates. The line tag interferes
+    with the anchor tag introduces by the template.
+    
+    This fixes an an issue where some headers lost their ability
+    to link to the respective source code.
+    
+    R=rsc
+    https://golang.org/cl/154166
+
+ src/cmd/godoc/godoc.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

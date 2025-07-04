@@ -1,0 +1,23 @@
+commit c8fb0ec5a005289e9dd890b746e543b38bbd9528
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Apr 15 13:41:01 2021 -0500
+
+    cmd/compile: fix ANDI/SRWI merge on ppc64
+    
+    The shift amount should be masked to avoid rotation values
+    beyond the numer of bits. In this case, if the shift amount
+    is 0, it should rotate 0, not 32.
+    
+    Fixes #45589
+    
+    Change-Id: I1e764497a39d0ec128e29af42352b70c70b2ecc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310569
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go      | 2 +-
+ src/cmd/compile/internal/ssa/rewrite_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

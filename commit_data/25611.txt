@@ -1,0 +1,18 @@
+commit 97266969d8f9b0b2fd6c37121a3f0d52872efced
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 18 22:42:40 2016 -0500
+
+    cmd/dist: pass -tags race to go list in -race mode
+    
+    so that runtime/race tests are included in the race builder.
+    
+    Update #14011.
+    
+    Change-Id: I04ac6e47366fdb1fe84ba89da556c6d38f7d4a47
+    Reviewed-on: https://go-review.googlesource.com/18686
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit b0ad7a42686bd75a7276f03dac084f907d59f83c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 01:26:33 2010 +0200
+
+    5g: complex "regalloc"
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2727041
+
+ src/cmd/5g/gsubr.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

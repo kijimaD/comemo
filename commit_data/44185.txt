@@ -1,0 +1,18 @@
+commit 96a276363b130d0f0e5185f2f17c0f6bce43f885
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 20 20:41:16 2021 -0800
+
+    doc/go1.16: mention go/build changes
+    
+    For #40070
+    For #41191
+    For #43469
+    For #43632
+    
+    Change-Id: I6dc6b6ea0f35876a4c252e4e287a0280aca9d502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285213
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

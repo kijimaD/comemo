@@ -1,0 +1,14 @@
+commit 2168f2a68bb438996d14869ff7dd10a47cc0552c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 25 17:29:56 2016 -0700
+
+    math/big: simplify benchmarking code some more
+    
+    Follow-up cleanup to https://golang.org/cl/23424/ .
+    
+    Change-Id: Ifb05c1ff5327df6bc5f4cbc554e18363293f7960
+    Reviewed-on: https://go-review.googlesource.com/23446
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/math/big/arith_test.go | 48 ++++++++++++++++------------------------------
+ 1 file changed, 17 insertions(+), 31 deletions(-)

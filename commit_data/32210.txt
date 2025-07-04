@@ -1,0 +1,18 @@
+commit 6203a79b52a550f05511411a6c7bc3597381ee8e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Aug 13 19:49:27 2017 -0600
+
+    time: remove unused parameter
+    
+    lookupName is only called in one location, and one of the return
+    values is unused, so let's remove it.
+    
+    Change-Id: I35e22c7ec611e8eb349deb4f0561e212f7d9de0b
+    Reviewed-on: https://go-review.googlesource.com/55232
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/time/format.go   | 2 +-
+ src/time/zoneinfo.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

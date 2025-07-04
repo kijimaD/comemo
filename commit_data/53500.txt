@@ -1,0 +1,19 @@
+commit 8bfe839c5f514ae7a466889d74262c9e7d89742f
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 7 14:13:55 2023 -0700
+
+    net/http: close response body in TestRequestBodyLimit
+    
+    Failing to close the response body before returning leaks
+    the in-progress request past the test lifetime.
+    
+    Fixes #60264
+    
+    Change-Id: Ic327d9f8e02e87ed656324aaa042f833d9ea18ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501309
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 0acecb7164133ee235809d642711b46b340221cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 14:59:56 2015 -0400
+
+    cmd/link: elide individual gcbits symbols
+    
+    Same as we do for string symbols.
+    
+    Fixes #11583.
+    
+    Change-Id: Ia9264f6faf486697d987051b7f9851d37d8ad381
+    Reviewed-on: https://go-review.googlesource.com/12531
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go           |   1 +
+ src/cmd/link/internal/ld/dwarf.go      |   3 +++
+ src/cmd/link/internal/ld/lib.go        |   1 +
+ src/cmd/link/internal/ld/symtab.go     |  13 +++++++++++++
+ src/cmd/newlink/testdata/Makefile      |   2 +-
+ src/cmd/newlink/testdata/autosection.6 | Bin 937 -> 897 bytes
+ src/cmd/newlink/testdata/autoweak.6    | Bin 386 -> 346 bytes
+ src/cmd/newlink/testdata/dead.6        | Bin 849 -> 809 bytes
+ src/cmd/newlink/testdata/hello.6       | Bin 229 -> 189 bytes
+ src/cmd/newlink/testdata/layout.6      | Bin 396 -> 356 bytes
+ src/cmd/newlink/testdata/pclntab.6     | Bin 3804 -> 3764 bytes
+ 11 files changed, 19 insertions(+), 1 deletion(-)

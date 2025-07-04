@@ -1,0 +1,21 @@
+commit fb950cd7786d28a239c64f0799913eeea10acbc2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 16 14:10:51 2016 -0700
+
+    cmd/internal/obj: convert Symgrow to a method
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I77a415a4e5d8de7eb902fb0866aaf8783259485a
+    Reviewed-on: https://go-review.googlesource.com/20770
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go | 2 +-
+ src/cmd/internal/obj/data.go       | 9 +++++----
+ src/cmd/internal/obj/mips/asm0.go  | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go | 2 +-
+ src/cmd/internal/obj/x86/asm6.go   | 8 ++++----
+ 6 files changed, 13 insertions(+), 12 deletions(-)

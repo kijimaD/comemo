@@ -1,0 +1,18 @@
+commit 05471e9ee64a300bd2dcc4582ee1043c055893bb
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Oct 7 17:10:53 2016 +0900
+
+    crypto/x509: implement SystemCertPool on Windows
+    
+    Fixes #16736
+    
+    Change-Id: I335d201e3f6738d838de3881087cb640fc7670e8
+    Reviewed-on: https://go-review.googlesource.com/30578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/cert_pool.go    |  5 -----
+ src/crypto/x509/root_windows.go | 35 ++++++++++++++++++++++++++++++++++-
+ src/crypto/x509/x509_test.go    |  7 +++++++
+ 3 files changed, 41 insertions(+), 6 deletions(-)

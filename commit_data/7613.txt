@@ -1,0 +1,14 @@
+commit 3fea5badc29200e0ea4e1fe790e1803a7d17ee2c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 3 16:41:03 2011 +1100
+
+    doc: remove reference to bug count from install.html
+    
+    Fixes #1574.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4240066
+
+ doc/install.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

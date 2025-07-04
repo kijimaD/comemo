@@ -1,0 +1,28 @@
+commit 62956897c1743ee7e79895496180f84432f21d0a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 9 16:00:02 2016 -0500
+
+    runtime: add definitions for SetGoroutineLabels and Do
+    
+    This change defines runtime/pprof.SetGoroutineLabels and runtime/pprof.Do, which
+    are used to set profiler labels on goroutines. The change defines functions
+    in the runtime for setting and getting profile labels, and sets and unsets
+    profile labels when goroutines are created and deleted. The change also adds
+    the package runtime/internal/proflabel, which defines the structure the runtime
+    uses to store profile labels.
+    
+    Change-Id: I747a4400141f89b6e8160dab6aa94ca9f0d4c94d
+    Reviewed-on: https://go-review.googlesource.com/34198
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/35010
+
+ src/cmd/dist/deps.go              |  6 +--
+ src/runtime/pprof/label.go        | 16 +++++--
+ src/runtime/pprof/runtime.go      | 36 +++++++++++++++
+ src/runtime/pprof/runtime_test.go | 96 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go               |  4 ++
+ src/runtime/proflabel.go          | 17 +++++++
+ src/runtime/runtime2.go           |  2 +
+ 7 files changed, 169 insertions(+), 8 deletions(-)

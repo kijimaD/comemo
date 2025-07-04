@@ -1,0 +1,23 @@
+commit c624fa691df0a7e59b89e9f3ca2333c28f65c4f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 13:44:02 2012 -0800
+
+    go/build: pass CgoLDFLAGS at end of link command
+    
+    By the time a Unix linker gets to the end of the
+    command line it has forgotten what you told it
+    at the beginning of the command line, so you
+    have to put library arguments (like -lm) at the end.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5541043
+
+ src/cmd/go/build.go | 42 +++++++++++++++++++-----------------------
+ src/cmd/go/fix.go   |  2 +-
+ src/cmd/go/fmt.go   |  2 +-
+ src/cmd/go/main.go  | 20 +++++++++++++++++++-
+ src/cmd/go/run.go   |  3 +--
+ src/cmd/go/test.go  |  5 ++---
+ src/cmd/go/vet.go   |  2 +-
+ 7 files changed, 44 insertions(+), 32 deletions(-)

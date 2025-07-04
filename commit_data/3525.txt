@@ -1,0 +1,15 @@
+commit cb1ad7e76569629d08a702893ca767b7816ad946
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 13 17:14:49 2009 -0700
+
+    Documentation for png.Decode and png.Encode.
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=7  (5 added, 0 deleted, 2 changed)
+    OCL=35651
+    CL=35692
+
+ src/pkg/image/png/reader.go | 2 ++
+ src/pkg/image/png/writer.go | 7 +++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

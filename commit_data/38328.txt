@@ -1,0 +1,33 @@
+commit ca8354843ef9f30207efd0a40bb6c53e7ba86892
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Tue Nov 13 15:34:22 2018 +0900
+
+    sync: allow inlining the Once.Do fast path
+    
+    Using Once.Do is now extremely cheap because the fast path is just an inlined
+    atomic load of a variable that is written only once and a conditional jump.
+    This is very beneficial for Once.Do because, due to its nature, the fast path
+    will be used for every call after the first one.
+    
+    In a attempt to mimize code size increase, reorder the fields so that the
+    pointer to Once is also the pointer to Once.done, that is the only field used
+    in the hot path. This allows to use more compact instruction encodings or less
+    instructions in the hot path (that is inlined at every callsite).
+    
+    name     old time/op  new time/op  delta
+    Once     4.54ns ± 0%  2.06ns ± 0%  -54.59%  (p=0.000 n=19+16)
+    Once-4   1.18ns ± 0%  0.55ns ± 0%  -53.39%  (p=0.000 n=15+16)
+    Once-16  0.53ns ± 0%  0.17ns ± 0%  -67.92%  (p=0.000 n=18+17)
+    
+    linux/amd64 bin/go 14675861 (previous commit 14663387, +12474/+0.09%)
+    
+    Change-Id: Ie2708103ab473787875d66746d2f20f1d90a6916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/152697
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/sync/once.go    | 16 ++++++++++++----
+ test/inline_sync.go |  7 +++++++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit d9cc39b25c8ebef5a976e34848dc3c5216108f07
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 21:11:23 2022 -0400
+
+    cmd/compile/internal/pgo: use a slice for locations
+    
+    Currently locations are stored in a map and looked up by ID from
+    the map. The IDs are usually small sequential integers (the Go
+    pprof CPU profiles are so). Using a slice is more efficient (with
+    a fallback map to handle weirdly large IDs).
+    
+    Change-Id: I9e20d5cebca3a5239636413e1bf2f0b273038031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447803
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/graph.go   | 37 +++++++++++++++++++++++++--------
+ src/cmd/compile/internal/pgo/irgraph.go |  2 +-
+ 2 files changed, 29 insertions(+), 10 deletions(-)

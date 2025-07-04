@@ -1,0 +1,14 @@
+commit 4b0ecd3f49bc003ec19df69be51eee585032d30a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 1 21:35:46 2011 +1100
+
+    doc: add FAQ about large binaries and stack vs heap allocation
+    doc: add internationalization to roadmap
+    
+    R=rsc, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4251047
+
+ doc/devel/roadmap.html |  2 ++
+ doc/go_faq.html        | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

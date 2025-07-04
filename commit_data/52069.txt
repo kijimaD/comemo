@@ -1,0 +1,32 @@
+commit f98dd299103f66b86bbef402a63a0c6f8fc8b11e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 27 13:13:10 2022 -0500
+
+    cmd/compile: rework unbounded shift lowering on PPC64
+    
+    This reduces unbounded shift latency by one cycle, and may
+    generate less instructions in some cases.
+    
+    When there is a choice whether to use doubleword or word shifts, use
+    doubleword shifts. Doubleword shifts have fewer hardware scheduling
+    restrictions across P8/P9/P10.
+    
+    Likewise, rework the shift sequence to allow the compare/shift/overshift
+    values to compute in parallel, then choose the correct value.
+    
+    Some ANDCCconst rules also need reworked to ensure they simplify when
+    used for their flag value. This commonly occurs when prove fails to
+    identify a bounded shift (e.g foo32<<uint(x&31)).
+    
+    Change-Id: Ifc6ff4a865d68675e57745056db414b0eb6f2d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442597
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  102 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 1623 +++++++++++++------------
+ src/cmd/compile/internal/test/shift_test.go   |   89 ++
+ 3 files changed, 953 insertions(+), 861 deletions(-)

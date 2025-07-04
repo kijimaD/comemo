@@ -1,0 +1,15 @@
+commit b9d19eff7756aeabd35672f244fb60f45d0f86ee
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Fri Feb 22 05:41:20 2019 +0900
+
+    net: use EUI-48/EUI-64 reserved address blocks for documentation
+    
+    Updates #15228.
+    
+    Change-Id: I1b73defccb4c933d71c408aa31d32af9d1bc4ab8
+    Reviewed-on: https://go-review.googlesource.com/c/163357
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ src/net/mac.go      | 18 ++++++-------
+ src/net/mac_test.go | 76 +++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 57 insertions(+), 37 deletions(-)

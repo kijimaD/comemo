@@ -1,0 +1,13 @@
+commit 7f4c2caea52fbda9a79ad6a804155050f36732b6
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Tue Mar 16 13:57:16 2010 -0700
+
+    http: add ParseQuery
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/238041
+
+ src/pkg/http/request.go      | 10 +++++++---
+ src/pkg/http/request_test.go |  3 +--
+ 2 files changed, 8 insertions(+), 5 deletions(-)

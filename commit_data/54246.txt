@@ -1,0 +1,39 @@
+commit eaae2d45c76d2d27e1b4c39ba57dd1582ab26491
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 26 19:06:33 2023 -0700
+
+    cmd: simplify some handling of package paths
+    
+    We have obj.Link.Pkgpath, so we don't need to pass it redundantly in
+    places where we already have an *obj.Link.
+    
+    Also, renaming the parser's "compilingRuntime" field to "allowABI", to
+    match the "AllowAsmABI" name used by objabi.LookupPkgSpecial.
+    
+    Finally, push the handling of GOEXPERIMENT_* flags up to cmd/asm's
+    main entry point, by simply appending them to flags.D.
+    
+    Change-Id: I6ada134522b0cbc90d35bcb145fbe045338fefb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523297
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go  | 12 +++---
+ src/cmd/asm/internal/asm/expr_test.go      |  4 +-
+ src/cmd/asm/internal/asm/line_test.go      |  2 +-
+ src/cmd/asm/internal/asm/operand_test.go   |  6 +--
+ src/cmd/asm/internal/asm/parse.go          | 59 +++++++++++++++---------------
+ src/cmd/asm/internal/asm/pseudo_test.go    | 14 +++----
+ src/cmd/asm/internal/lex/input.go          | 22 ++---------
+ src/cmd/asm/internal/lex/lex.go            |  4 +-
+ src/cmd/asm/internal/lex/lex_test.go       |  4 +-
+ src/cmd/asm/main.go                        | 17 ++++++---
+ src/cmd/compile/internal/dwarfgen/dwinl.go |  2 +-
+ src/cmd/compile/internal/gc/obj.go         |  4 +-
+ src/cmd/compile/internal/objw/prog.go      |  2 +-
+ src/cmd/internal/dwarf/dwarf.go            |  1 -
+ src/cmd/internal/obj/dwarf.go              | 17 ++++++---
+ src/cmd/internal/obj/plist.go              |  6 +--
+ 16 files changed, 85 insertions(+), 91 deletions(-)

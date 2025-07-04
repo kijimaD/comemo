@@ -1,0 +1,46 @@
+commit f20944de78012a257d1e66b8209e2990a14673a7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 18 08:35:00 2017 -0400
+
+    cmd/compile: set/unset base register for better assembly print
+    
+    For address of an auto or arg, on all non-x86 architectures
+    the assembler backend encodes the actual SP offset in the
+    instruction but leaves the offset in Prog unchanged. When the
+    assembly is printed in compile -S, it shows an offset
+    relative to pseudo FP/SP with an actual hardware SP base
+    register (e.g. R13 on ARM). This is confusing. Unset the
+    base register if it is indeed SP, so the assembly output is
+    consistent. If the base register isn't SP, it should be an
+    error and the error output contains the actual base register.
+    
+    For address loading instructions, the base register isn't set
+    in the compiler on non-x86 architectures. Set it. Normally it
+    is SP and will be unset in the change mentioned above for
+    printing. If it is not, it will be an error and the error
+    output contains the actual base register.
+    
+    No change in generated binary, only printed assembly. Passes
+    "go build -a -toolexec 'toolstash -cmp' std cmd" on all
+    architectures.
+    
+    Fixes #21064.
+    
+    Change-Id: Ifafe8d5f9b437efbe824b63b3cbc2f5f6cdc1fd5
+    Reviewed-on: https://go-review.googlesource.com/49432
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm/ssa.go     |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go   |  2 +-
+ src/cmd/compile/internal/gc/asm_test.go | 24 +++++++++++++++++++++++-
+ src/cmd/compile/internal/mips/ssa.go    |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go  |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go   |  2 +-
+ src/cmd/internal/obj/arm/asm5.go        | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go      | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/mips/asm0.go       | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go      | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/s390x/asmz.go      | 20 ++++++++++++++++++++
+ 11 files changed, 128 insertions(+), 6 deletions(-)

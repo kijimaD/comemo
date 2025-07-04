@@ -1,0 +1,38 @@
+commit e4253cd023e77743ae11d79c4be3dd6db8138aa9
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 10 15:10:05 2021 -0600
+
+    cmd/link: Add section data slice to Archrelocvariant
+    
+    PPC64 needs to preserve bits when applying some relocations. DS form
+    relocations must preserve the lower two bits, and thus needs to inspect
+    the section data as it streams out.
+    
+    Similarly, the overflow checking requires inspecting the primary
+    opcode to see if the value is sign or zero extended.
+    
+    The existing PPC64 code no longer works as the slice returned by
+    (loader*).Data is cleared as we layout the symbol and process
+    relocations.  This data is always the section undergoing relocation,
+    thus we can directly inspect the contents to preserve bits or
+    check for overflows.
+    
+    Change-Id: I239211f7e5e96208673663b6553b3017adae7e01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300555
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/link/internal/amd64/asm.go   |  2 +-
+ src/cmd/link/internal/arm/asm.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  2 +-
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/mips/asm.go    |  2 +-
+ src/cmd/link/internal/mips64/asm.go  |  2 +-
+ src/cmd/link/internal/ppc64/asm.go   | 15 ++++++++-------
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ src/cmd/link/internal/s390x/asm.go   |  2 +-
+ src/cmd/link/internal/x86/asm.go     |  2 +-
+ 11 files changed, 18 insertions(+), 17 deletions(-)

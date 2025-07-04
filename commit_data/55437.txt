@@ -1,0 +1,15 @@
+commit 2c35def7efab9b8305487c23cb0575751642ce1e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:15:19 2024 +0100
+
+    net/netip: use Addr.appendTo4In6 in Addr.AppendTo
+    
+    Change-Id: Ieb1931c40b37b87fc7d0011461d9f583e73aaff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557778
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/netip/netip.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

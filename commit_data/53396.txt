@@ -1,0 +1,19 @@
+commit 39bafed1021a49d7fd7458a34989601a8493f79a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 10:42:57 2023 -0700
+
+    doc/go1.21: document io/fs formatting functions
+    
+    Also document the new String methods that call them.
+    
+    For #54451
+    
+    Change-Id: I5cd7e0fc6c84097bba6d29c4d6012ed3c8bb1e0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499177
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 109 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 99 insertions(+), 10 deletions(-)

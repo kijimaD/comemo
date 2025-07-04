@@ -1,0 +1,15 @@
+commit 2c11164db52bca183da4c3ac09ceac7565835d53
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:47:48 2015 -0500
+
+    cmd/compile: fix value range check for complex constants
+    
+    Fixes #11590.
+    
+    Change-Id: I4144107334604a2cc98c7984df3b5d4cde3d30af
+    Reviewed-on: https://go-review.googlesource.com/16920
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/const.go |  3 +--
+ test/fixedbugs/issue11590.go         | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

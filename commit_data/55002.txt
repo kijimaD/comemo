@@ -1,0 +1,19 @@
+commit 23ca33009571a55eda926b7a41f5ceb04277bbd9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 15 21:35:37 2023 -0500
+
+    reflect: remove go121noForceValueEscape
+    
+    Before Go 1.21, ValueOf always escapes and a Value's content is
+    always heap allocated. In Go 1.21, we made it no longer always
+    escape, guarded by go121noForceValueEscape. This behavior has
+    been released for some time and there is no issue so far. We can
+    remove the guard now.
+    
+    Change-Id: I81f5366412390f6c63b642f4c7c016da534da76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542795
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/value.go | 13 -------------
+ 1 file changed, 13 deletions(-)

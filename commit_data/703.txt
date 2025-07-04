@@ -1,0 +1,14 @@
+commit 3c17ee69d969d04db6ce1593770ac2e9a5087620
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 16:26:57 2008 -0700
+
+    add "once" package
+    
+    R=r
+    DELTA=79  (79 added, 0 deleted, 0 changed)
+    OCL=15656
+    CL=15656
+
+ src/lib/make.bash |  1 +
+ src/lib/once.go   | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

@@ -1,0 +1,12 @@
+commit 2ea25e240ef4a3e20be35c3ccdf5a3813c8ecd36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 31 12:15:33 2012 +1100
+
+    doc: update weekly snapshot notes with subrepo changes
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5599051
+
+ doc/devel/weekly.html | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

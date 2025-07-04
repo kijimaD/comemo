@@ -1,0 +1,14 @@
+commit ae43ea432dae096add3bb02271fb143733ccd155
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 3 11:52:36 2013 +1000
+
+    doc: add Go 1.1 to release.html
+    
+    Fixes #5468.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9853051
+
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

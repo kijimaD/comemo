@@ -1,0 +1,20 @@
+commit 8c0da423f77fff5e206ad777cfc496e935cb3af6
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Apr 23 17:52:55 2024 +0000
+
+    cmd/go: go env GOMOD should not download newer toolchain
+    
+    It is not neccessary to download a newer toolchain to display the path
+    to GOMOD or GOWORK.
+    
+    Fixes: #61455
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I0b031651ad9bfeb5565361ecaff6908640ccf9c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/toolchain/select.go            |  8 ++++++++
+ .../go/testdata/script/env_gomod_issue61455.txt    | 24 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

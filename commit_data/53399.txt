@@ -1,0 +1,17 @@
+commit 077194538c7b35d27f8310e57ec4bf4d4a1a21fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:36:16 2023 -0700
+
+    doc/go1.21: reading from debug/pe uninitialized section fails
+    
+    For #47653
+    
+    Change-Id: Id44c9dba58966f43f188030a53343d890a6ffde7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499419
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

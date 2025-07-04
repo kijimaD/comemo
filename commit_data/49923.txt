@@ -1,0 +1,22 @@
+commit cdb3789772a7e7c02d2ac7290b3a16fb542b48dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 13 17:25:27 2022 -0700
+
+    debug/pe, internal/saferio: use saferio to read PE section data
+    
+    For #47653
+    Fixes #53189
+    
+    Change-Id: If35b968fc53e4c96b18964cfb020cdc003b881bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412014
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/debug/pe/section.go         |  8 ++------
+ src/internal/saferio/io.go      | 41 ++++++++++++++++++++++++++++++++++++++
+ src/internal/saferio/io_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 6 deletions(-)

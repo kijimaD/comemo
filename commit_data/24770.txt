@@ -1,0 +1,16 @@
+commit b46df69541fd0661491245ffd13285d829778fd8
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 9 15:16:12 2015 -0800
+
+    Revert "crypto/tls: don't send IP literals as SNI values."
+    
+    This reverts commit a4dcc692011bf1ceca9b1a363fd83f3e59e399ee.
+    
+    Change-Id: Ib55fd349a604d6b5220dac20327501e1ce46b962
+    Reviewed-on: https://go-review.googlesource.com/16770
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go                |  3 +--
+ src/crypto/tls/handshake_client.go      |  9 +--------
+ src/crypto/tls/handshake_client_test.go | 27 ---------------------------
+ 3 files changed, 2 insertions(+), 37 deletions(-)

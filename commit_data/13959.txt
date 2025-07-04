@@ -1,0 +1,21 @@
+commit 60a6ae8c3c278c3e0fcb832f2e5c085825d867cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 26 10:31:57 2012 -0700
+
+    spec: permit trailing comma in conversions
+    
+    Also: Adjust prose in Conversions section
+    to be consistent.
+    
+    This is a backward-compatible syntax change.
+    For a discussion see issue 2568.
+    
+    Fixes #2568.
+    Fixes #4123.
+    
+    R=golang-dev, r, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6572049
+
+ doc/go_spec.html | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

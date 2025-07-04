@@ -1,0 +1,28 @@
+commit 114d5deac2f513a7397ab4c2ee8d2d567a901266
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Mar 6 15:44:42 2022 -0800
+
+    go/types, types2: don't crash in selectors referring to the type being declared
+    
+    In Checker.typInternal, the SelectorExpr case was the only case that
+    didn't either set or pass along the incoming def *Named type.
+    
+    Handle this by passing it along to Checker.selector and report a
+    cycle if one is detected.
+    
+    Fixes #51509.
+    
+    Change-Id: I6c2d46835f225aeb4cb25fe0ae55f6180cef038b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390314
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go                          | 8 +++++++-
+ src/cmd/compile/internal/types2/expr.go                          | 2 +-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue51509.go | 7 +++++++
+ src/cmd/compile/internal/types2/typexpr.go                       | 2 +-
+ src/go/types/call.go                                             | 8 +++++++-
+ src/go/types/expr.go                                             | 2 +-
+ src/go/types/testdata/fixedbugs/issue51509.go                    | 7 +++++++
+ src/go/types/typexpr.go                                          | 2 +-
+ 8 files changed, 32 insertions(+), 6 deletions(-)

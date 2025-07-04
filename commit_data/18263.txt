@@ -1,0 +1,29 @@
+commit c0b9e6218c63a21e12305f8f7fbe7c92bdcbcbde
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 16 12:54:46 2014 +0400
+
+    runtime: output how long goroutines are blocked
+    Example of output:
+    
+    goroutine 4 [sleep for 3 min]:
+    time.Sleep(0x34630b8a000)
+            src/pkg/runtime/time.goc:31 +0x31
+    main.func·002()
+            block.go:16 +0x2c
+    created by main.main
+            block.go:17 +0x33
+    
+    Full program and output are here:
+    http://play.golang.org/p/NEZdADI3Td
+    
+    Fixes #6809.
+    
+    R=golang-codereviews, khr, kamil.kisiel, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/50420043
+
+ doc/go1.3.txt             |  1 +
+ src/pkg/runtime/mgc0.c    |  7 +++++++
+ src/pkg/runtime/proc.c    | 14 +++++++++++++-
+ src/pkg/runtime/runtime.h |  1 +
+ 4 files changed, 22 insertions(+), 1 deletion(-)

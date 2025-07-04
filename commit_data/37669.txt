@@ -1,0 +1,20 @@
+commit 1ca84deeb048ac8ab850f68eb84ee7811d957676
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Dec 12 11:28:46 2018 -0800
+
+    runtime: pass LR to sigprof on windows/arm
+    
+    TestCPUProfileLabel was failing on windows/arm because the link register
+    was not being passed to sigprof(). The link register is required to
+    generate a correct traceback. With this change, all tests in runtime.pprof
+    are now passing.
+    
+    Updates #26148
+    
+    Change-Id: Ia693b34278dc08a98023751ff1a922d9eee8fdd6
+    Reviewed-on: https://go-review.googlesource.com/c/153839
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

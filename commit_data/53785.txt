@@ -1,0 +1,26 @@
+commit 598958f0f247fa24b8ed4dfcd454a1958f212666
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 26 11:08:03 2023 -0700
+
+    maps: remove Keys and Values
+    
+    Preserve the names in case we want them to return an iterator.
+    Keep the efficient runtime implementations for now,
+    as we will probably want them under some name, perhaps KeysSlice
+    and ValuesSlice.
+    
+    Fixes #61538
+    
+    Change-Id: I6b03010bf071fb4531cb2f967dad46425962fcb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513476
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.21.txt        |   2 -
+ src/maps/maps.go      |  28 --------------
+ src/maps/maps_test.go | 100 --------------------------------------------------
+ 3 files changed, 130 deletions(-)

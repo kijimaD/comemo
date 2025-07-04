@@ -1,0 +1,15 @@
+commit 4e2eff4c9b7a4c67c7c0af5f226f3292065c9dca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 03:39:58 2017 +0000
+
+    time: document the Time.String is meant for debugging
+    
+    Fixes #20876
+    
+    Change-Id: Ic62c4f59e3ddcae891aa9526f9693d233dd524fc
+    Reviewed-on: https://go-review.googlesource.com/47552
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/time/format.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,114 @@
+commit 6121987a10b2c54bc4c48473353205753d91f807
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 28 20:25:06 2018 -0400
+
+    cmd/go: split go mod into multiple subcommands
+    
+    The current "go mod" command does too many things.
+    The design is unclear.
+    
+    It looks like "everything you might want to do with modules"
+    which causes people to think all module operations go through
+    "go mod", which is the opposite of the seamless integration we're
+    going for. In particular too many people think "go mod -require"
+    and "go get" are the same.
+    
+    It does make sense to put the module-specific functionality
+    under "go mod", but not as flags. Instead, split "go mod" into
+    multiple subcommands:
+    
+            go mod edit   # old go mod -require ...
+            go mod fix    # old go mod -fix
+            go mod graph  # old go mod -graph
+            go mod init   # old go mod -init
+            go mod tidy   # old go mod -sync
+            go mod vendor # old go mod -vendor
+            go mod verify # old go mod -verify
+    
+    Splitting out the individual commands makes both the docs
+    and the implementations dramatically easier to read.
+    It simplifies the command lines
+    (go mod -init -module m is now 'go mod init m')
+    and allows command-specific flags.
+    
+    We've avoided subcommands in the go command to date, and we
+    should continue to avoid adding them unless it really makes
+    the experience significantly better. In this case, it does.
+    
+    Creating subcommands required some changes in the core
+    command-parsing and help logic to generalize from one
+    level to multiple levels.
+    
+    As part of having "go mod init" be a separate command,
+    this CL changes the failure behavior during module initialization
+    to be delayed until modules are actually needed.
+    Initialization can still happen early, but the base.Fatalf
+    is delayed until something needs to use modules.
+    This fixes a bunch of commands like 'go env' that were
+    unhelpfully failing with GO111MODULE=on when not in a
+    module directory.
+    
+    Fixes #26432.
+    Fixes #26581.
+    Fixes #26596.
+    Fixes #26639.
+    
+    Change-Id: I868db0babe8c288e8af684b29d4a5ae4825d6407
+    Reviewed-on: https://go-review.googlesource.com/126655
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              | 193 ++++---
+ src/cmd/go/internal/base/base.go                   |  34 +-
+ src/cmd/go/internal/bug/bug.go                     |   5 +-
+ src/cmd/go/internal/clean/clean.go                 |  12 +-
+ src/cmd/go/internal/doc/doc.go                     |   2 +-
+ src/cmd/go/internal/envcmd/env.go                  |   2 +-
+ src/cmd/go/internal/fix/fix.go                     |   2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                  |   2 +-
+ src/cmd/go/internal/generate/generate.go           |   2 +-
+ src/cmd/go/internal/get/get.go                     |   2 +-
+ src/cmd/go/internal/help/help.go                   |  77 +--
+ src/cmd/go/internal/list/list.go                   |   2 +-
+ src/cmd/go/internal/load/pkg.go                    |   7 +-
+ src/cmd/go/internal/modcmd/edit.go                 | 382 ++++++++++++++
+ src/cmd/go/internal/modcmd/fix.go                  |  65 +++
+ src/cmd/go/internal/modcmd/graph.go                |  73 +++
+ src/cmd/go/internal/modcmd/init.go                 |  41 ++
+ src/cmd/go/internal/modcmd/mod.go                  | 564 +--------------------
+ src/cmd/go/internal/modcmd/tidy.go                 |  89 ++++
+ src/cmd/go/internal/modcmd/vendor.go               |  28 +-
+ src/cmd/go/internal/modcmd/verify.go               |  20 +-
+ src/cmd/go/internal/modget/get.go                  |   2 +-
+ src/cmd/go/internal/modload/help.go                |  12 +-
+ src/cmd/go/internal/modload/init.go                | 103 ++--
+ src/cmd/go/internal/modload/load.go                |  12 -
+ src/cmd/go/internal/run/run.go                     |   2 +-
+ src/cmd/go/internal/test/test.go                   |   4 +-
+ src/cmd/go/internal/tool/tool.go                   |   2 +-
+ src/cmd/go/internal/version/version.go             |   2 +-
+ src/cmd/go/internal/vet/vet.go                     |   2 +-
+ src/cmd/go/internal/work/build.go                  |   4 +-
+ src/cmd/go/internal/work/init.go                   |   1 +
+ src/cmd/go/main.go                                 |  84 ++-
+ .../go/testdata/mod/{mod_sync.txt => mod_tidy.txt} |   4 +-
+ src/cmd/go/testdata/script/help.txt                |  30 ++
+ src/cmd/go/testdata/script/mod_edit.txt            |  39 +-
+ src/cmd/go/testdata/script/mod_enabled.txt         |   6 +-
+ src/cmd/go/testdata/script/mod_find.txt            |  28 +-
+ src/cmd/go/testdata/script/mod_get_commit.txt      |   8 +-
+ src/cmd/go/testdata/script/mod_get_indirect.txt    |   6 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_go_version.txt      |   2 +-
+ src/cmd/go/testdata/script/mod_graph.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_internal.txt        |  11 +-
+ src/cmd/go/testdata/script/mod_nomod.txt           |  43 ++
+ src/cmd/go/testdata/script/mod_replace.txt         |   8 +-
+ .../{mod_sync_quote.txt => mod_tidy_quote.txt}     |  10 +-
+ .../script/{mod_sync_sum.txt => mod_tidy_sum.txt}  |   8 +-
+ src/cmd/go/testdata/script/mod_vendor.txt          |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_nodeps.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_verify.txt          |  26 +-
+ src/cmd/go/testdata/script/mod_version_nomod.txt   |   4 -
+ 52 files changed, 1225 insertions(+), 850 deletions(-)

@@ -1,0 +1,16 @@
+commit fd629821b83aa76062c71dbe24f4ea98aa0065e6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Jun 24 16:30:30 2019 -0400
+
+    cmd/internal/obj/ppc64: add doc.go
+    
+    Adding some details on writing Go assembler for ppc64.
+    
+    Change-Id: I46fc6b75ee6c36946f90280b2b670e0d32bcc6b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183837
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/ppc64/doc.go | 204 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 204 insertions(+)

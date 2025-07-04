@@ -1,0 +1,21 @@
+commit 2d972ad49371dad5ec18da9489ec39fadacf6eeb
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 23 18:10:30 2011 +1000
+
+    exp/template: construct sets from plain template files
+    This is the last piece (I hope) of the set creation code.
+    These helpers create sets from files containing individual
+    template definitions, free of {{define}} clauses. This
+    design is helpful if the templates live one per file,
+    undecorated.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4801052
+
+ src/pkg/exp/template/helper.go           | 147 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/set.go              |  24 +++--
+ src/pkg/exp/template/set_test.go         |  81 ++++++++++++++++-
+ src/pkg/exp/template/testdata/tmpl1.tmpl |   1 +
+ src/pkg/exp/template/testdata/tmpl2.tmpl |   1 +
+ 5 files changed, 245 insertions(+), 9 deletions(-)

@@ -1,0 +1,27 @@
+commit 386dcf4c93bfc8af232a12086d73da4bb3558af9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 15:30:13 2024 -0400
+
+    runtime: revert "traceback: include pc=0x%x for inline frames"
+    
+    This reverts commit 643d816c8b43 (CL 561635).
+    
+    Reason for revert: This works for telemetry but broke various other
+    properties of the tracebacks as well as some programs that read
+    tracebacks. We should figure out a solution that works for all uses,
+    and in the interim we should not be making telemetry work at the
+    cost of breaking other, existing valid uses.
+    
+    See #65761 for details.
+    
+    Change-Id: I467993ae778887e5bd3cca4c0fb54e9d44802ee1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571797
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_test.go            |  13 --
+ src/runtime/traceback.go             |  24 +---
+ src/runtime/traceback_system_test.go | 238 -----------------------------------
+ 3 files changed, 6 insertions(+), 269 deletions(-)

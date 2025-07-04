@@ -1,0 +1,22 @@
+commit 07314714c0dc11b690772d3f4c3a582686340961
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Wed Oct 14 15:18:10 2015 -0700
+
+    encoding/json: simplify encodeState.{string, stringBytes}
+    
+    As correctly mentioned in #11883, encodeState.string and
+    encodeState.stringBytes never return an error.
+    This CL removes the error from the function signatures and somewhat
+    simplifies call sites.
+    
+    Fixes #11883
+    
+    Change-Id: I1d1853d09631c545b68b5eea86ff7daa2e0ca10b
+    Reviewed-on: https://go-review.googlesource.com/15836
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go      | 16 ++++++----------
+ src/encoding/json/encode_test.go | 10 ++--------
+ 2 files changed, 8 insertions(+), 18 deletions(-)

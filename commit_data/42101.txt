@@ -1,0 +1,18 @@
+commit 45f1ee3d5f94e775ea61015b157c5cb17a6966d9
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Apr 22 19:31:13 2020 -0400
+
+    doc: remove The Go Project page (moved to x/website)
+    
+    This page has moved to the x/website repo in CL 229482 (commit
+    golang/website@70f4ee8c7e31e1c90ae44d835ff6214dc0496205).
+    Remove the old copy in this repo since it's no longer used.
+    
+    For #29206.
+    
+    Change-Id: Ief093ed8c5dfec43e06d473e4282275f61da74a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229485
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ doc/contrib.html | 133 -------------------------------------------------------
+ 1 file changed, 133 deletions(-)

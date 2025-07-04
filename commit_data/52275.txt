@@ -1,0 +1,24 @@
+commit a54fe8a270aef105dc5fbdca4eb90227587361e9
+Author: David Chase <drchase@google.com>
+Date:   Sun Mar 12 18:19:57 2023 +0100
+
+    cmd/go: restore 'extend path shortening to all paths in messages'
+    
+    The problem requiring a revert was creation (somehow) of /-containing
+    paths in compiler messages on Windows.  The new code deals with this
+    existing-but-unexpected behavior.
+    
+    original was CL 465805
+    revert was CL 473795
+    
+    this is the original, plus a correction for unexpected paths on Windows.
+    
+    Change-Id: I786e875e704c2d7018c8248960f2ff7188cac3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/work/exec.go                 | 36 +++++++++--
+ src/cmd/go/testdata/script/build_shorten_pkg.txt | 81 ++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 5 deletions(-)

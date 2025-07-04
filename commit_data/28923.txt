@@ -1,0 +1,26 @@
+commit 2f7f679c79009137bd34fcc33a6d3a6762f45e75
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 23:22:38 2016 -0400
+
+    html/template, text/template: clarify template redefinition behavior
+    
+    Make two important points clearer:
+    
+     - Giving a template definition containing
+       nothing but spaces has no effect.
+     - Giving a template definition containing
+       non-spaces can only be done once per template.
+    
+    Fixes #16912.
+    Fixes #16913.
+    Fixes #17360.
+    
+    Change-Id: Ie3971b83ab148b7c8bb800fe4a21579566378e3e
+    Reviewed-on: https://go-review.googlesource.com/31459
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/template.go | 24 ++++++++++++++----------
+ src/text/template/template.go | 15 ++++++++++++---
+ 2 files changed, 26 insertions(+), 13 deletions(-)

@@ -1,0 +1,23 @@
+commit 01e1b0cb5377d665065707f9a270b223ea85a570
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 11 13:52:20 2013 -0400
+
+    runtime: adjust traceback for new preemptive reality
+    Currently it crashes as follows:
+    fatal error: unknown pc
+    ...
+    goroutine 71698 [runnable]:
+    runtime.racegoend()
+            src/pkg/runtime/race.c:171
+    runtime.goexit()
+            src/pkg/runtime/proc.c:1276 +0x9
+    created by runtime_test.testConcurrentReadsAfterGrowth
+            src/pkg/runtime/map_test.go:264 +0x332
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10674047
+
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

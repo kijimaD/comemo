@@ -1,0 +1,32 @@
+commit 1f577d26d7c7a935c792dacc6cc50826cfd77af0
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 21 19:04:41 2011 -0700
+
+    exp/template/html: simplify transition functions
+    
+    This simplifies transition functions to make it easier to reliably
+    elide comments in a later CL.
+    
+    Before:
+    - transition functions are responsible for detecting special end tags.
+    After:
+    - the code to detect special end tags is done in one place.
+    
+    We were relying on end tags being skipped which meant we were
+    not noticing comments inside script/style elements that contain no
+    substitutions.
+    This change means we will notice all such comments where necessary,
+    but stripTags will notice none since it does not need to.  This speeds
+    up stripTags.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5074041
+
+ src/pkg/exp/template/html/context.go     |   9 +++
+ src/pkg/exp/template/html/escape.go      |   9 ++-
+ src/pkg/exp/template/html/escape_test.go |   2 +-
+ src/pkg/exp/template/html/html.go        |  18 ++++--
+ src/pkg/exp/template/html/html_test.go   |   1 +
+ src/pkg/exp/template/html/transition.go  | 106 +++++++++----------------------
+ 6 files changed, 60 insertions(+), 85 deletions(-)

@@ -1,0 +1,15 @@
+commit c6ea277ac1bb81b6773d100819fcec57c8e2c95e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:38:58 2017 -0500
+
+    test: skip "# package/path" output from cmd/go in errchk
+    
+    This allows errchk to be used with "go vet" output (as opposed to "go tool vet").
+    
+    Change-Id: I0009a53c9cb74accd5bd3923c137d6dbf9e46326
+    Reviewed-on: https://go-review.googlesource.com/83836
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/errchk | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,52 @@
+commit ad6dcf9da45901f9bd863136e7560077bb65b531
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 15 16:42:45 2023 -0400
+
+    cmd/compile: build compiler with PGO
+    
+    Build the compiler with PGO. As go build -pgo=auto is enabled by
+    default, we just need to store a profile in the compiler's
+    directory.
+    
+    The profile is collected from building all std and cmd packages on
+    Linux/AMD64 machine, using profile.sh.
+    
+    This improves the compiler speed. On Linux/AMD64,
+    name        old time/op       new time/op       delta
+    Template          138ms ± 5%        136ms ± 4%  -1.44%  (p=0.005 n=36+39)
+    Unicode           147ms ± 4%        140ms ± 4%  -4.99%  (p=0.000 n=40+39)
+    GoTypes           780ms ± 3%        778ms ± 4%    ~     (p=0.172 n=39+39)
+    Compiler          105ms ± 5%         99ms ± 7%  -5.64%  (p=0.000 n=40+40)
+    SSA               5.83s ± 6%        5.80s ± 6%    ~     (p=0.556 n=40+40)
+    Flate            89.0ms ± 5%       87.0ms ± 6%  -2.18%  (p=0.000 n=40+40)
+    GoParser          172ms ± 4%        167ms ± 4%  -2.72%  (p=0.000 n=39+40)
+    Reflect           333ms ± 4%        333ms ± 3%    ~     (p=0.426 n=40+39)
+    Tar               128ms ± 4%        126ms ± 4%  -1.82%  (p=0.000 n=39+39)
+    XML               173ms ± 4%        170ms ± 4%  -1.39%  (p=0.000 n=39+40)
+    [Geo mean]        253ms             248ms       -2.13%
+    
+    The profile is pretty transferable. Using the same profile, we
+    see a bigger win on Darwin/ARM64,
+    name        old time/op       new time/op       delta
+    Template         71.0ms ± 2%       68.3ms ± 2%  -3.90%  (p=0.000 n=20+20)
+    Unicode          71.8ms ± 2%       66.8ms ± 2%  -6.90%  (p=0.000 n=20+20)
+    GoTypes           444ms ± 1%        428ms ± 1%  -3.53%  (p=0.000 n=19+20)
+    Compiler         48.9ms ± 3%       45.6ms ± 3%  -6.81%  (p=0.000 n=20+20)
+    SSA               3.25s ± 2%        3.09s ± 1%  -5.03%  (p=0.000 n=19+20)
+    Flate            44.0ms ± 2%       42.3ms ± 2%  -3.72%  (p=0.000 n=19+20)
+    GoParser         76.7ms ± 1%       73.5ms ± 1%  -4.15%  (p=0.000 n=18+19)
+    Reflect           172ms ± 1%        165ms ± 1%  -4.13%  (p=0.000 n=20+19)
+    Tar              63.1ms ± 1%       60.4ms ± 2%  -4.24%  (p=0.000 n=19+20)
+    XML              83.2ms ± 2%       79.2ms ± 2%  -4.79%  (p=0.000 n=20+20)
+    [Geo mean]        127ms             121ms       -4.73%
+    
+    Change-Id: I44735b3f7fd6903efbbe6b19c05dee874bea4c89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451292
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/default.pgo | Bin 0 -> 355761 bytes
+ src/cmd/compile/profile.sh  |  21 +++++++++++++++++++++
+ src/cmd/dist/buildtool.go   |   4 ++++
+ 3 files changed, 25 insertions(+)

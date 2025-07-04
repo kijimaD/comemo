@@ -1,0 +1,51 @@
+commit aa0dda767a9a31c6b0b49a665f0d059ebfed8e1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 23 09:57:40 2013 +0900
+
+    net: support IPv6 scoped addressing zone
+    
+    This CL provides IPv6 scoped addressing zone support as defined
+    in RFC 4007 for internet protocol family connection setups.
+    
+    Follwoing types and functions allow a literal IPv6 address with
+    zone identifer as theirs parameter.
+    
+    pkg net, func Dial(string, string) (Conn, error)
+    pkg net, func DialOpt(string, ...DialOption) (Conn, error)
+    pkg net, func DialTimeout(string, string, time.Duration) (Conn, error)
+    pkg net, func Listen(string, string) (Listener, error)
+    pkg net, func ListenPacket(string, string) (PacketConn, error)
+    pkg net, func ResolveIPAddr(string, string) (*IPAddr, error)
+    pkg net, func ResolveTCPAddr(string, string) (*TCPAddr, error)
+    pkg net, func ResolveUDPAddr(string, string) (*UDPAddr, error)
+    pkg net, type IPAddr struct, Zone string
+    pkg net, type TCPAddr struct, Zone string
+    pkg net, type UDPAddr struct, Zone string
+    
+    Also follwoing methods return a literal IPv6 address with zone
+    identifier string if possible.
+    
+    pkg net, method (*IPAddr) String() string
+    pkg net, method (*TCPAddr) String() string
+    pkg net, method (*UDPAddr) String() string
+    
+    Fixes #4234.
+    Fixes #4501.
+    Update #5081.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6816116
+
+ src/pkg/net/dial.go           |  29 +++++++-----
+ src/pkg/net/interface_test.go |  34 ++++++++++++--
+ src/pkg/net/ip.go             |  93 ++++++++++++++++++---------------------
+ src/pkg/net/ip_test.go        |  26 ++++++++---
+ src/pkg/net/ipraw_test.go     |  21 +++++++++
+ src/pkg/net/iprawsock.go      |   9 ++--
+ src/pkg/net/ipsock.go         |  61 +++++++++++++++++---------
+ src/pkg/net/tcp_test.go       | 100 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsock.go        |  14 +++---
+ src/pkg/net/udp_test.go       |  99 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/udpsock.go        |  14 +++---
+ 11 files changed, 395 insertions(+), 105 deletions(-)

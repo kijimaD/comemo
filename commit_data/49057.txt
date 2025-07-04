@@ -1,0 +1,22 @@
+commit a218b3520a500254cc82b996b79ad6f5a355021c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 30 22:10:00 2022 +0200
+
+    crypto/elliptic: panic when operating on invalid points
+    
+    Fixes #50975
+    For #52182
+    
+    Change-Id: I4a98d965436c7034877b8c0146bb0bd5b802d6fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382995
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/elliptic/elliptic.go      | 15 ++++++++++++++
+ src/crypto/elliptic/elliptic_test.go |  8 +++++++-
+ src/crypto/elliptic/nistec.go        | 40 ++++++++++--------------------------
+ src/crypto/elliptic/nistec_p256.go   |  2 +-
+ src/crypto/elliptic/params.go        |  4 ++++
+ 5 files changed, 38 insertions(+), 31 deletions(-)

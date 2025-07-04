@@ -1,0 +1,38 @@
+commit f776b9d5fa3577fe2fdaa3d2ef9d48adee329f9c
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Aug 8 15:38:21 2017 -0400
+
+    net/http: log Readdir error to Server.ErrorLog
+    
+    Now that issue #12438 is resolved, this TODO can be completed.
+    Create a logf helper, which is similar to Server.logf method,
+    but takes a *Request to infer the *Server and its ErrorLog from.
+    
+    Update documentation of Server.ErrorLog to mention a new type
+    of errors that may be logged to it.
+    
+    Also update a statement in documentation of Server.ErrorLog from:
+    
+            // If nil, logging goes to os.Stderr via the log package's
+            // standard logger.
+    
+    To:
+    
+            // If nil, logging is done via the log package's standard logger.
+    
+    The motivation for doing so is to avoid making inaccurate claims.
+    Logging may not go to os.Stderr if anyone overrides the log package's
+    default output via https://godoc.org/log#SetOutput. Saying that
+    the standard logger is used should be sufficient to explain the
+    behavior, and users can infer that os.Stderr is used by default,
+    unless it's changed.
+    
+    Updates #12438.
+    
+    Change-Id: I3a4b0db51d652fd25fb2065fbc2157a3dec4dd38
+    Reviewed-on: https://go-review.googlesource.com/53950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go     |  8 +++-----
+ src/net/http/server.go | 18 +++++++++++++++---
+ 2 files changed, 18 insertions(+), 8 deletions(-)

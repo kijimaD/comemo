@@ -1,0 +1,16 @@
+commit e79a4f71b7af648ef594f824951800ccc555d727
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 17:42:01 2022 -0500
+
+    context: canceLLation
+    
+    Fixes post-review comment on CL 375977.
+    
+    Change-Id: If7117fd7b505670eb676a73d991917505bc18a4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/context/context.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

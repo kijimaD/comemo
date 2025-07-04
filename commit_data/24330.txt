@@ -1,0 +1,16 @@
+commit 6d0178359f59f6481ed3c3a41d2ddde93bb3556e
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sat Sep 19 23:55:27 2015 +0200
+
+    cmd/compile/internal/gc: eliminate stringsCompare for stackvar sorting
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    
+    Change-Id: I2a87d31da74affdf3d0f358d0efdb3f1c646d917
+    Reviewed-on: https://go-review.googlesource.com/14759
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/pgen.go      | 39 ++++++++--------
+ src/cmd/compile/internal/gc/pgen_test.go | 76 +++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/syntax.go    | 13 +++---
+ 3 files changed, 100 insertions(+), 28 deletions(-)

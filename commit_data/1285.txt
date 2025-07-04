@@ -1,0 +1,14 @@
+commit 94a66489eded5a8b50ff096bddf68fc480297521
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 4 20:51:47 2008 -0800
+
+    bug128 is fixed
+    
+    R=rsc
+    DELTA=43  (19 added, 24 deleted, 0 changed)
+    OCL=20551
+    CL=20551
+
+ test/{bugs => fixedbugs}/bug128.go | 0
+ test/golden.out                    | 5 -----
+ 2 files changed, 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 74e384f50d3071c97effa3afd43ec29111587d59
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Sep 15 12:37:20 2021 +0800
+
+    internal/poll: inject a hook into the runtime finalizer to count the closed pipes
+    
+    Fixes #48066
+    
+    Change-Id: Icd6974dfcc496c054bb096e5d70de6e135984517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349774
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/poll/splice_linux_test.go | 60 ++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 25 deletions(-)

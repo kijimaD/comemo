@@ -1,0 +1,15 @@
+commit c07ec392ac8bfa92923c01ec4b2319de2e0e6a2b
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:26 2015 -0700
+
+    go/printer: avoid stomping on err before checking it
+    
+    Change-Id: I97ba31e758d3396842ad99a08af696e49a5f1a7d
+    Reviewed-on: https://go-review.googlesource.com/13954
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/printer.go      |  4 +++-
+ src/go/printer/printer_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

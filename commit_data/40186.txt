@@ -1,0 +1,234 @@
+commit a38a917aee626a9b9d5ce2b93964f586bf759ea0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 8 19:19:13 2019 +0000
+
+    all: remove the nacl port (part 1)
+    
+    You were a useful port and you've served your purpose.
+    Thanks for all the play.
+    
+    A subsequent CL will remove amd64p32 (including assembly files and
+    toolchain bits) and remaining bits. The amd64p32 removal will be
+    separated into its own CL in case we want to support the Linux x32 ABI
+    in the future and want our old amd64p32 support as a starting point.
+    
+    Updates #30439
+    
+    Change-Id: Ia3a0c7d49804adc87bf52a4dea7e3d3007f2b1cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199499
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/nacl/README                                   |  121 --
+ misc/nacl/go_nacl_386_exec                         |   10 -
+ misc/nacl/go_nacl_amd64p32_exec                    |   10 -
+ misc/nacl/go_nacl_arm_exec                         |   10 -
+ misc/nacl/mkzip.go                                 |  226 ---
+ misc/nacl/testdata/bin/placeholder                 |    0
+ misc/nacl/testdata/empty                           |    0
+ misc/nacl/testdata/group                           |    8 -
+ misc/nacl/testdata/hosts                           |    1 -
+ misc/nacl/testdata/mime.types                      | 1596 --------------------
+ misc/nacl/testzip.proto                            |  190 ---
+ src/buildall.bash                                  |   12 +-
+ src/cmd/compile/internal/gc/inl_test.go            |    2 +-
+ src/cmd/compile/internal/gc/sizeof_test.go         |    2 -
+ src/cmd/compile/internal/ssa/sizeof_test.go        |    2 -
+ src/cmd/compile/internal/types/sizeof_test.go      |    2 -
+ src/cmd/dist/build.go                              |    4 -
+ src/cmd/dist/test.go                               |    4 +-
+ src/cmd/dist/util.go                               |    4 -
+ src/cmd/doc/doc_test.go                            |    3 -
+ src/cmd/go/alldocs.go                              |    2 +-
+ src/cmd/go/go_test.go                              |    4 +-
+ src/cmd/go/help_test.go                            |    2 -
+ src/cmd/go/internal/base/signal_unix.go            |    2 +-
+ .../lockedfile/internal/filelock/filelock_test.go  |    2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go  |    2 +-
+ src/cmd/go/internal/renameio/umask_test.go         |    2 +-
+ src/cmd/go/internal/run/run.go                     |    2 +-
+ src/cmd/go/internal/work/build_test.go             |    2 -
+ .../go/testdata/src/testcache/testcache_test.go    |    2 +-
+ src/cmd/internal/obj/sizeof_test.go                |    2 -
+ src/cmd/link/internal/sym/sizeof_test.go           |    2 -
+ src/crypto/rand/eagain.go                          |    2 +-
+ src/crypto/rand/rand_unix.go                       |    2 +-
+ src/crypto/x509/root_nacl.go                       |    8 -
+ src/crypto/x509/root_unix.go                       |    2 +-
+ src/debug/elf/file_test.go                         |    2 +-
+ src/go/build/deps_test.go                          |    2 +-
+ src/go/internal/gccgoimporter/importer_test.go     |    2 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |    7 +-
+ src/go/types/example_test.go                       |    2 +-
+ src/internal/cpu/cpu_x86.s                         |    6 -
+ src/internal/poll/export_posix_test.go             |    2 +-
+ src/internal/poll/fd_fsync_posix.go                |    2 +-
+ .../poll/{fd_poll_nacljs.go => fd_poll_js.go}      |    2 +-
+ src/internal/poll/fd_posix.go                      |    2 +-
+ src/internal/poll/fd_posix_test.go                 |    2 +-
+ src/internal/poll/fd_unix.go                       |    2 +-
+ src/internal/poll/hook_unix.go                     |    2 +-
+ src/internal/poll/sys_cloexec.go                   |    2 +-
+ src/internal/syscall/unix/nonblocking_nacl.go      |    9 -
+ src/internal/testenv/testenv.go                    |   10 +-
+ src/internal/testenv/testenv_notwin.go             |    2 +-
+ src/log/syslog/doc.go                              |    2 -
+ src/log/syslog/example_test.go                     |    2 +-
+ src/log/syslog/syslog.go                           |    2 +-
+ src/log/syslog/syslog_test.go                      |    2 +-
+ src/log/syslog/syslog_unix.go                      |    2 +-
+ src/mime/type_unix.go                              |    2 +-
+ src/naclmake.bash                                  |   48 -
+ src/nacltest.bash                                  |   52 -
+ src/net/dial_test.go                               |    7 +-
+ src/net/error_nacl.go                              |    9 -
+ src/net/error_posix.go                             |    2 +-
+ src/net/error_test.go                              |    6 +-
+ src/net/fd_unix.go                                 |    2 +-
+ src/net/file.go                                    |    2 +-
+ src/net/file_stub.go                               |    2 +-
+ src/net/file_test.go                               |    8 +-
+ src/net/hook_unix.go                               |    2 +-
+ src/net/interface.go                               |    2 +-
+ src/net/interface_stub.go                          |    2 +-
+ src/net/interface_test.go                          |    2 +-
+ src/net/internal/socktest/switch_unix.go           |    2 +-
+ src/net/internal/socktest/sys_unix.go              |    2 +-
+ src/net/iprawsock.go                               |    2 +-
+ src/net/iprawsock_posix.go                         |    2 +-
+ src/net/ipsock_posix.go                            |    4 +-
+ src/net/listen_test.go                             |    8 +-
+ src/net/lookup.go                                  |    3 +-
+ src/net/lookup_fake.go                             |    2 +-
+ src/net/lookup_test.go                             |   15 -
+ src/net/main_conf_test.go                          |    2 +-
+ src/net/main_noconf_test.go                        |    2 +-
+ src/net/main_unix_test.go                          |    2 +-
+ src/net/net_test.go                                |    7 +-
+ src/net/platform_test.go                           |   10 +-
+ src/net/port_unix.go                               |    2 +-
+ src/net/rawconn.go                                 |    2 +-
+ src/net/rawconn_stub_test.go                       |    2 +-
+ src/net/rawconn_test.go                            |    4 +-
+ src/net/sendfile_stub.go                           |    2 +-
+ src/net/sendfile_test.go                           |    2 +-
+ src/net/sock_posix.go                              |    2 +-
+ src/net/sock_stub.go                               |    2 +-
+ src/net/sockaddr_posix.go                          |    2 +-
+ src/net/sockopt_stub.go                            |    2 +-
+ src/net/sockoptip_stub.go                          |    2 +-
+ src/net/sys_cloexec.go                             |    2 +-
+ src/net/tcpsock.go                                 |    2 +-
+ src/net/tcpsock_posix.go                           |    2 +-
+ src/net/tcpsock_test.go                            |    4 -
+ src/net/tcpsockopt_stub.go                         |    2 +-
+ src/net/timeout_test.go                            |   18 -
+ src/net/udpsock.go                                 |    5 +-
+ src/net/udpsock_posix.go                           |    2 +-
+ src/net/udpsock_test.go                            |   24 +-
+ src/net/unixsock.go                                |    2 +-
+ src/net/unixsock_posix.go                          |    2 +-
+ src/net/unixsock_test.go                           |    2 +-
+ src/os/dir_unix.go                                 |    2 +-
+ src/os/error_posix.go                              |    2 +-
+ src/os/error_unix_test.go                          |    2 +-
+ src/os/exec/lp_unix.go                             |    2 +-
+ src/os/exec_posix.go                               |    2 +-
+ src/os/exec_unix.go                                |    2 +-
+ src/os/executable.go                               |    2 -
+ src/os/executable_procfs.go                        |    2 +-
+ src/os/executable_test.go                          |    2 +-
+ src/os/export_unix_test.go                         |    2 +-
+ src/os/file.go                                     |    2 -
+ src/os/file_posix.go                               |    2 +-
+ src/os/file_unix.go                                |    2 +-
+ src/os/os_test.go                                  |   10 +-
+ src/os/path_unix.go                                |    2 +-
+ src/os/pipe_bsd.go                                 |    2 +-
+ src/os/pipe_test.go                                |    2 +-
+ src/os/rawconn_test.go                             |    2 +-
+ src/os/removeall_test.go                           |    4 +-
+ src/os/signal/signal_unix.go                       |    2 +-
+ src/os/{stat_nacljs.go => stat_js.go}              |    2 +-
+ src/os/stat_unix.go                                |    2 +-
+ src/os/sys_bsd.go                                  |    2 +-
+ src/os/sys_nacl.go                                 |    9 -
+ src/os/timeout_test.go                             |    1 -
+ src/os/user/lookup_stubs.go                        |    9 +-
+ src/os/user/lookup_unix.go                         |    2 +-
+ src/os/user/lookup_unix_test.go                    |    2 +-
+ src/os/wait_unimp.go                               |    2 +-
+ src/path/filepath/path_unix.go                     |    2 +-
+ src/plugin/plugin_test.go                          |    1 -
+ src/reflect/all_test.go                            |    9 +-
+ src/runtime/alg.go                                 |    1 -
+ src/runtime/asm_386.s                              |    4 -
+ src/runtime/asm_arm.s                              |   11 -
+ src/runtime/crash_nonunix_test.go                  |    2 +-
+ src/runtime/debug/heapdump_test.go                 |    4 +-
+ src/runtime/defs_nacl_386.go                       |   49 -
+ src/runtime/defs_nacl_arm.go                       |   56 -
+ src/runtime/env_posix.go                           |    2 +-
+ src/runtime/export_mmap_test.go                    |    2 +-
+ src/runtime/internal/sys/arch_386.go               |    2 +-
+ src/runtime/internal/sys/zgoos_nacl.go             |   24 -
+ src/runtime/lfstack_32bit.go                       |    2 +-
+ src/runtime/lock_sema.go                           |    2 +-
+ src/runtime/mem_bsd.go                             |    2 +-
+ src/runtime/mknacl.sh                              |   15 -
+ src/runtime/mmap.go                                |    1 -
+ src/runtime/netpoll.go                             |    2 +-
+ src/runtime/netpoll_fake.go                        |    4 +-
+ src/runtime/os2_nacl.go                            |  155 --
+ src/runtime/os_nacl.go                             |  333 ----
+ src/runtime/os_nacl_arm.go                         |   23 -
+ src/runtime/pprof/pprof_test.go                    |    2 +-
+ src/runtime/rt0_nacl_386.s                         |   24 -
+ src/runtime/rt0_nacl_arm.s                         |   16 -
+ src/runtime/runtime_mmap_test.go                   |    2 +-
+ src/runtime/runtime_test.go                        |    5 +-
+ src/runtime/semasleep_test.go                      |    2 +-
+ src/runtime/signal_386.go                          |    2 +-
+ src/runtime/signal_amd64x.go                       |    2 +-
+ src/runtime/signal_arm.go                          |    2 +-
+ src/runtime/signal_nacl.go                         |   45 -
+ src/runtime/signal_nacl_386.go                     |   41 -
+ src/runtime/signal_nacl_arm.go                     |   53 -
+ src/runtime/signal_sighandler.go                   |    2 +-
+ src/runtime/sizeof_test.go                         |    2 -
+ src/runtime/stubs2.go                              |    1 -
+ src/runtime/stubs3.go                              |    1 -
+ src/runtime/sys_nacl_386.s                         |  374 -----
+ src/runtime/sys_nacl_arm.s                         |  312 ----
+ src/runtime/syscall_nacl.h                         |   84 --
+ src/runtime/testdata/testprog/signal.go            |    2 +-
+ src/runtime/testdata/testprognet/signal.go         |    2 +-
+ src/runtime/time.go                                |    2 -
+ src/runtime/time_fake.go                           |    1 -
+ src/runtime/time_nofake.go                         |    1 -
+ src/runtime/tls_arm.s                              |   13 -
+ src/runtime/vlop_arm.s                             |    4 +-
+ src/syscall/asm_nacl_386.s                         |   45 -
+ src/syscall/asm_nacl_arm.s                         |   44 -
+ src/syscall/dirent.go                              |    2 +-
+ src/syscall/env_unix.go                            |    2 +-
+ src/syscall/fd_nacl.go                             |  326 ----
+ src/syscall/fs_nacl.go                             |  846 -----------
+ src/syscall/mkall.sh                               |    6 -
+ src/syscall/net_js.go                              |    2 +-
+ src/syscall/net_nacl.go                            |  973 ------------
+ src/syscall/syscall_nacl.go                        |  318 ----
+ src/syscall/syscall_nacl_386.go                    |   23 -
+ src/syscall/syscall_nacl_arm.go                    |   23 -
+ src/syscall/syscall_test.go                        |    2 +-
+ src/syscall/{tables_nacljs.go => tables_js.go}     |    2 +-
+ src/syscall/time_nacl_386.s                        |   11 -
+ src/syscall/time_nacl_arm.s                        |   11 -
+ src/syscall/timestruct.go                          |    2 +-
+ src/syscall/unzip_nacl.go                          |  685 ---------
+ src/syscall/zsyscall_nacl_386.go                   |   71 -
+ src/syscall/zsyscall_nacl_arm.go                   |   71 -
+ src/time/sys_unix.go                               |    2 +-
+ src/time/zoneinfo_unix.go                          |    2 +-
+ 211 files changed, 170 insertions(+), 7702 deletions(-)

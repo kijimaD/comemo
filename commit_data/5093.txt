@@ -1,0 +1,19 @@
+commit 6c8fdbe8c700cd5cda51bad47c5729a966897595
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 19 22:48:08 2010 -0700
+
+    godoc: line numbers for all remote search results
+    
+    Instead of returning the index lookup result via
+    RPC which has to be corrected for the client,
+    simply render it on the server and return the
+    final output.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/669041
+
+ lib/godoc/search.txt   |  3 ++-
+ src/cmd/godoc/godoc.go | 14 ++++++++++----
+ src/cmd/godoc/main.go  |  8 +++-----
+ 3 files changed, 15 insertions(+), 10 deletions(-)

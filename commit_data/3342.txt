@@ -1,0 +1,17 @@
+commit 7b850fb7e330e3dee06d14ae4663c972f278ac9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 07:49:49 2009 -0700
+
+    nacl syscall package - machine generated files
+    
+    R=r
+    DELTA=515  (515 added, 0 deleted, 0 changed)
+    OCL=34881
+    CL=34891
+
+ src/pkg/syscall/zerrors_nacl_386.go  | 246 +++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_nacl_386.go |  97 ++++++++++++++
+ src/pkg/syscall/zsysnum_nacl_386.go  |  62 +++++++++
+ src/pkg/syscall/ztypes_nacl.go       |   9 ++
+ src/pkg/syscall/ztypes_nacl_386.go   | 101 ++++++++++++++
+ 5 files changed, 515 insertions(+)

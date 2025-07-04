@@ -1,0 +1,19 @@
+commit 3e428363c4b793c552925703f206b9382fdfcb51
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 25 00:14:58 2019 -0700
+
+    cmd/compile: remove -s flag
+    
+    This is better handled by tools like cmd/gofmt, which can
+    automatically rewrite the source code and already supports a syntactic
+    version of this simplification. (go/types can be used if
+    type-sensitive simplification is actually necessary.)
+    
+    Change-Id: I51332a8f3ff4ab3087bc6b43a491c6d92b717228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197118
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go      | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 5 -----
+ 2 files changed, 6 deletions(-)

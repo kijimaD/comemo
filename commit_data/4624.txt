@@ -1,0 +1,15 @@
+commit e85f8378b8ea3e052c9049caa5df0567f104f252
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 23:17:48 2010 -0800
+
+    Urgent parser/gofmt fix.
+    Wrong position information for identifier
+    could lead to destructive reformatting of
+    source via hg gofmt.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189100
+
+ src/pkg/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

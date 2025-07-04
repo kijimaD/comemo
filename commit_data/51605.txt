@@ -1,0 +1,26 @@
+commit 0202ad0b3a2bfddf9f3eafb94e19d5a0fa3d1f31
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 9 09:49:32 2023 -0800
+
+    cmd/compile: prevent IsNewObject from taking quadratic time
+    
+    As part of IsNewObject, we need to go from the SelectN[0] use of
+    a call to the SelectN[1] use of a call. The current code does this
+    by just looking through the block. If the block is very large,
+    this ends up taking quadratic time.
+    
+    Instead, prepopulate a map from call -> SelectN[1] user of that call.
+    That lets us find the SelectN[1] user in constant time.
+    
+    Fixes #57657
+    
+    Change-Id: Ie2e0b660af5c080314f4f17ba2838510a1147f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461080
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 38 ++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 14 deletions(-)

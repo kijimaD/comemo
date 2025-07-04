@@ -1,0 +1,31 @@
+commit ce01afe907f7f37b465bda529a339a7a8b98c59e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 7 16:52:53 2022 -0500
+
+    cmd/go: reset modfetch state between modules in go work sync
+    
+    go work sync resets the state in the modload package before each
+    iteration where it updates the workspace modules' go.mod files. But
+    before this change it wasn't resetting the global state in the modfetch
+    package. This is necessary because the modfetch package keeps track of
+    the sums that will be written to go.sum. Further, the fetch caches
+    will update information about which modules are used when fetching
+    packages, and so those caches need to be cleared between each workspace
+    module.
+    
+    Thanks bcmills for helping me debug!
+    
+    Fixes #50038
+    
+    Change-Id: I5679c18a80feb7c5194c4a5f7e7129c7d198ef7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376655
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go        | 22 +++++++++++++++
+ src/cmd/go/internal/modload/init.go          |  1 +
+ src/cmd/go/internal/workcmd/sync.go          |  4 +--
+ src/cmd/go/testdata/script/work_sync_sum.txt | 40 ++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 418e2f6aaeb686c67d7ffc993f7137ed61426c29
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Sat Aug 10 11:38:42 2013 +1000
+
+    strconv: fix typo in docs
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12709044
+
+ src/pkg/strconv/quote.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

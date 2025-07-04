@@ -1,0 +1,13 @@
+commit bb843c0b2ffaaca6b2f18a54cd30b9d1b10c7eb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 4 20:29:58 2014 -0700
+
+    runtime: remove unused enum maxround
+    
+    LGTM=minux, dave
+    R=golang-codereviews, minux, dave
+    CC=golang-codereviews
+    https://golang.org/cl/122030043
+
+ src/pkg/runtime/runtime.c | 4 ----
+ 1 file changed, 4 deletions(-)

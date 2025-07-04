@@ -1,0 +1,30 @@
+commit 90d6bbbe42c15d444c1da0a1c293192d6f735a8e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Feb 2 12:58:30 2021 -0800
+
+    crypto/tls: enforce ALPN overlap when negotiated on both sides
+    
+    During the TLS handshake if the server doesn't support any of the
+    application protocols requested by the client, send the
+    no_application_protocol alert and abort the handshake on the server
+    side. This enforces the requirements of RFC 7301.
+    
+    Change-Id: Iced2bb5c6efc607497de1c40ee3de9c2b393fa5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289209
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.17.html                                    |   7 ++
+ src/crypto/tls/common.go                           |   6 +-
+ src/crypto/tls/handshake_client_test.go            |  50 +++++++++++
+ src/crypto/tls/handshake_server.go                 |  13 +--
+ src/crypto/tls/handshake_server_test.go            |  20 ++++-
+ src/crypto/tls/handshake_server_tls13.go           |  12 ++-
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  85 +-----------------
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  91 +++++++++++++++++++
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch |  99 +++-----------------
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 100 +++++++++++++++++++++
+ 10 files changed, 303 insertions(+), 180 deletions(-)

@@ -1,0 +1,24 @@
+commit 7e01b3b3879593828b89f4ff4a04667a547b22d9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 23 10:41:50 2020 +1100
+
+    strconv: add eiselLemire32
+    
+    This does for ParseFloat(etc, 32) what commit a2eb53c571 did for
+    ParseFloat(etc, 64).
+    
+    name              old time/op  new time/op  delta
+    Atof32Decimal-4   48.3ns ± 4%  48.8ns ± 2%     ~     (p=0.548 n=5+5)
+    Atof32Float-4     56.2ns ± 5%  54.7ns ± 3%     ~     (p=0.246 n=5+5)
+    Atof32FloatExp-4   104ns ± 0%    76ns ± 2%  -27.19%  (p=0.008 n=5+5)
+    Atof32Random-4     142ns ± 2%   109ns ± 1%  -23.07%  (p=0.008 n=5+5)
+    
+    Change-Id: I6ee5a2f2d791d4fe3028f1d40aca96400120fda0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264517
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/atof.go         |  4 ++-
+ src/strconv/eisel_lemire.go | 86 ++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 84 insertions(+), 6 deletions(-)

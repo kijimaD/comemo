@@ -1,0 +1,11 @@
+commit d441d545a98dbab3a1c82973a1e81d7caa1b015d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 08:34:31 2009 -0800
+
+    two more regexp tweaks
+    
+    TBR=r
+    http://go/go-review/1016037
+
+ src/pkg/net/net_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

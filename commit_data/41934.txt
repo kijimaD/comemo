@@ -1,0 +1,17 @@
+commit 6f3a9515b6bb879472f3b3443a052b07ed11ee2f
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 3 11:58:12 2020 -0400
+
+    crypto/x509: generate SubjectKeyId for CAs
+    
+    Fixes #26676
+    
+    Change-Id: I5bc91d4a8161bc6ff25effcf93f551f735fef115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227098
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go      | 28 ++++++++++++++++++++++------
+ src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 6 deletions(-)

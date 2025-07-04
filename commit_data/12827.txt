@@ -1,0 +1,16 @@
+commit 5496e941873f2a755e387e37d965fd486e81c1ba
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Apr 4 09:45:22 2012 -0400
+
+    math: update Gamma special cases
+    Match new C99 values for special cases.
+    
+    Fixes #2977.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5972058
+
+ src/pkg/math/all_test.go |  4 ++--
+ src/pkg/math/gamma.go    | 25 ++++++++++++++++++++-----
+ 2 files changed, 22 insertions(+), 7 deletions(-)

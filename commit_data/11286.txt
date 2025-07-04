@@ -1,0 +1,13 @@
+commit 22ef504654079bd0a6f227b7485ce0657bf205e1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jan 20 16:57:10 2012 +1100
+
+    weekly.2012-01-20
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5557067
+
+ .hgtags               |   1 -
+ doc/devel/weekly.html | 102 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+), 1 deletion(-)

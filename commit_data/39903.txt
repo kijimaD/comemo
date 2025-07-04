@@ -1,0 +1,34 @@
+commit 142c002ee714c871a5644557f8320171c8569a1f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 4 15:14:13 2019 -0400
+
+    misc/wasm: fix argv/envp layout
+    
+    The wasm_exec.js wrapper tries to set up the argv and envp following
+    the UNIX conventions, but doesn't get it quite right, which can cause
+    runtime.goenv to crash if you get unlucky.
+    
+    The main problem was that the envp array wasn't terminated with a nil
+    pointer, so the runtime didn't know when to stop reading the array.
+    This CL adds that nil pointer to the end of the envp array.
+    
+    The other problem was harmless, but confusing. In the UNIX convention,
+    the argv array consists of argc pointers followed by a nil pointer,
+    followed by the envp array. However, wasm_exec.js put the environment
+    variable count between the two pointer arrays rather than a nil
+    pointer. The runtime never looks at this slot, so it didn't matter,
+    but the break from convention left Cherry and I trying to debug why it
+    *wasn't* losing any environment variables before we realized that that
+    layouts happened to be close enough to work. This CL switches to the
+    UNIX convention of simply terminating the argv array with a nil
+    pointer.
+    
+    Change-Id: Ic9a4cd9eabb5dfa599a809b960f9e579b9f1f4db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193417
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.js | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

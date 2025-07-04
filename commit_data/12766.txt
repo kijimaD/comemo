@@ -1,0 +1,12 @@
+commit 308cc100e63c7e5fc3c887aee37cb158ac829255
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 13:35:01 2012 +1100
+
+    doc: update footer text
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5920043
+
+ lib/godoc/godoc.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

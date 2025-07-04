@@ -1,0 +1,21 @@
+commit 95974b379f925ee588cfae258144a117db25b0a2
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Oct 20 08:35:15 2023 +0000
+
+    net: set IsNotFound on windows and plan9 DNS queries
+    
+    Change-Id: I2a12acb3e4f31dd561d49f47a3b1ae3ac47ab894
+    GitHub-Last-Rev: 4733964f691c567ccad0279fb553442322543024
+    GitHub-Pull-Request: golang/go#63542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534937
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/net/lookup_plan9.go   |  37 +++++++++-----
+ src/net/lookup_test.go    | 122 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup_windows.go |  23 ++++++---
+ 3 files changed, 163 insertions(+), 19 deletions(-)

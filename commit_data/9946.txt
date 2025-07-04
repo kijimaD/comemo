@@ -1,0 +1,12 @@
+commit 85368292a3fef14303cffb9f422fd723f44a7cd6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 13 11:53:15 2011 +1100
+
+    html: when a parse test fails, don't bother testing rendering.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5248061
+
+ src/pkg/html/parse_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

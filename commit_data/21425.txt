@@ -1,0 +1,12 @@
+commit 09114fb359e5666f2fe557db063bcd460476cc72
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 2 11:33:06 2015 +0000
+
+    net: failed not faild
+    
+    Change-Id: Iea4221186325783db2029b07af1409015ddeda99
+    Reviewed-on: https://go-review.googlesource.com/3695
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/net/server_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

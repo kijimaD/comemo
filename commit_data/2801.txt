@@ -1,0 +1,13 @@
+commit 326de9ca97acf17abb0ed1221dddec7c93bbe667
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 28 11:53:16 2009 -0700
+
+    constants for floating point limits
+    
+    R=rsc
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=32283
+    CL=32287
+
+ src/pkg/math/const.go | 5 +++++
+ 1 file changed, 5 insertions(+)

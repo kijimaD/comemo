@@ -1,0 +1,15 @@
+commit 005806cab17a20adaec33a1ee02a19355356fa67
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 5 14:59:31 2014 -0700
+
+    runtime: run getgcmask on the M stack.
+    
+    LGTM=rsc
+    R=rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/132660043
+
+ src/pkg/runtime/export_test.go | 13 ++++++++++++-
+ src/pkg/runtime/mgc0.c         |  4 ++--
+ src/pkg/runtime/stubs.goc      |  7 -------
+ 3 files changed, 14 insertions(+), 10 deletions(-)

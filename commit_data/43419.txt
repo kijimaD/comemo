@@ -1,0 +1,29 @@
+commit 6af088bfc66c13143c9ef46b4cf0805df77a8fbe
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Oct 19 13:29:40 2020 -0700
+
+    encoding/json: add "json: " prefix to SyntaxError messages
+    
+    The other named errors - UnmarshalTypeError, etc - in this package do
+    the same, so we should prepend the package prefix to error messages
+    for consistency.
+    
+    Add a note to the release docs in case this is interpreted as
+    a breaking change.
+    
+    Fixes #36221.
+    
+    Change-Id: Ie24b532bbf9812e108c259fa377e2a6b64319ed4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263619
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Kevin Burke <kev@inburke.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/go1.16.html                                  | 8 ++++++++
+ src/cmd/go/testdata/script/mod_proxy_invalid.txt | 4 ++--
+ src/cmd/go/testdata/script/mod_query_empty.txt   | 2 +-
+ src/encoding/json/scanner.go                     | 2 +-
+ src/html/template/escape_test.go                 | 2 +-
+ 5 files changed, 13 insertions(+), 5 deletions(-)

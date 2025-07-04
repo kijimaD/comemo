@@ -1,0 +1,12 @@
+commit 3d8940a9ee791089ad6417b35d9e70ed2bfc7258
+Author: Aditya Mukerjee <dev@chimeracoder.net>
+Date:   Thu Apr 19 12:24:53 2018 -0400
+
+    runtime: specify behavior of SetMutexProfileFraction for negative values
+    
+    Change-Id: Ie4da1a515d5405140d742bdcd55f54a73a7f71fe
+    Reviewed-on: https://go-review.googlesource.com/108175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

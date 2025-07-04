@@ -1,0 +1,16 @@
+commit 166063510aeb3bf94f4530aa9ce92ef1a15bb8dd
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 14:53:49 2023 +0800
+
+    embed: add available godoc link
+    
+    Change-Id: Iefccc7aeb0f697c555ae8a6a6bb6cd5091882195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535079
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/embed/embed.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

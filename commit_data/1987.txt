@@ -1,0 +1,12 @@
+commit 870c91aec2c36185f92867b49a19a1c9bdc4f217
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 10 02:50:22 2009 -0700
+
+    fix typo breaking linux build
+    
+    R=rsc
+    OCL=27304
+    CL=27304
+
+ src/lib/os/dir_amd64_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

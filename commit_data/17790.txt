@@ -1,0 +1,12 @@
+commit 51c0d7c0a7bee8256c298e022021e4bfb3ff915b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 15 08:21:30 2013 +1100
+
+    C: add Michael Piatek (Google CLA).
+    
+    R=golang-dev, r
+    CC=golang-dev, piatek
+    https://golang.org/cl/14681043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 5ca13f6378e0ded516ce8a2e3fb748d64b4b51d6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 22:50:05 2012 +1100
+
+    doc: fix metadata in go_mem.html
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5781053
+
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

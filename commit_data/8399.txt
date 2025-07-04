@@ -1,0 +1,12 @@
+commit 77d66f41314667226d2c385d7d3cfa6314e31919
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun May 15 13:14:10 2011 -0700
+
+    strings: make Reader.Read use copy instead of an explicit loop.
+    
+    R=r, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/4529064
+
+ src/pkg/strings/reader.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

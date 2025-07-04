@@ -1,0 +1,53 @@
+commit 527829a7cba4ded29f98fae97f8bab9de247d5fe
+Author: Danil Timerbulatov <timerbulatov.danila@gmail.com>
+Date:   Fri Dec 8 00:17:19 2023 +0300
+
+    all: remove newline characters after return statements
+    
+    This commit is aimed at improving the readability and consistency
+    of the code base. Extraneous newline characters were present after
+    some return statements, creating unnecessary separation in the code.
+    
+    Fixes #64610
+    
+    Change-Id: Ic1b05bf11761c4dff22691c2f1c3755f66d341f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548316
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/base/hashdebug.go           | 1 -
+ src/cmd/compile/internal/loopvar/loopvar_test.go     | 8 ++++----
+ src/cmd/compile/internal/loopvar/testdata/opt-121.go | 1 -
+ src/cmd/compile/internal/loopvar/testdata/opt-122.go | 1 -
+ src/cmd/compile/internal/loopvar/testdata/opt.go     | 1 -
+ src/cmd/compile/internal/ssa/func.go                 | 1 -
+ src/cmd/compile/internal/test/testdata/ctl_test.go   | 2 --
+ src/cmd/link/internal/loadxcoff/ldxcoff.go           | 1 -
+ src/cmd/link/internal/mips/obj.go                    | 1 -
+ src/cmd/link/internal/ppc64/asm.go                   | 1 -
+ src/database/sql/convert.go                          | 1 -
+ src/hash/fnv/fnv.go                                  | 1 -
+ src/internal/bisect/bisect.go                        | 1 -
+ src/internal/syscall/unix/at_fstatat.go              | 1 -
+ src/log/slog/logger.go                               | 1 -
+ src/math/big/float_test.go                           | 2 --
+ src/net/http/server.go                               | 1 -
+ src/os/file_plan9.go                                 | 1 -
+ src/runtime/os2_aix.go                               | 2 --
+ src/runtime/runtime1.go                              | 1 -
+ src/runtime/syscall_aix.go                           | 1 -
+ src/runtime/traceback_test.go                        | 1 -
+ src/text/template/parse/node.go                      | 1 -
+ test/codegen/bits.go                                 | 2 --
+ test/codegen/memcombine.go                           | 1 -
+ test/codegen/noextend.go                             | 1 -
+ test/escape2.go                                      | 1 -
+ test/escape2n.go                                     | 1 -
+ test/fixedbugs/issue32680b.go                        | 1 -
+ test/fixedbugs/issue56923.go                         | 1 -
+ test/typeparam/issue50485.dir/a.go                   | 1 -
+ test/typeparam/issue51925.go                         | 1 -
+ 32 files changed, 4 insertions(+), 39 deletions(-)

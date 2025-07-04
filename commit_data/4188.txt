@@ -1,0 +1,11 @@
+commit dc30800c282983655b942c6d5d8868432ad84fbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 23 12:58:28 2009 -0800
+
+    8g: call throwindex for array out of bounds
+    
+    R=ken2
+    https://golang.org/cl/160043
+
+ src/cmd/8g/cgen.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

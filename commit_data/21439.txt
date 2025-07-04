@@ -1,0 +1,12 @@
+commit c901bd01c131b6a3d1bbc7dde9de02cb7ce2544a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 08:35:38 2015 -0500
+
+    runtime: add missing \n to error message
+    
+    Change-Id: Ife7d30f4191e6a8aaf3a442340d277989f7a062d
+    Reviewed-on: https://go-review.googlesource.com/3780
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

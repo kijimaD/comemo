@@ -1,0 +1,22 @@
+commit 028e48c1dae1083ec9d8e55bd890157a44ab4499
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 3 06:22:11 2016 +0900
+
+    net: deduplicate raw IP socket code
+    
+    This change consolidates functions and methods related to IPAddr and
+    IPConn for maintenance purpose, especially for documentation.
+    
+    The followup changes will update comments and examples.
+    
+    Updates #10624.
+    
+    Change-Id: Ia5146f234225704a3c0b6459e1903e56a7b68134
+    Reviewed-on: https://go-review.googlesource.com/20124
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/iprawsock.go       | 129 +++++++++++++++++++++++++++++++++++++++++
+ src/net/iprawsock_plan9.go |  70 ++++------------------
+ src/net/iprawsock_posix.go | 141 ++++++++-------------------------------------
+ 3 files changed, 163 insertions(+), 177 deletions(-)

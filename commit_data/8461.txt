@@ -1,0 +1,14 @@
+commit 12104807de0894433b92f8e7399fead03a52a23c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 22 10:09:07 2011 -0700
+
+    syscall: add IPv6 scope zone ID support
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4515124
+
+ src/pkg/syscall/syscall_bsd.go     | 9 ++++++---
+ src/pkg/syscall/syscall_linux.go   | 9 ++++++---
+ src/pkg/syscall/syscall_windows.go | 5 +++--
+ 3 files changed, 15 insertions(+), 8 deletions(-)

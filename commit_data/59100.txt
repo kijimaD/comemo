@@ -1,0 +1,21 @@
+commit 3309658d3912c1a029ac4126ed64219fbe1a2d1b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 18 14:04:26 2025 -0700
+
+    doc: document change in nil-ptr checking behavior
+    
+    This could bite people during the 1.25 release, so make sure it
+    has good documentation in the release notes.
+    
+    Update #72860
+    
+    Change-Id: Ie9aaa219025a631e81ebc48461555c5fb898f43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658955
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/5-toolchain.md | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,0 +1,16 @@
+commit e1fb8e429158124a65139e28674ad8bb43a7eeb8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 16 13:28:35 2019 -0400
+
+    cmd/go: include "gccgo stdlib" in lost build action check
+    
+    Fixes #32060
+    
+    Change-Id: I49ab48a9bdd64a7ed777a045e2d92d28a37b5c0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177600
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 0aba8f24cb1f38beb01491bc91697617ea0ce55b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 9 18:25:05 2020 -0500
+
+    cmd/link: truncate file after code signature
+    
+    When external linking, in case that the external linker generates
+    a code signature with a different size (e.g. as it uses a
+    different identifier), truncate the file after rewriting the code
+    signature, to make sure that no bytes after the signature (which
+    will invalidate the signature).
+    
+    Fixes #43105.
+    
+    Change-Id: I732f949fedd6de42d9f3cf6d017f7ba3f4e59e7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276693
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

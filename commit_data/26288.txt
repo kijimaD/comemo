@@ -1,0 +1,18 @@
+commit 80a051712981fb232567813e11899b592ddd51de
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 13 21:34:46 2016 -0400
+
+    os/user: allow LookupGroupId to fail during test
+    
+    On my Mac I am in group 5000 which apparently has no name
+    (I suspect because it is an LDAP group and I cannot reach the
+    LDAP server). Do not make the test fail in that case.
+    
+    Fixes #14806
+    
+    Change-Id: I56b11a8e86b048abfb00812eaad37802fd2adcc5
+    Reviewed-on: https://go-review.googlesource.com/20710
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/user/user_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

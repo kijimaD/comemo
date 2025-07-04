@@ -1,0 +1,13 @@
+commit 4f211612690965c3a9cd5362257fcac346f41c60
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 15:55:45 2009 -0700
+
+    Document runtime functions.
+    
+    R=rsc
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=28574
+    CL=28580
+
+ src/lib/runtime/runtime.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

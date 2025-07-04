@@ -1,0 +1,29 @@
+commit f54d73b88014c0269c253d814f47b38e0929cf28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 22 19:58:55 2010 -0700
+
+    Rename dynld to dynimport throughout.
+    
+    Cgo users will need to rerun cgo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/692041
+
+ src/cmd/5c/swt.c   | 11 +++++++++++
+ src/cmd/5l/asm.c   | 10 +++++-----
+ src/cmd/5l/l.h     |  4 ++--
+ src/cmd/6c/swt.c   |  8 ++++----
+ src/cmd/6l/asm.c   | 10 +++++-----
+ src/cmd/6l/l.h     |  4 ++--
+ src/cmd/8c/swt.c   |  8 ++++----
+ src/cmd/8l/asm.c   | 10 +++++-----
+ src/cmd/8l/l.h     |  4 ++--
+ src/cmd/cc/cc.h    | 10 +++++-----
+ src/cmd/cc/dpchk.c | 12 ++++++------
+ src/cmd/cc/lexbody |  2 +-
+ src/cmd/cc/macbody |  4 ++--
+ src/cmd/cgo/out.go | 12 ++++++------
+ src/cmd/ld/go.c    | 24 ++++++++++++------------
+ src/cmd/ld/macho.c | 10 +++++-----
+ 16 files changed, 77 insertions(+), 66 deletions(-)

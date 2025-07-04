@@ -1,0 +1,12 @@
+commit 71c6da39ce58c6d2b4a7ce365257c9ea51de6c99
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 12:18:29 2013 -0400
+
+    runtime/pprof: fix test
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12790043
+
+ src/pkg/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

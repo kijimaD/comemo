@@ -1,0 +1,35 @@
+commit de70de6ede7ffbbec5ab206658f60c9a9eeb49dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 30 11:44:43 2019 -0400
+
+    cmd/go: avoid upgrading to +incompatible versions if the latest compatible one has a go.mod file
+    
+    Previously we would always “upgrade” to the semantically-highest
+    version, even if a newer compatible version exists.
+    
+    That made certain classes of mistakes irreversible: in general we
+    expect users to address bad releases by releasing a new (higher)
+    version, but if the bad release was an unintended +incompatible
+    version, then no release that includes a go.mod file can ever have a
+    higher version, and the bad release will be treated as “latest”
+    forever.
+    
+    Instead, when considering a +incompatible version we now consult the
+    latest compatible (v0 or v1) release first. If the compatible release
+    contains a go.mod file, we ignore the +incompatible releases unless
+    they are expicitly requested (by version, commit ID, or branch name).
+    
+    Fixes #34165
+    Updates #34189
+    
+    Change-Id: I7301eb963bbb91b21d3b96a577644221ed988ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204440
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.14.html                                    |  34 ++++--
+ src/cmd/go/internal/modfetch/repo.go               |   2 +-
+ src/cmd/go/internal/modload/query.go               | 119 +++++++++++++++++----
+ .../go/testdata/script/mod_prefer_compatible.txt   |  64 +++++++++++
+ 4 files changed, 189 insertions(+), 30 deletions(-)

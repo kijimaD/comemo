@@ -1,0 +1,12 @@
+commit 5fb82d8cf600ad7388306a0bf9899dc2a93aaafa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 24 11:55:31 2012 +1100
+
+    net/http: add overlooked 418 status code, per RFC 2324.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5688067
+
+ src/pkg/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit 4c03bf9c594779efe451feeae6d05447ecb8a7a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 20 16:22:13 2011 -0700
+
+    godoc: fix zip file directory lookup
+    
+    Also: remove left-over println calls.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4807042
+
+ src/cmd/godoc/httpzip.go |  9 ++++-----
+ src/cmd/godoc/zip.go     | 39 ++++++++++++++++++++++++++-------------
+ 2 files changed, 30 insertions(+), 18 deletions(-)

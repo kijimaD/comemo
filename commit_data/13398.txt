@@ -1,0 +1,19 @@
+commit b7bb1e32d84f45794b2106daa5c908bcb390461e
+Author: Jonathan Gold <jgold.bg@gmail.com>
+Date:   Mon Jun 25 17:36:09 2012 -0400
+
+    encoding/json: add Number type
+    
+    Number represents the actual JSON text,
+    preserving the precision and
+    formatting of the original input.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6202068
+
+ src/pkg/encoding/json/decode.go      | 44 +++++++++++++++--
+ src/pkg/encoding/json/decode_test.go | 96 +++++++++++++++++++++++++++++++++---
+ src/pkg/encoding/json/encode.go      | 10 +++-
+ src/pkg/encoding/json/stream.go      |  4 ++
+ 4 files changed, 143 insertions(+), 11 deletions(-)

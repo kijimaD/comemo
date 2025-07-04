@@ -1,0 +1,19 @@
+commit 8835343280029eaf86e0612d600ae7af5c68b092
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 2 11:39:38 2021 -0800
+
+    doc/go1.18: mention new -asan option
+    
+    For #44853
+    For #47694
+    
+    Change-Id: Ia76246218b1361d8bdf510bbfc5178c83cdd3eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368834
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.18.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

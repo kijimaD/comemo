@@ -1,0 +1,17 @@
+commit 98da2d1f91a8f4e6bdaecd8a98fc77cbac211c80
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jan 29 22:47:27 2017 -0500
+
+    runtime: remove wbufptr
+    
+    Since workbuf is now marked go:notinheap, the write barrier-preventing
+    wrapper type wbufptr is no longer necessary. Remove it.
+    
+    Change-Id: I3e5b5803a1547d65de1c1a9c22458a38e08549b7
+    Reviewed-on: https://go-review.googlesource.com/35971
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcwork.go | 69 ++++++++++++++++++++------------------------------
+ 1 file changed, 27 insertions(+), 42 deletions(-)

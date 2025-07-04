@@ -1,0 +1,12 @@
+commit 6498c1d4683c05c845598d64d9679a58e46fca89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 14:52:37 2010 -0800
+
+    sort.Search: added extra test to verify efficiency
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3048041
+
+ src/pkg/sort/search_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

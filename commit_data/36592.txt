@@ -1,0 +1,23 @@
+commit 3fd364988ce5dcf3aa1d4eb945d233455db30af6
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Sep 5 07:07:56 2018 +0200
+
+    misc/cgo/testplugin: disable DWARF tests on darwin
+    
+    For some reason on darwin the linker still can't add debug sections to
+    plugins. Executables importing "plugin" do have them, however.
+    
+    Because of issue 25841, plugins on darwin would likely have bad debug
+    info anyway so, for now, this isn't a great loss.
+    
+    This disables the check for debug sections in plugins for darwin only.
+    
+    Updates #27502
+    
+    Change-Id: Ib8f62dac1e485006b0c2b3ba04f86d733db5ee9a
+    Reviewed-on: https://go-review.googlesource.com/133435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testplugin/src/checkdwarf/main.go | 8 ++++----
+ misc/cgo/testplugin/test.bash              | 6 +++++-
+ 2 files changed, 9 insertions(+), 5 deletions(-)

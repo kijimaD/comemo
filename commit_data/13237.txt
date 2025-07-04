@@ -1,0 +1,22 @@
+commit baf91c313fdd50601f40915fa42a423faa1a5c76
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu May 31 23:30:55 2012 +0200
+
+    runtime: lower memory overhead of heap profiling.
+    
+    The previous code was preparing arrays of entries that would be
+    filled if there was one entry every 128 bytes. Moving to a 4096
+    byte interval reduces the overhead per megabyte of address space
+    to 2kB from 64kB (on 64-bit systems).
+    The performance impact will be negative for very small MemProfileRate.
+    
+    test/bench/garbage/tree2 -heapsize 800000000 (default memprofilerate)
+    Before: mprof 65993056 bytes (1664 bucketmem + 65991392 addrmem)
+    After:  mprof  1989984 bytes (1680 bucketmem +  1988304 addrmem)
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6257069
+
+ src/pkg/runtime/mprof.goc | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

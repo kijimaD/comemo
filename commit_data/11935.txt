@@ -1,0 +1,20 @@
+commit 2506fd43d463b5fe5e5c89982a6fea4a1602908b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 15 11:48:17 2012 -0500
+
+    build: add make.bash --no-clean option
+    
+    Makes it possible to run
+    
+    GOARCH=amd64 make.bash
+    GOARCH=386 make.bash --no-clean
+    
+    to avoid deleting some of the work done by the first one.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5673056
+
+ src/cmd/dist/build.c | 10 ++++++----
+ src/make.bash        |  8 ++++++--
+ 2 files changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 3702cb5ab95575830488dc2b1ca9424651f828cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 18 10:57:28 2023 -0700
+
+    go/types: use InvalidSyntaxTree in a couple of places (cleanup)
+    
+    Change-Id: I3dcff95b49a72edc30035f50b1ac1d3f9cdec91b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529235
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/expr.go      | 2 +-
+ src/go/types/interface.go | 6 ++----
+ 2 files changed, 3 insertions(+), 5 deletions(-)

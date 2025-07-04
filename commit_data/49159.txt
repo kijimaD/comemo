@@ -1,0 +1,20 @@
+commit 5d0400c72de968dffacc3e2004808758894ea433
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 14:40:34 2022 -0700
+
+    spec: adjust scope of function/method type parameters
+    
+    Change scope rules per the accepted proposal #52038.
+    Match prose for type parameters of type declarations.
+    Fixing the implementation is tracked by #51503.
+    
+    Fixes #52038.
+    For #51503.
+    
+    Change-Id: Iebd88a82c896b7b2e8520cd514ef6a2cc903e807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405754
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

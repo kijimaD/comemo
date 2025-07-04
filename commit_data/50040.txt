@@ -1,0 +1,32 @@
+commit d05ce23756573c6dc2c5026d936f2ef6ac140ee2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 19 14:43:47 2022 -0700
+
+    misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal
+    
+    Occasionally the signal will be sent to a Go thread, which will cause
+    the program to exit with SIGQUIT rather than SIGSEGV.
+    
+    Add TestSignalForwardingGo to test the case where the signal is
+    expected to be delivered to a Go thread.
+    
+    This is a roll forward of CL 419014 which was rolled back in CL 424954.
+    This CL differs from 419014 in that it skips TestSignalForwardingGo
+    on darwin-amd64.
+    
+    Fixes #53907
+    
+    Change-Id: I5df3fd610c068df3bd48d9b3d7a9379248b97999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425002
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/testcarchive/carchive_test.go          | 242 +++++++++++++++---------
+ misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 +
+ misc/cgo/testcarchive/testdata/main5.c          |  13 +-
+ src/runtime/signal_darwin_amd64.go              |   4 +
+ 4 files changed, 168 insertions(+), 97 deletions(-)

@@ -1,0 +1,17 @@
+commit 8b471db71b95e9250f751f494a6a5359cb50d5cd
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jul 15 23:53:47 2021 +0900
+
+    path/filepath: change IsAbs to treat \\host\share as an absolute path
+    
+    Fixes #47123
+    
+    Change-Id: I2226b8a9ea24cd88171acfbaffea2566309416de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334809
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path_test.go    | 2 ++
+ src/path/filepath/path_windows.go | 4 ++++
+ 2 files changed, 6 insertions(+)

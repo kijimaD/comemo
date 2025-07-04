@@ -1,0 +1,26 @@
+commit 62d627f0bcf7e2afe40e7ec5d61d6964b8284b43
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 8 21:41:54 2010 -0800
+
+    runtime: allow arbitrary return type in SetFinalizer.
+            finalize chan, to free OS X semaphore inside Lock.
+    os: finalize File, to close fd.
+    
+    Fixes #503.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/204065
+
+ src/pkg/os/file.go               |  7 +++++--
+ src/pkg/runtime/chan.c           |  9 +++++++++
+ src/pkg/runtime/darwin/thread.c  | 12 ++++++++----
+ src/pkg/runtime/freebsd/thread.c |  5 +++++
+ src/pkg/runtime/linux/thread.c   |  5 +++++
+ src/pkg/runtime/malloc.cgo       | 18 +++++++++++++++---
+ src/pkg/runtime/malloc.h         |  3 +--
+ src/pkg/runtime/mfinal.c         | 29 ++++++++++++++++++-----------
+ src/pkg/runtime/mgc0.c           | 34 +++++++++++++++++++++++-----------
+ src/pkg/runtime/proc.c           | 13 ++++++++++---
+ src/pkg/runtime/runtime.h        |  4 +++-
+ 11 files changed, 102 insertions(+), 37 deletions(-)

@@ -1,0 +1,20 @@
+commit ef45945718c2374234879ee184c9af126937cb2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 15:36:04 2018 -0400
+
+    cmd/go: scrub go.sum during go mod -sync
+    
+    go.sum accumulates cruft as modules are added and removed as
+    direct and indirect dependencies. Instead of exposing all that cruft,
+    let "go mod -sync" clean it out.
+    
+    Fixes #26381.
+    
+    Change-Id: I7c9534cf7cc4579f7f82646d00ff691c87a13c4a
+    Reviewed-on: https://go-review.googlesource.com/124713
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/mod.go           | 26 ++++++++++++++++++++++-
+ src/cmd/go/internal/modfetch/fetch.go       | 18 ++++++++++++++++
+ src/cmd/go/testdata/script/mod_sync_sum.txt | 33 +++++++++++++++++++++++++++++
+ 3 files changed, 76 insertions(+), 1 deletion(-)

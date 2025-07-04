@@ -1,0 +1,18 @@
+commit 28516d4c78706a805000b4a119f30fca90d68fb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 12 16:08:16 2009 -0700
+
+    update reflect for upcoming interface representation change.
+    test case for new change.
+    
+    both work with the current compiler too.
+    
+    R=r
+    DELTA=150  (145 added, 2 deleted, 3 changed)
+    OCL=28703
+    CL=28715
+
+ src/lib/reflect/value.go |  11 +++-
+ test/interface11.go      | 140 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/interface4.go       |   4 +-
+ 3 files changed, 151 insertions(+), 4 deletions(-)

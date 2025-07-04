@@ -1,0 +1,16 @@
+commit b8562ff488e48563945764fe42c2cbae1efd4452
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 15:37:51 2010 -0500
+
+    5l: fix build
+    
+    Makes 5l build with recent changes, but not yet tested on ARM hardware.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3449044
+
+ src/cmd/5l/Makefile |   2 +
+ src/cmd/5l/asm.c    | 137 ++++++++++++++++++++++++----------------------------
+ src/cmd/5l/l.h      |  10 +++-
+ 3 files changed, 73 insertions(+), 76 deletions(-)

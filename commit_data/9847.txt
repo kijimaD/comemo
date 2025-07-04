@@ -1,0 +1,13 @@
+commit d573ad26719fa6100970dc291ae83ad8ea33bff1
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Oct 1 11:58:36 2011 -0700
+
+    runtime: implement runtime usleep for openbsd
+    
+    R=golang-dev, mikioh.mikioh, hectorchu
+    CC=golang-dev
+    https://golang.org/cl/5173043
+
+ src/pkg/runtime/openbsd/386/sys.s   | 18 ++++++++++++++++++
+ src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+)

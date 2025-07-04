@@ -1,0 +1,12 @@
+commit 5516349fe72050afcb3d67145920ffcf37c8cf66
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Oct 11 11:30:03 2013 +1100
+
+    misc/vim: complete packages in src directory
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14454059
+
+ misc/vim/autoload/go/complete.vim | 1 +
+ 1 file changed, 1 insertion(+)

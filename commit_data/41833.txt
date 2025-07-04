@@ -1,0 +1,19 @@
+commit 6117275788ae5f63a1229cf058baf55a818a34c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 2 20:57:44 2020 -0400
+
+    cmd/link: write to temp directory in test
+    
+    In TestMMap, write to temporary directory, instead of the current
+    directory (which may not be writeable).
+    
+    Fix linux-mips64le-mengzhuo builder.
+    
+    Change-Id: I06dc3266f125523568c543634079c447d91903bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227077
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/outbuf_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,54 @@
+commit 8f2e780e8ac29e47466103998484c0a73df34d51
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 27 14:46:09 2016 +1000
+
+    cmd/compile/internal: unexport gc.Oconv
+    
+    Updates #15462
+    
+    Semi automatic change with gofmt -r and hand fixups for callers outside
+    internal/gc.
+    
+    All the uses of gc.Oconv outside cmd/compile/internal/gc were for the
+    Oconv(op, 0) form, which is already handled the Op.String method.
+    
+    Replace the use of gc.Oconv(op, 0) with op itself, which will call
+    Op.String via the %v or %s verb. Unexport Oconv.
+    
+    Change-Id: I84da2a2e4381b35f52efce427b2d6a3bccdf2526
+    Reviewed-on: https://go-review.googlesource.com/22496
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/arm/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/arm/gsubr.go    |  4 +--
+ src/cmd/compile/internal/arm64/gsubr.go  |  6 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  4 +--
+ src/cmd/compile/internal/gc/const.go     |  4 +--
+ src/cmd/compile/internal/gc/cplx.go      |  4 +--
+ src/cmd/compile/internal/gc/dcl.go       |  8 ++---
+ src/cmd/compile/internal/gc/esc.go       |  6 ++--
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 58 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  6 ++--
+ src/cmd/compile/internal/gc/order.go     | 12 +++----
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  6 ++--
+ src/cmd/compile/internal/gc/select.go    |  8 ++---
+ src/cmd/compile/internal/gc/ssa.go       |  4 +--
+ src/cmd/compile/internal/gc/subr.go      | 10 +++---
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 30 ++++++++---------
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++-----
+ src/cmd/compile/internal/mips64/gsubr.go |  6 ++--
+ src/cmd/compile/internal/ppc64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/s390x/gsubr.go  |  2 +-
+ src/cmd/compile/internal/x86/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ src/cmd/compile/internal/x86/gsubr.go    |  6 ++--
+ 30 files changed, 115 insertions(+), 115 deletions(-)

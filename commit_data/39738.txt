@@ -1,0 +1,23 @@
+commit 579c69ac1ca63d56a1861998f13fb87aeda6d72e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Jul 27 10:13:51 2019 -0700
+
+    internal/fmtsort: don't out-of-bounds panic if there's a race condition
+    
+    Raising an out-of-bounds panic is confusing. There's no indication
+    that the underlying problem is a race.
+    
+    The runtime already does a pretty good job of detecting this kind of
+    race (modification while iterating). We might as well just reorganize
+    a bit to avoid the out-of-bounds panic.
+    
+    Fixes #33275
+    
+    Change-Id: Icdd337ad2eb3c84f999db0850ec1d2ff2c146b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191197
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/fmtsort/sort.go     | 14 +++++++++-----
+ test/fixedbugs/issue33275.go     | 34 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue33275_run.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 5 deletions(-)

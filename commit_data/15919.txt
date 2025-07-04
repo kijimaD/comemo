@@ -1,0 +1,14 @@
+commit 77fb0c17df4758ac68ca26b67837a99a61a457d7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 25 12:13:34 2013 +1100
+
+    all.bat,make.bat,run.bat: make these work even when directory has space in it
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7510048
+
+ src/all.bat  | 2 +-
+ src/make.bat | 4 ++--
+ src/run.bat  | 6 +++---
+ 3 files changed, 6 insertions(+), 6 deletions(-)

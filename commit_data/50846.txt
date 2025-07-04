@@ -1,0 +1,21 @@
+commit 506e690a26390d137b8bfc01d90121581c3d6f7a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 13:49:54 2022 -0400
+
+    runtime: mark arenaIdx.l1 and arenaIdx.l2 methods as nosplit
+    
+    Mark the "l1" and "l2" methods on "arenaIdx" with //go:nosplit, since
+    these methods are called from a nosplit context (for example, from
+    "spanOf").
+    
+    Fixes #56044.
+    Updates #21314.
+    
+    Change-Id: I48c7aa756b59a13162c89ef21066f83371ae50f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441859
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mheap.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

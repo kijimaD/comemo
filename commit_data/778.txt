@@ -1,0 +1,13 @@
+commit b033c581db6d2de8474f1a91f5c495cbad1b6ed4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 13:49:31 2008 -0700
+
+    fix export bug for /usr/r/rpc
+    
+    R=ken
+    OCL=16218
+    CL=16218
+
+ src/cmd/gc/dcl.c    |  3 ++-
+ src/cmd/gc/export.c | 21 +++++++++++++--------
+ 2 files changed, 15 insertions(+), 9 deletions(-)

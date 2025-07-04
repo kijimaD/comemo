@@ -1,0 +1,31 @@
+commit b759e225f5c0ba1d672922e562cd52a131fd6d62
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 5 13:35:41 2015 +0000
+
+    runtime: bound defer pools (try 2)
+    
+    The unbounded list-based defer pool can grow infinitely.
+    This can happen if a goroutine routinely allocates a defer;
+    then blocks on one P; and then unblocked, scheduled and
+    frees the defer on another P.
+    The scenario was reported on golang-nuts list.
+    
+    We've been here several times. Any unbounded local caches
+    are bad and grow to infinite size. This change introduces
+    central defer pool; local pools become fixed-size
+    with the only purpose of amortizing accesses to the
+    central pool.
+    
+    Freedefer now executes on system stack to not consume
+    nosplit stack space.
+    
+    Change-Id: I1a27695838409259d1586a0adfa9f92bccf7ceba
+    Reviewed-on: https://go-review.googlesource.com/3967
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mgc.go      | 27 +++++++++++++++------------
+ src/runtime/panic.go    | 46 +++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/proc1.go    |  9 +++++++++
+ src/runtime/runtime2.go |  8 +++++++-
+ 4 files changed, 70 insertions(+), 20 deletions(-)

@@ -1,0 +1,23 @@
+commit 5249947f11b8238c2e2b878665be411fc6ba194b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 22:42:35 2023 +0000
+
+    runtime: don't hold the table lock in (*traceStackTable).dump
+    
+    There's a conceptual cycle between traceStackTable.lock and
+    allocation-related locks, but it can't happen in practice because the
+    caller guarantees that there are no more writers to the table at the
+    point that dump is called.
+    
+    But if that's true, then the lock isn't necessary at all. It would be
+    difficult to model this quiesence in the lockrank mode, so just don't
+    hold the lock and expand the documentation of the dump method.
+    
+    Change-Id: Id4db61363f075b7574135529915e8bd4f4f4c082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544177
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/trace2stack.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

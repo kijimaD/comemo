@@ -1,0 +1,19 @@
+commit 38c5fd5cf872cf2eabad1361342097e11d292c91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 16:35:54 2015 -0700
+
+    math/big: implement Float.Text(Un)Marshaler
+    
+    Fixes #12256.
+    
+    Change-Id: Ie4a3337996da5c060b27530b076048ffead85f3b
+    Reviewed-on: https://go-review.googlesource.com/15040
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatmarsh.go      | 33 +++++++++++++++++++++++++
+ src/math/big/floatmarsh_test.go | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/intmarsh.go        | 27 ++++++++-------------
+ src/math/big/intmarsh_test.go   |  6 ++++-
+ src/math/big/ratmarsh.go        |  8 +++---
+ src/math/big/ratmarsh_test.go   |  4 ++-
+ 6 files changed, 109 insertions(+), 23 deletions(-)

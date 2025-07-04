@@ -1,0 +1,12 @@
+commit 8b1bd75e66a818ff9d844c57ba82899ac563c3f9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 09:21:19 2015 -0500
+
+    go/build: disable deps test on darwin/arm
+    
+    Change-Id: Ief78a10c4aaa43f300f34519911ff73b6f510d73
+    Reviewed-on: https://go-review.googlesource.com/6100
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/go/build/deps_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

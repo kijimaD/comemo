@@ -1,0 +1,14 @@
+commit 2398a74bd80ea945f687b3750fa3e18c258945eb
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 2 15:10:37 2011 -0700
+
+    image: add type-specific Set methods and use them when decoding PNG.
+    This speeds up PNG decode about 20% by avoiding per-pixel interface conversions.
+    
+    R=nigeltao, rsc
+    CC=golang-dev
+    https://golang.org/cl/4428080
+
+ src/pkg/image/image.go      | 53 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/image/png/reader.go | 22 +++++++++----------
+ 2 files changed, 62 insertions(+), 13 deletions(-)

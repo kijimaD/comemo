@@ -1,0 +1,38 @@
+commit f03c9202c43e0abb130669852082117ca50aa9b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 7 17:44:49 2015 -0800
+
+    cmd/gc: optimize memclr of slices and arrays
+    
+    Recognize loops of the form
+    
+    for i := range a {
+            a[i] = zero
+    }
+    
+    in which the evaluation of a is free from side effects.
+    Replace these loops with calls to memclr.
+    This occurs in the stdlib in 18 places.
+    
+    The motivating example is clearing a byte slice:
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkGoMemclr5       3.31          3.26          -1.51%
+    BenchmarkGoMemclr16      13.7          3.28          -76.06%
+    BenchmarkGoMemclr64      50.8          4.14          -91.85%
+    BenchmarkGoMemclr256     157           6.02          -96.17%
+    
+    Update #5373.
+    
+    Change-Id: I99d3e6f5f268e8c6499b7e661df46403e5eb83e4
+    Reviewed-on: https://go-review.googlesource.com/2520
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/builtin.c        |  1 +
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/range.c          | 66 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/runtime.go       |  1 +
+ src/cmd/gc/typecheck.c      |  2 +-
+ src/runtime/memmove_test.go | 14 +++++++++
+ test/fixedbugs/issue5373.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 155 insertions(+), 1 deletion(-)

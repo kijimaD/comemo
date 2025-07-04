@@ -1,0 +1,16 @@
+commit 12dc48fd54d4bfc0c25e2a96aa7fecfacb9087ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 27 17:28:36 2021 -0700
+
+    cmd/compile/internal/types2: export Structure function
+    
+    For #48538.
+    
+    Change-Id: I258b0c8af5801692ad238e47397dde0b4e3c44c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359275
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

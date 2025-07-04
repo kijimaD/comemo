@@ -1,0 +1,16 @@
+commit c21188473103a14beb3b0950fb2331fea7e16d80
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 12 21:14:26 2013 +0400
+
+    runtime: add network polling support into scheduler
+    This is a part of the bigger change that moves network poller into runtime:
+    https://golang.org/cl/7326051/
+    
+    R=golang-dev, bradfitz, mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/7448048
+
+ src/pkg/runtime/netpoll_stub.c | 18 +++++++++++
+ src/pkg/runtime/proc.c         | 69 +++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/runtime.h      |  3 +-
+ 3 files changed, 88 insertions(+), 2 deletions(-)

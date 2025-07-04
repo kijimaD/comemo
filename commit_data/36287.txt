@@ -1,0 +1,17 @@
+commit 5d750db02415e9b3ff5624ecbaf1f5d141145bde
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 23:08:24 2018 -0400
+
+    cmd/go: fix go mod tidy crash on empty module
+    
+    Fixes #27066.
+    
+    Change-Id: Iede4385ad86b42d7d90814965b161a7e64d29833
+    Reviewed-on: https://go-review.googlesource.com/129799
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modcmd/tidy.go      | 3 ++-
+ src/cmd/go/testdata/script/mod_tidy.txt | 7 +++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

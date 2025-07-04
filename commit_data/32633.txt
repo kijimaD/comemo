@@ -1,0 +1,29 @@
+commit a2dfe5d278eae0864397a046a8206342a426d2bd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 25 17:53:30 2017 -0700
+
+    math/rand: add Shuffle
+    
+    Shuffle uses the Fisher-Yates algorithm.
+    
+    Since this is new API, it affords us the opportunity
+    to use a much faster Int31n implementation that mostly avoids division.
+    As a result, BenchmarkPerm30ViaShuffle is
+    about 30% faster than BenchmarkPerm30,
+    despite requiring a separate initialization loop
+    and using function calls to swap elements.
+    
+    Fixes #20480
+    Updates #16213
+    Updates #21211
+    
+    Change-Id: Ib8956c4bebed9d84f193eb98282ec16ee7c2b2d5
+    Reviewed-on: https://go-review.googlesource.com/51891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/rand/example_test.go |  32 +++++++++++
+ src/math/rand/rand.go         |  54 +++++++++++++++++
+ src/math/rand/rand_test.go    | 131 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 217 insertions(+)

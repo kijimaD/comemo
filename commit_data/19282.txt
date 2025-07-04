@@ -1,0 +1,13 @@
+commit 2702ad38066a43ef6af5217ee0148c3d6424ee72
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue May 6 21:10:36 2014 -0400
+
+    doc/go1.3.html: mention go build -i
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/95010049
+
+ doc/go1.3.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,15 @@
+commit 88d53ddb17d985693b2b5f065286d2647e4cb72d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 22:33:49 2014 -0400
+
+    runtime: release Windows thread handle in unminit
+    
+    Fixes #8517.
+    
+    LGTM=dvyukov, alex.brainman
+    R=golang-codereviews, dvyukov, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/145890044
+
+ src/runtime/os_windows.c | 2 ++
+ 1 file changed, 2 insertions(+)

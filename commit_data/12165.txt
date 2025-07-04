@@ -1,0 +1,39 @@
+commit 501f0b578fd2bbd1919d85c4d3d4bb2e15e18545
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 23 18:47:26 2012 +1100
+
+    test: commentary for [h-m]*.go
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5674112
+
+ test/helloworld.go   | 2 ++
+ test/if.go           | 2 ++
+ test/import.go       | 4 ++--
+ test/import1.go      | 3 ++-
+ test/import2.go      | 3 +++
+ test/import3.go      | 2 +-
+ test/import4.go      | 6 ++++--
+ test/import5.go      | 4 +++-
+ test/index.go        | 1 +
+ test/indirect.go     | 2 ++
+ test/indirect1.go    | 3 +++
+ test/init.go         | 3 +++
+ test/initialize.go   | 2 ++
+ test/initializerr.go | 3 +++
+ test/int_lit.go      | 2 ++
+ test/intcvt.go       | 2 ++
+ test/iota.go         | 2 ++
+ test/label.go        | 4 +++-
+ test/label1.go       | 5 ++++-
+ test/linkx.go        | 2 ++
+ test/literal.go      | 2 ++
+ test/mallocfin.go    | 2 +-
+ test/map.go          | 2 ++
+ test/map1.go         | 3 +++
+ test/method.go       | 3 +++
+ test/method1.go      | 3 +++
+ test/method2.go      | 3 +++
+ test/method3.go      | 2 +-
+ 28 files changed, 66 insertions(+), 11 deletions(-)

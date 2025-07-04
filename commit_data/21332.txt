@@ -1,0 +1,15 @@
+commit dcb37f94e0a981b322f4c15c343695c70cca09d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 22 21:54:26 2015 -0800
+
+    go/parser: report error for var/const decls with missing init exprs
+    
+    Fixes #9639.
+    
+    Change-Id: I311045d3df26b29b9380c159ef4727e85650d13b
+    Reviewed-on: https://go-review.googlesource.com/3211
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/parser/parser.go     | 12 ++++++++++++
+ src/go/parser/short_test.go |  7 ++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

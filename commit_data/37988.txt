@@ -1,0 +1,14 @@
+commit a10b4cff91cb5d26e2049f6efc20349aa4d50d20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 5 14:33:24 2019 -0800
+
+    spec: document signed integer shift counts
+    
+    Updates #19113.
+    
+    Change-Id: I4726f51c5061c33979cdd061f6d4616fa97edb9a
+    Reviewed-on: https://go-review.googlesource.com/c/161201
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

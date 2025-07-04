@@ -1,0 +1,42 @@
+commit 1b3a1db19fc68591198149540f7b3c99f56691da
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Nov 1 14:04:08 2019 -0700
+
+    cmd/compile: fix liveness for open-coded defer args for infinite loops
+    
+    Once defined, a stack slot holding an open-coded defer arg should always be marked
+    live, since it may be used at any time if there is a panic. These stack slots are
+    typically kept live naturally by the open-defer code inlined at each return/exit point.
+    However, we need to do extra work to make sure that they are kept live if a
+    function has an infinite loop or a panic exit.
+    
+    For this fix, only in the case of a function that is using open-coded defers, we
+    compute the set of blocks (most often empty) that cannot reach a return or a
+    BlockExit (panic) because of an infinite loop. Then, for each block b which
+    cannot reach a return or BlockExit or is a BlockExit block, we mark each defer arg
+    slot as live, as long as the definition of the defer arg slot dominates block b.
+    
+    For this change, had to export (*Func).sdom (-> Sdom) and SparseTree.isAncestorEq
+    (-> IsAncestorEq)
+    
+    Updates #35277
+    
+    Change-Id: I7b53c9bd38ba384a3794386dd0eb94e4cbde4eb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204802
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go         | 101 ++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/check.go        |   6 +-
+ src/cmd/compile/internal/ssa/cse.go          |   4 +-
+ src/cmd/compile/internal/ssa/func.go         |   2 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go |   8 +--
+ src/cmd/compile/internal/ssa/loopbce.go      |   4 +-
+ src/cmd/compile/internal/ssa/nilcheck.go     |   2 +-
+ src/cmd/compile/internal/ssa/phiopt.go       |   6 +-
+ src/cmd/compile/internal/ssa/prove.go        |   6 +-
+ src/cmd/compile/internal/ssa/regalloc.go     |   4 +-
+ src/cmd/compile/internal/ssa/sparsetree.go   |   2 +-
+ src/runtime/defer_test.go                    |  27 +++++++
+ 12 files changed, 140 insertions(+), 32 deletions(-)

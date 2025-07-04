@@ -1,0 +1,15 @@
+commit 7ef0eb1cba873c0d3d1da6df9b6c98ab2882d35d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 13:38:45 2014 -0400
+
+    doc/go1.3.html: mention cgo [0]byte bug fix fallout
+    
+    Fixes #7958.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/91590044
+
+ doc/go1.3.html | 73 ++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 53 insertions(+), 20 deletions(-)

@@ -1,0 +1,11 @@
+commit e5afecbd0e2253fb5f1be0aa6f6cbb5c00676e42
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:37:38 2014 -0400
+
+    doc/go1.4: add some cmd/go changes
+    
+    CC=golang-codereviews
+    https://golang.org/cl/143650043
+
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

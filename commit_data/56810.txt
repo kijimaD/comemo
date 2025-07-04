@@ -1,0 +1,19 @@
+commit 3e10c1ff8141fae6b4d35a42e2631e7830c79830
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jun 12 13:08:00 2024 -0400
+
+    doc/next: improve wording for proposal 67061
+    
+    For #67061.
+    For #65614.
+    
+    Change-Id: I0e324b02537e0d40c2092139d31941a1a85a0e69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592196
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/6-stdlib/99-minor/crypto/tls/66214.md | 2 +-
+ doc/next/6-stdlib/99-minor/crypto/tls/67061.md | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

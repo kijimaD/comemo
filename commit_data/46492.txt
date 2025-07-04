@@ -1,0 +1,20 @@
+commit 315dbd10c90db3b41af2c975a5fbfa2ec7615c1b
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 09:23:37 2021 -0700
+
+    cmd/compile: fold double negate on arm64
+    
+    Fixes #48467
+    
+    Change-Id: I52305dbf561ee3eee6c1f053e555a3a6ec1ab892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350910
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 10 ++++++++++
+ test/codegen/bits.go                         |  8 ++++++++
+ 3 files changed, 19 insertions(+)

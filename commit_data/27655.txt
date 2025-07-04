@@ -1,0 +1,18 @@
+commit 0324a3f828d3a2f48751df2bbd54ad20499e598a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Jun 8 16:11:44 2016 +0000
+
+    runtime/cgo: restore the g pointer correctly in crosscall_s390x
+    
+    R13 needs to be set to g because C code may have clobbered R13.
+    
+    Fixes #16006.
+    
+    Change-Id: I66311fe28440e85e589a1695fa1c42416583b4c6
+    Reviewed-on: https://go-review.googlesource.com/23910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_s390x.S | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

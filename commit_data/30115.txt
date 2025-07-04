@@ -1,0 +1,12 @@
+commit 936749efb07f87f99753f47d921e7659414fad2d
+Author: Shintaro Kaneko <kaneshin0120@gmail.com>
+Date:   Sat Jan 28 10:08:10 2017 +0000
+
+    test: improve output format of issue10607a.go test
+    
+    Change-Id: Iad5ff820a95f5082b75aa5260e40c33c7b0ecf22
+    Reviewed-on: https://go-review.googlesource.com/35990
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fixedbugs/issue10607a.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

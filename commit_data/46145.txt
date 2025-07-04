@@ -1,0 +1,19 @@
+commit daa55b21d1e7707ed251336c851841bb0eca3021
+Author: crazycomputer <zhouguangyuan.xian@gmail.com>
+Date:   Sun Aug 22 17:26:20 2021 +0800
+
+    cmd/link: guarantee "section .debug_gdb_scripts" is always "$GOROOT/src/runtime/runtime-gdb.py".
+    
+    to guarantee the "section .debug_gdb_scripts" is  always "$GOROOT/src/runtime/runtime-gdb.py" , a check for package name is needed when search "runtime/proc.go".
+    
+    Fixes #47881
+    
+    Change-Id: Ib471314ca1a6777f625b488e5ae3790457540ef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344229
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

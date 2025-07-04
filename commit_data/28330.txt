@@ -1,0 +1,14 @@
+commit 36b32911bdfa3c5323f9afa63047844cb5b0d0be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 9 22:24:44 2016 -0700
+
+    cmd/compile: update fmt.go internal documentation
+    
+    No code changes.
+    
+    Change-Id: I7a22b3fbd6d727b276c7559f064cb0fdf385c02b
+    Reviewed-on: https://go-review.googlesource.com/28955
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 139 +++++++++++++++++--------------------
+ 1 file changed, 63 insertions(+), 76 deletions(-)

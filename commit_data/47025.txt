@@ -1,0 +1,39 @@
+commit 85b3b4ee036e7460bf7621f64c6781e5dd0eed98
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jan 4 17:14:35 2021 +0800
+
+    cmd/compile: add -asan option
+    
+    The -asan option causes the compiler to add instrumentation for the
+    C/C++ address sanitizer.  Every memory read/write will be replaced
+    by a call to asanread/asanwrite.
+    
+    This CL also inserts asan instrumentation during SSA building.
+    
+    This CL passes tests but is not usable by itself. The actual
+    implementation of asanread/asanwrite in the runtime package, and
+    support for -asan in the go tool and tests, will follow in subsequent
+    CLs.
+    
+    Updates #44853.
+    
+    Change-Id: Ia18c9c5d5c351857420d2f6835f0daec2ad31096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298611
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/doc.go                                |  2 ++
+ src/cmd/compile/internal/base/base.go                 |  1 +
+ src/cmd/compile/internal/base/flag.go                 | 16 ++++++++++++----
+ src/cmd/compile/internal/gc/main.go                   |  5 +++--
+ src/cmd/compile/internal/ir/func.go                   |  2 +-
+ src/cmd/compile/internal/ir/symtab.go                 |  2 ++
+ src/cmd/compile/internal/noder/import.go              |  2 ++
+ src/cmd/compile/internal/reflectdata/reflect.go       |  3 +++
+ src/cmd/compile/internal/ssagen/ssa.go                | 18 +++++++++++++++---
+ src/cmd/compile/internal/typecheck/builtin.go         |  2 ++
+ src/cmd/compile/internal/typecheck/builtin/runtime.go |  4 ++++
+ src/cmd/internal/sys/supported.go                     | 11 +++++++++++
+ 12 files changed, 58 insertions(+), 10 deletions(-)

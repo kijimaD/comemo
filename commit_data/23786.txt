@@ -1,0 +1,16 @@
+commit 4a4eba9f37cde100584c7ee07c602d7b80e4e8f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 20:30:41 2015 -0400
+
+    runtime: disable TestGoroutineParallelism on uniprocessor
+    
+    It's a bad test and it's worst on uniprocessors.
+    
+    Fixes #11143.
+    
+    Change-Id: I0164231ada294788d7eec251a2fc33e02a26c13b
+    Reviewed-on: https://go-review.googlesource.com/12522
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

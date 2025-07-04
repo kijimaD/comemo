@@ -1,0 +1,15 @@
+commit c702bdd8285988ca5365398cc13127fc00c35cc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 4 13:04:11 2009 -0700
+
+    script for running test programs in interpreter.
+    tweak test/literal.go to give more information.
+    
+    R=austin
+    DELTA=45  (43 added, 0 deleted, 2 changed)
+    OCL=34381
+    CL=34398
+
+ test/literal.go           | 13 +++++++++++--
+ usr/austin/eval/test.bash | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

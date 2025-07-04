@@ -1,0 +1,18 @@
+commit ee3e2ac1a691f5e3d9a8fbbc9f6d79c606b81868
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 28 20:11:21 2012 +0100
+
+    cmd/5g: introduce componentgen for better registerization.
+    
+    It is essentially identical to the version in 6g.
+    
+    R=dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6710043
+
+ src/cmd/5g/cgen.c  | 254 ++++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/5g/gg.h    |   1 +
+ src/cmd/5g/ggen.c  |   5 ++
+ src/cmd/5g/gsubr.c |  11 ++-
+ src/cmd/5g/reg.c   |   4 +-
+ 5 files changed, 198 insertions(+), 77 deletions(-)

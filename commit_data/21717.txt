@@ -1,0 +1,13 @@
+commit 18fd940620708813dd33a2d5169c9861278102af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 16:42:39 2015 -0800
+
+    math/big: permit passing of (possibly nil) *Float to MantExp to avoid allocation
+    
+    Change-Id: Ia92eea833283f8b16fa09d4ca1c9cb3bc0eb18a2
+    Reviewed-on: https://go-review.googlesource.com/5870
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/big/float.go      | 11 ++++++++---
+ src/math/big/float_test.go | 15 +++++++++++++--
+ 2 files changed, 21 insertions(+), 5 deletions(-)

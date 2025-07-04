@@ -1,0 +1,24 @@
+commit cdd6ae128894abbaf3fef0401cdef319f3ec1d3d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 23 11:37:06 2013 +1100
+
+    net/url: generate correct Path when hostname empty
+    
+    Parse("file:///foo") previously returned a URL with Scheme "file"
+    and Path "///foo". Now it returns a URL with Path "/foo",
+    such that
+            &URL{Scheme: "file", Path: "/foo"}.String() == "file:///foo"
+    
+    This means that parsing and stringifying the URL "file:/foo"
+    returns "file:///foo", technically a regression but one that only
+    affects a corner case.
+    
+    Fixes #4189.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7135051
+
+ src/pkg/net/url/url.go      |  8 +++++---
+ src/pkg/net/url/url_test.go | 13 +++++++++++--
+ 2 files changed, 16 insertions(+), 5 deletions(-)

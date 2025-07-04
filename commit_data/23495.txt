@@ -1,0 +1,19 @@
+commit bf5e19fbaf02b1b25fbe50c27ec301fe830a28d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 11:31:37 2015 +0200
+
+    net/http: tolerate old buggy user agents, per RFC 2616 section 4.1
+    
+    Some old buggy browsers sent extra CRLF(s) after POST bodies. Skip
+    over them before reading subsequent requests.
+    
+    Fixes #10876
+    
+    Change-Id: I62eacf2b3e985caffa85aee3de39d8cd3548130b
+    Reviewed-on: https://go-review.googlesource.com/11491
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 24 ++++++++++++++++++++++++
+ src/net/http/server.go     | 19 +++++++++++++++++++
+ 2 files changed, 43 insertions(+)

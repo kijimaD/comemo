@@ -1,0 +1,19 @@
+commit 5201b1ad225e7503e368386ae3ad4f94d7b04d8b
+Author: Julien Salleyron <julien.salleyron@gmail.com>
+Date:   Mon Nov 13 23:32:07 2017 +0100
+
+    http/http/httputil: add ReverseProxy.ErrorHandler
+    
+    This permits specifying an ErrorHandler to customize the RoundTrip
+    error handling if the backend fails to return a response.
+    
+    Fixes #22700
+    Fixes #21255
+    
+    Change-Id: I8879f0956e2472a07f584660afa10105ef23bf11
+    Reviewed-on: https://go-review.googlesource.com/77410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 37 ++++++++++---
+ src/net/http/httputil/reverseproxy_test.go | 87 ++++++++++++++++++++++++++++++
+ 2 files changed, 117 insertions(+), 7 deletions(-)

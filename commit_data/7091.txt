@@ -1,0 +1,12 @@
+commit 1c99bdc8e5dc7d2ab9333b508d137bec63a2d7fe
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 11 17:30:25 2011 -0800
+
+    turn off peep half of optimizer for release
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3919043
+
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

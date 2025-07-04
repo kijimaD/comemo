@@ -1,0 +1,14 @@
+commit 02bf6b5ef93cdb981949e8164e4364a9d8424dc9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 14:31:35 2016 -0700
+
+    cmd/compile: add tests for logical simplification rewrite rules
+    
+    Increases coverage of generic.rules from 72% to 84%.
+    
+    Change-Id: I1b139aeeb6410d025d49cbe4e4601f6f935ce1e5
+    Reviewed-on: https://go-review.googlesource.com/23490
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/logic_test.go | 289 ++++++++++++++++++++++++++++++
+ 1 file changed, 289 insertions(+)

@@ -1,0 +1,28 @@
+commit 552faa8927a23fd5967435295c14af1741ac3653
+Author: Sabyrzhan Tasbolatov <snovitoll@gmail.com>
+Date:   Sun Apr 14 16:55:57 2024 +0500
+
+    runtime: reduced struct sizes found via pahole
+    
+    During my research of pahole with Go structs, I've found couple of
+    structs in runtime/ pkg where we can reduce several structs' sizes
+    highligted by pahole tool which detect byte holes and paddings.
+    
+    Overall, there are 80 bytes reduced.
+    
+    Change-Id: I398e5ed6f5b199394307741981cb5ad5b875e98f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578795
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mgclimit.go    | 27 ++++++++++++++-------------
+ src/runtime/mgcscavenge.go | 14 +++++++-------
+ src/runtime/netpoll.go     |  4 ++--
+ src/runtime/proc.go        |  2 +-
+ src/runtime/runtime2.go    |  6 +++---
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/symtab.go      |  3 +--
+ 7 files changed, 29 insertions(+), 29 deletions(-)

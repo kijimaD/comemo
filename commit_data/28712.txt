@@ -1,0 +1,55 @@
+commit 78a267e3796e5f0a9939b1152576a072de1a2669
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 6 15:50:47 2016 -0700
+
+    cmd/compile: cache pointer and slice types
+    
+    Anonymous pointer and slice types are very common and identical
+    anyway, so just reuse them rather than allocating new ones everywhere
+    they appear.
+    
+    Turns out to be a small code/stack size win because SSA relies on
+    gc.Type identity for reusing temporary stack slots:
+    
+       text    data     bss     dec     hex filename
+    6453005  231643  146328 6830976  683b80 go.old
+    6446660  231643  146328 6824631  6822b7 go.new
+    
+    Saves on memory usage during compile time too, and maybe a small CPU
+    time win, but the benchmarks are pretty noisy:
+    
+    name       old time/op     new time/op     delta
+    Template       342ms ± 8%      339ms ± 9%    ~           (p=0.332 n=99+99)
+    Unicode        183ms ± 9%      181ms ±11%    ~           (p=0.274 n=95+98)
+    GoTypes        1.05s ± 4%      1.04s ± 3%  -1.22%        (p=0.000 n=97+95)
+    Compiler       4.49s ± 7%      4.46s ± 6%    ~           (p=0.058 n=96+91)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        520M ±17%       522M ±20%    ~          (p=0.544 n=98+100)
+    Unicode         331M ±27%       327M ±30%    ~           (p=0.615 n=98+98)
+    GoTypes        1.54G ±10%      1.53G ±12%    ~          (p=0.173 n=99+100)
+    Compiler       6.33G ±10%      6.33G ±10%    ~           (p=0.682 n=98+98)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      44.5MB ± 0%     44.1MB ± 0%  -0.80%        (p=0.000 n=97+99)
+    Unicode       37.5MB ± 0%     37.3MB ± 0%  -0.44%       (p=0.000 n=98+100)
+    GoTypes        126MB ± 0%      124MB ± 0%  -1.41%        (p=0.000 n=98+99)
+    Compiler       518MB ± 0%      508MB ± 0%  -1.90%       (p=0.000 n=98+100)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        441k ± 0%       434k ± 0%  -1.76%       (p=0.000 n=100+97)
+    Unicode         368k ± 0%       365k ± 0%  -0.69%        (p=0.000 n=99+99)
+    GoTypes        1.26M ± 0%      1.23M ± 0%  -2.27%       (p=0.000 n=100+99)
+    Compiler       4.60M ± 0%      4.46M ± 0%  -2.96%       (p=0.000 n=100+99)
+    
+    Change-Id: I94abce5c57aed0f9c48f567b3ac24c627d4c7c91
+    Reviewed-on: https://go-review.googlesource.com/30632
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        | 35 ------------------------------
+ src/cmd/compile/internal/gc/type.go        | 23 ++++++++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go   |  5 +++++
+ 4 files changed, 27 insertions(+), 38 deletions(-)

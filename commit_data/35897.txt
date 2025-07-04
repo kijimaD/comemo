@@ -1,0 +1,25 @@
+commit 8d5fd871d79bd62b04bfadb3b7be0a896029e80c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 6 12:14:22 2018 -0700
+
+    cmd/compile: fix "width not calculated" ICE
+    
+    Expanding interface method sets is handled during width calculation,
+    which can't be performed concurrently. Make sure that we eagerly
+    expand interfaces in the frontend when importing them, even if they're
+    not actually used by code, because we might need to generate a type
+    description of them.
+    
+    Fixes #25055.
+    
+    Change-Id: I6fd2756de2c7d5dbc33056f70b3028ca3aebab41
+    Reviewed-on: https://go-review.googlesource.com/122517
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/iimport.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue25055.dir/a.go     |  7 +++++++
+ test/fixedbugs/issue25055.dir/b.go     |  9 +++++++++
+ test/fixedbugs/issue25055.go           |  7 +++++++
+ 4 files changed, 42 insertions(+)

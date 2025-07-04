@@ -1,0 +1,16 @@
+commit 9a8979deb01fd43a660351aedff2c155f9fe5ff6
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Wed Mar 13 09:39:21 2019 +0000
+
+    math/rand: add example for Intn func
+    
+    Change-Id: I831ffb5c3fa2872d71def8d8461f0adbd4ae2c1a
+    GitHub-Last-Rev: 2adfcd2d5a592ef4c63da781240a391da89b5d9e
+    GitHub-Pull-Request: golang/go#30706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166426
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/rand/example_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

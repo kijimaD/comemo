@@ -1,0 +1,15 @@
+commit 9869a0ce7e2685a72641452efc17f039b9040164
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 8 15:11:12 2023 -0500
+
+    doc/go1.22: fix go test -cover formatting
+    
+    For #61422.
+    
+    Change-Id: I3591673b55fef35bc429d2e1ce4bc72c0129c03c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548479
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

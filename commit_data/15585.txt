@@ -1,0 +1,12 @@
+commit 6a752520886de9acae09081cb89c0300f33d949a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 5 11:16:58 2013 +1100
+
+    text/template/parse: remove self-assignment.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7431054
+
+ src/pkg/text/template/parse/parse.go | 1 -
+ 1 file changed, 1 deletion(-)

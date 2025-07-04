@@ -1,0 +1,20 @@
+commit bceb18e4989aee4971fa1de6bb9f5ba7410d5219
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 23 14:33:56 2015 -0500
+
+    runtime: eliminate unnecessary assumption in heapBitsForObject
+    
+    The slow path of heapBitsForObjects somewhat subtly assumes that the
+    pointer will not point to the first word of the object and will round
+    the pointer wrong if this assumption is violated.  This assumption is
+    safe because the fast path should always take care of this case, but
+    there's no benefit to making this assumption, it makes the code more
+    difficult to experiment with than necessary, and it's trivial to
+    eliminate.
+    
+    Change-Id: Iedd336f7d529a27d3abeb83e77dfb32a285ea73a
+    Reviewed-on: https://go-review.googlesource.com/5636
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

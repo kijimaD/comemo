@@ -1,0 +1,15 @@
+commit 961aab26bffece299f1528b44d260ea0a921ac56
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 25 21:43:27 2021 +0000
+
+    internal/buildcfg: enable the pacer redesign by default
+    
+    Change-Id: Ifb90d5482cb0cedee6cb4d6297853ac7913d14ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358674
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

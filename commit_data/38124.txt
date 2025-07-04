@@ -1,0 +1,17 @@
+commit 58bf401293bd1de3740613f586b5b970dc991d39
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 27 14:23:29 2018 -1000
+
+    time: reject tzdata with no zones
+    
+    Fixes #29437
+    
+    Change-Id: Ice0a03a543e564d66651bfdfce5cd32ebaa35926
+    Reviewed-on: https://go-review.googlesource.com/c/155746
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/zoneinfo_read.go | 8 +++++++-
+ src/time/zoneinfo_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 8fd1ec232ff2d9f5e8d73947900bc9b15a047050
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 15 17:00:05 2015 -0700
+
+    misc/ios: fix teamID and appID use in entitlements
+    
+    This is a follow-up to CL 8910.
+    This is the version that I have tested and which works
+    when appID and teamID are not the same (which they appear
+    to be for the builder).
+    
+    I am unsure how I submitted it with the wrong code.
+    
+    Change-Id: I186e34e91953d082b507390c1cd2042e5419c4c9
+    Reviewed-on: https://go-review.googlesource.com/8943
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

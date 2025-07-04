@@ -1,0 +1,15 @@
+commit 47a54ab2ad7ab29bfdb92f4be282e6c6637578c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 15:07:38 2013 +0900
+
+    api: remove Zone of net.IPNet from next.txt
+    
+    Update #4234.
+    Update #4501.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8129043
+
+ api/next.txt | 1 -
+ 1 file changed, 1 deletion(-)

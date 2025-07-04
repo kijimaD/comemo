@@ -1,0 +1,17 @@
+commit 5fa6721a311f1a4a71cf88502c44537e519b4787
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 8 11:58:24 2013 -0500
+
+    exp/ssa/interp: fix MS Windows breakage.
+    
+    syscall.{Kill,Write} are not portable to MS Windows, so we
+    disable them for now.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/7312066
+
+ src/pkg/exp/ssa/interp/external.go         | 24 ++++------------------
+ src/pkg/exp/ssa/interp/external_unix.go    | 32 ++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/interp/external_windows.go | 19 ++++++++++++++++++
+ 3 files changed, 55 insertions(+), 20 deletions(-)

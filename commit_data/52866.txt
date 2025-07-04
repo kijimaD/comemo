@@ -1,0 +1,25 @@
+commit 767fbe01aeb32d8fe72bb40fa0cc144a7263045b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 3 14:53:03 2023 -0700
+
+    cmd/compile: fix compilation of inferred type arguments
+    
+    Previously, type arguments could only be inferred for generic
+    functions in call expressions, whereas with the reverse type inference
+    proposal they can now be inferred in assignment contexts too. As a
+    consequence, we now need to check Info.Instances to find the inferred
+    type for more cases now.
+    
+    Updates #59338.
+    Fixes #59955.
+    
+    Change-Id: I9b6465395869459c2387d0424febe7337b28b90e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492455
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++--
+ test/fixedbugs/issue59338.go             | 16 +++++++---------
+ 2 files changed, 20 insertions(+), 11 deletions(-)

@@ -1,0 +1,34 @@
+commit c5c2184538411c8cf7abc4e536fbe7af8b0307f5
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Mon May 8 17:07:18 2023 +1000
+
+    runtime: implement wasip1 netpoll
+    
+    Implements netpoll using WASI's poll_oneoff system call.
+    
+    This enables non-blocking I/O support for wasip1.
+    
+    Change-Id: Ie395fa49d651c8b8262d485e2847dd65b0a10bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493357
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/wasm/go_wasip1_wasm_exec                      |   4 +-
+ src/cmd/dist/test.go                               |  13 +-
+ src/internal/poll/errno_unix.go                    |   2 +-
+ .../poll/{fd_poll_wasm.go => fd_poll_js.go}        |   2 +-
+ src/internal/poll/fd_poll_runtime.go               |   2 +-
+ src/runtime/internal/wasitest/host_test.go         |  14 ++
+ src/runtime/internal/wasitest/nonblock_test.go     |  96 ++++++++
+ src/runtime/internal/wasitest/testdata/nonblock.go |  48 ++++
+ src/runtime/netpoll.go                             |   4 +-
+ src/runtime/netpoll_fake.go                        |   6 +-
+ src/runtime/netpoll_wasip1.go                      | 254 +++++++++++++++++++++
+ src/runtime/os_wasip1.go                           |   8 +
+ 12 files changed, 442 insertions(+), 11 deletions(-)

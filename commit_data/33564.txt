@@ -1,0 +1,13 @@
+commit 04344266860c2da1d6014afe18dadac2e0484ac4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 15:44:09 2017 -0500
+
+    doc/go1.10: first draft of release notes
+    
+    Change-Id: If7ec07be4ecb0c1d6a1eb5c0740f150473aea6fa
+    Reviewed-on: https://go-review.googlesource.com/78130
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.10.html | 1240 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1240 insertions(+)

@@ -1,0 +1,21 @@
+commit 4a4de1416654ec0c3cd6100fddb90a228657216a
+Author: Bill Zissimopoulos <billziss@navimatics.com>
+Date:   Wed Oct 12 10:39:27 2022 +0000
+
+    runtime: fix invalid pointer in windows/arm64 badsignal2
+    
+    Initializes the R3 register with an available address in the stack. The addressed location is used to receive the number of bytes written by WriteFile.
+    
+    Fixes #56080
+    
+    Change-Id: I0368eb7a31d2d6a098fa9c26e074eb1114a92704
+    GitHub-Last-Rev: 23dbdb53782b38819340ef6609e2c55303eb886d
+    GitHub-Pull-Request: golang/go#56153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442216
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/sys_windows_arm64.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

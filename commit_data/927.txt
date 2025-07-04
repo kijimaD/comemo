@@ -1,0 +1,16 @@
+commit beee6915f82633e5aed82297201a80920cc0c647
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 21 16:53:54 2008 -0700
+
+    rewrite &Point{1, 2} as allocation
+    
+    R=ken
+    OCL=17592
+    CL=17592
+
+ src/cmd/gc/go.y   |  4 ----
+ src/cmd/gc/walk.c | 30 ++++++++++++++++++++++++++++++
+ test/addr.go      |  9 ---------
+ test/complit.go   |  9 +++++++++
+ test/golden.out   |  5 -----
+ 5 files changed, 39 insertions(+), 18 deletions(-)

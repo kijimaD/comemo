@@ -1,0 +1,16 @@
+commit ec7f33300f7fb35ad30e37399126b61b4ca8052a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 20:08:00 2014 -0500
+
+    cmd/internal/objfile: add Disasm
+    
+    This was missing from CL 167320043.
+    Happy to apply comments in a followup.
+    TBR to fix build.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171260043
+
+ src/cmd/internal/objfile/disasm.go | 243 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 243 insertions(+)

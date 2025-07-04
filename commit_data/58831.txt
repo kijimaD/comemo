@@ -1,0 +1,18 @@
+commit 4dfae6aad54b9e399e5144c9b58a9c87a8afbe56
+Author: Dmitrii Martynov <fkr011288@gmail.com>
+Date:   Thu Jan 30 21:48:17 2025 +0300
+
+    runtime: exclude allocation(s) from memmove/memclr benchmarking
+    
+    The overhead for allocation is not significant but it should be excluded
+    from the memmove/memclr benchmarking anyway.
+    
+    Change-Id: I7ea86d1b85b13352ccbff16f7510caa250654dab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645576
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/memmove_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,20 @@
+commit ca42f1f50e4cc26b896275673218d7376fab501d
+Author: Dmitriy Dudkin <dudkin.dmitriy@gmail.com>
+Date:   Thu Feb 25 21:48:57 2016 +0200
+
+    cmd/go: clear cmd cache to avoid duplicate loads errors
+    
+    go get -u all command updates all packages including standard
+    commands. We need to get commands evicted from their cache to
+    avoid loading old versions of the packages evicted from the
+    packages cache.
+    
+    Fixes #14444
+    
+    Change-Id: Icd581a26e1db34ca634aba595fed62b097094c2f
+    Reviewed-on: https://go-review.googlesource.com/19899
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/get.go     |  8 ++++++++
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ 2 files changed, 20 insertions(+)

@@ -1,0 +1,18 @@
+commit 8acbe4c0b392840062cf882886e2424c5f07a665
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Aug 8 15:19:42 2020 +0530
+
+    cmd/compile: optimize unsigned comparisons with 0/1 on wasm
+    
+    Updates #21439
+    
+    Change-Id: I0fbcde6e0c2fc368fe686b271670f9d8be4a7900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247557
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  4 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 66 ++++++++++++++++++++++++
+ test/codegen/comparisons.go                 | 80 +++++++++++++++++++++++++++++
+ 3 files changed, 150 insertions(+)

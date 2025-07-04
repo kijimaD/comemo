@@ -1,0 +1,25 @@
+commit ee392ac10c7bed0ef1984dbb421491ca7b18e190
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 21 16:37:40 2017 -0700
+
+    cmd/compile: consider exported flag in namedata
+    
+    It is possible to have an unexported name with a nil package,
+    for an embedded field whose type is a pointer to an unexported type.
+    We must encode that fact in the type..namedata symbol name,
+    to avoid incorrectly merging an unexported name with an exported name.
+    
+    Fixes #21120
+    
+    Change-Id: I2e3879d77fa15c05ad92e0bf8e55f74082db5111
+    Reviewed-on: https://go-review.googlesource.com/50710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  6 +++++-
+ test/fixedbugs/issue21120.dir/a.go     | 13 +++++++++++++
+ test/fixedbugs/issue21120.dir/b.go     | 29 +++++++++++++++++++++++++++++
+ test/fixedbugs/issue21120.dir/main.go  | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue21120.go           | 11 +++++++++++
+ 5 files changed, 83 insertions(+), 1 deletion(-)

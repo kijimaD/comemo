@@ -1,0 +1,24 @@
+commit e46acb091fa7dfbdb99e61801f37522bd8b80365
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 3 13:20:17 2011 -0500
+
+    reflect: add PtrTo, add Value.Addr (old Addr is now UnsafeAddr)
+    
+    This change makes it possible to take the address of a
+    struct field or slice element in order to call a method that
+    requires a pointer receiver.
+    
+    Existing code that uses the Value.Addr method will have
+    to change (as gob does in this CL) to call UnsafeAddr instead.
+    
+    R=r, rog
+    CC=golang-dev
+    https://golang.org/cl/4239052
+
+ src/pkg/gob/decode.go        |   6 +-
+ src/pkg/gob/encode.go        |   6 +-
+ src/pkg/reflect/all_test.go  |  75 ++++++++++++++++++++
+ src/pkg/reflect/deepequal.go |   4 +-
+ src/pkg/reflect/type.go      |  88 +++++++++++++++++++++++-
+ src/pkg/reflect/value.go     | 158 +++++++++++++++++++++++++++++++------------
+ 6 files changed, 285 insertions(+), 52 deletions(-)

@@ -1,0 +1,16 @@
+commit 559b17fe3422f070d6cb8e68ac2ac12431d78b43
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jun 2 16:43:12 2022 -0400
+
+    doc/go1.19: add release notes for sync/atomic
+    
+    For #51400
+    
+    Change-Id: I32a3aedf1e8a52148a9d78c4f7dae1ea59c810b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410115
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.19.html | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

@@ -1,0 +1,15 @@
+commit 541978af0a877232587f5e9cd1c51ecc2cfdb58b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 20 13:34:30 2012 -0500
+
+    libmach: cross compiling support
+            We already use GOHOSTOS to represent the host OS that the toolchain
+            will be run on, so no need to resort to uname(1) to get that (and
+            use uname(1) will make cross-compiling for another host impossible).
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5530050
+
+ src/libmach/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

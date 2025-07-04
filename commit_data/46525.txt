@@ -1,0 +1,30 @@
+commit cc85bd07cc27a1f78c13a699c1ea5737abeb47c2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 15 14:44:19 2021 -0700
+
+    testing, cmd/go: clarify documentation
+    
+    This CL removes 'go help fuzz' but expands the testing package
+    documentation with much of the same information. It also removes
+    documentation for the unimplemented -keepfuzzing flag and makes a
+    number of other clarifications.
+    
+    Addressing comments in CL 348469.
+    
+    Updates #46629
+    
+    Change-Id: I12ab5971c900c2e43f2c2d83c6705e8cd642388b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351113
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go              | 56 +++++++++++------------------
+ src/cmd/go/internal/clean/clean.go |  4 ++-
+ src/cmd/go/internal/test/test.go   | 54 ++++++++++------------------
+ src/cmd/go/main.go                 |  1 -
+ src/testing/testing.go             | 72 +++++++++++++++++++++++++++++---------
+ 5 files changed, 98 insertions(+), 89 deletions(-)

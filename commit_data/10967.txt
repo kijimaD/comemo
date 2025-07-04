@@ -1,0 +1,12 @@
+commit a626adce1e3ed2d87f35cf1ac9251c71b6add29c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 22 07:25:43 2011 -0800
+
+    os: update package location of exec to os/exec in comments
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5503065
+
+ src/pkg/os/exec_posix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

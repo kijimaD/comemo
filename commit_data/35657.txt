@@ -1,0 +1,24 @@
+commit d0d47bb94fcc018d03f47faa51f981b8902fc7cd
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed May 23 17:23:35 2018 -0400
+
+    cmd/doc: continue to search when package import fails
+    
+    Keep searching for a package that is both findable and importable. The
+    current code would always guarantee that a package was findable but
+    exited if it was not importable.
+    
+    Fixes #25478
+    
+    Change-Id: I237b7dfafb930cae02538c4a2e4d5ce0c1058478
+    Reviewed-on: https://go-review.googlesource.com/114295
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go                    | 20 +++++++++++++++++++-
+ src/cmd/doc/main.go                        | 29 ++++++++++++++++++++---------
+ src/cmd/doc/testdata/nested/ignore.go      |  4 ++++
+ src/cmd/doc/testdata/nested/nested/real.go |  4 ++++
+ 4 files changed, 47 insertions(+), 10 deletions(-)

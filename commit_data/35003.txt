@@ -1,0 +1,15 @@
+commit 1898fce1e70b0a2038d71363d38e8b10b269c1c4
+Author: mbj36 <mohitbajo36@gmail.com>
+Date:   Sun Apr 15 22:50:14 2018 +0530
+
+    doc: improve commit messages
+    
+    Fixes #24852
+    
+    Change-Id: I71d0d7f75108bf4ad606733a45bb71baa66a4e91
+    Reviewed-on: https://go-review.googlesource.com/107197
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ doc/contribute.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

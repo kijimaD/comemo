@@ -1,0 +1,16 @@
+commit e90b0ce68b12a75732f28b6672d4c48ca73eaffe
+Author: kakulisen <lziqiang1@gmail.com>
+Date:   Thu Apr 30 14:18:06 2020 +0800
+
+    math: add function examples.
+    
+    The function Modf lacks corresponding examples.
+    
+    Change-Id: Id93423500e87d35b0b6870882be1698b304797ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231097
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

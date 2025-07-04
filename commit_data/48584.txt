@@ -1,0 +1,28 @@
+commit 1ac16586421070cdc76c62b5dfd5e74a4b47fca8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 10:01:20 2022 -0500
+
+    cmd/go: remove arbitrary sleep in TestScript/test_chatty_parallel_success_sleepy
+    
+    (Also rename it to no longer describe itself in terms of sleeping.)
+    
+    This test previously relied on the scheduler to wake up a goroutine to
+    write the "--- PASS: TestFast" line within 100ms of TestFast actually
+    finishing. On some platforms, even that long a delay is apparently too
+    short.
+    
+    Instead, we now use a deterministic "=== RUN" line instead of a
+    timing-dependent "--- PASS" line to interrupt the output.
+    
+    Fixes #51221
+    
+    Change-Id: I3997640fb7577e29e3866a82d4d49a3a70a4b033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../script/test_chatty_parallel_success_run.txt    | 41 ++++++++++++++++++++++
+ .../script/test_chatty_parallel_success_sleepy.txt | 39 --------------------
+ 2 files changed, 41 insertions(+), 39 deletions(-)

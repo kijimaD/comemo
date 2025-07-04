@@ -1,0 +1,18 @@
+commit 8728df645c70e6420eb59e5886bc839022998322
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 24 17:36:41 2016 -0400
+
+    runtime: remove canBackTrace variable from TestGdbPython
+    
+    The canBackTrace variable is true for all of the architectures
+    Go supports and this is likely to remain the case as new
+    architectures are added.
+    
+    Change-Id: I73900c018eb4b2e5c02fccd8d3e89853b2ba9d90
+    Reviewed-on: https://go-review.googlesource.com/22423
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

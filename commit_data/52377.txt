@@ -1,0 +1,22 @@
+commit 4a3071696ddfb13e1a8f35f76197b7b3143492f4
+Author: Collin Wright <1011collin@gmail.com>
+Date:   Mon Mar 20 23:27:04 2023 +0000
+
+    sync: fix TestCondSignalStealing flake
+    
+    Fixes: #59043
+    
+    Change-Id: I8215948a772566641dab1079a9837128450deb1b
+    GitHub-Last-Rev: 0fa6f08a70658e1272da0c82812de752350d394d
+    GitHub-Pull-Request: golang/go#59160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/sync/cond_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

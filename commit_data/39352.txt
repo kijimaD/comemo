@@ -1,0 +1,12 @@
+commit 55453016979124e18d3afb53c9df1590877a3b53
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 10 18:02:33 2019 -0400
+
+    doc: document Go 1.11.11
+    
+    Change-Id: I1c3e3305dfee4545a6caedd48243770ab3b28277
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181550
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/devel/release.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

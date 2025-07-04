@@ -1,0 +1,26 @@
+commit 456759b24682a41e282f73855377ac4f341da191
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Aug 11 12:43:27 2021 -0400
+
+    cmd/compile/internal/types2: use the orig object for Named.Obj
+    
+    Exposing a synthetic type name for instantiated types is problematic:
+    there is no way to ensure that type instances are first created in the
+    same type checking pass, and therefore no guarantee that their
+    instantiation positions are the same. Even type checking a given package
+    with different file ordering could result in different positions being
+    associated with type instances. This is therefore an implementation
+    detail that we should not expose.
+    
+    Keep the synthetic type name for accurate error reporting, but hide it
+    in the API.
+    
+    Change-Id: I61f0e3ed322e97b157eb1ca316480f5719dcc174
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341858
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/named.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

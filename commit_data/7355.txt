@@ -1,0 +1,13 @@
+commit 33cf883440d9bdb256e8bdfd09e34bbddf583b11
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:15:27 2011 -0500
+
+    A+C: Dave Cheney (individual CLA)
+    
+    R=adg, gri
+    CC=golang-dev
+    https://golang.org/cl/4126055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

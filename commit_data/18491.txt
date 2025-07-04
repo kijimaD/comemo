@@ -1,0 +1,13 @@
+commit 9c767b64ee46ccdf6d483946ad5bffe967574989
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 16:35:51 2014 +0100
+
+    cmd/gc: catch notes on Plan 9
+    
+    LGTM=rsc
+    R=rsc, jas, gobot
+    CC=ality, golang-codereviews
+    https://golang.org/cl/51650051
+
+ src/cmd/gc/lex.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,0 +1,15 @@
+commit 48d2de7eb9a4ed30faf29abebbbbb205b308cb33
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 19 15:10:01 2011 -0500
+
+    8l: pe changes
+    
+    Dll names and function names padded to even size.
+    Refactoring of imports writing code.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3804042
+
+ src/cmd/ld/pe.c | 151 ++++++++++++++++++++++++++------------------------------
+ 1 file changed, 70 insertions(+), 81 deletions(-)

@@ -1,0 +1,22 @@
+commit deb83d0639f9dbe1ae7c9100d6158448d9e2239e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 12:15:51 2016 -0700
+
+    cmd/compile: remove unused write barrier helpers
+    
+    These have been unused since CL 10316.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Icc19f3fcc7275fbee1c665f704e10a110ecce2a5
+    Reviewed-on: https://go-review.googlesource.com/21242
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |  28 ----
+ src/cmd/compile/internal/gc/builtin/runtime.go |  33 -----
+ src/cmd/compile/internal/gc/order.go           |   2 +
+ src/runtime/mbarrier.go                        |  25 ----
+ src/runtime/wbfat.go                           | 190 -------------------------
+ src/runtime/wbfat_gen.go                       |  41 ------
+ 6 files changed, 2 insertions(+), 317 deletions(-)

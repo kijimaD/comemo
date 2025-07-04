@@ -1,0 +1,31 @@
+commit 1e6924541802e4a10d8dc8a519b7c116ae213a0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 06:06:34 2017 -0700
+
+    cmd/internal/obj/s390x: make assembler almost concurrency-safe
+    
+    CL 39922 made the arm assembler concurrency-safe.
+    This CL does the same, but for s390x.
+    The approach is similar: introduce ctxtz to hold
+    function-local state and thread it through
+    the assembler as necessary.
+    
+    One race remains after this CL, similar to CL 40252.
+    
+    That race is conceptually unrelated to this refactoring,
+    and will be addressed in a separate CL.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Iabf17aa242b70c0b078c2e85dae3d93a5e512372
+    Reviewed-on: https://go-review.googlesource.com/40371
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/cmd/internal/obj/link.go       |   1 -
+ src/cmd/internal/obj/s390x/asmz.go | 381 +++++++++++++++++++------------------
+ src/cmd/internal/obj/s390x/objz.go | 156 ++++++++-------
+ 3 files changed, 273 insertions(+), 265 deletions(-)

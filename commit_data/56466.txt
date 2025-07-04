@@ -1,0 +1,26 @@
+commit ca5fc8de65bfd30f6eb66a7bd45945956c3812e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 20:41:33 2024 -0400
+
+    cmd/vendor: pull in x/mod/modfile godebug changes
+    
+            go get golang.org/x/mod@c0bdc7bd
+            go mod tidy
+            go mod vendor
+    
+    Pulls in CL 584300.
+    
+    For #65573.
+    
+    Change-Id: Ia8ec86e2ee049b911fcf09d57f83972786b0470d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                  |   2 +-
+ src/cmd/go.sum                                  |   4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 106 +++++++++++++++++++++++-
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go |  52 +++++++++++-
+ src/cmd/vendor/modules.txt                      |   2 +-
+ 5 files changed, 158 insertions(+), 8 deletions(-)

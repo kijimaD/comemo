@@ -1,0 +1,19 @@
+commit b3235b75d109f06eec0d3603c606b2d8373b9d4c
+Author: Aman Karmani <aman@tmm1.net>
+Date:   Tue Mar 2 11:52:34 2021 -0800
+
+    encoding/gob: ensure "duplicate type received" decoder errors surface up
+    
+    Previously re-using a decoder with a new stream resulted in a confusing
+    "extra data in buffer" error message.
+    
+    Change-Id: Ia4c4c3a2d4b63c59e37e53faa61a500d5ff6e5f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297949
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/encoding/gob/decoder.go      |  3 +++
+ src/encoding/gob/encoder_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

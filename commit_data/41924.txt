@@ -1,0 +1,13 @@
+commit 2545323c633136a28aa57b000b81e95780cbac13
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Apr 12 18:57:26 2020 -0700
+
+    cmd/link: fix spelling error
+    
+    Change-Id: I6e730a99342563a97c3b1556893c8daaf5b6ec90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228097
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

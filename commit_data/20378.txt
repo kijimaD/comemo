@@ -1,0 +1,16 @@
+commit 251daf8650218ee2fce297280016e696d859f780
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 9 14:22:58 2014 -0700
+
+    runtime: map iterators: always use intrabucket randomess
+    
+    Fixes #8688
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/135660043
+
+ src/runtime/hashmap.go  | 20 ++++++++------------
+ src/runtime/map_test.go | 43 +++++++++++++++++++++++--------------------
+ 2 files changed, 31 insertions(+), 32 deletions(-)

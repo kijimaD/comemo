@@ -1,0 +1,12 @@
+commit 01677dab3144dcee88f677336524cb83da2e403f
+Author: Trevor Strohman <trevor.strohman@gmail.com>
+Date:   Tue Nov 17 23:22:41 2009 -0800
+
+    Adds Trevor Strohman to CONTRIBUTORS.
+    Google is my employer so no AUTHORS change is needed.
+    
+    R=rsc
+    https://golang.org/cl/154174
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

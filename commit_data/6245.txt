@@ -1,0 +1,17 @@
+commit e3a0c2f6cf3c96e0526889fd9ae3540091404cf3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 12 12:02:29 2010 +1000
+
+    net: disable tests for functions not available on windows
+    
+    R=r, Joe Poirier, rsc
+    CC=golang-dev
+    https://golang.org/cl/2123044
+
+ src/pkg/Makefile                   | 1 -
+ src/pkg/net/parse_test.go          | 5 +++++
+ src/pkg/net/port_test.go           | 1 -
+ src/pkg/net/server_test.go         | 9 +++++++++
+ src/pkg/net/timeout_test.go        | 5 +++++
+ src/pkg/syscall/syscall_windows.go | 6 ++++++
+ 6 files changed, 25 insertions(+), 2 deletions(-)

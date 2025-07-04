@@ -1,0 +1,17 @@
+commit 9bbe89957620ab72c03a7613ffdbd10a97b54bd6
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Tue Jun 2 13:13:54 2020 -0700
+
+    cmd/go: add -Wl,-wrap,symbol to linker flag whitelist
+    
+    This is needed for cgo support for libpsx.
+    
+    Fixes: #39361
+    Change-Id: I500f5614ea4b82b085322af1f1ffeb1f55270a05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236139
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

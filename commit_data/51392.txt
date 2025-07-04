@@ -1,0 +1,26 @@
+commit 771a98d6b19c9ca4bbd3fbeba03d7d512f77c166
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 17 15:29:27 2022 -0500
+
+    misc/cgo/testcshared: handle unsuffixed dlltool path
+    
+    Adapt the testcshared tests to handle the case where the path output
+    by invoking
+    
+      gcc -print-prog-name=dlltool
+    
+    is a path lacking the final ".exe" suffix (this seems to be what clang
+    is doing); tack it on before using if this is the case.
+    
+    Updates #35006.
+    Updates #53540.
+    
+    Change-Id: I04fb7b9fc90677880b1ced4a4ad2a8867a3f5f86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451816
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testcshared/cshared_test.go | 60 +++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 22 deletions(-)

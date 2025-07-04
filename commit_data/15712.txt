@@ -1,0 +1,13 @@
+commit e0fd6d08b2b9251d409442ab871c6a4b1d7c82f3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 12 12:52:49 2013 +0400
+
+    net/http: deflake test
+    Update #5005.
+    
+    R=golang-dev, fullung, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7651045
+
+ src/pkg/net/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

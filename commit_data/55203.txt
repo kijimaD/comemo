@@ -1,0 +1,18 @@
+commit 5686b650cc6e75ac28f76a3c02176cb3f25b13c4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 5 14:22:53 2023 -0500
+
+    doc/go_spec.html: rename golang.org to go.dev
+    
+    Fixes #64513
+    
+    Change-Id: I45d6a4ba2170308260f3b8f7965affc9948f3fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547476
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ doc/go1.17_spec.html | 2 +-
+ doc/go_spec.html     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

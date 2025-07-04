@@ -1,0 +1,14 @@
+commit b00105d87867f7205dd13d9ec251981ed840992b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Jan 7 12:50:13 2016 +1300
+
+    doc: update 1.6 release notes with buildmode progress
+    
+    Fixes #13358
+    
+    Change-Id: I57ed50c2610cab11fb3d9749f9e7d4a37daa7977
+    Reviewed-on: https://go-review.googlesource.com/18276
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

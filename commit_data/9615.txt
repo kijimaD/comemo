@@ -1,0 +1,13 @@
+commit 4ba677c6ea5203960476a0dfc73f7ffa3442cd7d
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Sep 7 13:55:48 2011 -0400
+
+    gc: silence Plan 9 warnings
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4975055
+
+ src/cmd/gc/sinit.c     | 2 ++
+ src/cmd/gc/typecheck.c | 1 -
+ 2 files changed, 2 insertions(+), 1 deletion(-)

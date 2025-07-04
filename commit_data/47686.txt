@@ -1,0 +1,51 @@
+commit 29483b3dae9bc043887b5372aefe0e53194b9ce7
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Nov 27 10:33:59 2021 -0800
+
+    test: re-enable a bunch of tests with types2
+    
+    Enable a bunch of types2-related error tests to run successfully, so
+    they no longer have to be disabled in run.go.
+    
+     - directive.go: split it into directive.go and directive2.go, since the
+       possible errors are now split across the parser and noder2, so they
+       can't all be reported in one file.
+    
+     - linkname2.go: similarly, split it into linkname2.go and linkname3.go
+       for the same reason.
+    
+     - issue16428.go, issue17645.go, issue47201.dir/bo.go: handle slightly
+       different wording by types2
+    
+     - issue5609.go: handle slight different error (array length must be
+       integer vs. array bound too large).
+    
+     - float_lit3.go: handle slightly different wording (overflows
+       float vs cannot convert to float)
+    
+    I purposely didn't try to fix tests yet where there are extra or missing
+    errors on different lines, since that is not easy to make work for both
+    -G=3 and -G=0. In a later change, will flip to make the types2 version
+    match correctly, vs. the -G=0 version.
+    
+    Change-Id: I6079ff258e3b90146335b9995764e3b1b56cda59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368455
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 +
+ src/go/types/stdlib_test.go                    |  2 +
+ test/directive.go                              | 37 ++-------------
+ test/directive2.go                             | 63 ++++++++++++++++++++++++
+ test/fixedbugs/issue16428.go                   |  2 +-
+ test/fixedbugs/issue17645.go                   |  2 +-
+ test/fixedbugs/issue47201.dir/b.go             |  2 +-
+ test/fixedbugs/issue5609.go                    |  2 +-
+ test/float_lit3.go                             |  8 ++--
+ test/linkname2.go                              |  6 ---
+ test/linkname3.go                              | 25 ++++++++++
+ test/run.go                                    | 18 +++----
+ test/shift1.go                                 | 66 +++++++++++++-------------
+ 13 files changed, 142 insertions(+), 93 deletions(-)

@@ -1,0 +1,18 @@
+commit 71c02bed6797d7844434d6044019b97332dd72e6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 9 04:31:47 2023 +1100
+
+    cmd/internal/obj/arm64: remove spurious assignments with OR
+    
+    Use = rather than |= when assigning to an op variable.
+    
+    Change-Id: I142c9fb3aa6f4b48875710100c05ab640e21933a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461135
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

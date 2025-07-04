@@ -1,0 +1,17 @@
+commit 86e7a5b92a8cda6809d7677689fad557b2d15544
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 4 18:46:13 2016 +0900
+
+    net: factor out fdMutex-related methods on netFD
+    
+    Also updates documentation.
+    
+    Change-Id: Idb0fc0feed61407f7f07eab81ce82b55ffde5040
+    Reviewed-on: https://go-review.googlesource.com/21446
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_mutex.go   | 87 ++++++++++++++++++++++++++++++++++++++++++++-------
+ src/net/fd_plan9.go   | 49 -----------------------------
+ src/net/fd_unix.go    | 49 -----------------------------
+ src/net/fd_windows.go | 49 -----------------------------
+ 4 files changed, 76 insertions(+), 158 deletions(-)

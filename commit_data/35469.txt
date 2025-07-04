@@ -1,0 +1,19 @@
+commit 4bb649fba82412c292974a9f9255db1092d7faed
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 23 14:04:48 2018 +0200
+
+    debug/pe: gofmt
+    
+    CL 110555 introduced some changes which were not properly gofmt'ed.
+    Because the CL was sent via Github the gofmt checks usually performed by
+    git-codereview didn't catch this (see #24946).
+    
+    Change-Id: I65c1271620690dbeec88b4ce482d158f7d6df45d
+    Reviewed-on: https://go-review.googlesource.com/114255
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/debug/pe/file.go |  8 ++++----
+ src/debug/pe/pe.go   | 29 ++++++++++++++---------------
+ 2 files changed, 18 insertions(+), 19 deletions(-)

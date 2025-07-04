@@ -1,0 +1,19 @@
+commit 42dfac67083f3fd09ca214738307d0404a0c0147
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 17 13:08:22 2020 -0400
+
+    cmd/go: add a "don't care about success" operator to script_test
+    
+    Use that operator to make test_race_install_cgo agnostic to whether GOROOT/pkg is writable.
+    
+    Updates #37573
+    Updates #30316
+    
+    Change-Id: I018c63b3c369209345069f917bbb3a52179e2b58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223746
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/script_test.go                          | 183 ++++++++++++---------
+ src/cmd/go/testdata/script/README                  |  12 +-
+ .../go/testdata/script/test_race_install_cgo.txt   |  12 +-
+ 3 files changed, 117 insertions(+), 90 deletions(-)

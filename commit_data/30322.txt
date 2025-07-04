@@ -1,0 +1,19 @@
+commit 6cfc3b25e95d9f41215e0df8eadfdbeb472594fe
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 18 09:32:46 2017 +0100
+
+    math: protect benchmarked functions from being optimized away
+    
+    Add exported global variables and store the results of benchmarked
+    functions in them. This prevents the current compiler optimizations
+    from removing the instructions that are needed to compute the return
+    values of the benchmarked functions.
+    
+    Change-Id: If8b08424e85f3796bb6dd73e761c653abbabcc5e
+    Reviewed-on: https://go-review.googlesource.com/37195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 271 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 200 insertions(+), 71 deletions(-)

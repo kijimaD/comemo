@@ -1,0 +1,12 @@
+commit 57e188874150d31114575400c884cfd9fe5b7976
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Jun 23 15:08:27 2010 +1000
+
+    Build draw/x11.  Skip for test.
+    
+    R=nigeltao_golang
+    CC=golang-dev, r, rsc
+    https://golang.org/cl/1690043
+
+ src/pkg/Makefile | 2 ++
+ 1 file changed, 2 insertions(+)

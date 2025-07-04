@@ -1,0 +1,12 @@
+commit cf5ee36aa0c50ab13b6acb485a7d058aadbf184f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 18:45:06 2010 -0700
+
+    version.bash: cope with ancient Mercurial
+    
+    R=adg
+    CC=dpx, golang-dev
+    https://golang.org/cl/593043
+
+ src/version.bash | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

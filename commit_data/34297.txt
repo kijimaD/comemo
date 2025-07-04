@@ -1,0 +1,18 @@
+commit 355326224848fad85ae6efc7fc0868bee2fcc105
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 21 11:54:55 2018 +0100
+
+    cmd/compile: use | in the most repetitive mips rules
+    
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
+    
+    Ran rulegen, no change in the actual compiler code (as expected).
+    
+    Change-Id: Ib0bfbbc181fcec095fb78ac752addd1eee0c3575
+    Reviewed-on: https://go-review.googlesource.com/95796
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 89 ++++++++---------------------
+ 1 file changed, 25 insertions(+), 64 deletions(-)

@@ -1,0 +1,14 @@
+commit 53372903c70e93704cc32dc229d8d83a03bcc457
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 23 12:07:02 2012 +1000
+
+    reflect: document and test TypeOf(nil)
+    Fixes #3549.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6107047
+
+ src/pkg/reflect/all_test.go | 5 +++++
+ src/pkg/reflect/type.go     | 1 +
+ 2 files changed, 6 insertions(+)

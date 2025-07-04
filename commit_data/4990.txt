@@ -1,0 +1,12 @@
+commit 3dcbf73c8419e2a8ffe5e1d7ee0b8196f7b4d590
+Author: Spring Mc <heresy.mc@gmail.com>
+Date:   Thu Mar 4 16:15:51 2010 -0800
+
+    strings: make Split(s, "", n) faster
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223096
+
+ src/pkg/strings/strings.go | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

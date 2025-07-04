@@ -1,0 +1,17 @@
+commit 221163411312443b5e13c17382a101a94bd2db62
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 13 13:56:51 2013 -0700
+
+    cmd/go: better documentation about profiling
+    Point the user to "go tool pprof" and mention some
+    important flags.
+    
+    Fixes #4990.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7657045
+
+ src/cmd/go/doc.go  | 9 +++++++--
+ src/cmd/go/test.go | 9 +++++++--
+ 2 files changed, 14 insertions(+), 4 deletions(-)

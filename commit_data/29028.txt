@@ -1,0 +1,27 @@
+commit 426c287eb64abfe54e51fba3014c8eaeff7fc270
+Author: Joshua Boelter <joshua.boelter@intel.com>
+Date:   Wed Jul 13 16:22:28 2016 -0600
+
+    crypto/tls: add VerifyPeerCertificate to tls.Config
+    
+    VerifyPeerCertificate returns an error if the peer should not be
+    trusted. It will be called after the initial handshake and before
+    any other verification checks on the cert or chain are performed.
+    This provides the callee an opportunity to augment the certificate
+    verification.
+    
+    If VerifyPeerCertificate is not nil and returns an error,
+    then the handshake will fail.
+    
+    Fixes #16363
+    
+    Change-Id: I6a22f199f0e81b6f5d5f37c54d85ab878216bb22
+    Reviewed-on: https://go-review.googlesource.com/26654
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go                |  13 +++
+ src/crypto/tls/handshake_client.go      |   7 ++
+ src/crypto/tls/handshake_client_test.go | 154 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go      |   7 ++
+ src/crypto/tls/tls_test.go              |   2 +-
+ 5 files changed, 182 insertions(+), 1 deletion(-)

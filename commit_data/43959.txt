@@ -1,0 +1,16 @@
+commit 7f9a2bc2bc6201d7ffb3b5066b88a19d2da96592
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Dec 7 18:10:56 2020 +0100
+
+    doc/go1.16: fix typo
+    
+    For #40700
+    
+    Change-Id: Idea442d45d18ca8cedc0b160df23eac6b86755ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275677
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

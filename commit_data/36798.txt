@@ -1,0 +1,27 @@
+commit 9aed4cc3956117d3d435bcd90e69d5e1820f8ad3
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Oct 1 18:24:43 2018 -0300
+
+    cmd/compile: instrinsify math/bits.Mul on ppc64x
+    
+    Add SSA rules to intrinsify Mul/Mul64 on ppc64x.
+    
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkMul-40       8.80          0.93          -89.43%
+    BenchmarkMul32-40     1.39          1.39          +0.00%
+    BenchmarkMul64-40     5.39          0.93          -82.75%
+    
+    Updates #24813
+    
+    Change-Id: I6e95bfbe976a2278bd17799df184a7fbc0e57829
+    Reviewed-on: https://go-review.googlesource.com/138917
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ppc64/ssa.go        | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 16 ++++++++++++++++
+ test/codegen/mathbits.go                     |  2 ++
+ 7 files changed, 57 insertions(+), 2 deletions(-)

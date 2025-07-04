@@ -1,0 +1,19 @@
+commit 58a0d6cebc8e48401a18deb42389d023a3577e7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 09:03:42 2009 -0700
+
+    two gob nits found with stricter 6g
+    
+    (6g had a few pretty major bugs
+    where it was more lax than it should
+    have been when checking when things
+    satisfied interfaces; i fixed them and
+    this turned up.)
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=34243
+    CL=34248
+
+ src/pkg/gob/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

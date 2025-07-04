@@ -1,0 +1,27 @@
+commit 7ab4b5586d37513bfa48f769773007ff8e9b732d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jun 15 10:20:00 2018 +0000
+
+    cmd/internal/obj/arm64: add CONSTRAINED UNPREDICTABLE behavior check for some load/store
+    
+    According to ARM64 manual, it is "constrained unpredictable behavior"
+    if the src and dst registers of some load/store instructions are same.
+    In order to completely prevent such unpredictable behavior, adding the
+    check for load/store instructions that are supported by the assembler
+    in the assembler.
+    
+    Add test cases.
+    
+    Update #25823
+    
+    Change-Id: I64c14ad99ee543d778e7ec8ae6516a532293dbb3
+    Reviewed-on: https://go-review.googlesource.com/120660
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  1 +
+ src/cmd/asm/internal/asm/testdata/arm64enc.s   |  4 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 34 +++++++++----
+ src/cmd/internal/obj/arm64/asm7.go             | 68 +++++++++++++++++++++++++-
+ 4 files changed, 95 insertions(+), 12 deletions(-)

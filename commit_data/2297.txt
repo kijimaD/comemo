@@ -1,0 +1,13 @@
+commit b3de35168169af1e8fe3d02106030d228c8b7e50
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 23:30:48 2009 -0700
+
+    update Make.deps
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=29305
+    CL=29308
+
+ src/lib/Make.deps | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

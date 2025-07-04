@@ -1,0 +1,23 @@
+commit 2527bba993fcb324183b88aebafa2c2fe5c8b424
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 17:16:41 2009 -0800
+
+    casify pretty
+    
+    R=r
+    OCL=22899
+    CL=22899
+
+ usr/gri/pretty/ast.go         | 152 ++++++++++----------
+ usr/gri/pretty/compilation.go |  34 ++---
+ usr/gri/pretty/parser.go      | 326 +++++++++++++++++++++---------------------
+ usr/gri/pretty/platform.go    |  20 +--
+ usr/gri/pretty/pretty.go      |   4 +-
+ usr/gri/pretty/printer.go     | 296 +++++++++++++++++++-------------------
+ usr/gri/pretty/scanner.go     | 211 +++++++++++++--------------
+ usr/gri/pretty/selftest0.go   |   2 +-
+ usr/gri/pretty/selftest2.go   |  18 +--
+ usr/gri/pretty/test.sh        |   5 +-
+ usr/gri/pretty/typechecker.go |  26 ++--
+ usr/gri/pretty/universe.go    | 144 +++++++++----------
+ 12 files changed, 620 insertions(+), 618 deletions(-)

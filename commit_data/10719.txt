@@ -1,0 +1,12 @@
+commit 0f4f3c6769bddac4cf417849922c0f68f4bedde2
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Dec 12 16:25:31 2011 -0500
+
+    gc: avoid 0-length C array
+    
+    R=golang-dev, ality
+    CC=golang-dev, rsc
+    https://golang.org/cl/5467066
+
+ src/cmd/gc/lex.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

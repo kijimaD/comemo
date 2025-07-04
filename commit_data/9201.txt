@@ -1,0 +1,15 @@
+commit 12995e2d359e699693d0c56d2e5ed1fab3c7c479
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Jul 25 13:45:37 2011 -0400
+
+    gc: fix mkbuiltin for Plan 9 build
+    
+    . Replaced Posix #includes with u.h and libc.h.
+    . Replaced fprintf(stderr,...); exit(1); with sysfatal() calls.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4823047
+
+ src/cmd/gc/mkbuiltin1.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

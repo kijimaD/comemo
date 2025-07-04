@@ -1,0 +1,14 @@
+commit ac0dd5ae525db0d057e94c03c3f506bc30afae31
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 23 20:02:54 2008 -0700
+
+    Add a flags package.
+    
+    R=gri
+    OCL=13399
+    CL=13399
+
+ src/lib/flag.go   | 439 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/fmt.go    |   2 +-
+ src/lib/make.bash |   6 +-
+ 3 files changed, 444 insertions(+), 3 deletions(-)

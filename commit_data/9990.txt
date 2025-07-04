@@ -1,0 +1,14 @@
+commit c5b3a4fb074e7a476a2841ba7ca5161636b7d9e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 14 16:06:39 2011 -0700
+
+    godoc: updates for latest Go app-engine release.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5273044
+
+ src/cmd/godoc/README.godoc-app     | 42 +++++++++++++++++---------------------
+ src/cmd/godoc/appinit.go           | 38 +++-------------------------------
+ src/cmd/godoc/setup-godoc-app.bash |  2 +-
+ 3 files changed, 23 insertions(+), 59 deletions(-)

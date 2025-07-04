@@ -1,0 +1,12 @@
+commit 4cc09cd5320a2bea4f27a1db59970d4b715f6522
+Author: Frédéric Guillot <frederic.guillot@gmail.com>
+Date:   Wed Jul 25 16:36:11 2018 -0700
+
+    database/sql: fix driverStmt.Close() comment typo
+    
+    Change-Id: I2256c850e071882b00c362da03abc8b021c1ec2a
+    Reviewed-on: https://go-review.googlesource.com/126015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

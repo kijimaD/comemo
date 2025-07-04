@@ -1,0 +1,12 @@
+commit 38a41eec67e5a630385f50c0ac58d5e10e153cb5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 6 10:04:22 2009 -0800
+
+    contribute.html
+    
+    R=r, iant
+    CC=go-dev
+    http://go/go-review/1022007
+
+ doc/contribute.html | 538 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 515 insertions(+), 23 deletions(-)

@@ -1,0 +1,28 @@
+commit 264858c46e9daa819d6230f6907b750a3dd9b14f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 23 21:53:48 2015 +1200
+
+    cmd/8l, cmd/internal/ld, cmd/internal/obj/x86: stop incorrectly using the term "inital exec"
+    
+    The long comment block in obj6.go:progedit talked about the two code sequences
+    for accessing g as "local exec" and "initial exec", but really they are both forms
+    of local exec. This stuff is confusing enough without using the wrong words for
+    things, so rewrite it to talk about 2-instruction and 1-instruction sequences.
+    Unfortunately the confusion has made it into code, with the R_TLS_IE relocation
+    now doing double duty as meaning actual initial exec when externally linking and
+    boring old local exec when linking internally (half of this is my fault). So this
+    stops using R_TLS_IE in the local exec case. There is a chance this might break
+    plan9 or windows, but I don't think so. Next step is working out what the heck is
+    going on on ARM...
+    
+    Change-Id: I09da4388210cf49dbc99fd25f5172bbe517cee57
+    Reviewed-on: https://go-review.googlesource.com/9273
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/8l/asm.go                |  3 +--
+ src/cmd/internal/ld/data.go      | 17 +++++++--------
+ src/cmd/internal/obj/link.go     | 15 +++++++++++++
+ src/cmd/internal/obj/x86/asm6.go |  2 +-
+ src/cmd/internal/obj/x86/obj6.go | 46 +++++++++++++++++++++++-----------------
+ 5 files changed, 51 insertions(+), 32 deletions(-)

@@ -1,0 +1,15 @@
+commit b4ac02972f223d22933e603fa4b16c219ec8fae4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 25 11:07:29 2018 -0700
+
+    cmd/link: fix test flag
+    
+    Doesn't cause an error, see #25085.
+    But we should fix it nonetheless.
+    
+    Change-Id: I7b6799e0a95475202cacefc3a7f02487e61bfd31
+    Reviewed-on: https://go-review.googlesource.com/109355
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 711f075987031ac2df4e8e83d691ffd3eae77c9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 18:41:36 2010 -0700
+
+    gc: include signal.h (fix build)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1871049
+
+ src/cmd/gc/go.h | 1 +
+ 1 file changed, 1 insertion(+)

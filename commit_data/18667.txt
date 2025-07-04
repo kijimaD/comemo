@@ -1,0 +1,15 @@
+commit b4dc91e386d2da269b597808564443bc46fc8bc1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 26 23:15:34 2014 -0500
+
+    runtime: use monotonic clock for timers on dragonfly.
+    Update #6007
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/69040045
+
+ src/pkg/runtime/sys_dragonfly_386.s   | 4 ++--
+ src/pkg/runtime/sys_dragonfly_amd64.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

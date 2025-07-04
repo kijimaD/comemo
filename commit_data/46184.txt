@@ -1,0 +1,22 @@
+commit d7e2e2ec2b2a11c2bfb98a27c03d0dccba62c4fb
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Aug 18 06:28:40 2021 -0700
+
+    cmd/compile: delay fillinMethods to deal with mutually-recursive types
+    
+    We need to delay fillinMethods until we get to a top-level type, so we
+    know all the TFORW types have been filled in, and we can do the
+    substitutions required by fillinMethods.
+    
+    Fixes #47710
+    
+    Change-Id: I298de7e7753ed31a2c2b1ff04f35177a8afc7a66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345149
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/irgen.go         |   8 ++
+ src/cmd/compile/internal/noder/types.go         | 150 +++++++++++++-----------
+ src/cmd/compile/internal/reflectdata/reflect.go |   2 +-
+ test/typeparam/issue47710.go                    |  19 +++
+ 4 files changed, 112 insertions(+), 67 deletions(-)

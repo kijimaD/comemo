@@ -1,0 +1,17 @@
+commit 8516ecd05f856f895dceeb7c150c98d706a0b326
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 6 20:10:35 2018 +0100
+
+    test/codegen: port math/bits.ReverseBytes tests to codegen
+    
+    And remove them from ssa_test.
+    
+    Change-Id: If767af662801219774d1bdb787c77edfa6067770
+    Reviewed-on: https://go-review.googlesource.com/98976
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 74 ++++-----------------------------
+ test/codegen/mathbits.go                | 30 +++++++++++++
+ 2 files changed, 37 insertions(+), 67 deletions(-)

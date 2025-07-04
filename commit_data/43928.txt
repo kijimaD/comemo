@@ -1,0 +1,44 @@
+commit 07cba70d5794747044ce5f2f3b34de139193e2a5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 16 21:28:26 2020 -0500
+
+    cmd/compile, runtime: use __msan_memmove for moving data, split msanread to fields
+    
+    Currently, for data moving, we generate an msanread of the source,
+    followed by an msanwrite of the destination. msanread checks
+    the source is initialized.
+    
+    This has a problem: if the source is an aggregate type containing
+    alignment paddings, the padding bytes may not be thought as
+    initialized by MSAN. If we copy the aggregate type by value, if
+    it counts as a read, MSAN reports using uninitialized data. This
+    CL changes it to use __msan_memmove for data copying, which tells
+    MSAN to propagate initialized-ness but not check for it.
+    
+    Caveat: technically __msan_memmove is not a public API of MSAN,
+    although the C compiler does generate direct calls to it.
+    
+    Also, when instrumenting a load of a struct, split the
+    instrumentation to fields, instead of generating an msanread for
+    the whole struct. This skips padding bytes, which may not be
+    considered initialized in MSAN.
+    
+    Fixes #42820.
+    
+    Change-Id: Id861c8bbfd94cfcccefcc58eaf9e4eb43b4d85c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270859
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/testsanitizers/msan_test.go           |  1 +
+ misc/cgo/testsanitizers/testdata/msan7.go      | 38 ++++++++++++
+ src/cmd/compile/internal/gc/builtin.go         | 42 ++++++-------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/go.go              |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 83 ++++++++++++++++++++++----
+ src/runtime/msan.go                            |  6 +-
+ src/runtime/msan_amd64.s                       |  9 +++
+ src/runtime/msan_arm64.s                       | 10 ++++
+ 9 files changed, 158 insertions(+), 33 deletions(-)

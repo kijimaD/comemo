@@ -1,0 +1,27 @@
+commit f566fe3910593de96b6ab17abc906934de78d27c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 13:03:39 2022 -0700
+
+    runtime: make racereadrange ABIinternal
+    
+    CL 266638 marked racewriterange (and some other race functions) as
+    ABIinternal but missed racereadrange.
+    
+    arm64 and ppc64le (the other two register ABI platforms at the moment)
+    already have racereadrange marked as such.
+    
+    The other two instrumented calls are to racefuncenter/racefuncexit.
+    Do you think they would need this treatment as well? arm64 already does,
+    but amd64 and ppc64le do not.
+    
+    Fixes #51459
+    
+    Change-Id: I3f54e1298433b6d67bfe18120d9f86205ff66a73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393154
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/race_amd64.s | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

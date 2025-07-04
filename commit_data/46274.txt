@@ -1,0 +1,20 @@
+commit 840b4292c9cd5472babf562d3b6eaf727926fd90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 9 14:26:36 2021 +0700
+
+    src: emit warning when make.bash run with invalid GOROOT_BOOTSTRAP
+    
+    When setting an invalid GOROOT_BOOTSTRAP, make.bash try looking at env to
+    find a valid go command and use that GOROOT instead. It's better if the
+    script emit a warning, instead of silently change the GOROOT_BOOTSTRAP.
+    
+    Change-Id: I6038093d5e8c072da27bcae44b125f6774f809a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326030
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/make.bash | 2 ++
+ src/make.rc   | 2 ++
+ 2 files changed, 4 insertions(+)

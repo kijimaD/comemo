@@ -1,0 +1,13 @@
+commit f97832e4c285376e2d9f05a6937ae2f5a5d04075
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 11:20:34 2008 -0700
+
+    New words regarding constants
+    
+    R=gri,ken
+    DELTA=64  (42 added, 3 deleted, 19 changed)
+    OCL=14116
+    CL=14124
+
+ doc/go_lang.txt | 81 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 60 insertions(+), 21 deletions(-)

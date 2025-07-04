@@ -1,0 +1,27 @@
+commit 1a2435c95f8c68c7d21d172c8a80c6cc96aa9cf5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 26 13:46:45 2022 -0800
+
+    go/types, cmd/compile: fix composite literal structural typing
+    
+    For a composite literal expression like []T{{f: 1}}, we allow T to be
+    a pointer to struct type, so it's consistent to allow T to also be a
+    type parameter whose structural type is a pointer to struct type.
+    
+    Fixes #50833.
+    
+    Change-Id: Ib0781ec4a4f327c875ea25b97740ff2c0c86b916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381075
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go             |  2 +-
+ src/cmd/compile/internal/noder/writer.go           |  3 +--
+ src/cmd/compile/internal/types2/expr.go            |  6 +-----
+ .../types2/testdata/fixedbugs/issue50833.go2       | 16 +++++++++++++++
+ src/go/types/expr.go                               |  6 +-----
+ src/go/types/testdata/fixedbugs/issue50833.go2     | 16 +++++++++++++++
+ test/typeparam/issue50833.go                       | 23 ++++++++++++++++++++++
+ 7 files changed, 59 insertions(+), 13 deletions(-)

@@ -1,0 +1,22 @@
+commit e1fbf13896feb0b55050c22f5be0746f8a2ba01b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 9 12:01:16 2022 -0500
+
+    cmd/go: include the "-trimpath" flag in the stamped build settings
+    
+    The -trimpath flag has a strong effect on the resulting binary:
+    in particular, it determines whether runtime.GOROOT can report
+    a meaningful path in the absence of an explicit GOROOT environment variable.
+    
+    For #51461
+    
+    Change-Id: Id0d55572c0a0a4e2e4724363ed80dfa05b202186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391810
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                       | 3 +++
+ src/cmd/go/testdata/script/version_build_settings.txt | 4 ++++
+ 2 files changed, 7 insertions(+)

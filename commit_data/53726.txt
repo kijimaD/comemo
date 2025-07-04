@@ -1,0 +1,28 @@
+commit af0609b080dd6d9101d8c6aa31ef6378ac70d60a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jul 18 16:23:27 2023 -0400
+
+    cmd/go: attach PGO profile for test dependencies
+    
+    When running "go test" including a main package which has a PGO
+    profile, we currently build the package being tested and its
+    dependencies with PGO, but we failed to attach the profile to
+    test-only dependencies. If a package is (transitively) imported
+    by both the package being tested and the test, the PGO version
+    and the non-PGO version of the package are both linked into the
+    binary, causing link-time error.
+    
+    This CL fixes this by attaching the PGO profile to dependencies of
+    the test.
+    
+    Fixes #61376.
+    
+    Change-Id: I2559db9843c4cdab596b31e2025d8475ffbf58ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510835
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/test.go                    |  6 ++++++
+ src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 13 +++++++++++++
+ 2 files changed, 19 insertions(+)

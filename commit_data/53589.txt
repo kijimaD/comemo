@@ -1,0 +1,22 @@
+commit bc21d6a4fcf2c957a3f279fa8725e16df6586864
+Author: James Yang <26634873@qq.com>
+Date:   Tue May 23 02:52:55 2023 +0000
+
+    cmd/go/internal/modfetch: fix retractions slice initial length not zero
+    
+    When make slice of retractions, it should have initial length zero, to append more VersionIntervals.
+    
+    Currently without the zero length, the capacity used will be doubled after the appending, looks like a bug.
+    
+    Change-Id: Id3acaeffe557ca1d15c864b0377a66fee3a41f6c
+    GitHub-Last-Rev: ed5fd5f6784c43195c531d8acc75560adff104ba
+    GitHub-Pull-Request: golang/go#60354
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497118
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

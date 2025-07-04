@@ -1,0 +1,16 @@
+commit 19bb42d637eb57d24ff905047ce468c034a9a0cf
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 30 18:19:58 2013 -0500
+
+    math/big: make tests faster by reducing coverage in --test.short mode.
+    
+    The time to test all of math/big is now:
+     default      => ~3min
+     --test.short => 150ms
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7223054
+
+ src/pkg/math/big/rat_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

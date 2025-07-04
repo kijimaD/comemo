@@ -1,0 +1,30 @@
+commit 7c4c87c015e566b7b172c613ef4fcc9669d936f6
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sun Oct 8 15:25:28 2017 -0400
+
+    net/http/httptrace: expose request headers for http/1.1
+    
+    Some headers, which are set or modified by the http library,
+    are not written to the standard http.Request.Header and are
+    not included as part of http.Response.Request.Header.
+    
+    Exposing all headers alleviates this problem.
+    
+    This is not a complete solution to 19761 since it does not have http/2 support.
+    
+    Updates #19761
+    
+    Change-Id: Ie8d4f702f4f671666b120b332378644f094e288b
+    Reviewed-on: https://go-review.googlesource.com/67430
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/header.go          | 19 ++++++++++++++++++-
+ src/net/http/httptrace/trace.go |  6 +++++-
+ src/net/http/request.go         | 14 ++++++++++----
+ src/net/http/response.go        |  4 ++--
+ src/net/http/server.go          |  2 +-
+ src/net/http/transfer.go        | 17 +++++++++++++++--
+ src/net/http/transport_test.go  | 20 ++++++++++++++++++--
+ 7 files changed, 69 insertions(+), 13 deletions(-)

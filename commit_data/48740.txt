@@ -1,0 +1,24 @@
+commit 8b4ded3ef379c721fbd7bff76cf8dd4504b4738c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:09:32 2022 -0500
+
+    cmd/go: gofmt alldocs.go
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Reformat alldocs.go using the new doc comment formatter.
+    
+    This file is so large it gets its own gofmt CL.
+    
+    For #51082.
+    
+    Change-Id: Ie14cf1aad776e6f4180d88245d05a86e5fb6a3b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384267
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go | 2253 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 1105 insertions(+), 1148 deletions(-)

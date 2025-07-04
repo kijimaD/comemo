@@ -1,0 +1,37 @@
+commit 68c664141cc3c0cecfe9171627d49e942c929a93
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 9 12:10:27 2019 -0400
+
+    cmd/internal/obj/x86: allow non-zero offset in TLS reference
+    
+    An instruction that references TLS, e.g.
+    
+    MOVQ    0(TLS), AX
+    
+    on some platforms (e.g. Android), or in shared mode, may be
+    translated to (assuming TLS offset already loaded to CX)
+    
+    MOVQ    0(CX)(TLS*1), AX
+    
+    which in turns translates to
+    
+    movq    %fs:(%rcx), %rax
+    
+    We have rejected non-zero offset for TLS reference, like 16(TLS).
+    Actually, the instruction can take offset, i.e. it is a valid
+    instruction for, e.g.,
+    
+    movq    %fs:16(%rcx),%rcx
+    
+    So, allow offset in TLS reference.
+    
+    Change-Id: Iaf1996bad7fe874e0c298ea441af5acb136a4028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171151
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/386.s   |  4 ++++
+ src/cmd/asm/internal/asm/testdata/amd64.s |  4 ++++
+ src/cmd/internal/obj/x86/asm6.go          | 16 +++++-----------
+ 3 files changed, 13 insertions(+), 11 deletions(-)

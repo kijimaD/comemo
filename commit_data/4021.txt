@@ -1,0 +1,11 @@
+commit 780dbdc02448af0dbc9d3675457a580c18c5cee7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 18:37:39 2009 -0800
+
+    codereview: clpatch tweaks
+    
+    R=agl1
+    https://golang.org/cl/152114
+
+ lib/codereview/codereview.py | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

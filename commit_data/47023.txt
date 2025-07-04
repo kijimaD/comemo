@@ -1,0 +1,14 @@
+commit e35b5b25d976efb7c00b871cac452b84193e6179
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 25 16:48:07 2021 -0400
+
+    cmd/compile: fix typo in comment in CL 358435
+    
+    Change-Id: I0d8128668fc7a80b29aabc58dbc9a2929b889ec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358614
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

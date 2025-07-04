@@ -1,0 +1,18 @@
+commit 42e2abd110097201f6dd92d7bb5a46b2bd34473e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 15 16:34:13 2024 +0100
+
+    os: use ignoringEINTR in (*Process).blockUntilWaitable
+    
+    Instead of open-coding it.
+    
+    Change-Id: I7430066550a82e5d69846a1ec08b74474207c006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627478
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/wait_wait6.go  | 17 +++++++----------
+ src/os/wait_waitid.go | 17 +++++++----------
+ 2 files changed, 14 insertions(+), 20 deletions(-)

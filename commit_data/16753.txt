@@ -1,0 +1,18 @@
+commit 8124a02cb23c0ac988f6e6be4e3e4104baf987c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 14:23:36 2013 -0400
+
+    cmd/5a, cmd/6a, cmd/8a: fix flag parsing
+    
+    go tool 6a -$(unicode fffd) was crashing.
+    
+    Fixes #5878.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11208045
+
+ src/cmd/5a/lex.c | 2 +-
+ src/cmd/6a/lex.c | 2 +-
+ src/cmd/8a/lex.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

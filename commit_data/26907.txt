@@ -1,0 +1,34 @@
+commit 4721ea6abcde318a2f5d61ec249cde5e9c57ebea
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 11:22:42 2016 -0400
+
+    runtime/internal/atomic: rename Storep1 to StorepNoWB
+    
+    Make it clear that the point of this function stores a pointer
+    *without* a write barrier.
+    
+    sed -i -e 's/Storep1/StorepNoWB/' $(git grep -l Storep1)
+    
+    Updates #15270.
+    
+    Change-Id: Ifad7e17815e51a738070655fe3b178afdadaecf6
+    Reviewed-on: https://go-review.googlesource.com/21994
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/atomic_pointer.go                 | 4 ++--
+ src/runtime/hashmap.go                        | 4 ++--
+ src/runtime/internal/atomic/asm_386.s         | 2 +-
+ src/runtime/internal/atomic/asm_amd64.s       | 2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s    | 2 +-
+ src/runtime/internal/atomic/asm_mips64x.s     | 2 +-
+ src/runtime/internal/atomic/asm_ppc64x.s      | 2 +-
+ src/runtime/internal/atomic/atomic_386.go     | 2 +-
+ src/runtime/internal/atomic/atomic_amd64x.go  | 5 ++++-
+ src/runtime/internal/atomic/atomic_arm.go     | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.go   | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.s    | 2 +-
+ src/runtime/internal/atomic/atomic_mips64x.go | 2 +-
+ src/runtime/internal/atomic/atomic_ppc64x.go  | 2 +-
+ src/runtime/internal/atomic/atomic_s390x.go   | 2 +-
+ 15 files changed, 20 insertions(+), 17 deletions(-)

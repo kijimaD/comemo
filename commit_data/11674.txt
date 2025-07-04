@@ -1,0 +1,14 @@
+commit 2cc58e93d6f663af52bcdd4974d319ebe843f764
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 15:50:26 2012 -0500
+
+    test: disable bug408
+    
+    Fixes #2902.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5641047
+
+ test/fixedbugs/bug408.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

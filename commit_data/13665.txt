@@ -1,0 +1,12 @@
+commit c27a7dbf78e976a4655478711da03537a38a206d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 22 09:01:30 2012 -0700
+
+    CONTRIBUTORS: Add Dave Borowitz (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6484046
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

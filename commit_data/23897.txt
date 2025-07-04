@@ -1,0 +1,20 @@
+commit fde392623a18ecedd7434db1cf40e82bdd482df9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 16:16:13 2015 -0400
+
+    runtime: ignore arguments in cgocallback_gofunc frame
+    
+    Otherwise the GC may see uninitialized memory there,
+    which might be old pointers that are retained, or it might
+    trigger the invalid pointer check.
+    
+    Fixes #11907.
+    
+    Change-Id: I67e306384a68468eef45da1a8eb5c9df216a77c0
+    Reviewed-on: https://go-review.googlesource.com/12852
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_cgo_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/stubs.go          |  9 ++++-
+ 2 files changed, 96 insertions(+), 1 deletion(-)

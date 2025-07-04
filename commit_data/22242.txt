@@ -1,0 +1,17 @@
+commit 8d267b9b592001da4c7a4d73996f92094fd23152
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 24 16:36:16 2015 -0700
+
+    math/big: fixed Float.Float64, implemented Float.Float32
+    
+    - fix bounds checks for exponent range of denormalized numbers
+    - use correct rounding precision for denormalized numbers
+    - added extra tests
+    
+    Change-Id: I6be56399afd0d9a603300a2e44b5539e08d6f592
+    Reviewed-on: https://go-review.googlesource.com/8096
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 198 +++++++++++++++++++++++++++++++++++++--------
+ src/math/big/float_test.go | 107 +++++++++++++++++++++---
+ 2 files changed, 259 insertions(+), 46 deletions(-)

@@ -1,0 +1,12 @@
+commit e1a9b6ee77cf7bb2209cd3868ac8661bd75a9a29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 12:09:43 2008 -0700
+
+    - updated code to work again with latest 6g version
+    
+    R=r
+    OCL=15235
+    CL=15235
+
+ usr/gri/gosrc/verifier.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,25 @@
+commit 135109d241da1427461fdb19656a976b3e9c7b22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 25 15:34:55 2016 -0700
+
+    cmd/compile: reduce slice header allocation when parsing := assignments
+    
+    The colas function allocates 2 slice headers in each call (via Nodes.Set)
+    only to throw away those slice headers in the common case where both the
+    lhs and rhs in "lhs := rhs" have length 1.
+    
+    Avoid the Nodes.Set calls in those cases. For make.bash, this eliminates
+    ~63,000 slice header allocations.
+    
+    Also: Minor cleanups in colasdefn.
+    
+    Change-Id: Ib114a67c3adeb8821868bd71a5e0f5e2e19fcd4f
+    Reviewed-on: https://go-review.googlesource.com/21170
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go    |  4 +--
+ src/cmd/compile/internal/gc/dcl.go    | 48 +++++++++++++++--------------------
+ src/cmd/compile/internal/gc/parser.go |  2 +-
+ 3 files changed, 24 insertions(+), 30 deletions(-)

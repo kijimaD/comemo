@@ -1,0 +1,19 @@
+commit b9b89f56ad7ee2394b5225a7628b6da59581e0be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 11 15:31:06 2009 -0800
+
+    fix printer test for new syntax
+    
+    R=rsc
+    https://golang.org/cl/175048
+
+ src/pkg/go/printer/nodes.go                     | 19 ++++++
+ src/pkg/go/printer/printer_test.go              | 13 +++-
+ src/pkg/go/printer/testdata/declarations.golden | 76 +++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/declarations.input  | 79 +++++++++++++++++++++++--
+ src/pkg/go/printer/testdata/expressions.golden  | 54 ++++++++---------
+ src/pkg/go/printer/testdata/expressions.input   | 70 +++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.raw     | 54 ++++++++---------
+ src/pkg/go/printer/testdata/linebreaks.golden   |  6 +-
+ src/pkg/go/printer/testdata/linebreaks.input    | 11 ++--
+ 9 files changed, 277 insertions(+), 105 deletions(-)

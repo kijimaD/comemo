@@ -1,0 +1,18 @@
+commit fd6c556dc82253722a7f7b9f554a1892b0ede36e
+Author: Aleksandr Dobkinimg src=404 onerror=alert(document.domain) <dobkin@google.com>
+Date:   Sat Apr 30 04:02:43 2022 +0000
+
+    net/url: fix regex typo in comment in url.go
+    
+    The original author almost certainly intended to match the literal dash
+    character '-' but ended up matching a range of other characters instead.
+    
+    Change-Id: I7a0f67c5fdccd70b7ad58a882da851dfc22ce2f0
+    GitHub-Last-Rev: 76a39577e551328f707fd73b9ce85d20c121c555
+    GitHub-Pull-Request: golang/go#52627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403076
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

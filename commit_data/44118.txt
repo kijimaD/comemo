@@ -1,0 +1,18 @@
+commit 665def2c11bb49749b075d612e98b6db293266a7
+Author: Eric Chiang <ericchiang@google.com>
+Date:   Thu Nov 12 19:13:02 2020 -0800
+
+    encoding/asn1: document unmarshaling behavior for IMPLICIT string fields
+    
+    Fixes #42570.
+    
+    Change-Id: I73e339cdebe1720c141861a12e28a94cef13c75b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269798
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/encoding/asn1/asn1.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

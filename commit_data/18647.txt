@@ -1,0 +1,13 @@
+commit 391002a82bf3033b51818df5aaa4a82cc81bc81f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 25 11:49:37 2014 -0800
+
+    runtime: add prototype for panicdivide
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, khr
+    CC=golang-codereviews
+    https://golang.org/cl/68680043
+
+ src/pkg/runtime/vlrt_arm.c | 1 +
+ 1 file changed, 1 insertion(+)

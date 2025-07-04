@@ -1,0 +1,27 @@
+commit bfc164c64d33edfaf774b5c29b9bf5648a6447fb
+Author: Paul Marks <pmarks@google.com>
+Date:   Tue Nov 1 21:01:08 2016 -0700
+
+    net: add Resolver.StrictErrors
+    
+    When LookupIP is performing multiple subqueries, this option causes a
+    timeout/servfail affecting a single query to abort the whole operation,
+    instead of returning a partial (IPv4/IPv6-only) result.
+    
+    Similarly, operations that walk the DNS search list will also abort when
+    encountering one of these errors.
+    
+    Fixes #17448
+    
+    Change-Id: Ice22e4aceb555c5a80d19bd1fde8b8fe87ac9517
+    Reviewed-on: https://go-review.googlesource.com/32572
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix.go      |  50 ++++--
+ src/net/dnsclient_unix_test.go | 349 +++++++++++++++++++++++++++++++++++++++--
+ src/net/lookup.go              |  10 ++
+ src/net/lookup_unix.go         |  24 +--
+ src/net/netgo_unix_test.go     |   2 +-
+ 5 files changed, 393 insertions(+), 42 deletions(-)

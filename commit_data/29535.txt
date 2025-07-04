@@ -1,0 +1,14 @@
+commit 91461002f354a5fc8b3898bbb0ade90d2921441e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Nov 14 09:17:15 2016 +0900
+
+    os: gofmt -w -s
+    
+    Change-Id: I9a42cb55544185ade20b2a4a9de5d39a6cfc6fc6
+    Reviewed-on: https://go-review.googlesource.com/33172
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/executable_procfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

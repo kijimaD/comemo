@@ -1,0 +1,27 @@
+commit c19b373c8ab8eca47a9fd02b97d8492cc099ef10
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 11:43:37 2011 -0400
+
+    runtime: cpu profiling support
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4306043
+
+ src/pkg/runtime/Makefile               |   1 +
+ src/pkg/runtime/amd64/traceback.c      |   9 +-
+ src/pkg/runtime/arm/traceback.c        |   7 +-
+ src/pkg/runtime/cpuprof.c              | 421 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/darwin/386/signal.c    |  58 ++++-
+ src/pkg/runtime/darwin/amd64/signal.c  |  58 ++++-
+ src/pkg/runtime/debug.go               |  20 ++
+ src/pkg/runtime/freebsd/386/signal.c   |  60 +++--
+ src/pkg/runtime/freebsd/amd64/signal.c |  60 +++--
+ src/pkg/runtime/linux/386/signal.c     |  58 ++++-
+ src/pkg/runtime/linux/amd64/signal.c   |  58 ++++-
+ src/pkg/runtime/linux/arm/signal.c     |  58 ++++-
+ src/pkg/runtime/plan9/386/signal.c     |   8 +
+ src/pkg/runtime/proc.c                 |  68 +++++-
+ src/pkg/runtime/runtime.h              |   5 +
+ src/pkg/runtime/windows/386/signal.c   |   8 +
+ 16 files changed, 852 insertions(+), 105 deletions(-)

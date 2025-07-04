@@ -1,0 +1,12 @@
+commit 4871d0d19ae5cde1b81d1817e4144ee63f1e40c5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 24 10:19:23 2011 -0800
+
+    encoding/line: fix up a few typos and infelicities in the doc comments
+    
+    R=anschelsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/3988045
+
+ src/pkg/encoding/line/line.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

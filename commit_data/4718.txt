@@ -1,0 +1,19 @@
+commit 8fedbb8c3d9875fca32c89d49105adcf632f7849
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 28 13:24:48 2010 -0800
+
+    support for ...T parameters (go/* packages)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194126
+
+ src/pkg/exp/parser/parser.go                    |  8 ++++----
+ src/pkg/go/ast/ast.go                           |  3 ++-
+ src/pkg/go/parser/interface.go                  |  2 +-
+ src/pkg/go/parser/parser.go                     | 16 ++++++++--------
+ src/pkg/go/parser/parser_test.go                |  2 ++
+ src/pkg/go/printer/nodes.go                     |  3 +++
+ src/pkg/go/printer/testdata/declarations.golden | 24 ++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 24 ++++++++++++++++++++++++
+ 8 files changed, 68 insertions(+), 14 deletions(-)

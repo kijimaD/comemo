@@ -1,0 +1,13 @@
+commit 9cc8e9ef48d17bd7e8bb2c1c41406f51366a7925
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 13:01:10 2010 -0400
+
+    runtime: fix amd64 build (broke by 386 support for Plan 9)
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/2556041
+
+ src/pkg/runtime/386/asm.s | 1 -
+ src/pkg/runtime/runtime.c | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

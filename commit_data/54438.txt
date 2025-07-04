@@ -1,0 +1,16 @@
+commit dd2279ee344a59ad50a73ebce5ab80c93fbbe732
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 12 16:14:36 2023 +0200
+
+    testing: use strings.LastIndexAny in (*common).decorate
+    
+    Change-Id: I14c521f4e599e14c71a52342b0ead5d0d4007f1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527655
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/testing.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

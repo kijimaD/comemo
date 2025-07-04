@@ -1,0 +1,15 @@
+commit 8fd53f47542349e906370fa30f0f689ed7a940ad
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 1 06:50:59 2009 -0700
+
+    cgen_asop sudoaddable
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=14  (4 added, 0 deleted, 10 changed)
+    OCL=35190
+    CL=35210
+
+ src/cmd/5g/ggen.c | 83 ++++++++++++++++++++++++++++++++++++++++---------------
+ test/arm-pass.txt |  1 +
+ 2 files changed, 62 insertions(+), 22 deletions(-)

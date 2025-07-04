@@ -1,0 +1,15 @@
+commit 8fb9cee3f1a6333ad50d7ca382e9a0bdafc1b5b6
+Author: molivier <olivier.matthieu@gmail.com>
+Date:   Tue Aug 8 17:39:52 2017 +0200
+
+    strings: add examples for Index functions
+    
+    Change-Id: Ia0f0c8ab4f2f9e96faad6d88775ae19ca7fae53c
+    Reviewed-on: https://go-review.googlesource.com/53790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

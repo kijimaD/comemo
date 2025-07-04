@@ -1,0 +1,17 @@
+commit 4ef78b09c9ea54019e13fd19b2368960b155399f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:03:54 2020 +0100
+
+    doc/go1.16: add runtime/debug changes to release notes
+    
+    For #40700
+    Fixes #42912
+    
+    Change-Id: Ifd36950136db1fc93a8de76a2717a473210418b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274473
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

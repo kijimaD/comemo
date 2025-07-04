@@ -1,0 +1,13 @@
+commit 2b4a9fa176c64fe99fc4b94000d25cd4545fe50f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 16:56:22 2010 -0800
+
+    fix NaCl build for latest runtime changes
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/206052
+
+ src/pkg/runtime/nacl/386/sys.s | 17 +++++++++++++++++
+ src/pkg/runtime/nacl/thread.c  |  4 ++++
+ 2 files changed, 21 insertions(+)

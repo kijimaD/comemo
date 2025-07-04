@@ -1,0 +1,12 @@
+commit 4c9d84f06a2a7aa5978c62636519e6e2bec14112
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 4 10:39:04 2008 -0700
+
+    Update fmt, refl, and rpc to exploit bug fixes in compiler
+    
+    R=gri
+    OCL=14806
+    CL=14806
+
+ src/lib/fmt.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

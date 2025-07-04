@@ -1,0 +1,21 @@
+commit 32bd777a37847566b5cf921f77ccd8877b07027b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 01:21:40 2024 +0700
+
+    cmd/compile: use slices.SortStableFunc
+    
+    Now that we're bootstrapping from a toolchain that has the slices
+    package.
+    
+    Updates #64751
+    
+    Change-Id: I876ec6d261466344faf33f8c5cda229dd1e4185f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610602
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 11 ++++++-----
+ src/cmd/compile/internal/liveness/mergelocals.go   |  4 ++--
+ 2 files changed, 8 insertions(+), 7 deletions(-)

@@ -1,0 +1,52 @@
+commit 50d6c81d4ae1810ad129ef6074607098cbce955b
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 18 12:25:53 2009 -0800
+
+    runtime: fix race condition
+    
+    (Thanks to ken and rsc for pointing this out)
+    
+    rsc:
+            ken pointed out that there's a race in the new
+            one-lock-per-channel code.  the issue is that
+            if one goroutine has gone to sleep doing
+    
+            select {
+            case <-c1:
+            case <-c2:
+            }
+    
+            and then two more goroutines try to send
+            on c1 and c2 simultaneously, the way that
+            the code makes sure only one wins is the
+            selgen field manipulation in dequeue:
+    
+                   // if sgp is stale, ignore it
+                   if(sgp->selgen != sgp->g->selgen) {
+                           //prints("INVALID PSEUDOG POINTER\n");
+                           freesg(c, sgp);
+                           goto loop;
+                   }
+    
+                   // invalidate any others
+                   sgp->g->selgen++;
+    
+            but because the global lock is gone both
+            goroutines will be fiddling with sgp->g->selgen
+            at the same time.
+    
+    This results in a 7% slowdown in the single threaded case for a
+    ping-pong microbenchmark.
+    
+    Since the cas predominantly succeeds, adding a simple check first
+    didn't make any difference.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180068
+
+ src/pkg/runtime/chan.c    |  6 ++--
+ src/pkg/runtime/runtime.h |  2 +-
+ test/chan/doubleselect.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out           |  3 ++
+ 4 files changed, 89 insertions(+), 5 deletions(-)

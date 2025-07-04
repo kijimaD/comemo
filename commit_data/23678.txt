@@ -1,0 +1,17 @@
+commit 3585f215c898c977a8393a7a8885ce6ad7688446
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 23:31:14 2015 -0400
+
+    cmd/go: fix error for go run with files in different directories
+    
+    Fixes #9853.
+    
+    Change-Id: Ic4803aa499ca20215085a87bad649014984d84c8
+    Reviewed-on: https://go-review.googlesource.com/12149
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/build.go                   |  3 +++
+ src/cmd/go/go_test.go                 | 10 ++++++++++
+ src/cmd/go/testdata/rundir/sub/sub.go |  1 +
+ src/cmd/go/testdata/rundir/x.go       |  1 +
+ 4 files changed, 15 insertions(+)

@@ -1,0 +1,13 @@
+commit 5d2cfc2faa193a81f4a03aee03c60ef26ba8ed19
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 20 01:22:03 2012 +0800
+
+    doc/articles/slices_usage_and_internals: fix typo
+            Fixes #3753.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6304097
+
+ doc/articles/slices_usage_and_internals.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

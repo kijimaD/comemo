@@ -1,0 +1,20 @@
+commit 6249ea2f39958764b88ab1b03cd55cf99dae6bbd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 20 14:09:51 2019 -0700
+
+    os/exec: add Cmd.String
+    
+    The initial implementation is intentionally simple.
+    Let's see how far it gets us.
+    
+    Fixes #30638
+    
+    Change-Id: I240afae2b401744ab2ff2a69952c4eb0fd3feb56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168518
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go      | 19 +++++++++++++++++++
+ src/os/exec/exec_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

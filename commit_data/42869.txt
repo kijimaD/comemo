@@ -1,0 +1,19 @@
+commit 45e12e95e683d0720f8c93ba059a87b2b0e58e09
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Aug 28 12:10:31 2020 -0400
+
+    go/types: add tests for conversion of non-constant untyped values
+    
+    This was fixed by CL 242084. Retroactively add some tests that would
+    have failed before the fix.
+    
+    Also, remove some existing duplicate tests.
+    
+    Change-Id: I95f7a215d4a9651ded6d739f89c574f33f573c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251397
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/testdata/shifts.src | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

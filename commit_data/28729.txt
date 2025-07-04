@@ -1,0 +1,23 @@
+commit f13372c9f7df12bfa4fbba5d9802f17fd186a0bc
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Oct 9 11:50:21 2016 -0400
+
+    cmd/internal/obj/s390x: remove support for stores of global addresses
+    
+    This CL removes support for MOVD instructions that store the address
+    of a global variable. For example:
+    
+      MOVD $main·a(SB), (R1)
+      MOVD $main·b(SB), main·c(SB)
+    
+    These instructions are emulated and the new backend doesn't need them
+    (the stores now always go through an intermediate register).
+    
+    Change-Id: I3a1bcb3f19c5096ad0426afd76d35a4d7975733b
+    Reviewed-on: https://go-review.googlesource.com/30720
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/s390x/asmz.go | 34 +++-------------------------------
+ 1 file changed, 3 insertions(+), 31 deletions(-)

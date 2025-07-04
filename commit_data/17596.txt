@@ -1,0 +1,22 @@
+commit 04c40c97c3a76368f878126259fb5d33e0515aaa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Sep 14 09:30:36 2013 +0200
+
+    cmd/gc: don't generate algs for internal map types.
+    
+    Fake types describing the internal structure of hashmaps are
+    generated for use by precise GC.
+    
+    Generating hash and eq functions for these fake types slows down
+    the build and wastes space: the go tool binary size is 13MB
+    instead of 12MB, and the package size on amd64 is 48.7MB instead
+    of 45.3MB.
+    
+    R=golang-dev, daniel.morsing, r, khr, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/13698043
+
+ src/cmd/gc/go.h      | 1 +
+ src/cmd/gc/reflect.c | 2 ++
+ src/cmd/gc/subr.c    | 3 +++
+ 3 files changed, 6 insertions(+)

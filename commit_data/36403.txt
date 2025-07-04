@@ -1,0 +1,16 @@
+commit f4e4ec2cd09c2f9d821f3cb6f47edd7c41a90b25
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 21 14:27:07 2018 +0200
+
+    cmd/cover: fix off-by-one error in TestCoverHTML
+    
+    Avoid index out of range if len(goldenLines) == len(outLines) + 1
+    
+    Change-Id: Ic23a85d2b8dd06a615e35a58331e78abe4ad6703
+    Reviewed-on: https://go-review.googlesource.com/130396
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

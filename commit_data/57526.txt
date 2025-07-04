@@ -1,0 +1,34 @@
+commit c64ca8c6ef13723b9f25f4b5e1c7b6986b958d2e
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sat Sep 7 13:44:09 2024 +0200
+
+    runtime: fix MutexProfile missing root frames
+    
+    Fix a regression introduced in CL 598515 causing runtime.MutexProfile
+    stack traces to omit their root frames.
+    
+    In most cases this was merely causing the `runtime.goexit` frame to go
+    missing. But in the case of runtime._LostContendedRuntimeLock, an empty
+    stack trace was being produced.
+    
+    Add a test that catches this regression by checking for a stack trace
+    with the `runtime.goexit` frame.
+    
+    Also fix a separate problem in expandFrame that could cause
+    out-of-bounds panics when profstackdepth is set to a value below 32.
+    There is no test for this fix because profstackdepth can't be changed at
+    runtime right now.
+    
+    Fixes #69335
+    
+    Change-Id: I1600fe62548ea84981df0916d25072c3ddf1ea1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611615
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mprof.go            |  3 ++-
+ src/runtime/pprof/mprof_test.go |  2 +-
+ src/runtime/pprof/pprof_test.go | 46 +++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 45 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit 3923460dda205721d9bee2714a7f0dd403082a90
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 16:18:43 2020 -0400
+
+    runtime/cgo: only build xx_cgo_panicmem on iOS
+    
+    On iOS, when running under lldb, we install xx_cgo_panicmem as
+    EXC_BAD_ACCESS handler so we can get a proper Go panic for
+    SIGSEGV. Only build it on iOS.
+    
+    Updates #38485.
+    
+    Change-Id: I801c477439e05920a4bb8fdf5eae6f4923ab8274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259440
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/{gcc_signal2_darwin_arm64.c => gcc_signal2_ios_arm64.c} | 0
+ .../cgo/{gcc_signal_darwin_lldb.c => gcc_signal_darwin_nolldb.c}        | 2 +-
+ src/runtime/cgo/{gcc_signal_darwin_arm64.c => gcc_signal_ios_arm64.c}   | 0
+ src/runtime/cgo/{signal_darwin_arm64.go => signal_ios_arm64.go}         | 0
+ src/runtime/cgo/{signal_darwin_arm64.s => signal_ios_arm64.s}           | 0
+ 5 files changed, 1 insertion(+), 1 deletion(-)

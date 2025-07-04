@@ -1,0 +1,15 @@
+commit 5538ecadca6b500f3ccd428f247f7502c12ae246
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 23 16:01:43 2018 -0700
+
+    cmd/compile: better error for embedded field referring to missing import
+    
+    Fixes #27938.
+    
+    Change-Id: I16263ac6c0b8903b8a16f02e8db0e1a16d1c95b4
+    Reviewed-on: https://go-review.googlesource.com/c/144261
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 11 ++++++++---
+ test/fixedbugs/issue27938.go         | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

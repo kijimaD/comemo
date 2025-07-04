@@ -1,0 +1,16 @@
+commit 4520da486b6d236090b1d98ce4707c5bcd19cb70
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 7 11:48:53 2021 +0200
+
+    cmd/pack: use testing.T.TempDir in tests
+    
+    Change-Id: I7371259cf5d64f04698ae1477c3de1255664178d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307969
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/pack/pack_test.go | 36 +++++++++---------------------------
+ 1 file changed, 9 insertions(+), 27 deletions(-)

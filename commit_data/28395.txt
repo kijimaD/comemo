@@ -1,0 +1,72 @@
+commit c9fd997524ce7d531579500218f11b528bab4c88
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 25 13:40:43 2016 -0700
+
+    cmd/compile: unroll comparisons to short constant strings
+    
+    Unroll s == "ab" to
+    
+    len(s) == 2 && s[0] == 'a' && s[1] == 'b'
+    
+    This generates faster and shorter code
+    by avoiding a runtime call.
+    Do something similar for !=.
+    
+    The cutoff length is 6. This was chosen empirically
+    by examining binary sizes on arm, arm64, 386, and amd64
+    using the SSA backend.
+    
+    For all architectures examined, 4, 5, and 6 were
+    the ideal cutoff, with identical binary sizes.
+    
+    The distribution of constant string equality sizes
+    during 'go build -a std' is:
+    
+     40.81%   622 len 0
+     14.11%   215 len 4
+      9.45%   144 len 1
+      7.81%   119 len 3
+      7.48%   114 len 5
+      5.12%    78 len 7
+      4.13%    63 len 2
+      3.54%    54 len 8
+      2.69%    41 len 6
+      1.18%    18 len 10
+      0.85%    13 len 9
+      0.66%    10 len 14
+      0.59%     9 len 17
+      0.46%     7 len 11
+      0.26%     4 len 12
+      0.20%     3 len 19
+      0.13%     2 len 13
+      0.13%     2 len 15
+      0.13%     2 len 16
+      0.07%     1 len 20
+      0.07%     1 len 23
+      0.07%     1 len 33
+      0.07%     1 len 36
+    
+    A cutoff of length 6 covers most of the cases.
+    
+    Benchmarks on amd64 comparing a string to a constant of length 3:
+    
+    Cmp/1same-8           4.78ns ± 6%  0.94ns ± 9%  -80.26%  (p=0.000 n=20+20)
+    Cmp/1diffbytes-8      6.43ns ± 6%  0.96ns ±11%  -85.13%  (p=0.000 n=20+20)
+    Cmp/3same-8           4.71ns ± 5%  1.28ns ± 5%  -72.90%  (p=0.000 n=20+20)
+    Cmp/3difffirstbyte-8  6.33ns ± 7%  1.27ns ± 7%  -79.90%  (p=0.000 n=20+20)
+    Cmp/3difflastbyte-8   6.34ns ± 8%  1.26ns ± 9%  -80.13%  (p=0.000 n=20+20)
+    
+    The change to the prove test preserves the
+    existing intent of the test. When the string was
+    short, there was a new "proved in bounds" report
+    that referred to individual byte comparisons.
+    
+    Change-Id: I593ac303b0d11f275672090c5c786ea0c6b8da13
+    Reviewed-on: https://go-review.googlesource.com/26758
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 66 ++++++++++++++++++++++++++++---------
+ test/prove.go                       |  2 +-
+ 2 files changed, 51 insertions(+), 17 deletions(-)

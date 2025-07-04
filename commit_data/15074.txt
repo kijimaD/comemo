@@ -1,0 +1,14 @@
+commit ed9fc7531d80d0894d52c96a4a79968842df945b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:33:52 2013 -0800
+
+    cmd/cgo: document //export preamble restriction
+    
+    Fixes #3497.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7235075
+
+ src/cmd/cgo/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

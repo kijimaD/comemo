@@ -1,0 +1,13 @@
+commit a4dee3a7465c884b1e737bb1bd856fd63d57d103
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Sat May 7 11:05:08 2011 -0700
+
+    gob: Doc typo fix
+    Fixes #1785.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4496042
+
+ src/pkg/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

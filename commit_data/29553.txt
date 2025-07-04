@@ -1,0 +1,15 @@
+commit b75b9e1d65989753d0ee14ccc6007729e49e2e51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 17:14:13 2016 -0800
+
+    database/sql: clarify when statement in transaction is closed
+    
+    Fixes #16346.
+    
+    Change-Id: Ie75a4ae7011036dd2c1f121a7a5e38d10177721e
+    Reviewed-on: https://go-review.googlesource.com/33296
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

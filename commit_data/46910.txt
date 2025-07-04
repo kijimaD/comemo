@@ -1,0 +1,26 @@
+commit a17b2e865551ebdeccd6aafcdc23c1b63932b258
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 15 11:57:58 2021 -0700
+
+    cmd/go: allow nested VCS repositories when preparing build stamp
+    
+    The go command no longer reports an error when invoked in a repository
+    nested inside another. This check is still used by 'go get' in GOPATH
+    mode when locating a repository, but it's not needed when preparing
+    the build stamp.
+    
+    Fixes #49004
+    
+    Change-Id: I4ed4dcc04174d2d42da8651d47e52ab1d7d66e35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356309
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/get/get.go                        |  3 ++-
+ src/cmd/go/internal/load/pkg.go                       |  7 ++++---
+ src/cmd/go/internal/vcs/vcs.go                        | 11 ++++++++---
+ src/cmd/go/internal/vcs/vcs_test.go                   |  2 +-
+ .../go/testdata/script/version_buildvcs_nested.txt    | 19 ++++++++++---------
+ 5 files changed, 25 insertions(+), 17 deletions(-)

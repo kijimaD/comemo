@@ -1,0 +1,15 @@
+commit dba926d7a37bd6b3d740c132e8d6346214b6355c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 14:33:25 2016 -0500
+
+    go/build: allow @ in #cgo directives for OS X
+    
+    Fixes #13720.
+    
+    Change-Id: I2e48454696f37db419370630f913590c435cd9f0
+    Reviewed-on: https://go-review.googlesource.com/18331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/go/build/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

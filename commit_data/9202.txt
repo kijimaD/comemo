@@ -1,0 +1,18 @@
+commit eb3f2083f91fa2c48bad4c997f5d8a4378aaf04e
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Jul 25 13:45:44 2011 -0400
+
+    build: define getcallerpc in u.h (fix for Plan 9 build)
+    
+    . By defining getcallerpc(x) as __builtin_return_address(0)
+      here, it becomes possible to use the Plan 9 compatible form
+      when compiling using GCC.  The alternative is to add conditional
+      compilation based on the compiler identity in "cmd/8g/gsubr.c"
+      to distinguish between the two cases.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4800048
+
+ include/u.h | 2 ++
+ 1 file changed, 2 insertions(+)

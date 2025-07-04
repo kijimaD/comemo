@@ -1,0 +1,26 @@
+commit ab5bd15941f3cea3695338756d0b8be0ef2321fb
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 12:15:57 2023 -0400
+
+    cmd/go: clean up adding import path to command error
+    
+    Currently, cmdError makes a somewhat fuzzy attempt to ensure the
+    package import path is part of the printed error, using a string
+    prefix check. Also, if it decides it does need to add the import path,
+    it prints it as a "go build" line, which could be misleading because
+    it can happen outside of "go build".
+    
+    Clean up the whole code path by explicitly checking the provided error
+    description against Package.Desc(), and instead of emitting "go build"
+    in the error message, print it as "# importPath" just like we do in
+    the common case.
+    
+    Change-Id: Idb61ac8ffd6920a3d2d282697f4d7d5555ebae0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534655
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                   | 26 ++++++++++++----------
+ .../go/testdata/script/list_pkgconfig_error.txt    |  2 +-
+ 2 files changed, 15 insertions(+), 13 deletions(-)

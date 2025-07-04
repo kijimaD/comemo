@@ -1,0 +1,14 @@
+commit cad6d1fef5147d31e94ee83934c8609d3ad150b7
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Jan 21 16:12:46 2019 +0100
+
+    doc/go1.12.html: document rejection of mangled C names
+    
+    Change-Id: I27ef49815f55a36379b730b77f7e9a4dd5341507
+    Reviewed-on: https://go-review.googlesource.com/c/158777
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,14 @@
+commit 40d8b4b2e2a7a220eac9fef58c79f285ec336d24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 21 19:43:08 2017 +0000
+
+    time: fix build on Android
+    
+    Some type renames were missing in the android file from CL 79017
+    
+    Change-Id: I419215575ca7975241afb8d2069560c8b1d142c6
+    Reviewed-on: https://go-review.googlesource.com/79136
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_android.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

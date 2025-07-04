@@ -1,0 +1,25 @@
+commit 962d5c997af450af1de9a38eb6510cdfc86ea689
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 2 12:22:50 2021 -0700
+
+    cmd/compile,go/types: restrict use of unsafe.{Add,Slice} to go1.17 or newer
+    
+    This CL updates cmd/compile (including types2) and go/types to report
+    errors about using unsafe.Add and unsafe.Slice when language
+    compatibility is set to Go 1.16 or older.
+    
+    Fixes #46525.
+    
+    Change-Id: I1bfe025a672d9f4b929f443064ad1effd38d0363
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324369
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/func.go  | 12 ++++++++++++
+ src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
+ src/go/types/builtins.go                    | 10 ++++++++++
+ test/fixedbugs/issue46525.go                | 14 ++++++++++++++
+ 4 files changed, 46 insertions(+)

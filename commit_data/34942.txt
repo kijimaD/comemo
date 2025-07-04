@@ -1,0 +1,16 @@
+commit e21a749af171d0b3c3abffded56b3d9a4e03b7eb
+Author: Yann Hodique <yhodique@google.com>
+Date:   Wed Apr 11 19:57:17 2018 +0000
+
+    cmd/go: fix typo in test inputs descriptor
+    
+    Presumably each line in the descriptor should match the corresponding operation.
+    
+    Change-Id: I7726befcd62147324764d15c26e737357122be51
+    GitHub-Last-Rev: 85e610e3045950b8688a7a506b37a2a92ac7445c
+    GitHub-Pull-Request: golang/go#24807
+    Reviewed-on: https://go-review.googlesource.com/106355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/test/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit de2bc5722dc82455c47a267c8d44dc5b6bf97eed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 13:54:40 2015 -0800
+
+    cmd/compile: no need to keep ()'s for all pseudocalls
+    
+    Minor internal optimization.
+    
+    Change-Id: I229d4a9df3da542b77f830c2830f63ec23ec1d61
+    Reviewed-on: https://go-review.googlesource.com/17065
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

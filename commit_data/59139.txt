@@ -1,0 +1,15 @@
+commit a39046f6ad271aec1487f5944c3eb30f342c3fc8
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 20 12:50:21 2025 -0700
+
+    internal/syscall/windows: set SYNCHRONIZE flag in Deleteat
+    
+    Change-Id: Ice23659cf089b4f837d73b2db5b6eccd7562164e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659616
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/internal/syscall/windows/at_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

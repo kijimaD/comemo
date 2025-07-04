@@ -1,0 +1,17 @@
+commit d10675089d74db0408f2432eae3bd89a8e1c2d6a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Nov 13 08:55:44 2015 +1300
+
+    runtime: ignore rt_sigaction error if it is for SIGRTMAX
+    
+    A forward port of https://codereview.appspot.com/124900043/ which somehow
+    got lost somewhere.
+    
+    Fixes #13024
+    
+    Change-Id: Iab128899e65c51d90f6704e3e1b2fc9326e3a1c2
+    Reviewed-on: https://go-review.googlesource.com/16853
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 415f15b66746d8e0cd6f01e89dceed41e617be5f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 11 12:35:05 2012 +1100
+
+    image: rename image.Tiled to image.Repeated.
+    
+    What package image currently provides is a larger image consisting
+    of many copies of a smaller image.
+    
+    More generally, a tiled image could be a quilt consisting of different
+    smaller images (like Google Maps), or a technique to view a portion of
+    enormous images without requiring the whole thing in memory.
+    
+    This richer construct might not ever belong in the standard library (and
+    is definitely out of scope for Go 1), but I would like the option for
+    image.Tiled to be its name.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5530062
+
+ src/cmd/gofix/Makefile           |  1 +
+ src/cmd/gofix/imagetiled.go      | 40 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/imagetiled_test.go | 41 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/names.go           | 22 ++++++++++-----------
+ 4 files changed, 93 insertions(+), 11 deletions(-)

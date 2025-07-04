@@ -1,0 +1,15 @@
+commit 9417ff55c35e0a1623af2a05c6e714c660ad6b4f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 7 16:24:52 2018 -0400
+
+    crypto/tls: expand docs on client-side session ticket support
+    
+    Users are sometimes confused why session tickets are not enabled even if
+    SessionTicketsDisabled is false.
+    
+    Change-Id: I3b783d2cf3eed693a3ad6acb40a8003db7e0b648
+    Reviewed-on: https://go-review.googlesource.com/117255
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

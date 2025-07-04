@@ -1,0 +1,12 @@
+commit 1ddacfea7ba35c5ecbe75b2598c92f6349011ba3
+Author: griesemer <gri@golang.org>
+Date:   Fri Oct 6 16:44:12 2017 -0700
+
+    cmd/compile/internal/syntax: remove unused code
+    
+    Change-Id: I9c75dee7e4498cc11c08cad1ae34ff2af75f1469
+    Reviewed-on: https://go-review.googlesource.com/69071
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 21 +++++----------------
+ 1 file changed, 5 insertions(+), 16 deletions(-)

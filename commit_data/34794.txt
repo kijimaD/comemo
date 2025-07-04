@@ -1,0 +1,18 @@
+commit 2722650415c459dfb47c2e52661816cd844530bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 23 22:02:03 2018 +0000
+
+    cmd: remove some unused parameters
+    
+    Change-Id: I9d2a4b8df324897e264d30801e95ddc0f0e75f3a
+    Reviewed-on: https://go-review.googlesource.com/102337
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/asm/internal/asm/asm.go   | 10 +++++-----
+ src/cmd/asm/internal/asm/parse.go | 10 +++++-----
+ src/cmd/internal/obj/x86/asm6.go  | 16 ++++++++--------
+ src/cmd/internal/obj/x86/obj6.go  |  8 ++++----
+ src/cmd/pack/pack.go              |  8 ++++----
+ 5 files changed, 26 insertions(+), 26 deletions(-)

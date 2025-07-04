@@ -1,0 +1,21 @@
+commit bc805795bd28ae4cd1a70b3053a3a71668bfef87
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:36:12 2022 +0700
+
+    runtime: convert m.preemptGen to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I134dac3b1eb35f2da00e5ef8f4c264f08d4f65b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423887
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/os_windows.go  | 8 ++++----
+ src/runtime/preempt.go     | 5 ++---
+ src/runtime/runtime2.go    | 4 ++--
+ src/runtime/signal_unix.go | 2 +-
+ 4 files changed, 9 insertions(+), 10 deletions(-)

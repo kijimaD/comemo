@@ -1,0 +1,12 @@
+commit e6248c9c99cf8bd0d195a972305c0235d92101a8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 20:13:51 2015 -0500
+
+    cmd/pack: skip fork test on darwin/arm
+    
+    Change-Id: I65b50d2501fe822bc9044a851ac0b3467feadd9f
+    Reviewed-on: https://go-review.googlesource.com/6330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/pack/pack_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

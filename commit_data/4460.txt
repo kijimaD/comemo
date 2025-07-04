@@ -1,0 +1,14 @@
+commit 044ebae2f0750921e13acf307a12130b4fab17d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 17:04:48 2009 -0800
+
+    cgo: include line number information to keep go/printer happy
+    
+    Fixes #443.
+    
+    R=dho
+    CC=golang-dev
+    https://golang.org/cl/179095
+
+ src/cmd/cgo/main.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

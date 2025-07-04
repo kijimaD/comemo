@@ -1,0 +1,14 @@
+commit c9f12d2289252d56aa88263c56be217255d95ee5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 19 16:52:47 2013 -0500
+
+    liblink: allow either of a pair of conflicting symbols to say dupok
+    
+    This makes the linker's -X flag work again.
+    
+    R=iant
+    CC=bradfitz, golang-codereviews, golang-dev
+    https://golang.org/cl/44360043
+
+ src/liblink/objfile.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

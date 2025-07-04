@@ -1,0 +1,14 @@
+commit 2d70d603925955b7184a0ab22dea24b561949b32
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 19:12:22 2009 -0800
+
+    sanity check environment variables better.
+    
+    Fixes #12.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/152055
+
+ src/make.bash | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

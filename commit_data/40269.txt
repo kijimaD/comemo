@@ -1,0 +1,30 @@
+commit e94475eab199463f81f4a55e0f841d15504a0e56
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Oct 15 22:58:40 2019 -0400
+
+    net: fix multicast and IPv6 related issues on Plan 9
+    
+    Fix issues that make these tests pass:
+    - TestDialerLocalAddr: return error if local address is not IPv4 for
+    "tcp4" network.
+    - TestInterfaceAddrs, TestInterfaceUnicastAddrs: don't assume each
+    interface has only one address. It may have more than one or none.
+    - TestConcurrentPreferGoResolversDial: should be skipped on Plan 9.
+    - TestListenMulticastUDP: remove IP from `announce` command and don't
+    mix IPv4 address with IPv6 address in `addmulti` command.
+    
+    Fixes #34931
+    
+    Change-Id: Ie0fdfe19ea282e5d6d6c938bf3c9139f8f5b0308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201397
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_plan9.go    | 61 ++++++++++++++++++++-----------------------
+ src/net/ipsock_plan9.go       |  2 +-
+ src/net/lookup_test.go        |  9 ++++---
+ src/net/tcpsock_plan9.go      |  7 ++++-
+ src/net/udpsock_plan9.go      | 10 ++++---
+ src/net/udpsock_plan9_test.go |  2 +-
+ 6 files changed, 49 insertions(+), 42 deletions(-)

@@ -1,0 +1,15 @@
+commit 835a94613703bb856ea4d16f05c116399c4b2fc9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 6 15:07:16 2022 -0400
+
+    doc/go1.19: minor edits
+    
+    For #51400
+    
+    Change-Id: I57565c1d79e0c5487d39d46f556b247d35f05d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410674
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.19.html | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

@@ -1,0 +1,24 @@
+commit 6dca7076560c8b34b536665296f03b748834c071
+Author: Timo Furrer <tuxtimo@gmail.com>
+Date:   Wed Feb 28 06:07:16 2024 +0000
+
+    net/http: add Request.CookiesNamed
+    
+    Implements a new method http.Request.CookiesName, that allows
+    retrieving all cookies that match the given name.
+    
+    Fixes #61472
+    
+    Change-Id: I405d8771b4195af9ff6b4dfde3cfcd316c23b70c
+    GitHub-Last-Rev: 6ad0094995b45648ebbcd18626f07bb879a3f7cf
+    GitHub-Pull-Request: golang/go#61473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511516
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next/61472.txt           |  1 +
+ src/net/http/request.go      |  9 ++++++
+ src/net/http/request_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

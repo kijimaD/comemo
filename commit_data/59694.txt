@@ -1,0 +1,18 @@
+commit aec96d686be16fda519f6fd4a6e3bbfe3454c0b9
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 16 13:50:44 2025 -0700
+
+    doc: mention stack allocation of variable-sized make calls
+    
+    Also mention the bisect tool and flag used to track down
+    incorrect uses.
+    
+    Change-Id: Id36a236e1bb2733b8611b22a5b16916e7d9f5522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666075
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/5-toolchain.md | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

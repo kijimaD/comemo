@@ -1,0 +1,33 @@
+commit 0e0f7986241ad035ff5469d424a8c87bcb5b3873
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 30 16:42:55 2018 +0000
+
+    Revert "os: add support for long path names on unix RemoveAll"
+    
+    This reverts commit 85143d355493c6bba994d49ed154b4df8b78874b.
+    
+    Reason for revert: Breaking all Darwin and FreeBSD builds. Trybots did not pass for this.
+    
+    Change-Id: I5494e14ad5ab9cf6e1e225a25b2e8b38f3359d13
+    Reviewed-on: https://go-review.googlesource.com/c/145897
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/syscall/unix/at.go                    |  58 -----
+ src/internal/syscall/unix/at_sysnum_darwin.go      |  12 --
+ src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 --
+ src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 --
+ .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 -
+ .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 -
+ src/internal/syscall/unix/at_sysnum_linux.go       |  13 --
+ src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 --
+ .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 -
+ src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 --
+ src/os/path.go                                     |  99 +++++++++
+ src/os/path_test.go                                | 125 +++++++++++
+ src/os/path_unix.go                                |  28 +--
+ src/os/removeall_at.go                             | 139 ------------
+ src/os/removeall_noat.go                           | 110 ----------
+ src/os/removeall_test.go                           | 237 ---------------------
+ 16 files changed, 225 insertions(+), 685 deletions(-)

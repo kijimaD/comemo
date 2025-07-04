@@ -1,0 +1,12 @@
+commit ce63ec93ce47cd18e08b525fc6b84ab1c2abc920
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 01:11:56 2012 -0500
+
+    regexp/syntax: delete old package comment
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5651057
+
+ src/pkg/regexp/syntax/regexp.go | 2 --
+ 1 file changed, 2 deletions(-)

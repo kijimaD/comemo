@@ -1,0 +1,11 @@
+commit 3a94e8c926dfd437cc1293970d2629665c64036c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 6 12:52:04 2009 -0800
+
+    replaced "Expressive" with "expressive" for a cleaner look
+    
+    R=r
+    http://go/go-review/1024010
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

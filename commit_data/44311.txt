@@ -1,0 +1,32 @@
+commit 49add6ad90c3c6e150266b35ae98067d7b52c021
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 05:22:35 2021 -0500
+
+    runtime: fix spurious stack overflow detection
+    
+    The regabi builders are unhappy about badctxt calling throw
+    calling systemstack calling gosave_systemstack_switch calling
+    badctxt, all nosplit, repeating. This wouldn't actually happen
+    since after one systemstack we'd end up on the system stack
+    and the next one wouldn't call gosave_systemstack_switch at all.
+    
+    The badctxt call itself is in a very unlikely assertion failure
+    inside gosave_systemstack_switch.
+    Keep the assertion check but call runtime.abort instead on failure,
+    breaking the detected (but not real) cycle.
+    
+    Change-Id: Iaf5c0fc065783b8c1c6d0f62d848f023a0714b96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294069
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_386.s     | 2 +-
+ src/runtime/asm_amd64.s   | 2 +-
+ src/runtime/asm_arm.s     | 2 +-
+ src/runtime/asm_arm64.s   | 2 +-
+ src/runtime/asm_mips64x.s | 2 +-
+ src/runtime/asm_mipsx.s   | 2 +-
+ src/runtime/asm_ppc64x.s  | 2 +-
+ src/runtime/asm_riscv64.s | 2 +-
+ src/runtime/asm_s390x.s   | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

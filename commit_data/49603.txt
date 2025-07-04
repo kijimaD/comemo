@@ -1,0 +1,27 @@
+commit 180bcad33dcd3d59443fe8eda5ae7556b1b2945b
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 31 14:47:33 2022 -0700
+
+    net/http: wait for listeners to exit in Server.Close and Shutdown
+    
+    Avoid race conditions when a new connection is accepted just after
+    Server.Close or Server.Shutdown is called by waiting for the
+    listener goroutines to exit before proceeding to clean up active
+    connections.
+    
+    No test because the mechanism required to trigger the race condition
+    reliably requires such tight coupling to the Server internals that
+    any test would be quite fragile in the face of reasonable refactorings.
+    
+    Fixes #48642
+    Updates #33313, #36819
+    
+    Change-Id: I109a93362680991bf298e0a95637595dcaa884af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409537
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/server.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

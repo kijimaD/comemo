@@ -1,0 +1,15 @@
+commit a540aa338a3145ab32ca4409919c82722f8724f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 5 10:33:28 2018 -0800
+
+    test: add test that gccgo failed to compile
+    
+    Updates #28601
+    
+    Change-Id: I734fc5ded153126d384f0df912ecd4d208005e49
+    Reviewed-on: https://go-review.googlesource.com/c/147537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue28601.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

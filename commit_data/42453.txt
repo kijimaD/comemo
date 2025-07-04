@@ -1,0 +1,32 @@
+commit b7717e46340b7ffe5fd53313f10dfa85a141f77a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 2 14:52:16 2020 -0400
+
+    Revert "cmd/internal/goobj: add index to symbol name for indexed symbols"
+    
+    This reverts CL 229246.
+    
+    For new indexed object files, in CL 229246 we added symbol index
+    to tools (nm, objdump) output. This affects external tools that
+    parse those outputs. And the added index doesn't look very nice.
+    In this release we take it out. For future releases we may
+    introduce a flag to tools (nm, objdump) and optionally dump the
+    symbol index.
+    
+    For refererenced (not defined) indexed symbols, currently the
+    symbol is still referenced only by index, not by name. The next
+    CL will make the object file self-contained, so tools can dump
+    the symbol names properly (as before).
+    
+    For #38875.
+    
+    Change-Id: I07375e85a8e826e15c82fa452d11f0eaf8535a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236167
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/internal/goobj/goobj_test.go | 19 +++++--------------
+ src/cmd/internal/goobj/readnew.go    |  9 +--------
+ src/cmd/nm/nm_test.go                | 10 +---------
+ src/cmd/objdump/objdump_test.go      | 12 ++++--------
+ 4 files changed, 11 insertions(+), 39 deletions(-)

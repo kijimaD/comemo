@@ -1,0 +1,20 @@
+commit 318309a51f40d31568bd2c9131d1cd25c2ca0214
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:27:16 2013 -0500
+
+    runtime/pprof: adjust reported line numbers to show call sites
+    
+    This is the same logic used in the standard tracebacks.
+    The caller pc is the pc after the call, so except in the
+    fake "call" caused by a panic, back up the pc enough
+    that the lookup will use the previous instruction.
+    
+    Fixes #4150.
+    Fixes #4151.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7317047
+
+ src/pkg/runtime/pprof/pprof.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

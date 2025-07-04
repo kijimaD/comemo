@@ -1,0 +1,12 @@
+commit 4314087b625b52f907424d54461b464bc45d23ec
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Mar 4 09:57:09 2012 +1100
+
+    godoc: hide "Subdirectories" subheading if it is the only section
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5731056
+
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 0fe62e7575a342decef0d5a00f6740fde15d5d7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 12:32:14 2017 -0800
+
+    os: skip TestPipeThreads on Plan 9
+    
+    It can't work since Plan 9 does not support the runtime poller.
+    
+    Fixes build.
+    
+    Change-Id: I9ec33eb66019d9364c6ff6519b61b32e59498559
+    Reviewed-on: https://go-review.googlesource.com/37091
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

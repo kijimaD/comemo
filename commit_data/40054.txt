@@ -1,0 +1,16 @@
+commit e1b1b7856f416ca6ff086adc00adc89fd900992c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 26 19:04:00 2019 +0000
+
+    cmd/dist: fix bootstrap failure when GOHOSTARCH is set
+    
+    Fixes #33977
+    
+    Change-Id: I4b136788f08b08c53087af8d3cd56125e620b51b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197602
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/buildtool.go | 3 +++
+ 1 file changed, 3 insertions(+)

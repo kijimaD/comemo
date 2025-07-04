@@ -1,0 +1,13 @@
+commit 796e29ebfc0e6f129ba6602f45f1d544ad55d39b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 22:48:48 2009 -0800
+
+    add goyacc to the build
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018034
+
+ src/cmd/clean.bash | 2 +-
+ src/make.bash      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

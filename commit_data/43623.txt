@@ -1,0 +1,25 @@
+commit 38d1ec8c9d09c680065404fe77168fe992e09e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 13:57:12 2020 -0400
+
+    cmd/internal/obj: use panic instead of log.Fatalf for two messages
+    
+    These messages can happen if there are
+    duplicate body-less function declarations.
+    Using panic gives the panic handler
+    a chance to handle the panic by printing the
+    queued error messages instead of an internal error.
+    
+    And if there are no queued error messages,
+    using panic pinpoints the stack trace leading
+    to the incorrect use of NewFuncInfo/NewFileInfo.
+    
+    Change-Id: I7e7ea9822ff9a1e7140f5e5b7cfd6437ff9318a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266338
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

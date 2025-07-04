@@ -1,0 +1,17 @@
+commit 7825ca6a63502e3b8decb0b569513dd6b5954aa7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 2 12:33:34 2016 -0700
+
+    doc/go1.7.html: net/mail.ParseAddress is stricter
+    
+    Fixes #15940.
+    
+    Change-Id: Ie6da6fef235c6a251caa96d45f606c05d118a0ac
+    Reviewed-on: https://go-review.googlesource.com/23710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Travis Beatty <travisby@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

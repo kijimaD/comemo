@@ -1,0 +1,12 @@
+commit 1f74aa21d54244ea7ee4e0cabc101eb6f0ad19cb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 2 21:11:05 2013 +0100
+
+    runtime: benchmark for appending N bytes should not append N² bytes.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7420051
+
+ src/pkg/runtime/append_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

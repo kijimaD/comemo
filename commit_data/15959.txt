@@ -1,0 +1,14 @@
+commit 50231fa19f7c88834edd95836dca95267ef8bb4f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 17:32:22 2013 -0700
+
+    lib/codereview/codereview.py: fix crash when hg gofmt has no files
+    The gofmt function was returning a string, which isn't the right type.
+    Three cheers for dynamic typing.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7917044
+
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

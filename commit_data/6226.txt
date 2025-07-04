@@ -1,0 +1,13 @@
+commit 26fd5252f41d2226a12cb21879ec956f0591b9d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 10 13:59:08 2010 -0400
+
+    A+C: add Dan Sinclair (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2140045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

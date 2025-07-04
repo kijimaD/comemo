@@ -1,0 +1,25 @@
+commit d7149e502dfb13fdc94439eebaf1823a6c6dd84f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 20 00:09:09 2021 +0700
+
+    reflect: restore Value.Pointer implementation
+    
+    CL 350691 added Value.UnsafePointer and make Value.Pointer call it
+    internally. It has a downside that Value.Pointer can now eligible to be
+    inlined, thus making un-intentional side effect, like the test in
+    fixedbugs/issue15329.go becomes flaky.
+    
+    This CL restore Value.Pointer original implementation, pre CL 350691,
+    with the deprecation TODO removed.
+    
+    Fixes #49067
+    
+    Change-Id: I735af182f8e729294333ca906ffc062f477cfc99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356949
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 37 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)

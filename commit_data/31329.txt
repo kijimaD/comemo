@@ -1,0 +1,30 @@
+commit 8ae60dc1bb5183a8e8cd1fe86985ca354904447f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 03:16:59 2017 +0000
+
+    cmd/go: fix TestCgoConsistentResults when using clang instead of gcc
+    
+    As Ian said at:
+    https://github.com/golang/go/issues/19964#issuecomment-296347750
+    
+    > the -fdebug-prefix-map option is being applied to the debug info but
+    > not to the initial .file pseudo-op.
+    >
+    > My only current thought for how to fix this is that instead of
+    > compiling $WORK/a/b/foo.c, we should change the command to (cd
+    > $WORK/a/b && clang -g -c foo.c). We'll still want
+    > -fdebug-prefix-map, I think, but that should fix the .file
+    > pseudo-op.
+    
+    This CL does that.
+    
+    Fixes #19964
+    
+    Change-Id: I442b1201cab9e0448fc520ab243ad364d59cd7c3
+    Reviewed-on: https://go-review.googlesource.com/41629
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

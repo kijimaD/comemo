@@ -1,0 +1,15 @@
+commit 46dc76f5daa5e1186a5c4f2299bd4b4ff82e60d0
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 12 09:17:57 2012 +1100
+
+    go1: update recipe for recovering Stat_t
+    
+    Fixes #2983.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5654063
+
+ doc/go1.html | 12 ++++--------
+ doc/go1.tmpl | 12 ++++--------
+ 2 files changed, 8 insertions(+), 16 deletions(-)

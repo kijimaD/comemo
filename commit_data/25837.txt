@@ -1,0 +1,14 @@
+commit 0784e6918e931e8bc6e28252ae11a65664ecbaaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 19:41:17 2016 -0800
+
+    net/http: fix typo in doc string
+    
+    Fixes #14475.
+    
+    Change-Id: I1b5b0a9793a417572ec55f313185d03ad5ae9d01
+    Reviewed-on: https://go-review.googlesource.com/19846
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

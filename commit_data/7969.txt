@@ -1,0 +1,15 @@
+commit 06ee80d6ebfc9ec2229d1e10f4d1a2951fb2600f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Apr 4 15:57:10 2011 -0400
+
+    bufio: Write and WriteString cleanup
+    
+    Write never writes less than the buffer size and WriteString takes advantage
+    of the copy built-in to improve write efficiency.
+    
+    R=rsc, ality, rog
+    CC=golang-dev
+    https://golang.org/cl/4344060
+
+ src/pkg/bufio/bufio.go | 68 ++++++++++++++++++++------------------------------
+ 1 file changed, 27 insertions(+), 41 deletions(-)

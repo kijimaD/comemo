@@ -1,0 +1,19 @@
+commit 78860b2ad2261b6e3dc29006d2ffbdc4da14cb2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 25 06:25:17 2017 -0800
+
+    cmd/go: don't reject ./... matching top-level file outside GOPATH
+    
+    This unwinds a small part of CL 31668: we now accept "./." in cleanImport.
+    
+    Fixes #18778.
+    
+    Change-Id: Ia7f1fde1cafcea3cc9e0b597a95a0e0bb410a3ed
+    Reviewed-on: https://go-review.googlesource.com/35646
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 23 +++++++++++++++++++++++
+ src/cmd/go/pkg.go     |  2 +-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

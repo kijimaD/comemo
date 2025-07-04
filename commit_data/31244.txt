@@ -1,0 +1,43 @@
+commit 405a280d01ee6434eea306e3f849ba0586cc8f78
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 20 07:13:02 2017 -0700
+
+    cmd/internal/obj: eliminate LSym.Version
+    
+    There were only two versions, 0 and 1,
+    and the only user of version 1 was the assembler,
+    to indicate that a symbol was static.
+    
+    Rename LSym.Version to Static,
+    and add it to LSym.Attributes.
+    Simplify call-sites.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iabd39918f5019cce78f381d13f0481ae09f3871f
+    Reviewed-on: https://go-review.googlesource.com/41201
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/internal/asm/parse.go           | 12 ++++--
+ src/cmd/compile/internal/gc/obj.go          |  4 +-
+ src/cmd/compile/internal/gc/pgen.go         |  4 +-
+ src/cmd/compile/internal/gc/reflect.go      | 12 +++---
+ src/cmd/compile/internal/ssa/export_test.go |  2 +-
+ src/cmd/internal/obj/arm/asm5.go            | 10 ++---
+ src/cmd/internal/obj/arm/obj5.go            | 10 ++---
+ src/cmd/internal/obj/arm64/obj7.go          |  6 +--
+ src/cmd/internal/obj/line_test.go           |  2 +-
+ src/cmd/internal/obj/link.go                | 12 +++---
+ src/cmd/internal/obj/mips/obj0.go           |  6 +--
+ src/cmd/internal/obj/objfile.go             | 35 ++++++++--------
+ src/cmd/internal/obj/plist.go               |  4 +-
+ src/cmd/internal/obj/ppc64/asm9.go          |  4 +-
+ src/cmd/internal/obj/ppc64/obj9.go          | 12 +++---
+ src/cmd/internal/obj/s390x/objz.go          |  6 +--
+ src/cmd/internal/obj/sizeof_test.go         |  2 +-
+ src/cmd/internal/obj/sym.go                 | 63 +++++++++++++++++------------
+ src/cmd/internal/obj/x86/asm6.go            |  6 +--
+ src/cmd/internal/obj/x86/obj6.go            | 10 ++---
+ 20 files changed, 120 insertions(+), 102 deletions(-)

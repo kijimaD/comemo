@@ -1,0 +1,26 @@
+commit dac89a9d7fb253d30e5161e9ff6d80fbdfc79d75
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 24 10:43:55 2021 +1000
+
+    image/draw: add RGBA64Image fast path for RGBA dst
+    
+    This should have been part of https://golang.org/cl/340049 but I
+    overlooked it. That commit added fast path code when the destination
+    image was *not* an *image.RGBA. This commit edits func drawRGBA.
+    
+    name               old time/op  new time/op  delta
+    RGBA1-4            5.11ms ± 1%  1.12ms ± 1%  -78.01%  (p=0.008 n=5+5)
+    RGBA2-4            8.69ms ± 1%  2.98ms ± 1%  -65.77%  (p=0.008 n=5+5)
+    
+    Updates #44808.
+    Updates #46395.
+    
+    Change-Id: I899d46d985634fc81ea47ff4f0d436630e8a961c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351852
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/image/draw/bench_test.go |  9 ++++-
+ src/image/draw/draw.go       | 87 ++++++++++++++++++++++++++++++++++++++++++++
+ src/image/draw/draw_test.go  | 84 ++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 166 insertions(+), 14 deletions(-)

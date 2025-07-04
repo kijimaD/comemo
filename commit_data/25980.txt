@@ -1,0 +1,14 @@
+commit a6c95ae1df496acd05ef4302b23555baf228f137
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 20:07:09 2016 -0800
+
+    cmd/compile: remove some unnecessary EType/int conversions
+    
+    Change-Id: I2d8efef333f2441da6742e125e23ff57c9853ebd
+    Reviewed-on: https://go-review.googlesource.com/20078
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/const.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

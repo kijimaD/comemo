@@ -1,0 +1,15 @@
+commit 58cb8a3c8fdc9b83cb8630f17d0ee641eb0327cc
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Tue Aug 15 12:11:01 2017 +0530
+
+    runtime: remove redeclared structs to make tests build
+    
+    struct32 and struct40 structs are already declared, remove them to
+    make runtime tests build.
+    
+    Change-Id: I3814f2b850dcb15c4002a3aa22e2a9326e5a5e53
+    Reviewed-on: https://go-review.googlesource.com/55614
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/chan_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

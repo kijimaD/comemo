@@ -1,0 +1,23 @@
+commit 5670ff4ae593019c33b8095a6341deb657be34d7
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 16 22:25:47 2021 +0800
+
+    cmd/compile: fix conversions from TypeParam to interface
+    
+    If the TypeParam has all the methods of an interface, allow conversions from TypeParam to interface
+    
+    Fixes #47708
+    
+    Change-Id: I40a82a31f6ea9354130dbe3bcfc83537094bf12c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342509
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/subr.go | 13 +++++++---
+ test/typeparam/issue47708.go               | 40 ++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 3 deletions(-)

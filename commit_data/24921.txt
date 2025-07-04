@@ -1,0 +1,33 @@
+commit bf5b4e71be59d90f35a571a644e5731c581e9f6c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Nov 16 14:00:31 2015 +0100
+
+    unicode/utf8: table-based algorithm for decoding
+    
+    This simplifies covering all cases, reducing the number of branches
+    and making unrolling for simpler functions manageable.
+    This significantly improves performance of non-ASCII input.
+    
+    This change will also allow addressing Issue #11733 in an efficient
+    manner.
+    
+    RuneCountTenASCIIChars-8             13.7ns ± 4%  13.5ns ± 2%     ~     (p=0.116 n=7+8)
+    RuneCountTenJapaneseChars-8           153ns ± 3%    74ns ± 2%  -51.42%  (p=0.000 n=8+8)
+    RuneCountInStringTenASCIIChars-8     13.5ns ± 2%  12.5ns ± 3%   -7.13%  (p=0.000 n=8+7)
+    RuneCountInStringTenJapaneseChars-8   145ns ± 2%    68ns ± 2%  -53.21%  (p=0.000 n=8+8)
+    ValidTenASCIIChars-8                 14.1ns ± 3%  12.5ns ± 5%  -11.38%  (p=0.000 n=8+8)
+    ValidTenJapaneseChars-8               147ns ± 3%    71ns ± 4%  -51.72%  (p=0.000 n=8+8)
+    ValidStringTenASCIIChars-8           12.5ns ± 3%  12.3ns ± 3%     ~     (p=0.095 n=8+8)
+    ValidStringTenJapaneseChars-8         146ns ± 4%    70ns ± 2%  -51.62%  (p=0.000 n=8+7)
+    DecodeASCIIRune-8                    5.91ns ± 2%  4.83ns ± 3%  -18.28%  (p=0.001 n=7+7)
+    DecodeJapaneseRune-8                 12.2ns ± 7%   8.5ns ± 3%  -29.79%  (p=0.000 n=8+7)
+    FullASCIIRune-8                      5.95ns ± 3%  4.27ns ± 1%  -28.23%  (p=0.000 n=8+7)
+    FullJapaneseRune-8                   12.0ns ± 6%   4.3ns ± 3%  -64.39%  (p=0.000 n=8+8)
+    
+    Change-Id: Iea1d6b0180cbbee1739659a0a38038126beecaca
+    Reviewed-on: https://go-review.googlesource.com/16940
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/unicode/utf8/utf8.go      | 463 ++++++++++++++++++++++++------------------
+ src/unicode/utf8/utf8_test.go |   3 +
+ 2 files changed, 269 insertions(+), 197 deletions(-)

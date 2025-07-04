@@ -1,0 +1,13 @@
+commit a733f0bcd11e33e9dde58034dd8bcc0461f68d56
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 29 13:44:13 2011 +1000
+
+    exp/template: use MethodByName, add to build.
+    
+    R=rsc, adg, r
+    CC=golang-dev
+    https://golang.org/cl/4641081
+
+ src/pkg/Makefile             |  1 +
+ src/pkg/exp/template/exec.go | 16 ++++------------
+ 2 files changed, 5 insertions(+), 12 deletions(-)

@@ -1,0 +1,11 @@
+commit c9ac862aab2554280acff80a91d503de2b927576
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 23:12:09 2009 -0800
+
+    in addition to bison, need to have gcc and c libraries installed.
+    
+    R=r
+    http://go/go-review/1024043
+
+ doc/install.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

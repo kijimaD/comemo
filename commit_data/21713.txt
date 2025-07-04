@@ -1,0 +1,18 @@
+commit 42289a4f394a31e88d7288b91887c614f218808e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 08:39:07 2015 +1100
+
+    syscall: rebuild zsyscall_linux_*.go
+    
+    Rebuild the zsyscall_linux_*.go files in preperation for #9974
+    
+    The only change is the ppc64/ppc64le files which were not rebuilt when
+    syscall.use was added.
+    
+    Change-Id: I804c63731e4900c782025de04ea3585d99688958
+    Reviewed-on: https://go-review.googlesource.com/5831
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/zsyscall_linux_ppc64.go   | 51 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_ppc64le.go | 51 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)

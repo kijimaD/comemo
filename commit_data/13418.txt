@@ -1,0 +1,16 @@
+commit fa6f9b4a3e2c1cd5b3da7786250f3c49c1f40325
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 07:44:04 2012 -0700
+
+    net/http: support multiple byte ranges in ServeContent
+    
+    Fixes #3784
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6351052
+
+ src/pkg/net/http/fs.go         | 107 ++++++++++++++++++++++++++++++-----
+ src/pkg/net/http/fs_test.go    | 123 ++++++++++++++++++++++++++++-------------
+ src/pkg/net/http/range_test.go |  22 ++++++++
+ 3 files changed, 199 insertions(+), 53 deletions(-)

@@ -1,0 +1,12 @@
+commit bc35379763174f1829e1908eb91c2f50780bc7e4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Mar 17 01:45:05 2011 -0400
+
+    .hgignore: Ignore all goinstalled packages
+    
+    R=golang-dev, niemeyer, rsc1, rog, rsc
+    CC=golang-dev
+    https://golang.org/cl/4285047
+
+ .hgignore | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

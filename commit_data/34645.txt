@@ -1,0 +1,32 @@
+commit 26d74e8b65afeb856967cc264269cea9e1e7d2eb
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Fri Mar 9 17:14:49 2018 +0000
+
+    math/big: reduce amount of copying in Montgomery multiplication
+    
+    Instead shifting the accumulator every iteration of the loop, shift
+    once in the end. This significantly improves performance on arm64.
+    
+    On arm64:
+    
+    name                  old time/op    new time/op    delta
+    RSA2048Decrypt          3.33ms ± 0%    2.63ms ± 0%  -20.94%  (p=0.000 n=11+11)
+    RSA2048Sign             4.22ms ± 0%    3.55ms ± 0%  -15.89%  (p=0.000 n=11+11)
+    3PrimeRSA2048Decrypt    1.95ms ± 0%    1.59ms ± 0%  -18.59%  (p=0.000 n=11+11)
+    
+    On Skylake:
+    
+    name                    old time/op  new time/op  delta
+    RSA2048Decrypt-8        1.73ms ± 2%  1.55ms ± 2%  -10.19%  (p=0.000 n=10+10)
+    RSA2048Sign-8           2.17ms ± 2%  2.00ms ± 2%   -7.93%  (p=0.000 n=10+10)
+    3PrimeRSA2048Decrypt-8  1.10ms ± 2%  0.96ms ± 2%  -13.03%  (p=0.000 n=10+9)
+    
+    Change-Id: I5786191a1a09e4217fdb1acfd90880d35c5855f7
+    Reviewed-on: https://go-review.googlesource.com/99838
+    Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

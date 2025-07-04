@@ -1,0 +1,14 @@
+commit a866b48e4a3cb0c034cb98401e654317023188d9
+Author: Lars Lehtonen <lars.lehtonen@gmail.com>
+Date:   Mon Nov 4 16:33:31 2019 -0800
+
+    io/ioutil: Fix dropped test error
+    
+    Change-Id: I9cfaba4f1af23ab67627bf496739311e4d1984c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/ioutil_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

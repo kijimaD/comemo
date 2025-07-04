@@ -1,0 +1,15 @@
+commit fb5506600ff219639279917b4cb635c6561be93c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 17 15:28:45 2010 -0800
+
+    8g: respect ullman numbers in float comparison
+    
+    Fixes #602.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/212045
+
+ src/cmd/8g/cgen.c        | 22 ++++++++++++++--------
+ test/fixedbugs/bug258.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 8 deletions(-)

@@ -1,0 +1,22 @@
+commit a6ae01a64a6a5ef17a4825cd486aa31f62481100
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 17 16:30:21 2017 -0400
+
+    runtime: add "max waste" column to size class table comment
+    
+    This computes the maximum possible waste in a size class due to both
+    internal and external fragmentation as a percent of the span size.
+    This parallels the reasoning about overhead in the comment at the top
+    of mksizeclasses.go and confirms that comment's assertion that (except
+    for the few smallest size classes), none of the size classes have
+    worst-case internal and external fragmentation simultaneously.
+    
+    Change-Id: Idb66fe6c241d56f33d391831d4cd5a626955562b
+    Reviewed-on: https://go-review.googlesource.com/49370
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mksizeclasses.go |  13 +++--
+ src/runtime/sizeclasses.go   | 134 +++++++++++++++++++++----------------------
+ 2 files changed, 75 insertions(+), 72 deletions(-)

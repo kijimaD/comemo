@@ -1,0 +1,12 @@
+commit fd922c875d302a2234c62285051df561a16fc4e6
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 30 14:32:04 2008 -0700
+
+    shift bug
+    
+    R=r
+    OCL=18166
+    CL=18166
+
+ src/cmd/6g/gen.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

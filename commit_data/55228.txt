@@ -1,0 +1,21 @@
+commit e914671f5d5e72b2f897a9f2dfc6bf2203d3254a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 6 12:34:02 2023 -0500
+
+    runtime/pprof: add section headers to Profile doc
+    
+    Adding explicit section headers makes it cleaner to split the profile
+    descriptions into multiple paragraphs, as there is now an explicit
+    transition from discussion of one profile type to the next.
+    
+    For #14689.
+    
+    Change-Id: Ifcff918367e91a165ee5f74423be3935b421972b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547955
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/pprof.go | 57 +++++++++++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

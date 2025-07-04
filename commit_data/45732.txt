@@ -1,0 +1,37 @@
+commit 24e9707cbfa6b1ed6abdd4b11f9ddaf3aac5ad88
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 25 16:31:41 2021 -0700
+
+    cmd/link, cmd/cgo: support -flto in CFLAGS
+    
+    The linker now accepts unrecognized object files in external linking mode.
+    These objects will simply be passed to the external linker.
+    This permits using -flto which can generate pure byte code objects,
+    whose symbol table the linker does not know how to read.
+    
+    The cgo tool now passes -fno-lto when generating objects whose symbols
+    it needs to read. The cgo tool now emits matching types in different
+    objects, so that the lto linker does not report a mismatch.
+    
+    This is based on https://golang.org/cl/293290 by Derek Parker.
+    
+    For #43505
+    Fixes #43830
+    Fixes #46295
+    
+    Change-Id: I6787de213417466784ddef5af8899e453b4ae1ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322614
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/cgo/gcc.go                                 |  2 ++
+ src/cmd/cgo/out.go                                 | 16 +++++++--
+ src/cmd/dist/test.go                               | 29 ++++++++++++----
+ src/cmd/go/testdata/script/cgo_lto2_issue43830.txt | 33 ++++++++++++++++++
+ src/cmd/go/testdata/script/cgo_lto_issue43830.txt  | 39 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/ar.go                     |  4 +++
+ src/cmd/link/internal/ld/config.go                 |  6 +++-
+ src/cmd/link/internal/ld/lib.go                    | 26 ++++++++++++---
+ 8 files changed, 140 insertions(+), 15 deletions(-)

@@ -1,0 +1,11 @@
+commit 5a17aaa830a5951d2dc24aabb6c267d224a6b697
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 8 14:54:04 2014 -0700
+
+    doc/go1.4.txt: go.sys subrepo created
+    
+    CC=golang-codereviews
+    https://golang.org/cl/124050043
+
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

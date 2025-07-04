@@ -1,0 +1,62 @@
+commit 7777bac6e4570ffe485f736e79f0631a460171f4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 18 22:57:25 2012 +0800
+
+    runtime: use clock_gettime to get ns resolution for time.now & runtime.nanotime
+    
+    For Linux/{386,arm}, FreeBSD/{386,amd64,arm}, NetBSD/{386,amd64}, OpenBSD/{386,amd64}.
+    Note: our Darwin implementation already has ns resolution.
+    
+    Linux/386 (Core i7-2600 @ 3.40GHz, kernel 3.5.2-gentoo)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          110          118   +7.27%
+    
+    Linux/ARM (ARM Cortex-A8 @ 800MHz, kernel 2.6.32.28 android)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          625          542  -13.28%
+    
+    Linux/ARM (ARM Cortex-A9 @ 1GHz, Pandaboard)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          992          909   -8.37%
+    
+    FreeBSD 9-REL-p1/amd64 (Dell R610 Server with Xeon X5650 @ 2.67GHz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          699          695   -0.57%
+    
+    FreeBSD 9-REL-p1/amd64 (Atom D525 @ 1.80GHz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow         1553         1658   +6.76%
+    
+    OpenBSD/amd64 (Dell E6410 with i5 CPU M 540 @ 2.53GHz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow         1262         1236   -2.06%
+    
+    OpenBSD/i386 (Asus eeePC 701 with Intel Celeron M 900MHz - locked to 631MHz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow         5089         5043   -0.90%
+    
+    NetBSD/i386 (VMware VM with Core i5 CPU @ 2.7GHz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          277          278   +0.36%
+    
+    NetBSD/amd64 (VMware VM with Core i5 CPU @ 2.7Ghz)
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          103          105   +1.94%
+    
+    Thanks Maxim Khitrov, Joel Sing, and Dave Cheney for providing benchmark data.
+    
+    R=jsing, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6820120
+
+ doc/go1.1.html                      |  8 ++++----
+ src/pkg/runtime/sys_freebsd_386.s   | 24 +++++++++++-------------
+ src/pkg/runtime/sys_freebsd_amd64.s | 22 ++++++++++------------
+ src/pkg/runtime/sys_freebsd_arm.s   | 27 ++++++++++++---------------
+ src/pkg/runtime/sys_linux_386.s     | 24 +++++++++++-------------
+ src/pkg/runtime/sys_linux_arm.s     | 23 ++++++++++-------------
+ src/pkg/runtime/sys_netbsd_386.s    | 18 ++++++++----------
+ src/pkg/runtime/sys_netbsd_amd64.s  | 22 ++++++++++------------
+ src/pkg/runtime/sys_openbsd_386.s   | 24 +++++++++++-------------
+ src/pkg/runtime/sys_openbsd_amd64.s | 26 ++++++++++++--------------
+ 10 files changed, 99 insertions(+), 119 deletions(-)

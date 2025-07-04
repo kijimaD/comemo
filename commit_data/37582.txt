@@ -1,0 +1,33 @@
+commit be09bdf589a5c25e5d8b68a546e9b84bc1a1977b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 4 15:54:14 2018 -0500
+
+    cmd/compile: fix unnamed parameter handling in escape analysis
+    
+    For recursive functions, the parameters were iterated using
+    fn.Name.Defn.Func.Dcl, which does not include unnamed/blank
+    parameters. This results in a mismatch in formal-actual
+    assignments, for example,
+    
+    func f(_ T, x T)
+    
+    f(a, b) should result in { _=a, x=b }, but the escape analysis
+    currently sees only { x=a } and drops b on the floor. This may
+    cause b to not escape when it should (or a escape when it should
+    not).
+    
+    Fix this by using fntype.Params().FieldSlice() instead, which
+    does include unnamed parameters.
+    
+    Also add a sanity check that ensures all the actual parameters
+    are consumed.
+    
+    Fixes #29000
+    
+    Change-Id: Icd86f2b5d71e7ebbab76e375b7702f62efcf59ae
+    Reviewed-on: https://go-review.googlesource.com/c/152617
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 98 +++++++++++++++++++++++++-------------
+ test/escape5.go                    | 17 +++++++
+ 2 files changed, 81 insertions(+), 34 deletions(-)

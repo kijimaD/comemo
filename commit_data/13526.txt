@@ -1,0 +1,12 @@
+commit 41688046399e2971e423c425f0b3401eb2833791
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 14:11:51 2012 +1000
+
+    misc/dashboard/codereview: bump user-specific table limits to 100.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6457051
+
+ misc/dashboard/codereview/dashboard/front.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

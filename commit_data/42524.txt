@@ -1,0 +1,14 @@
+commit 15e3e0d4dc7a2b985fba7318379d438a54765154
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 15 14:11:08 2020 +0200
+
+    doc/gccgo: change gold build instructions to use Git repository
+    
+    Use the binutils Git repository instead of CVS.
+    
+    Change-Id: I10100ca44d64ab3621367d1d4ac9e9a50d212d0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237839
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/gccgo_install.html | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

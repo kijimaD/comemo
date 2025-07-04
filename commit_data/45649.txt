@@ -1,0 +1,28 @@
+commit 5e191f8f4885cac105b6d7069e02c0c8d149c22c
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 17 10:30:01 2021 +1000
+
+    time: rewrite the documentation for layout strings
+    
+    People continue to be confused by how these work. Address that by some
+    rejiggering.
+    
+    Introduce a constant called Layout that both defines the time and
+    provides a reference point for Parse and Format to refer to. We can
+    then delete much redundancy, especially for Format's comments, but
+    Parse tightens a bit too.
+    
+    Then change the way the concept of the layout string is introduced,
+    and provide a clearer catalog of what its elements are.
+    
+    Fixes #38871
+    
+    Change-Id: Ib967ae70c7d5798a97b865cdda1fda4daed8a99a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320252
+    Trust: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/time/format.go | 163 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 85 insertions(+), 78 deletions(-)

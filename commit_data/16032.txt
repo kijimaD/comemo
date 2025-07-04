@@ -1,0 +1,15 @@
+commit 79a0c1701262dd5b581550656a562eddd342d342
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Apr 1 10:01:12 2013 -0700
+
+    cmd/go: prevent packages from being cleaned more than once
+    
+    If a package was listed as a dependency from multiple places, it
+    could have been cleaned repeatedly.
+    
+    R=golang-dev, dave, rsc, seed, bradfitz
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/7482043
+
+ src/cmd/go/clean.go | 2 ++
+ 1 file changed, 2 insertions(+)

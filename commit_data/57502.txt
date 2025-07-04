@@ -1,0 +1,17 @@
+commit ab5c22e7ed6bda79f07410c0041e020e52dc9b35
+Author: 封幼林 <fengyoulin@live.com>
+Date:   Mon Sep 23 22:55:13 2024 +0800
+
+    cmd/compile: remove obj.LSym(s) for assertI2I and assertI2I2
+    
+    Change-Id: I85993a34b115a700ccdfea29df4e78c360e68b03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615075
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/symtab.go  | 2 --
+ src/cmd/compile/internal/ssagen/ssa.go | 2 --
+ 2 files changed, 4 deletions(-)

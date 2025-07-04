@@ -1,0 +1,16 @@
+commit 0fb82fbcceb2639e76a2cdb46134d95c14bc13c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 30 17:43:19 2017 -0700
+
+    cmd/compile: remove global bout variable
+    
+    Change-Id: I7054bbec080708c3a11ed62d7f6594e82aa33747
+    Reviewed-on: https://go-review.googlesource.com/61691
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/gc/export.go | 10 +++++-----
+ src/cmd/compile/internal/gc/go.go     |  3 ---
+ src/cmd/compile/internal/gc/obj.go    |  5 ++---
+ 3 files changed, 7 insertions(+), 11 deletions(-)

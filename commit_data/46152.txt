@@ -1,0 +1,24 @@
+commit 41b99dab0f263bd3fe5c2592f1c40735dcaa016a
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 22 20:26:31 2021 -0700
+
+    os/user: don't skip TestLookupGroup if supported
+    
+    CL 37664 implemented this functionality, yet the tests were skipped.
+    
+    Introduce and use additional variable groupListImplemented to
+    distinguish between these cases and enable TestLookupGroup for
+    supported configurations (which looks like all but plan9).
+    
+    Change-Id: Iabaa7f08b4551dc67e67bdb6e715f15bb20d6218
+    Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330751
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/user/lookup_plan9.go | 1 +
+ src/os/user/lookup_stubs.go | 2 +-
+ src/os/user/lookup_unix.go  | 8 +++++---
+ src/os/user/user.go         | 7 +++++--
+ src/os/user/user_test.go    | 9 ++++++++-
+ 5 files changed, 20 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 4fd94558820100129b98f284e21b19fc27a99926
+Author: xinlingchao <douglarek@gmail.com>
+Date:   Mon Dec 28 14:14:41 2020 +0800
+
+    io/fs: fix typo in comment
+    
+    Change-Id: Idf8e5d808c0996e0ca00979e7b8d7627f29cd10f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280552
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/io/fs/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

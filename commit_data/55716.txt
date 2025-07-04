@@ -1,0 +1,18 @@
+commit 72743ca86c5d8c750f9a0132680bf45fde048429
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Sun Feb 25 12:59:23 2024 +0000
+
+    archive/tar: check returned error before use hdr
+    
+    Change-Id: I8c28dac73427e37d58d970b00d8f0f1413bede2e
+    GitHub-Last-Rev: a11a8036028ecf6f811b1470becc924b77a2c734
+    GitHub-Pull-Request: golang/go#65932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/archive/tar/writer_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

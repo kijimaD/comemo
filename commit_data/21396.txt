@@ -1,0 +1,20 @@
+commit 428afae027548e079335d25cacb70082a0ef8d9f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 15:55:23 2015 -0500
+
+    runtime: use func value for parfor body
+    
+    Yet another leftover from C: parfor took a func value for the
+    callback, casted it to an unsafe.Pointer for storage, and then casted
+    it back to a func value to call it.  This is unnecessary, so just
+    store the body as a func value.  Beyond general cleanup, this also
+    eliminates the last use of unsafe in parfor.
+    
+    Change-Id: Ia904af7c6c443ba75e2699835aee8e9a39b26dd8
+    Reviewed-on: https://go-review.googlesource.com/3396
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/export_test.go |  2 +-
+ src/runtime/parfor.go      | 18 ++++++++----------
+ 2 files changed, 9 insertions(+), 11 deletions(-)

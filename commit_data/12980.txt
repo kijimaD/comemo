@@ -1,0 +1,12 @@
+commit 0bad08cbbbb0a561faa62ece250fed9ffa035f75
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Apr 27 10:25:19 2012 +1000
+
+    path/filepath: fix typo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6117063
+
+ src/pkg/path/filepath/path_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

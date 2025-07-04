@@ -1,0 +1,20 @@
+commit d4dbad53ca080d767798ee4267999868d7f2c22d
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Apr 12 02:53:29 2022 +0000
+
+    Revert "cmd/compile/internal: fix test error on loong64"
+    
+    This reverts CL 367043.
+    
+    Reason for revert: auto-submitted prematurely, breaking tests on most builders.
+    
+    Change-Id: I6da319fb042b629bcd6f549be638497a357e7d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399795
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ src/cmd/compile/internal/test/inl_test.go      | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

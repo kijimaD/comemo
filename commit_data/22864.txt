@@ -1,0 +1,17 @@
+commit 92715d7780e1a7801c2d35069bc8bd86426429c4
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 08:59:18 2015 -0700
+
+    fmt: change the overflow test for large numbers in verbs
+    
+    The old one was inferior.
+    
+    Fixes #10695.
+    
+    Change-Id: Ia7fb88c9ceb1b10197b77a54f729865385288d98
+    Reviewed-on: https://go-review.googlesource.com/9709
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/print.go    | 6 ++++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

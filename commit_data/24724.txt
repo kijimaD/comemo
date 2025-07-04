@@ -1,0 +1,17 @@
+commit 7bb2a7d63b0767f9c6fa0382ed9185ba21757095
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 4 18:12:30 2015 -0800
+
+    cmd/dist: remove vestigial -s flag
+    
+    Fixes #12002.
+    
+    Change-Id: I7262f4520560ac158fc2ee3ce1d2f7a488d40354
+    Reviewed-on: https://go-review.googlesource.com/16666
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/dist/build.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

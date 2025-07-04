@@ -1,0 +1,15 @@
+commit 7ed8fc611ddbb4c09784d81a52e5d59825677f42
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 22 18:18:08 2008 -0700
+
+    embedded types
+    auto & on methods
+    
+    R=r
+    OCL=17682
+    CL=17682
+
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/subr.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c | 28 ++++------------------------
+ 3 files changed, 51 insertions(+), 24 deletions(-)

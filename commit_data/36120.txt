@@ -1,0 +1,24 @@
+commit 5f5402b72313463a25c1bcacd559254834690d7e
+Author: Ian Gudger <igudger@google.com>
+Date:   Tue Jul 24 16:19:19 2018 -0700
+
+    net: fix handling of Conns created by Resolver.Dial
+    
+    The DNS client in net is documented to treat Conns returned by
+    Resolver.Dial which implement PacketConn as UDP and those which don't as
+    TCP regardless of what was requested. golang.org/cl/37879 changed the
+    DNS client to assume that the Conn returned by Resolver.Dial was the
+    requested type which broke compatibility.
+    
+    Fixes #26573
+    Updates #16218
+    
+    Change-Id: Idf4f073a4cc3b1db36a3804898df206907f9c43c
+    Reviewed-on: https://go-review.googlesource.com/125735
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      |  6 ++--
+ src/net/dnsclient_unix_test.go | 77 ++++++++++++++++++++++++++++++------------
+ 2 files changed, 58 insertions(+), 25 deletions(-)

@@ -1,0 +1,14 @@
+commit 47bb44fd5bee504cd53e1e9e1d1c36e28a15e94f
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Oct 10 16:30:20 2013 -0400
+
+    misc/emacs: don't treat (foo)(bar) as a function call when preceded by a word character.
+    
+    Fixes #6531.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/14523043
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

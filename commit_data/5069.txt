@@ -1,0 +1,18 @@
+commit 908efdb5ac555906b0d9803fa610feae753ebcd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 23:12:20 2010 -0700
+
+    crypto/rand: new package
+    
+    Until proven insufficient, rely on the operating system
+    to give us good random bytes (/dev/urandom).
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/569044
+
+ src/pkg/Makefile                 |   1 +
+ src/pkg/crypto/rand/Makefile     |  12 ++++
+ src/pkg/crypto/rand/rand.go      | 130 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rand/rand_test.go |  27 ++++++++
+ 4 files changed, 170 insertions(+)

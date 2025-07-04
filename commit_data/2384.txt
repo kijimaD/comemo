@@ -1,0 +1,15 @@
+commit bd8495f9736a69d4eda07c6ddb012a5b7e7f0b10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 14:31:11 2009 -0700
+
+    - report an error if format is nil instead of crashing
+    - treat '\f' like '\n' ('\f' has special meaning in the
+      tabwriter now)
+    
+    R=rsc
+    DELTA=7  (4 added, 0 deleted, 3 changed)
+    OCL=29790
+    CL=29893
+
+ src/lib/datafmt/datafmt.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

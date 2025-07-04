@@ -1,0 +1,18 @@
+commit 91c9b0d568e41449f26858d88eb2fd085eaf306d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 24 18:37:48 2017 +0900
+
+    runtime: adjust netpoll panic messages
+    
+    Change-Id: I34547b057605bb9e1e2227c41867589348560244
+    Reviewed-on: https://go-review.googlesource.com/41513
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go         | 20 ++++++++++----------
+ src/runtime/netpoll_epoll.go   |  8 ++++----
+ src/runtime/netpoll_kqueue.go  |  8 ++++----
+ src/runtime/netpoll_solaris.go | 14 +++++++-------
+ src/runtime/netpoll_windows.go | 21 +++++++++++----------
+ 5 files changed, 36 insertions(+), 35 deletions(-)

@@ -1,0 +1,27 @@
+commit f22d73197635b23c13bb852e330e5339eefaf910
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Thu Jun 20 10:45:30 2024 -0700
+
+    go/build/constraint: add parsing limits
+    
+    Limit the size of build constraints that we will parse. This prevents a
+    number of stack exhaustions that can be hit when parsing overly complex
+    constraints. The imposed limits are unlikely to ever be hit in real
+    world usage.
+    
+    Fixes #69141
+    Fixes CVE-2024-34158
+    
+    Change-Id: I38b614bf04caa36eefc6a4350d848588c4cef3c4
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1540
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611240
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/build/constraint/expr.go      | 28 ++++++++++++++--
+ src/go/build/constraint/expr_test.go | 65 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 89 insertions(+), 4 deletions(-)

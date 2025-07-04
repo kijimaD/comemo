@@ -1,0 +1,13 @@
+commit a240af3822a0123cc28c10b45e1017f81bf61727
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Aug 17 17:35:48 2010 -0400
+
+    Make.common: add .PHONY rule
+    to prevent files named 'clean', 'bench', etc... preventing proper build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1976044
+
+ src/Make.common | 4 ++++
+ 1 file changed, 4 insertions(+)

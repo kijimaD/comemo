@@ -1,0 +1,46 @@
+commit 6bbe1bc94072533ec715cae32f7cda1ae0a2a5eb
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Sep 11 14:28:34 2017 -0400
+
+    cmd/compile: cover control flow insns in location lists
+    
+    The information that's used to generate DWARF location lists is very
+    ssa.Value centric; it uses Values as start and end coordinates to define
+    ranges. That mostly works fine, but control flow instructions don't come
+    from Values, so the ranges couldn't cover them.
+    
+    Control flow instructions are generated when the SSA representation is
+    converted to assembly, so that's the best place to extend the ranges
+    to cover them. (Before that, there's nothing to refer to, and afterward
+    the boundaries between blocks have been lost.) That requires block
+    information in the debugInfo type, which then flows down to make
+    everything else awkward. On the plus side, there's a little less copying
+    slices around than there used to be, so it should be a little faster.
+    
+    Previously, the ranges for empty blocks were not very meaningful. That
+    was fine, because they had no Values to cover, so no debug information
+    was generated for them. But they do have control flow instructions
+    (that's why they exist) and so now it's important that the information
+    be correct. Introduce two sentinel values, BlockStart and BlockEnd, that
+    denote the boundary of a block, even if the block is empty. BlockEnd
+    replaces the previous SurvivedBlock flag.
+    
+    There's one more problem: the last instruction in the function will be a
+    control flow instruction, so any live ranges need to be extended past
+    it. But there's no instruction after it to use as the end of the range.
+    Instead, leave the EndProg field of those ranges as nil and fix it up to
+    point to past the end of the assembled text at the very last moment.
+    
+    Change-Id: I81f884020ff36fd6fe8d7888fc57c99412c4245b
+    Reviewed-on: https://go-review.googlesource.com/63010
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmt_test.go           |   3 +-
+ src/cmd/compile/internal/gc/pgen.go   | 100 +++++++++-----
+ src/cmd/compile/internal/gc/ssa.go    |  39 ++++--
+ src/cmd/compile/internal/ssa/debug.go | 251 ++++++++++++++++++----------------
+ src/cmd/internal/dwarf/dwarf.go       |  20 ++-
+ 5 files changed, 248 insertions(+), 165 deletions(-)

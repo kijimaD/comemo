@@ -1,0 +1,22 @@
+commit 66b261a0828048b91b62588b84528b46489bf770
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 19 14:39:49 2008 -0700
+
+    Check for specific error messages in the testsuite.  This
+    permits testing that the compiler emits error messages for
+    specific lines that match egrep regexps.  The desired error
+    messages are expressed using comments of the form
+            // ERROR "regexp"
+    
+    R=r
+    DELTA=90  (73 added, 8 deleted, 9 changed)
+    OCL=15513
+    CL=15566
+
+ test/errchk              | 74 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug014.go |  8 +++---
+ test/fixedbugs/bug015.go |  2 +-
+ test/func1.go            |  2 +-
+ test/golden.out          |  7 -----
+ test/run                 |  2 ++
+ 6 files changed, 82 insertions(+), 13 deletions(-)

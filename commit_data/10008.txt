@@ -1,0 +1,12 @@
+commit d2b73730b74ed103add581d992cbca31012b0f3b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 18:23:59 2011 -0400
+
+    exp/template/html: do not depend on reflection on internal fields
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5286049
+
+ src/pkg/exp/template/html/context.go | 4 ++++
+ 1 file changed, 4 insertions(+)

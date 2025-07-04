@@ -1,0 +1,22 @@
+commit a81bc8e8254d01cd442a5684801d8d2dbc553694
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Apr 28 16:28:46 2020 -0700
+
+    runtime:  add one extra lock ranking partial edge
+    
+    This adds an assistQueue -> mheapSpecial edge, which can happen via
+    
+    gcFlushBgCredit [gets assistQueue lock] -> ready() -> ... ->
+    allocm() -> newobject -> .. mProf_Malloc() ->
+    setprofilebucket() [gets mheap special lock]
+    
+    From https://build.golang.org/log/6f8f253f6c3a747de411cfdf78c27980146618be
+    
+    Change-Id: Icdfba41b49aa704e8f6f20d25271f938afaf52ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231463
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

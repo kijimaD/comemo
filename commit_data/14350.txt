@@ -1,0 +1,12 @@
+commit 122c154c605b83b3edd0324c1b038457bbc70784
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 8 13:00:54 2012 +1100
+
+    cmd/go: say that -race flag can be used on windows/amd64
+    
+    R=golang-dev, r
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/6810099
+
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

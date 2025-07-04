@@ -1,0 +1,14 @@
+commit f6dd45bf82f84454f5d461e8e88bd4e70c1dc614
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 29 18:33:39 2013 +1000
+
+    doc/articles: state that slices/arrays start at the 0th element
+    
+    Fixes #5881.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11892043
+
+ doc/articles/slices_usage_and_internals.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

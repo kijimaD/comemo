@@ -1,0 +1,44 @@
+commit 1f2d7bf44fd20d06c21d16df485fa17137fe79f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 23:35:14 2015 -0500
+
+    liblink: require use of TYPE_ADDR, not TYPE_CONST
+    
+    Add Addr-checking for all Progs on input to liblink, in liblink/pass.c,
+    including requiring use of TYPE_ADDR, not TYPE_CONST.
+    Update compilers and assemblers to satisfy checks.
+    
+    Change-Id: Idac36b9f6805f0451cb541d2338992ca5eaf3963
+    Reviewed-on: https://go-review.googlesource.com/3801
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ include/link.h      |   3 +-
+ src/cmd/5a/a.y      |   6 ++-
+ src/cmd/5a/y.tab.c  | 140 +++++++++++++++++++++++++++-------------------------
+ src/cmd/5g/cgen.c   |   8 +--
+ src/cmd/5g/ggen.c   |   6 +--
+ src/cmd/5g/gobj.c   |   2 +-
+ src/cmd/5g/gsubr.c  |  10 ++--
+ src/cmd/5g/peep.c   |  14 +++---
+ src/cmd/5g/prog.c   |   2 +-
+ src/cmd/5g/reg.c    |  13 +++--
+ src/cmd/6a/a.y      |   4 ++
+ src/cmd/6a/y.tab.c  |  36 ++++++++------
+ src/cmd/8a/a.y      |   4 ++
+ src/cmd/8a/y.tab.c  |  94 ++++++++++++++++++-----------------
+ src/cmd/9a/a.y      |   6 ++-
+ src/cmd/9a/y.tab.c  |  84 ++++++++++++++++---------------
+ src/cmd/9g/cgen.c   |   4 +-
+ src/cmd/9g/ggen.c   |   6 +--
+ src/cmd/9g/gobj.c   |   6 +--
+ src/cmd/9g/gsubr.c  |   8 +--
+ src/cmd/9g/peep.c   |   6 +--
+ src/cmd/9g/prog.c   |   6 +--
+ src/cmd/9g/reg.c    |   5 +-
+ src/liblink/asm5.c  |   3 +-
+ src/liblink/asm9.c  |   1 +
+ src/liblink/list5.c |   2 +-
+ src/liblink/list9.c |   1 +
+ src/liblink/obj5.c  |  16 +++---
+ src/liblink/pass.c  |  81 ++++++++++++++++++++++++++++++
+ 29 files changed, 352 insertions(+), 225 deletions(-)

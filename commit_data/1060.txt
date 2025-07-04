@@ -1,0 +1,14 @@
+commit 5a1cbe8b64fc3e75e2fa4f4c9a74bcca93a1d520
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 5 13:01:33 2008 -0800
+
+    trim tags from type strings for structure fields.
+    
+    R=rsc
+    DELTA=28  (14 added, 4 deleted, 10 changed)
+    OCL=18561
+    CL=18563
+
+ src/lib/reflect/test.go |  6 ++++++
+ src/lib/reflect/type.go | 30 +++++++++++++++++-------------
+ 2 files changed, 23 insertions(+), 13 deletions(-)

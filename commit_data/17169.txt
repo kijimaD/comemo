@@ -1,0 +1,19 @@
+commit 83348a13fb40ac80e2587e27c29d18360177f3b1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Aug 13 11:11:05 2013 +1000
+
+    text/template: Make function call builtin handle nil errors correctly
+    
+    The call builtin unconditionally tries to convert a second return value from a function to the error type. This fails in case nil is returned, effectively making call useless for functions returning two values.
+    
+    This CL adds a nil check for the second return value, and adds a test.
+    
+    Note that for regular function and method calls the nil error case is handled correctly and is verified by a test.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/12804043
+
+ src/pkg/text/template/exec_test.go | 3 +++
+ src/pkg/text/template/funcs.go     | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 3f972df4a7f4be5db219ebd22625594711b68255
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 19 10:45:38 2017 -0700
+
+    runtime: don't clear pointer-free memory when growing maps
+    
+    If there are no pointers, then clearing memory doesn't help GC,
+    and the memory is otherwise dead, so don't bother clearing it.
+    
+    Change-Id: I953f4a3264939f2825e82292030eda2e835cbb97
+    Reviewed-on: https://go-review.googlesource.com/57350
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

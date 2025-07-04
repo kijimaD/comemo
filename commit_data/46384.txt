@@ -1,0 +1,20 @@
+commit 9e1eea6f8b0d0266c481df5bc3c808defeaa6f44
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 18:16:36 2021 -0400
+
+    go/types: detect constraint type inference cycles
+    
+    This is a port of CL 347300 to go/types. The test was adjusted to match
+    the differing error positioning in go/types: errors are placed on the
+    ast.CallExpr.Fun, rather than the Lparen.
+    
+    Change-Id: I3dee5d7d75bae18817cc1f04ab0d357d3a6a8198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348689
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/infer.go                          | 124 +++++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48136.go2 |  36 +++++++
+ 2 files changed, 160 insertions(+)

@@ -1,0 +1,22 @@
+commit de487d561653e7f2ec7a54832c9edcb1d9754594
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 4 16:44:43 2024 +0000
+
+    cmd/compile/internal: replace direct calls to Sym.LinksymABI
+    
+    Using (*Sym).LinksymABI(abi) directly is not recommended.
+    
+    Replace with (*ir.Name).LinksymABI(abi).
+    
+    Change-Id: I95d5d35240d4e1856ba511d828f6edefcee81b4f
+    GitHub-Last-Rev: 6787b65716ab82d2f35cda4f3839bfd85baa41dd
+    GitHub-Pull-Request: golang/go#66094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568855
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

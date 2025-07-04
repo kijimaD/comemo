@@ -1,0 +1,13 @@
+commit e8e894bff3187ac10e1e65576499a7d7cead554e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 16:09:40 2009 -0800
+
+    enable pretty in run.bash
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=25651
+    CL=25655
+
+ src/run.bash | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

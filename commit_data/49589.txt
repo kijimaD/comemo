@@ -1,0 +1,24 @@
+commit 4484c30f788835d8dda0afcefdb12e4b25b2c312
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jul 1 12:56:39 2022 -0400
+
+    misc/cgo/test: make TestSetgidStress cheaper
+    
+    TestSetgidStress spawns 1000 threads, which can be expensive on
+    some platforms or slow builders. Run with 50 threads in short
+    mode instead.
+    
+    This makes the failure less reproducible even with buggy code. But
+    one can manually stress test it (e.g. when a flaky failure appear
+    on the builder).
+    
+    Fixes #53641.
+    
+    Change-Id: I33b5ea5ecaa8c7a56f59c16f9171657ee295db47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415677
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/test/setgid2_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

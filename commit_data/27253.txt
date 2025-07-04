@@ -1,0 +1,19 @@
+commit 01182425f847e4c98a53c60d0994175e21fd06dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 19:54:49 2016 +0000
+
+    strings, bytes: fix Reader 0 byte read at EOF
+    
+    0 byte reads at EOF weren't returning EOF.
+    
+    Change-Id: I19b5fd5a72e83d49566a230ce4067be03f00d14b
+    Reviewed-on: https://go-review.googlesource.com/22740
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/reader.go        |  3 ---
+ src/bytes/reader_test.go   | 11 ++++++-----
+ src/strings/reader.go      |  3 ---
+ src/strings/reader_test.go |  9 +++++----
+ 4 files changed, 11 insertions(+), 15 deletions(-)

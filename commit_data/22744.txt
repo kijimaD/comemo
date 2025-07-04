@@ -1,0 +1,12 @@
+commit cbbe9f63dc58e342ef97a968bedcf863f945c47b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 27 19:28:16 2015 -0400
+
+    doc/go1.5.txt: mention goroutine scheduling change
+    
+    Change-Id: I43a40f0c10472b3126c06b0d4268b32b54665f12
+    Reviewed-on: https://go-review.googlesource.com/9349
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 3 +++
+ 1 file changed, 3 insertions(+)

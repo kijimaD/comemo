@@ -1,0 +1,22 @@
+commit 84bb9e62f06dbb62279241fa0bd7a6c8846271ac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 7 17:43:08 2016 -0700
+
+    runtime: handle selects with duplicate channels in shrinkstack
+    
+    The shrinkstack code locks all the channels a goroutine is waiting for,
+    but didn't handle the case of the same channel appearing in the list
+    multiple times. This led to a deadlock. The channels are sorted so it's
+    easy to avoid locking the same channel twice.
+    
+    Fixes #16286.
+    
+    Change-Id: Ie514805d0532f61c942e85af5b7b8ac405e2ff65
+    Reviewed-on: https://go-review.googlesource.com/24815
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/chan_test.go | 33 +++++++++++++++++++++++++--------
+ src/runtime/stack.go     | 12 ++++++++++--
+ 2 files changed, 35 insertions(+), 10 deletions(-)

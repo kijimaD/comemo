@@ -1,0 +1,16 @@
+commit 835b17c85f62c0e952646ace959510aca6c28568
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 28 12:41:40 2017 -0700
+
+    test: add test for gccgo compiler crash
+    
+    Gccgo crashed compiling a function that returned multiple zero-sized values.
+    
+    Change-Id: I499112cc310e4a4f649962f4d2bc9fee95dee1b6
+    Reviewed-on: https://go-review.googlesource.com/38772
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/gcc80226.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

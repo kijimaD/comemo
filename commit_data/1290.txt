@@ -1,0 +1,14 @@
+commit 73120ee81d2f4755bcbf03ea6b4c127afc141047
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 5 15:18:07 2008 -0800
+
+    use sync.Mutex instead of a channel for locking
+    
+    R=rsc
+    DELTA=12  (3 added, 1 deleted, 8 changed)
+    OCL=20631
+    CL=20634
+
+ src/lib/Makefile        | 2 +-
+ src/lib/reflect/type.go | 9 +++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

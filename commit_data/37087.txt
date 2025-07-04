@@ -1,0 +1,89 @@
+commit ab51b1d63bca0d14fdc477d7938372f51626dc0b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Oct 16 20:06:08 2018 -0400
+
+    crypto/tls: replace custom *block with standard buffers
+    
+    The crypto/tls record layer used a custom buffer implementation with its
+    own semantics, freelist, and offset management. Replace it all with
+    per-task bytes.Buffer, bytes.Reader and byte slices, along with a
+    refactor of all the encrypt and decrypt code.
+    
+    The main quirk of *block was to do a best-effort read past the record
+    boundary, so that if a closeNotify was waiting it would be peeked and
+    surfaced along with the last Read. Address that with atLeastReader and
+    ReadFrom to avoid a useless copy (instead of a LimitReader or CopyN).
+    
+    There was also an optimization to split blocks along record boundary
+    lines without having to copy in and out the data. Replicate that by
+    aliasing c.input into consumed c.rawInput (after an in-place decrypt
+    operation). This is safe because c.rawInput is not used until c.input is
+    drained.
+    
+    The benchmarks are noisy but look like an improvement across the board,
+    which is a nice side effect :)
+    
+    name                                       old time/op   new time/op   delta
+    HandshakeServer/RSA-8                        817µs ± 2%    797µs ± 2%  -2.52%  (p=0.000 n=10+9)
+    HandshakeServer/ECDHE-P256-RSA-8             984µs ±11%    897µs ± 0%  -8.89%  (p=0.000 n=10+9)
+    HandshakeServer/ECDHE-P256-ECDSA-P256-8      206µs ±10%    199µs ± 3%    ~     (p=0.113 n=10+9)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256-8    204µs ± 3%    202µs ± 1%  -1.06%  (p=0.013 n=10+9)
+    HandshakeServer/ECDHE-P521-ECDSA-P521-8     15.5ms ± 0%   15.6ms ± 1%    ~     (p=0.095 n=9+10)
+    Throughput/MaxPacket/1MB-8                  5.35ms ±19%   5.39ms ±36%    ~     (p=1.000 n=9+10)
+    Throughput/MaxPacket/2MB-8                  9.20ms ±15%   8.30ms ± 8%  -9.79%  (p=0.035 n=10+9)
+    Throughput/MaxPacket/4MB-8                  13.8ms ± 7%   13.6ms ± 8%    ~     (p=0.315 n=10+10)
+    Throughput/MaxPacket/8MB-8                  25.1ms ± 3%   23.2ms ± 2%  -7.66%  (p=0.000 n=10+9)
+    Throughput/MaxPacket/16MB-8                 46.9ms ± 1%   43.0ms ± 3%  -8.29%  (p=0.000 n=9+10)
+    Throughput/MaxPacket/32MB-8                 88.9ms ± 2%   82.3ms ± 2%  -7.40%  (p=0.000 n=9+9)
+    Throughput/MaxPacket/64MB-8                  175ms ± 2%    164ms ± 4%  -6.18%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/1MB-8              5.79ms ±26%   5.82ms ±22%    ~     (p=0.912 n=10+10)
+    Throughput/DynamicPacket/2MB-8              9.23ms ±14%   9.50ms ±23%    ~     (p=0.971 n=10+10)
+    Throughput/DynamicPacket/4MB-8              14.5ms ±11%   13.8ms ± 6%  -4.66%  (p=0.019 n=10+10)
+    Throughput/DynamicPacket/8MB-8              25.6ms ± 4%   23.5ms ± 3%  -8.33%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/16MB-8             47.3ms ± 3%   44.6ms ± 7%  -5.65%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/32MB-8             91.9ms ±14%   85.0ms ± 4%  -7.55%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8              177ms ± 2%    168ms ± 4%  -4.97%  (p=0.000 n=8+10)
+    Latency/MaxPacket/200kbps-8                  694ms ± 0%    694ms ± 0%    ~     (p=0.315 n=10+9)
+    Latency/MaxPacket/500kbps-8                  279ms ± 0%    279ms ± 0%    ~     (p=0.447 n=9+10)
+    Latency/MaxPacket/1000kbps-8                 140ms ± 0%    140ms ± 0%    ~     (p=0.661 n=9+10)
+    Latency/MaxPacket/2000kbps-8                71.1ms ± 0%   71.1ms ± 0%  +0.05%  (p=0.019 n=9+9)
+    Latency/MaxPacket/5000kbps-8                30.4ms ± 7%   30.5ms ± 4%    ~     (p=0.720 n=9+10)
+    Latency/DynamicPacket/200kbps-8              134ms ± 0%    134ms ± 0%    ~     (p=0.075 n=10+10)
+    Latency/DynamicPacket/500kbps-8             54.8ms ± 0%   54.8ms ± 0%    ~     (p=0.631 n=10+10)
+    Latency/DynamicPacket/1000kbps-8            28.5ms ± 0%   28.5ms ± 0%    ~     (p=1.000 n=8+8)
+    Latency/DynamicPacket/2000kbps-8            15.7ms ±12%   16.1ms ± 0%    ~     (p=0.109 n=10+7)
+    Latency/DynamicPacket/5000kbps-8            8.20ms ±26%   8.17ms ±13%    ~     (p=1.000 n=9+9)
+    
+    name                                       old speed     new speed     delta
+    Throughput/MaxPacket/1MB-8                 193MB/s ±14%  202MB/s ±30%    ~     (p=0.897 n=8+10)
+    Throughput/MaxPacket/2MB-8                 230MB/s ±14%  249MB/s ±17%    ~     (p=0.089 n=10+10)
+    Throughput/MaxPacket/4MB-8                 304MB/s ± 6%  309MB/s ± 7%    ~     (p=0.315 n=10+10)
+    Throughput/MaxPacket/8MB-8                 334MB/s ± 3%  362MB/s ± 2%  +8.29%  (p=0.000 n=10+9)
+    Throughput/MaxPacket/16MB-8                358MB/s ± 1%  390MB/s ± 3%  +9.08%  (p=0.000 n=9+10)
+    Throughput/MaxPacket/32MB-8                378MB/s ± 2%  408MB/s ± 2%  +8.00%  (p=0.000 n=9+9)
+    Throughput/MaxPacket/64MB-8                384MB/s ± 2%  410MB/s ± 4%  +6.61%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/1MB-8             178MB/s ±24%  182MB/s ±24%    ~     (p=0.604 n=9+10)
+    Throughput/DynamicPacket/2MB-8             228MB/s ±13%  225MB/s ±20%    ~     (p=0.971 n=10+10)
+    Throughput/DynamicPacket/4MB-8             291MB/s ±10%  305MB/s ± 6%  +4.83%  (p=0.019 n=10+10)
+    Throughput/DynamicPacket/8MB-8             327MB/s ± 4%  357MB/s ± 3%  +9.08%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/16MB-8            355MB/s ± 3%  376MB/s ± 6%  +6.07%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/32MB-8            366MB/s ±12%  395MB/s ± 4%  +7.91%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8            380MB/s ± 2%  400MB/s ± 4%  +5.26%  (p=0.000 n=8+10)
+    
+    Note that this reduced the buffer for the first read from 1024 to 5+512,
+    so it triggered the issue described at #24198 when using a synchronous
+    net.Pipe: the first server flight was not being consumed entirely by the
+    first read anymore, causing a deadlock as both the client and the server
+    were trying to send (the client a reply to the ServerHello, the server
+    the rest of the buffer). Fixed by rebasing on top of CL 142817.
+    
+    Change-Id: Ie31b0a572b2ad37878469877798d5c6a5276f931
+    Reviewed-on: https://go-review.googlesource.com/c/142818
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/cipher_suites.go |  30 +-
+ src/crypto/tls/conn.go          | 622 +++++++++++++++++-----------------------
+ src/crypto/tls/tls.go           |  11 +-
+ 3 files changed, 287 insertions(+), 376 deletions(-)

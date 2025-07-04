@@ -1,0 +1,14 @@
+commit 675ba53c7671d5506887eec2a65fabb4cbda0d59
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 09:14:26 2016 -0400
+
+    cmd/go: internal PIE does not need runtime/cgo
+    
+    Part of adding PIE internal linking on linux/amd64.
+    
+    Change-Id: I57f0596cb254cbe6569e4d4e39fe4f48437733f2
+    Reviewed-on: https://go-review.googlesource.com/28544
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/pkg.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

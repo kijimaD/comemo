@@ -1,0 +1,18 @@
+commit ae82ee4016c44e558b002f0c7ffbb40d698d411e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 27 23:30:14 2020 +1100
+
+    runtime: optimise gcWriteBarrier for riscv64
+    
+    Avoid saving unnecessary registers in gcWriteBarrier on riscv64, which also
+    removes references to X4 and X27 (TP and g registers).
+    
+    Change-Id: I2854161dcdf0c6047a45347165371827dcf8c1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265518
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/asm_riscv64.s | 134 ++++++++++++++++++++--------------------------
+ 1 file changed, 59 insertions(+), 75 deletions(-)

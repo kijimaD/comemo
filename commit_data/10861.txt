@@ -1,0 +1,12 @@
+commit 5ede9df5a0905e79a1ed8d2be75d6c4f2e7a1787
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 19 11:16:55 2011 +1100
+
+    encoding/json: examples for Marshal and Unmarshal
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5493075
+
+ src/pkg/encoding/json/example_test.go | 48 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

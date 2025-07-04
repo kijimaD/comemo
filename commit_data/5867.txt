@@ -1,0 +1,12 @@
+commit d34174cfb57568eb4e7df19d51f15e65c638f679
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jul 22 10:15:36 2010 +1000
+
+    build: clean.bash to check that GOOS and GOARCH are set
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1843046
+
+ src/clean.bash | 8 ++++++++
+ 1 file changed, 8 insertions(+)

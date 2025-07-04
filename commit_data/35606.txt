@@ -1,0 +1,16 @@
+commit 6decd3d984dd0bb213837b64ab6870568b33f197
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 5 16:57:49 2018 -0700
+
+    reflect: add StructOf test case that gccgo used to fail
+    
+    Updates #25284
+    
+    Change-Id: I8ca382dd85b428ad6899d9277cf7f3ce34e35e9a
+    Reviewed-on: https://go-review.googlesource.com/116416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/reflect/all_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

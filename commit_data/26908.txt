@@ -1,0 +1,42 @@
+commit 3ea7cfabbb0549d62d524e4ad30cb464af250fde
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Apr 13 08:51:46 2016 -0400
+
+    cmd/compile: sort partitions by dom to speed up cse
+    
+    We do two O(n) scans of all values in an eqclass when computing
+    substitutions for CSE.
+    
+    In unfortunate cases, like those found in #15112, we can have a large
+    eqclass composed of values found in blocks none of whom dominate the
+    other.  This leads to O(n^2) behavior. The elements are removed one at a
+    time, with O(n) scans each time.
+    
+    This CL removes the linear scan by sorting the eqclass so that dominant
+    values will be sorted first.  As long as we also ensure we don't disturb
+    the sort order, then we no longer need to scan for the maximally
+    dominant value.
+    
+    For the code in issue #15112:
+    
+    Before:
+    real    1m26.094s
+    user    1m30.776s
+    sys     0m1.125s
+    
+    Aefter:
+    real    0m52.099s
+    user    0m56.829s
+    sys     0m1.092s
+    
+    Updates #15112
+    
+    Change-Id: Ic4f8680ed172e716232436d31963209c146ef850
+    Reviewed-on: https://go-review.googlesource.com/21981
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/cse.go        | 32 ++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/sparsetree.go | 12 +++++++++++
+ 2 files changed, 33 insertions(+), 11 deletions(-)

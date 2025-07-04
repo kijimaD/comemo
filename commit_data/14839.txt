@@ -1,0 +1,12 @@
+commit 5ca4f5e48384fa9c483d1ed40364940e6cb4e355
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 9 14:45:03 2013 -0800
+
+    cmd/go: get -m options from GOARCH when using gccgo
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7057063
+
+ src/cmd/go/build.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

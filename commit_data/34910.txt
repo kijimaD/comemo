@@ -1,0 +1,25 @@
+commit 954f651ccc2f779a8e570a669a0a89bba53c2789
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Apr 10 22:33:03 2018 +0800
+
+    internal/cpu,runtime: call cpu.initialize before alginit
+    
+    runtime.alginit needs runtime/support_{aes,ssse3,sse41} feature flag
+    to init aeshash function but internal/cpu.init not be called yet.
+    This CL will call internal/cpu.initialize before runtime.alginit, so
+    that we can move all cpu features related code to internal/cpu.
+    
+    Change-Id: I00b8e403ace3553f8c707563d95f27dade0bc853
+    Reviewed-on: https://go-review.googlesource.com/104636
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/internal/cpu/cpu.go                 |  7 +++++++
+ src/internal/cpu/cpu_arm64.go           |  2 +-
+ src/internal/cpu/cpu_no_init.go         | 13 +++++++++++++
+ src/internal/cpu/cpu_x86.go             |  2 +-
+ src/runtime/proc.go                     | 12 ++++++++----
+ 6 files changed, 31 insertions(+), 7 deletions(-)

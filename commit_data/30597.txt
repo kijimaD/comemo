@@ -1,0 +1,23 @@
+commit 29edf0f9feb0e7412788a20e7d8d473270cb9342
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 19 16:09:10 2017 -0500
+
+    runtime: poll libc to deliver signals under TSAN
+    
+    fixes #18717
+    
+    Change-Id: I7244463d2e7489e0b0fe3b74c4b782e71210beb2
+    Reviewed-on: https://go-review.googlesource.com/35494
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  3 +++
+ misc/cgo/testsanitizers/tsan10.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/cgo.go                |  2 ++
+ src/runtime/cgo/callbacks.go      | 10 ++++++++++
+ src/runtime/cgo/gcc_util.c        | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/lock_futex.go         | 19 +++++++++++++++++--
+ src/runtime/lock_sema.go          | 22 ++++++++++++++++++++--
+ src/runtime/proc.go               |  3 +++
+ 8 files changed, 122 insertions(+), 4 deletions(-)

@@ -1,0 +1,33 @@
+commit b37a5391f9e452aa779205add12bd89f44e3fcf0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 13:38:04 2021 -0500
+
+    cmd/link, cmd/go: make version info easier to extract
+    
+    Reading the version information to date has required evaluating
+    two pointers to strings (which themselves contain pointers to data),
+    which means applying relocations, which can be very system-dependent.
+    
+    To simplify the lookup, inline the string data into the build info blob.
+    
+    This makes go version work on binaries built with external linking
+    on darwin/arm64.
+    
+    Also test that at least the very basics work on a trivial binary,
+    even in short mode.
+    
+    Change-Id: I463088c19e837ae0ce57e1278c7b72e74a80b2c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369977
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/modload/build.go   | 35 ++++++++--------------
+ src/cmd/go/internal/work/exec.go       | 10 +++++--
+ src/cmd/go/testdata/script/version.txt | 13 +++++++-
+ src/cmd/link/internal/ld/data.go       | 29 +++++++++++-------
+ src/cmd/link/internal/ld/deadcode.go   |  6 ----
+ src/cmd/link/internal/ld/ld.go         |  6 ++++
+ src/debug/buildinfo/buildinfo.go       | 54 ++++++++++++++++++++++++----------
+ 7 files changed, 93 insertions(+), 60 deletions(-)

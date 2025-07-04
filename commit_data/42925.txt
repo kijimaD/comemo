@@ -1,0 +1,19 @@
+commit 9cf88333e8255155be4e136c572883bb5ad546bd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 12:06:18 2020 +0700
+
+    cmd/compile: consistently use Type.IsUnsafePtr()
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iaeae7cc20e26af733642c7c8c7ca0a059e5b07b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253657
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/escape.go |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go    |  2 +-
+ src/cmd/compile/internal/gc/subr.go   |  4 ++--
+ src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
+ 4 files changed, 11 insertions(+), 11 deletions(-)

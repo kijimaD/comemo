@@ -1,0 +1,13 @@
+commit bb298754abb55b2a44b52cb694d6f4762864e197
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 17:19:09 2015 -0700
+
+    math/big: implement missing special cases for binary operations
+    
+    Change-Id: I9fc12b1a9b1554523e08839c1ff46c8668217ba1
+    Reviewed-on: https://go-review.googlesource.com/8381
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 231 ++++++++++++++++++++++++++-------------------
+ src/math/big/float_test.go |  49 ++++++----
+ 2 files changed, 168 insertions(+), 112 deletions(-)

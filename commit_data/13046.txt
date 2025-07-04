@@ -1,0 +1,65 @@
+commit 738e77aa4fb4daeef3ba8e3db854581e4a10229a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 9 10:02:28 2012 +1000
+
+    compress/testdata: change {e,pi}.txt from 10k to 100k digits.
+    
+    These files change from exactly 10003 bytes long to 100003: a digit,
+    a '.', 100k digits, and a '\n'.
+    
+    The magic constants in compress/flate/deflate_test.go change since
+    deflateInflateStringTests checks that the compressed form of e.txt
+    is not 'too large'. I'm not exactly sure how these numbers were
+    originally calculated (they were introduced in codereview 5554066
+    "make lazy matching work"); perhaps krasin@golang.org can comment.
+    My change was to increase the first one (no compression) to a tight
+    bound, and multiply all the others by 10.
+    
+    Benchcmp numbers for compress/flate and compress/lzw below. LZW's
+    window size of 4096 is less than 10k, so shows no significant change.
+    Flate's window size is 32768, between 10k and 100k, and so the .*1e5
+    and .*1e6 benchmarks show a dramatic drop, since the compressed forms
+    are no longer a trivial forward copy of 10k digits repeated over and
+    over, but should now be more representative of real world usage.
+    
+    compress/flate:
+    benchmark                            old MB/s     new MB/s  speedup
+    BenchmarkDecodeDigitsSpeed1e4           16.58        16.52    1.00x
+    BenchmarkDecodeDigitsSpeed1e5           68.09        18.10    0.27x
+    BenchmarkDecodeDigitsSpeed1e6          124.63        18.35    0.15x
+    BenchmarkDecodeDigitsDefault1e4         17.21        17.12    0.99x
+    BenchmarkDecodeDigitsDefault1e5        118.28        19.19    0.16x
+    BenchmarkDecodeDigitsDefault1e6        295.62        20.52    0.07x
+    BenchmarkDecodeDigitsCompress1e4        17.22        17.17    1.00x
+    BenchmarkDecodeDigitsCompress1e5       118.19        19.21    0.16x
+    BenchmarkDecodeDigitsCompress1e6       295.59        20.55    0.07x
+    BenchmarkEncodeDigitsSpeed1e4            8.18         8.19    1.00x
+    BenchmarkEncodeDigitsSpeed1e5           43.22        12.84    0.30x
+    BenchmarkEncodeDigitsSpeed1e6           80.76        13.48    0.17x
+    BenchmarkEncodeDigitsDefault1e4          6.29         6.19    0.98x
+    BenchmarkEncodeDigitsDefault1e5         31.63         3.60    0.11x
+    BenchmarkEncodeDigitsDefault1e6         52.97         3.24    0.06x
+    BenchmarkEncodeDigitsCompress1e4         6.20         6.19    1.00x
+    BenchmarkEncodeDigitsCompress1e5        31.59         3.59    0.11x
+    BenchmarkEncodeDigitsCompress1e6        53.18         3.25    0.06x
+    
+    compress/lzw:
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkDecoder1e4        21.99        22.09    1.00x
+    BenchmarkDecoder1e5        22.77        22.71    1.00x
+    BenchmarkDecoder1e6        22.90        22.90    1.00x
+    BenchmarkEncoder1e4        21.04        21.19    1.01x
+    BenchmarkEncoder1e5        22.06        22.06    1.00x
+    BenchmarkEncoder1e6        22.16        22.28    1.01x
+    
+    R=rsc
+    CC=golang-dev, krasin
+    https://golang.org/cl/6207043
+
+ src/pkg/compress/flate/deflate_test.go |  2 +-
+ src/pkg/compress/flate/reader_test.go  |  8 --------
+ src/pkg/compress/lzw/reader_test.go    | 12 ++++++++++--
+ src/pkg/compress/lzw/writer_test.go    | 12 ++++++++++--
+ src/pkg/compress/testdata/e.txt        |  2 +-
+ src/pkg/compress/testdata/pi.txt       |  2 +-
+ 6 files changed, 23 insertions(+), 15 deletions(-)

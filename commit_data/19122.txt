@@ -1,0 +1,60 @@
+commit 1d718164840ded483c8a016166a951aad51c1df0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 11:09:25 2014 -0400
+
+    cmd/prof, libmach: delete
+    
+    We have never released cmd/prof and don't plan to.
+    Now that nm, addr2line, and objdump have been rewritten in Go,
+    cmd/prof is the only thing keeping us from deleting libmach.
+    
+    Delete cmd/prof, and then since nothing is using libmach, delete libmach.
+    
+    13,000 lines of C deleted.
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/87020044
+
+ include/bootexec.h         |  169 ---
+ include/mach.h             |  411 --------
+ include/plan9/mach.h       |    5 -
+ include/plan9/ureg_amd64.h |    5 -
+ include/plan9/ureg_arm.h   |    5 -
+ include/plan9/ureg_x86.h   |    5 -
+ include/ureg_amd64.h       |   59 --
+ include/ureg_arm.h         |   50 -
+ include/ureg_x86.h         |   54 -
+ src/cmd/dist/build.c       |   29 -
+ src/cmd/prof/Makefile      |    5 -
+ src/cmd/prof/doc.go        |   49 -
+ src/cmd/prof/main.c        |  905 ----------------
+ src/libmach/5.c            |   92 --
+ src/libmach/5db.c          | 1093 --------------------
+ src/libmach/6.c            |  145 ---
+ src/libmach/8.c            |  108 --
+ src/libmach/8db.c          | 2443 --------------------------------------------
+ src/libmach/Makefile       |    5 -
+ src/libmach/access.c       |  241 -----
+ src/libmach/darwin.c       |  890 ----------------
+ src/libmach/dragonfly.c    |   62 --
+ src/libmach/elf.h          |  182 ----
+ src/libmach/executable.c   | 1525 ---------------------------
+ src/libmach/fakeobj.c      |   29 -
+ src/libmach/freebsd.c      |   62 --
+ src/libmach/linux.c        | 1008 ------------------
+ src/libmach/machdata.c     |  477 ---------
+ src/libmach/macho.h        |  100 --
+ src/libmach/map.c          |  183 ----
+ src/libmach/netbsd.c       |   56 -
+ src/libmach/obj.c          |   77 --
+ src/libmach/obj.h          |   53 -
+ src/libmach/openbsd.c      |   56 -
+ src/libmach/plan9.c        |   72 --
+ src/libmach/setmach.c      |  203 ----
+ src/libmach/solaris.c      |   56 -
+ src/libmach/swap.c         |  107 --
+ src/libmach/sym.c          | 1884 ----------------------------------
+ src/libmach/windows.c      |   87 --
+ 40 files changed, 13047 deletions(-)

@@ -1,0 +1,12 @@
+commit 3bb036958c8487a3f2fb1684dd7eb7278a144d55
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 27 10:46:00 2010 +1100
+
+    gob: package doc fixes.
+    
+    R=r, r2, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/2748041
+
+ src/pkg/gob/doc.go | 76 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 38 insertions(+), 38 deletions(-)

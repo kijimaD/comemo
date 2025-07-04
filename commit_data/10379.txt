@@ -1,0 +1,16 @@
+commit 0a8005c7729951e26a37d17bb42a989f30bb415d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 10:48:26 2011 -0800
+
+    sql: add DB.Close, fix bugs, remove Execer on Driver (only Conn)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5372099
+
+ src/pkg/exp/sql/convert.go       | 15 +++++++++
+ src/pkg/exp/sql/driver/driver.go | 17 +++++-----
+ src/pkg/exp/sql/fakedb_test.go   | 33 ++++++++++++++++++++
+ src/pkg/exp/sql/sql.go           | 67 ++++++++++++++++++++++++++++------------
+ src/pkg/exp/sql/sql_test.go      | 11 +++++++
+ 5 files changed, 117 insertions(+), 26 deletions(-)

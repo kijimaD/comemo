@@ -1,0 +1,14 @@
+commit d270a6794b662db0735b34d244fffb63430aa471
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 10:45:50 2015 -0500
+
+    runtime: disable gdb test when a GOROOT_FINAL move is pending
+    
+    Fixes #13577.
+    
+    Change-Id: I0bb8157d6210b0c7c09380c2163b7d7349495732
+    Reviewed-on: https://go-review.googlesource.com/17970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

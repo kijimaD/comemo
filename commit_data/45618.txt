@@ -1,0 +1,23 @@
+commit 485474d204297ce9ff2b7f6c2a2b0e048c61fb8e
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed May 12 15:16:20 2021 +0200
+
+    cmd/go/testdata/script: fix test failing on nocgo builders
+    
+    The regression test introduced in https://golang.org/cl/318770 broke the
+    the nocgo builders.
+    
+    Update the cgo package used in the test to ensure that it can be build
+    both with cgo enabled and disabled.
+    
+    Change-Id: Iab0486f0b85ac5e5a22fdf8a1998edd50cbb4d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319210
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/list_find_nodeps.txt | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

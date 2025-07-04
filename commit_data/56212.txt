@@ -1,0 +1,16 @@
+commit b1ae67501af6385856fe2d8812c030f34c69e55c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 5 14:56:54 2024 -0800
+
+    doc: fix tense in godebug (s/revert/reverted)
+    
+    Change-Id: Ida6ed22102a6da36739c7581aeab297fdd7bc9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561715
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

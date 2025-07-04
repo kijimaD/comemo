@@ -1,0 +1,12 @@
+commit 3e981d9830215632d2a34e68273cb4452b9e6ffc
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Mar 14 23:53:31 2015 +1100
+
+    doc: note removal of dragonfly/386 port
+    
+    Change-Id: Ibb7e4f6b95b7a9782a47221cafbe4f20dd77fd38
+    Reviewed-on: https://go-review.googlesource.com/7583
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.5.txt | 3 +++
+ 1 file changed, 3 insertions(+)

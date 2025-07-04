@@ -1,0 +1,15 @@
+commit 1b3c969ac36221dc171b0b3f169237fa1507b1e6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 11 16:23:06 2013 -0700
+
+    regexp: identify that submatch is also known as capturing group
+    Mention the syntax is defined by the regexp/syntax package.
+    Fixes #3953.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7702044
+
+ src/pkg/regexp/regexp.go     | 12 +++++++-----
+ src/pkg/regexp/syntax/doc.go |  6 +++---
+ 2 files changed, 10 insertions(+), 8 deletions(-)

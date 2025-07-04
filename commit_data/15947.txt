@@ -1,0 +1,16 @@
+commit 94599ea745f46d2645c12481faad930084e94546
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 26 20:25:43 2013 +0400
+
+    runtime: does not report duplicate errors in netpoll
+    Prevents storm of error messages if something goes wrong.
+    In the case of issue 5073 the epoll fd was closed by the test.
+    Update #5073.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/7966043
+
+ src/pkg/runtime/netpoll_epoll.c  | 7 +++++--
+ src/pkg/runtime/netpoll_kqueue.c | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

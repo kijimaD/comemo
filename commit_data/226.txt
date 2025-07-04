@@ -1,0 +1,11 @@
+commit 0ece7d470ff88e95cc80c12a5cabc34626e8f198
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 14:05:38 2008 -0700
+
+    add new bug: can't compile a, b := sys.frexp(1.0)
+    
+    SVN=124622
+
+ test/bugs/bug056.go | 21 +++++++++++++++++++++
+ test/golden.out     |  6 ++++++
+ 2 files changed, 27 insertions(+)

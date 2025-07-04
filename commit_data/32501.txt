@@ -1,0 +1,19 @@
+commit 9e7b30b463bf6834f9ff01a33b60508984c47d20
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Jun 21 21:58:42 2017 -0400
+
+    net/http: Set a timeout on Request.Context when using TimeoutHandler
+    
+    In TimeoutHandler, use a request whose context has been configured with
+    the handler's timeout
+    
+    Fixes #20712
+    
+    Change-Id: Ie670148f85fdad46841ff29232042309e15665ae
+    Reviewed-on: https://go-review.googlesource.com/46412
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/export_test.go |  7 ++++++-
+ src/net/http/server.go      | 20 +++++++++-----------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

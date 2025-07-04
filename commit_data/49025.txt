@@ -1,0 +1,18 @@
+commit 0bd7408f901f33c6f0a5a542f8de6bf17c901e79
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed May 4 18:39:26 2022 +0700
+
+    cmd/compile: fix static init of literal contains dynamic exprs
+    
+    Fixes #52673
+    
+    Change-Id: Ib2faa5a669c05778fc6beb38c3e63d558af9b2be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/walk/complit.go | 11 ++++++++++-
+ test/fixedbugs/issue52673.go             | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

@@ -1,0 +1,92 @@
+commit 3fca7306f44b49d64a65b9795eba62bfd71d7ba2
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Thu Feb 15 07:40:44 2018 +0100
+
+    cmd/compile: optimize scope tracking
+    
+    1. Detect and remove the markers of lexical scopes that don't contain
+    any variables early in noder, instead of waiting until the end of DWARF
+    generation.
+    This saves memory by never allocating some of the markers and optimizes
+    some of the algorithms that depend on the number of scopes.
+    
+    2. Assign scopes to Progs by doing, for each Prog, a binary search over
+    the markers array. This is faster, compared to sorting the Prog list
+    because there are fewer markers than there are Progs.
+    
+    completed   15 of   15, estimated time remaining 0s (eta 2:30PM)
+    name        old time/op       new time/op       delta
+    Template          274ms ± 5%        260ms ± 6%  -4.91%  (p=0.000 n=15+15)
+    Unicode           126ms ± 5%        127ms ± 9%    ~     (p=0.856 n=13+15)
+    GoTypes           861ms ± 5%        857ms ± 4%    ~     (p=0.595 n=15+15)
+    Compiler          4.11s ± 4%        4.12s ± 5%    ~     (p=1.000 n=15+15)
+    SSA               10.7s ± 2%        10.9s ± 4%  +2.01%  (p=0.002 n=14+14)
+    Flate             163ms ± 4%        166ms ± 9%    ~     (p=0.134 n=14+15)
+    GoParser          203ms ± 4%        205ms ± 6%    ~     (p=0.461 n=15+15)
+    Reflect           544ms ± 5%        549ms ± 4%    ~     (p=0.174 n=15+15)
+    Tar               249ms ± 9%        245ms ± 6%    ~     (p=0.285 n=15+15)
+    XML               286ms ± 4%        291ms ± 5%    ~     (p=0.081 n=15+15)
+    [Geo mean]        528ms             529ms       +0.14%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          358ms ± 7%        354ms ± 5%    ~     (p=0.242 n=14+15)
+    Unicode           189ms ±11%        191ms ±10%    ~     (p=0.438 n=15+15)
+    GoTypes           1.15s ± 4%        1.14s ± 3%    ~     (p=0.405 n=15+15)
+    Compiler          5.36s ± 6%        5.35s ± 5%    ~     (p=0.588 n=15+15)
+    SSA               14.6s ± 3%        15.0s ± 4%  +2.58%  (p=0.000 n=15+15)
+    Flate             214ms ±12%        216ms ± 8%    ~     (p=0.539 n=15+15)
+    GoParser          267ms ± 6%        270ms ± 5%    ~     (p=0.569 n=15+15)
+    Reflect           712ms ± 5%        709ms ± 4%    ~     (p=0.894 n=15+15)
+    Tar               329ms ± 8%        330ms ± 5%    ~     (p=0.974 n=14+15)
+    XML               371ms ± 3%        381ms ± 5%  +2.85%  (p=0.002 n=13+15)
+    [Geo mean]        705ms             709ms       +0.62%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.0MB ± 0%       38.4MB ± 0%  +1.27%  (p=0.000 n=15+14)
+    Unicode          28.8MB ± 0%       28.8MB ± 0%  +0.16%  (p=0.000 n=15+14)
+    GoTypes           112MB ± 0%        114MB ± 0%  +1.64%  (p=0.000 n=15+15)
+    Compiler          465MB ± 0%        474MB ± 0%  +1.91%  (p=0.000 n=15+15)
+    SSA              1.48GB ± 0%       1.53GB ± 0%  +3.32%  (p=0.000 n=15+15)
+    Flate            24.3MB ± 0%       24.8MB ± 0%  +1.77%  (p=0.000 n=14+15)
+    GoParser         30.7MB ± 0%       31.1MB ± 0%  +1.27%  (p=0.000 n=15+15)
+    Reflect          76.3MB ± 0%       77.1MB ± 0%  +1.03%  (p=0.000 n=15+15)
+    Tar              39.2MB ± 0%       39.6MB ± 0%  +1.02%  (p=0.000 n=13+15)
+    XML              41.5MB ± 0%       42.1MB ± 0%  +1.45%  (p=0.000 n=15+15)
+    [Geo mean]       77.5MB            78.7MB       +1.48%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           385k ± 0%         387k ± 0%  +0.54%  (p=0.000 n=15+15)
+    Unicode            342k ± 0%         343k ± 0%  +0.10%  (p=0.000 n=15+15)
+    GoTypes           1.19M ± 0%        1.19M ± 0%  +0.64%  (p=0.000 n=14+15)
+    Compiler          4.51M ± 0%        4.54M ± 0%  +0.53%  (p=0.000 n=15+15)
+    SSA               12.2M ± 0%        12.4M ± 0%  +1.16%  (p=0.000 n=15+15)
+    Flate              234k ± 0%         236k ± 0%  +0.63%  (p=0.000 n=14+15)
+    GoParser           318k ± 0%         320k ± 0%  +0.63%  (p=0.000 n=15+15)
+    Reflect            974k ± 0%         977k ± 0%  +0.28%  (p=0.000 n=15+15)
+    Tar                395k ± 0%         397k ± 0%  +0.38%  (p=0.000 n=15+13)
+    XML                404k ± 0%         407k ± 0%  +0.55%  (p=0.000 n=15+15)
+    [Geo mean]         794k              799k       +0.55%
+    
+    name        old text-bytes    new text-bytes    delta
+    HelloSize         680kB ± 0%        680kB ± 0%    ~     (all equal)
+    
+    name        old data-bytes    new data-bytes    delta
+    HelloSize        9.62kB ± 0%       9.62kB ± 0%    ~     (all equal)
+    
+    name        old bss-bytes     new bss-bytes     delta
+    HelloSize         125kB ± 0%        125kB ± 0%    ~     (all equal)
+    
+    name        old exe-bytes     new exe-bytes     delta
+    HelloSize        1.11MB ± 0%       1.12MB ± 0%  +1.11%  (p=0.000 n=15+15)
+    
+    Change-Id: I95a0173ee28c52be1a4851d2a6e389529e74bf28
+    Reviewed-on: https://go-review.googlesource.com/95396
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 39 +++++++++++++++++++++++++++++------
+ src/cmd/compile/internal/gc/scope.go | 40 +++---------------------------------
+ src/cmd/internal/dwarf/dwarf.go      |  6 ++++++
+ 3 files changed, 42 insertions(+), 43 deletions(-)

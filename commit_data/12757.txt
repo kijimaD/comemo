@@ -1,0 +1,12 @@
+commit fd9c206718484ace00515f1ed3757c5a0dce8887
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 10:10:25 2012 +1100
+
+    cmd/godoc: fix app engine version
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5902060
+
+ src/cmd/godoc/appinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

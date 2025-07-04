@@ -1,0 +1,30 @@
+commit 198440cc3d3453d349fbc7894a5d91dd7b16e6a0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 16 11:47:36 2018 -0400
+
+    runtime: remove GODEBUG=gcrescanstacks=1 mode
+    
+    Currently, setting GODEBUG=gcrescanstacks=1 enables a debugging mode
+    where the garbage collector re-scans goroutine stacks during mark
+    termination. This was introduced in Go 1.8 to debug the hybrid write
+    barrier, but I don't think we ever used it.
+    
+    Now it's one of the last sources of mark work during mark termination.
+    This CL removes it.
+    
+    Updates #26903. This is preparation for unifying STW GC and concurrent
+    GC.
+    
+    Updates #17503.
+    
+    Change-Id: I6ae04d3738aa9c448e6e206e21857a33ecd12acf
+    Reviewed-on: https://go-review.googlesource.com/c/134777
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/extern.go   |  5 -----
+ src/runtime/mgc.go      |  2 +-
+ src/runtime/mgcmark.go  | 22 ++++------------------
+ src/runtime/runtime1.go |  2 --
+ 4 files changed, 5 insertions(+), 26 deletions(-)

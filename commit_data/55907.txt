@@ -1,0 +1,18 @@
+commit a18aa0e3d14271659398648a49e54683ded4456c
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Mon Mar 11 23:28:30 2024 +0900
+
+    all: gofmt
+    
+    These files are not formatted by gofmt. Thus, run gofmt to format them.
+    
+    Change-Id: Iea9650e64b1f47cf82739f3a8a34f47740a96455
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570398
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/transition.go | 2 +-
+ src/net/netip/slow_test.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

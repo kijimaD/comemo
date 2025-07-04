@@ -1,0 +1,14 @@
+commit 543acc97f95a6453729d44bddf49647308ce660c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 18:17:14 2011 -0400
+
+    testing: add -test.cpuprofile flag
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4272066
+
+ src/cmd/gotest/gotest      |  3 +--
+ src/cmd/prof/gopprof       |  5 +++--
+ src/pkg/testing/testing.go | 48 +++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 39 insertions(+), 17 deletions(-)

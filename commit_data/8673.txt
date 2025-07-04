@@ -1,0 +1,30 @@
+commit 3e57d7f7bf9b99d8010ebb4ec8231bafbba1adad
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 18:07:56 2011 -0400
+
+    5l: delete dead code
+    
+    Thumb code and ARM pre-V4 code is unused,
+    unmaintained, and almost certainly wrong by now.
+    Every time I try to change 5l I have to sort out
+    what's dead code and what's not.
+    
+    30% of lines of code in this directory deleted.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4601049
+
+ src/cmd/5l/5.out.h  |    2 -
+ src/cmd/5l/Makefile |    1 -
+ src/cmd/5l/asm.c    |   83 +--
+ src/cmd/5l/l.h      |   25 -
+ src/cmd/5l/list.c   |    7 -
+ src/cmd/5l/noop.c   |  385 +-----------
+ src/cmd/5l/obj.c    |   27 +-
+ src/cmd/5l/optab.c  |   57 +-
+ src/cmd/5l/pass.c   |   20 -
+ src/cmd/5l/prof.c   |    9 +-
+ src/cmd/5l/span.c   |  232 +------
+ src/cmd/5l/thumb.c  | 1658 ---------------------------------------------------
+ 12 files changed, 74 insertions(+), 2432 deletions(-)

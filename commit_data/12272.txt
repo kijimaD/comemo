@@ -1,0 +1,12 @@
+commit da633714fd14bbb52ef10bad8bc4c354305118ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 29 09:06:05 2012 -0800
+
+    spec: fix sentence
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5706065
+
+ doc/go_spec.html | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

@@ -1,0 +1,22 @@
+commit c68745b1308b7610217dce3683e2c48e04a3392c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 10 15:32:59 2020 +0000
+
+    runtime: add lock rank partial order edge sweep -> mspanSpecial
+    
+    This change adds a missing partial order edge. The edge captures the
+    case where the background sweeper handles some specials (i.e. finalizers
+    or memory profile sampling) and is otherwise correct.
+    
+    Fixes #42472.
+    
+    Change-Id: Ic45f6cc1635fd3d6bc6c91ff6f64d436088cef33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268857
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

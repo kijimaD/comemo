@@ -1,0 +1,15 @@
+commit 4edd78d9f8322f3627dbdc83775bf2134502a1ef
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 17 16:58:56 2019 +0000
+
+    doc/go1.14.html: add some TODOs about various ports
+    
+    Updates #15581
+    Updates #34368
+    
+    Change-Id: Ife3be7ed484cbe87960bf972ac701954d86127d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201740
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit d1cc7f70cdd4c99e821165b0e773e748a438f5b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 13:35:12 2016 -0800
+
+    cmd/compile: give informative error instead of "stupid shift"
+    
+    Fixes #13940.
+    
+    Change-Id: I00fe377c949e5be4cbc035f6ca18e547e326bfba
+    Reviewed-on: https://go-review.googlesource.com/19856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/mparith2.go | 8 ++++++--
+ test/fixedbugs/bug108.go                | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

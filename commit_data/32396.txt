@@ -1,0 +1,20 @@
+commit eccd3ef526956ab404b8b4a724a9a3862c77f457
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 17:46:03 2017 -0700
+
+    cmd/go: -buildmode=pie forces external linking mode on all systems
+    
+    The go tool assumed that -buildmode=pie implied internal linking on
+    linux-amd64. However, that was changed by CL 36417 for issue #18968.
+    
+    Fixes #21452
+    
+    Change-Id: I8ed13aea52959cc5c53223f4c41ba35329445545
+    Reviewed-on: https://go-review.googlesource.com/57231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

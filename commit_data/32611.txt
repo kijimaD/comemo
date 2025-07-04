@@ -1,0 +1,18 @@
+commit 9c3f2685589e05c21563c583b683d00703eb0090
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 14:31:13 2017 +0200
+
+    cmd/compile: set hiter type for map iterator in order pass
+    
+    Previously the type was first set to uint8 and then corrected
+    later in walkrange.
+    
+    Change-Id: I9e4b597710e8a5fad39dde035df85676bc8d2874
+    Reviewed-on: https://go-review.googlesource.com/61032
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 5 +++--
+ src/cmd/compile/internal/gc/range.go | 3 +--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 46e74660800f51876adc7c9a9789e1f39dffe385
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 19:52:59 2011 -0400
+
+    exp/regexp/syntax: compiled form
+    
+    R=r, sam.thorogood, kevlar
+    CC=golang-dev, rsc
+    https://golang.org/cl/4636046
+
+ src/pkg/exp/regexp/syntax/Makefile     |   2 +
+ src/pkg/exp/regexp/syntax/compile.go   | 264 +++++++++++++++++++++++++++++++++
+ src/pkg/exp/regexp/syntax/prog.go      | 182 +++++++++++++++++++++++
+ src/pkg/exp/regexp/syntax/prog_test.go |  91 ++++++++++++
+ 4 files changed, 539 insertions(+)

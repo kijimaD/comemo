@@ -1,0 +1,23 @@
+commit ddf3a1cd6d4c7e51e1a5b08f0320f86e5bc1c355
+Author: Rami <72725910+ramikg@users.noreply.github.com>
+Date:   Sun Jul 16 10:25:40 2023 +0000
+
+    os: remove executable bits from os.OpenFile example
+    
+    The mode used in the os.OpenFile example (0755) has all executable bits set.
+    I suspect that this ill-advised usage propagates to other codebases (by means of people carelessly copying the usage example), which is why I suggest modifying the example.
+    
+    Change-Id: Ic36c8b41974f3fe00471822c2414e36b4e5dc1bc
+    GitHub-Last-Rev: 638f3beefe8926c8e5c2c4ab9a1a5899e55de892
+    GitHub-Pull-Request: golang/go#61384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510135
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

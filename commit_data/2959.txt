@@ -1,0 +1,23 @@
+commit 57a9bd0ee3e0daaef6bc69f40436463afd855968
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 16:14:53 2009 -0700
+
+    change gotype in symbol table from
+    character string to machine address.
+    not filled in, just carved out.
+    
+    R=austin
+    DELTA=77  (11 added, 34 deleted, 32 changed)
+    OCL=33122
+    CL=33124
+
+ include/mach_amd64.h     |  2 +-
+ src/cmd/6l/l.h           |  2 +-
+ src/cmd/6l/span.c        | 15 ++++++---------
+ src/cmd/8l/l.h           |  2 +-
+ src/cmd/8l/span.c        | 27 +++++++++++----------------
+ src/cmd/ld/go.c          |  5 ++++-
+ src/cmd/nm/nm.c          |  4 ++--
+ src/libmach_amd64/sym.c  | 38 ++++++++++++--------------------------
+ src/pkg/runtime/symtab.c |  8 ++------
+ 9 files changed, 40 insertions(+), 63 deletions(-)

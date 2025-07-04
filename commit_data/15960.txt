@@ -1,0 +1,25 @@
+commit 12cf2ff00ba0a0816c1e572dae1476341f0bf3ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 26 18:28:16 2013 -0700
+
+    godoc: pass *PageInfos instead of *token.FileSets in templates
+    
+    - convert all formatters that require a *token.FileSet to
+      consistenly use a *PageInfo as first argument instead
+    - adjust templates correspondingly
+    - fix outstanding bug from previous CL 8005044
+    
+    Going forward, with this change the affected functions have
+    access to the full page "context" (PageInfo), not just the
+    respective file set. This will permit better context-dependent
+    formatting in the future.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7860049
+
+ lib/godoc/package.html | 42 +++++++++++++++++++++---------------------
+ lib/godoc/package.txt  | 28 ++++++++++++++--------------
+ src/cmd/godoc/godoc.go | 49 ++++++++++++++++++++++---------------------------
+ src/cmd/godoc/main.go  |  4 ++--
+ 4 files changed, 59 insertions(+), 64 deletions(-)

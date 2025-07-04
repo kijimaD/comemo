@@ -1,0 +1,22 @@
+commit 974d5364a643e107c4dea1df20293c67c32bfc04
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 20:05:44 2018 -0400
+
+    cmd/go: ignore import "C" files in module loader in non-cgo mode
+    
+    Obviously, including files that import "C" when cgo is disabled is wrong.
+    The package load step correctly excludes them and finds no files at all,
+    which then causes a failure.
+    
+    Fixes #26927.
+    
+    Change-Id: I00e6d6450e783d467d20bde99e91240ecb0db837
+    Reviewed-on: https://go-review.googlesource.com/129062
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/cmd/go/internal/imports/scan.go         | 7 +++++++
+ src/cmd/go/testdata/script/mod_patterns.txt | 4 ++++
+ 2 files changed, 11 insertions(+)

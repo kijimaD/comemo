@@ -1,0 +1,22 @@
+commit 6a64f6dc31b3038187ce9246bdf438be9cc94bae
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Nov 24 12:58:21 2020 -0500
+
+    cmd/go: encode backslash and newline in response files
+    
+    Fixes #42295
+    
+    Change-Id: Ie324bc99a74c1d864c6c2da2e7b929b338c2e033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272870
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                 | 25 ++++++++++
+ src/cmd/go/internal/work/exec.go      | 36 ++++++++++++---
+ src/cmd/go/internal/work/exec_test.go | 86 +++++++++++++++++++++++++++++++++++
+ src/cmd/internal/objabi/flag.go       | 39 ++++++++++++++++
+ src/cmd/internal/objabi/flag_test.go  | 26 +++++++++++
+ 5 files changed, 206 insertions(+), 6 deletions(-)

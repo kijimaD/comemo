@@ -1,0 +1,19 @@
+commit 1b37ba931f383597c8159bb88f5733dfd54dda9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 3 13:24:32 2013 -0700
+
+    math/big: minor cleanups
+    
+    - comment fixes
+    - s/z/x/ in (*rat).Float64 to match convention for functions
+      returning a non-*Rat
+    - minor test output tweaking
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8327044
+
+ src/pkg/math/big/int.go      | 12 +++---------
+ src/pkg/math/big/rat.go      | 14 +++++++-------
+ src/pkg/math/big/rat_test.go | 10 +++-------
+ 3 files changed, 13 insertions(+), 23 deletions(-)

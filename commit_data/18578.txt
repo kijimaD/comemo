@@ -1,0 +1,14 @@
+commit 00b76713a7ba9182e9dfc29dcc37e94d000703b8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 16:12:05 2014 -0800
+
+    cmd/pack: another attempt to fix the build for TestHello
+    Plan 9 uses single quotes, not double quotes. I should have known.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/66240043
+
+ src/cmd/pack/pack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

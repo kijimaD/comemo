@@ -1,0 +1,39 @@
+commit 5dd372bd1e70949a432d9b7b8b021d13abf584d1
+Author: Blake Gentry <blakesgentry@gmail.com>
+Date:   Thu Jan 22 15:58:25 2015 -0800
+
+    net/http: retry idempotent HTTP reqs on dead reused conns
+    
+    If we try to reuse a connection that the server is in the process of
+    closing, we may end up successfully writing out our request (or a
+    portion of our request) only to find a connection error when we try to
+    read from (or finish writing to) the socket. This manifests as an EOF
+    returned from the Transport's RoundTrip.
+    
+    The issue, among others, is described in #4677.
+    
+    This change follows some of the Chromium guidelines for retrying
+    idempotent requests only when the connection has been already been used
+    successfully and no header data has yet been received for the response.
+    
+    As part of this change, an unexported error was defined for
+    errMissingHost, which was previously defined inline. errMissingHost is
+    the only non-network error returned from a Request's Write() method.
+    
+    Additionally, this breaks TestLinuxSendfile because its test server
+    explicitly triggers the type of scenario this change is meant to retry
+    on. Because that test server stops accepting conns on the test listener
+    before the retry, the test would time out. To fix this, the test was
+    altered to use a non-idempotent test type (POST).
+    
+    Change-Id: I1ca630b944f0ed7ec1d3d46056a50fb959481a16
+    Reviewed-on: https://go-review.googlesource.com/3210
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go    |   5 ++
+ src/net/http/fs_test.go        |   2 +-
+ src/net/http/request.go        |  14 ++++-
+ src/net/http/transport.go      | 128 ++++++++++++++++++++++++++++++++++-------
+ src/net/http/transport_test.go |  74 ++++++++++++++++++++++++
+ 5 files changed, 199 insertions(+), 24 deletions(-)

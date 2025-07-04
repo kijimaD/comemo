@@ -1,0 +1,17 @@
+commit f9acd3918e5eb8819f8f5e9697af55f395a1074d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 25 13:42:49 2016 -0700
+
+    net/http, cmd/compile: minor vet fixes
+    
+    Updates #11041
+    
+    Change-Id: Ia0151723e3bc0d163cc687a02bfc5e0285d95ffa
+    Reviewed-on: https://go-review.googlesource.com/27810
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/scanner_test.go | 2 +-
+ src/net/http/httptrace/example_test.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

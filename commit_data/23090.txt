@@ -1,0 +1,36 @@
+commit a1c1a763bc7c8d10ec30a7fa60ecf7d5f9a6f1c8
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Thu May 14 22:36:59 2015 +0000
+
+    html/template: fix string iteration in replacement operations
+    
+    In css, js, and html, the replacement operations are implemented
+    by iterating on strings (rune by rune). The for/range
+    statement is used. The length of the rune is required
+    and added to the index to properly slice the string.
+    
+    This is potentially wrong because there is a discrepancy between
+    the result of utf8.RuneLen and the increment of the index
+    (set by the for/range statement). For invalid strings,
+    utf8.RuneLen('\ufffd') == 3, while the index is incremented
+    only by 1 byte.
+    
+    htmlReplacer triggers a panic at slicing time for some
+    invalid strings.
+    
+    Use a more robust iteration mechanism based on
+    utf8.DecodeRuneInString, and make sure the same
+    pattern is used for all similar functions in this
+    package.
+    
+    Fixes #10799
+    
+    Change-Id: Ibad3857b2819435d9fa564f06fc2ca8774102841
+    Reviewed-on: https://go-review.googlesource.com/10105
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/css.go       | 76 ++++++++++++++++++------------------------
+ src/html/template/html.go      | 13 +++++---
+ src/html/template/html_test.go |  9 +++--
+ src/html/template/js.go        |  8 +++--
+ 4 files changed, 51 insertions(+), 55 deletions(-)

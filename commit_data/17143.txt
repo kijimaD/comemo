@@ -1,0 +1,17 @@
+commit db84a450d7648fde9324f974f2c2b40dd4044704
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 10 09:46:22 2013 +0900
+
+    net: move InvalidAddrError type into net.go
+    
+    Probably we should remove this type before Go 1 contract has settled,
+    but too late. Instead, keep InvalidAddrError close to package generic
+    error types.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12670044
+
+ src/pkg/net/ipsock.go | 6 ------
+ src/pkg/net/net.go    | 6 ++++++
+ 2 files changed, 6 insertions(+), 6 deletions(-)

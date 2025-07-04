@@ -1,0 +1,21 @@
+commit 8298c545f384a6256962cb699f0c78306380279e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu May 5 10:20:09 2022 -0700
+
+    reflect: fix stale Value.Pointer comment
+    
+    The comment claims that reflect users cannot obtain an unsafe.Pointer
+    without also importing the unsafe package explicitly.
+    This is no longer true now that the Value.UnsafePointer method
+    directly returns an unsafe.Pointer.
+    
+    Change-Id: Ia5bf2e8aead681c8fac5b011129954d075ae5a43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404396
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/reflect/value.go | 4 ----
+ 1 file changed, 4 deletions(-)

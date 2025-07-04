@@ -1,0 +1,13 @@
+commit 22b93dfb5ca5489aedad65f1fe9332e8be3ba382
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 09:22:38 2009 -0700
+
+    now that we have a separate indirection test, simplify the scalar tests.
+    
+    R=rsc
+    DELTA=562  (8 added, 424 deleted, 130 changed)
+    OCL=31039
+    CL=31045
+
+ src/pkg/gob/codec_test.go | 578 +++++++---------------------------------------
+ 1 file changed, 81 insertions(+), 497 deletions(-)

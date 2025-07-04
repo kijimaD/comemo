@@ -1,0 +1,40 @@
+commit 6c13a1db2ebe146fec7cc7261146ca0e8420f011
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 3 16:58:34 2016 -0700
+
+    runtime: don't call cgocallback from signal handler
+    
+    Calling cgocallback from a signal handler can fail when using the race
+    detector. Calling cgocallback will lead to a call to newextram which
+    will call oneNewExtraM which will call racegostart. The racegostart
+    function will set up some race detector data structures, and doing that
+    will sometimes call the C memory allocator. If we are running the signal
+    handler from a signal that interrupted the C memory allocator, we will
+    crash or hang.
+    
+    Instead, change the signal handler code to call needm and dropm. The
+    needm function will grab allocated m and g structures and initialize the
+    g to use the current stack--the signal stack. That is all we need to
+    safely call code that allocates memory and checks whether it needs to
+    split the stack. This may temporarily leave us with no m available to
+    run a cgo callback, but that is OK in this case since the code we call
+    will quickly either crash or call dropm to return the m.
+    
+    Implementing this required changing some of the setSignalstackSP
+    functions to avoid a write barrier. These functions never need a write
+    barrier but in some cases generated one anyhow because on some systems
+    the ss_sp field is a pointer.
+    
+    Change-Id: I3893f47c3a66278f85eab7f94c1ab11d4f3be133
+    Reviewed-on: https://go-review.googlesource.com/30218
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/crash_cgo_test.go               |  29 ++++++++
+ src/runtime/os3_solaris.go                  |   2 +-
+ src/runtime/os_darwin.go                    |   2 +-
+ src/runtime/os_linux.go                     |   2 +-
+ src/runtime/signal_unix.go                  |  16 +++--
+ src/runtime/testdata/testprogcgo/racesig.go | 102 ++++++++++++++++++++++++++++
+ 6 files changed, 143 insertions(+), 10 deletions(-)

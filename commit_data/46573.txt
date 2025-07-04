@@ -1,0 +1,38 @@
+commit ddb5a42b25c63df9f11669bd4b14eeebcd2ba2bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 21:57:19 2021 -0700
+
+    cmd/compile/internal/types2: avoid "declared but not used" errors for invalid code
+    
+    Agressively mark all LHS variables in assignments as used if there
+    is any error in the (entire) assignment. This reduces the number of
+    spurious "declared but not used" errors in programs that are invalid
+    in the first place. This behavior is closer to the behavior of the
+    compiler's original type checker (types1) and lets us remove lines
+    of the form "_ = variable" just to satisfy test cases. It also makes
+    more important errors visible by not crowding them out.
+    
+    Remove the Checker.useLHS function and use Checker.use instead:
+    useLHS didn't evaluate top-level variables, but we actually want
+    them to be evaluated in an error scenario so that they are getting
+    used (and thus we don't get the "declared but not used" error).
+    
+    Fixes #42937.
+    
+    Change-Id: Idda460f6b81c66735bf9fd597c54188949bf12b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351730
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 39 ++++++++++++++++++---
+ src/cmd/compile/internal/types2/call.go        | 48 ++++++--------------------
+ src/cmd/compile/internal/types2/stmt.go        |  3 --
+ test/fixedbugs/bug062.go                       |  3 +-
+ test/fixedbugs/bug131.go                       |  5 ++-
+ test/fixedbugs/bug175.go                       |  3 +-
+ test/fixedbugs/bug289.go                       | 10 ++----
+ test/fixedbugs/issue9083.go                    | 12 +++----
+ test/interface/pointer.go                      |  5 +--
+ 9 files changed, 57 insertions(+), 71 deletions(-)

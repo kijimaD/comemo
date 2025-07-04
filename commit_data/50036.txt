@@ -1,0 +1,21 @@
+commit 5f0170f9a529c7113ac12f1270e00e5bdc444803
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Thu Aug 18 11:02:38 2022 +0200
+
+    bytes, strings: s/after/before/ in CutSuffix
+    
+    This follows on CL 407176 which added this function (in both
+    packages). This CL makes it consistent with the Cut function,
+    which uses “before” and “after” in return variable names.
+    
+    Change-Id: Id4345d2fe0f50bf301a880803e87bf356986b518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424922
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/bytes.go     | 2 +-
+ src/strings/strings.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

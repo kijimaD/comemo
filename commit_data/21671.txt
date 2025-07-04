@@ -1,0 +1,12 @@
+commit ea1306a150bb3ea465dcfad83c1619d9bab943bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 20:42:09 2015 -0500
+
+    doc: dummy commit in go1.5.txt
+    
+    Change-Id: I678336daf99f7d7d19f99506f1a604de8e05bf43
+    Reviewed-on: https://go-review.googlesource.com/5400
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

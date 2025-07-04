@@ -1,0 +1,24 @@
+commit c80cedec9378b0a1cd5cb400e179bb25e2e7f810
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sun Apr 23 11:23:53 2023 -0400
+
+    testing/slogtest: tests for slog handlers
+    
+    Add a package for testing that a slog.Handler implementation
+    satisfies that interface's documented requirements.
+    
+    Code copied from x/exp/slog/slogtest.
+    
+    Updates #56345.
+    
+    Change-Id: I89e94d93bfbe58e3c524758f7ac3c3fba2a2ea96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ api/next/56345.txt                   |   2 +-
+ src/go/build/deps_test.go            |   3 +
+ src/testing/slogtest/example_test.go |  44 +++++
+ src/testing/slogtest/slogtest.go     | 308 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 356 insertions(+), 1 deletion(-)

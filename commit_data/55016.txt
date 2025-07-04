@@ -1,0 +1,28 @@
+commit b9a08f159d3074ad5921a9d8625b267b64d957bc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 15 13:02:11 2023 -0500
+
+    cmd/go: propagate origin information for inexact module queries
+    
+    Module queries for "@latest" and inexact constraints (like "@v1.3")
+    may consult information about tags and/or branches before finally
+    returning either a result or an error.
+    
+    To correctly invalidate the origin information for the -reuse flag,
+    the reported Origin needs to reflect all of those inputs.
+    
+    Fixes #61415.
+    
+    Change-Id: I054acbef7d218a92a3bbb44517326385e458d907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542717
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo.go           | 66 ++++++++++++-------
+ src/cmd/go/internal/modload/build.go               | 10 ++-
+ src/cmd/go/internal/modload/query.go               | 62 ++++++++++--------
+ src/cmd/go/testdata/script/mod_list_issue61415.txt | 76 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/reuse_git.txt           | 14 ++--
+ src/cmd/go/testdata/vcstest/git/issue61415.txt     | 42 ++++++++++++
+ 6 files changed, 211 insertions(+), 59 deletions(-)

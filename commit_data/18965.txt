@@ -1,0 +1,13 @@
+commit a4380927eb2d0070a936666e90a979f0f258bb0f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 27 11:45:51 2014 +1100
+
+    doc/go1.3.html: explain the change to the memory model
+    
+    LGTM=iant, rsc
+    R=rsc, iant, mtj
+    CC=golang-codereviews
+    https://golang.org/cl/80260044
+
+ doc/go1.3.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

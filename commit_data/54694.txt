@@ -1,0 +1,29 @@
+commit 15a274b621b3654e9b4962a27c9d14ea51645b6c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 29 14:00:04 2023 -0400
+
+    runtime: don't print "unexpected SPWRITE" when printing traceback
+    
+    The system stack often starts with a stack transition function
+    like "systemstack" or "mcall", which is marked as SPWRITE. When
+    unwinding a system stack for printing, we want the traceback stop
+    at the stack switching frame, but not print the "unexpected
+    SPWRITE" message.
+    
+    Previously before CL 525835, we don't print the "unexpected
+    SPWRITE" message if unwindPrintErrors is set, i.e. printing a
+    stack trace. This CL restores this behavior.
+    
+    Another possibility is not printing the message only on the system
+    stack. We don't expect a stack transition function to appear in a
+    user G.
+    
+    Change-Id: I173e89ead2cd4fbf1f0f8cca225f28718b5baebe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/crash_unix_test.go | 6 ++++++
+ src/runtime/traceback.go       | 9 +++------
+ 2 files changed, 9 insertions(+), 6 deletions(-)

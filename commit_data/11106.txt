@@ -1,0 +1,13 @@
+commit a30b172ca0cd34b8f06952e175ac6bc3d0f1f35b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 08:32:03 2012 -0800
+
+    go/printer: don't crash if AST contains BadXXX nodes
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5535048
+
+ src/pkg/go/printer/printer.go      |  7 ++++++-
+ src/pkg/go/printer/printer_test.go | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

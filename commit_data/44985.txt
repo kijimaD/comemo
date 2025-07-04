@@ -1,0 +1,22 @@
+commit bce85b701153f7671f0e362288ad5c8fdad15093
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 17:16:53 2021 -0700
+
+    cmd/compile/internal/types2: combine all type inference in a single function
+    
+    Rather than splitting up type inference into function argument
+    and constraint type inference, provide a single Checker.infer
+    that accepts type parameters, type arguments, value parameters,
+    and value arguments, if any. Checker.infer returns the completed
+    list of type arguments, or nil.
+    
+    Updated (and simplified) call sites.
+    
+    Change-Id: I9200a44b9c4ab7f2d21eed824abfffaab68ff766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306170
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go  |  85 ++++----------
+ src/cmd/compile/internal/types2/infer.go | 184 +++++++++++++++++++++++++------
+ 2 files changed, 174 insertions(+), 95 deletions(-)

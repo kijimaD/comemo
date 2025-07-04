@@ -1,0 +1,19 @@
+commit 095f66f662ac73e2aafbc369c59fc3870eb9b86f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 18 14:15:56 2020 -0400
+
+    cmd/go/internal/modget: if building packages, only update go.mod if the build succeeds
+    
+    Fixes #41315
+    
+    Change-Id: I5b18a0c2d1d72ff556a882e862b95133deb3ef98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255970
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go             | 29 +++++++++----------
+ src/cmd/go/testdata/script/mod_get_errors.txt | 41 +++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 15 deletions(-)

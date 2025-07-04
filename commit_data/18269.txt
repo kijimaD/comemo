@@ -1,0 +1,20 @@
+commit 36477291cc13313e816cccfcfa62a6bc0ac43d15
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 16 11:43:52 2014 -0800
+
+    net/http: don't allow Content-Type or body on 204 and 1xx
+    
+    Status codes 204, 304, and 1xx don't allow bodies. We already
+    had a function for this, but we were hard-coding just 304
+    (StatusNotModified) in a few places.  Use the function
+    instead, and flesh out tests for all codes.
+    
+    Fixes #6685
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/53290044
+
+ src/pkg/net/http/serve_test.go | 53 +++++++++++++++++++++++-------------------
+ src/pkg/net/http/server.go     | 10 ++++----
+ 2 files changed, 34 insertions(+), 29 deletions(-)

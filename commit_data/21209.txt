@@ -1,0 +1,62 @@
+commit 80b3ff9f827b5e27f03c3a51034745157ebb3301
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 7 17:16:59 2015 -0800
+
+    math/big: faster assembly kernels for AddVx/SubVx for amd64.
+    
+    Replaced use of rotate instructions (RCRQ, RCLQ) with ADDQ/SBBQ
+    for restoring/saving the carry flag per suggestion from Torbjörn
+    Granlund (author of GMP bignum libs for C).
+    The rotate instructions tend to be slower on todays machines.
+    
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkAddVV_1       5.69          5.51          -3.16%
+    BenchmarkAddVV_2       7.15          6.87          -3.92%
+    BenchmarkAddVV_3       8.69          8.06          -7.25%
+    BenchmarkAddVV_4       8.10          8.13          +0.37%
+    BenchmarkAddVV_5       8.37          8.47          +1.19%
+    BenchmarkAddVV_1e1     13.1          12.0          -8.40%
+    BenchmarkAddVV_1e2     78.1          69.4          -11.14%
+    BenchmarkAddVV_1e3     815           656           -19.51%
+    BenchmarkAddVV_1e4     8137          7345          -9.73%
+    BenchmarkAddVV_1e5     100127        93909         -6.21%
+    BenchmarkAddVW_1       4.86          4.71          -3.09%
+    BenchmarkAddVW_2       5.67          5.50          -3.00%
+    BenchmarkAddVW_3       6.51          6.34          -2.61%
+    BenchmarkAddVW_4       6.69          6.66          -0.45%
+    BenchmarkAddVW_5       7.20          7.21          +0.14%
+    BenchmarkAddVW_1e1     10.0          9.34          -6.60%
+    BenchmarkAddVW_1e2     45.4          52.3          +15.20%
+    BenchmarkAddVW_1e3     417           491           +17.75%
+    BenchmarkAddVW_1e4     4760          4852          +1.93%
+    BenchmarkAddVW_1e5     69107         67717         -2.01%
+    
+    benchmark              old MB/s      new MB/s      speedup
+    BenchmarkAddVV_1       11241.82      11610.28      1.03x
+    BenchmarkAddVV_2       17902.68      18631.82      1.04x
+    BenchmarkAddVV_3       22082.43      23835.64      1.08x
+    BenchmarkAddVV_4       31588.18      31492.06      1.00x
+    BenchmarkAddVV_5       38229.90      37783.17      0.99x
+    BenchmarkAddVV_1e1     48891.67      53340.91      1.09x
+    BenchmarkAddVV_1e2     81940.61      92191.86      1.13x
+    BenchmarkAddVV_1e3     78443.09      97480.44      1.24x
+    BenchmarkAddVV_1e4     78644.18      87129.50      1.11x
+    BenchmarkAddVV_1e5     63918.48      68150.84      1.07x
+    BenchmarkAddVW_1       13165.09      13581.00      1.03x
+    BenchmarkAddVW_2       22588.04      23275.41      1.03x
+    BenchmarkAddVW_3       29483.82      30303.96      1.03x
+    BenchmarkAddVW_4       38286.54      38453.21      1.00x
+    BenchmarkAddVW_5       44414.57      44370.59      1.00x
+    BenchmarkAddVW_1e1     63816.84      68494.08      1.07x
+    BenchmarkAddVW_1e2     140885.41     122427.16     0.87x
+    BenchmarkAddVW_1e3     153258.31     130325.28     0.85x
+    BenchmarkAddVW_1e4     134447.63     131904.02     0.98x
+    BenchmarkAddVW_1e5     92609.41      94509.88      1.02x
+    
+    Change-Id: Ia473e9ab9c63a955c252426684176bca566645ae
+    Reviewed-on: https://go-review.googlesource.com/2503
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/big/arith_386.s   |  2 ++
+ src/math/big/arith_amd64.s | 57 ++++++++++++++++++++++------------------------
+ 2 files changed, 29 insertions(+), 30 deletions(-)

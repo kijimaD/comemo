@@ -1,0 +1,18 @@
+commit 17bebd3caab6a35c26b26a518951ece28614dd90
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 12:11:41 2011 -0400
+
+    go/build: handle cgo, //build comments
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5018044
+
+ src/cmd/goinstall/main.go           |  13 +-
+ src/cmd/goinstall/make.go           |   6 +-
+ src/cmd/gotest/gotest.go            |   2 +-
+ src/pkg/go/build/build_test.go      |  25 ++-
+ src/pkg/go/build/cgotest/cgotest.go |   3 +
+ src/pkg/go/build/dir.go             | 392 +++++++++++++++++++++++++++++++-----
+ src/pkg/go/build/syslist_test.go    |   4 +-
+ 7 files changed, 377 insertions(+), 68 deletions(-)

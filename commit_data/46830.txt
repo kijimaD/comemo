@@ -1,0 +1,20 @@
+commit ba2c9fef035da3ef93e0eb0dbf4d583663829139
+Author: Jake Ciolek <jakub@ciolek.dev>
+Date:   Sat Oct 9 17:57:06 2021 +0200
+
+    cmd/compile: mark NOT as an op that doesn't clobber flags on i386/AMD64
+    
+    NOT does not affect any FLAGS register values on i386/AMD64 so we do not
+    need to mark it as an Op that clobbers them.
+    
+    Change-Id: I6d99cad49cfa2568b01e58190256582b18fb3b7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354831
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 3 ---
+ 3 files changed, 3 insertions(+), 6 deletions(-)

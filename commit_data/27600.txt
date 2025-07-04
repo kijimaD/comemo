@@ -1,0 +1,20 @@
+commit 52fe47247217f5126dacc5a8c8e80b85d2fb25c6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 31 14:55:12 2016 -0700
+
+    cmd/compile: for arm, zero unaligned memory 1 byte at a time
+    
+    If memory might be unaligned, zero it one byte at a time
+    instead of 4 bytes at a time.
+    
+    Fixes #15902
+    
+    Change-Id: I4eff0840e042e2f137c1a4028f08793eb7dfd703
+    Reviewed-on: https://go-review.googlesource.com/23587
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/arm/ggen.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue15902.go         | 27 +++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

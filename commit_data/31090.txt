@@ -1,0 +1,14 @@
+commit 092405a9affad56d18ee3d28b93b706c2887ba7d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Apr 12 16:03:46 2017 +1000
+
+    runtime/cgo: actually remove gcc_libinit_openbsd.c
+    
+    This was unintentionally emptied rather than removed in 9417c022.
+    
+    Change-Id: Ie6fdcf7ef55e58f12e2a2750ab448aa2d9f94d15
+    Reviewed-on: https://go-review.googlesource.com/40413
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cgo/gcc_libinit_openbsd.c | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

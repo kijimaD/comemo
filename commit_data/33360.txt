@@ -1,0 +1,14 @@
+commit 0b7df65550afbeeb32d10aebb1a0873bfbc2c310
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 27 18:12:47 2017 +0900
+
+    net/mail: capitalize acronym on helper function name
+    
+    Change-Id: Ibae06adcc69cae34cb0a14d990a0949b77fa772c
+    Reviewed-on: https://go-review.googlesource.com/73930
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mail/message.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

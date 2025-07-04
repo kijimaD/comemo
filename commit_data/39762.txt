@@ -1,0 +1,21 @@
+commit 99df76f0869f00ad9ba53e3aecc22d625ae23de1
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun Jul 21 16:01:46 2019 -0400
+
+    mime: update type of .js and .mjs files to text/javascript
+    
+    application/javascript is being deprecated per
+    https://datatracker.ietf.org/doc/draft-ietf-dispatch-javascript-mjs/
+    
+    Specify a charset to be consistent with other text/* mime types.
+    
+    Fixes #32351
+    
+    Change-Id: I7300f6cfdbcf574103764991cb75172a252a3400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186927
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/mime/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

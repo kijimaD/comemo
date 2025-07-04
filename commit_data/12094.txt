@@ -1,0 +1,15 @@
+commit 01156f05de8b3a54b37458dfa4b71dacc43d0c72
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 14:12:07 2012 +1100
+
+    doc: fix links in installation instructions
+    
+    Fixes #3051.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5683056
+
+ doc/install-source.html | 10 +++++-----
+ doc/install.html        |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)

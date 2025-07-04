@@ -1,0 +1,21 @@
+commit fdefabadf0a2cb99accb2afe49eafce0eaeb53a7
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Sat Sep 22 22:49:45 2018 +0000
+
+    net/http: use Header.clone rather then duplicating functionality
+    
+    cloneHeader duplicates what Header.clone() method is doing. It's
+    used in a single place, which can be replaced with the use of the
+    method.
+    
+    Change-Id: I6e8bbd6c95063f31ca3695f13fa7478873230525
+    GitHub-Last-Rev: eb08aeae9b4257df5cf08d6d30903ddeec6b6242
+    GitHub-Pull-Request: golang/go#27817
+    Reviewed-on: https://go-review.googlesource.com/136762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go |  2 +-
+ src/net/http/header.go | 10 ----------
+ 2 files changed, 1 insertion(+), 11 deletions(-)

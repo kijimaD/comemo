@@ -1,0 +1,28 @@
+commit 52624e533fe52329da5ba6ebb9c37712048168e0
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 12 12:21:03 2025 -0400
+
+    internal/pkgbits: rename Reloc* to Section*
+    
+    This is a basic refactoring. This enumeration refers primarily to
+    the different sections of a UIR file, so this naming is a bit more
+    direct.
+    
+    Change-Id: Ib70ab054e97effaabc035450d246ae4354da8075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671935
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/importer/ureader.go | 32 ++++++++++----------
+ src/cmd/compile/internal/noder/doc.go        | 45 ++++++++++++++--------------
+ src/cmd/compile/internal/noder/linker.go     | 28 ++++++++---------
+ src/cmd/compile/internal/noder/reader.go     | 40 ++++++++++++-------------
+ src/cmd/compile/internal/noder/unified.go    | 32 ++++++++++----------
+ src/cmd/compile/internal/noder/writer.go     | 30 +++++++++----------
+ src/go/internal/gcimporter/ureader.go        | 32 ++++++++++----------
+ src/internal/pkgbits/decoder.go              | 12 ++++----
+ src/internal/pkgbits/encoder.go              | 10 +++----
+ src/internal/pkgbits/pkgbits_test.go         |  4 +--
+ src/internal/pkgbits/reloc.go                | 22 +++++++-------
+ 11 files changed, 143 insertions(+), 144 deletions(-)

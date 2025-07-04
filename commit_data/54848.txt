@@ -1,0 +1,19 @@
+commit 6a7ef3646654cb13e0466aba822b54cb15cb057c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 1 16:09:45 2023 -0700
+
+    test: run range-over-integer tests without need for -goexperiment
+    
+    Move the range-over-function tests into range4.go.
+    
+    Change-Id: Idccf30a0c7d7e8d2a17fb1c5561cf21e00506135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ test/range3.go | 324 +-------------------------------------------------------
+ test/range4.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 329 insertions(+), 321 deletions(-)

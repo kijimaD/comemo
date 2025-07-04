@@ -1,0 +1,12 @@
+commit d380a9775093cb99e9fb8103955f39b8a15bf60a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jul 22 01:48:15 2012 +0900
+
+    net: fix file descriptor leak on FileListener, FileConn and FilePacketConn
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6430062
+
+ src/pkg/net/file.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

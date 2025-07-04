@@ -1,0 +1,17 @@
+commit be20948e27da60640b7cf27c8ae29214e5a214c2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 12:26:55 2016 -0800
+
+    cmd/compile: recognize bool(true) as a constant expression
+    
+    Fixes #13821.
+    
+    Change-Id: I4a28a92d137edac3061537af25ac9d7aba411a66
+    Reviewed-on: https://go-review.googlesource.com/18262
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     |  3 ++-
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++------------
+ test/fixedbugs/issue13821.go             | 15 +++++++++++++++
+ test/fixedbugs/issue13821b.go            | 22 ++++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 13 deletions(-)

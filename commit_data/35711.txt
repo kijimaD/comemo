@@ -1,0 +1,14 @@
+commit 7bab1ee5e0be7955e298eb956b7ddc921803e84f
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Jun 9 02:39:06 2018 +0200
+
+    flag: fix headers in documentation, again
+    
+    Godoc expects text after a header, not code.
+    
+    Change-Id: I99f412ad15e10bf9cea0dbd19019ed6ce477736c
+    Reviewed-on: https://go-review.googlesource.com/117595
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 3 +++
+ 1 file changed, 3 insertions(+)

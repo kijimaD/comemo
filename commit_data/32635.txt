@@ -1,0 +1,14 @@
+commit e16dc7d5a9e4136d56fc84172d2fbe747b096d45
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Fri Sep 8 12:59:59 2017 +0200
+
+    database/sql: fix Conn's doc typo
+    
+    Fixes #21798
+    
+    Change-Id: Ided31a8b22c220acdeb3938cac41ce8db9a110c3
+    Reviewed-on: https://go-review.googlesource.com/62290
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

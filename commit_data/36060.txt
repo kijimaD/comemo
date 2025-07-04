@@ -1,0 +1,12 @@
+commit 9c9c5a032fb17d6e835d18cd5ac4510f4cbe0fbc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 21:57:36 2018 +0000
+
+    doc: update go1.11 release notes
+    
+    Change-Id: I9008afdc8c38c440ea083a4f2bed0d2253e112f0
+    Reviewed-on: https://go-review.googlesource.com/124836
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

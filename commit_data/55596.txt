@@ -1,0 +1,25 @@
+commit 185f31bf303b265b3a7b573a5fca613ca40bf503
+Author: Jin Lin <jinl@uber.com>
+Date:   Thu Feb 8 12:52:07 2024 -0800
+
+    cmd/compile: update the incorrect assignment of call site offset.
+    
+    The call site calculation in the previous version is incorrect. For
+    the PGO preprocess file, the compiler should directly use the call
+    site offset value. Additionly, this change refactors the preprocess
+    tool to clean up unused fields including startline, the flat and the
+    cum.
+    
+    Change-Id: I7bffed3215d4c016d9a9e4034bfd373bf50ab43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go            | 12 ++--
+ .../compile/internal/test/pgo_devirtualize_test.go | 78 ++++++++++++++++++++--
+ src/cmd/compile/internal/test/pgo_inl_test.go      | 48 ++++++-------
+ .../pgo/devirtualize/devirt.pprof.node_map         | 52 +++++++++++++++
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  8 +--
+ src/cmd/preprofile/main.go                         | 55 +++------------
+ 6 files changed, 162 insertions(+), 91 deletions(-)

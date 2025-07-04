@@ -1,0 +1,31 @@
+commit fbe74dbf4263841819368a2a3c90e599392e0808
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 16:10:58 2021 -0500
+
+    runtime: use FuncInfo SPWRITE flag to identify untraceable profile samples
+    
+    The old code was very clever about predicting whether a traceback was safe.
+    That cleverness has not aged well. In particular, the setsSP function is missing
+    a bunch of functions that write to SP and will confuse traceback.
+    And one such function - jmpdefer - was handled as a special case in
+    gentraceback instead of simply listing it in setsSP.
+    
+    Throw away all the clever prediction about whether traceback will crash.
+    Instead, make traceback NOT crash, by checking whether the function
+    being walked writes to SP.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I3d55fe257a22745e4919ac4dc9a9378c984ba0da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288801
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm.s           |  4 --
+ src/runtime/pprof/pprof_test.go | 18 +++++---
+ src/runtime/proc.go             | 95 +----------------------------------------
+ src/runtime/traceback.go        | 52 +++++++++++-----------
+ 4 files changed, 42 insertions(+), 127 deletions(-)

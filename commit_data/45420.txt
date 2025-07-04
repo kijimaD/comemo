@@ -1,0 +1,127 @@
+commit 47cb0c46b206d3d1bcc176314c200e35c1f62cf2
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 14:40:53 2021 -0400
+
+    go/types: nest all test data under the testdata directory
+    
+    Having multiple subdirectories of go/types containing test data is
+    slightly problematic:
+     - If ever we were to include a .go file in one of these directories,
+       we'd inadvertently create a visible package.
+     - It's difficult to add other content in testdata/, since TestTestdata
+       scans the entire directory.
+    
+    Move everything down a level, into testdata/{fixedbugs,examples,check},
+    and update tests accordingly.
+    
+    Change-Id: Idd074c94b7b261d678934330539e41a48c2a9dc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314829
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go                                   | 12 +++++++-----
+ src/go/types/testdata/{ => check}/blank.src                  |  0
+ src/go/types/testdata/{ => check}/builtins.go2               |  0
+ src/go/types/testdata/{ => check}/builtins.src               |  0
+ src/go/types/testdata/{ => check}/chans.go2                  |  0
+ src/go/types/testdata/{ => check}/const0.src                 |  0
+ src/go/types/testdata/{ => check}/const1.src                 |  0
+ src/go/types/testdata/{ => check}/constdecl.src              |  0
+ src/go/types/testdata/{ => check}/conversions.src            |  0
+ src/go/types/testdata/{ => check}/conversions2.src           |  0
+ src/go/types/testdata/{ => check}/cycles.src                 |  0
+ src/go/types/testdata/{ => check}/cycles1.src                |  0
+ src/go/types/testdata/{ => check}/cycles2.src                |  0
+ src/go/types/testdata/{ => check}/cycles3.src                |  0
+ src/go/types/testdata/{ => check}/cycles4.src                |  0
+ src/go/types/testdata/{ => check}/cycles5.src                |  0
+ src/go/types/testdata/{ => check}/decls0.src                 |  0
+ src/go/types/testdata/{ => check}/decls1.src                 |  0
+ src/go/types/testdata/{ => check}/decls2/decls2a.src         |  0
+ src/go/types/testdata/{ => check}/decls2/decls2b.src         |  0
+ src/go/types/testdata/{ => check}/decls3.src                 |  0
+ src/go/types/testdata/{ => check}/decls4.src                 |  0
+ src/go/types/testdata/{ => check}/decls5.src                 |  0
+ src/go/types/testdata/{ => check}/errors.src                 |  0
+ src/go/types/testdata/{ => check}/expr0.src                  |  0
+ src/go/types/testdata/{ => check}/expr1.src                  |  0
+ src/go/types/testdata/{ => check}/expr2.src                  |  0
+ src/go/types/testdata/{ => check}/expr3.src                  |  0
+ src/go/types/testdata/{ => check}/go1_12.src                 |  0
+ src/go/types/testdata/{ => check}/go1_13.src                 |  0
+ src/go/types/testdata/{ => check}/go1_8.src                  |  0
+ src/go/types/testdata/{ => check}/gotos.src                  |  0
+ src/go/types/testdata/{ => check}/importC.src                |  0
+ .../types/testdata/{ => check}/importdecl0/importdecl0a.src  |  0
+ .../types/testdata/{ => check}/importdecl0/importdecl0b.src  |  0
+ .../types/testdata/{ => check}/importdecl1/importdecl1a.src  |  0
+ .../types/testdata/{ => check}/importdecl1/importdecl1b.src  |  0
+ src/go/types/testdata/{ => check}/init0.src                  |  0
+ src/go/types/testdata/{ => check}/init1.src                  |  0
+ src/go/types/testdata/{ => check}/init2.src                  |  0
+ src/go/types/testdata/{ => check}/issue25008/issue25008a.src |  0
+ src/go/types/testdata/{ => check}/issue25008/issue25008b.src |  0
+ src/go/types/testdata/{ => check}/issues.go2                 |  0
+ src/go/types/testdata/{ => check}/issues.src                 |  0
+ src/go/types/testdata/{ => check}/labels.src                 |  0
+ src/go/types/testdata/{ => check}/linalg.go2                 |  0
+ src/go/types/testdata/{ => check}/literals.src               |  0
+ src/go/types/testdata/{ => check}/main.src                   |  0
+ src/go/types/testdata/{ => check}/map.go2                    |  0
+ src/go/types/testdata/{ => check}/map2.go2                   |  0
+ src/go/types/testdata/{ => check}/methodsets.src             |  0
+ src/go/types/testdata/{ => check}/shifts.src                 |  0
+ src/go/types/testdata/{ => check}/slices.go2                 |  0
+ src/go/types/testdata/{ => check}/stmt0.src                  |  0
+ src/go/types/testdata/{ => check}/stmt1.src                  |  0
+ src/go/types/testdata/{ => check}/tinference.go2             |  0
+ src/go/types/testdata/{ => check}/tmp.go2                    |  0
+ src/go/types/testdata/{ => check}/todos.go2                  |  0
+ src/go/types/testdata/{ => check}/typeinst.go2               |  0
+ src/go/types/testdata/{ => check}/typeinst2.go2              |  0
+ src/go/types/testdata/{ => check}/typeparams.go2             |  0
+ src/go/types/testdata/{ => check}/vardecl.src                |  0
+ src/go/types/{ => testdata}/examples/functions.go2           |  0
+ src/go/types/{ => testdata}/examples/inference.go2           |  0
+ src/go/types/{ => testdata}/examples/methods.go2             |  0
+ src/go/types/{ => testdata}/examples/types.go2               |  0
+ src/go/types/{ => testdata}/fixedbugs/issue20583.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue23203a.src        |  0
+ src/go/types/{ => testdata}/fixedbugs/issue23203b.src        |  0
+ src/go/types/{ => testdata}/fixedbugs/issue26390.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue28251.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39634.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39664.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39680.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39693.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39699.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39711.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39723.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39725.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39754.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39755.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39768.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39938.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39948.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39976.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue39982.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue40038.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue40056.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue40057.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue40301.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue40684.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue41124.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue42695.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue42758.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue43087.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue43110.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue43124.src         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue44688.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue44799.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue45548.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue45635.go2         |  0
+ src/go/types/{ => testdata}/fixedbugs/issue6977.src          |  0
+ 102 files changed, 7 insertions(+), 5 deletions(-)

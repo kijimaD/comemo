@@ -1,0 +1,26 @@
+commit d79350bac73670c04a91b6761d334b810201f6ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 4 18:36:31 2020 +0200
+
+    runtime: use hw.ncpuonline sysctl in getncpu on netbsd
+    
+    Since NetBSD 7, hw.ncpuonline reports the number of CPUs online, while
+    hw.cpu reports the number of CPUs configured. Try hw.cpuonline first and
+    fall back to hw.ncpu in case it fails (which is the case on NetBSD
+    before 7.0).
+    
+    This follows the behavior on OpenBSD (see CL 161757). Also, Go
+    in pkgsrc is patched to use hw.cpuonline, so this CL would allow said
+    patch to be dropped.
+    
+    Updates #30824
+    
+    Change-Id: Id1c19dff2c1e4401e6074179fae7c708ba0e3098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231957
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/os_netbsd.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

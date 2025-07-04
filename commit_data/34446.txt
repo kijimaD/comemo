@@ -1,0 +1,18 @@
+commit e658b85f26f1de6f49578b7dac95eee0da880ab9
+Author: Shamil Garatuev <garatuev@gmail.com>
+Date:   Tue Feb 27 21:26:17 2018 +0300
+
+    internal/syscall/windows/registry: improve ReadSubKeyNames permissions
+    
+    Make ReadSubKeyNames work even if key is opened with only
+    ENUMERATE_SUB_KEYs access rights mask.
+    
+    Fixes #23869
+    
+    Change-Id: I138bd51715fdbc3bda05607c64bde1150f4fe6b2
+    Reviewed-on: https://go-review.googlesource.com/97435
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/registry/key.go           | 10 ++++------
+ src/internal/syscall/windows/registry/registry_test.go |  2 +-
+ 2 files changed, 5 insertions(+), 7 deletions(-)

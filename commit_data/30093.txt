@@ -1,0 +1,20 @@
+commit 34b455da4484dee20e8c355b50d24680224b58f2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jan 25 16:48:17 2017 +0900
+
+    path/filepath: ignore dot for Dir(`\\server\share`)
+    
+    Dir(`\\server\share`) returns `\\server\share.`. Change Dir so it
+    returns `\\server\share` instead.
+    
+    Fixes #18783
+    
+    Change-Id: I9e0dd71ea6aea85e6c6114aaa4bb3bea3270d818
+    Reviewed-on: https://go-review.googlesource.com/35690
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path.go      | 4 ++++
+ src/path/filepath/path_test.go | 1 +
+ 2 files changed, 5 insertions(+)

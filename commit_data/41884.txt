@@ -1,0 +1,25 @@
+commit ddfc55b076d945f215875d6b65c36fc53b332cc1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 16:28:33 2020 -0400
+
+    os/signal: increase settle time in tests
+    
+    I noticed a timeout in TestIgnore in
+    https://build.golang.org/log/52d83a72f3a5ea9a16eb5d670c729694144f9624,
+    which suggests that the settle time is currently set too low.
+    
+    I've also added a check for the same GO_TEST_TIMEOUT_SCALE used in
+    TestTerminalSignal, so that if this builder remains too slow we can
+    increase the builder's scale factor rather than the test's baseline
+    running time.
+    
+    Updates #33174
+    
+    Change-Id: I18b10eaa3bb5ae2f604300aedaaf6f79ee7ad567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227649
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 8521811cdeeba5ed2c992e0eb1aae0f71da2b037
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 20 14:59:51 2012 +1100
+
+    run.bat: disable test in test\bench\go1 to fix build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5848066
+
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

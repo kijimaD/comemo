@@ -1,0 +1,14 @@
+commit ba7563019f4c5c78cbfd740da1ad68acee37885c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 19 18:31:17 2016 +0000
+
+    crypto/x509: fix copy/paste-o in error message
+    
+    Fixes #15371
+    
+    Change-Id: Iff8d36e1bd9b5641f6b577a30ac6e967f973c939
+    Reviewed-on: https://go-review.googlesource.com/22240
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

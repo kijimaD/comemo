@@ -1,0 +1,16 @@
+commit 393df079148614c6c2be57ded233eeacc8a1c78a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 10:14:38 2009 -0800
+
+    casify json
+    
+    R=r
+    DELTA=163  (0 added, 0 deleted, 163 changed)
+    OCL=22910
+    CL=22939
+
+ src/lib/json/generic.go     | 128 ++++++++++++++++++++++----------------------
+ src/lib/json/parse.go       |  44 +++++++--------
+ src/lib/json/struct.go      |  46 ++++++++--------
+ src/lib/json/struct_test.go |  56 +++++++++----------
+ 4 files changed, 137 insertions(+), 137 deletions(-)

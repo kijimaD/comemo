@@ -1,0 +1,13 @@
+commit 65dbe7653297aeb0210bdf02339fb64f3f2731e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:10 2009 -0700
+
+    go/printer: use new reflect interface (CL 31107)
+    
+    R=gri
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=31115
+    CL=31285
+
+ src/pkg/go/printer/printer.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 883530c019f06d557f82707d35f7ee363ff12637
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:50:47 2013 -0400
+
+    sync/atomic: fix new swap on arm linux
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12920043
+
+ src/pkg/sync/atomic/64bit_arm.go    | 2 +-
+ src/pkg/sync/atomic/asm_linux_arm.s | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

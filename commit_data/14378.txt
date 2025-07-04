@@ -1,0 +1,13 @@
+commit 17623c0f13c123a20edaa41845587f46e3ad5f0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 12 15:34:09 2012 -0500
+
+    A+C: Rick Arnold (individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6821110
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

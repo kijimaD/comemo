@@ -1,0 +1,21 @@
+commit 0fca8a8f25cf4636fd980e72ba0bded4230922de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 17 09:39:46 2022 -0700
+
+    crypto/x509: fix Certificate.Verify crash
+    
+    (Primarily from Josh)
+    
+    Fixes #51759
+    
+    Co-authored-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0a6f2623b57750abd13d5e194b5c6ffa3be6bf72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393655
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/root_darwin.go |  7 ++++++-
+ src/crypto/x509/verify_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

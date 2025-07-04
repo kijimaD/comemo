@@ -1,0 +1,12 @@
+commit 99f4cf9714825d024bc56cd92920dc9fc2c6d9c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Dec 7 18:07:57 2017 +0100
+
+    doc: fix bad html tags in editors.html
+    
+    Change-Id: Ib8ef626ae6bc66571ecf4569e37feb75b4b90d10
+    Reviewed-on: https://go-review.googlesource.com/82555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/editors.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

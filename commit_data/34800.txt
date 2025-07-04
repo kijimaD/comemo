@@ -1,0 +1,27 @@
+commit c0841ecd87a5a91cdd5e2c376d46230988a37ada
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 27 15:35:51 2018 -0700
+
+    cmd/compile: disable instrumentation for no-race packages earlier
+    
+    Rather than checking for each function whether the package supports
+    instrumentation, check once up front.
+    
+    Relatedly, tweak the logic for preventing inlining calls to runtime
+    functions from instrumented packages. Previously, we simply disallowed
+    inlining runtime functions altogether when instrumenting. With this
+    CL, it's only disallowed from packages that are actually being
+    instrumented. That is, now intra-runtime calls can be inlined.
+    
+    Updates #19054.
+    
+    Change-Id: I88c97b48bf70193a8a3ee18d952dcb26b0369d55
+    Reviewed-on: https://go-review.googlesource.com/102815
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/inl.go      | 21 ++++++++++-----------
+ src/cmd/compile/internal/gc/main.go     | 12 +++++++++---
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ 3 files changed, 20 insertions(+), 15 deletions(-)

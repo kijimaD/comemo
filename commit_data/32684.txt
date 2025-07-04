@@ -1,0 +1,13 @@
+commit 98603e7af6056734e0f5bee5f05b3623ca5189de
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Aug 29 16:23:49 2017 -0400
+
+    doc: hide content blocked by GFW when served in CN
+    
+    Change-Id: Ia3d0fa0517d96f0672d3c5ce7e7b7bb8bd0ce093
+    Reviewed-on: https://go-review.googlesource.com/60070
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/docs.html | 42 +++++++++++++++++++++++++++++-------------
+ doc/help.html |  9 ++++++++-
+ 2 files changed, 37 insertions(+), 14 deletions(-)

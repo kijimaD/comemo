@@ -1,0 +1,23 @@
+commit e4f72f773666b8f13ed5d053abf87ca42c68cc16
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 14:43:47 2023 +0800
+
+    compress: add available godoc link
+    
+    Change-Id: Ia6e88aec59cb294e8b303a00fcd69f4cbf0dc09a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534759
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+
+ src/compress/bzip2/bit_reader.go |  2 +-
+ src/compress/flate/deflate.go    | 22 +++++++++++-----------
+ src/compress/flate/inflate.go    | 18 +++++++++---------
+ src/compress/gzip/gunzip.go      | 34 +++++++++++++++++-----------------
+ src/compress/gzip/gzip.go        | 28 ++++++++++++++--------------
+ src/compress/lzw/reader.go       | 18 +++++++++---------
+ src/compress/lzw/writer.go       | 16 ++++++++--------
+ src/compress/zlib/reader.go      | 12 ++++++------
+ 8 files changed, 75 insertions(+), 75 deletions(-)

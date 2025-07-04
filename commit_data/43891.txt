@@ -1,0 +1,21 @@
+commit 848dff6dda4d38d3d2e9ab128954f50d085d9313
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 28 19:10:57 2020 -0800
+
+    test: update gofrontend expected errors
+    
+    This matches the error messages after CL 273890.
+    
+    syntax/semi4.go:11:9: error: unexpected semicolon or newline, expecting ‘{’ after for clause
+    syntax/semi4.go:10:13: error: reference to undefined name ‘x’
+    syntax/semi4.go:12:17: error: reference to undefined name ‘z’
+    
+    Change-Id: Ic88ff6e27d50bf70f5b2114383b84c42c0682f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273891
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/syntax/semi4.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

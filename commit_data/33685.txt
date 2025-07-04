@@ -1,0 +1,22 @@
+commit 41d6c89e1e732f10c33a5669cd30e375a00fb02d
+Author: Mansour Rahimi <rahimi.mnr@gmail.com>
+Date:   Sat Nov 18 22:00:16 2017 +0100
+
+    encoding/asn1: support Unmarshaling NumericString
+    
+    ASN.1 has an specific string type, called NumericString (tag 18). The
+    value of this type can be numeric characters (0-9) and space.
+    
+    Fixes #22396
+    
+    Change-Id: Ia6d81ab7faa311ff22759bf76862626974d3013e
+    Reviewed-on: https://go-review.googlesource.com/78655
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/asn1/asn1.go         | 29 ++++++++++++++++++++++++++---
+ src/encoding/asn1/asn1_test.go    |  2 ++
+ src/encoding/asn1/common.go       |  3 +++
+ src/encoding/asn1/marshal.go      | 12 ++++++++++++
+ src/encoding/asn1/marshal_test.go |  8 ++++++++
+ 5 files changed, 51 insertions(+), 3 deletions(-)

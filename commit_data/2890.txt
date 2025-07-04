@@ -1,0 +1,14 @@
+commit 5a4d431dd1dbcd0a72be48a74ad6a71118ab1536
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 14:40:34 2009 -0700
+
+    special case: recognize '[^\n]' and make it as fast as '.'
+    
+    R=rsc
+    DELTA=25  (23 added, 1 deleted, 1 changed)
+    OCL=32793
+    CL=32799
+
+ src/pkg/regexp/all_test.go |  2 ++
+ src/pkg/regexp/regexp.go   | 24 ++++++++++++++++++++++--
+ 2 files changed, 24 insertions(+), 2 deletions(-)

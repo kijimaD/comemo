@@ -1,0 +1,24 @@
+commit 555ef554602a7d09ec302df7f2e3397815a804ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 17:46:40 2024 -0700
+
+    cmd/internal/osinfo: stop importing golang.org/x/sys/unix
+    
+    This is the only non-vendored file that imports x/sys/unix.
+    Switch to fetching the information in this package.
+    
+    Change-Id: I4e54c2cd8b4953066e2bee42922f35c387fb43e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623435
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/osinfo/os_solaris.go        | 36 +++++++++++++++++++++
+ src/cmd/internal/osinfo/os_syscall.go        | 17 ++++++++++
+ src/cmd/internal/osinfo/os_sysctl.go         | 41 ++++++++++++++++++++++++
+ src/cmd/internal/osinfo/os_uname.go          | 47 ++++++++++++++++++++++++++++
+ src/cmd/internal/osinfo/os_unix.go           | 24 --------------
+ src/cmd/internal/osinfo/version_unix_test.go | 26 +++++++++++++++
+ 6 files changed, 167 insertions(+), 24 deletions(-)

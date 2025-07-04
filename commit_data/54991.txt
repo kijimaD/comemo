@@ -1,0 +1,19 @@
+commit 6f5aba995fdea76433337d1a8030518bdadfae28
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 7 16:37:17 2023 -0500
+
+    cmd/compile: replace magic numbers "2" and "1" with named constant
+    
+    This was originally done for a #next-encoding-based check for
+    misbehaving loops, but it's a good idea anyhow because it makes
+    the code slightly easier to follow or change (we may decide to
+    check for errors the "other way" anyhow, later).
+    
+    Change-Id: I2ba8f6e0f9146f0ff148a900eabdefd0fffebf8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540261
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/rangefunc/rewrite.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

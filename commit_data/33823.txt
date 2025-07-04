@@ -1,0 +1,18 @@
+commit 44f241be8b905c7f479d2d058a45957220707f28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 6 18:09:11 2017 -0800
+
+    cmd/dist: only test SWIG if we have a new enough version
+    
+    Fixes #22858
+    
+    Change-Id: I0478d5609e381f01c7345e7f53c24af05d7f78ad
+    Reviewed-on: https://go-review.googlesource.com/82415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 1 deletion(-)

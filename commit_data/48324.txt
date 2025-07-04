@@ -1,0 +1,21 @@
+commit de8ddd97accb417450db014d1f45723515cb5d80
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 8 11:13:37 2022 +0100
+
+    syscall: add Pipe2 on solaris and use it for forkExecPipe
+    
+    Other platforms already define Pipe2, so add it for solaris as well.
+    
+    Change-Id: If0d2dfc9a3613479fb4611a673a20a4aa0af0b2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390714
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/forkpipe.go               |  2 +-
+ src/syscall/forkpipe2.go              |  2 +-
+ src/syscall/syscall_solaris.go        | 15 +++++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 13 +++++++++++++
+ 4 files changed, 30 insertions(+), 2 deletions(-)

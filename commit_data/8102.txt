@@ -1,0 +1,15 @@
+commit 8b352930709bff7706bf29be1fef405b07934c34
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Apr 14 15:05:02 2011 -0700
+
+    http: don't quote Set-Cookie Domain and Path
+    
+    Fixes #1659
+    
+    R=rsc, bradfitzgo, bradfitzwork
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/4368052
+
+ src/pkg/http/cookie.go      | 21 +++++++++++++++++----
+ src/pkg/http/cookie_test.go |  6 +++++-
+ 2 files changed, 22 insertions(+), 5 deletions(-)

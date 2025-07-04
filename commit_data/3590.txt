@@ -1,0 +1,24 @@
+commit 8fffa1d6988cb22fc608aa559ad841a1174b44d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 18:47:37 2009 -0700
+
+    bug190.
+    
+    also eliminate float80 dregs
+    
+    R=ken
+    OCL=35894
+    CL=35896
+
+ src/cmd/5g/gsubr.c                 |   1 -
+ src/cmd/6g/gsubr.c                 |   1 -
+ src/cmd/6g/reg.c                   |   1 -
+ src/cmd/gc/align.c                 | 152 ++++++++++++++++++++++++++++++++-----
+ src/cmd/gc/gen.c                   |   1 -
+ src/cmd/gc/go.h                    |   4 +-
+ src/cmd/gc/lex.c                   |   1 -
+ src/cmd/gc/reflect.c               |   3 +-
+ src/cmd/gc/subr.c                  |  83 --------------------
+ test/{bugs => fixedbugs}/bug190.go |   0
+ test/golden.out                    |  13 ----
+ 11 files changed, 135 insertions(+), 125 deletions(-)

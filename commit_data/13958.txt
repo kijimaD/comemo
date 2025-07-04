@@ -1,0 +1,12 @@
+commit 3c9eb5b48e1f94b7d16b280afb9411fd309c809d
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Sep 26 08:49:36 2012 -0700
+
+    doc/go1.1: fix metadata json format
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6570054
+
+ doc/go1.1.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

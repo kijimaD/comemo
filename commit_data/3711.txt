@@ -1,0 +1,14 @@
+commit b67352110f0f22c63edf4fad6ffa5c2a02cee9dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 2 09:18:02 2009 -0800
+
+    - collect line comments for methods in interfaces
+      (previously not shown in godoc)
+    - simplify parsing of struct types (match code structure for parsing interface types)
+    
+    R=rsc, r
+    http://go/go-review/1016019
+
+ src/pkg/go/parser/parser.go            | 17 ++++++++---------
+ src/pkg/go/printer/testdata/comments.x |  6 +++---
+ 2 files changed, 11 insertions(+), 12 deletions(-)

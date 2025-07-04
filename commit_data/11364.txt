@@ -1,0 +1,16 @@
+commit e3ab30bbc1f17d04fd2f5ce4ea767e0121c5c886
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 24 21:04:40 2012 -0200
+
+    encoding/xml: add docs for ignoring tag
+    
+    That was supposed to be in the original CL, but missed
+    the files.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5570052
+
+ src/pkg/encoding/xml/marshal.go | 1 +
+ src/pkg/encoding/xml/read.go    | 2 ++
+ 2 files changed, 3 insertions(+)

@@ -1,0 +1,12 @@
+commit e23d19e23535837fad3d1095e48fe877dbb38c10
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Jul 9 11:12:05 2013 +1000
+
+    net/rpc: use log.Print and return error instead log.Fatal
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/10758044
+
+ src/pkg/net/rpc/server.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

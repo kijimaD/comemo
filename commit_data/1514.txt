@@ -1,0 +1,14 @@
+commit 6e4b9c696f71ab416079ee901a157f24f6ae6bcf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 16 14:59:27 2009 -0800
+
+    Remove types from constants, since they didn't match what
+    Tick() expected.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=22979
+    CL=22986
+
+ src/lib/time/tick_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 6cb107452a5a5551a04baf6bc4ff0b8299dfb596
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 24 15:11:54 2024 -0700
+
+    runtime: print fatal messages without interleaving
+    
+    Grab the print lock around the set of prints we use to report
+    fatal errors. This ensures that each fatal error gets reported
+    atomically instead of interleaved with other fatal errors.
+    
+    Fixes #69447
+    
+    Change-Id: Ib3569f0c8210fd7e19a7d8ef4bc114f07469f317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615655
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/crash_test.go | 30 +++++++++++++++++++++++++++---
+ src/runtime/panic.go      |  2 ++
+ 2 files changed, 29 insertions(+), 3 deletions(-)

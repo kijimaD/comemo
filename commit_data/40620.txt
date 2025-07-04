@@ -1,0 +1,19 @@
+commit a5936a489462a2f68ee2ae1a53dd48c0458029a7
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Wed Nov 6 22:45:05 2019 +0800
+
+    cmd/asm: add encode tests for MIPS64x
+    
+    This CL adds basic encode test for mips64x and
+    most of the instructions are cross checked with 'gas'
+    
+    Update #35008
+    
+    Change-Id: I18bb524897aa745bfe23db43fcbb44c3b009463c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204297
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/mips64.s | 389 +++++++++++++++++++++--------
+ 1 file changed, 282 insertions(+), 107 deletions(-)

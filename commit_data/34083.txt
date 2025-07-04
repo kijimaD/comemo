@@ -1,0 +1,25 @@
+commit be9a1774f274e5333bef873868bb28b93918d8e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 10 16:05:12 2018 -0800
+
+    cmd/compile/internal/syntax: better error msg for some 'if' statements
+    
+    R=go1.11
+    
+    A common error is to write '=' instead of '==' inside the condition
+    of a simple 'if' statement:
+    
+            if x = 0 { ... }
+    
+    Highlight the fact that we have an assignment in the error message
+    to prevent further confusion.
+    
+    Fixes #23385.
+    
+    Change-Id: I1552050fd6da927bd12a1be0977bd2e98eca5885
+    Reviewed-on: https://go-review.googlesource.com/87316
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

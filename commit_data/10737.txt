@@ -1,0 +1,51 @@
+commit 196b6630759c6f4125c22445dd5b6cfec5faf34b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 22:22:09 2011 -0500
+
+    gc: implement == on structs and arrays
+    
+    To allow these types as map keys, we must fill in
+    equal and hash functions in their algorithm tables.
+    Structs or arrays that are "just memory", like [2]int,
+    can and do continue to use the AMEM algorithm.
+    Structs or arrays that contain special values like
+    strings or interface values use generated functions
+    for both equal and hash.
+    
+    The runtime helper func runtime.equal(t, x, y) bool handles
+    the general equality case for x == y and calls out to
+    the equal implementation in the algorithm table.
+    
+    For short values (<= 4 struct fields or array elements),
+    the sequence of elementwise comparisons is inlined
+    instead of calling runtime.equal.
+    
+    R=ken, mpimenov
+    CC=golang-dev
+    https://golang.org/cl/5451105
+
+ src/cmd/5g/gg.h           |   2 +
+ src/cmd/5l/obj.c          |  11 +-
+ src/cmd/6g/gg.h           |   2 +
+ src/cmd/6l/obj.c          |   4 +
+ src/cmd/8g/gg.h           |   2 +
+ src/cmd/8l/obj.c          |   4 +
+ src/cmd/gc/align.c        |   1 +
+ src/cmd/gc/builtin.c.boot | 130 ++++++------
+ src/cmd/gc/go.h           |  19 +-
+ src/cmd/gc/pgen.c         |   4 +
+ src/cmd/gc/reflect.c      |  68 +++++-
+ src/cmd/gc/runtime.go     |  11 +
+ src/cmd/gc/subr.c         | 530 ++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/gc/typecheck.c    |  37 +++-
+ src/cmd/gc/walk.c         | 192 ++++++++++++++++-
+ src/cmd/ld/dwarf.c        |   2 +-
+ src/pkg/runtime/alg.c     |  18 +-
+ src/pkg/runtime/hashmap.h |   2 +-
+ src/pkg/runtime/runtime.h |  10 +-
+ test/cmp.go               | 267 +++++++++++++++++++++--
+ test/cmp6.go              |  12 +-
+ test/interface/noeq.go    |   4 +-
+ test/map1.go              |   4 +-
+ test/recover2.go          |   1 +
+ 24 files changed, 1174 insertions(+), 163 deletions(-)

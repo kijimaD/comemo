@@ -1,0 +1,25 @@
+commit 5c59e11f5e1fe2e6d5b684f9a348022c07807126
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 7 13:18:42 2021 -0700
+
+    cmd/compile: remove special-casing of blank in types.sconv{,2}
+    
+    I'm not sure why blank was special-cased here before, but it's
+    wrong. Blank is a non-exported identifier, and writing it out without
+    package-qualification can result in linker symbol collisions.
+    
+    Fixes #47087.
+    
+    Change-Id: Ie600037c8e54e3d4fdaeec21e2ca212badbd830b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333163
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/fmt.go |  8 --------
+ test/fixedbugs/issue47087.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue47087.dir/b.go    |  9 +++++++++
+ test/fixedbugs/issue47087.dir/main.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue47087.go          |  7 +++++++
+ 5 files changed, 44 insertions(+), 8 deletions(-)

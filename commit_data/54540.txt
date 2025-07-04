@@ -1,0 +1,14 @@
+commit 795414d1c628f763defa43199ab51ea3dc3241d8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 21 13:41:31 2023 -0400
+
+    cmd/compile: capitalize ir.MethodSym in comment
+    
+    Change-Id: I631704f87cc5343eeacdc800b819f2588e9528b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

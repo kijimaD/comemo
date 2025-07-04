@@ -1,0 +1,17 @@
+commit 090f03fd2f276341d1d93fc289fe346d44b0f4be
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Aug 7 21:40:43 2024 +0200
+
+    cmd/compile: do constant folding for BitLen*
+    
+    Change-Id: I56c27d606b55ea882f4db264fd4735b0cccdf7c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604015
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |   8 ++
+ src/cmd/compile/internal/ssa/_gen/rulegen.go    |   1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 153 ++++++++++++++++++++++++
+ 3 files changed, 162 insertions(+)

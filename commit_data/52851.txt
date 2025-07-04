@@ -1,0 +1,25 @@
+commit 968ebb205e02ff4a1d63575a2af54e885b0ab4fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 09:37:00 2023 -0400
+
+    cmd/api: move support checks into individual tests
+    
+    This makes 'go test -list cmd/api' work, and fixes an infinite
+    recursion via testenv.HasExec that would otherwise occur.
+    As of CL 488076, testenv.HasExec tries to re-exec the test
+    executable using -list to suppress running the tests, which
+    produces a fork bomb if TestMain itself calls HasExec.
+    
+    For this test, it turns out that the HasExec check is redundant
+    anyway: if we can exec 'go build', we can certainly exec programs in
+    general too.
+    
+    Change-Id: I165f98315c181098c8be8b7525b9dfa3f98e14f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/api/api_test.go | 41 ++++++++++++++++++++---------------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)

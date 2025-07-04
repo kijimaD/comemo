@@ -1,0 +1,12 @@
+commit 9626180918d834e0a6eb56e28c6ca201e39dbcba
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Nov 9 08:46:13 2010 -0800
+
+    doc: fix go_spec spelling error
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/2985041
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

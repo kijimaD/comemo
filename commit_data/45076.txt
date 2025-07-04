@@ -1,0 +1,23 @@
+commit 2fa7163b06a1b483598eb0ee827c78ef0d32ba33
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 17:46:21 2021 -0400
+
+    cmd/compile: look for newobject in register ABI for write barrier elision
+    
+    If we are assigning a global address to an object that is
+    immediately returned from runtime.newobject, we omit the write
+    barrier because we know that both the source (static address) and
+    the destination (zeroed memory) do not need to be tracked by the
+    GC. Currently, the code that matches runtime.newobject's result
+    is specific to ABI0 layout. Update the code to work with register
+    ABI as well.
+    
+    Change-Id: I7ab0833c6f745329271881ee4169956928a3a948
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308709
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 81 +++++++++++++++++-----------
+ 1 file changed, 50 insertions(+), 31 deletions(-)

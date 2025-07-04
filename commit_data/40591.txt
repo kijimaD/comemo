@@ -1,0 +1,27 @@
+commit 79a00a3fe8b286d335af86a2eed6b87cd3fc878e
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Nov 1 09:42:37 2019 +0100
+
+    unicode: upgrade to Unicode 12
+    
+    This does not include an upgrade of golang.org/x/net.
+    This is optional and best done as a separate CL.
+    
+    Change-Id: Ifecc3fb6e3b7fe026b4ddefbe637186a3445b0bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204658
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/except.txt                                     |    1 +
+ api/next.txt                                       |    5 +
+ src/go.mod                                         |    2 +-
+ src/go.sum                                         |    4 +-
+ src/strconv/isprint.go                             |   86 +-
+ src/unicode/tables.go                              |  574 +-
+ .../golang.org/x/text/unicode/bidi/tables11.0.0.go |    2 +-
+ .../golang.org/x/text/unicode/bidi/tables12.0.0.go | 1923 +++++
+ .../golang.org/x/text/unicode/norm/tables11.0.0.go |    2 +-
+ .../golang.org/x/text/unicode/norm/tables12.0.0.go | 7710 ++++++++++++++++++++
+ src/vendor/modules.txt                             |    2 +-
+ 11 files changed, 10050 insertions(+), 261 deletions(-)

@@ -1,0 +1,25 @@
+commit 4102e6ff56eee8fd6a1689f4bcf9d5a92cc44a6c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed May 16 11:43:02 2018 +0200
+
+    runtime/cgo: use size_t in sizeof result comparison
+    
+    When a variable of type int is compared with sizeof's return
+    value, gcc warns:
+    
+      comparison between signed and unsigned integer expressions
+    
+    Change the type of a couple loop indices that looped over sizeof from
+    int to size_t to silence the warnings.
+    
+    Fixes #25411
+    
+    Change-Id: I2c7858f84237e77945651c7b1b6a75b97edcef65
+    Reviewed-on: https://go-review.googlesource.com/113335
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_freebsd_sigaction.c | 2 +-
+ src/runtime/cgo/gcc_sigaction.c         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

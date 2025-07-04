@@ -1,0 +1,24 @@
+commit 718dc025e7b2cdef26c6a5f3d5c2645885ef44a5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 17 11:19:53 2024 +1100
+
+    fmt: clear width and precision when recovering formatting object from the pool
+    
+    Probably a day 1 oversight, and almost always inconsequential, but
+    there is evidence of occasional trouble. There is no reason not to
+    clear them.
+    
+    I tried and failed to write a test to catch this, but the change should
+    be harmless and is all but certain to fix the problem.
+    
+    Fixes #61913
+    
+    Change-Id: I0f7bbb4ab2780d8999d3ff7a35255dc07fb5c7e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556215
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/fmt/format.go | 2 ++
+ 1 file changed, 2 insertions(+)

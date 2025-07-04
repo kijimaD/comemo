@@ -1,0 +1,32 @@
+commit 6317f92f6e51f679712deec6094c6b5fc2948a5b
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Nov 27 10:41:37 2016 -0800
+
+    cmd/compile: fix CSE with commutative ops
+    
+    CSE opportunities were being missed for commutative ops. We used to
+    order the args of commutative ops (by arg ID) once at the start of CSE.
+    But that may not be enough.
+    
+    i1 = (Load ptr mem)
+    i2 = (Load ptr mem)
+    x1 = (Add i1 j)
+    x2 = (Add i2 j)
+    
+    Equivalent commutative ops x1 and x2 may not get their args ordered in
+    the same way because because at the start of CSE, we don't know that
+    the i values will be CSEd. If x1 and x2 get opposite orders we won't
+    CSE them.
+    
+    Instead, (re)order the args of commutative operations by their
+    equivalence class IDs each time we partition an equivalence class.
+    
+    Change-Id: Ic609fa83b85299782a5e85bf93dc6023fccf4b0c
+    Reviewed-on: https://go-review.googlesource.com/33632
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/cse.go | 14 ++++++++++----
+ test/prove.go                       | 15 ++++++++++++++-
+ 2 files changed, 24 insertions(+), 5 deletions(-)

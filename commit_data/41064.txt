@@ -1,0 +1,38 @@
+commit fab2e86ba230389b270940c4e1a8e30c2bbb59f2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 26 16:06:49 2019 -0500
+
+    cmd/go: convert some testcases to the script framework
+    
+    This change converts TestFatalInBenchmarkCauseNonZeroExitStatus,
+    TestBenchmarkLabels and TestWildCardsDoNotLookInUselessDirectories
+    to the script framework so they can run in parallel. These tests
+    used the testdata directory so they didn't call tg.parallel, because
+    they couldn't be sure the testdata directory wasn't being
+    modified while they were being run.
+    
+    The tests are converted to the script framework instead of being modified
+    because the script framework tests are easier to read and are self-contained.
+    
+    Also remove the directory src/cmd/go/testdata/src/badc. The testcase
+    that used it, "TestDisallowedCSourceFiles" was deleted in
+    golang.org/cl/19613.
+    
+    Updates #17751
+    
+    Change-Id: I0b9b417ae1a9b148067a3e5f8531229f3414f104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212620
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 32 +---------------------
+ src/cmd/go/testdata/script/README                  |  2 +-
+ .../script/list_wildcard_skip_nonmatching.txt      | 13 +++++++++
+ .../go/testdata/script/test_benchmark_fatal.txt    | 15 ++++++++++
+ .../go/testdata/script/test_benchmark_labels.txt   | 19 +++++++++++++
+ src/cmd/go/testdata/src/badc/x.c                   |  1 -
+ src/cmd/go/testdata/src/badc/x.go                  |  1 -
+ src/cmd/go/testdata/src/badpkg/x.go                |  1 -
+ src/cmd/go/testdata/src/bench/x_test.go            |  6 ----
+ src/cmd/go/testdata/src/benchfatal/x_test.go       |  7 -----
+ 10 files changed, 49 insertions(+), 48 deletions(-)

@@ -1,0 +1,16 @@
+commit 454c621d91fab6b0143fd678fd2d10ed3c28a983
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 12 13:55:20 2009 -0800
+
+    exp/draw: correct Makefile.
+    
+    Thanks to Allister Macleod
+    
+    Fixes #112.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152102
+
+ src/pkg/exp/draw/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

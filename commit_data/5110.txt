@@ -1,0 +1,12 @@
+commit 6b3031beaaaf4fa4f74a6ec62127bf3b7c7ad839
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 23 17:03:28 2010 -0700
+
+    FAQ: Protocol buffers are now supported.  Update the entry.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/702042
+
+ doc/go_faq.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

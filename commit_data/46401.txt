@@ -1,0 +1,67 @@
+commit 2091bd3f26e5143bd050833b3558893e1bc34625
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Oct 21 18:51:42 2020 +0800
+
+    cmd/compile: simiplify arm64 bitfield optimizations
+    
+    In some rewrite rules for arm64 bitfield optimizations, the
+    bitfield lsb value and the bitfield width value are related
+    to datasize, some of them use datasize directly to check the
+    bitfield lsb value is valid, to get the bitfiled width value,
+    but some of them call isARM64BFMask() and arm64BFWidth()
+    functions. In order to be consistent, this patch changes them
+    all to use datasize.
+    
+    Besides, this patch sorts the codegen test cases.
+    
+    Run the "toolstash-check -all" command and find one inconsistent code
+    is as the following.
+    
+    new:    src/math/fma.go:104      BEQ    247
+    master: src/math/fma.go:104      BEQ    248
+    
+    The above inconsistence is due to this patch changing the range of the
+    field lsb value in "UBFIZ" optimization rules from "lc+(32|16|8)<64" to
+    "lc<64", so that the following code is generated as "UBFIZ". The logical
+    of changed code is still correct.
+    
+    The code of src/math/fma.go:160:
+      const uvinf = 0x7FF0000000000000
+      func FMA(a, b uint32) float64 {
+            ps := a+b
+            return Float64frombits(uint64(ps)<<63 | uvinf)
+      }
+    
+    The new assembly code:
+      TEXT    "".FMA(SB), LEAF|NOFRAME|ABIInternal, $0-16
+      MOVWU   "".a(FP), R0
+      MOVWU   "".b+4(FP), R1
+      ADD     R1, R0, R0
+      UBFIZ   $63, R0, $1, R0
+      ORR     $9218868437227405312, R0, R0
+      MOVD    R0, "".~r2+8(FP)
+      RET     (R30)
+    
+    The master assembly code:
+      TEXT    "".FMA(SB), LEAF|NOFRAME|ABIInternal, $0-16
+      MOVWU   "".a(FP), R0
+      MOVWU   "".b+4(FP), R1
+      ADD     R1, R0, R0
+      MOVWU   R0, R0
+      LSL     $63, R0, R0
+      ORR     $9218868437227405312, R0, R0
+      MOVD    R0, "".~r2+8(FP)
+      RET     (R30)
+    
+    Change-Id: I9061104adfdfd3384d0525327ae1e5c8b0df5c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265038
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  47 ++++---
+ src/cmd/compile/internal/ssa/rewrite.go      |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 196 +++++++++++++--------------
+ test/codegen/bitfield.go                     | 144 ++++++++++++++------
+ 4 files changed, 218 insertions(+), 171 deletions(-)

@@ -1,0 +1,21 @@
+commit 30dcb13420342880ac8b9b4d34ad25e9d6d86d65
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 18:25:56 2009 -0700
+
+    Split decls.go up, taking advantage of whole-package
+    compilation to put the definitions in reasonable places.  No
+    code changes, just movement.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=479  (232 added, 247 deleted, 0 changed)
+    OCL=34067
+    CL=34069
+
+ usr/austin/eval/Makefile    |   1 -
+ usr/austin/eval/compiler.go |  11 ++
+ usr/austin/eval/decls.go    | 250 --------------------------------------------
+ usr/austin/eval/scope.go    |  68 ++++++++++++
+ usr/austin/eval/type.go     |  38 +++++++
+ usr/austin/eval/value.go    | 115 ++++++++++++++++++++
+ 6 files changed, 232 insertions(+), 251 deletions(-)

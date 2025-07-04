@@ -1,0 +1,14 @@
+commit 44b7d5b41a0dd9e559ea191e79e85c310f8f0716
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Mon Jun 3 07:07:31 2013 -0700
+
+    test/stress: fix a goroutine leak in threadRing stresstest
+    
+    Fixes #5527
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/9955043
+
+ test/stress/runstress.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

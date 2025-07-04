@@ -1,0 +1,30 @@
+commit 1124fa300bfe92732765725d504b2711cc25008d
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Sun Dec 17 16:11:14 2017 +0700
+
+    math: use Abs rather than if x < 0 { x = -x }
+    
+    This is the benchmark result base on darwin with amd64 architecture:
+    
+    name     old time/op  new time/op  delta
+    Cos      10.2ns ± 2%  10.3ns ± 3%  +1.18%  (p=0.032 n=10+10)
+    Cosh     25.3ns ± 3%  24.6ns ± 2%  -3.00%  (p=0.000 n=10+10)
+    Hypot    6.40ns ± 2%  6.19ns ± 3%  -3.36%  (p=0.000 n=10+10)
+    HypotGo  7.16ns ± 3%  6.54ns ± 2%  -8.66%  (p=0.000 n=10+10)
+    J0       66.0ns ± 2%  63.7ns ± 1%  -3.42%  (p=0.000 n=9+10)
+    
+    Fixes #21812
+    
+    Change-Id: I2b88fbdfc250cd548f8f08b44ce2eb172dcacf43
+    Reviewed-on: https://go-review.googlesource.com/84437
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/hypot.go | 7 +------
+ src/math/j0.go    | 4 +---
+ src/math/sin.go   | 4 +---
+ src/math/sinh.go  | 4 +---
+ 4 files changed, 4 insertions(+), 15 deletions(-)

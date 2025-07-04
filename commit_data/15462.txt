@@ -1,0 +1,12 @@
+commit 01ab9a012a7a34040ed9b69ec87b5b3301e0f50b
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Feb 27 08:28:53 2013 -0800
+
+    runtime: improve precision of GC_REGION
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7383054
+
+ src/pkg/runtime/mgc0.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

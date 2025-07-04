@@ -1,0 +1,22 @@
+commit f7d0a4212167bf15d64fbcfb5587f3c5636e1874
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 1 15:59:46 2019 -0400
+
+    cmd/go/internal/modfetch/zip_sum_test: long test for zip sum stability
+    
+    This CL adds a new test package which downloads specific versions of
+    ~1000 modules in direct mode and verifies that modules have the same
+    sums and the zip files have the same SHA-256 hashes.
+    
+    This test takes a long time to run and depends heavily on external
+    data that may disappear. It must be enabled manually with -zipsum.
+    
+    Fixes #35290
+    
+    Change-Id: Ic6959e685096e8b09cea291f19d5bd0255432284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204838
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .../modfetch/zip_sum_test/testdata/zip_sums.csv    | 2124 ++++++++++++++++++++
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |  230 +++
+ 2 files changed, 2354 insertions(+)

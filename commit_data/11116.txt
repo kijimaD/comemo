@@ -1,0 +1,14 @@
+commit 81728cf06da55bfc66981e0df2414accc876bccc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 17:25:09 2012 -0500
+
+    gc: fix inlining bug
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5532077
+
+ src/cmd/gc/inl.c                 | 14 +++++++++-----
+ test/fixedbugs/bug392.dir/one.go |  4 ++++
+ test/fixedbugs/bug392.dir/two.go |  4 ++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

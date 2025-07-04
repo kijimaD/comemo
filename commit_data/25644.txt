@@ -1,0 +1,23 @@
+commit 9d6427d8992b05445029f95c9555820675dd2e3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 01:33:16 2016 -0500
+
+    cmd/asm: reject foo(SB)(AX) instead of silently treating as foo(SB)
+    
+    Add test for assembly errors, to verify fix.
+    Make sure invalid instruction errors are printed just once
+    (was printing them once per span iteration, so typically twice).
+    
+    Fixes #13282.
+    
+    Change-Id: Id5f66f80a80b3bc4832e00084b0a91f1afec7f8f
+    Reviewed-on: https://go-review.googlesource.com/18858
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go      | 114 ++++++++++++++++++++++++-
+ src/cmd/asm/internal/asm/testdata/amd64error.s |   7 ++
+ src/cmd/asm/main.go                            |   2 +-
+ src/cmd/compile/internal/gc/lex.go             |   2 +-
+ src/cmd/internal/obj/link.go                   |   8 +-
+ src/cmd/internal/obj/x86/asm6.go               |   9 ++
+ 6 files changed, 135 insertions(+), 7 deletions(-)

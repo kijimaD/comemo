@@ -1,0 +1,22 @@
+commit 2edb02b41e8129e47224d994c30dec4bb5301566
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 9 17:51:30 2010 -0800
+
+    1. decommit complex(float) conversion
+    2. add complex algorithm for map/chan
+    3. test for use of complex in
+       array, slice, field, chan, map,
+       field, pointer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/384041
+
+ src/cmd/gc/const.c     |  4 ++--
+ src/cmd/gc/cplx.c      | 12 -----------
+ src/cmd/gc/subr.c      |  4 +++-
+ src/cmd/gc/typecheck.c | 11 +++++++---
+ test/ken/cplx3.go      |  6 +++---
+ test/ken/cplx4.go      |  4 +---
+ test/ken/cplx5.go      | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 71 insertions(+), 24 deletions(-)

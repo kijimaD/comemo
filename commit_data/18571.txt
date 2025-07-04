@@ -1,0 +1,16 @@
+commit 78404dfb84a70bbbe0134e3aa63038c9b4cd146e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 15:50:50 2014 -0500
+
+    cmd/gc: fix printf format in typecheck.c
+    There are probably more of these, but bound and len are 64 bits so use %lld
+    in message about array index out of bounds.
+    Fixes the 386 build.
+    
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews, rickarnoldjr
+    https://golang.org/cl/66110043
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 73fb829f5969c8370ca81bbbf67ad1ffa4c46b98
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:13:50 2022 -0700
+
+    cmd/compile: remove ir.NewField's ntyp parameter
+    
+    ir.NewField is always called with ntyp as nil.
+    
+    Change-Id: Iccab4ce20ae70d056370a6469278e68774e685f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403834
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/type.go             |  4 ++--
+ src/cmd/compile/internal/reflectdata/alg.go     | 10 +++++-----
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)

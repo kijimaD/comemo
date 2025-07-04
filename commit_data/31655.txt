@@ -1,0 +1,18 @@
+commit 59096edb4aa4a43e984439682cc9b379a1d0c2c0
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue May 23 19:40:52 2017 -0600
+
+    net/http: polish gzip case insensitive test
+    
+    Avoid directly using the binary of the
+    gzipped encoded string in the handler.
+    
+    Follow up of CL 37431.
+    
+    Change-Id: Idcd04acb7940e67b7a35b2d6cb163d75b0e22e04
+    Reviewed-on: https://go-review.googlesource.com/44008
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

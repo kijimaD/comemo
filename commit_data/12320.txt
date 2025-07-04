@@ -1,0 +1,15 @@
+commit 9316070419ac6fd732d4d163c11585e90dbc6099
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 18:26:53 2012 -0500
+
+    go/build: document GOPATH
+    
+    Fixes #2332.
+    
+    R=golang-dev, remyoudompheng, gri, r, r
+    CC=golang-dev
+    https://golang.org/cl/5710055
+
+ src/cmd/go/help.go        |  3 +++
+ src/pkg/go/build/build.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 51 insertions(+), 1 deletion(-)

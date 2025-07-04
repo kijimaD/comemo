@@ -1,0 +1,15 @@
+commit ef03c4476eadc6c68c27bf2a01a6085ae22bac2d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Oct 31 17:14:33 2019 -0400
+
+    doc: document Go 1.12.13
+    
+    Change-Id: Ic65a74e56320adbd76aeef1cf3b19d7906ffe8fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204637
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,14 @@
+commit 18aded7ab924d32be1dcd4b82c904947fd537434
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon May 7 11:41:40 2012 +0200
+
+    exp/norm: It is important that the unicode versions of the various packages align.
+    Replace hard-coded version strings with unicode.Version.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/6163045
+
+ src/pkg/exp/norm/maketables.go  | 3 ++-
+ src/pkg/exp/norm/normregtest.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

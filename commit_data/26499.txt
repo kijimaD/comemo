@@ -1,0 +1,25 @@
+commit 0a82ed5d7c6db2c01a840e2a494cb6ff22a02823
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 21:47:02 2016 +0100
+
+    misc/cgo/testcarchive: re-enable c-archive test on iOS and Android
+    
+    The c-archive test were recently converted from shell script to Go.
+    Unfortunately, it also lost the ability to target iOS and Android
+    that lack C compilers and require exec wrappers.
+    
+    Compile the c-archive test for the host and run it with the target
+    GOOS/GOARCH environment. Change the test to rely on go env GOOS
+    and go env GOARCH instead of runtime.GOOS and runtime.GOARCH.
+    
+    Fixes #8345
+    
+    Change-Id: I290ace2f7e96b87c55d99492feb7d660140dcb32
+    Reviewed-on: https://go-review.googlesource.com/21102
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 55 ++++++++++++++++++----------------
+ src/cmd/dist/test.go                   | 27 ++++++++++++++---
+ 2 files changed, 52 insertions(+), 30 deletions(-)

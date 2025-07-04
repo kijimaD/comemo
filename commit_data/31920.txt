@@ -1,0 +1,17 @@
+commit 145557c23a4597ac08abccc9e33604513d0a4af9
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Apr 28 09:11:50 2017 -0400
+
+    net/http/pprof: mention mutex profile in doc
+    
+    mutex profile requires explicit calls to
+    runtime.SetMutexProfileFraction to enable/disable
+    profiling (like block profile). It is worth
+    mentioning in the doc.
+    
+    Change-Id: I2b8d654be9f5c6bc49fc802b7708c4c552fea9b2
+    Reviewed-on: https://go-review.googlesource.com/42070
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 5 +++++
+ 1 file changed, 5 insertions(+)

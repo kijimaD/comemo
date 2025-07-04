@@ -1,0 +1,16 @@
+commit 7da86983a8619df20e61531159d6e2f7f1f628bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 28 17:16:44 2011 -0500
+
+    gc: bug325 / issue 1566
+    
+    Fixes #1566.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4259041
+
+ src/cmd/gc/subr.c        |  1 -
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug325.go | 14 ++++++++++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

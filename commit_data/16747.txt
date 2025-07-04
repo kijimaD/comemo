@@ -1,0 +1,15 @@
+commit f70a19f085bd4cd67f57e9d99af0a1959ffef4ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 00:42:46 2013 -0400
+
+    runtime: fix 386 build after cas64 change
+    
+    Missed this in CL 10909045.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10803045
+
+ src/pkg/runtime/asm_386.s    | 14 +++++---------
+ src/pkg/runtime/atomic_386.c |  2 +-
+ 2 files changed, 6 insertions(+), 10 deletions(-)

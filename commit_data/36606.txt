@@ -1,0 +1,25 @@
+commit 3e5b5d69dcdb82494f550049986426d84dd6b8f8
+Author: Jake B <doogie1012@gmail.com>
+Date:   Wed Sep 5 08:52:43 2018 +0000
+
+    net: ensure WriteTo on Windows sends even zero-byte payloads
+    
+    This builds on:
+    https://github.com/golang/go/pull/27445
+    
+    "...And then send change to fix windows internal/poll.FD.WriteTo - together with making TestUDPZeroBytePayload run again."
+    - alexbrainman - https://github.com/golang/go/issues/26668#issuecomment-408657503
+    
+    Fixes #26668
+    
+    Change-Id: Icd9ecb07458f13e580b3e7163a5946ccec342509
+    GitHub-Last-Rev: 3bf2b8b46bb8cf79903930631433a1f2ce50ec42
+    GitHub-Pull-Request: golang/go#27446
+    Reviewed-on: https://go-review.googlesource.com/132781
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go |  3 ---
+ src/net/udpsock_test.go         | 12 +++++++-----
+ 2 files changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,22 @@
+commit a782472dcd3937d8e49ab843dffc7568c6eb8edb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 10:52:10 2019 -0500
+
+    cmd/go: delete flaky TestQEMUUserMode
+    
+    If QEMU user-mode is actually a supported configuration, then per
+    http://golang.org/wiki/PortingPolicy it needs to have a builder
+    running tests for all packages, not just a simple “hello world”
+    program.
+    
+    Updates #1508
+    Updates #13024
+    Fixes #35457
+    
+    Change-Id: Ib6122b06ad1d265550a0e92131506266495893cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206137
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 46 ----------------------------------------------
+ 1 file changed, 46 deletions(-)

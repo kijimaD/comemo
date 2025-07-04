@@ -1,0 +1,16 @@
+commit f6f825141a3c845337d82d18a002460b0d973547
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 30 15:37:46 2009 -0700
+
+    encoders for booleans and numbers.
+    
+    R=rsc
+    DELTA=610  (597 added, 5 deleted, 8 changed)
+    OCL=30934
+    CL=30939
+
+ src/pkg/gob/codec_test.go | 352 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/encode.go     | 245 ++++++++++++++++++++++++++++++++
+ src/pkg/gob/type.go       |  12 +-
+ src/pkg/gob/type_test.go  |   9 +-
+ 4 files changed, 605 insertions(+), 13 deletions(-)

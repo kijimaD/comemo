@@ -1,0 +1,19 @@
+commit 98e5a44a88990b4ed8130056c1d1dec4abc4ecaf
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Aug 28 15:50:13 2014 +1000
+
+    png: make the encoder configurable
+    
+    In order to support different compression levels, make the
+    encoder type public, and add an Encoder method to it.
+    
+    Fixes #8499.
+    
+    LGTM=nigeltao
+    R=nigeltao, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/129190043
+
+ src/pkg/image/png/writer.go      | 52 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/image/png/writer_test.go | 26 ++++++++++++++++----
+ 2 files changed, 68 insertions(+), 10 deletions(-)

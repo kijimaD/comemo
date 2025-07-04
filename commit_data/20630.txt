@@ -1,0 +1,13 @@
+commit 668ea79283735b35d5234d0b4c4e9f87ce0615d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 3 18:12:05 2014 -0700
+
+    doc/go1.4: mention that we are going to need a new version of SWIG
+    
+    Update #8750
+    
+    CC=golang-codereviews
+    https://golang.org/cl/153950044
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

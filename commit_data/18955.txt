@@ -1,0 +1,13 @@
+commit 34767046d723538d895f2be47a4ece16cc680b6f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 26 14:06:18 2014 +0900
+
+    doc: document DragonFly BSD port
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/80120044
+
+ doc/install-source.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

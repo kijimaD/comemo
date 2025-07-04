@@ -1,0 +1,26 @@
+commit c12399fffb6ff9fb947a10e445fdfdc62c697e2c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Jun 8 18:12:57 2018 +0200
+
+    all: enable vet/all for js/wasm and fix vet issues
+    
+    This commit enables vet/all for the js/wasm architecture. It got
+    skipped initially because the codebase did not fully compile yet
+    for js/wasm, which made vet/all fail.
+    
+    startTimer and stopTimer are not needed in the syscall package.
+    Removed their assembly code since their Go stubs were already gone.
+    
+    Change-Id: Icaeb6d903876e51ceb1edff7631f715a98c28696
+    Reviewed-on: https://go-review.googlesource.com/118657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go               |  5 -----
+ src/cmd/vet/all/whitelist/wasm.txt    | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/vet/asmdecl.go                |  2 ++
+ src/internal/bytealg/compare_wasm.s   | 24 ++++++++++++------------
+ src/internal/bytealg/indexbyte_wasm.s | 20 ++++++++++----------
+ src/runtime/asm_wasm.s                |  4 ++--
+ src/runtime/rt0_js_wasm.s             |  2 +-
+ src/syscall/time_js_wasm.s            | 11 -----------
+ 8 files changed, 60 insertions(+), 41 deletions(-)

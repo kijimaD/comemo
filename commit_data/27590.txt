@@ -1,0 +1,21 @@
+commit 3659645cb1f32d7b1eeefdb65f1339fe54f0f6eb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 11:23:50 2016 -0700
+
+    flag: recognize "0s" as the zero value for a flag.Duration
+    
+    Implemented by using a reflect-based approach to recognize the zero
+    value of any non-interface type that implements flag.Value.  Interface
+    types will fall back to the old code.
+    
+    Fixes #15904.
+    
+    Change-Id: I594c3bfb30e9ab1aca3e008ef7f70be20aa41a0b
+    Reviewed-on: https://go-review.googlesource.com/23581
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go      | 19 +++++++++++++++++--
+ src/flag/flag_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 3 deletions(-)

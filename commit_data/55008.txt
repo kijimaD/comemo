@@ -1,0 +1,26 @@
+commit d21afcdf00e5401cf0ffae7e346abfe3821912a9
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 27 08:15:38 2023 -0400
+
+    cmd/compile/internal/inline: refactor heuristics analyzers
+    
+    This very minor refactoring changes the heuristics analysis code to
+    avoid running result-flag or param-flag analyzers on functions that
+    don't have any interesting results or parameters (so as to save a bit
+    of compile time). No change otherwise in heuristics functionality.
+    
+    Change-Id: I7ee13f0499cc3d14d5638e2193e4bd8d7b690e5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  8 +--
+ .../internal/inline/inlheur/analyze_func_params.go | 33 +++++++++++-
+ .../inline/inlheur/analyze_func_returns.go         | 60 ++++++++++++++++------
+ .../inline/inlheur/testdata/props/acrosscall.go    | 20 ++++----
+ .../inline/inlheur/testdata/props/calls.go         | 12 ++---
+ .../inline/inlheur/testdata/props/funcflags.go     | 38 +++++++-------
+ .../inline/inlheur/testdata/props/params.go        | 44 ++++++++--------
+ .../inline/inlheur/testdata/props/returns.go       | 14 ++---
+ .../inline/inlheur/testdata/props/returns2.go      | 14 ++---
+ 9 files changed, 150 insertions(+), 93 deletions(-)

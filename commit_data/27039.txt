@@ -1,0 +1,19 @@
+commit 75b886ab790782f34945c0e1b0dee4189399ac9e
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Wed Apr 20 14:05:48 2016 -0700
+
+    cmd/compile: reject embedded unsafe.Pointer values
+    
+    Fixes #14729
+    
+    Change-Id: Ied819aa7b23e25de30aa8cde049c97297b4cab11
+    Reviewed-on: https://go-review.googlesource.com/22325
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/type.go      |  5 +++++
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue14729.go             | 14 ++++++++++++++
+ 4 files changed, 21 insertions(+), 2 deletions(-)

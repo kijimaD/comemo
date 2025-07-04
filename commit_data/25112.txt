@@ -1,0 +1,20 @@
+commit 0ea1c1f6715c6fe33c38b6292ce2bdccaa86f0e2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Nov 30 14:43:33 2015 -0800
+
+    compress/bzip2/testdata: make Mark.Twain-Tom.Sawyer.txt free
+    
+    Commit 7a1fb95d50b7a8302445ebc1296010695151ce7b strips non-free license
+    from Mark.Twain-Tom.Sawyer.txt, but forgot to remove it from the compressed
+    version of the file.
+    
+    Update #13216
+    
+    Change-Id: I60f53275d56ba5baa6898db47b1d41f85e985c00
+    Reviewed-on: https://go-review.googlesource.com/17264
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2   | Bin 124744 -> 118509 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

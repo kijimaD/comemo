@@ -1,0 +1,25 @@
+commit 5be78668ef311576c945c4dfc6cfb0716236a89f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 21 09:47:31 2018 +1000
+
+    fmt: unify the printing examples
+    
+    Provide an example for each of the printing functions (Print,
+    Sprintf, Fprintln etc.), and make them all produce the same output
+    so their usage can be compared.
+    
+    Also add a package-level example explaining the difference between
+    how Printf, Println, and Print behave.
+    
+    There are more examples to come.
+    
+    Update #27554.
+    
+    Change-Id: Ide03e5233f3762a9ee2ac0269f534ab927562ce2
+    Reviewed-on: https://go-review.googlesource.com/136615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/example_test.go | 193 +++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 132 insertions(+), 61 deletions(-)

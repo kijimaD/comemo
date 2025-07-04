@@ -1,0 +1,24 @@
+commit b941a10e384e6772792bc9e05e7ebe58e98bc20e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 19 12:05:10 2022 -0700
+
+    crypto/x509: use SAN when comparing certs during path building
+    
+    Per RFC 4158 Section 2.4.2, when we are discarding candidate
+    certificates during path building, use the SANs as well as subject and
+    public key when checking whether a certificate is already present in
+    the built path. This supports the case where a certificate in the chain
+    (typically a leaf) has the exact same subject and public key as another
+    certificate in the chain (typically its parent) but has SANs which don't
+    match.
+    
+    Change-Id: I212c234e94a1f6afbe9691e4a3ba257461db3a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401115
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/x509/verify.go      | 58 ++++++++++++++++++++++++++++++++++--------
+ src/crypto/x509/verify_test.go | 23 +++++++++++++++++
+ 2 files changed, 70 insertions(+), 11 deletions(-)

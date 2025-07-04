@@ -1,0 +1,24 @@
+commit 03c58c9dccde0b9d98962f34e6669a508c8d133a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 13 21:01:01 2019 -0500
+
+    runtime: crash if a signal is received with bad G and no extra M
+    
+    When we receive a signal, if G is nil we call badsignal, which
+    calls needm. When cgo is not used, there is no extra M, so needm
+    will just hang. In this situation, even GOTRACEBACK=crash cannot
+    get a stack trace, as we're in the signal handler and cannot
+    receive another signal (SIGQUIT).
+    
+    Instead, just crash.
+    
+    For #35554.
+    Updates #34391.
+    
+    Change-Id: I061ac43fc0ac480435c050083096d126b149d21f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206959
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

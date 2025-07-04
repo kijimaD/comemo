@@ -1,0 +1,23 @@
+commit cca23a73733ff166722c69359f0bb45e12ccaa2b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 21 10:53:10 2021 -0400
+
+    cmd/compile: revert CL/316890
+    
+    This is a revert of https://go-review.googlesource.com/c/go/+/316890,
+    which has positive effects on debugging + DWARF variable locations
+    for register parameters when the reg abi is in effect, but also
+    turns out to interact badly with the register allocator.
+    
+    Fixes #46304.
+    
+    Change-Id: I624bd980493411a9cde45d44fcd3c46cad796909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321830
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 16 ------
+ test/fixedbugs/issue46304.go                 | 76 ++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 16 deletions(-)

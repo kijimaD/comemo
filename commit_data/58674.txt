@@ -1,0 +1,22 @@
+commit 7715ca32fcaad84059752c944f40768374796651
+Author: apocelipes <seve3r@outlook.com>
+Date:   Sat Feb 8 01:15:29 2025 +0000
+
+    database/sql: use t.Context in tests
+    
+    Replace "context.WithCancel(context.Background())" with "t.Context()".
+    
+    Updates #36532
+    
+    Change-Id: I78a8ba422f076f4c697910922cf6dc35c628b1a7
+    GitHub-Last-Rev: 2eacdbe9ea97ac8d928704c2b605b276626d95dd
+    GitHub-Pull-Request: golang/go#71599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647555
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/database/sql/sql_test.go | 32 ++++++++++----------------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)

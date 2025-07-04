@@ -1,0 +1,14 @@
+commit 7936ab58f7feb25f8c9b367585886d9872a17ad3
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Sep 26 21:10:29 2012 +0200
+
+    cmd/gc: Don't calculate second value in range if it is blank.
+    
+    Low hanging fruit optimization. Will remove an expensive copy if the range variable is an array.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6564052
+
+ src/cmd/gc/range.c | 5 +++++
+ 1 file changed, 5 insertions(+)

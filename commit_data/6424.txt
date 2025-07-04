@@ -1,0 +1,12 @@
+commit 686490ce177e63544b98599d364f323ee5dd31b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 29 12:34:24 2010 -0700
+
+    install.html: minor sentence fix
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2312041
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

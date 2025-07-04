@@ -1,0 +1,12 @@
+commit 43ee80997a5d52360fad605f01b9753e4056bdc2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 7 12:46:44 2013 -0800
+
+    C: add Keith Randall (Google CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7595043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

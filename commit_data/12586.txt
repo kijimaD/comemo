@@ -1,0 +1,16 @@
+commit d46438c3dadc5ce4903a2a2244b5bde84e4357cc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 15:57:38 2012 -0700
+
+    cmd/godoc: remove sync code
+    
+    Fixes #3273
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5795065
+
+ src/cmd/godoc/doc.go   | 16 +--------
+ src/cmd/godoc/godoc.go |  2 +-
+ src/cmd/godoc/main.go  | 94 --------------------------------------------------
+ 3 files changed, 2 insertions(+), 110 deletions(-)

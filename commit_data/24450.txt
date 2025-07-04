@@ -1,0 +1,12 @@
+commit 48b1e6bc97818958dec084c4ecb2fc94257deee2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Oct 3 21:23:23 2015 -0400
+
+    test: gofmt fixedbugs/issue10975.go
+    
+    Change-Id: I772d1bc3e394cdd707f210f2aaff77100d299e24
+    Reviewed-on: https://go-review.googlesource.com/15380
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue10975.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

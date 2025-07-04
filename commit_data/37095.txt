@@ -1,0 +1,19 @@
+commit eef0140137bae3bc059f598843b8777f9223fac8
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Oct 18 14:15:17 2018 +0530
+
+    time: return correct zone info on js/wasm
+    
+    Fixes #28265
+    
+    Change-Id: I0a13e9f9c216647e42127a59a80b0f19618169c1
+    Reviewed-on: https://go-review.googlesource.com/c/143577
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/go/build/deps_test.go |  1 +
+ src/time/zoneinfo_js.go   | 66 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_unix.go |  2 +-
+ 3 files changed, 68 insertions(+), 1 deletion(-)

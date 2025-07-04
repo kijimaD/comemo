@@ -1,0 +1,33 @@
+commit fc469314420f553906a283656ae39bafcf5af1b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 11:03:11 2014 -0400
+
+    runtime: remove untyped allocation of ParFor
+    
+    Now it's two allocations. I don't see much downside to that,
+    since the two pieces were in different cache lines anyway.
+    
+    Rename 'conservative' to 'cgo_conservative_type' and make
+    clear that _cgo_allocate is the only allowed user.
+    
+    This depends on CL 141490043, which removes the other
+    use of conservative (in defer).
+    
+    LGTM=dvyukov, iant
+    R=khr, dvyukov, iant
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/139610043
+
+ misc/cgo/test/callback.go        |  5 ++++
+ misc/cgo/test/callback_c_gc.c    | 49 ++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/callback_c_gccgo.c | 46 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/cgo_test.go        |  1 +
+ misc/cgo/test/exports.go         |  6 +++++
+ src/cmd/api/goapi.go             |  1 +
+ src/runtime/cgocallback.go       |  2 +-
+ src/runtime/malloc.c             |  8 -------
+ src/runtime/malloc.h             |  1 -
+ src/runtime/mgc0.go              |  9 --------
+ src/runtime/parfor.c             | 13 -----------
+ src/runtime/runtime.go           |  8 +++++++
+ 12 files changed, 117 insertions(+), 32 deletions(-)

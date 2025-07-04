@@ -1,0 +1,20 @@
+commit a1585b676bb13a36847beda61b94d32433d96715
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 13:58:45 2008 -0800
+
+    fix the easy parts of bug120
+    
+    R=r,ken
+    DELTA=66  (52 added, 3 deleted, 11 changed)
+    OCL=19386
+    CL=19389
+
+ src/cmd/gc/go.h       |  1 +
+ src/cmd/gc/mparith1.c | 17 ++++++++++++++---
+ src/cmd/gc/mparith2.c | 11 +++++++++++
+ test/bugs/bug120.go   | 21 ++++++++++++++++++++-
+ test/const.go         |  2 +-
+ test/convlit.go       |  2 +-
+ test/fmt_test.go      |  2 +-
+ test/golden.out       | 23 +++++++++++++++--------
+ 8 files changed, 64 insertions(+), 15 deletions(-)

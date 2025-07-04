@@ -1,0 +1,13 @@
+commit 7dd62cb3bc51222076506132f5d409ec7fa58b38
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 10 12:38:16 2008 -0800
+
+    2 minor bugs
+    
+    R=r
+    OCL=20906
+    CL=20906
+
+ src/cmd/gc/dcl.c | 11 +++++------
+ src/cmd/gc/go.y  |  1 +
+ 2 files changed, 6 insertions(+), 6 deletions(-)

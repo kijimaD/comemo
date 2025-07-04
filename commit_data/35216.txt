@@ -1,0 +1,16 @@
+commit 8c67ca1a99a208ab87e5eee9e1b7e3a9382eb728
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 24 23:40:08 2018 +0900
+
+    cmd/compile: apply TODO now that gcCompat is gone
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I17b9a816752af55b064b8e46146b8f5a878fa560
+    Reviewed-on: https://go-review.googlesource.com/109075
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

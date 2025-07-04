@@ -1,0 +1,19 @@
+commit 983e2fd4e6fecd78789384069c476eead4806d1b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 14 18:14:34 2016 +0000
+
+    sort: cut 140 seconds off race build tests
+    
+    No coverage is gained by running the 1e6 versions of the test over the
+    1e4 versions. It just adds 140 seconds of race overhead time.
+    
+    Updates #17104
+    
+    Change-Id: I41408aedae34a8b1a148eebdda20269cdefffba3
+    Reviewed-on: https://go-review.googlesource.com/29159
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/sort/sort_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,19 @@
+commit 62fb281cf72d4b7fa0a29500911a4af3a244f90f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 19:15:19 2023 -0700
+
+    bytes, strings: use "reports whether" in HasPrefix and HasSuffix
+    
+    Update the doc comments to use the more idiomatic and common phrase
+    "reports whether" instead of "tests whether".
+    
+    Change-Id: I2b7f8cce2d192f66e296ebaa9b37f37e8276b4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524898
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes.go     | 4 ++--
+ src/strings/strings.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

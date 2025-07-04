@@ -1,0 +1,17 @@
+commit 6df4c3a44b20b9738ae5699fbc156052522f9f54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 24 00:24:49 2018 +0000
+
+    net/http: document that Client methods always return *url.Error
+    
+    Updates #9424
+    
+    Change-Id: If117ba3e7d031f84b30d3a721ef99fe622734de2
+    Reviewed-on: https://go-review.googlesource.com/125575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/client.go      | 40 +++++++++++++++++++++++++++++++++++-----
+ src/net/http/export_test.go | 17 +++++++++++++++++
+ src/net/http/roundtrip.go   |  3 +++
+ src/net/http/server.go      |  2 +-
+ 4 files changed, 56 insertions(+), 6 deletions(-)

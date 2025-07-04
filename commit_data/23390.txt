@@ -1,0 +1,12 @@
+commit 776829660b7ed1dc0b4581abd637747ae1c7cdc8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 17 09:03:08 2015 +0900
+
+    doc/go1.5.txt: mention sequential and RFC 6555-compliant TCP dialing
+    
+    Change-Id: Ib0b0be901f2ed52e1b432ae62f0b1940eb27ecc3
+    Reviewed-on: https://go-review.googlesource.com/11137
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

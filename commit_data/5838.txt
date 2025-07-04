@@ -1,0 +1,14 @@
+commit bc2ee6b8c641010a576aa991c84120e0b991f2c3
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Sat Jul 17 16:52:53 2010 -0700
+
+    utf16: fix cyclic dependency when testing on Windows
+    
+    (on Windows, syscall depends on utf16)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1664053
+
+ src/pkg/utf16/utf16_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

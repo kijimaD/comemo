@@ -1,0 +1,19 @@
+commit d55d7b93978e1a10b6588962f999d3ebd6d65a3d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 20:35:02 2017 +0000
+
+    net/http: simplify recently added TestServeTLS
+    
+    TestServeTLS was added in CL 44074, merged today.
+    This cleans up the test a little.
+    
+    Updates #13228
+    
+    Change-Id: I6efd798fe5fa015a34addbf60ae26919a1ed283e
+    Reviewed-on: https://go-review.googlesource.com/45152
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 58 +++++++++++++++++++---------------------------
+ 1 file changed, 24 insertions(+), 34 deletions(-)

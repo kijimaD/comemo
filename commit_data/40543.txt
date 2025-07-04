@@ -1,0 +1,28 @@
+commit bdb5e9d170939a044621ddaa7622ff28d538875d
+Author: Harshavardhana <hrshvardhana@gmail.com>
+Date:   Wed Aug 7 13:38:09 2019 -0700
+
+    net/http/httputil: fix missing Transfer-Encoding header
+    
+    Current implementation of httputil.DumpRequestOut
+    incorrectly resets the Request.Body prematurely
+    before Content-Length/Transfer-Encoding detection
+    in newTransferWriter()
+    
+    This fix avoids resetting the Request.Body when
+    Request.ContentLength is set to '0' by the caller
+    and Request.Body is set to a custom reader. To allow
+    newTransferWriter() to treat this situation as
+    'Transfer-Encoding: chunked'.
+    
+    Fixes #34504
+    
+    Change-Id: Ieab6bf876ced28c32c084e0f4c8c4432964181f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197898
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/dump.go      | 22 +++++++++++++++++-----
+ src/net/http/httputil/dump_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 5 deletions(-)

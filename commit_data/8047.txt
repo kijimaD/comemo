@@ -1,0 +1,12 @@
+commit d36271a3e5ae67b3a25a9bfaab71f5a91269402d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 11 13:05:08 2011 -0700
+
+    http: fix incorrect prints found by govet
+    
+    R=golang-dev, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4370053
+
+ src/pkg/http/transport_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 68ce117cf17b8debf5754bfd476345779b5b6616
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Jan 19 12:50:40 2018 -0500
+
+    doc: document Go 1.9.3
+    
+    Change-Id: Ic7a5d3118754b34ab0652fcef889259a03baebc3
+    Reviewed-on: https://go-review.googlesource.com/88536
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/devel/release.html | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

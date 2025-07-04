@@ -1,0 +1,20 @@
+commit 0f85b0c0e1dc96a165645bf6da3693e8a3603ebc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 17 11:55:39 2021 -0700
+
+    go/types: fix method lookup for type-parameter based types
+    
+    This is a clean port of CL 342990.
+    
+    Fixes #47747.
+    
+    Change-Id: I2e86fb8b70d42a220ac1ba25798d9e58227ba5f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342991
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/lookup.go                         |  9 ++--
+ src/go/types/testdata/fixedbugs/issue47747.go2 | 68 ++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 3 deletions(-)

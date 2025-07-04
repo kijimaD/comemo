@@ -1,0 +1,23 @@
+commit 32bc0976f9c4333e4a9247d6acc908972c6c5d79
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 28 15:42:20 2018 -0400
+
+    cmd/link: use side table instead of sym.Symbol 'Reachparent' field
+    
+    The sym.Symbol 'Reachparent' field is used only when field tracking
+    is enabled. So as to use less memory for the common case where
+    field tracking is not enabled, remove this field and use a side
+    table stored in the context to achieve the same functionality.
+    
+    Updates #26186
+    
+    Change-Id: Idc5f8b0aa323689d4d51dddb5d1b0341a37bb7d2
+    Reviewed-on: https://go-review.googlesource.com/121915
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go |  4 +++-
+ src/cmd/link/internal/ld/go.go       |  2 +-
+ src/cmd/link/internal/ld/link.go     |  3 +++
+ src/cmd/link/internal/ld/main.go     |  5 +++++
+ src/cmd/link/internal/sym/symbol.go  | 21 ++++++++++-----------
+ 5 files changed, 22 insertions(+), 13 deletions(-)

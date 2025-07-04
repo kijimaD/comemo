@@ -1,0 +1,12 @@
+commit e81d72100aaf98f4aabf19337923981979f1410f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 14 11:29:11 2011 -0400
+
+    websocket: rename websocket.WebSocketAddr to *websocket.Addr.
+    
+    R=ukai
+    CC=golang-dev
+    https://golang.org/cl/4999043
+
+ src/pkg/websocket/websocket.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

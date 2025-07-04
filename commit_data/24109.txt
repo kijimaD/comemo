@@ -1,0 +1,43 @@
+commit 63862afb273b3c45d95df989413519fc71bc73f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 28 12:04:44 2015 -0400
+
+    cmd/internal/rsc.io: delete
+    
+    The code is now in cmd/vendor/golang.org/x/arch.
+    
+    Change-Id: I518d48c21b0d7fed914552b89ee41411f088456b
+    Reviewed-on: https://go-review.googlesource.com/14021
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/rsc.io/arm/armasm/Makefile        |    2 -
+ src/cmd/internal/rsc.io/arm/armasm/decode.go       |  567 --
+ src/cmd/internal/rsc.io/arm/armasm/decode_test.go  |   69 -
+ src/cmd/internal/rsc.io/arm/armasm/ext_test.go     |  614 --
+ src/cmd/internal/rsc.io/arm/armasm/gnu.go          |  164 -
+ src/cmd/internal/rsc.io/arm/armasm/inst.go         |  438 -
+ src/cmd/internal/rsc.io/arm/armasm/objdump_test.go |  258 -
+ .../internal/rsc.io/arm/armasm/objdumpext_test.go  |  260 -
+ src/cmd/internal/rsc.io/arm/armasm/plan9x.go       |  211 -
+ src/cmd/internal/rsc.io/arm/armasm/tables.go       | 9448 -------------------
+ .../internal/rsc.io/arm/armasm/testdata/Makefile   |    5 -
+ .../internal/rsc.io/arm/armasm/testdata/decode.txt |  306 -
+ src/cmd/internal/rsc.io/x86/x86asm/Makefile        |    3 -
+ src/cmd/internal/rsc.io/x86/x86asm/decode.go       | 1616 ----
+ src/cmd/internal/rsc.io/x86/x86asm/decode_test.go  |   71 -
+ src/cmd/internal/rsc.io/x86/x86asm/ext_test.go     |  811 --
+ src/cmd/internal/rsc.io/x86/x86asm/gnu.go          |  926 --
+ src/cmd/internal/rsc.io/x86/x86asm/inst.go         |  641 --
+ src/cmd/internal/rsc.io/x86/x86asm/inst_test.go    |   20 -
+ src/cmd/internal/rsc.io/x86/x86asm/intel.go        |  518 --
+ src/cmd/internal/rsc.io/x86/x86asm/objdump_test.go |  383 -
+ .../internal/rsc.io/x86/x86asm/objdumpext_test.go  |  314 -
+ .../internal/rsc.io/x86/x86asm/plan9ext_test.go    |  120 -
+ src/cmd/internal/rsc.io/x86/x86asm/plan9x.go       |  346 -
+ src/cmd/internal/rsc.io/x86/x86asm/plan9x_test.go  |   54 -
+ src/cmd/internal/rsc.io/x86/x86asm/tables.go       | 9760 --------------------
+ .../internal/rsc.io/x86/x86asm/testdata/Makefile   |   12 -
+ .../internal/rsc.io/x86/x86asm/testdata/decode.txt | 6731 --------------
+ src/cmd/internal/rsc.io/x86/x86asm/xed_test.go     |  211 -
+ src/cmd/internal/rsc.io/x86/x86asm/xedext_test.go  |  206 -
+ 30 files changed, 35085 deletions(-)

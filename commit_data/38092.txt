@@ -1,0 +1,25 @@
+commit 20930c7623be7c78189898795d089002c2f9de41
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Feb 11 16:33:12 2019 +0200
+
+    regexp: limit the capacity of slices of bytes returned by FindX
+    
+    This change limits the capacity of the slices of bytes returned by:
+    
+    - Find
+    - FindAll
+    - FindAllSubmatch
+    
+    to be the same as their length.
+    
+    Fixes #30169
+    
+    Change-Id: I07b632757d2bfeab42fce0d42364e2a16c597360
+    Reviewed-on: https://go-review.googlesource.com/c/161877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/find_test.go | 20 ++++++++++++++++----
+ src/regexp/regexp.go    |  8 ++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

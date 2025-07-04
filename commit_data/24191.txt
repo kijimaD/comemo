@@ -1,0 +1,20 @@
+commit 8712e1867b47e3b741f399c9be0f1e32252a792c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 11:11:14 2015 +1000
+
+    cmd/compile/internal/gc: convert Label.Used to bool
+    
+    Convert Label.Used to a boolean. Also move the field to the
+    bottom of the struct to avoid padding.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: If09ee92f9d54dce807e7b862cf771005daed810d
+    Reviewed-on: https://go-review.googlesource.com/14308
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go | 6 +++---
+ src/cmd/compile/internal/gc/go.go  | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit b83a916f7186eb98636407c304974db34277aa2f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 10 12:42:52 2017 -0700
+
+    cmd/compile: make iface == iface const evaluation respect !=
+    
+    Fixes #19911
+    
+    Change-Id: Ib2b2505fe31ce00c6ffc021a0fe5df510633b44b
+    Reviewed-on: https://go-review.googlesource.com/40251
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go |  3 +++
+ test/fixedbugs/issue19911.go         | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

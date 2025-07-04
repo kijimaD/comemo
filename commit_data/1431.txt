@@ -1,0 +1,13 @@
+commit 855495eab6dd0ebe5e8682d99ccf6817d5e1a774
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 7 12:39:48 2009 -0800
+
+    iscomposite test in OCONV is unnecessary
+    now that OCOMP exists
+    
+    R=ken
+    OCL=22216
+    CL=22216
+
+ src/cmd/gc/go.y | 2 --
+ 1 file changed, 2 deletions(-)

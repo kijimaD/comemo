@@ -1,0 +1,20 @@
+commit 847c357bbb819f8f042b715d6ccdaa8fd89c305d
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 14:25:08 2024 -0500
+
+    cmd/go: remove references to gopath-get
+    
+    Fixes #70912
+    
+    Change-Id: Id87a13f7c9bf972502d14c9674a27f743b849715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639155
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/alldocs.go                   | 11 +----------
+ src/cmd/go/internal/help/helpdoc.go     |  6 +-----
+ src/cmd/go/internal/modget/get.go       |  5 -----
+ src/cmd/go/testdata/script/mod_help.txt |  2 +-
+ 4 files changed, 3 insertions(+), 21 deletions(-)

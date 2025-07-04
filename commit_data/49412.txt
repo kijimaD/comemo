@@ -1,0 +1,18 @@
+commit d2630aa4b20b6ebd2a5a37628c2f1b9d7158621f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 3 11:48:43 2022 -0700
+
+    doc/go1.19: add various crypto release notes
+    
+    For #51400
+    
+    Change-Id: I908f53a54c6603e1bf2c9238cd51cf5c4a24407b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410295
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+
+ doc/go1.19.html | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 68 insertions(+), 9 deletions(-)

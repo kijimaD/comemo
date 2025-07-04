@@ -1,0 +1,23 @@
+commit 0d6a5f417f361158153e70f8f67519f443a20cf6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 1 19:32:41 2009 -0700
+
+    weekly snapshot:
+    - template-driven ast printing now can successfully
+      reproduce entire Go programs
+    
+    next steps:
+    - fine-tuning of output
+    - print interspersed comments
+    - cleanup and testing against all Go programs
+    - replace astprinter
+    
+    R=r
+    OCL=28181
+    CL=28181
+
+ usr/gri/pretty/ast.txt        | 300 +++++++++++++++++---------
+ usr/gri/pretty/format.go      | 475 +++++++++++++++++++++++++++++-------------
+ usr/gri/pretty/format_test.go |  59 ++++--
+ usr/gri/pretty/pretty.go      |   4 +-
+ 4 files changed, 573 insertions(+), 265 deletions(-)

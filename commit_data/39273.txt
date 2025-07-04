@@ -1,0 +1,23 @@
+commit 220552f6624f530079b81ba866cd1ffb2f240370
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Tue May 28 21:51:54 2019 +0100
+
+    net/http: enable WASM fetch where supported
+    
+    The existing check was introduced to allow tests to pass
+    on WASM without an environment where the fetch RoundTripper
+    could run. However, the check now prohibits the use of the
+    Fetch RoundTripper in all WASM tests, even where the
+    RoundTripper could run. The new change should only disable
+    the RoundTripper when used in an environment without fetch.
+    
+    Fixes #32289
+    
+    Change-Id: I30d2e0dbcb0e64d4b1a46b583f7e984c2a57d5e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179118
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/roundtrip_js.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

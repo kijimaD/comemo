@@ -1,0 +1,17 @@
+commit c783e68ff50f75347d3a0d06a30b690d460fc936
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 13:28:02 2011 -0700
+
+    godoc: added -index flag to enable/disable search index
+    
+    Fixes #1647.
+    
+    R=adg, rsc1, r2, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4444083
+
+ lib/godoc/godoc.html   |  2 ++
+ src/cmd/godoc/doc.go   |  3 +++
+ src/cmd/godoc/godoc.go | 35 ++++++++++++++++++++++-------------
+ src/cmd/godoc/main.go  | 13 ++++++++++---
+ 4 files changed, 37 insertions(+), 16 deletions(-)

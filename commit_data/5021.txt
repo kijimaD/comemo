@@ -1,0 +1,32 @@
+commit f229c8b5468887b535d52be58e1798b9df8a60a2
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 9 12:49:24 2010 -0800
+
+    identical complex implementation
+    for 6g and 8g. can also be used
+    for 5g. 5g is still a stub.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/362041
+
+ src/cmd/6g/Makefile       |   3 +
+ src/cmd/6g/gg.h           |   4 +-
+ src/cmd/6g/gsubr.c        |   2 +-
+ src/cmd/8g/Makefile       |   4 +
+ src/cmd/8g/cgen.c         |  23 ++-
+ src/cmd/8g/gg.h           |   8 +
+ src/cmd/8g/gsubr.c        |  13 +-
+ src/cmd/gc/builtin.c.boot |   1 +
+ src/cmd/{6g => gc}/cplx.c | 383 ++++++++++++++++++----------------------------
+ src/cmd/gc/runtime.go     |   2 +
+ src/cmd/gc/walk.c         |  15 +-
+ src/pkg/runtime/Makefile  |   1 +
+ src/pkg/runtime/complex.c |  36 +++++
+ test/golden.out           |  19 +++
+ test/ken/cplx0.go         |   4 +-
+ test/ken/cplx1.go         |   4 +-
+ test/ken/cplx2.go         |   4 +-
+ test/ken/cplx3.go         |   6 +-
+ test/ken/cplx4.go         |   4 +-
+ 19 files changed, 271 insertions(+), 265 deletions(-)

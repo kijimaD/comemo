@@ -1,0 +1,29 @@
+commit afd792feb567f0848ddc05f6a90a7b7672fe4974
+Author: Alex Studer <alex@studer.dev>
+Date:   Wed Oct 20 19:18:03 2021 +0000
+
+    net/http: mention io.Seeker requirement in FS documentation
+    
+    Both FileServer and NewFileTransport can try to seek a file, specifically
+    when MIME type sniffing is performed. This can be somewhat surprising to an
+    implementer of an fs.FS, as their filesystem will appear to work until a
+    user tries to access a file with an unrecognized extension (which requires
+    type sniffing and therefore seeking). With FileServer, this results in a
+    "seeker can't seek" message, which is not very clear for the developer.
+    
+    The issue arises because fs.FS does not require Seek, while http.FileSystem
+    does. Therefore, this change adds a line to the documentation of net/http's
+    adapter function mentioning the requirement.
+    
+    Change-Id: Ieb955b7a7f34e2be39dd696cb712513c70100b3a
+    GitHub-Last-Rev: fddccdae36e04fcb87d78b3b03fa4658dbb7d83d
+    GitHub-Pull-Request: golang/go#48781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353874
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/http/fs.go | 1 +
+ 1 file changed, 1 insertion(+)

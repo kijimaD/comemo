@@ -1,0 +1,22 @@
+commit 52dadc1f31f8e509ad22902a41f0fe40b3b0a365
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Feb 14 16:10:06 2015 +0300
+
+    cmd/gc: fix noscan maps
+    
+    Change 85e7bee introduced a bug:
+    it marks map buckets as noscan when key and val do not contain pointers.
+    However, buckets with large/outline key or val do contain pointers.
+    
+    This change takes key/val size into consideration when
+    marking buckets as noscan.
+    
+    Change-Id: I7172a0df482657be39faa59e2579dd9f209cb54d
+    Reviewed-on: https://go-review.googlesource.com/4901
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/reflect.c    |  3 ++-
+ src/reflect/type.go     |  3 ++-
+ src/runtime/hashmap.go  |  2 +-
+ src/runtime/map_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 3 deletions(-)

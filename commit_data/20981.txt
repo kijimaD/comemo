@@ -1,0 +1,12 @@
+commit 2d02ff278cb8b339df239f5706d2b5b13917e302
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 13 19:47:22 2014 +1100
+
+    misc/chrome/gophertool: update URLs from code.google.com to new homes
+    
+    Change-Id: I46bf9f1b84a331cabce2d3417b2b59ccb83d00fa
+    Reviewed-on: https://go-review.googlesource.com/1532
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ misc/chrome/gophertool/gopher.js | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

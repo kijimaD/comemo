@@ -1,0 +1,15 @@
+commit 67a0c4f7f9c4bb2c76b738ca41171785cb16c35c
+Author: Joel Sing <jsing@google.com>
+Date:   Mon May 21 00:13:22 2012 +1000
+
+    syscall: fix SockaddrDatalink on netbsd
+    
+    RawSockaddrDatalink and SockaddrDatalink need to match - make Data
+    have length 12 for both.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6223051
+
+ src/pkg/syscall/syscall_netbsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

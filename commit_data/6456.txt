@@ -1,0 +1,12 @@
+commit 8d130f5d2d3bca8487c48e0cfb6a00a478057eba
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Wed Oct 6 22:04:18 2010 +1100
+
+    http: return the correct error if a header line is too long.
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/2372042
+
+ src/pkg/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

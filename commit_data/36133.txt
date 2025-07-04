@@ -1,0 +1,16 @@
+commit 8450fd96779cc9e269f8a083a7f163bb1d7dbd39
+Author: Craig Citro <craigcitro@google.com>
+Date:   Fri Jul 27 13:39:49 2018 -0700
+
+    net/http: document Transport.Proxy's https support
+    
+    The net/http module added support for HTTPS proxies in CL 68550, but the
+    Transport.Proxy docstring was never updated to reflect this. This (doc-only)
+    update adds "https" to the list of supported schemes.
+    
+    Change-Id: I0570fcdae8232bb42d52c4dd739dd09ee8dfd612
+    Reviewed-on: https://go-review.googlesource.com/126495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

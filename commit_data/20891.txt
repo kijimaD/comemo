@@ -1,0 +1,13 @@
+commit 891abf9cc7c9c33e6afccbc3f6cbd5ef17a223b5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Nov 14 11:43:01 2014 +1100
+
+    net/http: add comment to clarify whether Dir is '/' or '\'.
+    
+    LGTM=bradfitz
+    R=bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/168600044
+
+ src/net/http/fs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 2a874603ae5eca706a2ddaead972772c5be2cb19
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 24 13:47:52 2008 -0800
+
+    add missing file
+    
+    R=rsc
+    OCL=19926
+    CL=19926
+
+ src/lib/hash/md5block.go | 178 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 178 insertions(+)

@@ -1,0 +1,21 @@
+commit b47a38dedb92fd9b2aa28a10de0f4ea3964904c9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Jun 5 14:27:38 2011 +1000
+
+    image/draw: move exp/draw to image/draw and exp/gui.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4515191
+
+ src/pkg/Makefile                          |  8 +++++---
+ src/pkg/exp/gui/Makefile                  | 11 +++++++++++
+ src/pkg/exp/{draw/event.go => gui/gui.go} |  6 ++++--
+ src/pkg/exp/{draw => gui}/x11/Makefile    |  2 +-
+ src/pkg/exp/{draw => gui}/x11/auth.go     |  0
+ src/pkg/exp/{draw => gui}/x11/conn.go     | 27 ++++++++++++++-------------
+ src/pkg/{exp => image}/draw/Makefile      |  3 +--
+ src/pkg/{exp => image}/draw/clip_test.go  |  0
+ src/pkg/{exp => image}/draw/draw.go       |  4 ++--
+ src/pkg/{exp => image}/draw/draw_test.go  |  0
+ 10 files changed, 38 insertions(+), 23 deletions(-)

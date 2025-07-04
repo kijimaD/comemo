@@ -1,0 +1,14 @@
+commit 5416e6e916b56160b9b3b4f4d25118cd739dc0dc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Dec 5 23:31:35 2012 -0500
+
+    net: document that File reverts connection to blocking mode.
+    
+    Fixes #2458.
+    
+    R=mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/6869054
+
+ src/pkg/net/net.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

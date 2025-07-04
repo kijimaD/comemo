@@ -1,0 +1,13 @@
+commit 304b7954e8b1eff2672f782414175d947145868e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 21 16:31:35 2009 -0700
+
+    add a .interp section and fix vaddr in INTERP prog.
+    
+    R=rsc
+    DELTA=16  (9 added, 3 deleted, 4 changed)
+    OCL=31956
+    CL=31963
+
+ src/cmd/6l/asm.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

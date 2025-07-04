@@ -1,0 +1,14 @@
+commit d45ee4cb5f44b2ebc79a65f1fcbc4d3f81fbdd40
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 24 15:06:32 2012 +1100
+
+    test: fix the fix of the rename tests.
+    Now they actually test again instead of just setting iota to zero.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700058
+
+ test/rename.go  | 79 +++++++++++++++++++++++++++++----------------------------
+ test/rename1.go | 77 +++++++++++++++++++++++++++----------------------------
+ 2 files changed, 78 insertions(+), 78 deletions(-)

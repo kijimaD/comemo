@@ -1,0 +1,21 @@
+commit d92aaa970791472a1657e878bf686fe802943ebe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 13:52:57 2017 -0700
+
+    runtime: unify arm entry point code
+    
+    Change-Id: Id51a2d63f7199b3ff71cedd415345ad20e5bd981
+    Reviewed-on: https://go-review.googlesource.com/70791
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/vet/all/whitelist/arm.txt |   3 --
+ src/runtime/asm_arm.s             | 102 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/rt0_android_arm.s     |   5 +-
+ src/runtime/rt0_darwin_arm.s      |  94 ++---------------------------------
+ src/runtime/rt0_freebsd_arm.s     |  13 ++---
+ src/runtime/rt0_linux_arm.s       |  90 ++-------------------------------
+ src/runtime/rt0_nacl_arm.s        |   4 --
+ src/runtime/rt0_netbsd_arm.s      |  10 ++--
+ src/runtime/rt0_openbsd_arm.s     |  10 ++--
+ src/runtime/rt0_plan9_arm.s       |   2 -
+ 10 files changed, 124 insertions(+), 209 deletions(-)

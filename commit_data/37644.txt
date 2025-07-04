@@ -1,0 +1,15 @@
+commit ba607240f76fce446e1104d034e444ec42e22c73
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 17:36:55 2018 -0500
+
+    cmd/go: add a chmod command to script_test
+    
+    Change-Id: I5d4f65553f6c368d101be59aae9440f5ec9573b7
+    Reviewed-on: https://go-review.googlesource.com/c/153461
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/script_test.go         | 19 +++++++++++++++++++
+ src/cmd/go/testdata/script/README |  4 ++++
+ 2 files changed, 23 insertions(+)

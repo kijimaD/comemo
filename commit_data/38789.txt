@@ -1,0 +1,16 @@
+commit 34b1f210462409f8c05d927a80d973b5692c1d26
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 16 16:14:31 2019 -0400
+
+    cmd/go/internal/renameio: mask spurious "Access is denied" errors on Windows
+    
+    Fixes #31247
+    
+    Change-Id: I85a760a5d36ae835c97a13f980804d06b658857e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172418
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/renameio/renameio.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

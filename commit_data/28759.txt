@@ -1,0 +1,22 @@
+commit 6597bcbe53cad07b0ac4070b4f428f5db3331383
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Jul 26 13:01:18 2016 -0400
+
+    path/filepath: remove unneeded doc statement for SplitList
+    
+    This is a followup to CL 24747, where the package doc phrase
+    "Functions in this package replace occurrences of slash unless otherwise specified."
+    was removed. The phrase was originally added in CL 7310 together
+    with this explicit opt out statement for SplitList.
+    
+    Remove it since it's no longer neccessary. This helps consistency.
+    
+    Updates #16111.
+    Updates #10122.
+    
+    Change-Id: Iba86de57c24100adecac9cb5892ce180126c0ea6
+    Reviewed-on: https://go-review.googlesource.com/25250
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/path/filepath/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit d8921c5294cd0698184dc05b2af949ae1b147d12
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 14:18:39 2009 -0800
+
+    cleanups:
+            get rid of _ on private names in net.
+            fix os_test file name list.
+            newline not needed on Errorf.
+    
+    R=r
+    DELTA=305  (34 added, 2 deleted, 269 changed)
+    OCL=25047
+    CL=25047
+
+ src/lib/net/dnsclient.go  |  16 +++---
+ src/lib/net/dnsconfig.go  |  15 ++---
+ src/lib/net/dnsmsg.go     |  92 +++++++++++++++----------------
+ src/lib/net/fd.go         | 114 +++++++++++++++++++++-----------------
+ src/lib/net/ip.go         |  44 +++++++--------
+ src/lib/net/ip_test.go    |  10 ++--
+ src/lib/net/net.go        | 137 +++++++++++++++++++++++++---------------------
+ src/lib/net/net_linux.go  |   4 +-
+ src/lib/net/parse.go      |  42 +++++++-------
+ src/lib/net/parse_test.go |   7 ++-
+ src/lib/net/port.go       |  17 +++---
+ src/lib/os/os_test.go     |  17 +++---
+ src/run.bash              |   1 +
+ 13 files changed, 274 insertions(+), 242 deletions(-)

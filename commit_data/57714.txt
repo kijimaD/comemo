@@ -1,0 +1,23 @@
+commit 8668d7bbb93285e3f8456fe6e4f666db51bdcadd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 21 12:58:22 2024 -0400
+
+    test: split non-regabi stack map test
+    
+    CL 594596 already did this for regabi, but missed non-regabi.
+    
+    Stack allocated swiss maps don't call rand32.
+    
+    For #54766.
+    
+    Change-Id: I312ea77532ecc6fa860adfea58ea00b01683ca69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621615
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ test/live.go         | 10 ----------
+ test/live_noswiss.go | 19 +++++++++++++++++++
+ test/live_swiss.go   | 19 +++++++++++++++++++
+ 3 files changed, 38 insertions(+), 10 deletions(-)

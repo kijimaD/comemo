@@ -1,0 +1,16 @@
+commit 28269796c8ef6c59cca746b090080d99043cdeef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 00:02:33 2016 -0400
+
+    cmd/internal/objfile: remove debugging print
+    
+    Crept into CL 9682, committed last week.
+    
+    Change-Id: I5b8e9119dbfeb0bc3005623ab74dbd29311d17ae
+    Reviewed-on: https://go-review.googlesource.com/31814
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 1 -
+ 1 file changed, 1 deletion(-)

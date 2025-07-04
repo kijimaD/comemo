@@ -1,0 +1,13 @@
+commit e224b1ebdb8db39b1d0c682898e9a223e1fd77ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 17:07:30 2009 -0700
+
+    don't crash on
+    unsafe.Alignof(struct{x float}{0}.x)
+    
+    R=ken
+    OCL=26911
+    CL=26913
+
+ src/cmd/gc/dcl.c | 1 +
+ 1 file changed, 1 insertion(+)

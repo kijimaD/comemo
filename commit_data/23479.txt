@@ -1,0 +1,28 @@
+commit c68f2f89963cfc9d10b43d33603b6fa588d56f9d
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Jun 20 11:25:59 2015 +0000
+
+    go/format: fix //line corner case when formatting statements
+    
+    The code formatting mechanism can be applied to partial Go code,
+    such as a list of statements. The statements are wrapped into a
+    function definition (to be parsed fine), and unwrapped after formatting.
+    
+    When the statements contain //line annotations, it may fail,
+    because not all comments are flushed by the printer before the final '}'.
+    Formatting "\ta()\n//line :1" results in "\ta() }\n\n//line", which
+    is wrong.
+    
+    Tweaked the wrapping/unwrapping code to make sure comments are flushed
+    before the '}'.
+    
+    Fixes #11276
+    
+    Change-Id: Id15c80279b0382ee9ed939cca1647f525c4929f5
+    Reviewed-on: https://go-review.googlesource.com/11282
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/format/format_test.go  | 6 +++++-
+ src/internal/format/format.go | 8 +++++---
+ 2 files changed, 10 insertions(+), 4 deletions(-)

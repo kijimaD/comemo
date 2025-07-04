@@ -1,0 +1,21 @@
+commit a42bb79dd41bb1fb2276bef2829d2413d0ae7805
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Mar 7 23:04:26 2023 +0800
+
+    cmd: fix mismatched symbols
+    
+    Change-Id: Ib2c4ddec9740f7c21c180c9f0980394dceeedfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473975
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go    | 2 +-
+ src/cmd/compile/internal/compare/compare.go | 2 +-
+ src/cmd/compile/internal/ssa/debug.go       | 2 +-
+ src/cmd/compile/internal/walk/order.go      | 2 +-
+ src/cmd/covdata/metamerge.go                | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

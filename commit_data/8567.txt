@@ -1,0 +1,12 @@
+commit 581bd378ec1187780123df66a060be5faebef917
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 1 11:56:46 2011 +1000
+
+    gobuilder: include file missing from change, fix build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4539099
+
+ src/cmd/goinstall/download.go | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit 7f34a2dac888785c4f16e00059023a2b7702d43c
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Thu Oct 22 21:50:06 2015 -0400
+
+    database/sql: use RWMutex for driver registration
+    
+    Change-Id: I0f494c9f17cb6bb0cf5e7214cf033fdbd48f27f7
+    Reviewed-on: https://go-review.googlesource.com/16240
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

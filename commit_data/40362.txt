@@ -1,0 +1,16 @@
+commit 7416315e3358b0bc2774c92f39d8f7c4b33790ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 18:13:24 2019 -0700
+
+    runtime: add new deltimer function
+    
+    Updates #27707
+    
+    Change-Id: I720e8af9e183c75abcb63ccc30466734c8dba74f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171831
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 6 deletions(-)

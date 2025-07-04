@@ -1,0 +1,16 @@
+commit 0332b6cf589a51f421a88176f756f0315c9f1491
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 14:04:56 2017 +0100
+
+    encoding/gob: remove unused ut and atyp parameters
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: Ic97f05a2ecb5b17caa36aafe403e2266abea3e0e
+    Reviewed-on: https://go-review.googlesource.com/37836
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/decode.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

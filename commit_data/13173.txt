@@ -1,0 +1,14 @@
+commit 042848da65a4f504542d5b2b690b198e3cd20230
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun May 27 18:57:16 2012 +1000
+
+    syscall: simplify text returned by Errno.Error() when FormatMessage fails
+    
+    Fixes #3623.
+    
+    R=golang-dev, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/6218072
+
+ src/pkg/syscall/syscall_windows.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit ec60e4a0d2ddabd7667fd9bff9f376e6a181ce8d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 8 21:47:17 2018 +0000
+
+    cmd/compile/internal/ssa: add initial README
+    
+    This is the first version of an introductory document that should help
+    developers who want to get started with this package.
+    
+    I recently started poking around this part of the compiler, and was
+    confused by a few basic ideas such as memory arguments. I also hadn't
+    heard about GOSSAFUNC until another developer pointed it out. Both of
+    those are essential if one wants to do any non-trivial work here.
+    
+    This document can of course be expanded with more pointers and tips to
+    better understand this package's code and behavior. Its intent is not to
+    cover all of its features; but it should be enough for most developers
+    to start playing with it without extensive compiler experience.
+    
+    Change-Id: Ifd2d047fbd038ab50f4625a15c4d49932b42fd66
+    Reviewed-on: https://go-review.googlesource.com/99715
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/README.md | 59 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

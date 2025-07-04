@@ -1,0 +1,17 @@
+commit 2ae953bfc31a9f87daf38df0b185c701a56b32e6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jan 25 12:25:48 2011 -0800
+
+    time: allow cancelling of After events.
+    Also simplify sleeper algorithm and poll
+    occasionally so redundant sleeper goroutines
+    will quit sooner.
+    
+    R=r, niemeyer, r2
+    CC=golang-dev
+    https://golang.org/cl/4063043
+
+ src/pkg/time/sleep.go      | 194 ++++++++++++++++++++++++++++-----------------
+ src/pkg/time/sleep_test.go |  36 +++++++++
+ src/pkg/time/tick_test.go  |  11 +++
+ 3 files changed, 170 insertions(+), 71 deletions(-)

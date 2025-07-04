@@ -1,0 +1,32 @@
+commit ea8d7a370d66550d587414cc0cab650f35400f94
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 20 11:59:02 2018 -0500
+
+    runtime: clarify address space limit constants and comments
+    
+    Now that we support the full non-contiguous virtual address space of
+    amd64 hardware, some of the comments and constants related to this are
+    out of date.
+    
+    This renames memLimitBits to heapAddrBits because 1<<memLimitBits is
+    no longer the limit of the address space and rewrites the comment to
+    focus first on hardware limits (which span OSes) and then discuss
+    kernel limits.
+    
+    Second, this eliminates the memLimit constant because there's no
+    longer a meaningful "highest possible heap pointer value" on amd64.
+    
+    Updates #23862.
+    
+    Change-Id: I44b32033d2deb6b69248fb8dda14fc0e65c47f11
+    Reviewed-on: https://go-review.googlesource.com/95498
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/lfstack_64bit.go |  2 +-
+ src/runtime/malloc.go        | 63 ++++++++++++++++++++++++++------------------
+ src/runtime/mbitmap.go       |  2 +-
+ src/runtime/mheap.go         |  2 +-
+ src/runtime/stack.go         |  2 +-
+ 5 files changed, 41 insertions(+), 30 deletions(-)

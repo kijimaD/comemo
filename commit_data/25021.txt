@@ -1,0 +1,16 @@
+commit 656a732a217ee3ac4e6a6442072994e4dccb4094
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 17:31:33 2015 -0800
+
+    cmd/compile: simplify parsing of possibly absent type
+    
+    Introduce a try_ntype function which doesn't return an error upon
+    not finding a type. Use it instead of having separate repeated
+    token checks. Simpler, less code, and more efficient.
+    
+    Change-Id: I81e482158b71901eb179470269349688636aa0ba
+    Reviewed-on: https://go-review.googlesource.com/17157
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 67 ++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 33 deletions(-)

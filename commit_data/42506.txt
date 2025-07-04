@@ -1,0 +1,18 @@
+commit ec177e4c83a5f318e3d65e6405ffbd0715834a98
+Author: Gawen Arab <gawen.arab@c.zen.ly>
+Date:   Wed Jun 10 20:31:57 2020 +0000
+
+    cmd/internal/objabi: enable frame-pointer for iOS arm64
+    
+    This improves stack unwinding of Go code running on iOS arm64.
+    
+    Change-Id: I0494f750c15dcb895f9d4a072352f050d731df17
+    GitHub-Last-Rev: 435a2a1690dad98975f7463f91241831cd73d3df
+    GitHub-Pull-Request: golang/go#37403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220588
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/objabi/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

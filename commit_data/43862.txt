@@ -1,0 +1,19 @@
+commit 48a1a5189843571a08461a5756e5fe553f966c94
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 23 19:25:32 2020 +0000
+
+    runtime/metrics: tweak wording of stack and unused memory metrics
+    
+    This change tweaks and simplifies the descriptions of a couple metrics
+    to make them easier to parse (for humans).
+    
+    Change-Id: I852654c7e7042c662ebdfa6334e3baf49ca4b33c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272566
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/metrics/description.go | 9 ++++-----
+ src/runtime/metrics/doc.go         | 7 +++----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

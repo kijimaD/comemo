@@ -1,0 +1,14 @@
+commit 30e910197a87773cec9ca53b4e0e5f6114bbd9bf
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 16 21:07:23 2015 -0500
+
+    misc/makerelease: workaround the go install -a restriction on release branches
+    
+    Fixes #9619.
+    
+    Change-Id: I71931b0d546163e5451d7d72e552b08540e3c2a7
+    Reviewed-on: https://go-review.googlesource.com/2995
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ misc/makerelease/makerelease.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

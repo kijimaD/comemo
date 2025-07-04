@@ -1,0 +1,14 @@
+commit 4712165b17d9366b026bd54649f6d6110d6ebc91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 23 17:19:56 2008 -0700
+
+    - clarified that composites are values created every time they
+    are evaluated, removed corresponding TODO.
+    
+    R=r
+    DELTA=5  (3 added, 1 deleted, 1 changed)
+    OCL=17746
+    CL=17751
+
+ doc/go_spec.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

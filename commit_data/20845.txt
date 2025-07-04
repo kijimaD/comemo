@@ -1,0 +1,16 @@
+commit 8e01fc7e9b531398e868d9899c91a9f052f015c7
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Sat Nov 1 08:28:09 2014 -0700
+
+    misc: Increase issue 6997's test timeout to prevent spurious failures.
+    
+    On heavily loaded build servers, a 5 second timeout is too aggressive,
+    which causes this test to fail spuriously.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews, sqweek
+    https://golang.org/cl/170850043
+
+ misc/cgo/test/issue6997_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

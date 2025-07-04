@@ -1,0 +1,23 @@
+commit c45d78013f92a29285cd81488eb7a16819f01e18
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Oct 28 10:52:02 2020 -0400
+
+    cmd/link: ignore "operation not permitted" fallocate errors.
+    
+    Ignore an additional class of errors form fallocate, falling back to
+    heap allocated buffers for output.
+    
+    Fixes #41356
+    
+    Change-Id: Iaaa91620cec644c78978e0b258f166bc204a3f85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254777
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/outbuf.go             | 9 ++++-----
+ src/cmd/link/internal/ld/outbuf_mmap.go        | 2 +-
+ src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 +---
+ 3 files changed, 6 insertions(+), 9 deletions(-)

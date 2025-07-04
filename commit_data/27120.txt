@@ -1,0 +1,21 @@
+commit 0b6332eb54767f916926ae39516ddaed87b26edb
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 25 16:24:11 2016 -0400
+
+    cmd/compile: fix another bug in dominator computation
+    
+    Here, "fix" means "replace".  The new dominator computation
+    is the "simple" algorithm from Lengauer and Tarjan's TOPLAS
+    paper, with minimal changes.
+    
+    Also included is a test that tweaks the fixed error.
+    
+    Change-Id: I0abdf53d5d64df1e67e4e62f55e88957045cd63b
+    Reviewed-on: https://go-review.googlesource.com/22401
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/dom.go      | 279 ++++++++++++-------------------
+ src/cmd/compile/internal/ssa/dom_test.go | 165 ++++++++++++++----
+ 2 files changed, 241 insertions(+), 203 deletions(-)

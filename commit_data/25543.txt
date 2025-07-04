@@ -1,0 +1,15 @@
+commit 1abb863d8341b17d7de725436a85198546a9fc01
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 8 12:06:45 2016 +1100
+
+    doc: add Overview and other small edits to How To Write Go Code
+    
+    Fixes #9228
+    
+    Change-Id: Ic4df4a39f6f363bdd6eb9228c8164e6e9dccee1b
+    Reviewed-on: https://go-review.googlesource.com/5561
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/code.html | 49 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 37 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 4562784baed3b64e4ffdd3b2ea3c6d4b11391335
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 16 16:21:26 2015 -0700
+
+    runtime: remove some unnecessary unsafe code in mfixalloc
+    
+    Change-Id: Ie9ea4af4315a4d0eb69d0569726bb3eca2b397af
+    Reviewed-on: https://go-review.googlesource.com/16005
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mfixalloc.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

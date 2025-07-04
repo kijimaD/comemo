@@ -1,0 +1,60 @@
+commit 594eae5ad0ac232503a55c2c76c699d1d58b1699
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Sat May 5 21:49:40 2018 -0400
+
+    cmd/link: compress DWARF sections in ELF binaries
+    
+    Forked from CL 111895.
+    
+    The trickiest part of this is that the binary layout code (blk,
+    elfshbits, and various other things) assumes a constant offset between
+    symbols' and sections' file locations and their virtual addresses.
+    Compression, of course, breaks this constant offset. But we need to
+    assign virtual addresses to everything before compression in order to
+    resolve relocations before compression. As a result, compression needs
+    to re-compute the "address" of the DWARF sections and symbols based on
+    their compressed size. Luckily, these are at the end of the file, so
+    this doesn't perturb any other sections or symbols. (And there is, of
+    course, a surprising amount of code that assumes the DWARF segment
+    comes last, so what's one more place?)
+    
+    Relevant benchmarks:
+    name        old time/op     new time/op     delta
+    StdCmd          10.3s ± 2%      10.8s ± 1%   +5.43%  (p=0.000 n=30+30)
+    
+    name        old text-bytes  new text-bytes  delta
+    HelloSize       746kB ± 0%      746kB ± 0%     ~     (all equal)
+    CmdGoSize      8.41MB ± 0%     8.41MB ± 0%     ~     (all equal)
+    [Geo mean]     2.50MB          2.50MB        +0.00%
+    
+    name        old data-bytes  new data-bytes  delta
+    HelloSize      10.6kB ± 0%     10.6kB ± 0%     ~     (all equal)
+    CmdGoSize       252kB ± 0%      252kB ± 0%     ~     (all equal)
+    [Geo mean]     51.5kB          51.5kB        +0.00%
+    
+    name        old bss-bytes   new bss-bytes   delta
+    HelloSize       125kB ± 0%      125kB ± 0%     ~     (all equal)
+    CmdGoSize       145kB ± 0%      145kB ± 0%     ~     (all equal)
+    [Geo mean]      135kB           135kB        +0.00%
+    
+    name        old exe-bytes   new exe-bytes   delta
+    HelloSize      1.60MB ± 0%     1.05MB ± 0%  -34.39%  (p=0.000 n=30+30)
+    CmdGoSize      16.5MB ± 0%     11.3MB ± 0%  -31.76%  (p=0.000 n=30+30)
+    [Geo mean]     5.14MB          3.44MB       -33.08%
+    
+    Fixes #11799.
+    Updates #6853.
+    
+    Change-Id: I64197afe4c01a237523a943088051ee056331c6f
+    Reviewed-on: https://go-review.googlesource.com/118276
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go         |  2 +
+ src/cmd/link/internal/ld/data.go  | 48 +++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf.go | 81 +++++++++++++++++++++++++++++++--------
+ src/cmd/link/internal/ld/elf.go   |  2 +-
+ src/cmd/link/internal/ld/main.go  |  1 +
+ 5 files changed, 116 insertions(+), 18 deletions(-)

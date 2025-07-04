@@ -1,0 +1,13 @@
+commit c409976b85610d4ae94ae959e3ec193df512916c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 23 14:00:28 2009 -0700
+
+    semicolons, ifs, switches
+    
+    R=rsc
+    DELTA=196  (118 added, 24 deleted, 54 changed)
+    OCL=33716
+    CL=33727
+
+ doc/effective_go.html | 212 ++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 153 insertions(+), 59 deletions(-)

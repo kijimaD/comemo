@@ -1,0 +1,25 @@
+commit fe40cdd756763982db6815ee87318f418218fcf5
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 10:07:05 2015 +0000
+
+    crypto/x509: implement crypto.Signer
+    
+    Signer is an interface to support opaque private keys.
+    These keys typically result from being kept in special hardware
+    (i.e. a TPM) although sometimes operating systems provide a
+    similar interface using process isolation for security rather
+    than hardware boundaries.
+    
+    This changes provides updates implements crypto.Signer in
+    CreateCRL and CreateCertificate so that they can be used with
+    opaque keys.
+    
+    This CL has been discussed at: http://golang.org/cl/145910043
+    
+    Change-Id: Id7857fb9a3b4c957c7050b519552ef1c8e55461e
+    Reviewed-on: https://go-review.googlesource.com/3126
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go | 118 +++++++++++++++++++-----------------------------
+ 1 file changed, 47 insertions(+), 71 deletions(-)

@@ -1,0 +1,33 @@
+commit 8ba3ad92ebd38a0d41c96dda7ccb5d650236d3c6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Feb 8 16:45:17 2022 -0500
+
+    cmd/go: mention go.work when local path outside modules in go.work
+    
+    In workspace mode, if a user lists a package or patternthat's inside a
+    module that's not listed in go.work, mention that the package or pattern
+    is outside the modules listed in go.work so the user has a better idea
+    of how to fix the issue.
+    
+    (Question: it's valid in those flows to add a pattern that points into
+    the module cache. Should we expand the error to say "package outside
+    modules listed in go.work file or contained in module cache"? That seems
+    clunky (and is the uncommon case) which is why I didn't do so in this
+    case, but it's possible)
+    
+    Fixes #49632
+    
+    Change-Id: I3f0ea1b2f566d52a8079b58593fcc5cc095e7a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384236
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/load.go                | 12 +++++++++--
+ .../go/testdata/script/mod_download_partial.txt    | 11 +++++-----
+ src/cmd/go/testdata/script/mod_fs_patterns.txt     |  6 +++---
+ src/cmd/go/testdata/script/mod_list_dir.txt        |  2 +-
+ .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
+ .../testdata/script/work_module_not_in_go_work.txt | 25 ++++++++++++++++++++++
+ 6 files changed, 46 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 0400a7f8b1e6ce821f38fed9e4bc729620f7f4ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 23:34:45 2009 -0800
+
+    runtime: start new darwin/amd64 threads on correct stack,
+        then enable stack check.
+    
+    R=r
+    https://golang.org/cl/165100
+
+ src/pkg/runtime/darwin/amd64/sys.s | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

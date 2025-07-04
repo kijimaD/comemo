@@ -1,0 +1,21 @@
+commit 1e436ba668f5988ca8fbeb68734800b9dcf33dbc
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 30 15:17:45 2025 -0400
+
+    runtime: only poll network from one P at a time in findRunnable
+    
+    This change reintroduces CL 564197. It was reverted due to a failing
+    benchmark. That failure has been resolved.
+    
+    For #65064
+    
+    Change-Id: Ic88841d2bc24c2717ad324873f0f52699f21dc66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     | 8 ++++++--
+ src/runtime/runtime2.go | 7 ++++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)

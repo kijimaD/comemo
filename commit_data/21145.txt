@@ -1,0 +1,14 @@
+commit 43ce5c0306c952f69fd54273fd136f838ecb83cc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 30 12:37:54 2014 +1100
+
+    log: update doc comment
+    
+    Fixes #9448.
+    
+    Change-Id: I8e1d676688d9e9b2fa3519ebc530905f574a1b3e
+    Reviewed-on: https://go-review.googlesource.com/2088
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/log/log.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

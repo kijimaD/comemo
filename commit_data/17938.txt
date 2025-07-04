@@ -1,0 +1,14 @@
+commit 4c01a23cf1a18a0fb7a35dd389a8ef058ffe03d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 19:35:17 2013 -0500
+
+    cmd/pack: stop parsing object files to generate __.SYMDEF
+    
+    Nothing looks at __.SYMDEF, and the object file format is changing.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/39580044
+
+ src/cmd/pack/ar.c | 67 ++++++++++++-------------------------------------------
+ 1 file changed, 14 insertions(+), 53 deletions(-)

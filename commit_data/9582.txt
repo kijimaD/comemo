@@ -1,0 +1,14 @@
+commit b349cd2b0ad12c2ebe67ca2c6c1aa01bc9991520
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 2 11:47:15 2011 +1000
+
+    fmt/fmt_test.go: count mallocs in a few more cases.
+    Interesting that Fprintf can do zero mallocs.
+    (Sprintf must allocate the returned string.)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4977049
+
+ src/pkg/fmt/fmt_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

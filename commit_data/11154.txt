@@ -1,0 +1,12 @@
+commit 87ceb0cec73b93064be4b65da6bee265addc2027
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 13 11:48:57 2012 -0800
+
+    bytes: make Write and WriteString code look the same
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5540056
+
+ src/pkg/bytes/buffer.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

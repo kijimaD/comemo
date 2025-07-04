@@ -1,0 +1,17 @@
+commit d8899acaf896529a5ab119af3e52ab5ad9488e51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 14:14:20 2017 -0700
+
+    cmd/compile: separate code for len, cap from code for real, imag
+    
+    Prep work for issues mentioned below. No semantic or functionality change.
+    
+    For #11945.
+    For #17446.
+    
+    Change-Id: Ia1bb2b87647a6daa47f7863c0eb42cf5e1d35a7c
+    Reviewed-on: https://go-review.googlesource.com/45076
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 96 ++++++++++++++++++--------------
+ 1 file changed, 54 insertions(+), 42 deletions(-)

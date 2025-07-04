@@ -1,0 +1,21 @@
+commit f4abbc0e61544ba33379ce37597a90fc3b0942d3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 14 15:07:57 2017 -0700
+
+    cmd/link,compile: Provide size for func types
+    
+    They are currently not given a size, which makes the DWARF reader
+    very confused. Particularly things like [4]func() get a size of -4, not 32.
+    
+    Fixes #21097
+    
+    Change-Id: I01e754134d82fbbe6567e3c7847a4843792a3776
+    Reviewed-on: https://go-review.googlesource.com/55551
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go        |  1 +
+ src/cmd/link/internal/ld/dwarf.go      |  1 +
+ src/cmd/link/internal/ld/dwarf_test.go | 43 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+)

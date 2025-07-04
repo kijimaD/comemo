@@ -1,0 +1,22 @@
+commit 74f898360d2ea74d885544473cc60943771b36d4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 29 07:07:56 2020 -0800
+
+    cmd/compile: constant fold SSA bool to int conversions
+    
+    Shaves off a few instructions here and there.
+    
+    file                        before   after    Δ       %
+    go/types.s                  322118   321851   -267    -0.083%
+    go/internal/gcimporter.s    34937    34909    -28     -0.080%
+    go/internal/gccgoimporter.s 56493    56474    -19     -0.034%
+    cmd/compile/internal/ssa.s  3926994  3927177  +183    +0.005%
+    total                       18862670 18862539 -131    -0.001%
+    
+    Change-Id: I724f32317b946b5138224808f85709d9c097a247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221428
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)

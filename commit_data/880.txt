@@ -1,0 +1,13 @@
+commit 493a9d2f42a04dfcf7fd807ede4603429bf91d28
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 14:02:20 2008 -0700
+
+    put toplevel & check back and add test
+    
+    R=ken
+    OCL=17307
+    CL=17307
+
+ src/cmd/gc/go.y | 4 ++++
+ test/addr.go    | 9 +++++++++
+ 2 files changed, 13 insertions(+)

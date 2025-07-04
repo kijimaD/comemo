@@ -1,0 +1,18 @@
+commit cb62365f5737d8c6a803b0737b3f34a64e526b6b
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon May 28 10:46:51 2012 -0700
+
+    net/http: reuse http proxy connections for different http requests
+    
+    Comment on cache keys above connectMethod says "http to proxy, http
+    anywhere after that", however in reality target address was always
+    included, which prevented http requests to different target
+    addresses to reuse the same http proxy connection.
+    
+    R=golang-dev, r, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5901064
+
+ src/pkg/net/http/proxy_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/net/http/transport.go  |  6 +++++-
+ 2 files changed, 35 insertions(+), 1 deletion(-)

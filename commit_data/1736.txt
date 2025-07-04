@@ -1,0 +1,13 @@
+commit 337ce2220f0c7530cfcc67bd74188f316af68b2b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 16:10:15 2009 -0800
+
+    rephrase redundancy.
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=25652
+    CL=25656
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit ee3f768d3861e00dbc6a81392a711209f66e235c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 27 16:38:14 2019 +0700
+
+    internal/reflectlite: updates reflectlite to match runtime rtype/mapType
+    
+    CL 191198 updated runtime rtype and mapType without adopting the changes
+    to reflectlite, causing mismatch between them.
+    
+    This CL updates those changes to reflectlite.
+    
+    Fixes #34486
+    
+    Change-Id: I2bb043673d997f97bb0b12c4ad471474803b2160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197559
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/reflectlite/set_test.go |  9 ++++++++
+ src/internal/reflectlite/type.go     | 41 ++++++++++++++++++------------------
+ 2 files changed, 29 insertions(+), 21 deletions(-)

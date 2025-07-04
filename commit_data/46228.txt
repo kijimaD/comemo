@@ -1,0 +1,24 @@
+commit ded10d75a908b584331d01c9c0eaf1cfcb951cac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 30 17:18:07 2021 -0700
+
+    cmd/compile/internal/types2: remove superfluous ordinaryType calls
+    
+    The value types in type assertions and type switches cannot be
+    constraint types (if there are, an error was reported earlier),
+    so there is no need to check again that they are not constraint
+    types.
+    
+    This permits merging the ordinaryType call with varType, which
+    is the only place where it's needed.
+    
+    Change-Id: I44a852377b3dddf53692f764e588801fb3d3c0a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346291
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                     |  1 -
+ src/cmd/compile/internal/types2/stmt.go                     |  1 -
+ .../internal/types2/testdata/fixedbugs/issue42758.go2       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go                  | 13 +++++--------
+ 4 files changed, 6 insertions(+), 11 deletions(-)

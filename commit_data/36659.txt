@@ -1,0 +1,21 @@
+commit 56dc1795e756767adb373a5bc151c9c820152025
+Author: Roberto Selbach <roberto@selbach.ca>
+Date:   Mon Aug 27 15:57:32 2018 +0000
+
+    cmd/go/internal/modfetch: stop cutting the last character of versions
+    
+    When a zip archive for a module contains an unexpected file, the error
+    message removes the last character in the version number, e.g. an invalid
+    archive for "somemod@v1.2.3" would generate the following error:
+    "zip for somemod@1.2. has unexpected file..."
+    
+    Change-Id: I366622df16a71fa7467a4bc62cb696e3e83a2942
+    GitHub-Last-Rev: f172283bcdffd45b485b1e8fd99795eb93fef726
+    GitHub-Pull-Request: golang/go#27279
+    Reviewed-on: https://go-review.googlesource.com/131635
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/fetch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

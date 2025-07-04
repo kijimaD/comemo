@@ -1,0 +1,15 @@
+commit 5cc07af675901380a62eb23a2cb643db41dd4f7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 18:25:51 2012 -0500
+
+    syscall: fix build directive in types_linux.go
+    
+    The rule is that build directives can be preceded only
+    by blank lines and other line comments, not /* */ comments.
+    
+    R=golang-dev, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5619045
+
+ src/pkg/syscall/types_linux.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

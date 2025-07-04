@@ -1,0 +1,22 @@
+commit a5f1d0263c8a5efc22d54480b5657dbaeb53cfcd
+Author: Aaron Delaney <apd@arista.com>
+Date:   Sat Sep 23 18:30:57 2023 +0100
+
+    cmd/vet: add defers analysis pass
+    
+    Fixes #60048
+    
+    Change-Id: I1553de35d5ebd9c7df9727242e888de91caca4ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tim King <taking@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/go/internal/test/flagdefs.go               |  1 +
+ .../x/tools/go/analysis/passes/defers/defers.go    | 61 ++++++++++++++++++++++
+ .../x/tools/go/analysis/passes/defers/doc.go       | 25 +++++++++
+ src/cmd/vendor/modules.txt                         |  1 +
+ src/cmd/vet/main.go                                |  2 +
+ 5 files changed, 90 insertions(+)

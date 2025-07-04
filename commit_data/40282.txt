@@ -1,0 +1,17 @@
+commit 4569f1baa8283f115adaf15fdbf6b6f57a2e643f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 17 16:30:49 2019 +0000
+
+    syscall: remove use of IN_KUBERNETES in test, add a TODO to improve further
+    
+    Updates #34956
+    
+    Change-Id: I35c39f3afda7226eeae0fd6936f7ee0d5d6c025b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201737
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 32 ++++++++------------------------
+ 1 file changed, 8 insertions(+), 24 deletions(-)

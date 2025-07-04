@@ -1,0 +1,17 @@
+commit 041cc148faae23714c38ec9e4388715d99aef518
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 13 05:02:00 2016 +0900
+
+    net: deflake TestPointToPointInterface and TestInterfaceArrivalAndDeparture
+    
+    Fixes #6879.
+    
+    Change-Id: I9ed2460cf14cb9322d9521e7af910efa48abdaf0
+    Reviewed-on: https://go-review.googlesource.com/23112
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface_bsd_test.go  |  9 +++++++--
+ src/net/interface_unix_test.go | 17 +++++++++++------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

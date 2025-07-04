@@ -1,0 +1,16 @@
+commit 0bec484e6fc1553edce91eed523d9642f7870516
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jan 20 07:38:34 2011 -0500
+
+    crypto/openpgp: add s2k
+    
+    s2k implements the string-to-key functions for OpenPGP
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3937043
+
+ src/pkg/crypto/openpgp/s2k/Makefile    |  11 +++
+ src/pkg/crypto/openpgp/s2k/s2k.go      | 146 +++++++++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/s2k/s2k_test.go |  94 +++++++++++++++++++++
+ 3 files changed, 251 insertions(+)

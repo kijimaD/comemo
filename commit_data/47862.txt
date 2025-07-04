@@ -1,0 +1,19 @@
+commit 6178d25fc0b28724b1b5aec2b1b74fc06d9294c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 29 11:19:13 2021 -0800
+
+    misc/cgo/testsanitizers: accept compilers that don't report location
+    
+    It appears that GCC before version 10 doesn't report file/line
+    location for asan errors.
+    
+    Change-Id: I03ee24180ba365636596aa2384961df7ce6ed71f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/asan_test.go |  6 +++++-
+ misc/cgo/testsanitizers/cc_test.go   | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

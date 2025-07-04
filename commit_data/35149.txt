@@ -1,0 +1,16 @@
+commit adbb6ec903fc135dac2c7a141fa13273d414acaf
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Apr 26 18:48:19 2018 +0100
+
+    cmd/compile/internal/ssa: regenerate rewrite rules
+    
+    Running 'go run *.go' in the gen directory resulted in this diff.
+    
+    Change-Id: Iee398a720f54d3f2c3c122fc6fc45a708a39e45e
+    Reviewed-on: https://go-review.googlesource.com/109575
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

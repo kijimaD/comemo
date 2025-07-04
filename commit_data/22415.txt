@@ -1,0 +1,20 @@
+commit 7c37249639a1454c7e8958c4760cc906d18cba2e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 27 16:11:11 2015 -0400
+
+    runtime: make test for freezetheworld more precise
+    
+    exitsyscallfast checks for freezetheworld, but does so only by
+    checking if stopwait is positive. This can also happen during
+    stoptheworld, which is harmless, but confusing. Shortly, it will be
+    important that we get to the p.status cas even if stopwait is set.
+    
+    Hence, make this test more specific so it only triggers with
+    freezetheworld and not other uses of stopwait.
+    
+    Change-Id: Ibb722cd8360c3ed5a9654482519e3ceb87a8274d
+    Reviewed-on: https://go-review.googlesource.com/8205
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc1.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 869368a528cf4a8b154176b34182dbfa4a42f21a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 4 13:54:03 2013 -0700
+
+    runtime: fix bug in maps at the intersection of iterators, growing, and NaN keys
+    
+    If an iterator is started while a map is in the middle of a grow,
+    and the map has NaN keys, then those keys might get returned by
+    the iterator more than once.  This fix makes the evacuation decision
+    deterministic and repeatable for NaN keys so each one gets returned
+    only once.
+    
+    R=golang-dev, r, khr, iant
+    CC=golang-dev
+    https://golang.org/cl/14367043
+
+ src/pkg/runtime/export_test.go |  3 ++
+ src/pkg/runtime/hashmap.c      | 65 ++++++++++++++++++++++++++++++++----------
+ src/pkg/runtime/map_test.go    | 38 ++++++++++++++++++++++++
+ 3 files changed, 91 insertions(+), 15 deletions(-)

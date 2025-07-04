@@ -1,0 +1,37 @@
+commit a3f3868c7aa66d2290d1a51aebacce88cb584f37
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 9 08:36:12 2023 -0700
+
+    cmd/compile: replace isSigned(t) with t.IsSigned()
+    
+    No change in semantics, just removing an unneeded helper.
+    
+    Also align rules a bit.
+    
+    Change-Id: Ie4dabb99392315a7700c645b3d0931eb8766a5fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483439
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules     |  4 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  4 +-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     | 12 ++--
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   | 16 ++---
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 16 ++---
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules    | 12 ++--
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  | 16 ++---
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   | 38 +++++------
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 20 +++---
+ src/cmd/compile/internal/ssa/_gen/S390X.rules   | 16 ++---
+ src/cmd/compile/internal/ssa/rewrite.go         |  4 --
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 16 ++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 24 +++----
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 24 +++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     | 16 ++---
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 24 +++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 88 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 +++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 24 +++----
+ 19 files changed, 197 insertions(+), 201 deletions(-)

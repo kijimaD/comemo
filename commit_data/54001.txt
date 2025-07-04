@@ -1,0 +1,19 @@
+commit 6d5ea923a2e3006c032d6b959e63f76d43ac2c74
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Jul 31 21:40:45 2023 +0800
+
+    cmd: fix mismatched symbols
+    
+    Change-Id: I8852c0a29dffec9635d61b7670cfed78ebed07f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514315
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/cgo/gcc.go                            | 2 +-
+ src/cmd/compile/internal/base/base.go         | 2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/numberlines.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit a0ea93dea5f5741addc8c96b7ed037d0e359e33f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 27 13:50:36 2015 -0800
+
+    crypto/x509: permit serial numbers to be negative.
+    
+    Some software that produces certificates doesn't encode integers
+    correctly and, about half the time, ends up producing certificates with
+    serial numbers that are actually negative.
+    
+    This buggy software, sadly, appears to be common enough that we should
+    let these errors pass. This change allows a Certificate.SerialNumber to
+    be negative.
+    
+    Fixes #8265.
+    
+    Change-Id: Ief35dae23988fb6d5e2873e3c521366fb03c6af4
+    Reviewed-on: https://go-review.googlesource.com/17247
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509.go      | 4 ----
+ src/crypto/x509/x509_test.go | 6 +++++-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

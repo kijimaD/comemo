@@ -1,0 +1,27 @@
+commit 0b37a6f47b146cd7b632e0e7370e59ebfbfd660f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 8 18:29:26 2015 -0800
+
+    cmd/compile, cmd/internal/obj: ignore AUSEFIELD
+    
+    When using GOEXPERIMENT=fieldtrack, we can see AUSEFIELD instructions.
+    We generally want to ignore them.
+    
+    No tests because as far as I can tell there are no tests for
+    GOEXPERIMENT=fieldtrack.
+    
+    Change-Id: Iee26f25592158e5db691a36cf8d77fc54d051314
+    Reviewed-on: https://go-review.googlesource.com/17610
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm/peep.go    | 3 ++-
+ src/cmd/compile/internal/arm64/peep.go  | 3 ++-
+ src/cmd/compile/internal/mips64/peep.go | 3 ++-
+ src/cmd/compile/internal/ppc64/peep.go  | 3 ++-
+ src/cmd/internal/obj/arm/asm5.go        | 4 ++--
+ src/cmd/internal/obj/arm64/asm7.go      | 4 ++--
+ src/cmd/internal/obj/mips/asm0.go       | 4 ++--
+ src/cmd/internal/obj/ppc64/asm9.go      | 4 ++--
+ 8 files changed, 16 insertions(+), 12 deletions(-)

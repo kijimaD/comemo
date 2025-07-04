@@ -1,0 +1,12 @@
+commit 7413e48d5beeae3fa0b22fecf39cf1db5a1339f7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Dec 24 08:40:13 2013 +1100
+
+    misc/vim: Fix broken quote
+    
+    R=golang-codereviews, gobot, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/44960043
+
+ misc/vim/autoload/go/complete.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

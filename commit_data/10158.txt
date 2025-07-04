@@ -1,0 +1,12 @@
+commit a07841e21ebe371f7b9f45cba1e0d1a8090c58fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 17:50:38 2011 -0400
+
+    test: make bug107 os.Error-proof
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5306087
+
+ test/fixedbugs/bug107.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

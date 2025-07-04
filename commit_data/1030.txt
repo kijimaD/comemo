@@ -1,0 +1,17 @@
+commit 78b0013a07cc24557f3887a89cde283fe0c664ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 3 09:21:10 2008 -0800
+
+    - changed general div/mod implementation to a faster algorithm
+      (operates on 30bit values at a time instead of 20bit values)
+    - refactored and cleaned up lots of code
+    - more tests
+    - close to check-in as complete library
+    
+    R=r
+    OCL=18326
+    CL=18326
+
+ usr/gri/bignum/bignum.go      | 557 ++++++++++++++++++++++++------------------
+ usr/gri/bignum/bignum_test.go |  44 +++-
+ 2 files changed, 367 insertions(+), 234 deletions(-)

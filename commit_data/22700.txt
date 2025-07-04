@@ -1,0 +1,25 @@
+commit a5b693b431d0612b97a8978fdfa7d12310d95b6f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 24 12:47:46 2015 -0400
+
+    runtime: signal forwarding for darwin/amd64
+    
+    Follows the linux signal forwarding semantics from
+    http://golang.org/cl/8712, sharing the implementation of sigfwdgo.
+    Forwarding for 386, arm, and arm64 will follow.
+    
+    Change-Id: I6bf30d563d19da39b6aec6900c7fe12d82ed4f62
+    Reviewed-on: https://go-review.googlesource.com/9302
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_dragonfly.go    |  3 ++
+ src/runtime/os_freebsd.go      |  3 ++
+ src/runtime/os_nacl.go         |  4 +++
+ src/runtime/os_netbsd.go       |  5 ++++
+ src/runtime/os_openbsd.go      |  5 ++++
+ src/runtime/os_solaris.go      |  3 ++
+ src/runtime/signal_darwin.go   | 26 +++++++++++++++++
+ src/runtime/signal_linux.go    | 34 -----------------------
+ src/runtime/signal_unix.go     | 36 +++++++++++++++++++++++-
+ src/runtime/sys_darwin_amd64.s | 63 +++++++++++++++---------------------------
+ 10 files changed, 106 insertions(+), 76 deletions(-)

@@ -1,0 +1,19 @@
+commit 38729cff96ad38b2d5b530c1009ff0403ebff903
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 24 17:49:11 2022 -0800
+
+    go/types, types2: all interfaces implement comparable (add tests)
+    
+    For #50646.
+    
+    Change-Id: I7420545556e0df2659836364a62ce2c32ad7a8b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380654
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go     | 27 +++++++++++++++
+ .../types2/testdata/fixedbugs/issue50646.go2       | 29 ++++++++++++++++
+ src/go/types/issues_test.go                        | 27 +++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50646.go2     | 29 ++++++++++++++++
+ test/typeparam/issue50646.go                       | 39 ++++++++++++++++++++++
+ 5 files changed, 151 insertions(+)

@@ -1,0 +1,26 @@
+commit f10e03770c9702b3ee3bcc2ccdb78691f389c1a3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 13 18:09:21 2015 +1100
+
+    image/jpeg: support decoding CMYK and YCbCrK images.
+    
+    The new testdata was created by:
+    
+    convert video-001.png -colorspace cmyk video-001.cmyk.jpeg
+    
+    video-001.cmyk.jpeg was then converted back to video-001.cmyk.png via
+    the GIMP. ImageMagick (convert) wasn't used for this second conversion
+    because IM's default color profiles complicates things.
+    
+    Fixes #4500.
+    
+    Change-Id: Ibf533f6a6c7e76883acc493ce3a4289d7875df3f
+    Reviewed-on: https://go-review.googlesource.com/4801
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/decode_test.go               |   1 +
+ src/image/jpeg/reader.go               | 259 ++++++++++++++++++++++++++-------
+ src/image/jpeg/scan.go                 |  19 ++-
+ src/image/testdata/video-001.cmyk.jpeg | Bin 0 -> 19477 bytes
+ src/image/testdata/video-001.cmyk.png  | Bin 0 -> 25439 bytes
+ 5 files changed, 221 insertions(+), 58 deletions(-)

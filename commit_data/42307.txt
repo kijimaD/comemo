@@ -1,0 +1,19 @@
+commit 33213039e5d806f93a11561609c804cef7c065b3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 7 11:53:58 2020 -0400
+
+    cmd/link: fix minor bug in trampoline insertion
+    
+    Fix a minor bug where it should use Textp2 instead of Textp. This
+    doesn't affect correctness. It just made the pre-allocation less
+    effective.
+    
+    Change-Id: Ib3fa8ab3c64037e3582933970d051f278286353b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

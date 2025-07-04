@@ -1,0 +1,21 @@
+commit b85147cd70b2e4d3efe33c2cb9ea65bed1af99e8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 28 17:20:19 2009 -0700
+
+    change the encoding of uints to simplify overflow checking and to make them
+    easier and faster to read.  they are now either a one-byte value or a n-byte value
+    preceded by a byte holding -n.
+    
+    R=rsc
+    DELTA=150  (45 added, 7 deleted, 98 changed)
+    OCL=32381
+    CL=32387
+
+ src/pkg/gob/Makefile        | 17 ++++++---
+ src/pkg/gob/codec_test.go   | 90 ++++++++++++++++++++++-----------------------
+ src/pkg/gob/decode.go       | 82 +++++++++++++++++++++++++++--------------
+ src/pkg/gob/decoder.go      |  2 +-
+ src/pkg/gob/encode.go       | 30 +++++++++------
+ src/pkg/gob/encoder.go      | 10 ++---
+ src/pkg/gob/encoder_test.go |  3 +-
+ 7 files changed, 136 insertions(+), 98 deletions(-)

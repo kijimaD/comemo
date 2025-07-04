@@ -1,0 +1,18 @@
+commit 9e8ed86813dd49c4160dd4813901e2ac03de5abd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 14 14:57:49 2021 -0700
+
+    debug/buildinfo: fix test for build settings
+    
+    This CL fixes the debug/buildinfo test, which did not expect build settings.
+    
+    For #37475
+    
+    Change-Id: Ie8c15ec633b4eec6a976120c8db64f116589d98e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356012
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

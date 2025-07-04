@@ -1,0 +1,17 @@
+commit 059a5ac3ebfafe5977b1e6176433c111ef8950f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 8 17:50:52 2020 -0800
+
+    test: add test that gccgo fails to compile
+    
+    Change-Id: I14d31bb62fd0e26a84f8781644c40918404f5f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213899
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug507.dir/a.go | 13 +++++++++++++
+ test/fixedbugs/bug507.dir/b.go |  9 +++++++++
+ test/fixedbugs/bug507.dir/c.go |  9 +++++++++
+ test/fixedbugs/bug507.go       |  9 +++++++++
+ 4 files changed, 40 insertions(+)

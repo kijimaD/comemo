@@ -1,0 +1,23 @@
+commit 37ca171ce79a86924b7db4dd07b1e7760cfed4fc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 8 15:08:48 2022 -0800
+
+    net: rewrite nsswitch.conf parsing to work like other parsers
+    
+    Seems simpler than having two different parsing mechanisms.
+    
+    Change-Id: I4f8468bc025f8e03f59ec9c79b17721581b64eed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf_test.go | 52 +++++++++++++++++++++++++++-----------------
+ src/net/nss.go       | 61 ++++++++++++++++++++++++++--------------------------
+ src/net/nss_test.go  |  7 ++++--
+ src/net/parse.go     | 50 +++++++++++-------------------------------
+ 4 files changed, 81 insertions(+), 89 deletions(-)

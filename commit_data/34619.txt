@@ -1,0 +1,79 @@
+commit a35ec9a59e29dc11a15ded047a618298a59599b4
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Mar 5 20:59:40 2018 +0100
+
+    cmd/compile: implement CMOV on amd64
+    
+    This builds upon the branchelim pass, activating it for amd64 and
+    lowering CondSelect. Special care is made to FPU instructions for
+    NaN handling.
+    
+    Benchmark results on Xeon E5630 (Westmere EP):
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-16              4.99s ± 9%     4.66s ± 2%     ~     (p=0.095 n=5+5)
+    Fannkuch11-16                4.93s ± 3%     5.04s ± 2%     ~     (p=0.548 n=5+5)
+    FmtFprintfEmpty-16          58.8ns ± 7%    61.4ns ±14%     ~     (p=0.579 n=5+5)
+    FmtFprintfString-16          114ns ± 2%     114ns ± 4%     ~     (p=0.603 n=5+5)
+    FmtFprintfInt-16             181ns ± 4%     125ns ± 3%  -30.90%  (p=0.008 n=5+5)
+    FmtFprintfIntInt-16          263ns ± 2%     217ns ± 2%  -17.34%  (p=0.008 n=5+5)
+    FmtFprintfPrefixedInt-16     230ns ± 1%     212ns ± 1%   -7.99%  (p=0.008 n=5+5)
+    FmtFprintfFloat-16           411ns ± 3%     344ns ± 5%  -16.43%  (p=0.008 n=5+5)
+    FmtManyArgs-16               828ns ± 4%     790ns ± 2%   -4.59%  (p=0.032 n=5+5)
+    GobDecode-16                10.9ms ± 4%    10.8ms ± 5%     ~     (p=0.548 n=5+5)
+    GobEncode-16                9.52ms ± 5%    9.46ms ± 2%     ~     (p=1.000 n=5+5)
+    Gzip-16                      334ms ± 2%     337ms ± 2%     ~     (p=0.548 n=5+5)
+    Gunzip-16                   64.4ms ± 1%    65.0ms ± 1%   +1.00%  (p=0.008 n=5+5)
+    HTTPClientServer-16          156µs ± 3%     155µs ± 3%     ~     (p=0.690 n=5+5)
+    JSONEncode-16               21.0ms ± 1%    21.8ms ± 0%   +3.76%  (p=0.016 n=5+4)
+    JSONDecode-16               95.1ms ± 0%    95.7ms ± 1%     ~     (p=0.151 n=5+5)
+    Mandelbrot200-16            6.38ms ± 1%    6.42ms ± 1%     ~     (p=0.095 n=5+5)
+    GoParse-16                  5.47ms ± 2%    5.36ms ± 1%   -1.95%  (p=0.016 n=5+5)
+    RegexpMatchEasy0_32-16       111ns ± 1%     111ns ± 1%     ~     (p=0.635 n=5+4)
+    RegexpMatchEasy0_1K-16       408ns ± 1%     411ns ± 2%     ~     (p=0.087 n=5+5)
+    RegexpMatchEasy1_32-16       103ns ± 1%     104ns ± 1%     ~     (p=0.484 n=5+5)
+    RegexpMatchEasy1_1K-16       659ns ± 2%     652ns ± 1%     ~     (p=0.571 n=5+5)
+    RegexpMatchMedium_32-16      176ns ± 2%     174ns ± 1%     ~     (p=0.476 n=5+5)
+    RegexpMatchMedium_1K-16     58.6µs ± 4%    57.7µs ± 4%     ~     (p=0.548 n=5+5)
+    RegexpMatchHard_32-16       3.07µs ± 3%    3.04µs ± 4%     ~     (p=0.421 n=5+5)
+    RegexpMatchHard_1K-16       89.2µs ± 1%    87.9µs ± 2%   -1.52%  (p=0.032 n=5+5)
+    Revcomp-16                   575ms ± 0%     587ms ± 2%   +2.12%  (p=0.032 n=4+5)
+    Template-16                  110ms ± 1%     107ms ± 3%   -3.00%  (p=0.032 n=5+5)
+    TimeParse-16                 463ns ± 0%     462ns ± 0%     ~     (p=0.810 n=5+4)
+    TimeFormat-16                538ns ± 0%     535ns ± 0%   -0.63%  (p=0.024 n=5+5)
+    
+    name                      old speed      new speed      delta
+    GobDecode-16              70.7MB/s ± 4%  71.4MB/s ± 5%     ~     (p=0.452 n=5+5)
+    GobEncode-16              80.7MB/s ± 5%  81.2MB/s ± 2%     ~     (p=1.000 n=5+5)
+    Gzip-16                   58.2MB/s ± 2%  57.7MB/s ± 2%     ~     (p=0.452 n=5+5)
+    Gunzip-16                  302MB/s ± 1%   299MB/s ± 1%   -0.99%  (p=0.008 n=5+5)
+    JSONEncode-16             92.4MB/s ± 1%  89.1MB/s ± 0%   -3.63%  (p=0.016 n=5+4)
+    JSONDecode-16             20.4MB/s ± 0%  20.3MB/s ± 1%     ~     (p=0.135 n=5+5)
+    GoParse-16                10.6MB/s ± 2%  10.8MB/s ± 1%   +2.00%  (p=0.016 n=5+5)
+    RegexpMatchEasy0_32-16     286MB/s ± 1%   285MB/s ± 3%     ~     (p=1.000 n=5+5)
+    RegexpMatchEasy0_1K-16    2.51GB/s ± 1%  2.49GB/s ± 2%     ~     (p=0.095 n=5+5)
+    RegexpMatchEasy1_32-16     309MB/s ± 1%   307MB/s ± 1%     ~     (p=0.548 n=5+5)
+    RegexpMatchEasy1_1K-16    1.55GB/s ± 2%  1.57GB/s ± 1%     ~     (p=0.690 n=5+5)
+    RegexpMatchMedium_32-16   5.68MB/s ± 2%  5.73MB/s ± 1%     ~     (p=0.579 n=5+5)
+    RegexpMatchMedium_1K-16   17.5MB/s ± 4%  17.8MB/s ± 4%     ~     (p=0.500 n=5+5)
+    RegexpMatchHard_32-16     10.4MB/s ± 3%  10.5MB/s ± 4%     ~     (p=0.460 n=5+5)
+    RegexpMatchHard_1K-16     11.5MB/s ± 1%  11.7MB/s ± 2%   +1.57%  (p=0.032 n=5+5)
+    Revcomp-16                 442MB/s ± 0%   433MB/s ± 2%   -2.05%  (p=0.032 n=4+5)
+    Template-16               17.7MB/s ± 1%  18.2MB/s ± 3%   +3.12%  (p=0.032 n=5+5)
+    
+    Change-Id: I6972e8f35f2b31f9a42ac473a6bf419a18022558
+    Reviewed-on: https://go-review.googlesource.com/100935
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go           |    78 +-
+ src/cmd/compile/internal/ssa/branchelim.go      |    27 +-
+ src/cmd/compile/internal/ssa/branchelim_test.go |   244 +-
+ src/cmd/compile/internal/ssa/export_test.go     |     2 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |    50 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |    57 +-
+ src/cmd/compile/internal/ssa/opGen.go           |   641 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 28244 +++++++++++++---------
+ test/codegen/condmove.go                        |   178 +
+ 9 files changed, 17321 insertions(+), 12200 deletions(-)

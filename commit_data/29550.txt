@@ -1,0 +1,29 @@
+commit 1f605175b0044d69ac2364c24f515344c9866fd6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 9 15:28:24 2016 -0500
+
+    runtime/cgo: use libc for sigaction syscalls when possible
+    
+    This ensures that runtime's signal handlers pass through the TSAN and
+    MSAN libc interceptors and subsequent calls to the intercepted
+    sigaction function from C will correctly see them.
+    
+    Fixes #17753.
+    
+    Change-Id: I9798bb50291a4b8fa20caa39c02a4465ec40bb8d
+    Reviewed-on: https://go-review.googlesource.com/33142
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  1 +
+ misc/cgo/testsanitizers/tsan8.go  | 60 ++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_sigaction.c   | 66 +++++++++++++++++++++++++++++
+ src/runtime/cgo/sigaction.go      | 22 ++++++++++
+ src/runtime/cgo_mmap.go           |  1 -
+ src/runtime/cgo_sigaction.go      | 89 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/msan_amd64.s          |  6 ++-
+ src/runtime/os_linux.go           |  3 --
+ src/runtime/sigaction_linux.go    | 11 +++++
+ src/runtime/sys_linux_amd64.s     | 15 ++++++-
+ 10 files changed, 268 insertions(+), 6 deletions(-)

@@ -1,0 +1,25 @@
+commit 8cb4327ea3fb9584164fccf3fb4d76c4e567d76d
+Author: Conrado Gouvea <conradoplg@gmail.com>
+Date:   Thu Jul 13 22:14:37 2017 -0300
+
+    crypto/cipher: add NewGCMWithNonceAndTagSize for custom tag sizes.
+    
+    GCM allows using tag sizes smaller than the block size. This adds a
+    NewGCMWithNonceAndTagSize function which allows specifying the tag
+    size.
+    
+    Fixes #19594
+    
+    Change-Id: Ib2008c6f13ad6d916638b1523c0ded8a80eaf42d
+    Reviewed-on: https://go-review.googlesource.com/48510
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/aes/aes_gcm.go     | 28 ++++++++++++++---------
+ src/crypto/aes/gcm_s390x.go   | 46 +++++++++++++++++++++++++-------------
+ src/crypto/aes/modes.go       |  2 +-
+ src/crypto/aes/modes_test.go  |  2 +-
+ src/crypto/cipher/gcm.go      | 52 ++++++++++++++++++++++++++++++++-----------
+ src/crypto/cipher/gcm_test.go | 46 +++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 134 insertions(+), 42 deletions(-)

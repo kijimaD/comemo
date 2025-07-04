@@ -1,0 +1,25 @@
+commit 524210bbb2866156892bbc8d2da24e00a6544f95
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 22:33:02 2022 +0000
+
+    doc: lint Markdown for trailing spaces and code blocks
+    
+    MD009 Trailing spaces.
+    MD031 Fenced code blocks should be surrounded by blank lines.
+    
+    https://github.com/markdownlint/markdownlint/blob/master/docs/RULES.md
+    
+    Change-Id: I6a2fff4afa8224442d90b30f84444b4a888fcef2
+    GitHub-Last-Rev: 67cf146b8501096949faf0155239770d4f6a73b4
+    GitHub-Pull-Request: golang/go#44285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292409
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/README.md | 4 ++--
+ src/cmd/trace/static/README.md         | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

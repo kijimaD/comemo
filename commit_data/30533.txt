@@ -1,0 +1,23 @@
+commit 6fd5e2549ad530dc6f8504de61f1e49fa4f336ea
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Mar 5 11:37:09 2017 -0500
+
+    cmd/compile: mark MOVWF/MOVFW clobbering F15 on ARM
+    
+    The assembler back end uses F15 as a temporary register in these
+    instructions.
+    
+    Checked the assembler back end and made sure that this is the
+    only case clobbering F15.
+    
+    Fixes #19403.
+    
+    Change-Id: I02b9e00fdd9229db899f501c8e9b306e02912d83
+    Reviewed-on: https://go-review.googlesource.com/37792
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARMOps.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go      | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

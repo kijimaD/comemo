@@ -1,0 +1,24 @@
+commit 22d2b984a680900ebbec6268f93a839286b6f130
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 26 19:35:23 2020 +0000
+
+    runtime: make sysMemStats' methods nosplit
+    
+    sysMemStats are updated early on in runtime initialization, so
+    triggering a stack growth would be bad. Mark them nosplit.
+    
+    Thank you so much to cherryyz@google.com for finding this fix!
+    
+    Fixes #42218.
+    
+    Change-Id: Ic62db76e6a4f829355d7eaabed1727c51adfbd0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265157
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mstats.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

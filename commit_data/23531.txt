@@ -1,0 +1,22 @@
+commit a444da033c0bc1fa5fb1973bd6d0c131ec3c1ccd
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed May 6 17:54:50 2015 -0400
+
+    cmd/go: fetch git submodules in `go get`
+    
+    Change createCmd, downloadCmd, tagSyncCmd, tagSyncDefault to allow
+    multiple commands.
+    
+    When using the vendoring experiment, fetch git submodules in `go get`,
+    and update them in `go get -u`.
+    
+    This is a reincarnation of https://codereview.appspot.com/142180043.
+    
+    For #7764.
+    
+    Change-Id: I8248efb851130620ef762a765ab8716af430572a
+    Reviewed-on: https://go-review.googlesource.com/9815
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go | 82 +++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 24 deletions(-)

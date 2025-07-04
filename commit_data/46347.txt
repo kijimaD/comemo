@@ -1,0 +1,16 @@
+commit 50c69cc3a9dfe4f268eebcf3dcbf7f3a93635842
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 26 01:15:23 2021 +1000
+
+    cmd/link/internal/riscv64,cmd/internal/obj/riscv: make error messages consistent
+    
+    Be consistent with both style/wording and formatting of error messages.
+    
+    Change-Id: I23013d904333a67a8f17dd364bb5015f54f419c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345050
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go    | 16 ++++++++--------
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

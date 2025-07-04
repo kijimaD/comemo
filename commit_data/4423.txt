@@ -1,0 +1,29 @@
+commit 34356e9a6aec0da6cb5115cc6919445f09206af4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 16 10:29:53 2009 +1100
+
+    update tutorial.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179063
+
+ doc/go_tutorial.html      | 351 ++++++++++++++++++++++++----------------------
+ doc/go_tutorial.txt       |  48 ++++---
+ doc/progs/cat.go          |  34 ++---
+ doc/progs/cat_rot13.go    |  46 +++---
+ doc/progs/echo.go         |  16 +--
+ doc/progs/file.go         |  32 ++---
+ doc/progs/helloworld.go   |   2 +-
+ doc/progs/helloworld3.go  |  16 +--
+ doc/progs/print.go        |  19 +--
+ doc/progs/print_string.go |   7 +-
+ doc/progs/server.go       |  38 ++---
+ doc/progs/server1.go      |  40 +++---
+ doc/progs/sieve.go        |  14 +-
+ doc/progs/sieve1.go       |  30 ++--
+ doc/progs/sort.go         |  44 +++---
+ doc/progs/sortmain.go     |  56 ++++----
+ doc/progs/strings.go      |   8 +-
+ doc/progs/sum.go          |   6 +-
+ 18 files changed, 421 insertions(+), 386 deletions(-)

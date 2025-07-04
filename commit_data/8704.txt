@@ -1,0 +1,20 @@
+commit 9968090dddb74e7b5cd1352d791b7cf8cb7a6045
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 13 14:43:54 2011 -0400
+
+    cgo: handle new Apple LLVM-based gcc from Xcode 4.2
+    
+    That gcc does not include enumerator names and values
+    in its DWARF debug output.  Create a data block from which
+    we can read the values instead.
+    
+    Fixes #1881.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4607045
+
+ src/cmd/cgo/gcc.go          | 89 ++++++++++++++++++++++++++++++++++++---------
+ src/pkg/debug/dwarf/type.go |  4 +-
+ src/pkg/debug/elf/file.go   |  6 +++
+ 3 files changed, 80 insertions(+), 19 deletions(-)

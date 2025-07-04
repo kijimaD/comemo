@@ -1,0 +1,13 @@
+commit 7e0dac08c7f8948423135d05c085f076cce9ec6d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 27 20:27:55 2014 +0400
+
+    runtime: fix and improve comments
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant, khr, rsc
+    https://golang.org/cl/67460043
+
+ src/pkg/runtime/panic.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

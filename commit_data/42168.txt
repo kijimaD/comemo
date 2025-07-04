@@ -1,0 +1,24 @@
+commit 42c48998aada0df10279650d04a018c83cbfa518
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Apr 25 22:29:02 2020 +1000
+
+    image/draw: optimize paletted dst + uniform src
+    
+    name            old time/op  new time/op  delta
+    PalettedFill-4  5.74ms ± 1%  0.01ms ± 1%  -99.78%  (p=0.008 n=5+5)
+    PalettedRGBA-4  3.34ms ± 3%  3.33ms ± 0%     ~     (p=0.690 n=5+5)
+    
+    Fixes #35938
+    
+    Thanks to pjbgtnj for the suggestion.
+    
+    Change-Id: I07b494482cce918f556e196c5a4b481b4c16de3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230118
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/draw/bench_test.go |  6 +++++-
+ src/image/draw/draw.go       | 22 +++++++++++++++++++---
+ src/image/draw/draw_test.go  | 32 +++++++++++++++++++-------------
+ 3 files changed, 43 insertions(+), 17 deletions(-)

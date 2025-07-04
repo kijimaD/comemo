@@ -1,0 +1,40 @@
+commit bc15070085ec417d4254f8a4eda62b42de88fb37
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Sep 4 17:30:08 2023 +0200
+
+    runtime: support SetUnhandledExceptionFilter on Windows
+    
+    The Windows unhandled exception mechanism fails to call the callback
+    set in SetUnhandledExceptionFilter if the stack can't be correctly
+    unwound.
+    
+    Some cgo glue code was not properly chaining the frame pointer, making
+    the stack unwind to fail in case of an exception inside a cgo call.
+    This CL fix that and adds a test case to avoid regressions.
+    
+    Fixes #50951
+    
+    Change-Id: Ic782b5257fe90b05e3def8dbf0bb8d4ed37a190b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/seh.go        | 36 ++++++++++++++++++----
+ src/cmd/link/internal/ld/seh.go        | 13 +++++++-
+ src/runtime/asm_amd64.s                | 55 +++++++++++++++++++++++-----------
+ src/runtime/cgo/asm_amd64.s            |  2 +-
+ src/runtime/defs_windows.go            |  5 ++--
+ src/runtime/defs_windows_386.go        |  7 +++++
+ src/runtime/defs_windows_amd64.go      | 15 ++++++++++
+ src/runtime/defs_windows_arm.go        | 15 ++++++++++
+ src/runtime/defs_windows_arm64.go      | 15 ++++++++++
+ src/runtime/os_windows.go              | 13 ++++++++
+ src/runtime/signal_windows.go          | 38 +++++++++++++++++++++++
+ src/runtime/signal_windows_test.go     |  8 ++++-
+ src/runtime/stubs_amd64.go             |  3 ++
+ src/runtime/sys_windows_amd64.s        | 34 ++++++++++++++++++++-
+ src/runtime/testdata/testwinlib/main.c | 20 ++++++++++++-
+ 15 files changed, 249 insertions(+), 30 deletions(-)

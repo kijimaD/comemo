@@ -1,0 +1,23 @@
+commit 5694ebf057889444e8bbe97741004c4ecdcb7785
+Author: Colby Ranger <cranger@google.com>
+Date:   Wed Apr 18 11:33:02 2012 -0700
+
+    net/http/httputil: Clean up ReverseProxy maxLatencyWriter goroutines.
+    
+    When FlushInterval is specified on ReverseProxy, the ResponseWriter is
+    wrapped with a maxLatencyWriter that periodically flushes in a
+    goroutine. That goroutine was not being cleaned up at the end of the
+    request. This resulted in a panic when Flush() was being called on a
+    ResponseWriter that was closed.
+    
+    The code was updated to always send the done message to the flushLoop()
+    goroutine after copying the body. Futhermore, the code was refactored to
+    allow the test to verify the maxLatencyWriter behavior.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6033043
+
+ src/pkg/net/http/httputil/reverseproxy.go      | 48 ++++++++++++---------
+ src/pkg/net/http/httputil/reverseproxy_test.go | 58 ++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 19 deletions(-)

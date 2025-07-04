@@ -1,0 +1,20 @@
+commit fc4663d56f2ac550c0deca6ed0261d894be49465
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Aug 22 12:29:29 2019 -0400
+
+    errors: document Is and As methods
+    
+    Add brief descriptions of why one might implement
+    an Is or As method.
+    
+    Fixes #33364.
+    
+    Change-Id: I81a091bf564c654ddb9ef3997e780451a01efb7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191338
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/errors/wrap.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

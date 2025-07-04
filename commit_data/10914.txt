@@ -1,0 +1,12 @@
+commit b0eb68ad16978ac22fb115b8ec26e1dcb15979c6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 09:59:45 2011 +1100
+
+    dashboard: send builder in commit POST query string
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5498055
+
+ misc/dashboard/builder/http.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit a3ceb57fb4bfeb1af3558ff9999687b97fd08bc9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 6 03:27:12 2019 +1000
+
+    cmd/internal/sys: provide architecture definition for riscv64
+    
+    Updates #27532
+    
+    Change-Id: I7ecf5239d6bc49408a2f155d0f5398ee716fd443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193678
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/sys/arch.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

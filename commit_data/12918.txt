@@ -1,0 +1,19 @@
+commit 7d63ff09a5ce65c91021acaf79b1d281cba55f07
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Apr 20 10:48:10 2012 +1000
+
+    exp/html: improve afterHeadIM
+    
+    Clean up the flow of control.
+    Fix the TODO for handling <html> tags.
+    Add a case to ignore doctype declarations.
+    
+    Pass one additional test.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6072047
+
+ src/pkg/exp/html/parse.go                 | 39 +++++++++++--------------------
+ src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
+ 2 files changed, 14 insertions(+), 27 deletions(-)

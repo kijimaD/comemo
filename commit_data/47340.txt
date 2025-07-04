@@ -1,0 +1,17 @@
+commit ccea0b2fbe8eaf0ac69fab4aef28f300bf676d21
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 8 12:45:41 2021 -0800
+
+    net/http: deflake TestTimeoutHandlerContextCanceled
+    
+    Fixes #49448
+    
+    Change-Id: Ie2acff7dedbca9bd1cc0b1b3dd0a01573c7befee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361920
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

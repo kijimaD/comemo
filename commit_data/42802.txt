@@ -1,0 +1,26 @@
+commit 5c76382762cfc34b7a7678668460f127fec4a35b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 13 16:46:51 2020 -0400
+
+    cmd/go/internal/modload: add a "v" prefix to the indexed go version
+    
+    This allows semver-based comparisons of the version without additional allocations.
+    
+    Also comment on the reason for the loops that iterate over modFile instead.
+    
+    (I was reading the vendor code in order to add the lazy-loading version check,
+    and this section was a bit unclear to me.)
+    
+    For #36460
+    
+    Change-Id: I11559d81ffb4eba0e4e10e6fa3c01990b11f9180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240622
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go    |  6 +++---
+ src/cmd/go/internal/modload/modfile.go | 14 ++++++++------
+ src/cmd/go/internal/modload/vendor.go  |  4 +++-
+ 3 files changed, 14 insertions(+), 10 deletions(-)

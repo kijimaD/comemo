@@ -1,0 +1,20 @@
+commit 3d42e691b931d34f2a3fee0885368f42d84665fb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 21 15:10:47 2009 -0700
+
+    make 6l produce dynamically linked binaries (although they are fully statically linked as far
+    as go is concerned).  the -d flag is now flipped; as on the mac, -d disables dynamic.
+    
+    much remains to be improved to move the output closer to the gcc format.
+    
+    R=rsc
+    DELTA=366  (310 added, 30 deleted, 26 changed)
+    OCL=31929
+    CL=31951
+
+ src/cmd/6l/asm.c   | 211 +++++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/6l/l.h     |   1 -
+ src/cmd/6l/obj.c   |   2 +-
+ src/cmd/ld/elf64.c |  69 ++++++++++++++++--
+ src/cmd/ld/elf64.h | 109 ++++++++++++++++++++++++++-
+ 5 files changed, 336 insertions(+), 56 deletions(-)

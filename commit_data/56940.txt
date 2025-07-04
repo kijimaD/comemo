@@ -1,0 +1,24 @@
+commit b0f7be3cfa1ee5fbfe46590475861677cc9514fa
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 12 20:24:44 2024 -0700
+
+    cmd/compile: don't treat an InlMark as a read during deadstore
+    
+    An InlMark "read" can't make an otherwise dead store live. Without this
+    CL, we sometimes zero an object twice in succession because we think
+    there is a reader in between.
+    
+    Kind of challenging to make a test for this. The second zeroing has the
+    same instruction on the same line number, so codegen tests can't see it.
+    
+    Fixes #67957
+    
+    Change-Id: I7fb97ebff50d8eb6246fc4802d1136b7cc76c45f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592615
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go |  4 ++++
+ src/runtime/symtabinl_test.go             | 19 ++++++++++---------
+ 2 files changed, 14 insertions(+), 9 deletions(-)

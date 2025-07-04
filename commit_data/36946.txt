@@ -1,0 +1,30 @@
+commit 28fbbf41119a75498cc5e81d06af5ca1ad0010c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 10 16:47:47 2018 -0700
+
+    cmd/compile/internal/gc: remove OCMPIFACE and OCMPSTR
+    
+    Interface and string comparisons don't need separate Ops any more than
+    struct or array comparisons do.
+    
+    Removing them requires shuffling some code around in walk (and a
+    little in order), but overall allows simplifying things a bit.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I084b8a6c089b768dc76d220379f4daed8a35db15
+    Reviewed-on: https://go-review.googlesource.com/c/141637
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     |   4 +-
+ src/cmd/compile/internal/gc/fmt.go       |   7 -
+ src/cmd/compile/internal/gc/iexport.go   |   6 -
+ src/cmd/compile/internal/gc/iimport.go   |   3 -
+ src/cmd/compile/internal/gc/order.go     |  31 ++-
+ src/cmd/compile/internal/gc/syntax.go    |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go |  49 ++--
+ src/cmd/compile/internal/gc/walk.go      | 395 ++++++++++++++++---------------
+ 8 files changed, 236 insertions(+), 267 deletions(-)

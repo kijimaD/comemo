@@ -1,0 +1,27 @@
+commit c12f53864bf3a7a0612ab7d20b45277fae7ea181
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon May 8 11:17:59 2023 -0400
+
+    time: update windows zoneinfo_abbrs
+    
+    The primary branch of the github.com/unicode-org/cldr repository
+    has changed to main instead of master. This changes the branch used
+    to download the Windows zone file.
+    
+    Ran:
+    go generate time
+    
+    For #58113
+    
+    Change-Id: Idb3dcaf44fc52d4b6abfed5a3ca6cd6f745dc3f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493477
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+
+ src/time/genzabbrs.go              | 2 +-
+ src/time/zoneinfo_abbrs_windows.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

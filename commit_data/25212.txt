@@ -1,0 +1,21 @@
+commit 9a89ac35fe5d5dfaed307544b5cc290bd821dea1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 9 15:53:45 2015 +1100
+
+    net: add TestInterfaceHardwareAddrWithGetmac
+    
+    Use Windows getmac command to verify interface
+    MAC addresses net package returns.
+    
+    The test is to be enabled once issue #12691 is fixed.
+    
+    Updates #12691
+    
+    Change-Id: Ic28c83303590cb4d48ee025250d4b6e30683bfd4
+    Reviewed-on: https://go-review.googlesource.com/17632
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 94 +++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 86 insertions(+), 8 deletions(-)

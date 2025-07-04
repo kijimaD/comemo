@@ -1,0 +1,19 @@
+commit a6a7c7a1fd6a2450cfec11e54217e04dce843a54
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 28 16:18:22 2022 -0500
+
+    cmd/go: add detail to test failures
+    
+    For #50892
+    
+    Change-Id: I14ff1c43b39687a0ba5e668ee962cecfb49e4beb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381836
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go     | 2 +-
+ src/cmd/go/script_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

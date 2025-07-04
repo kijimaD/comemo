@@ -1,0 +1,21 @@
+commit dc3680865a880e4f24ad40474b27c8ca276d8e5d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 11 22:09:00 2018 +0200
+
+    encoding/json: more tests to cover decoding edge cases
+    
+    The overall coverage of the json package goes up from 90.8% to 91.3%.
+    
+    While at it, apply two minor code simplifications found while inspecting
+    the HTML coverage report.
+    
+    Change-Id: I0fba968afeedc813b1385e4bde72d93b878854d7
+    Reviewed-on: https://go-review.googlesource.com/134735
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt |  1 +
+ src/encoding/json/decode.go       | 23 ++++++++++-------------
+ src/encoding/json/decode_test.go  | 19 ++++++++++++++++++-
+ 3 files changed, 29 insertions(+), 14 deletions(-)

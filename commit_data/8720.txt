@@ -1,0 +1,13 @@
+commit 5f77bf8b20d4711c5c6a886002863c52308de1db
+Author: Maxim Ushakov <ushakov@google.com>
+Date:   Tue Jun 14 11:51:03 2011 -0400
+
+    xml: handle non-string attribute fields
+    
+    R=kevlar, rsc
+    CC=golang-dev
+    https://golang.org/cl/4528114
+
+ src/pkg/xml/read.go      | 83 ++++++++++++++++++++++++++++--------------------
+ src/pkg/xml/read_test.go | 44 +++++++++++++++++++++++++
+ 2 files changed, 92 insertions(+), 35 deletions(-)

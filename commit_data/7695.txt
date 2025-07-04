@@ -1,0 +1,22 @@
+commit d64a18a27e13550606063ca970a5a004611d6881
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 08:01:19 2011 -0800
+
+    cgi: child support (e.g. Go CGI under Apache)
+    
+    The http/cgi package now supports both being
+    a CGI host or being a CGI child process.
+    
+    R=rsc, adg, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4245070
+
+ src/pkg/http/cgi/Makefile                      |   3 +-
+ src/pkg/http/cgi/child.go                      | 202 +++++++++++++++++++++++++
+ src/pkg/http/cgi/child_test.go                 |  83 ++++++++++
+ src/pkg/http/cgi/{cgi.go => host.go}           |  35 ++++-
+ src/pkg/http/cgi/{cgi_test.go => host_test.go} |  22 +++
+ src/pkg/http/cgi/matryoshka_test.go            |  74 +++++++++
+ src/pkg/http/cgi/testdata/test.cgi             |   2 +-
+ src/pkg/http/server.go                         |   1 -
+ 8 files changed, 411 insertions(+), 11 deletions(-)

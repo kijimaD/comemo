@@ -1,0 +1,28 @@
+commit b291538d33c2b79f592d4fef5e50eb12e95b1251
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Mar 18 19:51:52 2023 +1100
+
+    runtime: rework asmcgocall on ppc64x
+    
+    On some platforms asmcgocall can be called with a nil g. Additionally, it
+    can be called when already on a the system (g0) stack or on a signal stack.
+    In these cases we do not need to switch (and/or cannot switch) to the
+    system stack and as a result, do not need to save the g.
+    
+    Rework asmcgocall on ppc64x to follow the pattern used on other architectures,
+    such as amd64 and arm64, where a separate nosave path is called in the above
+    cases. The nil g case will be needed to support openbsd/ppc64.
+    
+    Updates #56001
+    
+    Change-Id: I431d4200bcbc4aaddeb617aefe18590165ff2927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478775
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/asm_ppc64x.s | 54 +++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 46 insertions(+), 8 deletions(-)

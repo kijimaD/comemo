@@ -1,0 +1,17 @@
+commit 3ee9672955b163075e96d959635d1912952030e6
+Author: esell <eujon.sellers@gmail.com>
+Date:   Wed Sep 26 10:19:16 2018 -0600
+
+    net/http: add Handle example
+    
+    Currently there is no example for http.Handle in the
+    documentation. This adds an example.
+    
+    Change-Id: I66ee9983bea1f5237757e1ef4956eae9a056e963
+    Reviewed-on: https://go-review.googlesource.com/137715
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/example_handle_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

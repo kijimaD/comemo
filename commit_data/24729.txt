@@ -1,0 +1,18 @@
+commit 19596215844dabd6318f460d5b179b35e54748af
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 15:17:04 2015 -0400
+
+    runtime: lift state variables from func gc to var work
+    
+    We're about to split func gc across several functions, so lift the
+    local variables it uses for tracking statistics and state across the
+    cycle into the global "work" variable.
+    
+    Change-Id: Ie955f2f1758c7f5a5543ea1f3f33b222bc4b1d37
+    Reviewed-on: https://go-review.googlesource.com/16353
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 85 +++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 45 insertions(+), 40 deletions(-)

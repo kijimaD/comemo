@@ -1,0 +1,16 @@
+commit 372cf8fe87de7a49818de2157429ccbc76c35c2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 29 11:19:55 2012 -0800
+
+    codereview: always use HTTPS
+    
+    The new version of rietveld pushed 1.5 hours ago
+    requires HTTPS now, otherwise it issues a 301
+    to HTTPS which we barfed on.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6782135
+
+ lib/codereview/codereview.py | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

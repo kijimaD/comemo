@@ -1,0 +1,12 @@
+commit 8cb9184d7ff869ad4ddd3174cb301bc88db15178
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 11:56:39 2009 -0700
+
+    an attempt to define initialization order within a package.
+    
+    DELTA=23  (19 added, 1 deleted, 3 changed)
+    OCL=34646
+    CL=34649
+
+ doc/go_spec.html | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

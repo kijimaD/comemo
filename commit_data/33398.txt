@@ -1,0 +1,24 @@
+commit 25159d3af98335cfe574c66224a8c31df25ecc15
+Author: griesemer <gri@golang.org>
+Date:   Wed Nov 1 17:38:07 2017 -0700
+
+    cmd/compile: avoid spurious errors for invalid map key types
+    
+    Instead of trying to validate map key types eagerly in some
+    cases, delay their validation to the end of type-checking,
+    when we all type information is present.
+    
+    Passes go build -toolexec 'toolstash -cmp' -a std .
+    
+    Fixes #21273.
+    Fixes #21657.
+    
+    Change-Id: I532369dc91c6adca1502d6aa456bb06b57e6c7ff
+    Reviewed-on: https://go-review.googlesource.com/75310
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go     |  1 +
+ src/cmd/compile/internal/gc/main.go      |  2 ++
+ src/cmd/compile/internal/gc/typecheck.go | 47 +++++++-------------------------
+ test/fixedbugs/issue21273.go             | 28 +++++++++++++++++++
+ 4 files changed, 41 insertions(+), 37 deletions(-)

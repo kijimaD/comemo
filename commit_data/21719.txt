@@ -1,0 +1,38 @@
+commit 1fda57ba725044e61148258ea9e98080b0a35260
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 11:23:04 2015 +1100
+
+    syscall: split implementation of Dup2 per linux GOOS
+    
+    Updates #9974
+    
+    This proposal moves the definition of Dup2 from the generic syscall_linux.go
+    to the GOOS specific variants. This is in preparation for the arm64 port.
+    
+    For all existing platforms Dup2 is not affected. When arm64 is added we'll use
+    either a forwarding method to Dup3 or
+    
+            //sysnb        Dup2(oldfd int, newfd int) (err error) = SYS_DUP3
+    
+    Because mksycall.pl does not sort symbols before generating the output file
+    the diff includes some unavoidable code moves as Dup2 is processed latter in
+    the run.
+    
+    Discussion: https://groups.google.com/forum/#!topic/golang-dev/zpeFtN2z5Fc
+    
+    Change-Id: Icdedf55bb29e749c4230e1ee371bf9d0bd0cfb38
+    Reviewed-on: https://go-review.googlesource.com/5835
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/syscall/syscall_linux.go          |  1 -
+ src/syscall/syscall_linux_386.go      |  1 +
+ src/syscall/syscall_linux_amd64.go    |  1 +
+ src/syscall/syscall_linux_arm.go      |  1 +
+ src/syscall/syscall_linux_ppc64x.go   |  1 +
+ src/syscall/zsyscall_linux_386.go     | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_amd64.go   | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_arm.go     | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_ppc64.go   | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_ppc64le.go | 20 ++++++++++----------
+ 10 files changed, 54 insertions(+), 51 deletions(-)

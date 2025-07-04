@@ -1,0 +1,19 @@
+commit d8e052667f6bb93eb444cc372d03a866973d4c1b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:38:31 2020 +1100
+
+    cmd/internal/obj/riscv: use signed immediates for U-instructions
+    
+    On RISCV64, the U-instructions (AUIPC and LUI) take 20 bits, append 12 bits
+    of zeros and sign extend to 64-bits. As such, the 20 bit immediate value is
+    signed not unsigned.
+    
+    Updates #27532
+    
+    Change-Id: I725215a1dc500106dbfdc0a4425f3c0b2a6f411e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216257
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++--------
+ src/cmd/internal/obj/riscv/obj.go            | 34 +++-------------------------
+ 2 files changed, 15 insertions(+), 41 deletions(-)

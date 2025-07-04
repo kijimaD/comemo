@@ -1,0 +1,31 @@
+commit 3c17053bba406545a87af265f5e4fc8bbdecdcfe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 12:13:37 2022 -0700
+
+    cmd/go, cmd/cgo: support older versions of gccgo that lack cgo.Incomplete
+    
+    Test whether gccgo/GoLLVM supports cgo.Incomplete. If it doesn't, use a
+    local definition rather than importing it.
+    
+    Roll back 426496, which skipped a gccgo test, as it now works.
+    
+    For #46731
+    Fixes #54761
+    
+    Change-Id: I8bb2ad84c317094495405e178bf5c9694f82af56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446260
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/doc.go                           |  3 ++
+ src/cmd/cgo/gcc.go                           | 12 +++---
+ src/cmd/cgo/main.go                          |  9 +++++
+ src/cmd/cgo/out.go                           |  9 ++++-
+ src/cmd/go/internal/work/exec.go             |  3 ++
+ src/cmd/go/internal/work/gccgo.go            | 60 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/build_overlay.txt |  9 ++---
+ 7 files changed, 93 insertions(+), 12 deletions(-)

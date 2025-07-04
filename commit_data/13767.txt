@@ -1,0 +1,14 @@
+commit 412c60f1fa97ae15b625f84ec467227d71ac08ac
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri Sep 7 10:31:17 2012 -0700
+
+    syscall: Test SCM credentials on Linux.
+    
+    This test was previously removed in 087c6e15702e.
+    
+    R=bradfitz, rsc, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6506061
+
+ src/pkg/syscall/creds_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

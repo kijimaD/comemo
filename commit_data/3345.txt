@@ -1,0 +1,13 @@
+commit b9493ded12cd82b41556b842fdde8bffde8b2354
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 22 14:13:40 2009 -0700
+
+    updated numbers after more slice inlining
+    
+    R=rsc
+    DELTA=57  (57 added, 0 deleted, 0 changed)
+    OCL=34896
+    CL=34901
+
+ test/bench/timing.log | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

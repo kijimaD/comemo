@@ -1,0 +1,17 @@
+commit 88b2f25005f65343d9b73186e8f5c1e25554e233
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 27 01:15:10 2024 +0000
+
+    database/sql: add error check
+    
+    Change-Id: Ib9f7a1a4bf23f76457dabf85610f4799502631dc
+    GitHub-Last-Rev: afbb86fde12d2eeaa8121c25787b0e9c290edbc7
+    GitHub-Pull-Request: golang/go#65947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566857
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/database/sql/example_service_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

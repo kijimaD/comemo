@@ -1,0 +1,12 @@
+commit 8c7a73bbbba1c6a374d3ab334e378299c6c4236b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 4 10:26:03 2011 +1000
+
+    go/build: evaluate symlinks before comparing path to GOPATH
+    
+    R=golang-dev, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4645078
+
+ src/pkg/go/build/path.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,13 @@
+commit 8107cad45a949eea459225da7c342ea8cc3ac330
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 16:40:32 2010 -0800
+
+    math, path: minor comment fixes
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/444043
+
+ src/pkg/math/ldexp.go | 2 +-
+ src/pkg/path/path.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

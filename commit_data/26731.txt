@@ -1,0 +1,27 @@
+commit fda831ed3f904c659fe41f253f75fe76528a28ee
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 5 16:44:07 2016 -0700
+
+    cmd/compile: encapsulate reads of gc.Type.Funarg
+    
+    Changes generated with eg and then manually
+    checked and in some cases simplified.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I2119f37f003368ce1884d2863b406d6ffbfe38c7
+    Reviewed-on: https://go-review.googlesource.com/21563
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go     | 4 ++--
+ src/cmd/compile/internal/gc/bexport.go   | 2 +-
+ src/cmd/compile/internal/gc/esc.go       | 2 +-
+ src/cmd/compile/internal/gc/export.go    | 2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 2 +-
+ src/cmd/compile/internal/gc/gsubr.go     | 2 +-
+ src/cmd/compile/internal/gc/order.go     | 2 +-
+ src/cmd/compile/internal/gc/type.go      | 7 ++++++-
+ src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 2 +-
+ 10 files changed, 19 insertions(+), 14 deletions(-)

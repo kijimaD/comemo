@@ -1,0 +1,16 @@
+commit 4577cfcb0b861b70e5d503ffb14dba1ac2a66314
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 14:01:17 2015 -0800
+
+    src: remove reference to since-deleted dist -s flag
+    
+    (Found while debugging release problems with go1.6beta1)
+    
+    Updates #12002
+    
+    Change-Id: Iec197a754205e7fd28be154f27f17f3315886364
+    Reviewed-on: https://go-review.googlesource.com/18011
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/make.bash | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

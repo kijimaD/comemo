@@ -1,0 +1,28 @@
+commit b9159722dd874c9ef64dd16af49084077d7a9bb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:46:20 2009 -0700
+
+    add test for yesterday's interface rule change (interface/convert1.go).
+    move interface tests to subdirectory.
+    
+    R=r
+    DELTA=1632  (827 added, 804 deleted, 1 changed)
+    OCL=29181
+    CL=29191
+
+ test/golden.out                                 | 24 ++++++++++++------------
+ test/{interface4.go => interface/bigdata.go}    |  0
+ test/{interface11.go => interface/convert.go}   |  0
+ test/interface/convert1.go                      | 25 +++++++++++++++++++++++++
+ test/{interface10.go => interface/embed.go}     |  0
+ test/{interface5.go => interface/explicit.go}   |  0
+ test/{interface2.go => interface/fail.go}       |  0
+ test/{interface7.go => interface/fake.go}       |  0
+ test/{interface1.go => interface/pointer.go}    |  0
+ test/{interface8.go => interface/receiver.go}   |  6 +++---
+ test/{interface9.go => interface/receiver1.go}  |  6 +++---
+ test/{interface.go => interface/recursive.go}   |  6 ++++--
+ test/{interface3.go => interface/returntype.go} |  0
+ test/{interface6.go => interface/struct.go}     |  0
+ test/run                                        |  2 +-
+ 15 files changed, 48 insertions(+), 21 deletions(-)

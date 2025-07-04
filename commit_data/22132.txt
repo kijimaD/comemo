@@ -1,0 +1,15 @@
+commit 98485f5ad4fff7d63b63cb4d93b162e892fa0285
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 21 13:19:33 2015 +1100
+
+    runtime: fix linux/amd64p32 build
+    
+    Implement runtime.atomicand8 for amd64p32 which was overlooked
+    in CL 7861.
+    
+    Change-Id: Ic7eccddc6fd6c4682cac1761294893928f5428a2
+    Reviewed-on: https://go-review.googlesource.com/7920
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_amd64p32.s | 8 ++++++++
+ 1 file changed, 8 insertions(+)

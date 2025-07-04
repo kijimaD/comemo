@@ -1,0 +1,16 @@
+commit 2ab18f69a6eb76951f5e06bf6e291cdd56a827b4
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Aug 16 02:06:21 2012 +1000
+
+    os/exec: disable additional file descriptor test on netbsd
+    
+    This currently fails on NetBSD due to the cloned file descriptors
+    that result from opening /dev/urandom. Disable the additional checking
+    until this is investigated and properly fixed.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6443129
+
+ src/pkg/os/exec/exec_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

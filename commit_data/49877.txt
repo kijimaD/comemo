@@ -1,0 +1,26 @@
+commit 1513e57b704056b794f0706362fa3c949f2972a4
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 19 13:20:21 2022 -0700
+
+    net/http/httputil: add X-Forwarded-{Host,Proto} headers in ReverseProxy
+    
+    X-Forwarded-Host contains the original request's host.
+    
+    X-Forwarded-Proto contains "http" or "https", depending on whether the
+    original request was made on a TLS-secured connection.
+    
+    Setting either header to nil in Director disables adding the header,
+    same as for X-Forwarded-For.
+    
+    Fixes #50465.
+    
+    Change-Id: If8ed1f48d83f8ea0389c53519bc7994cb53891db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407414
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 26 ++++++++++---
+ src/net/http/httputil/reverseproxy_test.go | 61 +++++++++++++++++++++++++-----
+ 2 files changed, 72 insertions(+), 15 deletions(-)

@@ -1,0 +1,12 @@
+commit f7b5a01999a7bf9f84ee53768a42980804bef85f
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed May 15 14:50:57 2013 -0700
+
+    reflect: use visit structure for map key in DeepEqual
+    
+    R=golang-dev, bradfitz, jonathan, r
+    CC=golang-dev
+    https://golang.org/cl/8730044
+
+ src/pkg/reflect/deepequal.go | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)

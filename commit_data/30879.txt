@@ -1,0 +1,16 @@
+commit 95bfd927f5d05fd2fb82dba918ff8d36bbc6d400
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 11:17:52 2017 -0700
+
+    cmd/compile: fix two instances of { lineno = ...; yyerror }
+    
+    Updates #19683
+    
+    Change-Id: Ic00d5a9807200791cf37553f4f802dbf27beea19
+    Reviewed-on: https://go-review.googlesource.com/38770
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

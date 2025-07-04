@@ -1,0 +1,16 @@
+commit da50221e8eaa2d68bf003f3417dae2e73fdc8b2b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 6 12:00:42 2013 -0700
+
+    reflect: unexport BUCKETSIZE, MAXKEYSIZE, MAXVALSIZE
+    
+    But keep their case for ease of searching.
+    
+    They were added recently. We don't want them part of go1.2's API.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13569044
+
+ src/pkg/reflect/type.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

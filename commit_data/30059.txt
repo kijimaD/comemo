@@ -1,0 +1,22 @@
+commit 69e1634985f8d839f74f342925bd7546faea0a19
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 2 18:50:45 2017 -0800
+
+    runtime: darwin/amd64, don't depend on outarg slots being unmodified
+    
+    sigtramp was calling sigtrampgo and depending on the fact that
+    the 3rd argument slot will not be modified on return.  Our calling
+    convention doesn't guarantee that.  Avoid that assumption.
+    
+    There's no actual bug here, as sigtrampgo does not in fact modify its
+    argument slots.  But I found this while working on the dead stack slot
+    clobbering tool.  https://go-review.googlesource.com/c/23924/
+    
+    Change-Id: Ia7e791a2b4c1c74fff24cba8169e7840b4b06ffc
+    Reviewed-on: https://go-review.googlesource.com/36216
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin_amd64.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

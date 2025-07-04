@@ -1,0 +1,22 @@
+commit 0d50a49f5c3fb6292b43d71579455cf68a1939d9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 07:58:03 2017 -0700
+
+    cmd/compile: unexport types.Sym.LSym
+    
+    Response to code review feedback on CL 40693.
+    
+    Remove the final reference to it from package gc,
+    and manually unexport.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I7fc48edd43263d8f7c56b47aeb7573408463dc22
+    Reviewed-on: https://go-review.googlesource.com/41303
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 3 ++-
+ src/cmd/compile/internal/types/sym.go  | 8 ++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

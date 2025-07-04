@@ -1,0 +1,12 @@
+commit 19c18358ca108363d3facd5ca5b39f0048b4ddb5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 19:06:20 2009 -0800
+
+    runtime: in exitsyscall, avoid confusing garbage collector
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/178046
+
+ src/pkg/runtime/proc.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

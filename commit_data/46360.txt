@@ -1,0 +1,26 @@
+commit 12eb7331b9e220d73ecfba0281e60cf0f5285e18
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 11:46:58 2021 -0400
+
+    go/ast: rename TParams fields to TypeParams
+    
+    As discussed in the ast proposal (#47781), there's not really a strong
+    reason to avoid spelling out 'Type'.
+    
+    Change-Id: I0ba1bf03b112ea60509a78a89a050a302779d9d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348375
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/ast/ast.go         | 20 ++++++++++----------
+ src/go/ast/walk.go        |  8 ++++----
+ src/go/parser/parser.go   | 18 +++++++++---------
+ src/go/parser/resolver.go | 10 +++++-----
+ src/go/printer/nodes.go   |  8 ++++----
+ src/go/types/decl.go      |  8 ++++----
+ src/go/types/interface.go |  4 ++--
+ src/go/types/resolver.go  | 12 ++++++------
+ src/go/types/signature.go |  6 +++---
+ 9 files changed, 47 insertions(+), 47 deletions(-)

@@ -1,0 +1,37 @@
+commit f5efa5a313cbfdbd86aa342f8bc2a4cc66f51a6e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 3 20:09:15 2021 -0400
+
+    cmd/compile: load results into registers on open defer return path
+    
+    When a function panics then recovers, it needs to return to the
+    caller with named results having the correct values. For
+    in-register results, we need to load them into registers at the
+    defer return path.
+    
+    For non-open-coded defers, we already generate correct code, as
+    the defer return path is part of the SSA CFG and contains the
+    instructions that are the same as an ordinary return statement,
+    including putting the results to the right places.
+    
+    For open-coded defers, we have a special code generation that
+    emits a disconnected block that currently contains only the
+    deferreturn call and a RET instruction. It leaves the result
+    registers unset. This CL adds instructions that load the result
+    registers on that path.
+    
+    Updates #40724.
+    
+    Change-Id: I1f60514da644fd5fb4b4871a1153c62f42927282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307231
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/amd64/galign.go |  1 +
+ src/cmd/compile/internal/amd64/ssa.go    | 16 ++++++++++++++
+ src/cmd/compile/internal/ssa/op.go       | 12 +++++++++++
+ src/cmd/compile/internal/ssagen/arch.go  |  5 +++++
+ src/cmd/compile/internal/ssagen/ssa.go   | 28 +++++++++++++------------
+ test/abi/defer_recover_results.go        | 36 ++++++++++++++++++++++++++++++++
+ 6 files changed, 85 insertions(+), 13 deletions(-)

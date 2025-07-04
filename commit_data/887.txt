@@ -1,0 +1,15 @@
+commit 060f157dc86764470334d1db946d8b39a32883fa
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 16 18:09:38 2008 -0700
+
+    type string parser; now handles all types
+    
+    R=rsc
+    DELTA=253  (153 added, 81 deleted, 19 changed)
+    OCL=17331
+    CL=17331
+
+ usr/r/reflect/main.go     |  35 +++-----
+ usr/r/reflect/tostring.go |  15 ++--
+ usr/r/reflect/type.go     | 210 ++++++++++++++++++++++++++++++++--------------
+ 3 files changed, 166 insertions(+), 94 deletions(-)

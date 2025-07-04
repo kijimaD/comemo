@@ -1,0 +1,14 @@
+commit df674ffb43628bde1221f3a34c98f91f44528b97
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 4 17:31:40 2010 -0700
+
+    go spec: clarification of make arguments,
+    specification of runtime exceptions for
+    make and division by zero
+    
+    R=r, rsc, ken2, iant
+    CC=golang-dev
+    https://golang.org/cl/1081041
+
+ doc/go_spec.html | 31 +++++++++++++++++--------------
+ 1 file changed, 17 insertions(+), 14 deletions(-)

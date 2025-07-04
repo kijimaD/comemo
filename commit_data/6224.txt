@@ -1,0 +1,19 @@
+commit 82ee481dfc73854f8cc21c14dda77a8a7ff79392
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 10 11:53:27 2010 -0400
+
+    gc: remove &[10]int -> []int conversion
+    
+    Fixes #829.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2124044
+
+ src/cmd/gc/go.h        |  4 ++--
+ src/cmd/gc/print.c     |  7 ++++---
+ src/cmd/gc/sinit.c     | 22 ++++++++++++++++------
+ src/cmd/gc/subr.c      |  7 -------
+ src/cmd/gc/typecheck.c | 11 ++++-------
+ src/cmd/gc/walk.c      | 25 +++++++++----------------
+ 6 files changed, 35 insertions(+), 41 deletions(-)

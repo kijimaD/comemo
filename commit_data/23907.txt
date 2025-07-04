@@ -1,0 +1,21 @@
+commit ab714a70dcad78e2bd7004638843052343c6f2c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 11:08:15 2015 -0400
+
+    crypto/x509: mark root_darwin_armx.go as cgo-only
+    
+    This allows running a cross-compile like
+            GOOS=darwin GOARCH=arm go build std
+    to check that everything builds.
+    
+    Otherwise there is a redefinition error because both
+    root_nocgo_darwin.go and root_darwin_armx.go
+    supply initSystemRoots.
+    
+    Change-Id: Ic95976b2b698d28c629bfc93d8dac0048b023578
+    Reviewed-on: https://go-review.googlesource.com/12897
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_darwin_arm_gen.go | 1 +
+ src/crypto/x509/root_darwin_armx.go    | 1 +
+ 2 files changed, 2 insertions(+)

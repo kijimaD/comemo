@@ -1,0 +1,17 @@
+commit 86ea7d5171a5b9a3c2d606444ef9985214fcec71
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 4 13:27:49 2019 -0400
+
+    cmd/go/internal/modfile: report error for extra text around version
+    
+    Fixes #34697
+    
+    Change-Id: Iedfa3d46d558510f3bd1fdf9466cd974793d9ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199017
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfile/read_test.go | 23 +++++++++++++++++++++++
+ src/cmd/go/internal/modfile/rule.go      |  2 +-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

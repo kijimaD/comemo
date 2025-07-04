@@ -1,0 +1,18 @@
+commit e51246c8819f16cd78d3da01162ca14b432d30bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 10:58:54 2021 -0700
+
+    runtime: consolidate Windows time constants into single copy
+    
+    Change-Id: I1a583d3da9cca4ac51f3fec9b508b7638b452d60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314270
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/sys_windows_386.s   | 11 +----------
+ src/runtime/sys_windows_amd64.s | 11 +----------
+ src/runtime/sys_windows_arm.s   | 11 +----------
+ src/runtime/sys_windows_arm64.s | 11 +----------
+ src/runtime/time_windows.h      | 16 ++++++++++++++++
+ 5 files changed, 20 insertions(+), 40 deletions(-)

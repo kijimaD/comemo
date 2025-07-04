@@ -1,0 +1,18 @@
+commit d17ac291584f6f518430ea3123e0ec9a7658c950
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Sep 18 01:53:42 2018 +0000
+
+    cmd/compile: simplify AMD64's assembly generator
+    
+    AMD64's ADDQconstmodify/ADDLconstmodify have similar logic with
+    other constmodify like operators, but seperated case statements.
+    This CL simplify them with a fallthrough.
+    
+    Change-Id: Ia73ffeaddc5080182f68c06c9d9b48fe32a14e38
+    Reviewed-on: https://go-review.googlesource.com/135855
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 8a5b76ce5ca65a4606e8c141c1f18a999d484a42
+Author: Ross Light <rlight2@gmail.com>
+Date:   Wed Dec 9 10:36:03 2009 -0800
+
+    json package: Fixed handling of nil values
+    
+    Fixes #400.
+    
+    R=golang-dev, rsc
+    https://golang.org/cl/167058
+
+ src/pkg/json/struct.go      | 12 +++++++++++-
+ src/pkg/json/struct_test.go |  4 ++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

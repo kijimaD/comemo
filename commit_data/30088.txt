@@ -1,0 +1,22 @@
+commit ad784caa746515c28033435318c8b82c187fa583
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 28 11:42:40 2016 -0700
+
+    cmd/compile: move Heapaddr field from Name to Param
+    
+    No performance impact, just cleanup.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic7957d2686de53a9680c2bdefe926cccccd73a5c
+    Reviewed-on: https://go-review.googlesource.com/36316
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go     | 4 ++--
+ src/cmd/compile/internal/gc/gen.go         | 6 +++---
+ src/cmd/compile/internal/gc/sizeof_test.go | 4 ++--
+ src/cmd/compile/internal/gc/syntax.go      | 4 ++--
+ src/cmd/compile/internal/gc/walk.go        | 6 +++---
+ 5 files changed, 12 insertions(+), 12 deletions(-)

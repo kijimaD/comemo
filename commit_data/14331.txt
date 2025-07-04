@@ -1,0 +1,25 @@
+commit abb313f8c8980ed69d4618823d9f4a05c7acff9d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 7 12:06:27 2012 +0400
+
+    cmd/gc: racewalk: do not double function calls
+    Current racewalk transformation looks like:
+    x := <-makeChan().c
+    \/\/\/\/\/\/\/\/\/
+    runtime.raceread(&makeChan().c)
+    x := <-makeChan().c
+    and so makeChan() is called twice.
+    With this CL the transformation looks like:
+    x := <-makeChan().c
+    \/\/\/\/\/\/\/\/\/
+    chan *tmp = &(makeChan().c)
+    raceread(&*tmp)
+    x := <-(*tmp)
+    Fixes #4245.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6822075
+
+ src/cmd/gc/racewalk.c | 97 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 85 insertions(+), 12 deletions(-)

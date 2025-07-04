@@ -1,0 +1,18 @@
+commit ece69f7c2b34d9267f3802cd11c1e5fca84e5474
+Author: Mike Andrews <mra@xoba.com>
+Date:   Sat Mar 29 09:50:49 2014 -0700
+
+    cmd/ld: don't delete output binary if not "ordinary" file.
+    
+    e.g., don't delete /dev/null. this fix inspired by gnu libiberty,
+    unlink-if-ordinary.c.
+    
+    Fixes #7563
+    
+    LGTM=iant
+    R=golang-codereviews, iant, 0intro
+    CC=golang-codereviews, r
+    https://golang.org/cl/76810045
+
+ src/cmd/ld/lib.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

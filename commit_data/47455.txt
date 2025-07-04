@@ -1,0 +1,21 @@
+commit 958f405371d942d988aef325b2103fa64028af45
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 15:54:00 2021 -0500
+
+    go/types: when type hashing, canonicalize interfaces
+    
+    The interface type string preserves certain non-semantic attributes of
+    the type, such as embedded interfaces. We want the hash to represent the
+    interface identity, so hash the type set representation of the interface
+    instead.
+    
+    Change-Id: I14081ac20b738c5fe11785e0846a9b4358594768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363115
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate_test.go | 33 ++++++++++++++++++++
+ src/go/types/typestring.go       | 66 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 87 insertions(+), 12 deletions(-)

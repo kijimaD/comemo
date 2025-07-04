@@ -1,0 +1,12 @@
+commit 56a38f25a7b1e1650b1b32e4baa0c8a924920423
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 23:06:16 2009 -0800
+
+    document gotest
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017026
+
+ src/cmd/gotest/doc.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

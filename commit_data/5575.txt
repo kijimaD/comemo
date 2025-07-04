@@ -1,0 +1,14 @@
+commit ce9da214b7d9186c1e3ca61177ce86f3ac7f33a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 31 14:57:32 2010 -0700
+
+    fmt: fix end-of-array error in parsenum.
+    Fixes #821.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1434041
+
+ src/pkg/fmt/fmt_test.go |  1 +
+ src/pkg/fmt/print.go    | 12 ++++--------
+ 2 files changed, 5 insertions(+), 8 deletions(-)

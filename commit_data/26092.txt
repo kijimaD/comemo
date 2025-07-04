@@ -1,0 +1,35 @@
+commit c97ddf9c108adf0ca9c1aa2043a417885db411c2
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Mar 5 17:36:56 2016 -0300
+
+    cmd/compile: don't emit conversion error in non-numeric increment/decrement
+    
+    In increment and decrement statements, explicit check that the type
+    of operand is numeric earlier. This avoids a related but less clear
+    error about converting "1" to be emitted.
+    
+    So, when compiling
+    
+            package main
+    
+            func main() {
+                    var x bool
+                    x++
+            }
+    
+    instead of emitting two errors
+    
+            prog.go:5: cannot convert 1 to type bool
+            prog.go:5: invalid operation: x++ (non-numeric type bool)
+    
+    just emits the second error.
+    
+    Fixes #12525.
+    
+    Change-Id: I6e81330703765bef0d6eb6c57098c1336af7c799
+    Reviewed-on: https://go-review.googlesource.com/20245
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
+ test/fixedbugs/issue12525.go             | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 6 deletions(-)

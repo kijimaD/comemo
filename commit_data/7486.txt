@@ -1,0 +1,19 @@
+commit a5ff8ad9db409bfa35322c8887b2bae964fec210
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 17 10:45:30 2011 +1100
+
+    html: tokenize HTML comments.
+    
+    I'm not sure if it's 100% correct wrt the HTML5 specification,
+    but the test suite has plenty of HTML comment test cases, and
+    we'll shake out any tokenization bugs as the parser improves its
+    coverage.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4186055
+
+ src/pkg/html/doc.go        |   3 ++
+ src/pkg/html/token.go      | 117 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/html/token_test.go |  86 +++++++++++++++++++++------------
+ 3 files changed, 152 insertions(+), 54 deletions(-)

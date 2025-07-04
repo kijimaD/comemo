@@ -1,0 +1,13 @@
+commit 25e02d519d205f7424fdc2a1e6926d3dee6544b4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 01:55:51 2012 +0800
+
+    doc/code: update newmath.Sqrt test case to make sure test succeed
+            Fixes #3445.
+    
+    R=golang-dev, rsc, mtj
+    CC=golang-dev
+    https://golang.org/cl/5975061
+
+ doc/code.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

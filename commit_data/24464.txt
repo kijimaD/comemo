@@ -1,0 +1,30 @@
+commit a5cb76243af54a6729f5668317fb87baa242b9cc
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 2 11:23:15 2015 +1200
+
+    cmd/internal/obj, cmd/link, runtime: lots of TLS cleanup
+    
+    It's particularly nice to get rid of the android special cases in the linker.
+    
+    Change-Id: I516363af7ce8a6b2f196fe49cb8887ac787a6dad
+    Reviewed-on: https://go-review.googlesource.com/14197
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 17 +----------------
+ src/cmd/internal/obj/arm/obj5.go   | 18 ------------------
+ src/cmd/internal/obj/arm64/asm7.go |  3 ---
+ src/cmd/internal/obj/link.go       | 26 +++++++++-----------------
+ src/cmd/internal/obj/mips/asm0.go  |  3 ---
+ src/cmd/internal/obj/ppc64/asm9.go |  3 ---
+ src/cmd/internal/obj/x86/obj6.go   |  4 ----
+ src/cmd/link/internal/arm/asm.go   | 13 +------------
+ src/cmd/link/internal/ld/data.go   | 25 -------------------------
+ src/cmd/link/internal/ld/elf.go    |  6 ++----
+ src/cmd/link/internal/ld/lib.go    | 25 ++++++++-----------------
+ src/runtime/asm_arm64.s            |  4 ++--
+ src/runtime/tls_arm.s              |  3 ---
+ src/runtime/tls_arm64.s            |  3 ---
+ src/runtime/tls_ppc64x.s           |  6 ++++--
+ 15 files changed, 27 insertions(+), 132 deletions(-)

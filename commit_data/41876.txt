@@ -1,0 +1,17 @@
+commit 52dc1f42b3e30efd0a81f9c0315f9b5ed9f6ec4e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 11:57:53 2020 -0400
+
+    cmd/compile/internal/ssa: skip TestNexting
+    
+    This test is currently flaky in the builders.
+    Skip it while we investigate.
+    
+    For #37404
+    
+    Change-Id: I53721d383a4cafbe8d031ed25a3b1be2ae8b4285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227587
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

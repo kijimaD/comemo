@@ -1,0 +1,21 @@
+commit 8f9893173b70d7c2520321ff128f659e497914f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 17:38:34 2017 -0700
+
+    cmd/go: initialize in get before loading packages
+    
+    Otherwise the packages will not pick up the way that -installsuffix is
+    changed by -buildmode and -race.
+    
+    Fixes #20512.
+    
+    Change-Id: Ieca32c958a531beb6331dff30d7e9a4998867dbb
+    Reviewed-on: https://go-review.googlesource.com/44630
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go             | 14 ++++++++++++++
+ src/cmd/go/internal/get/get.go    |  3 +++
+ src/cmd/go/internal/work/build.go |  4 ++--
+ 3 files changed, 19 insertions(+), 2 deletions(-)

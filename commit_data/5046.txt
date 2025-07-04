@@ -1,0 +1,14 @@
+commit 6129dbbee4c65066869711523ed14a2b281c88a3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 16 09:05:09 2010 +1100
+
+            dashboard: include package.html
+    
+        This was omitted from the original commit.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/554043
+
+ misc/dashboard/godashboard/package.html | 91 +++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

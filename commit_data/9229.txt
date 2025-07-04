@@ -1,0 +1,16 @@
+commit 890bdc53395676efae78218f5d9d6b6eddf26b76
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 19:31:11 2011 -0400
+
+    gc: top-level closure bug
+    
+    Fixes #2055.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4816059
+
+ src/cmd/gc/closure.c     |  5 +++++
+ src/cmd/gc/lex.c         |  5 +++--
+ test/fixedbugs/bug355.go | 18 ++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

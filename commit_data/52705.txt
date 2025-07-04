@@ -1,0 +1,39 @@
+commit 48a1dcb92778a349e13bcb8be10a40047f0cf7d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 3 14:29:44 2023 -0800
+
+    debug/elf: support zstd compression
+    
+    Test cases added to debug/dwarf because that is where it matters in practice.
+    
+    The new test binary line-gcc-zstd.elf built with
+    
+        gcc -g -no-pie -Wl,--compress-debug-sections=zstd line[12].c
+    
+    using
+    
+        gcc (Debian 12.2.0-10) 12.2.0
+    
+    with a development version of the GNU binutils.
+    
+    Fixes #55107
+    
+    Change-Id: I48507c96902e1f83a174e5647b5cc403d965b52b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473256
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ api/next/55107.txt                         |   2 ++
+ src/cmd/dist/buildtool.go                  |   1 +
+ src/debug/dwarf/entry_test.go              |  15 ++++++++++
+ src/debug/dwarf/line_test.go               |  46 +++++++++++++++++++++++++++--
+ src/debug/dwarf/testdata/line-gcc-zstd.elf | Bin 0 -> 17168 bytes
+ src/debug/elf/elf.go                       |   2 ++
+ src/debug/elf/elf_test.go                  |   2 +-
+ src/debug/elf/file.go                      |   5 ++++
+ src/go/build/deps_test.go                  |   2 +-
+ 9 files changed, 71 insertions(+), 4 deletions(-)

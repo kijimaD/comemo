@@ -1,0 +1,17 @@
+commit cd3a5edb0433e6f3cafd997794aaea3083ae5b92
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 15:50:51 2015 -0400
+
+    cmd/go: fix go get -u with vendoring
+    
+    Fixes #11864.
+    
+    Change-Id: Ib9d5bd79f3b73ebd32f6585b354aaad556e0fc71
+    Reviewed-on: https://go-review.googlesource.com/12749
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/get.go         | 36 +++++++++++++++++++-----------------
+ src/cmd/go/pkg.go         | 38 ++++++++++++++++++++++++++++++--------
+ src/cmd/go/test.go        |  6 +++---
+ src/cmd/go/vendor_test.go | 13 +++++++++++++
+ 4 files changed, 65 insertions(+), 28 deletions(-)

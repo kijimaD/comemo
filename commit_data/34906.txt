@@ -1,0 +1,21 @@
+commit 76e92d1c9e2943de7093af14d58663fa2993e608
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 9 16:00:54 2018 -0700
+
+    runtime: use fixed TLS offsets on darwin/amd64 and darwin/386
+    
+    Fixes #23617
+    
+    Note that this CL does not affect darwin/arm and darwin/arm64,
+    still TBD what, if anything, needs to be done for those.
+    
+    Change-Id: Ie1ee02a9f4d4d1fb9cd5dc432d900f926cc157db
+    Reviewed-on: https://go-review.googlesource.com/105975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/sym.go    | 20 ++++++---
+ src/runtime/cgo/gcc_darwin_386.c   | 92 ++------------------------------------
+ src/runtime/cgo/gcc_darwin_amd64.c | 63 ++------------------------
+ src/runtime/sys_darwin_386.s       | 11 +++--
+ src/runtime/sys_darwin_amd64.s     |  9 ++--
+ 5 files changed, 28 insertions(+), 167 deletions(-)

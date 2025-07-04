@@ -1,0 +1,17 @@
+commit de7920e6fd7cd6b3a3025949a707aeeabd1271d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 12:42:22 2009 -0700
+
+    finish ChanValue: Len and Cap.
+    
+    R=r
+    DELTA=45  (45 added, 0 deleted, 0 changed)
+    OCL=33873
+    CL=33881
+
+ src/pkg/reflect/all_test.go | 11 +++++++++++
+ src/pkg/reflect/value.go    | 12 ++++++++++++
+ src/pkg/runtime/chan.c      | 12 ++++++++++++
+ src/pkg/runtime/reflect.cgo |  8 ++++++++
+ src/pkg/runtime/runtime.h   |  2 ++
+ 5 files changed, 45 insertions(+)

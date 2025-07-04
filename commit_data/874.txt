@@ -1,0 +1,13 @@
+commit 59167e5bdbe4e731f8efe7c994c20365cb5888a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 17:51:23 2008 -0700
+
+    diagnose export of incomplete type
+    
+    R=ken
+    OCL=17253
+    CL=17253
+
+ src/cmd/gc/export.c |  7 +++++++
+ test/export.go      | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+)

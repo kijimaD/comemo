@@ -1,0 +1,15 @@
+commit 43178697db97dbcd95e63be3571b3c68929712b4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 5 16:39:34 2015 -0500
+
+    math/big: panic if n <= 0 for ProbablyPrime
+    
+    Fixes #9509
+    
+    Change-Id: I3b86745d38e09093fe2f4b918d774bd6608727d7
+    Reviewed-on: https://go-review.googlesource.com/2313
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      |  5 ++++-
+ src/math/big/int_test.go | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

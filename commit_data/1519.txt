@@ -1,0 +1,12 @@
+commit aec4d3194afaf29de1c30a7bf0528dec0a344879
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 15:35:07 2009 -0800
+
+    disallow other package's names in method calls
+    
+    R=ken
+    OCL=22999
+    CL=22999
+
+ src/cmd/gc/dcl.c | 3 +++
+ 1 file changed, 3 insertions(+)

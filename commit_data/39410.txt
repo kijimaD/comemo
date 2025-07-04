@@ -1,0 +1,20 @@
+commit 0884bca05a278e7f8783be3545a88a26b14dd4e4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 19 17:07:26 2019 -0400
+
+    crypto/tls: move shared code and resources to handshake_test.go
+    
+    Removed cross-dependencies between handshake_server_test.go and
+    handshake_client_test.go; moved all initialization to TestMain; replaced
+    SSLKEYLOGFILE environment variable with -keylog flag.
+    
+    Change-Id: Ida6712daa44e01a2c00658e8a1896087ee88bcb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183057
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/handshake_client_test.go |  14 --
+ src/crypto/tls/handshake_server_test.go | 223 ----------------------------
+ src/crypto/tls/handshake_test.go        | 252 +++++++++++++++++++++++++++++---
+ 3 files changed, 228 insertions(+), 261 deletions(-)

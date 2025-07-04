@@ -1,0 +1,19 @@
+commit 565f457e81a97f80412c9979fc3510c17849381e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 16:22:49 2021 -0700
+
+    cmd/compile/internal/types2: always parse tests assuming generic code
+    
+    We don't need to distinguish anymore as this is the new default.
+    This removes the need to prefix test package names with "generic_".
+    
+    Change-Id: If9eaa0a5cffcd19deb529aca6798206f2d396ca1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361408
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 99 ++++++++++------------
+ .../compile/internal/types2/instantiate_test.go    |  8 +-
+ 2 files changed, 50 insertions(+), 57 deletions(-)

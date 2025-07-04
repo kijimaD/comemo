@@ -1,0 +1,20 @@
+commit 4651ebf96191ffa3c0bc4c0b479bc97fbdd97b67
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 14 19:47:59 2022 -0700
+
+    encoding/gob: s/TestIngoreDepthLimit/TestIgnoreDepthLimit/
+    
+    For #53615
+    
+    Change-Id: Ib85004d400931094fc1ea933cf73f4a5157aece1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417559
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/gob/gobencdec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

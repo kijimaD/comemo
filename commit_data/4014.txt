@@ -1,0 +1,14 @@
+commit ce0a4bae41c310f96b86322007e87b2fb0a29781
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 12 14:28:45 2009 -0800
+
+    produce helpful error when gotest doesn't find a Makefile
+    
+    Fixes #117.
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/152107
+
+ src/cmd/gotest/gotest | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit e095f53e9be7aadc74fddf5532296a438410df40
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:38:45 2016 +0000
+
+    runtime: merge os{,2}_windows.go into os1_windows.go.
+    
+    A future CL will rename os1_windows.go to os_windows.go.
+    
+    Change-Id: I223e76002dd1e9c9d1798fb0beac02c7d3bf4812
+    Reviewed-on: https://go-review.googlesource.com/21564
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_windows.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/os2_windows.go | 19 -------------------
+ src/runtime/os_windows.go  | 32 --------------------------------
+ 3 files changed, 39 insertions(+), 52 deletions(-)

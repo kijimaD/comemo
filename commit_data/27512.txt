@@ -1,0 +1,16 @@
+commit 095fbdcc91e41abf52a690dd6c64d701682ca96b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 15:44:39 2016 +0200
+
+    runtime: use of Run for some benchmarks
+    
+    Names of sub-benchmarks are preserved, short of the additional slash.
+    
+    Change-Id: I9b3f82964f9a44b0d28724413320afd091ed3106
+    Reviewed-on: https://go-review.googlesource.com/23425
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/memmove_test.go | 189 +++++++++++++++-----------------------------
+ 1 file changed, 64 insertions(+), 125 deletions(-)

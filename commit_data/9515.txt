@@ -1,0 +1,13 @@
+commit bd63409829af696a6915e6eefadecf8305b4a238
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 26 17:20:01 2011 -0400
+
+    A+C: Jaroslavas Počepko (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4966044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

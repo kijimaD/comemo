@@ -1,0 +1,29 @@
+commit 8217b4a203daaa7f24590f9369c77b758dad1cd6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 5 10:04:16 2014 -0400
+
+    runtime: convert panic/recover to Go
+    
+    created panic1.go just so diffs were available.
+    After this CL is in, I'd like to move panic.go -> defer.go
+    and panic1.go -> panic.go.
+    
+    LGTM=rsc
+    R=rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/133530045
+
+ src/cmd/api/goapi.go            |   1 +
+ src/cmd/gc/builtin.c            |   4 +-
+ src/cmd/gc/popt.c               |   2 +-
+ src/cmd/gc/runtime.go           |   4 +-
+ src/cmd/gc/walk.c               |   4 +-
+ src/pkg/runtime/cgo/callbacks.c |   2 +-
+ src/pkg/runtime/panic.c         | 213 ++++------------------------------------
+ src/pkg/runtime/panic1.go       | 183 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h       |   5 +-
+ src/pkg/runtime/stack.c         |  24 ++++-
+ src/pkg/runtime/stack_test.go   |  15 +++
+ src/pkg/runtime/stubs.go        |   7 +-
+ test/live.go                    |   2 +-
+ 13 files changed, 251 insertions(+), 215 deletions(-)

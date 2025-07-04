@@ -1,0 +1,22 @@
+commit 89f465c2b59cea32c10ed69eaa07e17f85c910e2
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Dec 9 06:10:52 2020 -0500
+
+    go/types: avoid endless recursion in the Comparable predicate
+    
+    This is a port of CL 276374 from the dev.typeparams branch. Avoid an
+    endless recursion in Comparable by tracking types that have already been
+    considered.
+    
+    Fixes #43088
+    
+    Change-Id: I927b29ac544df9bfb5c8c04699d57fafe6cfff73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276552
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/issues_test.go | 26 ++++++++++++++++++++++++++
+ src/go/types/predicates.go  | 16 ++++++++++++++--
+ 2 files changed, 40 insertions(+), 2 deletions(-)

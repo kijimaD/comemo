@@ -1,0 +1,30 @@
+commit c9afcbade7308cf66b67b9ce080f10b621b17c6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 7 15:06:05 2025 -0800
+
+    go/types, types2: require iterator yield to return bool (work-around)
+    
+    The original implementation of the type checkers accepted any boolean
+    result type for yield, but the compiler's front-end had a problem with
+    it (#71131).
+    
+    As a temporary fix (for 1.24), adjust the type checkers to insist on the
+    spec's literal wording and avoid the compiler panic.
+    
+    Fixes #71131.
+    For #71164.
+    
+    Change-Id: Ie25f9a892e58b5e489d399b0bce2d0af55dc3c48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640599
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/stmt.go             |  9 +++++++--
+ src/cmd/compile/internal/types2/universe.go         |  2 ++
+ src/go/types/stmt.go                                |  9 +++++++--
+ src/go/types/universe.go                            |  2 ++
+ src/internal/types/testdata/fixedbugs/issue71131.go | 15 +++++++++++++++
+ src/internal/types/testdata/spec/range.go           |  2 +-
+ 6 files changed, 34 insertions(+), 5 deletions(-)

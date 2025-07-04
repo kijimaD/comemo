@@ -1,0 +1,14 @@
+commit 88a9e76e28d037d77aa1faef813c40189892e358
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 15:26:08 2012 -0800
+
+    text/scanner: update comments
+    
+    Fixes #2962.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5652048
+
+ src/pkg/text/scanner/scanner.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

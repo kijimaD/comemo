@@ -1,0 +1,15 @@
+commit a138b50ee1e687704aca0719d1e7a68be8709110
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 10 13:19:46 2009 -0700
+
+    goyacc command
+    written in (c-style) go
+    produces go source parser
+    
+    R=rsc
+    OCL=34522
+    CL=34522
+
+ src/cmd/goyacc/Makefile  |   12 +
+ src/cmd/goyacc/goyacc.go | 3543 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 3555 insertions(+)

@@ -1,0 +1,13 @@
+commit 9e7e6d9ea41b20e176985c1daf9a24a30b74871b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 29 11:29:33 2012 +1100
+
+    doc/go1: tweaks to address rsc's comments
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5706054
+
+ doc/go1.html | 7 +++----
+ doc/go1.tmpl | 7 +++----
+ 2 files changed, 6 insertions(+), 8 deletions(-)

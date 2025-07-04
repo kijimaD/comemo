@@ -1,0 +1,17 @@
+commit 2bf8b3985ff25a62d14e0b105c1b4d0637add51a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Aug 4 14:39:48 2023 -0400
+
+    testing/slogtest: reword a confusing explanation
+    
+    Updates #61758.
+    
+    Change-Id: I4ce0359f676b6832e40203e1034ba1c4f6d2b2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516155
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Patrick Ohly <patrick.ohly@googlemail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/testing/slogtest/slogtest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

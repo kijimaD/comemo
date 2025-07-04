@@ -1,0 +1,17 @@
+commit 7d4765e2d36cf392b1d5f4b4ad9437cbc9e6348e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 10:24:28 2009 -0700
+
+    show subdirectories if present in a package dir
+    
+    R=rsc
+    DELTA=184  (69 added, 73 deleted, 42 changed)
+    OCL=29178
+    CL=29253
+
+ usr/gri/pretty/dirlist.html |   3 --
+ usr/gri/pretty/dirlist.txt  |   4 --
+ usr/gri/pretty/godoc.go     | 109 +++++++++++++++++++-------------------------
+ usr/gri/pretty/package.html |  73 ++++++++++++++++-------------
+ usr/gri/pretty/package.txt  |   9 ++++
+ 5 files changed, 97 insertions(+), 101 deletions(-)

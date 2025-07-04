@@ -1,0 +1,31 @@
+commit 44e903158faca58bf495dc2f263d6973f62b9d17
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 6 21:18:41 2015 +1100
+
+    cmd/internal/gc: more Node cleanups
+    
+    More Node cleanups, these ones touch go.y.
+    
+    - convert Node.Implicit to bool
+    - convert Node.Used to bool
+    
+    Change-Id: I85c7ff9e66cee7122b560adedc995166c874f2f2
+    Reviewed-on: https://go-review.googlesource.com/7124
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/gc/closure.go   |  8 ++++----
+ src/cmd/internal/gc/esc.go       |  2 +-
+ src/cmd/internal/gc/fmt.go       | 24 ++++++++++++------------
+ src/cmd/internal/gc/gen.go       |  2 +-
+ src/cmd/internal/gc/go.y         | 20 ++++++++++----------
+ src/cmd/internal/gc/gsubr.go     |  8 ++++----
+ src/cmd/internal/gc/inl.go       |  6 +++---
+ src/cmd/internal/gc/lex.go       |  6 +++---
+ src/cmd/internal/gc/pgen.go      | 10 +++++-----
+ src/cmd/internal/gc/select.go    |  2 +-
+ src/cmd/internal/gc/subr.go      |  6 +++---
+ src/cmd/internal/gc/syntax.go    |  4 ++--
+ src/cmd/internal/gc/typecheck.go | 26 +++++++++++++-------------
+ src/cmd/internal/gc/walk.go      | 10 +++++-----
+ src/cmd/internal/gc/y.go         | 20 ++++++++++----------
+ 15 files changed, 77 insertions(+), 77 deletions(-)

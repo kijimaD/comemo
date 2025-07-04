@@ -1,0 +1,15 @@
+commit 899c5281da89e584e6793cf4ee39cb5c697929c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:06:14 2008 -0700
+
+    make acid build on linux.
+    recognize symbol table info again on 64-only linux.
+    
+    R=r
+    DELTA=11  (9 added, 0 deleted, 2 changed)
+    OCL=15486
+    CL=15486
+
+ src/libmach_amd64/executable.c | 4 ++--
+ src/libmach_amd64/linux.c      | 9 +++++++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)

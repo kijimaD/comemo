@@ -1,0 +1,12 @@
+commit 6c035469b5b00b1b5d557d4cdbed436e1f82405f
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Jan 28 21:46:49 2013 -0800
+
+    go/misc: Adding go-tour to the generated packages for every distribution.
+    
+    R=adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6976045
+
+ misc/dist/bindist.go | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

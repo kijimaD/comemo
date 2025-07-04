@@ -1,0 +1,16 @@
+commit f3ecb298ad3187a6c47f43916480d396ec8c35c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 19:04:33 2014 -0400
+
+    cmd/gc: reject builtin function calls in len(fixed array) constants
+    
+    Fixes #7385.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84010044
+
+ src/cmd/gc/const.c | 17 ++++++++++++++++-
+ test/const5.go     |  4 ++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

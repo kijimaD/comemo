@@ -1,0 +1,13 @@
+commit b0951aff8f6a004fc2e73fdb98350125daea6c05
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 5 17:12:29 2018 -0400
+
+    doc: document Go 1.10.3
+    
+    Change-Id: Ifc774bb9267baa773e91c617204329d3e04bd4b7
+    Reviewed-on: https://go-review.googlesource.com/116363
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/devel/release.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

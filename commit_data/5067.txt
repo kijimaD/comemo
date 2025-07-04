@@ -1,0 +1,23 @@
+commit 5e6203d28b5106a445dd606ee25ca56f5460e12f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 16 23:10:07 2010 -0700
+
+    syscall: more changes to mingw version
+    - mkall now generates syscall stabs automatically
+    - we can call unicode versions of winapi now
+    - introduce GetErrstr function to fetch error text given errno
+    - general cleanup
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/562041
+
+ src/pkg/runtime/mingw/syscall.cgo     |  27 ++--
+ src/pkg/syscall/mkall.sh              |  17 ++-
+ src/pkg/syscall/mksyscall_mingw.sh    | 226 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_mingw.go      |  82 ++++++++----
+ src/pkg/syscall/zerrors_mingw_386.go  |   6 +-
+ src/pkg/syscall/zsyscall_mingw_386.go |  78 ++++++++----
+ src/pkg/syscall/zsysnum_mingw_386.go  |  11 --
+ src/pkg/syscall/ztypes_mingw_386.go   |  13 +-
+ 8 files changed, 376 insertions(+), 84 deletions(-)

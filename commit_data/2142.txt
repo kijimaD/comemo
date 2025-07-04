@@ -1,0 +1,55 @@
+commit 9b2c5da922681eb51d4012a59f1c3efab79b4afc
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 17:05:39 2009 -0700
+
+    directory-per-package step 1: move files from lib/X.go to lib/X/X.go
+    no substantive changes except:
+            - new Makefiles, all auto-generated
+            - go/src/lib/Makefile has been extensively edited
+    
+    R=rsc
+    OCL=28310
+    CL=28310
+
+ src/lib/Makefile                      | 167 +++++++++++++++++-----------------
+ src/lib/bignum/Makefile               |  68 ++++++++++++++
+ src/lib/{ => bignum}/bignum.go        |   0
+ src/lib/{ => bignum}/bignum_test.go   |   0
+ src/lib/bufio/Makefile                |  68 ++++++++++++++
+ src/lib/{ => bufio}/bufio.go          |   0
+ src/lib/{ => bufio}/bufio_test.go     |   0
+ src/lib/exec/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => exec}/exec.go            |   0
+ src/lib/{ => exec}/exec_test.go       |   0
+ src/lib/exvar/Makefile                |  68 ++++++++++++++
+ src/lib/{ => exvar}/exvar.go          |   0
+ src/lib/{ => exvar}/exvar_test.go     |   0
+ src/lib/flag/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => flag}/flag.go            |   0
+ src/lib/{ => flag}/flag_test.go       |   0
+ src/lib/log/Makefile                  |  68 ++++++++++++++
+ src/lib/{ => log}/log.go              |   0
+ src/lib/{ => log}/log_test.go         |   0
+ src/lib/malloc/Makefile               |  68 ++++++++++++++
+ src/lib/{ => malloc}/malloc.go        |   0
+ src/lib/once/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => once}/once.go            |   0
+ src/lib/{ => once}/once_test.go       |   0
+ src/lib/path/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => path}/path.go            |   0
+ src/lib/{ => path}/path_test.go       |   0
+ src/lib/rand/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => rand}/rand.go            |   0
+ src/lib/sort/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => sort}/sort.go            |   0
+ src/lib/{ => sort}/sort_test.go       |   0
+ src/lib/strings/Makefile              |  68 ++++++++++++++
+ src/lib/{ => strings}/strings.go      |   0
+ src/lib/{ => strings}/strings_test.go |   0
+ src/lib/testing/Makefile              |  68 ++++++++++++++
+ src/lib/{ => testing}/testing.go      |   0
+ src/lib/utf8/Makefile                 |  68 ++++++++++++++
+ src/lib/{ => utf8}/utf8.go            |   0
+ src/lib/{ => utf8}/utf8_test.go       |   0
+ src/lib/{ => xml}/xml.go              |   0
+ 41 files changed, 1037 insertions(+), 82 deletions(-)

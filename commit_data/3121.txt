@@ -1,0 +1,13 @@
+commit a7dc9dbd2002345c50c211a95db14758e4a10464
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 28 11:28:05 2009 -0700
+
+    - exponentially back off auto-sync'ing instead disabling it in case of failure
+    
+    R=rsc
+    DELTA=48  (35 added, 3 deleted, 10 changed)
+    OCL=34030
+    CL=34034
+
+ src/cmd/godoc/godoc.go | 56 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 44 insertions(+), 12 deletions(-)

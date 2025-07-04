@@ -1,0 +1,14 @@
+commit 9f77e7ea3c677322ff654a121fcc15bc3b9351b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 12 12:49:16 2010 -0800
+
+    runtime: dummy gettime for mingw/386.
+    
+    Fixes #598.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/206089
+
+ src/pkg/runtime/mingw/386/sys.s | 9 +++++++++
+ 1 file changed, 9 insertions(+)

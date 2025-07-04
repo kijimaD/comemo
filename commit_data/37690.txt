@@ -1,0 +1,20 @@
+commit 3331608c1c1f357c26f46f028a2c5c6e23036d63
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 13 08:17:09 2018 -0500
+
+    go/internal/gccgoimporter: test fix for older gccgo versions
+    
+    Avoid running the test for issue 29198 if the available copy of gccgo
+    is too old (needs to support context package). Fixes a failure on the
+    solaris builder.
+    
+    Updates #29198.
+    
+    Change-Id: I2b1b3438f4ac105432f30078fbef78e24f2077cd
+    Reviewed-on: https://go-review.googlesource.com/c/153831
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/importer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

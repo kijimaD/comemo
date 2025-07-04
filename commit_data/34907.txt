@@ -1,0 +1,20 @@
+commit ace5fa1a609c28cbfcede4639d3eed47c47b2774
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 10 12:19:24 2018 +0200
+
+    runtime: remove support_bmi{1,2}
+    
+    The code reading these variables was removed in CL 41476. They are only
+    set but never read now, so remove them.
+    
+    Change-Id: I6b0b8d813e9a3ec2a13586ff92746e00ad1b5bf0
+    Reviewed-on: https://go-review.googlesource.com/106095
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s      | 6 ------
+ src/runtime/asm_amd64.s    | 6 ------
+ src/runtime/asm_amd64p32.s | 6 ------
+ src/runtime/runtime2.go    | 2 --
+ 4 files changed, 20 deletions(-)

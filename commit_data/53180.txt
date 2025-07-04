@@ -1,0 +1,26 @@
+commit 1cfacfbe8ae7ed12eb798c84b53e1ebd0e3ed0b0
+Author: Garet Halliday <me@garet.holiday>
+Date:   Thu Oct 13 19:35:18 2022 -0500
+
+    wasm: remove redundant calls to setTimeout and clearTimeout
+    
+    The existing implementation clears and recreates Javascript
+    timeouts when Go is called from js, leading to excessive
+    load on the js scheduler. Instead, we should remove redundant
+    calls to clearTimeout and refrain from creating new timeouts
+    if the previous event's timestamp is within 1 millisecond of
+    our target (the js scheduler's max precision)
+    
+    Fixes #56100
+    
+    Change-Id: I42bbed4c2f1fa6579c1f3aa519b6ed8fc003a20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442995
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ misc/wasm/wasm_exec.js |  2 +-
+ src/runtime/lock_js.go | 78 ++++++++++++++++++++++++++++++++++----------------
+ src/syscall/js/func.go | 17 ++++++++---
+ 3 files changed, 68 insertions(+), 29 deletions(-)

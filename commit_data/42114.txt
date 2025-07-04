@@ -1,0 +1,17 @@
+commit 79bb41aed6892bb73ee01c5ed1335a4992c219f5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:13:29 2020 -0700
+
+    cmd/compile: convert reassociation optimizations to typed aux, part two
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ia8fad6973983eebe6d78d9dd8de8c99b8edcecdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229684
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  72 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 270 ++++++++++++-------------
+ 2 files changed, 171 insertions(+), 171 deletions(-)

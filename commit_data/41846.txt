@@ -1,0 +1,22 @@
+commit 6736b2fdb22a8b83c4e29d7f7d3f11080a8af328
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Sun Apr 5 12:44:02 2020 -0600
+
+    cmd/compile: refactor around HTMLWriter removing logger in favor of Func
+    
+    Replace HTMLWriter's Logger field with a *Func. Implement Fatalf method
+    for HTMLWriter which gets the Frontend() from the Func and calls down
+    into it's Fatalf method, passing the msg and args along. Replace
+    remaining calls to the old Logger with calls to logging methods on
+    the Func.
+    
+    Change-Id: I966342ef9997396f3416fb152fa52d60080ebecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227277
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go      |  6 ++---
+ src/cmd/compile/internal/ssa/compile.go |  4 +--
+ src/cmd/compile/internal/ssa/html.go    | 45 ++++++++++++++++++++++-----------
+ 3 files changed, 35 insertions(+), 20 deletions(-)

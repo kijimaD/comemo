@@ -1,0 +1,13 @@
+commit 332ff67ee2c35e809b6abe7b9b376261bddbfcbd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 17 10:08:27 2010 -0700
+
+    Fix build: don't assume that . is on PATH.
+    
+    R=rsc
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/610043
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit a6a92b186732e293072daf94397d9c71eb81e2e9
+Author: Guilherme Garnier <guilherme.garnier@gmail.com>
+Date:   Wed Aug 30 20:06:23 2017 -0300
+
+    net/url: add examples to URL methods
+    
+    Change-Id: Ia557771272a8ef3602f0281b8c89d2cfe146c8b3
+    Reviewed-on: https://go-review.googlesource.com/60470
+    Reviewed-by: Adrian Hesketh <adrianhesketh@hushmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/example_test.go | 108 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 108 insertions(+)

@@ -1,0 +1,14 @@
+commit 2d7ddfa64dcdc480f07c579f298b9019ba737f96
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jul 29 13:48:00 2011 -0400
+
+    libmach: stubs for openbsd
+    
+    Add libmach stubs for openbsd.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4815065
+
+ src/libmach/openbsd.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

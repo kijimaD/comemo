@@ -1,0 +1,16 @@
+commit 6ddd995af536b348f1cf39abba6db1ef158925bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 16 11:32:16 2014 -0700
+
+    net/http: fix data race in TestTransportResponseHeaderTimeout
+    
+    Fixes #7264
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/87970045
+
+ src/pkg/net/http/httptest/server_test.go | 12 +++++-------
+ src/pkg/net/http/transport_test.go       | 12 +++++++++++-
+ 2 files changed, 16 insertions(+), 8 deletions(-)

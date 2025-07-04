@@ -1,0 +1,15 @@
+commit e07b5baf4fb02bec51d69136d191d709e8818053
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Mon Sep 23 13:19:08 2013 -0400
+
+    reflect: add example for StructTag
+    
+    Fix a few minor vet quibbles while I'm here.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13235059
+
+ src/pkg/reflect/all_test.go     |  6 +++---
+ src/pkg/reflect/example_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)

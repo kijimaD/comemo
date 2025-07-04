@@ -1,0 +1,16 @@
+commit 991c85a750574a608daf70330e26070f8cd97bb4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Dec 16 03:14:40 2018 +1100
+
+    cmd/dist: sort gohostos switch entries
+    
+    Sort gohostos switch entries for readability/maintainability.
+    
+    Change-Id: I565b0aee33e8463502faa68eaceea6f7dccca66b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154379
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/dist/main.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

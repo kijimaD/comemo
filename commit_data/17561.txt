@@ -1,0 +1,24 @@
+commit cdc5356c938446fa6b237c54c2c6d5e5d5f267c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 14:42:34 2013 -0400
+
+    cmd/api: fix tool for recent go/build change
+    
+    Asking about runtime/cgo when CgoEnabled=false now correctly
+    returns an error from build.Import (specifically, NoGoError), because
+    there are no buildable Go files in that directory.
+    
+    The API tool was depending on it returning a package with no Go
+    files instead. Correct that assumption.
+    
+    Fixes all.bash on local machines.
+    (Dashboard appears not to be running the api tool at all.)
+    
+    Update #6124
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13385046
+
+ src/cmd/api/goapi.go | 4 ++++
+ 1 file changed, 4 insertions(+)

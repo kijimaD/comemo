@@ -1,0 +1,27 @@
+commit 6fd467ee29226bf4b875921b7cb3b692c9db52ef
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 18 20:21:38 2019 -0500
+
+    runtime: ensure thread handle is valid in profileloop1
+    
+    On Windows, there is currently a race between unminit closing the
+    thread's handle and profileloop1 suspending the thread using its
+    handle. If another handle reuses the same handle value, this can lead
+    to unpredictable results.
+    
+    To fix this, we protect the thread handle with a lock and duplicate it
+    under this lock in profileloop1 before using it.
+    
+    This is going to become a much bigger problem with non-cooperative
+    preemption (#10958, #24543), which uses the same basic mechanism as
+    profileloop1.
+    
+    Change-Id: I9d62b83051df8c03f3363344438e37781a69ce16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207779
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

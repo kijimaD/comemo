@@ -1,0 +1,16 @@
+commit 4fda54ce3f6761104e835fc4e7847f89e34b7d6d
+Author: sryoya <ryoyasekino1993@gmail.com>
+Date:   Sun May 16 23:36:05 2021 +0900
+
+    doc/go1.17: document database/sql changes for Go 1.17
+    
+    For #44513
+    Fixes #46008
+    
+    Change-Id: If80d484f73a0eb6946abdc654eb2c0d3dd6db416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320251
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+
+ doc/go1.17.html | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit ece6a8c549fbefebfa0fb34ff0daabf1ff13e1c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 16:14:06 2010 -0700
+
+    gc: bug293
+    
+    Fixes #846.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1862042
+
+ src/cmd/5g/ggen.c        |  4 ++--
+ src/cmd/6g/ggen.c        |  4 ++--
+ src/cmd/8g/ggen.c        | 10 +++++-----
+ src/cmd/gc/walk.c        | 10 +++++++++-
+ test/fixedbugs/bug293.go | 37 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 55 insertions(+), 10 deletions(-)

@@ -1,0 +1,24 @@
+commit d2ee7821d357a4e4948b9a6251e82b4ced9a1eae
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Aug 3 10:07:09 2023 -0400
+
+    go/types, types2: don't panic during interface completion
+    
+    It should be possible for the importer to construct an invalid
+    interface, as would have been produced by type checking.
+    
+    Fixes #61737
+    
+    Change-Id: I72e063f4f1a6205d273a623acce2ec08c34c3cc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515555
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go | 23 ++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go  | 49 ++++++++++-------------------
+ src/go/types/api_test.go                    | 23 ++++++++++++++
+ src/go/types/typeset.go                     | 37 ++++++----------------
+ 4 files changed, 72 insertions(+), 60 deletions(-)

@@ -1,0 +1,43 @@
+commit e0111bb0f495696e78d4d17c0c0e39b294bb32dd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 18 15:38:44 2017 -0400
+
+    cmd/compile: remove needwritebarrier from the frontend
+    
+    The write barrier insertion has moved to the SSA backend's
+    writebarrier pass. There is still needwritebarrier function
+    left in the frontend. This function is used in two places:
+    
+    - fncall, which is called in ascompatet, which is called in
+      walking OAS2FUNC. For OAS2FUNC, in order pass we've already
+      created temporaries, and there is no write barrier for the
+      assignments of these temporaries.
+    
+    - updateHasCall, which updates the HasCall flag of a node. the
+      HasCall flag is then used in
+      - fncall, mentioned above.
+      - ascompatet. As mentioned above, this is an assignment to
+        a temporary, no write barrier.
+      - reorder1, which is always called with a list produced by
+        ascompatte, which is a list of assignments to stack, which
+        have no write barrier.
+      - vmatch1, which is called in oaslit with r.Op as OSTRUCTLIT,
+        OARRAYLIT, OSLICELIT, or OMAPLIT. There is no write barrier
+        in those literals.
+    
+    Therefore, the needwritebarrier function is unnecessary. This
+    CL removes it.
+    
+    Passes "toolstash -cmp" on std cmd.
+    
+    Updates #17583.
+    
+    Change-Id: I4b87ba8363d6583e4282a9e607a9ec8ce3ab124a
+    Reviewed-on: https://go-review.googlesource.com/43640
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  5 ----
+ src/cmd/compile/internal/gc/walk.go | 49 -------------------------------------
+ 2 files changed, 54 deletions(-)

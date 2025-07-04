@@ -1,0 +1,23 @@
+commit a329471ced905effe0282e011a668bdc5779b0f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 5 11:17:26 2009 -0800
+
+    A first attempt to capture the type changes.
+    
+    Instead of trying to make open arrays look like arrays (which they aren't,
+    they just look like them), I decided to call them "slice types". As a result
+    they have value semantics, and one can really talk about what they really are.
+    
+    Note:
+    - There are lots of missing details
+    - There are probably lots of mistakes
+    
+    Looking for some initial feedback.
+    
+    R=r
+    DELTA=444  (180 added, 189 deleted, 75 changed)
+    OCL=21769
+    CL=22020
+
+ doc/go_spec.txt | 509 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 250 insertions(+), 259 deletions(-)

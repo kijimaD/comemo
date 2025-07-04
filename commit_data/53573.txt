@@ -1,0 +1,33 @@
+commit 4eceefa3388c11afc2b71302de53cac921f7f439
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jun 16 09:03:11 2023 -0400
+
+    cmd/distpack: make go_$GOOS_$GOARCH_exec programs executable
+    
+    The go command recognizes when a program named go_$GOOS_$GOARCH_exec
+    is in PATH. There are two such programs living in GOROOT/misc/wasm.
+    Like GOROOT/bin/{go,gofmt} and GOROOT/pkg/tool/**, these programs
+    need to have the executable bit set to do their job, so set it.
+    
+    Comparing a distpack produced before and after this change shows that
+    the pack.go file is modified, the two go_{js,wasip1}_wasm_exec programs
+    have the new file mode, and there are no other changes, as expected.
+    
+    The mode change is relevant to the binary and source distributions only.
+    No change to the module zip since it doesn't include GOROOT/misc at all,
+    so no effect on previously created toolchain modules whose checksums
+    are already recorded in the Go checksum database and cannot be changed.
+    (Other than by changing their "v0.0.1" version, but that's expensive.)
+    
+    Fixes #60843.
+    
+    Change-Id: I799b6aacff59c0785cb7743cbd17dda5a9ef91be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503975
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/distpack/pack.go | 2 ++
+ 1 file changed, 2 insertions(+)

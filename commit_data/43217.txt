@@ -1,0 +1,21 @@
+commit 492258549717d4e73a22170c507fb26a731c4aba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 6 16:31:00 2020 -0700
+
+    syscall: rewrite Windows makeCmdLine to use []byte
+    
+    It's faster to append to a []byte and only convert to string at the
+    end then it is to build up a string by concatenating characters.
+    
+    Fixes #41825
+    
+    Change-Id: I45ddf77dcc62726c919f0533c95d483cee8ba366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259978
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/exec_windows.go | 73 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 43 insertions(+), 30 deletions(-)

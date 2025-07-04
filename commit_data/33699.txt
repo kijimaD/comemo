@@ -1,0 +1,18 @@
+commit 13f45d09fa34298ba1b6ea8e93e0223f5d73d36e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 15:36:54 2017 -0500
+
+    net: accept 64 kB lines in /etc/hosts
+    
+    Apparently 4 kB is not enough for some people.
+    
+    Fixes #21674.
+    
+    Change-Id: If39eeb225d548b578560939f6ce51e31060f5aff
+    Reviewed-on: https://go-review.googlesource.com/79516
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/parse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

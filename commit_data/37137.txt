@@ -1,0 +1,21 @@
+commit f28191340eb7f9e2d32d792df1a279d6e4437b3d
+Author: hearot <gabriel@hearot.it>
+Date:   Sun Oct 28 10:01:39 2018 +0100
+
+    math/big: fix a formula used as documentation
+    
+    The function documentation was wrong, it was using a wrong parameter. This change
+    replaces it with the right parameter.
+    
+    The wrong formula was: q = (u1<<_W + u0 - r)/y
+    The function has got a parameter "v" (of type Word), not a parameter "y".
+    So, the right formula is: q = (u1<<_W + u0 - r)/v
+    
+    Fixes #28444
+    
+    Change-Id: I82e57ba014735a9fdb6262874ddf498754d30d33
+    Reviewed-on: https://go-review.googlesource.com/c/145280
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

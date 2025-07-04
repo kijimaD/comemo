@@ -1,0 +1,13 @@
+commit 4961483e7d8e0edf5211ab9f92aa010a6f74b59d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 22:37:04 2013 +0400
+
+    runtime: fix LockOSThread
+    Fixes #6100.
+    
+    R=golang-dev, dave, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12703045
+
+ src/pkg/runtime/proc.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

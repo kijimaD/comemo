@@ -1,0 +1,12 @@
+commit f1c397f0ea256ccdc59bb0dc6a6efa9b0f829e9e
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Wed Jan 23 14:22:03 2013 +1100
+
+    doc/articles/race_detector: fix some format.
+    
+    R=golang-dev, bradfitz, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7137049
+
+ doc/articles/race_detector.html | 60 ++++++++++++++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 22 deletions(-)

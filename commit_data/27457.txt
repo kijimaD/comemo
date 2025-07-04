@@ -1,0 +1,18 @@
+commit 1ab9428eec6cd1595de571aac4c093645a6629d0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 19 06:15:18 2016 +0900
+
+    net: deflake TestDialerDualStack
+    
+    Fixes #15316.
+    Fixes #15574.
+    
+    Change-Id: I3ec8bffd35b9e5123de4be983a53fc0b8c2a0895
+    Reviewed-on: https://go-review.googlesource.com/23242
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go       | 24 +++++-------------------
+ src/net/mockserver_test.go | 38 +++++++++++++++++---------------------
+ 2 files changed, 22 insertions(+), 40 deletions(-)

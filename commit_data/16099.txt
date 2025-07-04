@@ -1,0 +1,15 @@
+commit a8545355568ba49363cdc9c4d233075c2be8261d
+Author: Andriy Lytvynov <lytvynov.a.v@gmail.com>
+Date:   Thu Apr 4 11:11:54 2013 -0700
+
+    doc/code.html: fix typos
+    
+    Fixed example program's output to match program's code.
+    Fixes #5204.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8365043
+
+ doc/code.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

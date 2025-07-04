@@ -1,0 +1,24 @@
+commit c1a0ee37644559f51aeb112dcf6ce3e4316a44df
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 21 08:00:06 2024 -0500
+
+    cmd/go: sort "no test files" test results into normal ordering
+    
+    The code takes care to print test results during "go test ./..."
+    in the package order, delaying prints until it's that package's
+    turn, even when tests run in parallel. For some reason, the
+    prints about the test not running were not included in that,
+    making them print out of order. Fix that, printing that result
+    with the usual result printer.
+    
+    This is particularly noticeable during all.bash when we start
+    letting cmd/dist vet packages without tests.
+    
+    Change-Id: If07f9fe5a6fac2b57b24d599126b451357a164e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/test/test.go          | 77 ++++++++++++++++++-------------
+ src/cmd/go/testdata/script/test_print.txt | 27 +++++++++++
+ 2 files changed, 72 insertions(+), 32 deletions(-)

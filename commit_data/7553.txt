@@ -1,0 +1,12 @@
+commit 8b8d5e9e0076c0412390a92584bf921d2a070a01
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 23 15:51:27 2011 -0500
+
+    build: remove _gcc_main.c during make clean
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4226043
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

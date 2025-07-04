@@ -1,0 +1,31 @@
+commit 546bab8c295895368ce8ec3d97ff65472c1032ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 12 17:00:55 2018 -0700
+
+    go/scanner: report errors for incorrect line directives
+    
+    Based on decision for #24183. This makes the go/scanner behavior
+    match cmd/compile behavior. Adjusted a go/printer test that assumed
+    silent behavior for invalid line directive, and added more scanner
+    tests verifying the correct error position and message for invalid
+    line directives.
+    
+    The filenames in line directives now remain untouched by the scanner;
+    there is no cleanup or conversion of relative into absolute paths
+    anymore, in sync with what the compiler's scanner/parser are doing.
+    Any kind of filename transformation has to be done by a client. This
+    makes the scanner code simpler and also more predictable.
+    
+    For #24183.
+    
+    Change-Id: Ia091548e1d3d89dfdf6e7d82dab50bea05742ce3
+    Reviewed-on: https://go-review.googlesource.com/100235
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/printer/testdata/comments.golden |   5 +-
+ src/go/printer/testdata/comments.input  |   5 +-
+ src/go/scanner/scanner.go               |  30 ++-------
+ src/go/scanner/scanner_test.go          | 112 +++++++++++++++++++-------------
+ 4 files changed, 77 insertions(+), 75 deletions(-)

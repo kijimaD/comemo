@@ -1,0 +1,20 @@
+commit c3fa54c48bcf21e1479ee203b9f577745f1b52fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 14:50:27 2009 -0800
+
+    delete unused code and data from 6.outs.
+    cuts simple test binary by 7%.
+    would be more except for reflection.
+    
+    R=r
+    DELTA=126  (117 added, 4 deleted, 5 changed)
+    OCL=23163
+    CL=23237
+
+ src/cmd/6l/asm.c  |   4 ++-
+ src/cmd/6l/go.c   | 103 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/6l/l.h    |   7 ++--
+ src/cmd/6l/list.c |   5 ++-
+ src/cmd/6l/obj.c  |  11 ++++--
+ src/cmd/6l/pass.c |   3 ++
+ 6 files changed, 123 insertions(+), 10 deletions(-)

@@ -1,0 +1,74 @@
+commit c856fbf36190cef65ac6639a048cd512e4b7fc0a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 24 15:26:33 2022 +0000
+
+    crypto/elliptic: use go:embed for the precomputed p256 table
+    
+    go.dev/cl/339591 changed the code generation to use a constant string,
+    so that the ~88KiB table can be marked read-only.
+    
+    The compiled code became a lot better, but unfortunately,
+    the generated Go source became significantly more inefficient.
+    The numbers below compare "gofmt -l" and "go tool compile" of said file,
+    where "old" is the file as of Go 1.17, and "new" as of master in 2022/01/19:
+    
+            name           old time/op         new time/op         delta
+            Gofmt                 22.8ms ± 6%        898.5ms ± 3%  +3837.32%  (p=0.000 n=8+8)
+            GoToolCompile         26.9ms ± 2%        371.1ms ± 2%  +1278.36%  (p=0.000 n=7+8)
+    
+            name           old user-time/op    new user-time/op    delta
+            Gofmt                 25.7ms ±65%        897.1ms ± 3%  +3383.86%  (p=0.000 n=8+8)
+            GoToolCompile         35.1ms ±26%        367.2ms ± 3%   +945.80%  (p=0.000 n=8+8)
+    
+            name           old sys-time/op     new sys-time/op     delta
+            Gofmt                6.42ms ±276%         7.23ms ±38%       ~     (p=0.412 n=8+6)
+            GoToolCompile        9.20ms ±100%        13.90ms ±53%       ~     (p=0.105 n=8+8)
+    
+            name           old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Gofmt                 9.11MB ± 7%        22.79MB ± 1%   +150.23%  (p=0.000 n=8+8)
+            GoToolCompile         25.1MB ± 2%         68.6MB ± 2%   +173.57%  (p=0.000 n=8+8)
+    
+    "+" operators are binary expressions at the syntax tree level,
+    which are represented by packages like go/ast as roughly:
+    
+            struct {
+                    X  Expr
+                    Op Token
+                    Y  Expr
+            }
+    
+    Since each node is a pointer, chains of "+" operators act like linked lists.
+    The generated code has about 14k lines, and 8 "+" operators per line,
+    meaning that we end up with a linked list with over 11k elements.
+    
+    This explains the slow-down in gofmt; the printer must walk said list,
+    and it does so more than once to work out how to format it.
+    It seems like the compiler is similarly affected by the huge length.
+    
+    To remedy the effect of the linked list, use go:embed instead.
+    This results in the same string variable with the binary table,
+    but it greatly reduces the amount of syntax and its cost above.
+    We still keep the generator around, but modified so it produces the
+    binary file to be embedded rather than a large Go file.
+    
+    Finally, we update go/build/deps_test.go to allow crypto/elliptic to
+    depend on embed; it's a tiny package and crypto/elliptic was already
+    manually embedding assets via code generation.
+    The change to deps_test.go was briefly discussed in the issue below.
+    
+    Fixes #50995.
+    
+    Change-Id: I0c8b432710e971a296a2e9c99147cc2cad9662aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380475
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/elliptic/gen_p256_table.go  |   47 +-
+ src/crypto/elliptic/p256_asm.go        |    4 +
+ src/crypto/elliptic/p256_asm_table.bin |  Bin 0 -> 88064 bytes
+ src/crypto/elliptic/p256_asm_table.go  | 1430 --------------------------------
+ src/go/build/deps_test.go              |    2 +-
+ 5 files changed, 10 insertions(+), 1473 deletions(-)

@@ -1,0 +1,18 @@
+commit fc4ba1546c787a99fbcd037649575c29728655b4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 27 17:22:22 2010 +1000
+
+    net: add nil checks to several String methods to avoid panics
+    
+    Fixes #945.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1848049
+
+ src/pkg/net/dnsclient.go | 3 +++
+ src/pkg/net/iprawsock.go | 7 ++++++-
+ src/pkg/net/net.go       | 6 ++++++
+ src/pkg/net/tcpsock.go   | 7 ++++++-
+ src/pkg/net/udpsock.go   | 7 ++++++-
+ 5 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 13ab78fdd995cf328c341d86cdcffd154e3441b7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 4 10:36:04 2014 +1100
+
+    runtime: update CBARGS macro for nacl/amd64p32
+    
+    CBARGS is unused on amd64p32 so make this explicit.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/70940043
+
+ src/pkg/runtime/cgocall.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

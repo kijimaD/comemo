@@ -1,0 +1,54 @@
+commit 60ce95d7a1677d98ca098a3657e00d71b6021a30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 20:27:45 2009 -0700
+
+    code changes for array conversion.
+    as a reminder, the old conversion
+    was that you could write
+    
+            var arr [10]byte;
+            var slice []byte;
+            slice = arr;
+    
+    but now you have to write
+    
+            slice = &arr;
+    
+    the change eliminates an implicit &, so that
+    the only implicit &s left are in the . operator
+    and in string(arr).
+    
+    also, removed utf8.EncodeRuneToString
+    in favor of string(rune).
+    
+    R=r
+    DELTA=83  (1 added, 23 deleted, 59 changed)
+    OCL=27531
+    CL=27534
+
+ doc/progs/cat.go               |  2 +-
+ doc/progs/cat_rot13.go         |  2 +-
+ doc/progs/sum.go               |  2 +-
+ src/lib/exec.go                |  2 +-
+ src/lib/exec_test.go           |  4 ++--
+ src/lib/go/scanner.go          |  2 +-
+ src/lib/hash/md5.go            |  2 +-
+ src/lib/hash/sha1.go           |  2 +-
+ src/lib/http/fs.go             |  2 +-
+ src/lib/io/pipe_test.go        | 12 ++++++------
+ src/lib/net/fd.go              |  8 ++++----
+ src/lib/net/fd_darwin.go       |  6 +++---
+ src/lib/net/tcpserver_test.go  |  4 ++--
+ src/lib/net/timeout_test.go    |  2 +-
+ src/lib/os/os_test.go          |  2 +-
+ src/lib/sort_test.go           | 12 ++++++------
+ src/lib/tabwriter/tabwriter.go |  2 +-
+ src/lib/utf8.go                | 11 -----------
+ src/lib/utf8_test.go           | 13 +------------
+ test/fixedbugs/bug045.go       |  2 +-
+ test/fixedbugs/bug059.go       |  2 +-
+ test/ken/array.go              |  8 ++++----
+ test/ken/rob2.go               |  2 +-
+ usr/gri/pretty/platform.go     |  2 +-
+ usr/gri/pretty/utils.go        |  2 +-
+ 25 files changed, 44 insertions(+), 66 deletions(-)

@@ -1,0 +1,12 @@
+commit 18d644111ea18b2c778d67f0507f9b2a21a47dfd
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Thu Jan 16 10:49:58 2014 -0800
+
+    net/smtp: add examples
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/8274046
+
+ src/pkg/net/smtp/example_test.go | 61 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

@@ -1,0 +1,26 @@
+commit 3403ee524bef9f6d2d69e11410fbf16854447d21
+Author: Stephan Zuercher <zuercher@gmail.com>
+Date:   Mon May 6 10:55:45 2019 -0700
+
+    image/png: fix palette extension to handle 255 color images
+    
+    The PNG decode path attempts to handle paletted images that refer to
+    non-existent palette indicies. This PR fixes a corner case were images
+    that have exactly 255 palette colors and an IDAT chunk that references
+    palette index 255 produce an invalid image such that invoking At on
+    the pixel(s) in question causes an index out of range panic.
+    
+    Fixes #31830
+    
+    Change-Id: I34c44d9de5b9d76fe8c45c04e866fbc7f51f2a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175397
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/png/reader.go                    |   2 +-
+ src/image/png/reader_test.go               |  15 +++++++++++++++
+ src/image/png/testdata/invalid-palette.png | Bin 0 -> 1122 bytes
+ 3 files changed, 16 insertions(+), 1 deletion(-)

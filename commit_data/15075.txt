@@ -1,0 +1,32 @@
+commit f20e3a10654e71823d58fb5d2deefce24d44a76f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:34:08 2013 -0800
+
+    cmd/cgo: fix line number annotations in generated C code
+    
+    The old version was using go/ast's CommentGroup.Text method,
+    but that method drops leading blank lines from the result, so that
+    if the comment looked like one of
+    
+    //
+    // syntax error
+    import "C"
+    
+    /*
+    syntax error
+    */
+    import "C"
+    
+    then the line numbers for the syntax error would be off by the
+    number of leading blank lines (1 in each of the above cases).
+    
+    The new text extractor preserves blank lines.
+    
+    Fixes #4019.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7232071
+
+ src/cmd/cgo/ast.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

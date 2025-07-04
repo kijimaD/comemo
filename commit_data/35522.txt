@@ -1,0 +1,47 @@
+commit 07d384b9de6b58bfe8cf9c6543179654353944b4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 4 11:22:53 2018 +0700
+
+    cmd/vet: avoid false positives with non-comments
+    
+    vet's buildtag check looks for malformed build tag comments. Since these
+    can appear in Go files as well as non-Go files (such as assembly files),
+    it must read the file line by line instead of using go/token or go/ast
+    directly.
+    
+    However, this method runs into false positives if there are any lines in
+    the code that look like comments, but are not. For example:
+    
+            $ cat f.go
+            package main
+            const foo = `
+            //+build ignore
+            `
+            $ go vet f.go
+            ./f.go:3: +build comment must appear before package clause and be followed by a blank line
+    
+    This bug has been popping up more frequently since vet started being run
+    with go test, so it is important to make the check as precise as
+    possible.
+    
+    To avoid the false positive, when checking a Go file, cross-check that a
+    line that looks like a comment actually corresponds to a comment in the
+    go/ast syntax tree. Since vet already obtains the syntax trees for all
+    the Go files, it checks, this change means very little extra work for
+    the check.
+    
+    While at it, add a badf helper function to simplify the code that
+    reports warnings in the buildtag check.
+    
+    Fixes #13533.
+    
+    Change-Id: I484a16da01363b409ec418c313634171bf85250b
+    Reviewed-on: https://go-review.googlesource.com/111415
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/buildtag.go                   | 62 ++++++++++++++++++++++++-------
+ src/cmd/vet/main.go                       |  9 +++--
+ src/cmd/vet/testdata/buildtag/buildtag.go |  4 ++
+ 3 files changed, 58 insertions(+), 17 deletions(-)

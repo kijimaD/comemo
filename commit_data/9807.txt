@@ -1,0 +1,15 @@
+commit 9c643bb3fab4457c1a789e9aad75b5aaf7090753
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 26 18:23:21 2011 -0700
+
+    exp/norm: fix benchmark bug
+    
+    - don't use range over string to copy string bytes
+    - some code simplification
+    
+    R=mpvl
+    CC=golang-dev
+    https://golang.org/cl/5144044
+
+ src/pkg/exp/norm/normalize_test.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

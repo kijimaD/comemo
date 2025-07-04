@@ -1,0 +1,16 @@
+commit 1af388f1c0a3f61903ea55098c135d153aac5ae7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 29 12:03:18 2020 +0100
+
+    cmd/compile: replace int32(a.Off()) calls with a.Off32()
+    
+    Change-Id: Ib833954e8400a63624359a81f5196ca9080199a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266081
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 16 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite386.go | 32 +++++++++++++++---------------
+ 2 files changed, 24 insertions(+), 24 deletions(-)

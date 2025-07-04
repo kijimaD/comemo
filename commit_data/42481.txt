@@ -1,0 +1,20 @@
+commit 5c6b2b14db8264a8cdc3634e68c7ae65307df0ae
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jun 6 13:39:11 2020 +0100
+
+    doc/go1.15: document two noteworthy json changes
+    
+    I had a look at the changes between 1.14 and master, and these are the
+    only two that seem relevant enough for the changelog.
+    
+    There was also CL 179337 to reuse values when decoding map elements, but
+    it got reverted in CL 234559 and is not being included in 1.15.
+    
+    Updates #37419.
+    
+    Change-Id: Ib125415a953471ce29553a413d85aaf4b18a7a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236523
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

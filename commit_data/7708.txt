@@ -1,0 +1,18 @@
+commit 4896b17584daf64961d5af2c00f30c6f0cedadfd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 9 12:59:13 2011 +1100
+
+    doc: update codelab wiki to fix template.Execute argument order
+    
+    Fixes #1595.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4243067
+
+ doc/codelab/wiki/final-noclosure.go     | 2 +-
+ doc/codelab/wiki/final-noerror.go       | 4 ++--
+ doc/codelab/wiki/final-parsetemplate.go | 2 +-
+ doc/codelab/wiki/final-template.go      | 2 +-
+ doc/codelab/wiki/index.html             | 8 ++++----
+ 5 files changed, 9 insertions(+), 9 deletions(-)

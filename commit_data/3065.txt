@@ -1,0 +1,29 @@
+commit 9feee91d79c83e17495c69b1a8bd154a4e8af2ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 11:03:23 2009 -0700
+
+    avoid duplicate field names, so that bug132 can be fixed
+    
+    also fix echo bug that just surfaced in mkerrors.sh
+    
+    R=r
+    DELTA=67  (11 added, 19 deleted, 37 changed)
+    OCL=33743
+    CL=33757
+
+ src/cmd/godefs/main.c                  |  9 +++++++++
+ src/pkg/syscall/Makefile               |  1 -
+ src/pkg/syscall/PORT.sh                | 12 +-----------
+ src/pkg/syscall/mkerrors.sh            | 11 ++++++-----
+ src/pkg/syscall/mksyscall.sh           |  5 +----
+ src/pkg/syscall/types_darwin.c         |  2 +-
+ src/pkg/syscall/types_darwin_386.c     |  1 -
+ src/pkg/syscall/types_darwin_amd64.c   |  1 -
+ src/pkg/syscall/types_linux.c          |  2 +-
+ src/pkg/syscall/types_linux_386.c      |  1 -
+ src/pkg/syscall/types_linux_amd64.c    |  1 -
+ src/pkg/syscall/ztypes_darwin_386.go   |  2 +-
+ src/pkg/syscall/ztypes_darwin_amd64.go |  2 +-
+ src/pkg/syscall/ztypes_linux_386.go    | 28 ++++++++++++++--------------
+ src/pkg/syscall/ztypes_linux_amd64.go  | 26 +++++++++++++-------------
+ 15 files changed, 48 insertions(+), 56 deletions(-)

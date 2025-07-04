@@ -1,0 +1,33 @@
+commit 0fb0f575bcd2dc3e00a370b325e7e6d020f226b8
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 22 20:00:02 2017 +0200
+
+    crypto/x509: skip TestSystemRoots
+    
+    golang.org/cl/36941 enabled loading of all trusted certs on darwin
+    for the non-cgo execSecurityRoots.
+    
+    The corresponding cgo version golang.org/cl/36942 for systemRootsPool
+    has not been merged yet.
+    
+    This tests fails reliably on some darwin systems:
+    --- FAIL: TestSystemRoots (1.28s)
+            root_darwin_test.go:31:     cgo sys roots: 353.552363ms
+            root_darwin_test.go:32: non-cgo sys roots: 921.85297ms
+            root_darwin_test.go:44: got 169 roots
+            root_darwin_test.go:44: got 455 roots
+            root_darwin_test.go:73: insufficient overlap between cgo and non-cgo roots; want at least 227, have 168
+    FAIL
+    FAIL    crypto/x509     2.445s
+    
+    Updates #16532
+    Updates #21416
+    
+    Change-Id: I52c2c847651fb3621fdb6ab858ebe8e28894c201
+    Reviewed-on: https://go-review.googlesource.com/57830
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/crypto/x509/root_darwin_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

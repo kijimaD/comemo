@@ -1,0 +1,12 @@
+commit d8e715cab4f790e033c8d22ad07e9ca5ff9d343b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 17 15:31:07 2012 +1100
+
+    net/url: spell the package name correctly.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5676076
+
+ src/pkg/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

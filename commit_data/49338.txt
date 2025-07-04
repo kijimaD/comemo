@@ -1,0 +1,41 @@
+commit f8c26a59a49e23074b20b91ed3c75958ddc81559
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat May 21 21:05:00 2022 +0800
+
+    syscall: update linux/loong64 kernel ABI, emulate fstatat with statx
+    
+    The linux/loong64 kernel ABI has changed a little since the inception
+    of the Go port; most notably fstat and fstatat are being removed [1],
+    leaving only statx as the stat mechanism. Fortunately the structs are
+    easy enough to translate, and we now exclusively use statx across the
+    board on loong64 for best compatibility with past and future kernels
+    (due to the architecture's young age, statx is always available).
+    
+    In wiring up the statx calls, it turned out the linux/loong64 syscall
+    definitions were out-of-date, so the generation script received some
+    tweaking as well.
+    
+    [1]: https://lore.kernel.org/all/20220518092619.1269111-1-chenhuacai@loongson.cn/
+    
+    Change-Id: Ifebb9ab9fef783683e453fa331d623575e824a48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407694
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/at.go                    |   16 -
+ src/internal/syscall/unix/at_fstatat.go            |   28 +
+ src/internal/syscall/unix/at_statx.go              |   15 +
+ .../syscall/unix/at_sysnum_fstatat_linux.go        |    2 +-
+ src/syscall/mkerrors.sh                            |    1 +
+ src/syscall/syscall_linux_loong64.go               |   61 +-
+ src/syscall/types_linux.go                         |    9 +-
+ src/syscall/zerrors_linux_loong64.go               | 3417 ++++++++++----------
+ src/syscall/zsyscall_linux_loong64.go              |   55 +-
+ src/syscall/zsysnum_linux_loong64.go               |    3 +-
+ src/syscall/ztypes_linux_loong64.go                |   50 +-
+ 11 files changed, 1938 insertions(+), 1719 deletions(-)

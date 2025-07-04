@@ -1,0 +1,34 @@
+commit 1a22008f2f3d4d5ea3e6b26b8ae9c6ce5d7f848f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 12:09:09 2023 -0400
+
+    cmd/go: refuse to run when the main module or workspace needs a newer Go
+    
+    We already refuse to build code in modules are too new (CL 476279).
+    This is a more comprehensive check: refuse to do anything at all with
+    modules or workspaces that are too new.
+    
+    Since the module or workspace is new, it may have semantics we don't
+    understand and misinterpret well before we get to the actual building of code.
+    For example when we switched from // +build to //go:build that changed
+    the decision about which files go into a package, which affects the way
+    the overall load phase runs and which errors it reports. Waiting until the
+    building of code would miss earlier changes like that one.
+    
+    Leaving the test from CL 476279 alone, but it's not load-bearing anymore.
+    
+    For #57001.
+    
+    Change-Id: I8c39943db1d7ddbcb9b5cae68d80459fddd68151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/init.go                |  6 +++
+ src/cmd/go/internal/modload/vendor.go              |  6 ++-
+ src/cmd/go/testdata/script/mod_goline_too_new.txt  | 47 +++++++++++++++++
+ .../go/testdata/script/mod_load_missing_std.txt    | 18 -------
+ src/cmd/go/testdata/script/mod_tidy_too_new.txt    | 59 ----------------------
+ 5 files changed, 58 insertions(+), 78 deletions(-)

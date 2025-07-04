@@ -1,0 +1,12 @@
+commit be7a04944ea9eeb7ffd5458d26a83c1693df657c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 31 09:42:33 2012 +1100
+
+    buildscript.sh: now works correctly on windows
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5569092
+
+ src/buildscript.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 9ad091e17871549c7620bd27c2ed4b730ed0bbd6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 17 10:47:42 2011 -0700
+
+    gob: eliminate two more allocations in decode.
+    - just an oversight; we were reallocating a buffer.
+    - use unsafe to avoid allocating storage for a string twice.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4290056
+
+ src/pkg/gob/decode.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

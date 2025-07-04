@@ -1,0 +1,51 @@
+commit 5b649ffa234aed8634bca4d37a62a63b0d03f321
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 27 23:51:07 2017 +0000
+
+    net/http: update bundled http2
+    
+    Update http2 to x/net git rev db473f6b23.
+    
+    (And un-skip TestWriteHeader0_h2 added in CL 80077, now fixed.)
+    
+    Includes:
+    
+       http2: remove afterReqBodyWriteError wrapper
+       https://golang.org/cl/75252
+    
+       http2: fix transport data race on reused *http.Request objects
+       https://golang.org/cl/75530
+    
+       http2: require either ECDSA or RSA ciphersuite
+       https://golang.org/cl/30721
+    
+       http2: don't log about timeouts reading client preface on new connections
+       https://golang.org/cl/79498
+    
+       http2: don't crash in Transport on server's DATA following bogus HEADERS
+       https://golang.org/cl/80056
+    
+       http2: panic on invalid WriteHeader status code
+       https://golang.org/cl/80076
+    
+       http2: fix race on ClientConn.maxFrameSize
+       https://golang.org/cl/79238
+    
+       http2: don't autodetect Content-Type when the response has an empty body
+       https://golang.org/cl/80135
+    
+    Fixes golang/go#18776
+    Updates golang/go#20784
+    Fixes golang/go#21316
+    Fixes golang/go#22721
+    Fixes golang/go#22880
+    
+    Change-Id: Ie86e24e0ee2582a5a82afe5de3c7c801528be069
+    Reviewed-on: https://go-review.googlesource.com/80078
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/clientserver_test.go |   3 -
+ src/net/http/h2_bundle.go         | 128 ++++++++++++++++++++++----------------
+ 2 files changed, 74 insertions(+), 57 deletions(-)

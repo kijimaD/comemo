@@ -1,0 +1,17 @@
+commit afba16f46982195203ad9ec0f37e5d4c5c220e95
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 26 20:38:57 2009 -0700
+
+    Getrusage for linux.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=40  (38 added, 0 deleted, 2 changed)
+    OCL=29351
+    CL=29422
+
+ src/lib/syscall/Makefile             |  5 +++--
+ src/lib/syscall/proc_darwin.go       | 15 +++++++++++++++
+ src/lib/syscall/proc_linux.go        | 19 +++++++++++++++++++
+ src/lib/syscall/types_amd64_linux.go |  5 +++++
+ 4 files changed, 42 insertions(+), 2 deletions(-)

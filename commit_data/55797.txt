@@ -1,0 +1,31 @@
+commit 6f5d77454e31be8af11a7e2bcda36d200fda07c5
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 29 15:02:44 2024 -0500
+
+    cmd/compile: add 0-sized-value simplification to copyelim
+    
+    The problem was caused by faulty handling of unSSA-able
+    operations on zero-sized data in expand calls, but there
+    is no point to operations on zero-sized data.  This CL adds
+    a simplify step to the first place in SSA where all values
+    are processed and replaces anything producing a 0-sized
+    struct/array with the corresponding Struct/Array Make0
+    operation (of the appropriate type).
+    
+    I attempted not generating them in ssagen, but that was a
+    larger change, and also had bugs. This is simple and obvious.
+    The only question is whether it would be worthwhile to do it
+    earlier (in numberlines or phielem).
+    
+    Fixes #65808.
+    
+    Change-Id: I0a596b3d272798015e7bb6b1a20411241759fe0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568258
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/copyelim.go | 11 +++++++++++
+ test/fixedbugs/issue65808.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

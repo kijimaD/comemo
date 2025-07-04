@@ -1,0 +1,30 @@
+commit dc3b8a193cfa3f9ab9664ee58700e60761fb2f84
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 9 13:21:20 2017 -0500
+
+    crypto/sha1: speed up sha1 for very small blocks
+    
+    For very small blocks significant time is spent in checkSum function,
+    adding necessary padding. Instead of writing it byte by byte, copy
+    encoding/binary PutUint functions, which are compiled into single mov.
+    
+    name            old time/op    new time/op    delta
+    Hash8Bytes-6       344ns ± 0%     310ns ± 0%   -9.78%  (p=0.000 n=10+9)
+    Hash320Bytes-6    1.28µs ± 0%    1.25µs ± 0%   -2.58%  (p=0.000 n=10+10)
+    Hash1K-6          2.51µs ± 0%    2.47µs ± 0%   -1.67%  (p=0.000 n=10+10)
+    Hash8K-6          15.8µs ± 0%    15.7µs ± 1%   -0.21%  (p=0.023 n=10+10)
+    
+    name            old speed      new speed      delta
+    Hash8Bytes-6    23.2MB/s ± 0%  25.7MB/s ± 0%  +10.77%  (p=0.000 n=10+9)
+    Hash320Bytes-6   249MB/s ± 0%   256MB/s ± 0%   +2.65%  (p=0.000 n=10+10)
+    Hash1K-6         408MB/s ± 0%   414MB/s ± 0%   +1.70%  (p=0.000 n=10+10)
+    
+    Change-Id: I3975ee929465c7dd137d0ca757ad3792a004e1a3
+    Reviewed-on: https://go-review.googlesource.com/54391
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+
+ src/crypto/sha1/sha1.go | 36 +++++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)

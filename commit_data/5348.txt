@@ -1,0 +1,29 @@
+commit 72d9322032f0ee94759a681d524d8ea72a7f23a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 22:19:04 2010 -0700
+
+    crypto/tls: simpler implementation of record layer
+    
+    Depends on CL 957045, 980043, 1004043.
+    Fixes #715.
+    
+    R=agl1, agl
+    CC=golang-dev
+    https://golang.org/cl/943043
+
+ src/pkg/crypto/tls/Makefile                   |   6 +-
+ src/pkg/crypto/tls/alert.go                   |  88 ++--
+ src/pkg/crypto/tls/common.go                  |  51 +--
+ src/pkg/crypto/tls/conn.go                    | 635 ++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_client.go        | 188 +++-----
+ src/pkg/crypto/tls/handshake_messages.go      |  22 +-
+ src/pkg/crypto/tls/handshake_messages_test.go |   6 +-
+ src/pkg/crypto/tls/handshake_server.go        | 170 +++----
+ src/pkg/crypto/tls/handshake_server_test.go   | 329 ++++++++-----
+ src/pkg/crypto/tls/record_process.go          | 302 ------------
+ src/pkg/crypto/tls/record_process_test.go     | 137 ------
+ src/pkg/crypto/tls/record_read.go             |  42 --
+ src/pkg/crypto/tls/record_read_test.go        |  73 ---
+ src/pkg/crypto/tls/record_write.go            | 170 -------
+ src/pkg/crypto/tls/tls.go                     | 158 +------
+ 15 files changed, 1065 insertions(+), 1312 deletions(-)

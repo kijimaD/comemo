@@ -1,0 +1,20 @@
+commit 4efa216c9d753c0853aa96a8c54ed5014fbc12e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 12 15:31:25 2021 -0700
+
+    unsafe: allow unsafe.Slice up to end of address space
+    
+    Allow the user to construct slices that are larger than the Go heap as
+    long as they don't overflow the address space.
+    
+    Updates #48798.
+    
+    Change-Id: I659c8334d04676e1f253b9c3cd499eab9b9f989a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355489
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go   | 2 +-
+ test/unsafebuiltins.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

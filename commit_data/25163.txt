@@ -1,0 +1,12 @@
+commit 5c2483229375721e3273f61f41a9c885332592b3
+Author: Yann Kerhervé <yann.kerherve@gmail.com>
+Date:   Fri Dec 4 10:07:44 2015 -0800
+
+    syscall: fix ParseRoutingSockaddr name in docs
+    
+    Change-Id: I3870150fc8e713f6164371299c029b31f18f250a
+    Reviewed-on: https://go-review.googlesource.com/17426
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/route_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

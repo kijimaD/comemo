@@ -1,0 +1,19 @@
+commit 53647a1994184e471988b53f1a98c02bd6c609df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:20:10 2022 -0700
+
+    cmd/compile: remove ir.TypeNodeAt
+    
+    It's deprecated and no longer needed.
+    
+    Simplify underlying code while here.
+    
+    Change-Id: I2a6810867d76d8a82ac0d1e6e546a63e6f132736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403836
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/type.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

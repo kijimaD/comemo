@@ -1,0 +1,21 @@
+commit 8597d052b2467a9f9ea20673555d65f0149c4bb4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 31 21:46:31 2023 -0700
+
+    go/types, types2: remove internal constant enableInterfaceInference
+    
+    We're not going to disable this functionality as it would
+    invalidate code that now type-checks with type inference
+    based on this mechanism.
+    
+    Change-Id: Ib11059e2f70a5a209693b06f754cba862e3650ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514715
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 17 ++++++-----------
+ src/go/types/unify.go                    | 17 ++++++-----------
+ 2 files changed, 12 insertions(+), 22 deletions(-)

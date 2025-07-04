@@ -1,0 +1,45 @@
+commit 2b7fde3406872b65f47c971b1d9ef25f92e62f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 18:10:43 2009 -0700
+
+    move austin/eval and austin/ogle to exp/eval and exp/ogle
+    
+    R=r
+    OCL=35736
+    CL=35746
+
+ {usr/austin => src/pkg/exp}/eval/Makefile     |  2 +-
+ {usr/austin => src/pkg/exp}/eval/abort.go     |  0
+ {usr/austin => src/pkg/exp}/eval/bridge.go    |  0
+ {usr/austin => src/pkg/exp}/eval/compiler.go  |  0
+ {usr/austin => src/pkg/exp}/eval/eval_test.go |  0
+ {usr/austin => src/pkg/exp}/eval/expr.go      |  0
+ {usr/austin => src/pkg/exp}/eval/expr1.go     |  0
+ {usr/austin => src/pkg/exp}/eval/expr_test.go |  0
+ {usr/austin => src/pkg/exp}/eval/func.go      |  0
+ {usr/austin => src/pkg/exp}/eval/gen.go       |  0
+ {usr/austin => src/pkg/exp}/eval/main.go      |  0
+ {usr/austin => src/pkg/exp}/eval/scope.go     |  0
+ {usr/austin => src/pkg/exp}/eval/stmt.go      |  0
+ {usr/austin => src/pkg/exp}/eval/stmt_test.go |  0
+ {usr/austin => src/pkg/exp}/eval/test.bash    |  0
+ {usr/austin => src/pkg/exp}/eval/type.go      |  0
+ {usr/austin => src/pkg/exp}/eval/typec.go     |  0
+ {usr/austin => src/pkg/exp}/eval/util.go      |  0
+ {usr/austin => src/pkg/exp}/eval/value.go     |  0
+ {usr/austin => src/pkg/exp}/eval/world.go     |  3 +++
+ {usr/austin => src/pkg/exp}/ogle/Makefile     |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/abort.go     |  0
+ {usr/austin => src/pkg/exp}/ogle/arch.go      |  0
+ {usr/austin => src/pkg/exp}/ogle/cmd.go       |  3 ++-
+ {usr/austin => src/pkg/exp}/ogle/event.go     |  0
+ {usr/austin => src/pkg/exp}/ogle/frame.go     |  0
+ {usr/austin => src/pkg/exp}/ogle/goroutine.go |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/main.go      |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/process.go   |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/rruntime.go  |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/rtype.go     |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/rvalue.go    |  2 +-
+ {usr/austin => src/pkg/exp}/ogle/vars.go      |  2 +-
+ src/run.bash                                  | 15 ++++++++++++---
+ 34 files changed, 26 insertions(+), 13 deletions(-)

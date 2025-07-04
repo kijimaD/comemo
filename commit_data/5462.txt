@@ -1,0 +1,13 @@
+commit 834abb8068ba8e243066deb83a0d4ac47b87f071
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Sat May 8 17:34:05 2010 -0700
+
+    json: accept escaped slash in string scanner
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1173041
+
+ src/pkg/json/decode_test.go | 1 +
+ src/pkg/json/scanner.go     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 69d0f0cc473d42fd7a49125d6b4667fe301c0d86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 6 09:21:30 2012 -0800
+
+    exp/types: checking of type switches and range clauses
+    
+    Also:
+    - better handling of type assertions
+    - implemented built-in error type
+    - first cut at handling variadic function signatures
+    - several bug fixes
+    
+    R=rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6846131
+
+ src/pkg/exp/types/check.go            |   7 +-
+ src/pkg/exp/types/const.go            |   2 +-
+ src/pkg/exp/types/expr.go             | 166 ++++++++++++++++++-----
+ src/pkg/exp/types/operand.go          |  25 +---
+ src/pkg/exp/types/predicates.go       |  33 +++++
+ src/pkg/exp/types/stmt.go             | 242 +++++++++++++++++++++++++++++-----
+ src/pkg/exp/types/testdata/decls1.src |   2 +-
+ src/pkg/exp/types/testdata/expr3.src  |  51 ++++++-
+ src/pkg/exp/types/testdata/stmt0.src  | 150 +++++++++++++++++++++
+ src/pkg/exp/types/universe.go         |   8 +-
+ src/pkg/go/parser/parser.go           |   2 +-
+ 11 files changed, 592 insertions(+), 96 deletions(-)

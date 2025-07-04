@@ -1,0 +1,27 @@
+commit 0d163ce1c95d03a173eba246de6d45db69e678ac
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Oct 28 10:10:46 2016 -0700
+
+    database/sql: do not bypass the driver locks with Context methods
+    
+    When context methods were initially added it was attempted to unify
+    behavior between drivers without Context methods and those with
+    Context methods to always return right away when the Context expired.
+    However in doing so the driver call could be executed outside of the
+    scope of the driver connection lock and thus bypassing thread safety.
+    
+    The new behavior waits until the driver operation is complete. It then
+    checks to see if the context has expired and if so returns that error.
+    
+    Change-Id: I4a5c7c3263420c57778f36a5ed6fa0ef8cb32b20
+    Reviewed-on: https://go-review.googlesource.com/32422
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/ctxutil.go       | 232 ++++++++------------------------------
+ src/database/sql/driver/driver.go |  46 ++++++--
+ src/database/sql/fakedb_test.go   |  34 +++++-
+ src/database/sql/sql.go           |  67 ++++++++---
+ src/database/sql/sql_test.go      |  80 ++++++++++++-
+ 5 files changed, 242 insertions(+), 217 deletions(-)

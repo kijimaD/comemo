@@ -1,0 +1,23 @@
+commit 2c8692d45f80f902a243732dda95f6561b72a49a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 14:30:57 2021 -0700
+
+    cmd/compile/internal/types2: review of example_test.go
+    
+    The changes between (equivalent, and reviewed) go/types/example_test.go
+    and example_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences to go/types/example_test.go are:
+    - use of syntax instead of go/ast package
+    - no ExampleMethodSet test (types2 doesn't have MethodSet)
+    - some code in ExampleInfo is disabled due to less precise
+      position information provided by the syntax tree
+    
+    Change-Id: I035284357acc8ecb7849022b5a9d873ae2235987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304249
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/example_test.go | 1 -
+ 1 file changed, 1 deletion(-)

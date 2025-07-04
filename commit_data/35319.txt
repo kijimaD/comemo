@@ -1,0 +1,30 @@
+commit 1b49487692ec90e5438ae97cf3bbcb515bb47796
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Thu May 3 11:27:48 2018 +0100
+
+    syscall: eliminate aliasing of syscall error strings in Plan 9
+    
+    To avoid allocation between entersyscall and exitsyscall in Plan 9,
+    syscall error strings retrieved from the OS were being stored in
+    a shared buffer for each M, leading to overwriting of error strings
+    by subsequent syscalls, and potential confusion if exitsyscall
+    switched to a different M.  Instead, the error string is now
+    retrieved to the G stack and then copied to a new allocated array
+    after exitsyscall.
+    
+    A new test TestPlan9Syserr is provided to confirm the correction.
+    
+    Fixes #13770
+    Fixes #24921
+    
+    Change-Id: I013c4a42baae80d03a5b61d828396527189f5551
+    Reviewed-on: https://go-review.googlesource.com/111195
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/syscall/asm_plan9_386.s       |  64 +++++++++++++-------
+ src/syscall/asm_plan9_amd64.s     |  66 ++++++++++++++-------
+ src/syscall/asm_plan9_arm.s       | 122 +++++++++++++++++++++++++-------------
+ src/syscall/syscall_plan9_test.go |  53 +++++++++++++++++
+ 4 files changed, 224 insertions(+), 81 deletions(-)

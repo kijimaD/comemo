@@ -1,0 +1,15 @@
+commit f566fca2b3fb4d1c3e7a11084486d9067814910d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 7 12:45:19 2011 -0700
+
+    godoc: show "unexported" declarations when executing "godoc builtin"
+    
+    Was never working correctly when executing from the command-line.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5236042
+
+ src/cmd/godoc/godoc.go | 6 +++---
+ src/cmd/godoc/main.go  | 3 +++
+ 2 files changed, 6 insertions(+), 3 deletions(-)

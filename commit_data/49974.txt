@@ -1,0 +1,26 @@
+commit b8b9e83ec7a92498c2c69a1a963c31983d303e21
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 17:45:01 2022 +0200
+
+    internal/poll: remove fallback path in accept
+    
+    Support for operating system versions requiring the fallback to
+    CloseOnExec/SetNonblock was dropped from recent Go versions. The minimum
+    Linux kernel version is 2.6.32 as of Go 1.18. FreeBSD 10 is no longer
+    supported as of Go 1.13.
+    
+    Follows a similar change for net.sysSocket in CL 403634 and
+    syscall.Socket in CL 422374.
+    
+    For #45964
+    
+    Change-Id: I60848415742a1d8204e1fda585462ff35ad6722f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sock_cloexec.go | 30 +-----------------------------
+ 1 file changed, 1 insertion(+), 29 deletions(-)

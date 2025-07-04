@@ -1,0 +1,22 @@
+commit 3ff6ff7f8476b912ac6746c8e5afca852d62af7a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 19 17:37:25 2021 -0400
+
+    cmd/compile: preserve pointerness when creating map key temp
+    
+    When creating the temporary for map functions, if the key
+    contains pointer, we need to create pointer-typed temporary. So
+    if the temporary is live across a function call, the pointer is
+    live.
+    
+    Change-Id: Id6e14ec9def8bc7987f0f8ce8423caf1e3754fcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311379
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/walk/assign.go  | 10 +--------
+ src/cmd/compile/internal/walk/builtin.go |  5 +----
+ src/cmd/compile/internal/walk/expr.go    | 36 ++++++++++++++++++++++----------
+ src/cmd/compile/internal/walk/order.go   | 10 +++++----
+ test/abi/map.go                          | 34 ++++++++++++++++++++++++++++++
+ 5 files changed, 67 insertions(+), 28 deletions(-)

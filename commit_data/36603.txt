@@ -1,0 +1,16 @@
+commit 262d4f321a885908def68adc4bed68428722b954
+Author: Warren Fernandes <warren.f.fernandes@gmail.com>
+Date:   Mon Sep 3 12:32:02 2018 -0600
+
+    fmt: add example for GoStringer interface
+    
+    Updates golang/go#27376.
+    
+    Change-Id: Ia8608561eb6a268aa7eae8c39c7098df100b643a
+    Reviewed-on: https://go-review.googlesource.com/133075
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/gostringer_example_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

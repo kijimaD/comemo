@@ -1,0 +1,22 @@
+commit e30a09013b24853cbe6d3d3a919e639df0bdf41c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 8 15:59:11 2021 -0700
+
+    cmd/compile: extrapolate $GOROOT in unified IR
+    
+    This ensures that diagnostics for files within $GOROOT continue to be
+    reported using their full filepath, rather than the abbreviated
+    filepath. Notably, this is necessary for test/run.go, which has tests
+    that expect to see the full filepath.
+    
+    Updates #48247.
+    
+    Change-Id: I440e2c6dd6109ca059d81cee49e476bba805d703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348670
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

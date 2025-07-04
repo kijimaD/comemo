@@ -1,0 +1,19 @@
+commit 8cd0094b4ee6b51c49f96de98308701108b45995
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 2 20:13:14 2018 +0200
+
+    misc/ios: don't override TMPDIR on idevice
+    
+    If TMPDIR is not set, the iOS runtime will automatically set TMPDIR
+    to a valid app temporary path.
+    
+    For the iOS builders.
+    
+    Change-Id: Ia82404059dcb10678f0a6e0c96d5efc79a5485fd
+    Reviewed-on: https://go-review.googlesource.com/110956
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

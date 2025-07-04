@@ -1,0 +1,14 @@
+commit 82747423937fa5c65b7f33af496505a3f77bedc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 13:36:05 2009 -0800
+
+    codereview: add golang-dev@googlegroups.com
+        automatically in "hg mail".
+    also, avoid "empty list means all modified files in client" bug
+    
+    R=gri, cw
+    CC=golang-dev
+    https://golang.org/cl/174072
+
+ lib/codereview/codereview.py | 73 ++++++++++++++++++++------------------------
+ 1 file changed, 33 insertions(+), 40 deletions(-)

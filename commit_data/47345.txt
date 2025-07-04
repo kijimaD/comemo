@@ -1,0 +1,23 @@
+commit bee0c739007617c840ac29a6f8fcf9f24cbf1505
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 8 13:08:58 2021 +0700
+
+    cmd/compile: fix irgen mis-handling of ... argument when creating closure
+    
+    When bulding formal arguments of newly created closure, irgen forgets to
+    set "..." field attribute, causing type mismatched between the closure
+    function and the ONAME node represents that closure function.
+    
+    Fixes #49432
+    
+    Change-Id: Ieddaa64980cdd3d8cea236a5a9de0204ee21ee39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361961
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ test/typeparam/issue49432.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

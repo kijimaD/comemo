@@ -1,0 +1,17 @@
+commit 455ef3f6bce369bf6a91b181cbd9ef689c850c5d
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 29 09:01:14 2018 +0000
+
+    test/codegen: improve arithmetic tests
+    
+    This CL fixes several typos and adds two more cases
+    to arithmetic test.
+    
+    Change-Id: I086560162ea351e2166866e444e2317da36c1729
+    Reviewed-on: https://go-review.googlesource.com/c/145210
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/codegen/arithmetic.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 52ec4aa24aa6af413d950bfb50de56315a61fd73
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 4 00:58:48 2012 +0800
+
+    cmd/dist: remove stray src/pkg/runtime/z* when cleaning
+    
+    R=golang-dev, bradfitz, dave, rsc, lstoakes, rsc
+    CC=golang-dev
+    https://golang.org/cl/6180044
+
+ src/cmd/dist/build.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

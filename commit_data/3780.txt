@@ -1,0 +1,13 @@
+commit 5fca0bca61b9c1bdf38cf9449ac1a0416a590a42
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:10:18 2009 -0800
+
+    gofmt-ify compress
+    
+    R=rsc
+    http://go/go-review/1016045
+
+ src/pkg/compress/flate/huffman_bit_writer.go |   8 +-
+ src/pkg/compress/flate/huffman_code.go       | 105 ++++++++++++++-------------
+ src/pkg/compress/flate/inflate.go            |   4 +-
+ 3 files changed, 61 insertions(+), 56 deletions(-)

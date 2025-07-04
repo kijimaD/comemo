@@ -1,0 +1,26 @@
+commit 9b90491e4a1f98a5b431a49cbf9cbefa18adc883
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 4 16:19:16 2020 -0700
+
+    runtime: steal timers from running P's
+    
+    Previously we did not steal timers from running P's, because that P
+    should be responsible for running its own timers. However, if the P
+    is running a CPU-bound G, this can cause measurable delays in running
+    ready timers. Also, in CL 214185 we avoided taking the timer lock of a P
+    with no ready timers, which reduces the chances of timer lock contention.
+    
+    So, if we can't find any ready timers on sleeping P's, try stealing
+    them from running P's.
+    
+    Fixes #38860
+    
+    Change-Id: I0bf1d5dc56258838bdacccbf89493524e23d7fed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232199
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

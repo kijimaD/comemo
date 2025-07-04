@@ -1,0 +1,18 @@
+commit 0ab8f2d287159de00dfa64793a64285223f5661e
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Sep 26 21:59:13 2013 -0700
+
+    reflect: expose reflect.call argument slice to the garbage collector
+    
+    The argument slice was kept hidden from the garbage collector
+    by destroying its referent in an unsafe.Pointer to uintptr
+    conversion.  This change preserves the unsafe.Pointer referent
+    and only performs an unsafe.Pointer to uintptr conversions
+    within expressions that construct new unsafe.Pointer values.
+    
+    R=golang-dev, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/14008043
+
+ src/pkg/reflect/value.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

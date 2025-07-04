@@ -1,0 +1,22 @@
+commit 2a07c50a5cbf548a313eed6e691be78a0bac8b3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 16 12:47:33 2018 -0500
+
+    build: clear GO111MODULE during make.bash etc
+    
+    The standard build assumes the variable is unset.
+    Make it so, like we do for GOFLAGS, GOBIN, and so on.
+    
+    Change-Id: I4ad5695f8021b08bd1a35dd99112970a813d247c
+    Reviewed-on: https://go-review.googlesource.com/c/149959
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/make.bash | 1 +
+ src/make.bat  | 1 +
+ src/make.rc   | 1 +
+ src/run.bash  | 1 +
+ src/run.bat   | 1 +
+ src/run.rc    | 1 +
+ 6 files changed, 6 insertions(+)

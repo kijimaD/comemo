@@ -1,0 +1,19 @@
+commit 0eb52ac2501396874a4e885bf13994773ba1acfe
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Oct 24 19:07:14 2020 +0200
+
+    cmd/compile: port last ARM rules to typed
+    
+    Passes
+    
+      GOARCH=arm gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I4a1cace82c5d957774ea20572406af276f02bf97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264680
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  8 +--
+ src/cmd/compile/internal/ssa/rewriteARM.go | 94 +++++++++++++++++++++++++-----
+ 2 files changed, 84 insertions(+), 18 deletions(-)

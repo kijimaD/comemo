@@ -1,0 +1,36 @@
+commit 894650277670eed065566f803c642a8f80437456
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Feb 7 13:38:52 2017 +0200
+
+    bytes, strings: optimize Split*
+    
+    The relevant benchmark results on linux/amd64:
+    
+    bytes:
+    
+    SplitSingleByteSeparator-4   25.7ms ± 5%   9.1ms ± 4%  -64.40%  (p=0.000 n=10+10)
+    SplitMultiByteSeparator-4    13.8ms ±20%   4.3ms ± 8%  -69.23%  (p=0.000 n=10+10)
+    SplitNSingleByteSeparator-4  1.88µs ± 9%  0.88µs ± 4%  -53.25%  (p=0.000 n=10+10)
+    SplitNMultiByteSeparator-4   4.83µs ±10%  1.32µs ± 9%  -72.65%  (p=0.000 n=10+10)
+    
+    strings:
+    
+    name                         old time/op  new time/op  delta
+    SplitSingleByteSeparator-4   21.4ms ± 8%   8.5ms ± 5%  -60.19%  (p=0.000 n=10+10)
+    SplitMultiByteSeparator-4    13.2ms ± 9%   3.9ms ± 4%  -70.29%  (p=0.000 n=10+10)
+    SplitNSingleByteSeparator-4  1.54µs ± 5%  0.75µs ± 7%  -51.21%  (p=0.000 n=10+10)
+    SplitNMultiByteSeparator-4   3.57µs ± 8%  1.01µs ±11%  -71.76%  (p=0.000 n=10+10)
+    
+    Fixes #18973
+    
+    Change-Id: Ie4bc010c6cc389001e72eab530497c81e5b26f34
+    Reviewed-on: https://go-review.googlesource.com/36510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes.go          | 23 ++++++++++----------
+ src/bytes/bytes_test.go     | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 25 +++++++++++----------
+ src/strings/strings_test.go | 18 ++++++++++++---
+ 4 files changed, 93 insertions(+), 26 deletions(-)

@@ -1,0 +1,15 @@
+commit 98b90475acbe94e336b59feabaa3a643d1ad0c7c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Dec 25 16:12:26 2011 +1100
+
+    flag: change Set method Value interface to return error instead of bool.
+    
+    This yields much better error messages when a bad flag value is given.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5498078
+
+ src/pkg/flag/flag.go      | 63 ++++++++++++++++++++++-------------------------
+ src/pkg/flag/flag_test.go |  4 +--
+ 2 files changed, 32 insertions(+), 35 deletions(-)

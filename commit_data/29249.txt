@@ -1,0 +1,22 @@
+commit 53c004f94efa85f05b28938509b250e02d1568ea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 27 17:40:33 2016 -0700
+
+    go/types: local type-checking of alias declarations
+    
+    Does not handle imports of packages with exported aliases yet.
+    
+    For #17592.
+    
+    Change-Id: Iee63fb9d521014995003a417271fbe0384ae04ef
+    Reviewed-on: https://go-review.googlesource.com/32108
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/call.go                |  19 ++++---
+ src/go/types/decl.go                |  82 +++++++++++++++++++++++++++
+ src/go/types/object.go              |  29 +++++++---
+ src/go/types/resolver.go            |   7 ++-
+ src/go/types/stdlib_test.go         |   1 -
+ src/go/types/testdata/aliasdecl.src | 107 +++++++++++++++++++++++++++++++++++-
+ src/go/types/typexpr.go             |  13 +++++
+ 7 files changed, 234 insertions(+), 24 deletions(-)

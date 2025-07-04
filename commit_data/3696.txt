@@ -1,0 +1,22 @@
+commit 35ace1d1f51e86d3f021d49e61431d39ecee9f6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 11:15:34 2009 -0800
+
+    split ipsock.go, sock.go, and unixsock.go out of net.go
+    prior to cleanup.  no changes, only moving.
+    
+    remove dependencies on strconv and strings
+    
+    R=r
+    http://go/go-review/1017010
+
+ src/pkg/Make.deps        |  13 +-
+ src/pkg/net/Makefile     |   3 +
+ src/pkg/net/dnsclient.go |   4 +-
+ src/pkg/net/ip.go        |   3 -
+ src/pkg/net/ipsock.go    | 362 ++++++++++++++++++++
+ src/pkg/net/net.go       | 854 +++--------------------------------------------
+ src/pkg/net/parse.go     |  45 ++-
+ src/pkg/net/sock.go      | 219 ++++++++++++
+ src/pkg/net/unixsock.go  | 190 +++++++++++
+ 9 files changed, 874 insertions(+), 819 deletions(-)

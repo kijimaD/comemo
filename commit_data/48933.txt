@@ -1,0 +1,20 @@
+commit 96a1ad298ad9e6a308c3b05c07e1b3bf53ac9cfe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 29 01:20:38 2022 +0700
+
+    cmd/compile: remove inTypeCheckInl boolean
+    
+    After CL 402974, we do not typecheck an inline body in ImportedBody
+    anymore, thus the inTypeCheckInl check is un-necessary.
+    
+    Change-Id: Ia6154a57db507c3e00b67333f1e3b910a6de7d05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/func.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

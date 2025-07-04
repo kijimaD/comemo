@@ -1,0 +1,17 @@
+commit 67295d6eb0b9ef8d40fcddf052d18ebaa03566e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 22:49:23 2017 -0800
+
+    go/types: collect methods with parenthesized receiver types
+    
+    The existing code simply dropped them on the floor. Don't do that.
+    
+    Fixes #23130.
+    
+    Change-Id: I10f20e41f2c466a76519983253f87af7cf6d5e70
+    Reviewed-on: https://go-review.googlesource.com/83918
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/resolver.go          |  4 ++--
+ src/go/types/testdata/decls2b.src | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

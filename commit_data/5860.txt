@@ -1,0 +1,19 @@
+commit 8286ee4c5b94d5245cae6a369cb3e417b1d622ee
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 21 10:07:22 2010 -0400
+
+            crypto/ocsp: add package to parse OCSP responses.
+    
+            OCSP is the preferred X.509 revocation mechanism. X.509 certificates
+            can contain a URL from which can be fetched a signed response saying
+            "this certificate is valid until $x" (where $x is usually 7 days in the
+            future). These are called OCSP responses and they can also be included
+            in the TLS handshake itself ("OCSP stapling")
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1875043
+
+ src/pkg/crypto/ocsp/ocsp.go      | 203 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/ocsp/ocsp_test.go |  97 +++++++++++++++++++
+ 2 files changed, 300 insertions(+)

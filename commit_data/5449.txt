@@ -1,0 +1,12 @@
+commit 6dbba67214081e2df64c1c0563f483c1ae33100c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 6 09:34:12 2010 -0700
+
+    gc: distinguish array, slice literal in error messages
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1138041
+
+ src/cmd/gc/print.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

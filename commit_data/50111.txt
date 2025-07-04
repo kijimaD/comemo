@@ -1,0 +1,28 @@
+commit e4bed415ead32ece0acb396f025d3338fab5029d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 24 13:47:48 2022 -0700
+
+    go/internal/gcimporter: call Complete on cloned Interfaces too
+    
+    For "type T interface{ M() }", go/types users expect T's underlying
+    interface type to specify T as the receiver parameter type (#49906).
+    The unified importer handles this by cloning the interface to rewrite
+    the receiver parameters before calling SetUnderlying.
+    
+    I missed in CL 425360 that these interfaces would need to have
+    Complete called too.
+    
+    Manually tested to confirm that this actually fixes "go test -race
+    golang.org/x/tools/go/analysis/internal/checker" now (when both CLs
+    are ported to the x/tools importer).
+    
+    Updates #54653.
+    
+    Change-Id: I51e6db925db56947cd39dbe880230f14734ca01c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425365
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/internal/gcimporter/ureader.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

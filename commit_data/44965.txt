@@ -1,0 +1,22 @@
+commit 5cd8a344954cc29be9bce6d67b3f4293ed72aa9f
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 5 20:03:02 2021 -0700
+
+    cmd/compile: fix gcSizes.Sizeof for a zero-sized struct
+    
+    (*gcSizes).Sizeof was requiring the last field of a zero-sized struct to
+    be at least one byte. But that rule (fix for #9401, see logic in
+    calcStructOffset) only applies to a struct that has some non-zero sized
+    fields. Fix (*gcSizes).Sizeof to have the logic like calcStructOffset.
+    
+    Fixes running the gotests with -G=3 enabled.
+    
+    Fixes #45390
+    
+    Change-Id: I011f40e3de3a327392bbbb791b9422be75336313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307549
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/sizes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 96777ea2a756bcb0f31946e4f1bfa375d5505830
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 30 10:18:58 2009 -0800
+
+    clean up server code in tutorial
+    
+    R=rsc
+    DELTA=15  (1 added, 0 deleted, 14 changed)
+    OCL=23889
+    CL=23889
+
+ doc/go_tutorial.txt  |  2 +-
+ doc/progs/run        |  3 ++-
+ doc/progs/server.go  | 18 +++++++++---------
+ doc/progs/server1.go |  6 +++---
+ 4 files changed, 15 insertions(+), 14 deletions(-)

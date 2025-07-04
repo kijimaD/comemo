@@ -1,0 +1,13 @@
+commit 0bf555353836ba55c57829128ddf2d06763f494c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 6 15:08:32 2009 -0700
+
+    fix build
+    
+    R=rsc
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=35387
+    CL=35401
+
+ src/cmd/8l/obj.c | 5 +++++
+ 1 file changed, 5 insertions(+)

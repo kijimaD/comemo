@@ -1,0 +1,121 @@
+commit cb040d59b945437cdca8c8cff525ebbb7261a217
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 23:05:18 2014 -0400
+
+    runtime: use new #include "textflag.h"
+    
+    I did this just to clean things up, but it will be important
+    when we drop the pkg directory later.
+    
+    LGTM=bradfitz
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/132600043
+
+ src/pkg/runtime/asm_386.s               | 2 +-
+ src/pkg/runtime/asm_amd64.s             | 2 +-
+ src/pkg/runtime/asm_amd64p32.s          | 2 +-
+ src/pkg/runtime/asm_arm.s               | 2 +-
+ src/pkg/runtime/atomic_386.c            | 2 +-
+ src/pkg/runtime/atomic_amd64x.c         | 2 +-
+ src/pkg/runtime/heapdump.c              | 2 +-
+ src/pkg/runtime/malloc.c                | 2 +-
+ src/pkg/runtime/mem_darwin.c            | 2 +-
+ src/pkg/runtime/mem_linux.c             | 2 +-
+ src/pkg/runtime/mem_nacl.c              | 2 +-
+ src/pkg/runtime/mem_netbsd.c            | 2 +-
+ src/pkg/runtime/mem_openbsd.c           | 2 +-
+ src/pkg/runtime/mem_plan9.c             | 2 +-
+ src/pkg/runtime/mem_solaris.c           | 2 +-
+ src/pkg/runtime/mem_windows.c           | 2 +-
+ src/pkg/runtime/memclr_386.s            | 2 +-
+ src/pkg/runtime/memclr_amd64.s          | 2 +-
+ src/pkg/runtime/memclr_arm.s            | 2 +-
+ src/pkg/runtime/memclr_plan9_386.s      | 2 +-
+ src/pkg/runtime/memclr_plan9_amd64.s    | 2 +-
+ src/pkg/runtime/memmove_386.s           | 2 +-
+ src/pkg/runtime/memmove_amd64.s         | 2 +-
+ src/pkg/runtime/memmove_arm.s           | 2 +-
+ src/pkg/runtime/memmove_nacl_amd64p32.s | 2 +-
+ src/pkg/runtime/memmove_plan9_386.s     | 2 +-
+ src/pkg/runtime/memmove_plan9_amd64.s   | 2 +-
+ src/pkg/runtime/mgc0.c                  | 2 +-
+ src/pkg/runtime/msize.c                 | 2 +-
+ src/pkg/runtime/os_darwin.c             | 2 +-
+ src/pkg/runtime/os_dragonfly.c          | 2 +-
+ src/pkg/runtime/os_freebsd.c            | 2 +-
+ src/pkg/runtime/os_freebsd_arm.c        | 2 +-
+ src/pkg/runtime/os_linux.c              | 2 +-
+ src/pkg/runtime/os_linux_386.c          | 2 +-
+ src/pkg/runtime/os_linux_arm.c          | 2 +-
+ src/pkg/runtime/os_nacl.c               | 2 +-
+ src/pkg/runtime/os_nacl_arm.c           | 2 +-
+ src/pkg/runtime/os_netbsd.c             | 2 +-
+ src/pkg/runtime/os_netbsd_arm.c         | 2 +-
+ src/pkg/runtime/os_openbsd.c            | 2 +-
+ src/pkg/runtime/os_plan9.c              | 2 +-
+ src/pkg/runtime/os_solaris.c            | 2 +-
+ src/pkg/runtime/os_windows.c            | 2 +-
+ src/pkg/runtime/panic.c                 | 2 +-
+ src/pkg/runtime/proc.c                  | 2 +-
+ src/pkg/runtime/race.c                  | 2 +-
+ src/pkg/runtime/race_amd64.s            | 2 +-
+ src/pkg/runtime/rt0_android_arm.s       | 2 +-
+ src/pkg/runtime/rt0_darwin_386.s        | 2 +-
+ src/pkg/runtime/rt0_darwin_amd64.s      | 2 +-
+ src/pkg/runtime/rt0_dragonfly_386.s     | 2 +-
+ src/pkg/runtime/rt0_dragonfly_amd64.s   | 2 +-
+ src/pkg/runtime/rt0_freebsd_386.s       | 2 +-
+ src/pkg/runtime/rt0_freebsd_amd64.s     | 2 +-
+ src/pkg/runtime/rt0_freebsd_arm.s       | 2 +-
+ src/pkg/runtime/rt0_linux_386.s         | 2 +-
+ src/pkg/runtime/rt0_linux_amd64.s       | 2 +-
+ src/pkg/runtime/rt0_linux_arm.s         | 2 +-
+ src/pkg/runtime/rt0_nacl_386.s          | 2 +-
+ src/pkg/runtime/rt0_nacl_amd64p32.s     | 2 +-
+ src/pkg/runtime/rt0_nacl_arm.s          | 2 +-
+ src/pkg/runtime/rt0_netbsd_386.s        | 2 +-
+ src/pkg/runtime/rt0_netbsd_amd64.s      | 2 +-
+ src/pkg/runtime/rt0_netbsd_arm.s        | 2 +-
+ src/pkg/runtime/rt0_openbsd_386.s       | 2 +-
+ src/pkg/runtime/rt0_openbsd_amd64.s     | 2 +-
+ src/pkg/runtime/rt0_plan9_386.s         | 2 +-
+ src/pkg/runtime/rt0_plan9_amd64.s       | 2 +-
+ src/pkg/runtime/rt0_solaris_amd64.s     | 2 +-
+ src/pkg/runtime/rt0_windows_386.s       | 2 +-
+ src/pkg/runtime/rt0_windows_amd64.s     | 2 +-
+ src/pkg/runtime/runtime.c               | 2 +-
+ src/pkg/runtime/softfloat_arm.c         | 2 +-
+ src/pkg/runtime/stack.c                 | 2 +-
+ src/pkg/runtime/string.c                | 2 +-
+ src/pkg/runtime/stubs.goc               | 2 +-
+ src/pkg/runtime/sys_darwin_386.s        | 2 +-
+ src/pkg/runtime/sys_darwin_amd64.s      | 2 +-
+ src/pkg/runtime/sys_dragonfly_386.s     | 2 +-
+ src/pkg/runtime/sys_dragonfly_amd64.s   | 2 +-
+ src/pkg/runtime/sys_freebsd_386.s       | 2 +-
+ src/pkg/runtime/sys_freebsd_amd64.s     | 2 +-
+ src/pkg/runtime/sys_freebsd_arm.s       | 2 +-
+ src/pkg/runtime/sys_linux_386.s         | 2 +-
+ src/pkg/runtime/sys_linux_amd64.s       | 2 +-
+ src/pkg/runtime/sys_linux_arm.s         | 2 +-
+ src/pkg/runtime/sys_nacl_386.s          | 2 +-
+ src/pkg/runtime/sys_nacl_amd64p32.s     | 2 +-
+ src/pkg/runtime/sys_nacl_arm.s          | 2 +-
+ src/pkg/runtime/sys_netbsd_386.s        | 2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s      | 2 +-
+ src/pkg/runtime/sys_netbsd_arm.s        | 2 +-
+ src/pkg/runtime/sys_openbsd_386.s       | 2 +-
+ src/pkg/runtime/sys_openbsd_amd64.s     | 2 +-
+ src/pkg/runtime/sys_plan9_386.s         | 2 +-
+ src/pkg/runtime/sys_plan9_amd64.s       | 2 +-
+ src/pkg/runtime/sys_solaris_amd64.s     | 2 +-
+ src/pkg/runtime/sys_windows_386.s       | 2 +-
+ src/pkg/runtime/sys_windows_amd64.s     | 2 +-
+ src/pkg/runtime/syscall_solaris.goc     | 2 +-
+ src/pkg/runtime/thunk.s                 | 2 +-
+ src/pkg/runtime/tls_arm.s               | 2 +-
+ src/pkg/runtime/vlop_386.s              | 2 +-
+ src/pkg/runtime/vlop_arm.s              | 2 +-
+ src/pkg/runtime/vlrt.c                  | 2 +-
+ 106 files changed, 106 insertions(+), 106 deletions(-)

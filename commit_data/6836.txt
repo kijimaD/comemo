@@ -1,0 +1,25 @@
+commit ff4e08f60d92862bb086b447ee44d78c618cf7a7
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Mon Dec 6 16:24:51 2010 -0500
+
+    math: improve accuracy of Exp2
+    
+    Note:
+    * Exp2 doesn't have a special case for very small arguments
+    * Exp2 hasn't been subject to a proper error analysis
+    
+    Also:
+    * add tests for Exp2 with integer argument
+    * always test Go versions of Exp and Exp2
+    
+    R=rsc
+    CC=Charlie Dorian, PeterGo, golang-dev
+    https://golang.org/cl/3481041
+
+ src/pkg/math/Makefile    |   1 +
+ src/pkg/math/all_test.go |  37 ++++++++-
+ src/pkg/math/exp.go      | 129 +------------------------------
+ src/pkg/math/exp2.go     |   2 +-
+ src/pkg/math/exp_port.go | 192 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/exp_test.go |  10 +++
+ 6 files changed, 238 insertions(+), 133 deletions(-)

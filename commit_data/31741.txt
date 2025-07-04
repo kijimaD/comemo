@@ -1,0 +1,29 @@
+commit ef0f7fb92b9458d7d35ee3c10ae853e3dc3077eb
+Author: Bulat Gaifullin <gaifullinbf@gmail.com>
+Date:   Tue Jun 6 20:20:06 2017 +0300
+
+    database/sql: Use Tx.ctx in Tx non-context methods
+    
+    The Tx methods Query and Exec uses context.Background()
+    even Tx was created by context.
+    This patch enables using Tx.ctx in all Tx methods
+    which do not has context arg.
+    Backward compatibility:
+    - If Tx has created without context, nothing changes.
+    - If Tx has created with context and non-context method is called:
+      - If context is expired, the execution fails,
+        but it can fail on Commit or Rollback as well,
+        so in terms of whole transaction - nothing changes.
+      - If context is not expired, nothing changes too.
+    
+    Fixes #20098
+    Change-Id: I9570a2deaace5875bb4c5dcf7b3a084a6bcd0d00
+    Reviewed-on: https://go-review.googlesource.com/44956
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 10 +++++-----
+ src/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 5 deletions(-)

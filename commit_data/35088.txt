@@ -1,0 +1,68 @@
+commit 7759b32a6221411e10159ac4b0d8c52356569b0e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 18 22:57:10 2018 -0700
+
+    cmd/compile: replace Field.Nname.Pos with Field.Pos
+    
+    For struct fields and methods, Field.Nname was only used to store
+    position information, which means we're allocating an entire ONAME
+    Node+Name+Param structure just for one field. We can optimize away
+    these ONAME allocations by instead adding a Field.Pos field.
+    
+    Unfortunately, we can't get rid of Field.Nname, because it's needed
+    for function parameters, so Field grows a little bit and now has more
+    redundant information in those cases. However, that was already the
+    case (e.g., Field.Sym and Field.Nname.Sym), and it's still a net win
+    for allocations as demonstrated by the benchmarks below.
+    
+    Additionally, by moving the ONAME allocation for function parameters
+    to funcargs, we can avoid allocating them for function parameters that
+    aren't used in corresponding function bodies (e.g., interface methods,
+    function-typed variables, and imported functions/methods without
+    inline bodies).
+    
+    name       old time/op       new time/op       delta
+    Template         254ms ± 6%        251ms ± 6%  -1.04%  (p=0.000 n=487+488)
+    Unicode          128ms ± 7%        128ms ± 7%    ~     (p=0.294 n=482+467)
+    GoTypes          862ms ± 5%        860ms ± 4%    ~     (p=0.075 n=488+471)
+    Compiler         3.91s ± 4%        3.90s ± 4%  -0.39%  (p=0.000 n=468+473)
+    
+    name       old user-time/op  new user-time/op  delta
+    Template         339ms ±14%        336ms ±14%  -1.02%  (p=0.001 n=498+494)
+    Unicode          176ms ±18%        176ms ±25%    ~     (p=0.940 n=491+499)
+    GoTypes          1.13s ± 8%        1.13s ± 9%    ~     (p=0.157 n=496+493)
+    Compiler         5.24s ± 6%        5.21s ± 6%  -0.57%  (p=0.000 n=485+489)
+    
+    name       old alloc/op      new alloc/op      delta
+    Template        38.3MB ± 0%       37.3MB ± 0%  -2.58%  (p=0.000 n=499+497)
+    Unicode         29.1MB ± 0%       29.1MB ± 0%  -0.03%  (p=0.000 n=500+493)
+    GoTypes          116MB ± 0%        115MB ± 0%  -0.65%  (p=0.000 n=498+499)
+    Compiler         492MB ± 0%        487MB ± 0%  -1.00%  (p=0.000 n=497+498)
+    
+    name       old allocs/op     new allocs/op     delta
+    Template          364k ± 0%         360k ± 0%  -1.15%  (p=0.000 n=499+499)
+    Unicode           336k ± 0%         336k ± 0%  -0.01%  (p=0.000 n=500+493)
+    GoTypes          1.16M ± 0%        1.16M ± 0%  -0.30%  (p=0.000 n=499+499)
+    Compiler         4.54M ± 0%        4.51M ± 0%  -0.58%  (p=0.000 n=494+495)
+    
+    Passes toolstash-check -gcflags=-dwarf=false. Changes DWARF output
+    because position information is now tracked more precisely for
+    function parameters.
+    
+    Change-Id: Ib8077d70d564cc448c5e4290baceab3a4396d712
+    Reviewed-on: https://go-review.googlesource.com/108217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go   |  16 +--
+ src/cmd/compile/internal/gc/bexport.go |  44 +++---
+ src/cmd/compile/internal/gc/bimport.go |  11 +-
+ src/cmd/compile/internal/gc/dcl.go     | 238 ++++++++++++++-------------------
+ src/cmd/compile/internal/gc/fmt.go     |  24 +---
+ src/cmd/compile/internal/gc/inl.go     |  15 +--
+ src/cmd/compile/internal/gc/noder.go   |  22 +--
+ src/cmd/compile/internal/gc/reflect.go |   9 +-
+ src/cmd/compile/internal/gc/subr.go    |  14 +-
+ src/cmd/compile/internal/types/type.go |  12 +-
+ 10 files changed, 171 insertions(+), 234 deletions(-)

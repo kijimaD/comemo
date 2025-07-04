@@ -1,0 +1,26 @@
+commit 8e24283a28f9b739cdbd990994c9c98e3855f7ed
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 13 13:29:23 2015 -0400
+
+    runtime: track background scan work credit
+    
+    This tracks scan work done by background GC in a global pool. Mutator
+    assists will draw on this credit to avoid doing work when background
+    GC is staying ahead.
+    
+    Unlike the other GC controller tracking variables, this will be both
+    written and read throughout the cycle. Hence, we can't arbitrarily
+    delay updates like we can for scan work and bytes marked. However, we
+    still want to minimize contention, so this global credit pool is
+    allowed some error from the "true" amount of credit. Background GC
+    accumulates credit locally up to a limit and only then flushes to the
+    global pool. Similarly, mutator assists will draw from the credit pool
+    in batches.
+    
+    Change-Id: I1aa4fc604b63bf53d1ee2a967694dffdfc3e255e
+    Reviewed-on: https://go-review.googlesource.com/8834
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 21 ++++++++++++++++++---
+ src/runtime/mgcmark.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 4 deletions(-)

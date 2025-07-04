@@ -1,0 +1,30 @@
+commit 04098d88fa1b4d41557ac6824a528d092d562936
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 16:46:46 2012 -0500
+
+    cmd/gc: make forward declaration in pure Go package an error
+    
+    An error during the compilation can be more precise
+    than an error at link time.
+    
+    For 'func init', the error happens always: you can't forward
+    declare an init func because the name gets mangled.
+    
+    For other funcs, the error happens only with the special
+    (and never used by hand) -= flag, which tells 6g the
+    package is pure go.
+    
+    The go command now passes -= for pure Go packages.
+    
+    Fixes #3705.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6996054
+
+ doc/progs/error.go  |  6 +++++-
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/lex.c    |  5 +++--
+ src/cmd/gc/pgen.c   | 11 +++++++----
+ src/cmd/go/build.go | 17 +++++++++++++++++
+ 5 files changed, 33 insertions(+), 7 deletions(-)

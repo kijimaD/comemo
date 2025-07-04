@@ -1,0 +1,21 @@
+commit 3a41bfac9bfddc3663d81b8296dbe8904baef44e
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Thu Dec 7 13:13:25 2023 -0800
+
+    net/http/httptest: add NewRequestWithContext
+    
+    This matches the net/http API.
+    
+    Updates #59473.
+    
+    Change-Id: I99917cef3ed42a0b4a2b39230b492be00da8bbfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/59473.txt                                 |  1 +
+ .../6-stdlib/99-minor/net/http/httptest/59473.md   |  2 ++
+ src/net/http/httptest/httptest.go                  | 11 ++++++++--
+ src/net/http/httptest/httptest_test.go             | 24 +++++++++++++++++++++-
+ 4 files changed, 35 insertions(+), 3 deletions(-)

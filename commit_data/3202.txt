@@ -1,0 +1,13 @@
+commit d3ffc5e683ffbb86bff2efd5ee4dd4771abf6304
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 3 10:35:09 2009 -0700
+
+    silence hlint
+    
+    R=r
+    DELTA=7  (0 added, 4 deleted, 3 changed)
+    OCL=34310
+    CL=34312
+
+ doc/go_spec.html | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

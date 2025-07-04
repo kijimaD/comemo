@@ -1,0 +1,18 @@
+commit 38c766ee0fe22bfcc81e569fccfe9aef2682f63c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 8 13:54:56 2024 -0700
+
+    types2: move RangeKeyVal func into compilersupport.go
+    
+    This function only exists in types2.
+    
+    Change-Id: If0a8b6aaf496142cefdf088bd5656536f4ed101c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604276
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/compilersupport.go | 8 ++++++++
+ src/cmd/compile/internal/types2/stmt.go            | 7 -------
+ 2 files changed, 8 insertions(+), 7 deletions(-)

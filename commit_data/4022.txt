@@ -1,0 +1,11 @@
+commit 6c2ae1a6250187fe6460cad9fb21b774e9aca4bb
+Author: Kevin Ballard <kevin@sb.org>
+Date:   Thu Nov 12 18:40:42 2009 -0800
+
+    Teach emacs M-x gofmt to save region/restrictions
+    
+    R=agl, agl1
+    https://golang.org/cl/152078
+
+ misc/emacs/go-mode.el | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

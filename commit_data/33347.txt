@@ -1,0 +1,36 @@
+commit 371a5b494a7a0cb246a86e849b66ed022ef30c74
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 17:37:13 2017 +0200
+
+    runtime: protect growslice against newcap*et.size overflow
+    
+    The check of uintptr(newcap) > maxSliceCap(et.size) in addition
+    to capmem > _MaxMem is needed to prevent a reproducible overflow
+    on 32bit architectures.
+    
+    On 64bit platforms this problem is less likely to occur as allocation
+    of a sufficiently large array or slice to be append is likely to
+    already exhaust available memory before the call to append can be made.
+    
+    Example program that without the fix in this CL does segfault on 386:
+    
+    type T [1<<27 + 1]int64
+    
+    var d T
+    var s []T
+    
+    func main() {
+            s = append(s, d, d, d, d)
+            print(len(s), "\n")
+    }
+    
+    Fixes #21586
+    
+    Change-Id: Ib4185435826ef43df71ba0f789e19f5bf9a347e6
+    Reviewed-on: https://go-review.googlesource.com/55133
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

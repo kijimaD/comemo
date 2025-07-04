@@ -1,0 +1,17 @@
+commit 05b1dbd0a6994f6ba9ab3505fce1abff93606d9e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 16 14:11:07 2011 -0500
+
+    sync: add Cond
+    
+    R=rsc, rog, r
+    CC=golang-dev
+    https://golang.org/cl/3775048
+
+ src/pkg/sync/Makefile        |  1 +
+ src/pkg/sync/cond.go         | 89 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/cond_test.go    | 99 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/mutex.go        |  6 +++
+ src/pkg/sync/rwmutex.go      | 11 +++++
+ src/pkg/sync/rwmutex_test.go | 35 ++++++++++++++++
+ 6 files changed, 241 insertions(+)

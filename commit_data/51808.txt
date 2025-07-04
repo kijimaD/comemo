@@ -1,0 +1,19 @@
+commit b15297fcd2921d26b11aedf915164b3b9b40b9aa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 27 16:03:27 2023 -0500
+
+    cmd/dist: remove dead code for META_BUILDLET_HOST_TYPE
+    
+    This environment variable appears to never be used; according to
+    https://cs.opensource.google/search?q=META_BUILDLET_HOST_TYPE&ss=go&ssfr=1
+    this is the only reference to it in the whole Go project.
+    
+    Change-Id: I6426a1d9e16441358c0e88daf4358112e659b2a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463741
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

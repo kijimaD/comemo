@@ -1,0 +1,15 @@
+commit 4e5593ddaafb95fd1d1092c7b28cae71e10d5f2f
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Tue Apr 25 16:43:57 2017 +0100
+
+    cmd/internal/obj/x86: port the doasm comment to go
+    
+    This comment is very useful but still refers to the C implementation.
+    Adapting it for Go is fairly straightforward though.
+    
+    Change-Id: Ib6dde25f3a18acbce76bb3cffdc29f5ccf43c1f7
+    Reviewed-on: https://go-review.googlesource.com/41696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 40 +++++++++++++++++++---------------------
+ 1 file changed, 19 insertions(+), 21 deletions(-)

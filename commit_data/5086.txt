@@ -1,0 +1,12 @@
+commit 791a26734f2f4d9dcfb7a19be9482347bf34bdf6
+Author: James Toy <nil@opensesame.st>
+Date:   Fri Mar 19 16:17:18 2010 -0700
+
+    doc/htmlgen.go: remove unnecessary semicolons
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/589043
+
+ doc/htmlgen.go | 144 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 72 insertions(+), 72 deletions(-)

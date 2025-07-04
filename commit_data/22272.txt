@@ -1,0 +1,21 @@
+commit 01d005c616760d264282dd689c979652af0133ce
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 25 09:17:09 2015 +1100
+
+    cmd/8g, cmd/internal/gc: clean up GO386 handling
+    
+    This change cleans up some of the uglyness introduced in 8fc73a39efe1
+    by moving the gc.Use_sse into the gc.Arch struct and adjusting its
+    zero value to be more useful.
+    
+    Change-Id: I26ff5d9ac57b3f25e936519e443de6583cdafa56
+    Reviewed-on: https://go-review.googlesource.com/7994
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/8g/galign.go         |  1 +
+ src/cmd/8g/ggen.go           |  8 ++++----
+ src/cmd/8g/gsubr.go          |  8 ++++----
+ src/cmd/internal/gc/go.go    |  3 +--
+ src/cmd/internal/gc/gsubr.go |  2 +-
+ src/cmd/internal/gc/lex.go   | 11 -----------
+ 6 files changed, 11 insertions(+), 22 deletions(-)

@@ -1,0 +1,38 @@
+commit 833ed7c4315d58f26875f512b5b5ef3b042ce7ed
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 09:36:00 2016 -0700
+
+    cmd/compile: reorganize SSA register numbering
+    
+    Teach SSA about the cmd/internal/obj/$ARCH register numbering.
+    It can then return that numbering when requested.  Each architecture
+    now does not need to know anything about the internal SSA numbering
+    of registers.
+    
+    Change-Id: I34472a2736227c15482e60994eebcdd2723fa52d
+    Reviewed-on: https://go-review.googlesource.com/29249
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/amd64/galign.go  |   1 -
+ src/cmd/compile/internal/amd64/ssa.go     | 240 +++++-------
+ src/cmd/compile/internal/arm/galign.go    |   1 -
+ src/cmd/compile/internal/arm/ssa.go       | 249 +++++-------
+ src/cmd/compile/internal/arm64/galign.go  |   1 -
+ src/cmd/compile/internal/arm64/ssa.go     | 190 +++-------
+ src/cmd/compile/internal/gc/go.go         |   3 -
+ src/cmd/compile/internal/gc/ssa.go        |  42 ---
+ src/cmd/compile/internal/mips64/galign.go |   1 -
+ src/cmd/compile/internal/mips64/ssa.go    | 163 +++-----
+ src/cmd/compile/internal/ppc64/galign.go  |   1 -
+ src/cmd/compile/internal/ppc64/ssa.go     | 208 +++-------
+ src/cmd/compile/internal/s390x/galign.go  |   1 -
+ src/cmd/compile/internal/s390x/ssa.go     | 192 ++++------
+ src/cmd/compile/internal/ssa/gen/main.go  |  15 +-
+ src/cmd/compile/internal/ssa/location.go  |   5 +-
+ src/cmd/compile/internal/ssa/opGen.go     | 608 +++++++++++++++---------------
+ src/cmd/compile/internal/ssa/regalloc.go  |  26 +-
+ src/cmd/compile/internal/ssa/value.go     |  35 ++
+ src/cmd/compile/internal/x86/387.go       |  36 +-
+ src/cmd/compile/internal/x86/galign.go    |   1 -
+ src/cmd/compile/internal/x86/ssa.go       | 194 +++++-----
+ 22 files changed, 913 insertions(+), 1300 deletions(-)

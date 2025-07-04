@@ -1,0 +1,16 @@
+commit 3a60629a6d1aaf2962bd118994246463412ffbff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 27 17:04:47 2018 -0800
+
+    net: use .invalid for an invalid domain name
+    
+    Fixes #25370
+    
+    Change-Id: I12da0cc17f433ca12c85fb986d65ac9ecb2c3f20
+    Reviewed-on: https://go-review.googlesource.com/c/151359
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

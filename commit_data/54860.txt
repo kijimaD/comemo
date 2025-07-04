@@ -1,0 +1,22 @@
+commit 2ffe600dfafcae748e98c9676283c7e0e1bbc667
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Oct 1 16:03:01 2023 -0400
+
+    cmd/go/internal/modfetch: avoid path.Join in URL errors, part 2
+    
+    CL 406675 added more detail to bare errors from net/http in two places.
+    CL 461682 improved one of the two places to stop folding "//" into "/".
+    This CL applies the same change to the other place.
+    
+    For #52727.
+    
+    Change-Id: I3fc13f30cf0f054949ce78269c52b7fafd477e70
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modfetch/proxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

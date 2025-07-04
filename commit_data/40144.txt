@@ -1,0 +1,15 @@
+commit 9a926911fea73017a25d6d38035946c59cf1b047
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 1 11:10:22 2019 -0400
+
+    cmd/compile: attempt to preserve statements when prove removes code
+    
+    This was a cause of some statements being lost.
+    
+    Change-Id: I81c95dcf3df6ed8a03b7578a27f9b21d33b3cf39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198484
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f34964ed344d67d9370bb96060b9c1406d344fc2
+Author: Michalis Kargakis <michaliskargakis@gmail.com>
+Date:   Fri Dec 19 17:53:21 2014 +0100
+
+    flag: Some idiomatic fixes
+    
+    Make golint a bit happier
+    
+    Change-Id: I8a14342f3e492e92bf5efa611f9ef91176624031
+    Reviewed-on: https://go-review.googlesource.com/1891
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/flag/flag.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

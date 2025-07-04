@@ -1,0 +1,18 @@
+commit c557836c8e430b429f188c233c2d9ead49daf961
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 30 14:23:53 2008 -0700
+
+    - mark syscall support routines as non-stack-generating
+    - add unlink, creat
+    - add constants for open
+    - fix some comments
+    
+    R=gri
+    OCL=13654
+    CL=13656
+
+ src/syscall/file_amd64_darwin.go   | 53 +++++++++++++++++++++++++++++++++-----
+ src/syscall/file_amd64_linux.go    | 53 +++++++++++++++++++++++++++++++++-----
+ src/syscall/syscall_amd64_darwin.s |  7 ++---
+ src/syscall/syscall_amd64_linux.s  |  9 ++++---
+ 4 files changed, 102 insertions(+), 20 deletions(-)

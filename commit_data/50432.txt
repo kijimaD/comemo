@@ -1,0 +1,18 @@
+commit d75e91740a2048bba4c70e878a4cd3551e7b2273
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 7 14:07:12 2022 +0200
+
+    os: use unsafe.{Slice,StringData} instead of unsafeheader package
+    
+    Change-Id: I213b078effa4b7049c44498d651de5b938e5404b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428779
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

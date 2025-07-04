@@ -1,0 +1,28 @@
+commit 177a36a5dc29854489825e8113ecb2cbb7070690
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 12 21:23:29 2019 -0400
+
+    runtime: implement async scheduler preemption
+    
+    This adds signal-based preemption to preemptone.
+    
+    Since STW and forEachP ultimately use preemptone, this also makes
+    these work with async preemption.
+    
+    This also makes freezetheworld more robust so tracebacks from fatal
+    panics should be far less likely to report "goroutine running on other
+    thread; stack unavailable".
+    
+    For #10958, #24543. (This doesn't fix it yet because asynchronous
+    preemption only works on POSIX platforms on 386 and amd64 right now.)
+    
+    Change-Id: If776181dd5a9b3026a7b89a1b5266521b95a5f61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201762
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/preempt.go  |  9 +++++++--
+ src/runtime/proc.go     | 11 ++++++++++-
+ src/runtime/runtime2.go |  4 ++++
+ 3 files changed, 21 insertions(+), 3 deletions(-)

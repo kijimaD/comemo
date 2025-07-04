@@ -1,0 +1,18 @@
+commit 6f77cd291419dcd70faf611ecc82dc50cc294552
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 11:32:28 2012 -0800
+
+    strconv: fix round up corner case
+    
+    Comment described the correct condition
+    but the code did not implement it.
+    
+    Fixes #2625.
+    
+    R=remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5530082
+
+ src/pkg/strconv/ftoa.go      | 2 +-
+ src/pkg/strconv/ftoa_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

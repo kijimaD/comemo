@@ -1,0 +1,19 @@
+commit 424f9ca6abc5eff29d4bb2cca3321b14485120b8
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jan 27 15:37:46 2010 -0800
+
+    change print print buffer size
+    to go with the full path names
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/195079
+
+ src/cmd/5g/list.c | 6 +++---
+ src/cmd/6c/list.c | 6 +++---
+ src/cmd/6g/list.c | 4 ++--
+ src/cmd/6l/list.c | 6 +++---
+ src/cmd/8c/list.c | 6 +++---
+ src/cmd/8g/list.c | 4 ++--
+ src/cmd/8l/list.c | 6 +++---
+ 7 files changed, 19 insertions(+), 19 deletions(-)

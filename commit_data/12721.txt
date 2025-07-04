@@ -1,0 +1,12 @@
+commit 209b2e55f70169c517e682532e48e49d6a86d1bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 22 11:40:12 2012 -0700
+
+    cmd/gc: fix comment typo, assignment spacing
+    
+    R=bradfitz, gri, lvd
+    CC=golang-dev
+    https://golang.org/cl/5874053
+
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

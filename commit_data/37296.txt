@@ -1,0 +1,18 @@
+commit 60cf9ac7369ee4e7b12f3272132378cfc78b811d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 15:42:15 2018 -0700
+
+    cmd/go: add cmpenv command to testing script language
+    
+    This will be used by later commits in this sequence.
+    
+    Updates #28221
+    
+    Change-Id: I2b22b9f88a0183636cde9509606f03f079eb33f1
+    Reviewed-on: https://go-review.googlesource.com/c/147277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go         | 20 ++++++++++++++++++++
+ src/cmd/go/testdata/script/README |  4 ++++
+ 2 files changed, 24 insertions(+)

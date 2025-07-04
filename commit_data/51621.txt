@@ -1,0 +1,23 @@
+commit 6cb8c43b842daffe628e8ee7a94ea3b1ba17299d
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 13 16:46:49 2023 -0500
+
+    cmd/go: include coverage build flags for "go list"
+    
+    This patch ensures that the go command's "list" subcommand accepts
+    coverage-related build options, which were incorrectly left out when
+    "go build -cover" was rolled out. This is needed in order to do things
+    like check the staleness of an installed cover-instrumented target.
+    
+    Fixes #57785.
+    
+    Change-Id: I140732ff1e6b83cd9c453701bb8199b333fc0f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462116
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/list/list.go          |  3 +++
+ src/cmd/go/testdata/script/cover_list.txt | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

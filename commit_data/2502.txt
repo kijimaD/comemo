@@ -1,0 +1,15 @@
+commit 28ba9777e6ffdaa50c58c5fbca72f383b212b46c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 15:20:30 2009 -0700
+
+    rename Formatter to State and Format to Formatter, for nomenclatural consistency
+    
+    R=rsc
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=30658
+    CL=30658
+
+ src/pkg/bignum/bignum.go |  6 +++---
+ src/pkg/fmt/fmt_test.go  |  2 +-
+ src/pkg/fmt/print.go     | 10 +++++-----
+ 3 files changed, 9 insertions(+), 9 deletions(-)

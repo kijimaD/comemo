@@ -1,0 +1,19 @@
+commit 42206598671a44111c8f726ad33dc7b265bdf669
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:14:05 2016 -0500
+
+    cmd/go: do not force use of git master branch (again)
+    
+    This time with a test.
+    Also adjust another test to skip when hg is not present,
+    and delete no longer needed fixDetachedHead code.
+    
+    Fixes #9032 (again).
+    
+    Change-Id: I481717409e1d44b524f83c70a8dc377699d1a2a5
+    Reviewed-on: https://go-review.googlesource.com/18334
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/go/vcs.go     | 30 ++----------------------------
+ 2 files changed, 33 insertions(+), 29 deletions(-)

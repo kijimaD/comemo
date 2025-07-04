@@ -1,0 +1,16 @@
+commit 0941fc3f9ff43598d25fa6e964e7829a268102bf
+Author: cui <cuiweixie@gmail.com>
+Date:   Wed Aug 12 17:33:41 2020 +0000
+
+    runtime: reduce syscall when call runtime.clone
+    
+    Change-Id: I3ea398fd86aae4c86557dd6fff65d90a6f756890
+    GitHub-Last-Rev: 4c295388f7b5e6768ffd2530337f78b4c75a9310
+    GitHub-Pull-Request: golang/go#40392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244626
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_amd64.s | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

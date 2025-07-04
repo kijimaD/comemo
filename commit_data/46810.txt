@@ -1,0 +1,25 @@
+commit 1ceb72394e250d5776726bba63c34cd2be5745d1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Oct 7 16:33:43 2021 -0400
+
+    cmd/link: mark holes in functab with end PC-1
+    
+    When we have multiple text sections, we need to mark holes between
+    the sections in the functab. A hole is marked with an entry with
+    the end PC of the previous section. As we now use offsets instead
+    of (relocated) PCs, the end offset of a section may be the same of
+    the start of the next one. Distinguish it by using the end address
+    -1.
+    
+    For #48837.
+    
+    Change-Id: I121aac53b32a869378632cf151cb1b6f98ad3089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354636
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/link/internal/ld/pcln.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,10 @@
+commit 820f223af94eee100877b362aa0a7f8cd5f25841
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 21 15:41:39 2008 -0700
+
+    compiler crash in string('a', 'b', '\n');
+    
+    SVN=128253
+
+ test/bugs/bug074.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,16 @@
+commit 0e13dbc1a91cbe00e3c83a55f56db69380fe8f68
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 30 16:42:38 2016 -0700
+
+    cmd/compile: disallow multiple nil cases in a type switch
+    
+    Fixes #15898.
+    
+    Change-Id: I66e2ad21f283563c7142aa820f0354711d964768
+    Reviewed-on: https://go-review.googlesource.com/23573
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go |  8 +++++++-
+ test/fixedbugs/issue15898.go       | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

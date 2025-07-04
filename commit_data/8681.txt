@@ -1,0 +1,12 @@
+commit d44c4c351d9c3779b407e819fb1d06755492c9ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 10 13:50:19 2011 +1000
+
+    sync/atomic: fix arm check64 bug
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4571059
+
+ src/pkg/sync/atomic/asm_arm.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

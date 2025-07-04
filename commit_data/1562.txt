@@ -1,0 +1,19 @@
+commit 4efad58d0a0a6d96d83ccfa39e27308c85be96a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 16:57:24 2009 -0800
+
+    bug133
+    
+    R=ken
+    OCL=23528
+    CL=23528
+
+ src/cmd/gc/dcl.c                            |  2 +-
+ src/cmd/gc/go.h                             |  1 +
+ src/cmd/gc/go.y                             | 20 ++++++++++++++------
+ test/{bugs => fixedbugs}/bug133.dir/bug0.go |  0
+ test/{bugs => fixedbugs}/bug133.dir/bug1.go |  0
+ test/{bugs => fixedbugs}/bug133.dir/bug2.go |  0
+ test/{bugs => fixedbugs}/bug133.go          |  0
+ test/golden.out                             |  8 +++++---
+ 8 files changed, 21 insertions(+), 10 deletions(-)

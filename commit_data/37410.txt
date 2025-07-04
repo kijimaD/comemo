@@ -1,0 +1,18 @@
+commit b00a6d8bfe749f90043ced2d7efb1f0b8f387ba3
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 27 11:50:46 2018 -0400
+
+    runtime: eliminate mheap.busy* lists
+    
+    The old whole-page reclaimer was the only thing that used the busy
+    span lists. Remove them so nothing uses them any more.
+    
+    Change-Id: I4007dd2be08b9ef41bfdb0c387215c73c392cc4c
+    Reviewed-on: https://go-review.googlesource.com/c/138960
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

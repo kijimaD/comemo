@@ -1,0 +1,41 @@
+commit 062e0e5ce6df339dc26732438ad771f73dbf2292
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 6 09:38:38 2020 -0800
+
+    cmd/go, cmd/cgo: don't let bogus symbol set cgo_ldflag
+    
+    A hand-edited object file can have a symbol name that uses newline and
+    other normally invalid characters. The cgo tool will generate Go files
+    containing symbol names, unquoted. That can permit those symbol names
+    to inject Go code into a cgo-generated file. If that Go code uses the
+    //go:cgo_ldflag pragma, it can cause the C linker to run arbitrary
+    code when building a package. If you build an imported package we
+    permit arbitrary code at run time, but we don't want to permit it at
+    package build time. This CL prevents this in two ways.
+    
+    In cgo, reject invalid symbols that contain non-printable or space
+    characters, or that contain anything that looks like a Go comment.
+    
+    In the go tool, double check all //go:cgo_ldflag directives in
+    generated code, to make sure they follow the existing LDFLAG restrictions.
+    
+    Thanks to Imre Rad / https://www.linkedin.com/in/imre-rad-2358749b for
+    reporting this.
+    
+    Fixes CVE-2020-28367
+    
+    Change-Id: Ia1ad8f3791ea79612690fa7d26ac451d0f6df7c1
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/895832
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269658
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ misc/cgo/errors/badsym_test.go   | 216 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go               |  23 +++++
+ src/cmd/go/internal/work/exec.go |  60 +++++++++++
+ 3 files changed, 299 insertions(+)

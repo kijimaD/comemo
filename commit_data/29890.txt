@@ -1,0 +1,17 @@
+commit 155d314e50fb771e3106c6a890bb45887df22331
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 27 16:26:41 2016 +0100
+
+    runtime: fix SP alignment in mips{,le} sigfwd
+    
+    Fixes misc/cgo/testsigfwd, enabled for mips{,le} with the next commit
+    (https://golang.org/cl/34646).
+    
+    Change-Id: I2bec894b0492fd4d84dd73a4faa19eafca760107
+    Reviewed-on: https://go-review.googlesource.com/34645
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_mipsx.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,38 @@
+commit 204cc14bddf6bdd553fd6139e395b1e203ce1d48
+Author: erifan01 <eric.fang@arm.com>
+Date:   Sat Jun 30 06:48:51 2018 +0000
+
+    cmd/compile: implement non-constant rotates using ROR on arm64
+    
+    Add some rules to match the Go code like:
+            y &= 63
+            x << y | x >> (64-y)
+    or
+            y &= 63
+            x >> y | x << (64-y)
+    as a ROR instruction. Make math/bits.RotateLeft faster on arm64.
+    
+    Extends CL 132435 to arm64.
+    
+    Benchmarks of math/bits.RotateLeftxxN:
+    name            old time/op       new time/op       delta
+    RotateLeft-8    3.548750ns +- 1%  2.003750ns +- 0%  -43.54%  (p=0.000 n=8+8)
+    RotateLeft8-8   3.925000ns +- 0%  3.925000ns +- 0%     ~     (p=1.000 n=8+8)
+    RotateLeft16-8  3.925000ns +- 0%  3.927500ns +- 0%     ~     (p=0.608 n=8+8)
+    RotateLeft32-8  3.925000ns +- 0%  2.002500ns +- 0%  -48.98%  (p=0.000 n=8+8)
+    RotateLeft64-8  3.536250ns +- 0%  2.003750ns +- 0%  -43.34%  (p=0.000 n=8+8)
+    
+    Change-Id: I77622cd7f39b917427e060647321f5513973232c
+    Reviewed-on: https://go-review.googlesource.com/122542
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        |     4 +-
+ src/cmd/compile/internal/gc/ssa.go           |     4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |    40 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |     2 +
+ src/cmd/compile/internal/ssa/opGen.go        |    30 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 31374 ++++++++++++++-----------
+ test/codegen/mathbits.go                     |     3 +
+ 7 files changed, 17186 insertions(+), 14271 deletions(-)

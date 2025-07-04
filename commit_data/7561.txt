@@ -1,0 +1,14 @@
+commit 4185a9e2b28f7ae29743f702d3b35fbc7edaebc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 24 14:36:18 2011 -0500
+
+    http: remove debugging log statement
+    
+    Issue 1547 is fixed.
+    
+    R=bradfitzgo, r
+    CC=golang-dev
+    https://golang.org/cl/4209045
+
+ src/pkg/http/transport.go | 3 ---
+ 1 file changed, 3 deletions(-)

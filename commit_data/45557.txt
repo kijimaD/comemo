@@ -1,0 +1,16 @@
+commit 543e0983204d401c012ed4693f0e69956d357886
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed May 5 15:01:37 2021 -0400
+
+    go/types: fix potential bugs in santitizer pass
+    
+    This is a port of CL 317329 to go/types.
+    
+    Change-Id: I1ba65284c91044f0ceed536da4149ef25e1f9502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317291
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/sanitize.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

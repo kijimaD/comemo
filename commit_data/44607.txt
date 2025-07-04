@@ -1,0 +1,34 @@
+commit 0fc370c5d26353a865a29a01f093942c949d530a
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Thu Feb 25 01:03:35 2021 +0100
+
+    docs: clarify when APIs use context.Background.
+    
+    The Go standard library retrofitted context support onto existing APIs
+    using context.Background and later offered variants that directly
+    supported user-defined context value specification. This commit makes
+    that behavior clear in documentation and suggests context-aware
+    alternatives if the user is looking for one.
+    
+    An example motivation is supporting code for use in systems that expect
+    APIs to be cancelable for lifecycle correctness or load
+    shedding/management reasons, as alluded to in
+    https://blog.golang.org/context-and-structs.
+    
+    Updates #44143
+    
+    Change-Id: I2d7f954ddf9b48264d5ebc8d0007058ff9bddf14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Trust: Jean de Klerk <deklerk@google.com>
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/tls/tls.go        |  6 ++++++
+ src/database/sql/sql.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dial.go              |  9 +++++++++
+ src/net/http/request.go      |  2 +-
+ src/net/http/socks_bundle.go |  2 ++
+ src/net/lookup.go            | 21 +++++++++++++++++++++
+ 6 files changed, 81 insertions(+), 1 deletion(-)

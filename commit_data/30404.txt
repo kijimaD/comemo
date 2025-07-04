@@ -1,0 +1,19 @@
+commit 4b2248527ffec97ab0706470e5654bd1aacaa6ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 26 22:27:13 2017 +0000
+
+    os: skip atime-going-backwards test on NetBSD for now
+    
+    That failing test is preventing other tests from running.
+    Let's see what else is broken.
+    
+    Updates #19293
+    
+    Change-Id: I4c5784be94103ef882f29dec9db08d76a48aff28
+    Reviewed-on: https://go-review.googlesource.com/37492
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ src/os/os_test.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

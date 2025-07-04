@@ -1,0 +1,16 @@
+commit c345f7ff955079c241c2f6ee730351ec627606f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 20 13:34:22 2015 -0400
+
+    cmd/go: make test.bash pass again
+    
+    Fixes #8809.
+    
+    Change-Id: Id443fd406e9c611d5dfabc71a98eb71d1cc0972c
+    Reviewed-on: https://go-review.googlesource.com/9150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/test.bash             | 63 +++++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/pobj.go |  4 +--
+ src/go/build/build.go            |  8 +++--
+ 3 files changed, 44 insertions(+), 31 deletions(-)

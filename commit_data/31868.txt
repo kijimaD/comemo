@@ -1,0 +1,22 @@
+commit be855e3f28507dd3e34eb4699c84493eeaae68db
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 19 22:59:56 2017 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 3d7ac2a5d for:
+    
+        http2: fix Server race
+        https://golang.org/cl/20704
+    
+    Fixes #20704
+    
+    Change-Id: I803288f94a8a462ad0960b0c29c2dfee27b9f1ae
+    Reviewed-on: https://go-review.googlesource.com/46093
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

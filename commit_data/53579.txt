@@ -1,0 +1,19 @@
+commit 23c5e48c4af55da0765413ef4c56360927f0961c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jun 14 15:20:11 2023 -0500
+
+    cmd/cgo/internal/testshared: strip newline from gccgo -dumpversion
+    
+    Otherwise, gccgo tests may be quietly skipped.
+    
+    For #60798
+    
+    Change-Id: Iaad6b53c95ad4d407b917d8f62978979b82a4e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503495
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/internal/testshared/shared_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

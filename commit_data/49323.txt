@@ -1,0 +1,20 @@
+commit ccf84a97501b1cc894536162479279df1e165fc5
+Author: David Chase <drchase@google.com>
+Date:   Mon May 16 17:50:31 2022 -0400
+
+    cmd/compile: catch pointless recursion on function types
+    
+    If a function type has no type parameters, note when it
+    is visited and do not recur.  (It must be visited
+    at least once because of closures and their associated
+    types occurring in a generic context).
+    
+    Fixes #51832.
+    
+    Change-Id: Iee20612ffd0a03b838b9e59615f4a0206fc8940b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406714
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 23 ++++++++++++++++++++---
+ test/typeparam/issue51832.go               | 25 +++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 3 deletions(-)

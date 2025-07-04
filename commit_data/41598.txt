@@ -1,0 +1,33 @@
+commit 2b8e60d464515634462ca472ca09c791e2cbf6ae
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 6 14:01:26 2020 -0800
+
+    runtime: make typehash match compiler generated hashes exactly
+    
+    If typehash (used by reflect) does not match the built-in map's hash,
+    then problems occur. If a map is built using reflect, and then
+    assigned to a variable of map type, the hash function can change. That
+    causes very bad things.
+    
+    This issue is rare. MapOf consults a cache of all types that occur in
+    the binary before making a new one. To make a true new map type (with
+    a hash function derived from typehash) that map type must not occur in
+    the binary anywhere. But to cause the bug, we need a variable of that
+    type in order to assign to it. The only way to make that work is to
+    use a named map type for the variable, so it is distinct from the
+    unnamed version that MapOf looks for.
+    
+    Fixes #37716
+    
+    Change-Id: I3537bfceca8cbfa1af84202f432f3c06953fe0ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222357
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/alg.go |  1 +
+ src/runtime/alg.go                 | 22 +++++++++++++++--
+ src/runtime/export_test.go         | 25 +++++++++++++++++++
+ src/runtime/hash_test.go           | 49 ++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue37716.go       | 32 +++++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 983906fa6db6df56e3912ba5c6be8fada00b232b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 3 16:12:01 2022 -0700
+
+    cmd/compile/internal/ir: remove FuncType and OTFUNC
+    
+    No longer needed. We now always directly construct TFUNC types when
+    needed.
+    
+    Change-Id: I1bb286c08539cbf97e331824f0f5464b5fd9c873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403936
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/fmt.go       |   4 --
+ src/cmd/compile/internal/ir/node.go      |   6 --
+ src/cmd/compile/internal/ir/node_gen.go  |  26 -------
+ src/cmd/compile/internal/ir/op_string.go |  49 +++++++------
+ src/cmd/compile/internal/ir/type.go      | 116 ++-----------------------------
+ 5 files changed, 29 insertions(+), 172 deletions(-)

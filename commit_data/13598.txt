@@ -1,0 +1,12 @@
+commit bacccefa8d4d8e2f4f09e9a917a1dab69f972efe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 8 11:04:57 2012 +1000
+
+    misc/dashboard/codereview: fix obo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6443091
+
+ misc/dashboard/codereview/dashboard/cl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

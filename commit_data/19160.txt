@@ -1,0 +1,21 @@
+commit cabdb85333bc0af0ce32ce45e58385e61f84dc43
+Author: Billie Harold Cleek <bhcleek@gmail.com>
+Date:   Wed Apr 16 13:40:47 2014 +1000
+
+    doc: edit documentation that uses "satisfies reads" and "satisfies writes"
+    
+    Make it clear that types that wrap another reader or writer delegate to the wrapped type.
+    
+    Fixes #7667
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/85720044
+
+ src/pkg/compress/gzip/gzip.go   | 8 ++++----
+ src/pkg/compress/lzw/reader.go  | 4 ++--
+ src/pkg/compress/lzw/writer.go  | 4 ++--
+ src/pkg/compress/zlib/reader.go | 3 ++-
+ src/pkg/compress/zlib/writer.go | 4 ++--
+ 5 files changed, 12 insertions(+), 11 deletions(-)

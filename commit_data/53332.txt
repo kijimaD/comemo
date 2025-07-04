@@ -1,0 +1,53 @@
+commit ff07c540b13983aff41e2af4196853602c1192dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 21:12:23 2023 -0400
+
+    cmd/go: add go get go@version and toolchain@version
+    
+    go get go@version and toolchain@version updates the
+    go and toolchain lines in go.mod. If toolchain ends up <= go,
+    it is dropped.
+    
+    When the go version crosses certain version boundaries,
+    it may be necessary to run 'go mod tidy -go=version'.
+    That's left for a followup CL.
+    
+    When the go or toolchain version ends up higher than the
+    current toolchain version, we cannot be sure we know how
+    to write the file out, so we fail with an error message.
+    In GOTOOLCHAIN auto mode, the newer toolchain should
+    be downloaded and reinvoked; that's left for a followup CL too.
+    
+    For #57001.
+    
+    Change-Id: Ibfdcc549b40555a53bdb2d019816d18f1bd16be6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497081
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/gover/mod.go                   |  19 +---
+ src/cmd/go/internal/gover/mod_test.go              |   2 +-
+ src/cmd/go/internal/gover/toolchain.go             |   7 ++
+ src/cmd/go/internal/modcmd/tidy.go                 |   1 +
+ src/cmd/go/internal/modcmd/verify.go               |   5 +
+ src/cmd/go/internal/modfetch/toolchain.go          |  13 ++-
+ src/cmd/go/internal/modget/get.go                  |  79 +++++++++++++-
+ src/cmd/go/internal/modget/query.go                |   5 +-
+ src/cmd/go/internal/modload/build.go               |   4 +
+ src/cmd/go/internal/modload/buildlist.go           |  43 ++++++--
+ src/cmd/go/internal/modload/import.go              |   4 +
+ src/cmd/go/internal/modload/init.go                | 110 +++++++++++++++----
+ src/cmd/go/internal/modload/list.go                |   9 +-
+ src/cmd/go/internal/modload/load.go                |  24 +++-
+ src/cmd/go/internal/modload/modfile.go             |  69 ++++++++----
+ src/cmd/go/internal/modload/query.go               |   5 +-
+ src/cmd/go/internal/modload/search.go              |   3 +-
+ src/cmd/go/testdata/script/mod_goline.txt          | 121 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_goline_old.txt      |  72 ++++++++++++
+ src/cmd/go/testdata/script/mod_indirect_main.txt   |   2 +
+ src/cmd/go/testdata/script/mod_skip_write.txt      |   2 +
+ src/cmd/go/testdata/script/mod_toolchain.txt       |  75 +++++++++++++
+ .../go/testdata/script/work_why_download_graph.txt |   2 +-
+ 23 files changed, 591 insertions(+), 85 deletions(-)

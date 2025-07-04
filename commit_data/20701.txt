@@ -1,0 +1,14 @@
+commit 3511454e1307e1919fe6e0ce12262c147d189f98
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 14 14:58:25 2014 -0400
+
+    cmd/gc: fix 'make' in cmd/gc directory
+    
+    Right now, go tool 6g -A fails complaining about 'any' type.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/156200044
+
+ src/cmd/gc/pgen.c | 2 ++
+ 1 file changed, 2 insertions(+)

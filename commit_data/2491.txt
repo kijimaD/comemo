@@ -1,0 +1,18 @@
+commit da5abb9fb3cb785d12cf211f8ef5905db6564b49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 13:34:21 2009 -0700
+
+    changes required if we disallow the implicit *
+    in cap, len, [], and range on maps, strings, and slices.
+    
+    R=r
+    DELTA=57  (2 added, 12 deleted, 43 changed)
+    OCL=30549
+    CL=30590
+
+ src/pkg/archive/tar/untar.go |  5 ++--
+ src/pkg/fmt/format.go        | 25 ++++++++++---------
+ src/pkg/io/io.go             |  4 +--
+ src/pkg/json/struct.go       | 58 ++++++++++++++++++--------------------------
+ src/pkg/json/struct_test.go  |  2 +-
+ 5 files changed, 42 insertions(+), 52 deletions(-)

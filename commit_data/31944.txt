@@ -1,0 +1,26 @@
+commit 3858349ec956b4abb052ba3191da16dc487c4ad4
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sun Jun 25 21:17:52 2017 -0400
+
+    testing: always ReadMemStats before first benchmark run
+    
+    If the only way the user indicates they want alloc stats shown
+    is via ReportAllocs, we don't know that until benchFunc is run.
+    Therefore, StopTimer's ReadMemStats will return incorrect data
+    for single cycle runs since there's no counterpart ReadMemStats from
+    StartTimer that initializes alloc stats.
+    
+    It appears that this bug was introduced by CL 46612,
+    "testing: only call ReadMemStats if necessary when benchmarking"
+    
+    Fixes #20590
+    
+    Change-Id: I3b5ef91677823f4b98011880a3be15423baf7e33
+    Reviewed-on: https://go-review.googlesource.com/46612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go |  8 +++-----
+ src/testing/sub_test.go  | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

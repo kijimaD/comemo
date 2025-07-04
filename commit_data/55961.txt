@@ -1,0 +1,18 @@
+commit 159144f28b7aa4edb45ce9fb23b22623b3ac047b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 14 16:57:22 2024 -0400
+
+    cmd/go/internal/modload: follow dependencies of unpruned roots in dqTracker.path
+    
+    For #65363.
+    
+    Change-Id: I82ae1098b00c8772ef8d3aa92197e7d8c66d1b37
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571800
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/edit.go               |  6 ++
+ src/cmd/go/testdata/script/mod_get_issue65363.txt | 77 +++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

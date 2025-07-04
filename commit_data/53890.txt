@@ -1,0 +1,22 @@
+commit c0eea2d16dc944305927de06e2a9f6bdc92b4697
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Aug 4 15:47:36 2023 +0200
+
+    doc/go1.21: update crypto release notes
+    
+    Left out the following commits that felt more bug-fixy.
+    
+    * f0de4b4f03 - crypto/x509: fix certificate validation with FQDN on Windows <Patryk Chelmecki>
+    * 20e08fe68c - crypto/tls: advertise correct ciphers in TLS 1.3 only mode <Monis Khan>
+    * 295c237b4d - crypto/tls: enforce 1.3 record version semantics <Roland Shoemaker>
+    
+    Change-Id: Idd38b5c6897130424a0e8b857f371d7d384fc143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515955
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.21.html | 63 +++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 50 insertions(+), 13 deletions(-)

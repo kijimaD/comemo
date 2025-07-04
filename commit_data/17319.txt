@@ -1,0 +1,22 @@
+commit a8fe176156b02011cc6628cb3602acaa6cb50236
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 12:05:33 2013 +1000
+
+    test: fix build
+    syntax/*: update messages
+    sliceerr3.go: bizarre new error fixed by deleting a space.
+    
+    I could have sworn I ran all.bash before submitting the CL that triggered these.
+    
+    TBR=golang-dev@googlegroups.com
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12812044
+
+ test/slice3err.go    | 2 +-
+ test/syntax/semi1.go | 2 +-
+ test/syntax/semi2.go | 2 +-
+ test/syntax/semi3.go | 2 +-
+ test/syntax/semi4.go | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit 296ddf2a936a30866303a64d49bc0e3e034730a8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jul 2 10:25:49 2021 -0700
+
+    net: filter bad names from Lookup functions instead of hard failing
+    
+    Instead of hard failing on a single bad record, filter the bad records
+    and return anything valid. This only applies to the methods which can
+    return multiple records, LookupMX, LookupNS, LookupSRV, and LookupAddr.
+    
+    When bad results are filtered out, also return an error, indicating
+    that this filtering has happened.
+    
+    Updates #46241
+    Fixes #46979
+    
+    Change-Id: I6493e0002beaf89f5a9795333a93605abd30d171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332549
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/net/dnsclient_unix_test.go | 222 ++++++++++++++++++++++++++++++++---------
+ src/net/lookup.go              |  74 ++++++++++----
+ 2 files changed, 229 insertions(+), 67 deletions(-)

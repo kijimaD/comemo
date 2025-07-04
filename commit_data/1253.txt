@@ -1,0 +1,25 @@
+commit d79f687ed8a94dae7d15c4e4622a770eb0373fad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 26 17:07:45 2008 -0800
+
+    - collect addition source position information in parser
+      for end of declarations, blocks, parameter lists, etc.
+    - use extra src positions to more accurately print comments
+    - fine-tuned low-level printing routine for comments
+    - added better debugging support
+    
+    Status:
+    - comments now appear at the right place (inbetween the right tokens)
+    - newline control needs improvement (not very hard)
+    - comment printing disabled for now because pretty is not idempotent
+    with it; to enable: -comments
+    
+    R=r
+    OCL=20079
+    CL=20079
+
+ usr/gri/pretty/ast.go       |   8 +-
+ usr/gri/pretty/parser.go    |  27 ++--
+ usr/gri/pretty/printer.go   | 303 ++++++++++++++++++++++++--------------------
+ usr/gri/pretty/selftest2.go |  10 +-
+ 4 files changed, 197 insertions(+), 151 deletions(-)

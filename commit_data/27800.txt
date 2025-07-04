@@ -1,0 +1,14 @@
+commit c6f19fe1ea5292f75618e3dcb2e2c4a9d1684aa6
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 8 17:44:33 2016 -0700
+
+    doc/go1.7.html: remove DRAFT
+    
+    Fixes #15820.
+    
+    Change-Id: Ia5d5237754e77774a3a6049765eea163911f41c9
+    Reviewed-on: https://go-review.googlesource.com/25592
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.7.html | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit bb3269fba020bf22488d9967249dfc2e440c880d
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 13 14:37:56 2008 -0700
+
+    snprints for safety
+    
+    R=r
+    OCL=15311
+    CL=15311
+
+ src/cmd/6g/list.c | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

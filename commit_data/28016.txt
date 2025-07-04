@@ -1,0 +1,17 @@
+commit ee333b4b7482873e24d39c5c0b3ea1f7ea4ebdcc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 22 15:56:27 2016 -0700
+
+    cmd/compile: don't Fatal when printing -m debug information
+    
+    Some FmtSharp export formatting flag support was removed with
+    commit b4e9f70. Don't panic if FmtSharp is set, just ignore it.
+    
+    Fixes #16820.
+    
+    Change-Id: Ie0c3d3774bd55002f6d2781b1212d070f083e6b2
+    Reviewed-on: https://go-review.googlesource.com/27556
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

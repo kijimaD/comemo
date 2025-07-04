@@ -1,0 +1,12 @@
+commit 0397b28a9016c07bd27e7b06055796bd70596146
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 10:15:53 2011 -0800
+
+    html/template: clean up locking for ExecuteTemplate
+    
+    R=mikesamuel, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5448137
+
+ src/pkg/html/template/template.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

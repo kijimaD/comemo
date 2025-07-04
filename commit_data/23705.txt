@@ -1,0 +1,15 @@
+commit 7feb424928605b51979e0bda3bbad139fcf2bb51
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 00:01:54 2015 -0400
+
+    cmd/compile: fix PtrTo(t) for unnamed t with embedded fields
+    
+    Fixes #8427.
+    
+    Change-Id: I826a3bc4519845ad30d6dbaf058fe7ed7bee8db0
+    Reviewed-on: https://go-review.googlesource.com/12233
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  7 ++++---
+ src/reflect/all_test.go                | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)

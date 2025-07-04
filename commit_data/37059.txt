@@ -1,0 +1,23 @@
+commit ce4ef9addd0934997c4d1272ccfe8eab4eaaa8d6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 17:15:49 2018 +0200
+
+    cmd/cgo: add AIX operating system
+    
+    This commit adds AIX operating system to cmd/cgo package for ppc64
+    architecture.
+    
+    It doesn't fully adapt cgo tool to AIX. But it allows to use
+    go tool cgo -godefs which is really usefull for others packages.
+    
+    Update: #25893
+    
+    Change-Id: I38e289cf0122d143ba100986d08229b51b03ddfc
+    Reviewed-on: https://go-review.googlesource.com/c/138731
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/cgo/out.go | 21 ++++++++++++++-
+ 2 files changed, 95 insertions(+), 2 deletions(-)

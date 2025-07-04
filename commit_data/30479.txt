@@ -1,0 +1,18 @@
+commit f072283bcecb66f8c22046cad4d8ddcc458d32e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 2 02:45:39 2017 +0000
+
+    net/http: add more debugging to TestServerAllowsBlockingRemoteAddr
+    
+    It fails on Solaris often, but nowhere else.
+    
+    Not sure why. Add some debugging.
+    
+    Change-Id: I79fc710bd339ae972d624c73a46bd8d215729c10
+    Reviewed-on: https://go-review.googlesource.com/37659
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

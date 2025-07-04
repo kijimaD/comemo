@@ -1,0 +1,22 @@
+commit 729f214e3afd61afd924b946745798a8d144aad6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Sep 5 17:12:24 2023 +0800
+
+    runtime: fix the miscalculation of memoryLimitGoal in gcPaceScavenger
+    
+    The goal is supposed to be (100-reduceExtraPercent) / 100 * memoryLimit,
+    as stated in the original design.
+    
+    Fixes #62449
+    
+    Change-Id: Ia33acadc3320aa3625814595a24b9631ae8896d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525555
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+
+ src/runtime/mgcscavenge.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

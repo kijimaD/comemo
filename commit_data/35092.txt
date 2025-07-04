@@ -1,0 +1,18 @@
+commit 22115859a513b77ed9d966a356902630eff9e71b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 26 07:04:32 2018 -0800
+
+    cmd/compile: add amd64 LEAL{1,2,4,8} ops
+    
+    For future use in rewrite rules.
+    
+    Change-Id: Ic9875beb0dea6e0bbcbd4b75d99a53f4a9a7c3fd
+    Reviewed-on: https://go-review.googlesource.com/101275
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  16 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +++-
+ src/cmd/compile/internal/ssa/opGen.go        | 173 +++++++++++++++++++++++++--
+ 3 files changed, 189 insertions(+), 20 deletions(-)

@@ -1,0 +1,30 @@
+commit 97b32a6724ebc3a6029e06b6c4b3acb9c980b15a
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 1 17:31:20 2021 -0500
+
+    cmd/compile: better version of check frame offsets against abi
+    
+    improved to run on more architectures.
+    
+    this is in preparation for turning off calculation of frame offsets
+    in types.CalcSize.
+    
+    Replaces https://go-review.googlesource.com/c/go/+/293392 .
+    Updates #44675.
+    For #40724.
+    
+    Change-Id: I40ba496172447cf09b86bc646148859363c11ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297637
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go          | 54 +++++++++++++++---
+ src/cmd/compile/internal/gc/compile.go            |  3 +
+ src/cmd/compile/internal/ssa/config.go            |  4 +-
+ src/cmd/compile/internal/ssa/op.go                | 28 +++++++---
+ src/cmd/compile/internal/ssagen/ssa.go            | 67 ++++++++++++++---------
+ src/cmd/compile/internal/test/abiutils_test.go    |  2 +-
+ src/cmd/compile/internal/test/abiutilsaux_test.go | 32 -----------
+ 7 files changed, 112 insertions(+), 78 deletions(-)

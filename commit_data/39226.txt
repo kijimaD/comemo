@@ -1,0 +1,14 @@
+commit a326bc6df27309815e4a2ae005adef233cfb9ea9
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed May 22 00:10:32 2019 +0200
+
+    net/url: clarify that RawPath is optionally set
+    
+    Fixes #29662
+    
+    Change-Id: I38b52b96712e44a323333da17dbbc883516773b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177900
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

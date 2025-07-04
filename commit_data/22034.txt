@@ -1,0 +1,23 @@
+commit 3d1ce27ba51eb5bccc8773bd6f73924bd2910783
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:14:53 2015 +0100
+
+    cmd/7l: add the ARM64 linker
+    
+    Only internal linking without cgo is supported for now.
+    
+    Change-Id: I91eb1572c1ccc805db62fc4c29080df98797d51a
+    Reviewed-on: https://go-review.googlesource.com/7048
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/7l/asm.go             | 581 +-----------------------------------------
+ src/cmd/7l/l.go               |   4 +-
+ src/cmd/7l/obj.go             |  25 +-
+ src/cmd/internal/ld/arch.go   |   9 +
+ src/cmd/internal/ld/elf.go    |  39 ++-
+ src/cmd/internal/ld/ldelf.go  |   7 +
+ src/cmd/internal/ld/lib.go    |   3 +-
+ src/cmd/internal/ld/link.go   |   1 +
+ src/cmd/internal/ld/symtab.go |   1 +
+ 9 files changed, 65 insertions(+), 605 deletions(-)

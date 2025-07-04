@@ -1,0 +1,22 @@
+commit 932794cbf1458f2b23c964c3a50488ff0d47ca75
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 16:02:58 2018 -0400
+
+    go/types: fix format errors
+    
+    Found by pending CL to make cmd/vet auto-detect printf wrappers.
+    
+    Change-Id: I1928a5bcd7885cdd950ce81b7d0ba07fbad3bf88
+    Reviewed-on: https://go-review.googlesource.com/109343
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/builtins.go   | 4 ++--
+ src/go/types/call.go       | 4 ++--
+ src/go/types/check.go      | 2 +-
+ src/go/types/decl.go       | 2 +-
+ src/go/types/expr.go       | 2 +-
+ src/go/types/interfaces.go | 2 +-
+ src/go/types/typexpr.go    | 4 ++--
+ 7 files changed, 10 insertions(+), 10 deletions(-)

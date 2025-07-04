@@ -1,0 +1,15 @@
+commit 96a609c2d7fcb8e1dc370e0cda9e4eb3bfb77412
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 13:58:28 2012 -0700
+
+    gofmt: handle comments correctly in rewrites
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6294076
+
+ src/cmd/gofmt/gofmt_test.go            |  2 +-
+ src/cmd/gofmt/rewrite.go               |  5 ++++-
+ src/cmd/gofmt/testdata/rewrite5.golden | 15 +++++++++++++++
+ src/cmd/gofmt/testdata/rewrite5.input  | 15 +++++++++++++++
+ 4 files changed, 35 insertions(+), 2 deletions(-)

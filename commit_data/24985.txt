@@ -1,0 +1,20 @@
+commit 8d31a86a1e7be5f84af9df8aeb36bc1e157d50eb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 18 11:13:19 2015 -0800
+
+    reflect: mark mapassign as noescape
+    
+    The lack of this annotation causes Value.SetMapIndex to allocate
+    when it doesn't need to.
+    
+    Add comments about why it's safe to do so.
+    
+    Add a test to make sure we stay allocation-free.
+    
+    Change-Id: I00826e0d73e317a31bdeae5c7e46bf95b0c6ae6a
+    Reviewed-on: https://go-review.googlesource.com/17060
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
+ src/reflect/value.go    | 22 +++++++++++++++-------
+ 2 files changed, 44 insertions(+), 7 deletions(-)

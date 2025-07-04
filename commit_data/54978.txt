@@ -1,0 +1,18 @@
+commit e7d582b55dda36e76ce4d0ce770139ca0915b7c5
+Author: Ezzno J <ezzno@ezzno.site>
+Date:   Tue Nov 14 02:52:31 2023 +0000
+
+    runtime: remove useless nil checking during init of itab
+    
+    Change-Id: I8ef12221e18e163b695d88f4bb8c309763341ec3
+    GitHub-Last-Rev: d3d4d4cb79418ccbb027a08892a95368888acbbf
+    GitHub-Pull-Request: golang/go#64107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542116
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/iface.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

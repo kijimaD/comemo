@@ -1,0 +1,13 @@
+commit 4abfc4fff00aeecc9763a81781271bb31faf6903
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 19 16:33:58 2010 -0400
+
+    crypto/ocsp: add missing Makefile
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2018041
+
+ src/pkg/Makefile             |  1 +
+ src/pkg/crypto/ocsp/Makefile | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

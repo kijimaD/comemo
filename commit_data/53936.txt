@@ -1,0 +1,27 @@
+commit 24f83ed4e29495d5b8b6375aeaa2d34d14629c7d
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Thu Aug 3 14:44:01 2023 +0800
+
+    cmd/internal/obj/mips: add SEB/SEH instructions
+    
+    Add support for SEB/SEH instructions, which are introduced in mips32r2.
+    
+    SEB/SEH can be used to sign-extend byte/halfword in registers directly without passing through memory.
+    
+    Ref: The MIPS32 Instruction Set, Revision 5.04: https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-05.04.pdf
+    
+    Updates #60072
+    
+    Change-Id: I33175ae9d943ead5983ac004bd2a158039046d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/mips.s   | 4 ++++
+ src/cmd/asm/internal/asm/testdata/mips64.s | 4 ++++
+ src/cmd/internal/obj/mips/a.out.go         | 2 ++
+ src/cmd/internal/obj/mips/anames.go        | 2 ++
+ src/cmd/internal/obj/mips/asm0.go          | 9 ++++++++-
+ 5 files changed, 20 insertions(+), 1 deletion(-)

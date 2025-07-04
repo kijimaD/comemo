@@ -1,0 +1,19 @@
+commit 8a9e2d9d49a9d5234b52a0360ed6a0f91753c291
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jun 28 15:46:00 2022 +0800
+
+    cmd/compile: add missing tail calls flag for linux/loong64
+    
+    Set the value of the variable tailCall to true and prevent
+    allocating or clobber the linker register.
+    
+    Change-Id: I4ec19c67056cb99196911aa7c0054be89ab7eb8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414954
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/opGen.go           | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

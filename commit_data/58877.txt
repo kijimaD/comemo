@@ -1,0 +1,16 @@
+commit 1421b982dca738daf47fe11aec9b56050798d739
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 19 17:28:45 2025 +0000
+
+    runtime: document that cleanups can run concurrently with each other
+    
+    Fixes #71825.
+    
+    Change-Id: I25af19eb72d75f13cf661fc47ee5717782785326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650696
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mcleanup.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

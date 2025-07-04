@@ -1,0 +1,27 @@
+commit da0a7d7b8f896bc2117ce488c4e245d626ef8aba
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 03:13:39 2008 -0800
+
+    malloc bug fixes.
+    
+    use malloc by default.
+    free stacks.
+    
+    R=r
+    DELTA=424  (333 added, 29 deleted, 62 changed)
+    OCL=21553
+    CL=21584
+
+ src/lib/malloc.go       |   2 +-
+ src/runtime/malloc.c    | 141 +++++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/malloc.h    |  19 +++++--
+ src/runtime/mcache.c    |  66 +++++++++++++++++++----
+ src/runtime/mcentral.c  |  74 ++++++++++++-------------
+ src/runtime/mem.c       |  13 +----
+ src/runtime/mheap.c     |  21 ++++++--
+ src/runtime/proc.c      |   6 ++-
+ src/runtime/rt0_amd64.s |   2 +-
+ src/runtime/runtime.h   |   5 +-
+ test/mallocrep.go       |   4 +-
+ test/mallocrep1.go      | 130 ++++++++++++++++++++++++++++++++++++++++++++
+ 12 files changed, 394 insertions(+), 89 deletions(-)

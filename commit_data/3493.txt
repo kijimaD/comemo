@@ -1,0 +1,15 @@
+commit 7b5da358cae82dddfab547ca04be204977cdeda6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 16:44:40 2009 -0700
+
+    handle compiler crash better:
+    need to use exec to avoid seeing
+    shell output about the crash.
+    
+    R=iant
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=35542
+    CL=35560
+
+ test/errchk | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

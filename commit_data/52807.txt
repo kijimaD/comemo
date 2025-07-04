@@ -1,0 +1,25 @@
+commit f0461808903d8781757e006704821fd72fb1c79a
+Author: Chressie Himpel <chressie@google.com>
+Date:   Fri Apr 28 10:54:57 2023 +0000
+
+    Revert "cmd/compile: constant-fold loads from constant dictionaries and types"
+    
+    This reverts CL 486895.
+    
+    Reason for revert: This breaks internal tests at Google, see b/280035614.
+    
+    Change-Id: I48772a44f5f6070a7f06b5704e9f9aa272b5f978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490156
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Michael Stapelberg <stapelberg@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/reader.go        |   2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  91 ++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 357 ++----------------------
+ src/cmd/internal/obj/link.go                    |  18 +-
+ 6 files changed, 55 insertions(+), 453 deletions(-)

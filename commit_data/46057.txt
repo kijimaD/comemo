@@ -1,0 +1,14 @@
+commit a304273d74b95c835ee08b641a17ce6bc591ddd3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 16 18:06:18 2021 -0700
+
+    cmd/compile/internal/types2: allow composite literals of type parameter type
+    
+    Change-Id: Iaaa2a3b462da6b121f13a10595950a8502b5f271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342690
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                |  2 +-
+ .../internal/types2/testdata/examples/types.go2        | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

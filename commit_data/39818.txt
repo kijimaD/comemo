@@ -1,0 +1,26 @@
+commit 2da9c3e0f99b72cf8f3bdca01b57e7a68a546c5b
+Author: K. "pestophagous" Heller <pestophagous@gmail.com>
+Date:   Tue Aug 20 23:13:25 2019 -0700
+
+    cmd/compile: improve errors for invalid conversions of consts
+    
+    Follow-up to Change-Id: If6e52c59eab438599d641ecf6f110ebafca740a9
+    
+    This addresses the remaining tech debt on issue 21979.
+    
+    The aforementioned previous CL silenced one of two mostly redundant
+    compiler errors. However, the silenced error was the more expressive
+    error. This CL now imbues the surviving error with the same level
+    of expressiveness as the old semi-redundant error.
+    
+    Fixes #21979
+    
+    Change-Id: I3273d48c88bbab073fabe53421d801df621ce321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191079
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 10 +++--
+ test/fixedbugs/issue21979.go         | 75 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 3 deletions(-)

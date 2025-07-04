@@ -1,0 +1,21 @@
+commit 00045b76e50d98db354aa185bcbd60a6f62499ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 23 10:39:07 2021 -0500
+
+    runtime: skip TestCgoCallbackGC on darwin-amd64-10_14 builder
+    
+    This test occasionally fails due to a real bug on this platform.
+    Due to the age of the platform and the rarity of the failure, we do
+    not believe that the bug is worth working around.
+    
+    Fixes #43926
+    
+    Change-Id: Ia227c5afe81fc21b6630813228f976cc3a54013c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366537
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

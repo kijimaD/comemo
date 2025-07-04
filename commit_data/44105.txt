@@ -1,0 +1,29 @@
+commit e65c543f3c34f4a505c37ebc3c2b608bc8ae83ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 13:06:40 2020 -0400
+
+    go/build/constraint: add parser for build tag constraint expressions
+    
+    This package implements a parser for the new //go:build constraint lines.
+    The parser also handles // +build lines, to be able to process legacy files.
+    
+    This will not be used in the standard library until Go 1.17,
+    but it seems worth publishing in Go 1.16 so that code that
+    needs to process both kinds of lines once Go 1.17 comes out
+    will be able to build using Go 1.16 as well.
+    
+    For #41184. Design in https://golang.org/design/draft-gobuild.
+    
+    Change-Id: I756c0de4081c5039e8b7397200e5274f223ab111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240604
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build_test.go           |   3 +-
+ src/go/build/constraint/expr.go      | 574 +++++++++++++++++++++++++++++++++++
+ src/go/build/constraint/expr_test.go | 317 +++++++++++++++++++
+ src/go/build/deps_test.go            |   3 +
+ 4 files changed, 896 insertions(+), 1 deletion(-)

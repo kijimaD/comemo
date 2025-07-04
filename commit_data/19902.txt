@@ -1,0 +1,24 @@
+commit 6503d400519c7c03cc2f65d68bf72c83ac69dae2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 02:07:31 2014 -0400
+
+    undo CL 114420043 / b613f2acdf69
+    
+    Broke freebsd/amd64 due to exposure of a latent bug.
+    
+    ««« original CL description
+    cmd/ld: fix operator precedence
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/114420043
+    »»»
+    
+    TBR=dfc
+    R=dave
+    CC=golang-codereviews
+    https://golang.org/cl/120630043
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

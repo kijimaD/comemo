@@ -1,0 +1,21 @@
+commit 005c78d8bbf6389d482a0bbb4e6c46719d77f59f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Oct 5 19:06:23 2022 -0400
+
+    cmd/go: avoid setting mod=vendor in workspace mode
+    
+    Workspaces with a single module would enter mod=vendor mode even when
+    in workspace mode. Fix that by explicitly checking that we're not in
+    workspace mode when deciding whether to enter vendor mode.
+    
+    Fixes #54130
+    
+    Change-Id: I03fcd9db4160c9872aa2b7957a80f24d49f787d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go               |  2 +-
+ src/cmd/go/testdata/script/work_disablevendor.txt | 56 +++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

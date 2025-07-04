@@ -1,0 +1,24 @@
+commit 6652b0b86639a6a59e038bcb85b18fd1c1f25a95
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Thu Mar 1 10:05:51 2012 +1100
+
+    doc: add The Laws of Reflection article
+    
+    Originally published on The Go Programming Language Blog, September 6, 2011.
+    
+    http://blog.golang.org/2011/09/laws-of-reflection.html
+    
+    Update #2547
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5689054
+
+ doc/Makefile                         |   1 +
+ doc/articles/laws_of_reflection.html | 752 +++++++++++++++++++++++++++++++++++
+ doc/articles/laws_of_reflection.tmpl | 654 ++++++++++++++++++++++++++++++
+ doc/docs.html                        |   3 +-
+ doc/progs/interface.go               |  56 +++
+ doc/progs/interface2.go              | 112 ++++++
+ src/pkg/reflect/type.go              |   2 +-
+ 7 files changed, 1577 insertions(+), 3 deletions(-)

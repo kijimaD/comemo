@@ -1,0 +1,12 @@
+commit 872f5ffa095c483a506a639f1960f6778328d83e
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sat Dec 28 20:33:05 2013 +1100
+
+    bytes: add test for Contains
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/46140043
+
+ src/pkg/bytes/bytes_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

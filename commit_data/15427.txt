@@ -1,0 +1,21 @@
+commit 9e66ee456210024ad05ba95f3b245cdc974aba43
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 26 00:43:31 2013 +0100
+
+    cmd/gc: fix corruption in export of &T{} literals.
+    
+    Composite literals using the &T{} form were incorrectly
+    exported, leading to weird errors at import time.
+    
+    Fixes #4879.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7395054
+
+ src/cmd/gc/fmt.c                  |  8 ++++++--
+ src/cmd/gc/typecheck.c            |  6 ++++--
+ test/fixedbugs/issue4879.dir/a.go | 33 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue4879.dir/b.go |  9 +++++++++
+ test/fixedbugs/issue4879.go       | 10 ++++++++++
+ 5 files changed, 62 insertions(+), 4 deletions(-)

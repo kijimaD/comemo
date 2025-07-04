@@ -1,0 +1,20 @@
+commit e440354c404cccf93be1a764353c2ccb278cefbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 11 22:37:07 2013 -0400
+
+    cmd/gc: turn race detector off for tail-call method wrapper functions
+    
+    It was off in the old implementation (because there was no high-level
+    description of the function at all). Maybe some day the race detector
+    should be fixed to handle the wrapper and then enabled for it, but there's
+    no reason that has to be today.
+    
+    R=golang-dev
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10037045
+
+ src/cmd/gc/go.h       | 1 +
+ src/cmd/gc/racewalk.c | 2 +-
+ src/cmd/gc/subr.c     | 2 ++
+ 3 files changed, 4 insertions(+), 1 deletion(-)

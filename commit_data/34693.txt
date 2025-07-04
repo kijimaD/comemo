@@ -1,0 +1,18 @@
+commit 782f9ce52f5e021a8d0b0140919afecf0733c4a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Mar 25 10:56:11 2018 +1100
+
+    os: document DevNull on windows
+    
+    DevNull is documented on darwin, dragonfly, freebsd, linux,
+    nacl, netbsd, openbsd, solaris and plan9, but not on windows.
+    Add missing documentation.
+    
+    Change-Id: Icdbded0dd5e322ed4360cbce6bee4cdca5cfbe72
+    Reviewed-on: https://go-review.googlesource.com/102456
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_windows.go | 2 ++
+ 1 file changed, 2 insertions(+)

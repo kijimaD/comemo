@@ -1,0 +1,28 @@
+commit f05c3aa24d815cd3869153750c9875e35fc48a6e
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Apr 13 16:51:25 2016 -0700
+
+    encoding/json: support maps with integer keys
+    
+    This change makes encoding and decoding support integer types in map
+    keys, converting to/from JSON string keys.
+    
+    JSON object keys are still sorted lexically, even though the keys may be
+    integer strings.
+    
+    For backwards-compatibility, the existing Text(Un)Marshaler support for
+    map keys (added in CL 20356) does not take precedence over the default
+    encoding for string types. There is no such concern for integer types,
+    so integer map key encoding is only used as a fallback if the map key
+    type is not a Text(Un)Marshaler.
+    
+    Fixes #12529.
+    
+    Change-Id: I7e68c34f9cd19704b1d233a9862da15fabf0908a
+    Reviewed-on: https://go-review.googlesource.com/22060
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go      | 52 +++++++++++++++++------
+ src/encoding/json/decode_test.go | 91 +++++++++++++++++++++++++++++++++++++++-
+ src/encoding/json/encode.go      | 37 ++++++++++++----
+ 3 files changed, 158 insertions(+), 22 deletions(-)

@@ -1,0 +1,18 @@
+commit 07af21308c88c754fa2cd69a6d34d2b40b40c191
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 02:21:50 2017 -0700
+
+    cmd/compile/internal/gc: eliminate two uses of Type.Pos
+    
+    Instead we can use t.nod.Pos.
+    
+    Change-Id: I643ee3226e402e38d4c77e8f328cbe83e55eac5c
+    Reviewed-on: https://go-review.googlesource.com/38309
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     | 7 +++++--
+ src/cmd/compile/internal/gc/typecheck.go | 1 +
+ 2 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 6df181a7f01bc40a2ad9e98510b43b653eb7fb3b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 19 13:24:03 2013 -0500
+
+    path/filepath: document Dir better
+    
+    This comment matches the one in path.
+    
+    Fixes #4837.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7305100
+
+ src/pkg/path/filepath/path.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 69e26bf28d989d21e025fefc9ce091cee7953285
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 4 16:46:45 2008 -0800
+
+    - added (incomplete) section on parameter passing
+    - decribe passing of "..." parameters for a start
+    
+    R=r
+    DELTA=70  (69 added, 0 deleted, 1 changed)
+    OCL=18503
+    CL=18503
+
+ doc/go_spec.txt | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 70 insertions(+), 1 deletion(-)

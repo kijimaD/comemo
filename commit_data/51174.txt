@@ -1,0 +1,40 @@
+commit 7a92c4fc637621368eb26a7e72bb027b29568e50
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 11:58:45 2022 -0500
+
+    cmd/go: print test2json start events
+    
+    Add a new "Action":"start" test2json event to mark the
+    start of the test binary execution. This adds useful information
+    to the JSON traces, and it also lets programs watching test
+    execution see the order in which the tests are being run,
+    because we arrange for the starts to happen sequentially.
+    
+    Change-Id: I9fc865a486a55a7e9315f8686f59a2aa06455884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448357
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go                   | 88 +++++++++++++++-------
+ src/cmd/go/testdata/script/test_json.txt           |  6 ++
+ src/cmd/internal/test2json/test2json.go            |  5 +-
+ src/cmd/internal/test2json/testdata/ascii.json     |  1 +
+ src/cmd/internal/test2json/testdata/bench.json     |  1 +
+ src/cmd/internal/test2json/testdata/benchfail.json |  1 +
+ .../internal/test2json/testdata/benchshort.json    |  1 +
+ src/cmd/internal/test2json/testdata/empty.json     |  1 +
+ src/cmd/internal/test2json/testdata/frame.json     |  1 +
+ src/cmd/internal/test2json/testdata/framebig.json  |  1 +
+ src/cmd/internal/test2json/testdata/framefuzz.json |  1 +
+ .../internal/test2json/testdata/issue23036.json    |  1 +
+ .../internal/test2json/testdata/issue23920.json    |  1 +
+ .../internal/test2json/testdata/issue29755.json    |  1 +
+ src/cmd/internal/test2json/testdata/panic.json     |  1 +
+ src/cmd/internal/test2json/testdata/smiley.json    |  1 +
+ src/cmd/internal/test2json/testdata/timeout.json   |  1 +
+ src/cmd/internal/test2json/testdata/unicode.json   |  1 +
+ src/cmd/internal/test2json/testdata/vet.json       |  1 +
+ src/cmd/test2json/main.go                          |  3 +
+ 20 files changed, 90 insertions(+), 28 deletions(-)

@@ -1,0 +1,18 @@
+commit 6ffd2351618b5c61a78ac9d78779868627dfd358
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 17:11:13 2014 -0800
+
+    spec: clarify when constant slice indices must be in range
+    
+    This documents the status quo for most implementations,
+    with one exception: gc generates a run-time error for
+    constant but out-of-range indices when slicing a constant
+    string. See issue 7200 for a detailed discussion.
+    
+    LGTM=r
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/72160044
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

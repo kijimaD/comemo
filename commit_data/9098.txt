@@ -1,0 +1,12 @@
+commit cb051a3a1de22ad75613baef52abb4875a2b1dfc
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Mon Jul 18 10:48:31 2011 +1000
+
+    gob: minor cleanup
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4754050
+
+ src/pkg/gob/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

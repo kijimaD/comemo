@@ -1,0 +1,21 @@
+commit 55589e7531c7e576a26f5610241a278caf6e4a4e
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Jan 22 16:03:28 2022 +1030
+
+    cmd/go: fix retrieving Mercurial commit timestamp under Windows
+    
+    Use "hgdate" since the strftime filter is unsupported by Mercurial under
+    Windows.
+    
+    Fixes #49841
+    
+    Change-Id: I300898e51e324147aaf1bfe12ed17dea4bdd183d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380077
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 409c97c5f017037e3a47aff64e3e65ce22eee5ba
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 19 06:59:51 2019 +0100
+
+    misc/android: pass on GOPROXY to device environment
+    
+    Android devices don't have git available, so many go tool commands
+    that fetch dependencies fail. Builders already have a GOPROXY
+    available, so pass that along to the device environment.
+    
+    Updates #30885
+    
+    Change-Id: Id0d2338932f0cd7de4d95d9e0ca9b79d29336ffe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168118
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 1 +
+ 1 file changed, 1 insertion(+)

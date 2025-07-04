@@ -1,0 +1,22 @@
+commit cf9adf4a3e60f12c86b767a23f434cae1b771c27
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 13:39:58 2023 -0800
+
+    cmd/compile/internal/types2: remove useConstraintTypeInference flg (cleanup)
+    
+    This useConstraintTypeInference flag was debugging purposes only and
+    is not needed anymore. It's already gone in go/types.
+    
+    Also, adjust/fix some comments.
+    
+    Change-Id: I713be5759f05c618fcf26e16cf53dfb3626bba93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461690
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go  |  2 +-
+ src/cmd/compile/internal/types2/infer.go | 33 ++++++++++++++------------------
+ 2 files changed, 15 insertions(+), 20 deletions(-)

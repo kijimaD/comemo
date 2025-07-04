@@ -1,0 +1,20 @@
+commit a893d0f464e15f72d5f01937bed5011098adbb7b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Dec 17 10:30:51 2021 -0500
+
+    go/doc: use subtests
+    
+    Change the Test function to use sub-tests for each doc mode and
+    package.
+    
+    This will allow more fine-grained test execution.
+    
+    Change-Id: Ie3dda5791bda2781a60776886dd39fd18e670e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375094
+    Trust: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/doc/doc_test.go | 82 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 40 insertions(+), 42 deletions(-)

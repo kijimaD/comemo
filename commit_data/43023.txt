@@ -1,0 +1,21 @@
+commit 75fab04b83a832eb84bec9e1f23d395a342c865c
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 17 15:31:07 2020 -0400
+
+    cmd/asm: make asm -S flag consistent with compile -S flag
+    
+    Change things so that the -S command line option for the assembler
+    works the same as -S in the compiler, e.g. you can use -S=2 to
+    get additional detail.
+    
+    Change-Id: I7bdfba39a98e67c7ae4b93019e171b188bb99a2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255717
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/flags/flags.go | 7 ++++---
+ src/cmd/asm/main.go                 | 4 +---
+ 2 files changed, 5 insertions(+), 6 deletions(-)

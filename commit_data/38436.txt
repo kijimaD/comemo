@@ -1,0 +1,26 @@
+commit 156c830bea6795d57ef9eb9bfe66197413c00fce
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 15 08:49:38 2019 +0100
+
+    cmd/compile: eliminate unnecessary type conversions in TrailingZeros(16|8) for arm
+    
+    This follows CL 156999 which did the same for arm64.
+    
+    name               old time/op  new time/op  delta
+    TrailingZeros-4    7.30ns ± 1%  7.30ns ± 0%     ~     (p=0.413 n=9+9)
+    TrailingZeros8-4   8.32ns ± 0%  7.17ns ± 0%  -13.77%  (p=0.000 n=10+9)
+    TrailingZeros16-4  8.30ns ± 0%  7.18ns ± 0%  -13.50%  (p=0.000 n=9+10)
+    TrailingZeros32-4  6.46ns ± 1%  6.47ns ± 1%     ~     (p=0.325 n=10+10)
+    TrailingZeros64-4  16.3ns ± 0%  16.2ns ± 0%   -0.61%  (p=0.000 n=7+10)
+    
+    Change-Id: I7e9e1abf7e30d811aa474d272b2824ec7cbbaa98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go         |   8 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  11 ++-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 140 +++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                   |   4 +
+ 4 files changed, 158 insertions(+), 5 deletions(-)

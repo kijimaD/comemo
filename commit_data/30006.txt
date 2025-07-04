@@ -1,0 +1,19 @@
+commit a246f61637b80e2f3426fae03ede072c8a28474e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 8 22:18:38 2016 -0800
+
+    cmd/compile: report more non-inlineable functions
+    
+    Many non-inlineable functions were not being
+    reported in '-m -m' mode.
+    
+    Updates #17858.
+    
+    Change-Id: I7d96361b39dd317f5550e57334a8a6dd1a836598
+    Reviewed-on: https://go-review.googlesource.com/32971
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

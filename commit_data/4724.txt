@@ -1,0 +1,21 @@
+commit 77053797e0a8db957199f7431605aa94bb6ad15f
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Thu Jan 28 16:11:38 2010 -0800
+
+    avoid overflow of symb buffer in 5a/6a/8a/5c/6c/8c
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194099
+
+ src/cmd/5a/a.h     |  4 +++-
+ src/cmd/5a/lex.c   |  2 ++
+ src/cmd/6a/a.h     |  4 +++-
+ src/cmd/6a/lex.c   |  1 +
+ src/cmd/8a/a.h     |  4 +++-
+ src/cmd/8a/lex.c   |  2 ++
+ src/cmd/cc/cc.h    |  4 +++-
+ src/cmd/cc/lex.c   | 21 +++++++++++++++++++--
+ src/cmd/cc/lexbody | 20 ++++++++++++++++++--
+ src/cmd/cc/macbody |  2 ++
+ 10 files changed, 56 insertions(+), 8 deletions(-)

@@ -1,0 +1,25 @@
+commit 0a9dd47dd817904ec2b4a80b551e6050218ee8a6
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Sep 22 09:30:31 2020 +0700
+
+    net: reflect TCP backlog size update of uint16->uint32 on Linux
+    
+    The sk_max_ack_backlog was increased from uint16 to uint32 in kernel
+    version 4.1 and above, so adopt that change to maxListenerBacklog.
+    
+    See https://github.com/torvalds/linux/commit/becb74f0acca19b5abfcb24dc602530f3deea66a
+    
+    Fixes #41470
+    
+    Change-Id: I63a142eb28f3ac3acaca57f0903c085c6cb15a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255898
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/sock_linux.go      | 62 +++++++++++++++++++++++++++++++++++++++++++---
+ src/net/sock_linux_test.go | 22 ++++++++++++++++
+ 2 files changed, 80 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 4217877670e94b88ddd1ee1041b31d5825b08e2a
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 22 06:17:00 2024 +0000
+
+    cmd/internal/ssa: fix typo in comment
+    
+    Change-Id: Ib66830792ebb15538596f4bf4a51d2b3f05c7fe7
+    GitHub-Last-Rev: 947445916abc91331f51e29c0541c510bd9c623c
+    GitHub-Pull-Request: golang/go#66460
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573557
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/magic.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

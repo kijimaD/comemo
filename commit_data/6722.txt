@@ -1,0 +1,18 @@
+commit a144e3ec36f48ac67b74daccb456a3a90cd04134
+Author: Keith Rarick <kr@xph.us>
+Date:   Fri Nov 5 14:02:03 2010 -0400
+
+    net: provide public access to file descriptors
+    
+    Fixes #918.
+    
+    R=rsc, rog, brainman
+    CC=golang-dev
+    https://golang.org/cl/2904041
+
+ src/pkg/net/fd.go         | 14 ++++++++++++++
+ src/pkg/net/fd_windows.go |  5 +++++
+ src/pkg/net/tcpsock.go    | 10 ++++++++++
+ src/pkg/net/udpsock.go    |  5 +++++
+ src/pkg/net/unixsock.go   | 10 ++++++++++
+ 5 files changed, 44 insertions(+)

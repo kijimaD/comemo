@@ -1,0 +1,19 @@
+commit 66f1f89dc058e98d4b118041cd8d571a505b43db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 30 15:19:54 2015 -0800
+
+    cmd/internal/obj: fix PCSP table at runtime.morestack calls
+    
+    Fixes #13346.
+    
+    Change-Id: Ic903ee90575e8dbe23905d0678d3295745d1d47f
+    Reviewed-on: https://go-review.googlesource.com/18154
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm/obj5.go   | 7 ++++++-
+ src/cmd/internal/obj/arm64/obj7.go | 7 ++++++-
+ src/cmd/internal/obj/x86/obj6.go   | 7 ++++++-
+ 3 files changed, 18 insertions(+), 3 deletions(-)

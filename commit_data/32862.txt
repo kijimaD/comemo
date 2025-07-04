@@ -1,0 +1,17 @@
+commit 07c9dc69ccf404a5d940fa944ddeccab4eee3b86
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 17:14:59 2017 +0200
+
+    cmd/go: delete unused function isInGoToolsRepo
+    
+    The function isInGoToolsRepo has no use case anymore, so we remove it
+    with this change.
+    
+    Change-Id: I71051828eef2e317b83e13f83a14d5f0bc0ec13f
+    Reviewed-on: https://go-review.googlesource.com/66350
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/base/tool.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

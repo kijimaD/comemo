@@ -1,0 +1,12 @@
+commit 6c43c0c2fdc866bf6d85a4689ad42c42b9c527dd
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 27 17:23:08 2016 +0200
+
+    cmd/compile: remove commented-out old c code
+    
+    Change-Id: I9b2e6c45f7e83543a06d0aafd08a911f7b6485fd
+    Reviewed-on: https://go-review.googlesource.com/29874
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/init.go | 13 -------------
+ 1 file changed, 13 deletions(-)

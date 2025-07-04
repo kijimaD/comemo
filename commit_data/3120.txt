@@ -1,0 +1,18 @@
+commit 9d517ba3fd0ce83ec9e60df091915c7d88f1eb3a
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 10:39:57 2009 -0700
+
+    Implement runtime errors, divide-by-zero checking, nil pointer
+    checking, bounds checking, and map key checking.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=202  (108 added, 72 deleted, 22 changed)
+    OCL=33981
+    CL=34031
+
+ usr/austin/eval/Makefile |   2 +
+ usr/austin/eval/abort.go |  71 ++++++++++++++++++++++
+ usr/austin/eval/expr.go  | 151 ++++++++++++++++++-----------------------------
+ usr/austin/eval/stmt.go  |   4 +-
+ 4 files changed, 134 insertions(+), 94 deletions(-)

@@ -1,0 +1,18 @@
+commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 15 14:43:29 2015 -0400
+
+    go/internal/gcimporter: populate (*types.Package).Imports
+    
+    This is an upstream change to the tools repo:
+    https://go-review.googlesource.com/#/c/8924/
+    
+    Change-Id: I01fb1b2e9ec834354994c544f65c8ec8267c9626
+    Reviewed-on: https://go-review.googlesource.com/8954
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/gcimporter.go      | 90 ++++++++++++++++++---------
+ src/go/internal/gcimporter/gcimporter_test.go | 22 +++++--
+ src/go/types/package.go                       |  6 +-
+ 3 files changed, 83 insertions(+), 35 deletions(-)

@@ -1,0 +1,48 @@
+commit ff416a3f192cd331225f8cda7453b4ed3fb43fb6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 12 00:15:28 2013 +0200
+
+    cmd/gc: inline copy in frontend to call memmove directly.
+    
+    A new node type OSPTR is added to refer to the data pointer of
+    strings and slices in a simple way during walk(). It will be
+    useful for future work on simplification of slice arithmetic.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkCopy1Byte                 9            8  -13.98%
+    BenchmarkCopy2Byte                14            8  -40.49%
+    BenchmarkCopy4Byte                13            8  -35.04%
+    BenchmarkCopy8Byte                13            8  -37.10%
+    BenchmarkCopy12Byte               14           12  -15.38%
+    BenchmarkCopy16Byte               14           12  -17.24%
+    BenchmarkCopy32Byte               19           14  -27.32%
+    BenchmarkCopy128Byte              31           26  -15.29%
+    BenchmarkCopy1024Byte            100           92   -7.50%
+    BenchmarkCopy1String              10            7  -28.99%
+    BenchmarkCopy2String              10            7  -28.06%
+    BenchmarkCopy4String              10            8  -22.69%
+    BenchmarkCopy8String              10            8  -23.30%
+    BenchmarkCopy12String             11           11   -5.88%
+    BenchmarkCopy16String             11           11   -5.08%
+    BenchmarkCopy32String             15           14   -6.58%
+    BenchmarkCopy128String            28           25  -10.60%
+    BenchmarkCopy1024String           95           95   +0.53%
+    
+    R=golang-dev, bradfitz, cshapiro, dave, daniel.morsing, rsc, khr, khr
+    CC=golang-dev
+    https://golang.org/cl/9101048
+
+ src/cmd/5g/cgen.c              | 17 +++++++++
+ src/cmd/5g/gsubr.c             | 10 ++++++
+ src/cmd/6g/cgen.c              | 17 +++++++++
+ src/cmd/6g/gsubr.c             | 11 ++++++
+ src/cmd/8g/cgen.c              | 17 +++++++++
+ src/cmd/8g/gsubr.c             | 11 ++++++
+ src/cmd/gc/builtin.c           |  1 +
+ src/cmd/gc/go.h                |  1 +
+ src/cmd/gc/racewalk.c          |  1 +
+ src/cmd/gc/runtime.go          |  1 +
+ src/cmd/gc/typecheck.c         | 15 +++++++-
+ src/cmd/gc/walk.c              | 78 +++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/append_test.go | 40 ++++++++++++++++++++++
+ 13 files changed, 210 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit e932c2035f01f76f614750af022d2f3975146191
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 29 11:49:45 2013 +0400
+
+    runtime: make notetsleep() return false if timeout happens
+    This is needed for preemptive scheduler, because during
+    stoptheworld we want to wait with timeout and re-preempt
+    M's on timeout.
+    
+    R=golang-dev, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/9375043
+
+ src/pkg/runtime/lock_futex.c |  7 ++++---
+ src/pkg/runtime/lock_sema.c  | 12 ++++++------
+ src/pkg/runtime/runtime.h    |  2 +-
+ 3 files changed, 11 insertions(+), 10 deletions(-)

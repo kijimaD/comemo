@@ -1,0 +1,31 @@
+commit 27ec2bf0dd67a11036626cef26899df7280b0000
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 5 08:55:55 2022 -0500
+
+    crypto/ed25519/internal/edwards25519: sync with filippo.io/edwards25519
+    
+    Import the following commits (and minor comment fixes):
+    
+        * 17a0e59 - field: fix heap escape in SqrtRatio <Filippo Valsorda>
+        * edec5b9 - field: fix SqrtRatio when arguments and receiver alias <Filippo Valsorda>
+        * 26ce6fc - edwards25519: expand the SetUniformBytes docs <Filippo Valsorda>
+        * c1c1311 - edwards25519: make Scalar and field.Element setters return errors <Filippo Valsorda>
+    
+    Change-Id: I102eb04818a2bed43467f3eda6fd4c46b09878fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373077
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+
+ src/crypto/ed25519/ed25519.go                      | 25 +++++++++++---
+ .../ed25519/internal/edwards25519/edwards25519.go  |  6 ++--
+ .../ed25519/internal/edwards25519/field/fe.go      | 40 ++++++++++++----------
+ .../internal/edwards25519/field/fe_alias_test.go   | 18 ++++++++--
+ .../internal/edwards25519/field/fe_generic.go      |  2 ++
+ .../ed25519/internal/edwards25519/field/fe_test.go | 16 +++++----
+ src/crypto/ed25519/internal/edwards25519/scalar.go | 25 ++++++++------
+ .../ed25519/internal/edwards25519/scalar_test.go   |  6 ++--
+ 8 files changed, 90 insertions(+), 48 deletions(-)

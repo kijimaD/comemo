@@ -1,0 +1,17 @@
+commit 88186e5e232625f9c91d639e0cb90a88c6cf1172
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 18 20:45:33 2019 +0000
+
+    net/http: don't cache http2.erringRoundTripper connections
+    
+    Fixes #34978
+    
+    Change-Id: I3baf1392ba7366ae6628889c47c343ef702ec438
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  9 +++--
+ src/net/http/transport_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 2 deletions(-)

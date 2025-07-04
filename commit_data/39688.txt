@@ -1,0 +1,19 @@
+commit be452cea422114160e192625ac11e83c0fd2b9e3
+Author: Illya Yalovyy <yalovoy@gmail.com>
+Date:   Sat May 25 20:44:13 2019 -0700
+
+    math/big: fast path for Cmp if same
+    
+    math/big.Int Cmp method does not have a fast path for the case if x and y are the same.
+    
+    Fixes #30856
+    
+    Change-Id: Ia9a5b5f72db9d73af1b13ed6ac39ecff87d10393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      |  2 ++
+ src/math/big/int_test.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+)

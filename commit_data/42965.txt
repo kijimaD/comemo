@@ -1,0 +1,33 @@
+commit 95bb00d1088767ed14e3bd1a5f533a690d619a5f
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Sun Sep 13 02:12:02 2020 +0000
+
+    encoding/json: implement Is on all errors
+    
+    Allows users to check:
+    
+          errors.Is(err, &UnmarshalTypeError{})
+          errors.Is(err, &UnmarshalFieldError{})
+          errors.Is(err, &InvalidUnmarshalError{})
+          errors.Is(err, &UnsupportedValueError{})
+          errors.Is(err, &MarshalerError{})
+    
+    which is the recommended way of checking for kinds of errors.
+    
+    SyntaxError.Is was implemented in CL 253037.
+    As and Unwrap relevant methods will be added in future CLs.
+    
+    Change-Id: I1f8a503b8fdc0f3afdfe9669a91f3af8d960e028
+    GitHub-Last-Rev: 930cda5384c987a0b31f277ba3b4ab690ea74ac3
+    GitHub-Pull-Request: golang/go#41360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254537
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/encoding/json/decode.go      | 18 ++++++++++++++++++
+ src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
+ src/encoding/json/encode.go      | 12 ++++++++++++
+ src/encoding/json/encode_test.go | 24 +++++++++++++++++++++++-
+ 4 files changed, 84 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 9867ced972d018715f7a44693eb644ac259e74c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 09:41:21 2010 -0700
+
+    cgo: use new command line syntax: -- separates cgo flags from gcc flags
+    
+    Fixes #922.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1664051
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

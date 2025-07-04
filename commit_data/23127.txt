@@ -1,0 +1,14 @@
+commit 22e4b8167f14bdd33738cfdc21c3396b2341f8fd
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 23 00:46:10 2015 +0200
+
+    misc/cgo/test: fix build for CC=clang
+    
+    Fix build error when CL=clang introduced by CL 10173.
+    
+    Change-Id: I8edf210787a9803280c0779ff710c7e634a820d6
+    Reviewed-on: https://go-review.googlesource.com/10341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/sigprocmask_linux.c | 1 +
+ 1 file changed, 1 insertion(+)

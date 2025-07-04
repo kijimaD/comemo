@@ -1,0 +1,18 @@
+commit f518a96e009157c51f8ecf619032bbb7873228f9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 17 18:55:18 2019 -0400
+
+    cmd/go: document go get @upgrade behavior in release notes
+    
+    Fixes #33149
+    
+    Change-Id: If9ff24fea6d087b4047a9f6e50f99f449f9b1c52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186618
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html                   | 11 +++++++++++
+ src/cmd/go/alldocs.go             | 11 +++++++----
+ src/cmd/go/internal/modget/get.go | 11 +++++++----
+ 3 files changed, 25 insertions(+), 8 deletions(-)

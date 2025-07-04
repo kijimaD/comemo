@@ -1,0 +1,22 @@
+commit 8448d3aace7f26bd6eca14e8b89c5a981c2ab9d3
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Tue Apr 5 23:32:49 2016 +0200
+
+    cmd/compile: fold CMPconst and SHR
+    
+    Fold the comparison when the SHR result is small.
+    
+    Useful for:
+    - murmur mix like hashing where higher bits are desirable, i.e. hash = uint32(i * C) >> 18
+    - integer log2 via DeBruijn sequence: http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogDeBruijn
+    
+    Change-Id: If70ae18cb86f4cc83ab6213f88ced03cc4986156
+    Reviewed-on: https://go-review.googlesource.com/21514
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++++++++++++++++
+ test/checkbce.go                             | 12 +++++++++++
+ 3 files changed, 46 insertions(+)

@@ -1,0 +1,19 @@
+commit 3c1914fc46e67ee7628428b68ab3497ca5d44d89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:26:55 2017 -0400
+
+    cmd/compile: use file content, not suffix, to distinguish .a and .o files
+    
+    This allows reading from package storage systems that may not
+    preserve the .a suffix (used with -importcfg).
+    
+    Fixes #20579 (combined with CLs earlier in stack).
+    
+    Change-Id: If2fc6a3d01bd0170a757e1f2ba9a22a4d9be7dbf
+    Reviewed-on: https://go-review.googlesource.com/44853
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 41 +++++++++++++++----------------------
+ 1 file changed, 17 insertions(+), 24 deletions(-)

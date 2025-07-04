@@ -1,0 +1,18 @@
+commit 27c0eb843110e5733a9d7e2b7175c40387d81beb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 16 19:33:40 2008 -0700
+
+    update tests to new communications syntax
+    powser1.go has not been tested - waiting for compiler to catch up
+    
+    R=ken
+    OCL=15415
+    CL=15415
+
+ test/235.go           |  4 ++--
+ test/chan/fifo.go     | 10 ++++-----
+ test/chan/nonblock.go | 16 +++++++-------
+ test/chan/powser1.go  | 60 +++++++++++++++++++++++++--------------------------
+ test/chan/sieve.go    | 41 +++++++++--------------------------
+ test/sieve.go         |  8 +++----
+ 6 files changed, 59 insertions(+), 80 deletions(-)

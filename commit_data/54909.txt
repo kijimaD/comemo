@@ -1,0 +1,20 @@
+commit 8fb8d0df90b3f692857f14233353c23fac396f82
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 1 12:09:18 2023 +0000
+
+    internal/diff: add missing 'as' in comment
+    
+    Change-Id: I40b9bc55744f6db5332d49dd47c8a4e409ecd9f3
+    GitHub-Last-Rev: c58c8ecde83c0eae88742a6785819e6cdc0dce21
+    GitHub-Pull-Request: golang/go#63870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538862
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/diff/diff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

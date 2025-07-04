@@ -1,0 +1,20 @@
+commit a737299f38cc85b8cfe976316bee09a3344ab397
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:36:20 2020 -0500
+
+    cmd/go: convert TestGoBuildDashODevNull to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I85e0d168d4e9862a718872427f56213ddc21fa32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213825
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                | 12 ------------
+ src/cmd/go/testdata/script/build_dash_o_dev_null.txt | 13 +++++++++++++
+ src/cmd/go/testdata/src/hello/hello.go               |  5 -----
+ 3 files changed, 13 insertions(+), 17 deletions(-)

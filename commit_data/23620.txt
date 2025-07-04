@@ -1,0 +1,12 @@
+commit 4c332508f92cc39eaa4c10ed005a615776280a04
+Author: Ross Light <light@google.com>
+Date:   Thu Jul 9 10:13:09 2015 -0700
+
+    CONTRIBUTORS: add Ross Light's google.com email
+    
+    Change-Id: Ide5b0c81405fbf6b83a6f02527d629898e0fcf02
+    Reviewed-on: https://go-review.googlesource.com/12000
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

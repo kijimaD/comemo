@@ -1,0 +1,18 @@
+commit 15e66f9d01da995d63683245a429e64d71ac698e
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Jan 9 12:32:19 2015 +0100
+
+    fmt: improve test coverage of %x and %X format variations for strings
+    
+    The tests in the basic string section are now covering more code paths
+    for encoding a string into the hexadecimal representation of its bytes.
+    
+    Changed the basic string and basic bytes tests so that they mirror each other.
+    
+    Change-Id: Ib5dc7b33876769965f9aba2ac270040abc4b2451
+    Reviewed-on: https://go-review.googlesource.com/2611
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)

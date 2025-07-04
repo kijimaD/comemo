@@ -1,0 +1,20 @@
+commit e357ece0afe7253624761b061976c8d8e9496b2e
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 25 11:35:51 2018 -0400
+
+    cmd/trace: have tasks in a separate section (process group)
+    
+    Also change tasks to be represented as "slices" instead of
+    asynchronous events which are more efficiently represented in trace
+    viewer data model. This change allows to utilize the flow events
+    (arrows) to represent task hierarchies.
+    
+    Introduced RegionArgs and TaskArgs where the task id infomation and
+    goroutine id informations are stored for information-purpose.
+    
+    Change-Id: I11bec7dd716fdfc5f94ea39661b2e51344367a6f
+    Reviewed-on: https://go-review.googlesource.com/109337
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/trace.go | 142 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 108 insertions(+), 34 deletions(-)

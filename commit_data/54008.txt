@@ -1,0 +1,25 @@
+commit 23e4a4b6e5ef46f2ea3fa3a95efda46df1084cf7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 18:54:52 2023 +1000
+
+    runtime/cgo: consolidate linux cgo code
+    
+    Much of the gcc_linux_*.c code is identical and duplicated across
+    architectures. Consolidate code for 386, arm, loong64, mips* and
+    riscv64, where the only difference is the build tags (386 also
+    has some non-functional ordering differences).
+    
+    Change-Id: I14ee9a4cc6b72e165239d196b68b6343efaddf0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518620
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/cgo/{gcc_linux_386.c => gcc_linux.c} |  6 ++-
+ src/runtime/cgo/gcc_linux_arm.c                  | 63 ----------------------
+ src/runtime/cgo/gcc_linux_loong64.c              | 63 ----------------------
+ src/runtime/cgo/gcc_linux_mips64x.c              | 65 -----------------------
+ src/runtime/cgo/gcc_linux_mipsx.c                | 66 ------------------------
+ src/runtime/cgo/gcc_linux_riscv64.c              | 63 ----------------------
+ 6 files changed, 4 insertions(+), 322 deletions(-)

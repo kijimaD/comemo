@@ -1,0 +1,16 @@
+commit 6d810241ebd2a02bc63b7706ad68ae8d0edbfd8e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Feb 24 10:19:54 2022 +0100
+
+    doc/go1.18: document minimum Linux kernel version
+    
+    For #45964
+    
+    Change-Id: Ic66502c50ca328e944c91e710dca6c8dbc168e4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387855
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

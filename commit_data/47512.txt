@@ -1,0 +1,16 @@
+commit 633d8c120b8f9c2ce4a0d079cd700a152a27dad6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 08:39:44 2021 -0800
+
+    cmd/compile/internal/types2: when type hashing, canonicalize interfaces
+    
+    This CL is a clean port of CL 363115 from go/types to types2.
+    
+    Change-Id: Ic2bd9388c57ffa02e75ab136d952e3ab49eb9018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364394
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../compile/internal/types2/instantiate_test.go    | 32 +++++++++++
+ src/cmd/compile/internal/types2/typestring.go      | 66 ++++++++++++++++++----
+ 2 files changed, 86 insertions(+), 12 deletions(-)

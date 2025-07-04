@@ -1,0 +1,14 @@
+commit b610a78b6ef2d06a2172f4e532813572f28da007
+Author: Eric Clark <zerohp@gmail.com>
+Date:   Thu Sep 16 13:38:23 2010 -0400
+
+    cgo: show preamble gcc errors
+    
+    Fixes #1081
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2112046
+
+ src/cmd/cgo/gcc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

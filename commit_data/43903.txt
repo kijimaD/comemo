@@ -1,0 +1,19 @@
+commit 212d385a2f723a8dd5e7d2e83efb478ddd139349
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Sep 26 09:20:16 2020 -0600
+
+    net/http: ignore connection closes once done with the connection
+    
+    Once the connection is put back into the idle pool, the request should
+    not take any action if the connection is closed.
+    
+    Fixes #41600
+    
+    Change-Id: I5e4ddcdc03cd44f5197ecfbe324638604961de84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257818
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go      | 13 +++++++----
+ src/net/http/transport_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 4 deletions(-)

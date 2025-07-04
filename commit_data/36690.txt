@@ -1,0 +1,22 @@
+commit 014901c5bab2f99af3b1019d5776fa5da6f5bef7
+Author: Mark Rushakoff <mark@influxdata.com>
+Date:   Thu Aug 30 02:15:39 2018 +0000
+
+    cmd/go: don't mention -mod=release
+    
+    The -mod=release flag is not supported, so this appears to be a
+    documentation mistake.
+    
+    Fixes #27354.
+    
+    Change-Id: I895e8d5b4918adcb1f605361773173f312fa7b65
+    GitHub-Last-Rev: 42bfe0c11e38c90e76887771654ea81af98d50ec
+    GitHub-Pull-Request: golang/go#27358
+    Reviewed-on: https://go-review.googlesource.com/132116
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/work/build.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit d445b76331aa342711b79dd6796cd832e9766c26
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 16 11:19:39 2013 +1000
+
+    cmd/gofmt: document -s transformations
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13721043
+
+ src/cmd/gofmt/doc.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,0 +1,21 @@
+commit 7e5bc4775f12a5612a2f0bea1322af4bb8b24892
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Thu May 16 12:45:52 2019 -0400
+
+    crypto/ecdsa: implement ecdsa on s390x for P256/P384/P521 using KDSA instruction
+    
+    Utilize KDSA when available. This guarantees constant time operation on all three curves mentioned,
+    and is faster than conventional assembly. The IBM Z model(s) that support KDSA as used in this CL
+    are not yet publicly available, and so we are unable to release performance data at this time.
+    
+    Change-Id: I85360dcf90fe42d2bf32afe3f638e282de10a518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174437
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/crypto/ecdsa/ecdsa.go            |  19 +++--
+ src/crypto/ecdsa/ecdsa_noasm.go      |  22 +++++
+ src/crypto/ecdsa/ecdsa_s390x.go      | 153 +++++++++++++++++++++++++++++++++++
+ src/crypto/ecdsa/ecdsa_s390x.s       |  31 +++++++
+ src/crypto/ecdsa/ecdsa_s390x_test.go |  33 ++++++++
+ 5 files changed, 252 insertions(+), 6 deletions(-)

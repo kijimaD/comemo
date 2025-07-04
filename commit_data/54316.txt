@@ -1,0 +1,21 @@
+commit 08e35cc3347f97ef750fd21fbef1061b043580e4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Sep 3 13:48:01 2023 -0400
+
+    all: use ^$ instead of XXXX, NoSuchTestExists to match no tests
+    
+    It's shorter and can't accidentally match unlikely test names.
+    
+    Change-Id: I96dd9da018cad1acf604f266819470278f54c128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524949
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/test/issue18146.go                       | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 4 ++--
+ src/net/http/serve_test.go                                    | 6 +++---
+ src/os/executable_test.go                                     | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

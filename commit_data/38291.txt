@@ -1,0 +1,17 @@
+commit 91170d7201253616620c78ce961a89a55fb9e732
+Author: royeo <ljn6176@gmail.com>
+Date:   Fri Jan 25 05:51:25 2019 +0000
+
+    log: make the name of error clearer
+    
+    Change-Id: Id0398b51336cc74f2172d9b8e18cb1dcb520b9a0
+    GitHub-Last-Rev: b5cf80bf9d7f79eab1a398ad3c03f3b424aafdf1
+    GitHub-Pull-Request: golang/go#29931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159537
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/log/log_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

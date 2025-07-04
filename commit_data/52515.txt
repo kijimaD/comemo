@@ -1,0 +1,60 @@
+commit ecc5ba46117d2e73f65caac27dfe53acb12cf4f3
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Mar 20 11:01:13 2023 -0700
+
+    html/template: disallow actions in JS template literals
+    
+    ECMAScript 6 introduced template literals[0][1] which are delimited with
+    backticks. These need to be escaped in a similar fashion to the
+    delimiters for other string literals. Additionally template literals can
+    contain special syntax for string interpolation.
+    
+    There is no clear way to allow safe insertion of actions within JS
+    template literals, as handling (JS) string interpolation inside of these
+    literals is rather complex. As such we've chosen to simply disallow
+    template actions within these template literals.
+    
+    A new error code is added for this parsing failure case, errJsTmplLit,
+    but it is unexported as it is not backwards compatible with other minor
+    release versions to introduce an API change in a minor release. We will
+    export this code in the next major release.
+    
+    The previous behavior (with the cavet that backticks are now escaped
+    properly) can be re-enabled with GODEBUG=jstmpllitinterp=1.
+    
+    This change subsumes CL471455.
+    
+    Thanks to Sohom Datta, Manipal Institute of Technology, for reporting
+    this issue.
+    
+    Fixes CVE-2023-24538
+    Fixes #59234
+    
+    [0] https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-template-literals
+    [1] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802457
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Change-Id: Ia221fefdb273bd0f066dffc2abcf2a616801d2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482079
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/html/template/context.go       |  2 ++
+ src/html/template/error.go         | 13 ++++++++
+ src/html/template/escape.go        | 13 ++++++++
+ src/html/template/escape_test.go   | 66 +++++++++++++++++++++-----------------
+ src/html/template/js.go            |  2 ++
+ src/html/template/js_test.go       |  2 +-
+ src/html/template/jsctx_string.go  |  9 ++++++
+ src/html/template/state_string.go  | 37 +++++++++++++++++++--
+ src/html/template/transition.go    |  7 +++-
+ src/runtime/metrics.go             |  1 +
+ src/runtime/metrics/description.go |  7 ++++
+ src/runtime/metrics/doc.go         |  5 +++
+ 12 files changed, 131 insertions(+), 33 deletions(-)

@@ -1,0 +1,14 @@
+commit a9a78b7005f400e52d8891b01458539e801cf8ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 2 17:41:39 2020 -0700
+
+    doc: document testing.TB.TempDir in release notes
+    
+    Updates #35998
+    
+    Change-Id: I93784e9a9efdd1531e3c342aa0899bf059da0ae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226983
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

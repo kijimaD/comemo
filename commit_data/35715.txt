@@ -1,0 +1,24 @@
+commit 70c3bf27de465099de114dae15b78d9dd56dac7e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 13 20:48:26 2018 +0200
+
+    runtime/pprof: use testenv.GoToolPath in TestMapping
+    
+    The TestMapping test invokes the go tool in an exec.Command by
+    directly hard-coding a "go" string for the command. This can cause
+    test failures on systems where the "go" command points to an old
+    toolchain where the test is not supposed to work.
+    
+    Use testenv.GoToolPath instead.
+    
+    Also call 'go run' directly on the mappingtest/main.go file instead of
+    go-running the directory.
+    
+    Change-Id: Ib91877c021209cbf4da50a561737d7a9d42c6adc
+    Reviewed-on: https://go-review.googlesource.com/118662
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/proto_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

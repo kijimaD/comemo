@@ -1,0 +1,30 @@
+commit d25c4fbe05e88580ce0a5cadc67e1c0ee27a2d1c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 18:32:00 2021 -0400
+
+    test: do not run softfloat test with regabiargs
+    
+    Softfloat mode with register ABI is not implemented yet. In
+    particular, we did not rewrite the float types in AuxCalls to
+    integer types, so arguments are still passed in floating point
+    registers, which do not exist in softfloat mode. To make it work
+    I think we may want to reorder softfloat pass with expand_calls
+    pass. We also need to rewrite the OpArgFloatRegs for the spilling
+    of non-SSA-able arguments, which may involve renumbering interger
+    arguments. Maybe in softfloat mode we want to just define the
+    ABI with 0 float registers. They are not fundamentally hard, but
+    may be not worth doing for the moment, as we don't use softfloat
+    mode on AMD64 anyway.
+    
+    Run the test with noregabiargs. Also in the compiler reject
+    -d=softfloat if regabiargs is enabled.
+    
+    Change-Id: I8cc0c2cfa88a138bc1338ed8710670245f1bd2cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308710
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ test/fixedbugs/issue28688.go        | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

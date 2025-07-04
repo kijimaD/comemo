@@ -1,0 +1,15 @@
+commit de0d762a0ffa01056c4e3efe7efe73d029237821
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 09:41:21 2009 -0700
+
+    accept CALL $(constant) to call absolute PC
+    
+    R=ken
+    OCL=34845
+    CL=34845
+
+ src/cmd/8a/a.y     |  1 +
+ src/cmd/8l/l.h     |  1 +
+ src/cmd/8l/optab.c |  3 ++-
+ src/cmd/8l/span.c  | 11 ++++++++++-
+ 4 files changed, 14 insertions(+), 2 deletions(-)

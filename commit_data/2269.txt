@@ -1,0 +1,15 @@
+commit 96cfd154d8cd2be94e0d2867751646a48e90177a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 11:50:20 2009 -0700
+
+    direct all interface extraction to InterfaceValue.Get.
+    delete unnecessary reflect. throughout
+    
+    R=r
+    DELTA=124  (18 added, 0 deleted, 106 changed)
+    OCL=29173
+    CL=29175
+
+ src/lib/reflect/all_test.go | 224 +++++++++++++++++++++++---------------------
+ src/lib/reflect/value.go    |   6 +-
+ 2 files changed, 124 insertions(+), 106 deletions(-)

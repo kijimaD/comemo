@@ -1,0 +1,14 @@
+commit 753011ebc3228d68b7593e153f8d118f103c4748
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Sat Jan 25 14:40:10 2020 +0100
+
+    io: check n in testReadAtLeast
+    
+    Change-Id: I53859d4d3c729cce9f73b14dc2dd8571f7e7ffb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/io/io_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

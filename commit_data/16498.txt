@@ -1,0 +1,21 @@
+commit f032eefdb0fb63555b4b7c83aaad5ae74550559c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 07:14:05 2013 -0400
+
+    cmd/cgo, cmd/go, go/build: sort flag lists
+    
+    CFLAGS comes before CPPFLAGS.
+    Also fix one typo CPPCFLAGS.
+    
+    Cleanup for CL 8248043.
+    
+    R=golang-dev, iant, alberto.garcia.hierro
+    CC=golang-dev
+    https://golang.org/cl/9965045
+
+ src/cmd/cgo/doc.go        | 4 ++--
+ src/cmd/go/doc.go         | 4 ++--
+ src/cmd/go/list.go        | 4 ++--
+ src/cmd/go/pkg.go         | 8 ++++----
+ src/pkg/go/build/build.go | 6 +++---
+ 5 files changed, 13 insertions(+), 13 deletions(-)

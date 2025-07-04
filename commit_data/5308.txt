@@ -1,0 +1,16 @@
+commit 57e764171cef8ba6f3a5a2a4c5f4e35bd7527740
+Author: Raif S. Naffah <go@naffah-raif.name>
+Date:   Sun Apr 18 15:22:36 2010 -0700
+
+    reflect: add FieldByNameFunc
+    xml: add support for XML marshalling embedded structs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/837042
+
+ src/pkg/reflect/type.go   |  16 ++++--
+ src/pkg/reflect/value.go  |  10 ++++
+ src/pkg/xml/embed_test.go | 124 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/xml/read.go       |  29 +++++------
+ 4 files changed, 160 insertions(+), 19 deletions(-)

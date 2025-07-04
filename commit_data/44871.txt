@@ -1,0 +1,24 @@
+commit e0ce0af6ef5232352852fa027fe51fa3fd01198e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 30 14:45:00 2021 -0400
+
+    runtime: check that defer/go frames are empty
+    
+    With GOEXPERIMENT=regabidefer, these frames should always be empty.
+    Check that.
+    
+    For #40724.
+    
+    Change-Id: Id8e418a9e06b4f94543cb16b868a7e10e013c2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306009
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/panic.go           | 11 +++++++++++
+ src/runtime/proc.go            |  6 ++++++
+ src/runtime/regabidefer_off.go | 10 ++++++++++
+ src/runtime/regabidefer_on.go  | 10 ++++++++++
+ 4 files changed, 37 insertions(+)

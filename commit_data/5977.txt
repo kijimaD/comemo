@@ -1,0 +1,13 @@
+commit dbef0711d4109740819e6bc0b0ca39ae1be49b0c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 9 11:21:20 2010 +1000
+
+    os: fix ForkExec() handling of envv == nil
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1913047
+
+ src/pkg/exec/exec_test.go | 23 +++++++++++++++++++++++
+ src/pkg/os/exec.go        |  3 +++
+ 2 files changed, 26 insertions(+)

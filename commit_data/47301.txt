@@ -1,0 +1,13 @@
+commit ad6ce55a55ec445ac946e825532bde5784f8d72b
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Oct 20 15:21:46 2021 +0800
+
+    time: add some examples
+    
+    Change-Id: I2668cdea64f75bee87d424730d404834d69362a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/time/example_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

@@ -1,0 +1,13 @@
+commit 084577b81a9bf68f0b418a7baaad0d6d7ea2e971
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 19 11:41:26 2009 -0700
+
+    hakuho
+    
+    R=ken
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=34828
+    CL=34828
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

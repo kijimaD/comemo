@@ -1,0 +1,42 @@
+commit d68ac59113e8c6d6a79abf9d608fd24c3566b91c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 2 15:03:08 2019 -0400
+
+    {,cmd/}vendor: rerun 'go mod vendor' to prune ignored files
+    
+    Updates #31088
+    
+    Change-Id: Ia126e4e83ac5cb12c2c4151d5e5c975497598f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172979
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../github.com/ianlancetaylor/demangle/c++filt.go  | 144 ---
+ .../vendor/golang.org/x/sys/unix/mkasm_darwin.go   |  61 --
+ src/cmd/vendor/golang.org/x/sys/unix/mkpost.go     | 106 ---
+ src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go  | 402 ---------
+ .../golang.org/x/sys/unix/mksyscall_aix_ppc.go     | 404 ---------
+ .../golang.org/x/sys/unix/mksyscall_aix_ppc64.go   | 602 -------------
+ .../golang.org/x/sys/unix/mksyscall_solaris.go     | 335 -------
+ src/cmd/vendor/golang.org/x/sys/unix/mksysnum.go   | 190 ----
+ src/cmd/vendor/golang.org/x/sys/unix/types_aix.go  | 236 -----
+ .../vendor/golang.org/x/sys/unix/types_darwin.go   | 277 ------
+ .../golang.org/x/sys/unix/types_dragonfly.go       | 263 ------
+ .../vendor/golang.org/x/sys/unix/types_freebsd.go  | 356 --------
+ .../vendor/golang.org/x/sys/unix/types_netbsd.go   | 289 ------
+ .../vendor/golang.org/x/sys/unix/types_openbsd.go  | 282 ------
+ .../vendor/golang.org/x/sys/unix/types_solaris.go  | 266 ------
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   4 +-
+ .../x/tools/go/analysis/unitchecker/main.go        |  64 --
+ src/vendor/golang.org/x/net/lif/defs_solaris.go    |  90 --
+ src/vendor/golang.org/x/net/nettest/conntest.go    |   6 +-
+ src/vendor/golang.org/x/net/route/defs_darwin.go   | 114 ---
+ .../golang.org/x/net/route/defs_dragonfly.go       | 113 ---
+ src/vendor/golang.org/x/net/route/defs_freebsd.go  | 337 -------
+ src/vendor/golang.org/x/net/route/defs_netbsd.go   | 112 ---
+ src/vendor/golang.org/x/net/route/defs_openbsd.go  | 116 ---
+ src/vendor/golang.org/x/text/unicode/bidi/gen.go   | 133 ---
+ .../golang.org/x/text/unicode/bidi/gen_ranges.go   |  57 --
+ .../golang.org/x/text/unicode/bidi/gen_trieval.go  |  64 --
+ .../golang.org/x/text/unicode/norm/maketables.go   | 976 ---------------------
+ .../golang.org/x/text/unicode/norm/triegen.go      | 117 ---
+ 29 files changed, 5 insertions(+), 6511 deletions(-)

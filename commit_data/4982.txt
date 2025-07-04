@@ -1,0 +1,14 @@
+commit e53f7d8993b4fae1e2de425e5c87852803362bd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 3 17:30:39 2010 -0800
+
+    net: put [ ] around IPv6 addresses for Dial
+    
+    Update #538.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/229045
+
+ src/pkg/net/dnsconfig.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

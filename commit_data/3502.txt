@@ -1,0 +1,15 @@
+commit 64145109b35b0d89f6e76b5010c3b890760bbcbc
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 11 19:36:29 2009 -0700
+
+    PNG encoder now filters.
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=122  (102 added, 0 deleted, 20 changed)
+    OCL=35573
+    CL=35587
+
+ src/pkg/image/png/reader.go |   1 +
+ src/pkg/image/png/writer.go | 141 +++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 122 insertions(+), 20 deletions(-)

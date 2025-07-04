@@ -1,0 +1,23 @@
+commit 703fb665d68ac96ae193891ffae2774c2a3deb4b
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Thu May 16 18:15:39 2019 -0600
+
+    errors: update As example to include else case
+    
+    The current example illustrates using As when the error is able to be
+    interpreted as an os.PathError, but elides the "else" case. This CL adds the
+    small extra else case to make it clear that it's not safe to assume As will
+    return true.
+    
+    This CL also squash the err instantiation and the err nil check into one line
+    for brevity.
+    
+    Change-Id: I3d3ab483ffb38fb2788d0498b3f03229a87dd7c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177717
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/errors/example_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

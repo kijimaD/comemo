@@ -1,0 +1,12 @@
+commit 0266bc84940657b1e09f72bfe3d932f0344bc6a3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 17 03:49:07 2015 +0900
+
+    cmd/go: fix build
+    
+    Change-Id: I2cd58a665d9df26583128c633c443325dcc3f288
+    Reviewed-on: https://go-review.googlesource.com/11131
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/note_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

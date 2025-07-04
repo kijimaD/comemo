@@ -1,0 +1,17 @@
+commit 465d1c61685db9e249d77db7d4ceca578f400b27
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Fri Aug 17 18:03:55 2018 +0700
+
+    crypto/tls: fix ServerHello SCT test
+    
+    According to https://tools.ietf.org/html/rfc6962#section-3.3, the SCT
+    must be at least one byte long. The parsing code correctly checks for
+    this condition, but rarely the test does generate an empty SCT.
+    
+    Change-Id: If36a34985b4470a5a9f96affc159195c04f6bfad
+    Reviewed-on: https://go-review.googlesource.com/c/129755
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_messages_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

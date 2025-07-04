@@ -1,0 +1,35 @@
+commit 7f7cb166c8e0645936a391c64ada1a965196e00c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 31 13:41:30 2010 -0700
+
+    gob: several fixes.
+    
+    1) Be sure to use the eval-time encoder/decoder rather than
+    the compile-time decoder.  In a few cases the receiver for
+    the compiling encoder was being pickled incorrectly into a
+    closure.
+    (This is the fix for issue 1238).
+    
+    2) Get the innermost name right when given a pointer to an
+    unnamed type.
+    
+    3) Use a count to delineate interface values, making it
+    possible to ignore values without having a concrete type
+    to encode into.  This is a protocol change but only for the
+    new feature, so it shouldn't affect anyone.  The old test
+    worked because, amazingly, it depended on bug #1.
+    
+    Fixes #1238.
+    
+    R=rsc, albert.strasheim
+    CC=golang-dev
+    https://golang.org/cl/2806041
+
+ src/pkg/gob/codec_test.go | 28 +++++++++++++-------
+ src/pkg/gob/debug.go      | 11 +++++---
+ src/pkg/gob/decode.go     | 67 +++++++++++++++++++++++++----------------------
+ src/pkg/gob/decoder.go    | 21 +++++++++------
+ src/pkg/gob/encode.go     | 47 +++++++++++++++++++--------------
+ src/pkg/gob/encoder.go    |  4 +--
+ src/pkg/gob/type.go       |  3 ++-
+ 7 files changed, 104 insertions(+), 77 deletions(-)

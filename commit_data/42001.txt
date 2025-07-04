@@ -1,0 +1,18 @@
+commit 04040ec9f9c763aee549d6afa3d4f0c34adf9cc1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 17 16:20:53 2020 -0400
+
+    debug/pe: improve testpoint error message
+    
+    A DWARF testpoint was calling t.Fatal() but should have been calling
+    t.Fatalf(); switch it to the correct method.
+    
+    Change-Id: I996a1041adea4299cda85c147a35b513a219b970
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228790
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/debug/pe/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

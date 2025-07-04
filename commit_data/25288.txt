@@ -1,0 +1,21 @@
+commit 5de3ff2648d614a58c94549873593d98f275fdcb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 18:04:40 2015 -0500
+
+    runtime: accept NumGC==0 in TestMemStats
+    
+    TestMemStats currently requires that NumGC != 0, but GC may
+    legitimately not have run (for example, if this test runs first, or
+    GOGC is set high, etc). Accept NumGC == 0 and instead sanity check
+    NumGC by making sure that all pause times after NumGC are 0.
+    
+    Fixes #11989.
+    
+    Change-Id: I4203859fbb83292d59a509f2eeb24d6033e7aabc
+    Reviewed-on: https://go-review.googlesource.com/17830
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/runtime/malloc_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit 55a33d8877d1bdb8f1b7fb62efe3e38e969f40b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 15:30:23 2023 -0800
+
+    cmd/dist, internal/platform: test agreement on supported build modes
+    
+    This synchronizes the supported build modes between cmd/dist and
+    internal/platform, and adds a test to keep them in synch.
+    
+    In order to do that, this has several changes to cmd/dist, and one
+    change to internal/platform.
+    
+    If the build dashboard is green after this is submitted, we can
+    probably make the functions identical.
+    
+    Change-Id: Ia78ce76b193399058fde79e38dd9f23818e566a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463992
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/supported_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go           | 31 ++++++++++++---------------
+ 2 files changed, 62 insertions(+), 17 deletions(-)

@@ -1,0 +1,14 @@
+commit b3f98d7a42d04f6f173cd61ce3fe2106e4877496
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 15:17:14 2016 +1000
+
+    sync: document that RWMutex read locks may not be held recursively
+    
+    Fixes #15418
+    
+    Change-Id: Ibc51d602eb28819d0e44e5ca13a5c61573e4111c
+    Reviewed-on: https://go-review.googlesource.com/23570
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/rwmutex.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

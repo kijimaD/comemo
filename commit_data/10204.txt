@@ -1,0 +1,12 @@
+commit 5e4e8f49c5a6a5850e808e2378103c6dd83420e7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 2 18:03:45 2011 +1100
+
+    json: fix typo in scanner_test.go.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5303092
+
+ src/pkg/json/scanner_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

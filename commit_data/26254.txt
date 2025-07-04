@@ -1,0 +1,18 @@
+commit b55a5dbb8acacf99007d3505c5a763d48c684bb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 13 12:40:09 2016 -0700
+
+    os/user: fix formatting of error group lookup message
+    
+    It was failing like "unknown groupid ᎈ|" instead of "unknown groupid
+    5000" due to the conversion from int to string.
+    
+    Updates #14806
+    
+    Change-Id: I83e4b478ff628ad4053573a9f32b3fadce22e847
+    Reviewed-on: https://go-review.googlesource.com/20642
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/os/user/lookup_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

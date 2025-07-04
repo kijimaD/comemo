@@ -1,0 +1,12 @@
+commit 6892155dedeb041db0d0e0f912dabe5b9c72f8f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 15:30:25 2011 -0800
+
+    runtime: remove unused declarations from mgc0.c.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4252063
+
+ src/pkg/runtime/mgc0.c | 3 ---
+ 1 file changed, 3 deletions(-)

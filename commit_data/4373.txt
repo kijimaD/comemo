@@ -1,0 +1,11 @@
+commit 76f7803a2aa17781e1ad1215c1d17045d8cc8c44
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Dec 10 11:40:11 2009 -0800
+
+    added SHUT_RD, SHOT_WR and xSHUT_RDWR to fix net compilation error
+    
+    R=rsc
+    https://golang.org/cl/165044
+
+ src/pkg/syscall/zerrors_linux_arm.go | 3 +++
+ 1 file changed, 3 insertions(+)

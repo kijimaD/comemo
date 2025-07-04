@@ -1,0 +1,11 @@
+commit b6218e690738b2563598a150c08b17eb6069444b
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 17:42:03 2008 -0700
+
+    '\Ucafebabe'
+    
+    SVN=121562
+
+ src/cmd/gc/go.h  |  2 +-
+ src/cmd/gc/lex.c | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

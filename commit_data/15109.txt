@@ -1,0 +1,14 @@
+commit 2ebfaa36b51e860d066799afa90de3efe092ae4a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 4 00:40:11 2013 +0800
+
+    cmd/5l, cmd/ld: support generating ELF binaries for NetBSD/ARM
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7261043
+
+ src/cmd/5l/asm.c |  5 +----
+ src/cmd/5l/obj.c | 15 ++++-----------
+ src/cmd/ld/elf.c | 25 +++++++++++++++----------
+ 3 files changed, 20 insertions(+), 25 deletions(-)

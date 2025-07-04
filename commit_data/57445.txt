@@ -1,0 +1,33 @@
+commit 0ee5d20b1fe617e425d1798a4f7439cf8c337459
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 10 01:04:51 2024 +1000
+
+    cmd/compile,cmd/internal/obj/riscv: always provide ANDN, ORN and XNOR for riscv64
+    
+    The ANDN, ORN and XNOR RISC-V Zbb extension instructions are easily
+    synthesised. Make them always available by adding support to the
+    riscv64 assembler so that we either emit two instruction sequences,
+    or a single instruction, when permitted by the GORISCV64 profile.
+    This means that these instructions can be used unconditionally,
+    simplifying compiler rewrite rules, codegen tests and manually
+    written assembly.
+    
+    Around 180 instructions are removed from the Go binary on riscv64
+    when built with rva22u64.
+    
+    Change-Id: Ib2d90f2593a306530dc0ed08a981acde4d01be20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s        | 12 ++--
+ src/cmd/compile/internal/riscv64/ssa.go            |  3 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  1 -
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    | 29 ++++----
+ .../internal/ssa/_gen/RISCV64latelower.rules       |  6 ++
+ src/cmd/compile/internal/ssa/opGen.go              | 46 ++++++++++++
+ .../internal/ssa/rewriteRISCV64latelower.go        | 84 ++++++++++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go                  | 28 ++++++++
+ 8 files changed, 188 insertions(+), 21 deletions(-)

@@ -1,0 +1,12 @@
+commit 6b5962c2744f65d61dfadb4a1dc8308cb43324b7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 17 16:51:04 2011 +1000
+
+    test/chan/select5.go: update to new templates
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4911041
+
+ test/chan/select5.go | 283 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 141 insertions(+), 142 deletions(-)

@@ -1,0 +1,25 @@
+commit 49d82b4ca1a902f5667e845e82440c83287ee633
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 12 13:15:29 2011 +1100
+
+    doc: add Defer, Panic, and Recover article
+    
+    Originally published on The Go Programming Language Blog, August 4 2010.
+    
+    http://blog.golang.org/2010/08/defer-panic-and-recover.html
+    
+    Update #2547
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5479053
+
+ doc/Makefile                          |   2 +-
+ doc/articles/defer_panic_recover.html | 274 ++++++++++++++++++++++++++++++++++
+ doc/articles/defer_panic_recover.tmpl | 193 ++++++++++++++++++++++++
+ doc/makehtml                          |   4 +-
+ doc/progs/defer.go                    |  53 +++++++
+ doc/progs/defer2.go                   |  56 +++++++
+ doc/progs/run                         |  52 ++++---
+ doc/tmpltohtml.go                     |   5 +-
+ 8 files changed, 616 insertions(+), 23 deletions(-)

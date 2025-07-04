@@ -1,0 +1,15 @@
+commit f367c13c79c229743d4954ca9c86ac90cea4c078
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Thu Apr 21 17:03:58 2011 -0400
+
+    8l/prof.c: #if 0 is not accepted by the Plan 9 native toolchain.
+    
+    The solution may be a bit of a sledgehammer, but it looks like
+    a temporary situation anyway.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4400042
+
+ src/cmd/8l/prof.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

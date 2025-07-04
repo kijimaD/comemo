@@ -1,0 +1,20 @@
+commit db9341a02424a80a93ad50b362b881544b685e19
+Author: Keith Randall <khr@google.com>
+Date:   Tue May 29 10:30:54 2018 -0700
+
+    cmd/compile: update WBLoads during deadcode
+    
+    When we deadcode-remove a block which is a write barrier test,
+    remove that block from the list of write barrier test blocks.
+    
+    Fixes #25516
+    
+    Change-Id: I1efe732d5476003eab4ad6bf67d0340d7874ff0c
+    Reviewed-on: https://go-review.googlesource.com/115037
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/deadcode.go | 13 +++++++++++++
+ test/fixedbugs/issue25516.go             | 26 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

@@ -1,0 +1,23 @@
+commit 70eef675d5aa4f4fb6f2a5f59777b826526d3205
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 10 21:33:44 2009 -0700
+
+    PNG decoder for go.
+    
+    R=rsc
+    APPROVED=r
+    DELTA=694  (675 added, 3 deleted, 16 changed)
+    OCL=34427
+    CL=34554
+
+ src/pkg/Make.deps                    |   1 +
+ src/pkg/Makefile                     |   2 +
+ src/pkg/compress/gzip/gunzip.go      |   8 +-
+ src/pkg/compress/gzip/gunzip_test.go |   1 +
+ src/pkg/compress/zlib/reader.go      |  27 ++-
+ src/pkg/compress/zlib/reader_test.go |   1 +
+ src/pkg/image/color.go               | 110 ++++++++-
+ src/pkg/image/image.go               | 112 ++++++++-
+ src/pkg/image/png/Makefile           |  11 +
+ src/pkg/image/png/reader.go          | 437 +++++++++++++++++++++++++++++++++++
+ 10 files changed, 691 insertions(+), 19 deletions(-)

@@ -1,0 +1,17 @@
+commit f3c89e21a566a6c82cff3e4d4b30e21de22a84fa
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 12 14:47:32 2024 +0200
+
+    cmd/link/internal: use slices.Contains
+    
+    Change-Id: Ib437e272e0eb7d1b0969a4ed94d264ca3aad7c59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612696
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tim King <taking@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/link/internal/ld/lib.go  |  5 +++--
+ src/cmd/link/internal/ld/util.go | 10 ----------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,26 @@
+commit b0283611e487afe664e88ddad98cbd4b6f46a0b0
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu May 20 17:31:28 2010 -0700
+
+    fix issue 798
+    cannot allocate an audomatic temp
+    while real registers are allocated.
+    there is a chance that the automatic
+    will be allocated to one of the
+    allocated registers. the fix is to
+    not registerize such variables.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1202042
+
+ src/cmd/5g/gsubr.c |  6 ++++++
+ src/cmd/6g/gg.h    |  1 +
+ src/cmd/6g/gsubr.c | 18 ++++++++++++++++++
+ src/cmd/6g/reg.c   |  2 ++
+ src/cmd/8g/gg.h    |  1 +
+ src/cmd/8g/gsubr.c | 18 ++++++++++++++++++
+ src/cmd/8g/reg.c   |  2 ++
+ src/cmd/gc/gen.c   |  1 +
+ src/cmd/gc/go.h    |  2 ++
+ 9 files changed, 51 insertions(+)

@@ -1,0 +1,15 @@
+commit e8c0d0f2f3d1e7b1ccc8f057cff24a490b2dc2a7
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 11:17:08 2015 -0700
+
+    os: add LookupEnv, like Getenv but reports presence
+    
+    Fixes #9676.
+    
+    Change-Id: I32fe474cdfa09aff91daa4b10ac4df28ffdaa649
+    Reviewed-on: https://go-review.googlesource.com/9741
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env.go      |  9 +++++++++
+ src/os/env_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)

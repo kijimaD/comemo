@@ -1,0 +1,28 @@
+commit e74db46519a7cbed16a7f14932da2ef93d647ece
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 7 19:12:16 2021 -0400
+
+    go/types: use an identifier map rather than isubst for recv type params
+    
+    Receiver type parameters are the only type expressions allowed to be
+    blank. Previously this was handled by substitution of synthetic
+    non-blank names in the receiver type expression, but that introduced
+    problems related to AST mangling: the scope had extra elements,
+    Object.Name() was inaccurate, and synthetic nodes were recorded in
+    types.Info.
+    
+    Fix this instead by recording a map of *ast.Ident->*TypeParam on the
+    Checker, which is read in Checker.ident to resolve blank identifiers
+    denoting receiver type parameters.
+    
+    Change-Id: I6a7a86b823409f54778c0f141e8bd269a2cc85d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354643
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go     |  2 ++
+ src/go/types/signature.go | 86 ++++++++++-------------------------------------
+ src/go/types/typexpr.go   | 10 +++++-
+ 3 files changed, 28 insertions(+), 70 deletions(-)

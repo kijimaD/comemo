@@ -1,0 +1,16 @@
+commit 2e94401277128f9e08e3319903d1b78c09c4ab98
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 23 11:59:34 2021 +0100
+
+    os/exec: use testenv.SkipFlaky in TestExtraFilesFDShuffle
+    
+    Change-Id: Icc1980ea0f6363c667bf91371404a8df6ed6b8ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303950
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

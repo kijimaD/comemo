@@ -1,0 +1,163 @@
+commit 68b4255a9644a838898bfc6567bae97585c2e871
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 4 14:00:19 2010 -0400
+
+    runtime: ,s/[a-zA-Z0-9_]+/runtime·&/g, almost
+    
+    Prefix all external symbols in runtime by runtime·,
+    to avoid conflicts with possible symbols of the same
+    name in linked-in C libraries.  The obvious conflicts
+    are printf, malloc, and free, but hide everything to
+    avoid future pain.
+    
+    The symbols left alone are:
+    
+            ** known to cgo **
+            _cgo_free
+            _cgo_malloc
+            libcgo_thread_start
+            initcgo
+            ncgocall
+    
+            ** known to linker **
+            _rt0_$GOARCH
+            _rt0_$GOARCH_$GOOS
+            text
+            etext
+            data
+            end
+            pclntab
+            epclntab
+            symtab
+            esymtab
+    
+            ** known to C compiler **
+            _divv
+            _modv
+            _div64by32
+            etc (arch specific)
+    
+    Tested on darwin/386, darwin/amd64, linux/386, linux/amd64.
+    
+    Built (but not tested) for freebsd/386, freebsd/amd64, linux/arm, windows/386.
+    
+    R=r, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/2899041
+
+ src/cmd/cgo/out.go                     |  12 +-
+ src/cmd/gc/builtin.c.boot              |   4 +-
+ src/cmd/gc/runtime.go                  |   4 +-
+ src/cmd/gc/walk.c                      |   4 +-
+ src/pkg/runtime/386/asm.s              |  85 +++---
+ src/pkg/runtime/386/closure.c          |  18 +-
+ src/pkg/runtime/386/memmove.s          |   3 +-
+ src/pkg/runtime/386/vlop.s             |   4 +-
+ src/pkg/runtime/386/vlrt.c             |  12 +-
+ src/pkg/runtime/amd64/asm.s            | 119 ++++----
+ src/pkg/runtime/amd64/closure.c        |  12 +-
+ src/pkg/runtime/amd64/memmove.s        |   2 +-
+ src/pkg/runtime/amd64/traceback.c      |  38 +--
+ src/pkg/runtime/arm/asm.s              |  72 ++---
+ src/pkg/runtime/arm/cas5.s             |   8 +-
+ src/pkg/runtime/arm/cas6.s             |   2 +-
+ src/pkg/runtime/arm/closure.c          |  14 +-
+ src/pkg/runtime/arm/memmove.s          |   2 +-
+ src/pkg/runtime/arm/memset.s           |   2 +-
+ src/pkg/runtime/arm/softfloat.c        | 100 +++----
+ src/pkg/runtime/arm/traceback.c        |  32 +--
+ src/pkg/runtime/arm/vlop.s             |  18 +-
+ src/pkg/runtime/arm/vlrt.c             |  24 +-
+ src/pkg/runtime/cgocall.c              |  40 +--
+ src/pkg/runtime/cgocall.h              |   8 +-
+ src/pkg/runtime/chan.c                 | 278 +++++++++----------
+ src/pkg/runtime/complex.c              |  26 +-
+ src/pkg/runtime/darwin/386/rt0.s       |   2 +-
+ src/pkg/runtime/darwin/386/signal.c    | 105 ++++---
+ src/pkg/runtime/darwin/386/sys.s       |  82 +++---
+ src/pkg/runtime/darwin/amd64/rt0.s     |   2 +-
+ src/pkg/runtime/darwin/amd64/signal.c  | 120 ++++----
+ src/pkg/runtime/darwin/amd64/sys.s     |  66 ++---
+ src/pkg/runtime/darwin/mem.c           |  18 +-
+ src/pkg/runtime/darwin/os.h            |  34 +--
+ src/pkg/runtime/darwin/signals.h       |   2 +-
+ src/pkg/runtime/darwin/thread.c        | 178 ++++++------
+ src/pkg/runtime/float.c                |  52 ++--
+ src/pkg/runtime/freebsd/386/rt0.s      |   2 +-
+ src/pkg/runtime/freebsd/386/signal.c   | 104 +++----
+ src/pkg/runtime/freebsd/386/sys.s      |  56 ++--
+ src/pkg/runtime/freebsd/amd64/rt0.s    |   2 +-
+ src/pkg/runtime/freebsd/amd64/signal.c | 120 ++++----
+ src/pkg/runtime/freebsd/amd64/sys.s    |  50 ++--
+ src/pkg/runtime/freebsd/mem.c          |  18 +-
+ src/pkg/runtime/freebsd/os.h           |   8 +-
+ src/pkg/runtime/freebsd/signals.h      |   2 +-
+ src/pkg/runtime/freebsd/thread.c       |  82 +++---
+ src/pkg/runtime/hashmap.c              | 226 ++++++++-------
+ src/pkg/runtime/hashmap.h              |  26 +-
+ src/pkg/runtime/iface.c                | 192 ++++++-------
+ src/pkg/runtime/linux/386/rt0.s        |   2 +-
+ src/pkg/runtime/linux/386/signal.c     | 108 ++++----
+ src/pkg/runtime/linux/386/sys.s        |  38 +--
+ src/pkg/runtime/linux/amd64/rt0.s      |   2 +-
+ src/pkg/runtime/linux/amd64/signal.c   | 124 ++++-----
+ src/pkg/runtime/linux/amd64/sys.s      |  44 +--
+ src/pkg/runtime/linux/arm/rt0.s        |   2 +-
+ src/pkg/runtime/linux/arm/signal.c     | 118 ++++----
+ src/pkg/runtime/linux/arm/sys.s        |  36 +--
+ src/pkg/runtime/linux/mem.c            |  24 +-
+ src/pkg/runtime/linux/os.h             |  10 +-
+ src/pkg/runtime/linux/signals.h        |   2 +-
+ src/pkg/runtime/linux/thread.c         |  84 +++---
+ src/pkg/runtime/malloc.goc             | 166 +++++------
+ src/pkg/runtime/malloc.h               |  82 +++---
+ src/pkg/runtime/mcache.c               |  18 +-
+ src/pkg/runtime/mcentral.c             |  66 ++---
+ src/pkg/runtime/mfinal.c               |  48 ++--
+ src/pkg/runtime/mfixalloc.c            |   8 +-
+ src/pkg/runtime/mgc0.c                 | 110 ++++----
+ src/pkg/runtime/mheap.c                | 108 ++++----
+ src/pkg/runtime/mheapmap32.c           |  16 +-
+ src/pkg/runtime/mheapmap32.h           |  10 +-
+ src/pkg/runtime/mheapmap64.c           |  16 +-
+ src/pkg/runtime/mheapmap64.h           |  10 +-
+ src/pkg/runtime/mprof.goc              |  30 +-
+ src/pkg/runtime/msize.c                |  82 +++---
+ src/pkg/runtime/nacl/386/closure.c     |  46 ++--
+ src/pkg/runtime/nacl/386/rt0.s         |   2 +-
+ src/pkg/runtime/nacl/386/signal.c      |   2 +-
+ src/pkg/runtime/nacl/386/sys.s         |  40 +--
+ src/pkg/runtime/nacl/mem.c             |  12 +-
+ src/pkg/runtime/nacl/os.h              |  10 +-
+ src/pkg/runtime/nacl/thread.c          |  66 ++---
+ src/pkg/runtime/plan9/386/rt0.s        |   6 +-
+ src/pkg/runtime/plan9/386/signal.c     |   2 +-
+ src/pkg/runtime/plan9/386/sys.s        |  20 +-
+ src/pkg/runtime/plan9/mem.c            |   8 +-
+ src/pkg/runtime/plan9/os.h             |  12 +-
+ src/pkg/runtime/plan9/thread.c         |  44 +--
+ src/pkg/runtime/print.c                | 132 +++++----
+ src/pkg/runtime/proc.c                 | 484 ++++++++++++++++-----------------
+ src/pkg/runtime/reflect.goc            |  28 +-
+ src/pkg/runtime/rune.c                 |   7 +-
+ src/pkg/runtime/runtime.c              | 207 +++++++-------
+ src/pkg/runtime/runtime.h              | 367 ++++++++++++-------------
+ src/pkg/runtime/runtime1.goc           |   2 +-
+ src/pkg/runtime/sema.goc               |  36 +--
+ src/pkg/runtime/sigqueue.goc           |  24 +-
+ src/pkg/runtime/slice.c                | 238 ++++++++--------
+ src/pkg/runtime/string.goc             | 100 +++----
+ src/pkg/runtime/symtab.c               |  34 +--
+ src/pkg/runtime/tiny/386/rt0.s         |   8 +-
+ src/pkg/runtime/tiny/386/signal.c      |   8 +-
+ src/pkg/runtime/tiny/386/sys.s         |  18 +-
+ src/pkg/runtime/tiny/mem.c             |  10 +-
+ src/pkg/runtime/tiny/thread.c          |  36 +--
+ src/pkg/runtime/windows/386/rt0.s      |   2 +-
+ src/pkg/runtime/windows/386/signal.c   |   6 +-
+ src/pkg/runtime/windows/386/sys.s      |  18 +-
+ src/pkg/runtime/windows/mem.c          |  12 +-
+ src/pkg/runtime/windows/os.h           |  24 +-
+ src/pkg/runtime/windows/syscall.goc    |  18 +-
+ src/pkg/runtime/windows/thread.c       | 160 +++++------
+ 115 files changed, 3022 insertions(+), 3083 deletions(-)

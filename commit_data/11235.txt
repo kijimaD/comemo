@@ -1,0 +1,15 @@
+commit be93207c8f19a601551dd6021f13b3c964aa258a
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jan 19 09:34:37 2012 +1100
+
+    image/color: rename modelYCbCr to yCbCrModel.
+    
+    This matches the other color models. It seems that this was missed
+    during the review of 5544073.
+    
+    R=nigeltao, david.crawshaw
+    CC=golang-dev
+    https://golang.org/cl/5536057
+
+ src/pkg/image/color/ycbcr.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

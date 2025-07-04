@@ -1,0 +1,20 @@
+commit 3b003c3edb013786caeea6c0913b2e21fc4ad66b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 16 14:32:03 2019 -0400
+
+    cmd/go/internal/module: fix inverted condition in MatchPathMajor
+    
+    This was spotted in CL 200767. This change just ensures internal
+    packages match their equivalents in x/mod.
+    
+    Also pulled in test added in CL 201517.
+    
+    Change-Id: I51d23d62697c256548f411930fcb6bccce51bf34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201497
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/module/module.go      |  7 +++++--
+ src/cmd/go/internal/module/module_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

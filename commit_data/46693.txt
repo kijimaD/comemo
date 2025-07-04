@@ -1,0 +1,21 @@
+commit 8d494b08189cda1b66b9f851d4d7088c77ac7b6b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 17:42:15 2021 -0400
+
+    cmd/link: set alignment for string symbols in symtab pass
+    
+    Set alignment for string symbols in symtab pass, so we don't need
+    to look at symbol name in symalign in dodata pass. (Ideally we
+    should not use symbol name like this in symtab pass either, but
+    we already use the names there anyway.)
+    
+    Change-Id: I9fd61e0dd0824c50e3d0d7c07f75b967c8654796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353470
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go   | 7 -------
+ src/cmd/link/internal/ld/symtab.go | 6 ++++++
+ 2 files changed, 6 insertions(+), 7 deletions(-)

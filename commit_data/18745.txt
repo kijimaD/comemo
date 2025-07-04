@@ -1,0 +1,31 @@
+commit 9a7cd11bc8f1763710a18bd90e9db00f8281d69b
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Wed Mar 5 12:19:56 2014 +1100
+
+    os: try openFile before openDir in windows os.OpenFile
+    
+    Logging calls when running "go install -a std" turns:
+    
+      547  openDir succeeded
+      3593 openDir failed and fell back to openFile
+      3592 openFile succeeded
+      1    both failed
+    
+    into:
+    
+      3592 openFile succeeded
+      548  openFile failed and fell back
+      547  openDir succeeded
+      1    both failed
+    
+    Here the change trades 3593 failed openDir for 548 failed openFile.
+    
+    Fix issue 7426.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/70480044
+
+ src/pkg/os/file_windows.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 5ec86988625908d82453f2fcc6597234bfb29b30
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 19 16:51:29 2013 +1000
+
+    misc/dist: add 'label' part of distro name, include blog content
+    
+    This will allow us to cut binaries with names like:
+            go1.2rc1.darwin-amd64-osx10.6.pkg
+            go1.2rc1.darwin-amd64-osx10.8.pkg
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13629045
+
+ misc/dist/bindist.go | 65 +++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 49 insertions(+), 16 deletions(-)

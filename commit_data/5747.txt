@@ -1,0 +1,14 @@
+commit ed39c764b886e2b19d07ccb265f6b2cf3535aa98
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 20:34:31 2010 -0700
+
+    gc: do not crash on bad [...]T
+    
+    Fixes #879.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1678048
+
+ src/cmd/gc/align.c | 5 +++++
+ 1 file changed, 5 insertions(+)

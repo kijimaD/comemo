@@ -1,0 +1,17 @@
+commit ea1a36efcda31c159655be5e8258bb88fb600a1a
+Author: Kevin Ballard <kevin@sb.org>
+Date:   Wed Jan 13 13:32:19 2010 +1100
+
+            Fix minor issues with updating go-mode in an empty buffer
+    
+      Sometimes during editing, when the buffer is emptied (for example,
+      as part of a call to M-x gofmt), an error is raised when
+      remove-text-properties is called. Ensure that these calls use point-max
+      instead of buffer-size to determine their end point.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/189042
+
+ misc/emacs/go-mode.el | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

@@ -1,0 +1,87 @@
+commit 3f6acf11200e54d98fef9b4fa42361b690e12d6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 22:04:39 2009 -0700
+
+    move src/runtime -> src/lib/runtime;
+    only automatic g4 mv here.
+    
+    R=r
+    OCL=30002
+    CL=30007
+
+ src/{ => lib}/runtime/386/asm.s             |   0
+ src/{ => lib}/runtime/386/closure.c         |   0
+ src/{ => lib}/runtime/386/traceback.c       |   0
+ src/{ => lib}/runtime/386/vlop.s            |   0
+ src/{ => lib}/runtime/386/vlrt.c            |   0
+ src/{ => lib}/runtime/amd64/asm.s           |   0
+ src/{ => lib}/runtime/amd64/closure.c       |   0
+ src/{ => lib}/runtime/amd64/traceback.c     |   0
+ src/{ => lib}/runtime/arm/asm.s             |   0
+ src/{ => lib}/runtime/arm/closure.c         |   0
+ src/{ => lib}/runtime/arm/traceback.s       |   0
+ src/{ => lib}/runtime/array.c               |   0
+ src/{ => lib}/runtime/cgo2c.c               |   0
+ src/{ => lib}/runtime/chan.c                |   0
+ src/{ => lib}/runtime/darwin/386/defs.h     |   0
+ src/{ => lib}/runtime/darwin/386/rt0.s      |   0
+ src/{ => lib}/runtime/darwin/386/signal.c   |   0
+ src/{ => lib}/runtime/darwin/386/sys.s      |   0
+ src/{ => lib}/runtime/darwin/amd64/defs.h   |   0
+ src/{ => lib}/runtime/darwin/amd64/rt0.s    |   0
+ src/{ => lib}/runtime/darwin/amd64/signal.c |   0
+ src/{ => lib}/runtime/darwin/amd64/sys.s    |   0
+ src/{ => lib}/runtime/darwin/defs.c         |   0
+ src/{ => lib}/runtime/darwin/os.h           |   0
+ src/{ => lib}/runtime/darwin/signals.h      |   0
+ src/{ => lib}/runtime/darwin/thread.c       |   0
+ src/lib/runtime/{runtime.go => extern.go}   |   0
+ src/{ => lib}/runtime/float.c               |   0
+ src/{ => lib}/runtime/float_go.cgo          |   0
+ src/{ => lib}/runtime/hashmap.c             |   0
+ src/{ => lib}/runtime/hashmap.h             |   0
+ src/{ => lib}/runtime/iface.c               |   0
+ src/{ => lib}/runtime/linux/386/defs.h      |   0
+ src/{ => lib}/runtime/linux/386/rt0.s       |   0
+ src/{ => lib}/runtime/linux/386/signal.c    |   0
+ src/{ => lib}/runtime/linux/386/sys.s       |   0
+ src/{ => lib}/runtime/linux/amd64/defs.h    |   0
+ src/{ => lib}/runtime/linux/amd64/rt0.s     |   0
+ src/{ => lib}/runtime/linux/amd64/signal.c  |   0
+ src/{ => lib}/runtime/linux/amd64/sys.s     |   0
+ src/{ => lib}/runtime/linux/arm/defs.h      |   0
+ src/{ => lib}/runtime/linux/arm/rt0.s       |   0
+ src/{ => lib}/runtime/linux/arm/signal.c    |   0
+ src/{ => lib}/runtime/linux/arm/sys.s       |   0
+ src/{ => lib}/runtime/linux/defs.c          |   0
+ src/{ => lib}/runtime/linux/defs1.c         |   0
+ src/{ => lib}/runtime/linux/defs2.c         |   0
+ src/{ => lib}/runtime/linux/defs_arm.c      |   0
+ src/{ => lib}/runtime/linux/os.h            |   0
+ src/{ => lib}/runtime/linux/signals.h       |   0
+ src/{ => lib}/runtime/linux/thread.c        |   0
+ src/{ => lib}/runtime/malloc.c              |   0
+ src/{ => lib}/runtime/malloc.h              |   0
+ src/{ => lib}/runtime/malloc_go.cgo         |   0
+ src/{ => lib}/runtime/mcache.c              |   0
+ src/{ => lib}/runtime/mcentral.c            |   0
+ src/{ => lib}/runtime/mem.c                 |   0
+ src/{ => lib}/runtime/mfixalloc.c           |   0
+ src/{ => lib}/runtime/mgc0.c                |   0
+ src/{ => lib}/runtime/mheap.c               |   0
+ src/{ => lib}/runtime/mheapmap32.c          |   0
+ src/{ => lib}/runtime/mheapmap32.h          |   0
+ src/{ => lib}/runtime/mheapmap64.c          |   0
+ src/{ => lib}/runtime/mheapmap64.h          |   0
+ src/{ => lib}/runtime/msize.c               |   0
+ src/{ => lib}/runtime/print.c               |   0
+ src/{ => lib}/runtime/proc.c                |   0
+ src/{ => lib}/runtime/rune.c                |  15 ++++
+ src/{ => lib}/runtime/runtime.c             |   0
+ src/{ => lib}/runtime/runtime.h             |   0
+ src/{ => lib}/runtime/sema.c                |   0
+ src/{ => lib}/runtime/sema_go.cgo           |   0
+ src/{ => lib}/runtime/string.c              |   0
+ src/{ => lib}/runtime/symtab.c              |   0
+ src/runtime/Makefile                        | 119 ----------------------------
+ 75 files changed, 15 insertions(+), 119 deletions(-)

@@ -1,0 +1,28 @@
+commit 8415ec8c98627326ffb48141c45917b9d7d0c234
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 13 13:30:26 2022 -0700
+
+    cmd/compile: in compiler errors, print more digits for floats close to an int
+    
+    Error messages currently print floats with %.6g, which means that if
+    you tried to convert something close to, but not quite, an integer, to
+    an integer, the error you get looks like "cannot convert 1 to type
+    int", when really you want "cannot convert 0.9999999 to type int".
+    
+    Add more digits to floats when printing them, to make it clear that they
+    aren't quite integers. This helps for errors which are the result of not
+    being an integer. For other errors, it won't hurt much.
+    
+    Fixes #56220
+    
+    Change-Id: I7f5873af5993114a61460ef399d15316925a15a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442935
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/go/constant/value.go     |  8 +++++++-
+ test/fixedbugs/issue56220.go | 15 +++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

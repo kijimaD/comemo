@@ -1,0 +1,20 @@
+commit 0d1280c685c2353a9c982c11e77281ad4d34464a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 26 18:32:28 2021 +0000
+
+    Revert "sync: improve sync.Pool object stealing"
+    
+    This reverts CL 303949.
+    
+    Reason for revert: broke linux-arm-aws TryBots.
+    
+    Change-Id: Ib44949df70520cdabff857846be0d2221403d2f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313630
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/sync/pool.go      | 103 +++++---------------------------------------------
+ src/sync/pool_test.go |  18 ---------
+ 2 files changed, 10 insertions(+), 111 deletions(-)

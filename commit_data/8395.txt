@@ -1,0 +1,17 @@
+commit 4eb67563f64d634daf4b61ee6e7f7bc3b291c20a
+Author: Adam Langley <agl@golang.org>
+Date:   Sat May 14 19:13:12 2011 -0400
+
+    crypto/openpgp: change PublicKey.Serialize to include the header.
+    
+    Signature.Serialize already does this and they should be consistent.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4521064
+
+ src/pkg/crypto/openpgp/packet/packet.go          |  8 ++++++
+ src/pkg/crypto/openpgp/packet/public_key.go      | 33 ++++++++++++++++++----
+ src/pkg/crypto/openpgp/packet/public_key_test.go | 36 ++++++++++++++++++++++--
+ src/pkg/crypto/openpgp/packet/signature.go       |  6 ++--
+ 4 files changed, 71 insertions(+), 12 deletions(-)

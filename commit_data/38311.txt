@@ -1,0 +1,34 @@
+commit 49662bc6b02810389c66b6b24576f6a5b217d471
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 5 20:44:29 2019 +0000
+
+    all: simplify multiple for loops
+    
+    If a for loop has a simple condition and begins with a simple
+    "if x { break; }"; we can simply add "!x" to the loop's condition.
+    
+    While at it, simplify a few assignments to use the common pattern
+    "x := staticDefault; if cond { x = otherValue(); }".
+    
+    Finally, simplify a couple of var declarations.
+    
+    Change-Id: I413982c6abd32905adc85a9a666cb3819139c19f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165342
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go      | 4 +---
+ src/cmd/compile/internal/gc/reflect.go   | 4 +---
+ src/cmd/compile/internal/gc/walk.go      | 4 +---
+ src/cmd/compile/internal/ssa/schedule.go | 6 +-----
+ src/cmd/internal/obj/pass.go             | 5 +----
+ src/cmd/link/internal/ld/elf.go          | 4 +---
+ src/encoding/json/encode.go              | 3 +--
+ src/encoding/json/stream_test.go         | 2 +-
+ src/internal/reflectlite/type.go         | 5 +----
+ src/reflect/type.go                      | 5 +----
+ src/runtime/traceback.go                 | 5 +----
+ src/runtime/type.go                      | 5 +----
+ src/text/template/funcs.go               | 4 +---
+ 13 files changed, 13 insertions(+), 43 deletions(-)

@@ -1,0 +1,20 @@
+commit 1c82e236f5eed548ffc889ea4d7035a6ddc7b25c
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 21 18:18:33 2015 +0100
+
+    gdb: fix map prettyprinter
+    
+    (gdb) p x
+    Python Exception <class 'gdb.error'> There is no member named b.:
+    $2 = map[string]string
+    ->
+    (gdb) p x
+    $1 = map[string]string = {["shane"] = "hansen"}
+    
+    Change-Id: I874d02a029f2ac9afc5ab666afb65760ec2c3177
+    Reviewed-on: https://go-review.googlesource.com/5522
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

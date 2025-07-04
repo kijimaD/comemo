@@ -1,0 +1,16 @@
+commit de3aac609cde6b02c9411a002ff07adb473df15a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 5 11:12:02 2011 -0400
+
+    gofix: don't rewrite O_APPEND opens
+    
+    R=r, rog
+    CC=golang-dev
+    https://golang.org/cl/4364041
+
+ misc/dashboard/builder/exec.go      |  2 +-
+ src/cmd/gofix/osopen.go             | 12 +++++++++++-
+ src/cmd/gofix/osopen_test.go        |  2 ++
+ src/cmd/goinstall/main.go           |  2 +-
+ src/pkg/crypto/tls/generate_cert.go |  2 +-
+ 5 files changed, 16 insertions(+), 4 deletions(-)

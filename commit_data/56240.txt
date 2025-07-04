@@ -1,0 +1,40 @@
+commit fa470f6245191b3c2f0b715194edf7cdf951af48
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Mar 23 01:21:03 2024 +0000
+
+    internal/concurrent: add HashTrieMap
+    
+    This change adds a concurrent hash-trie map implementation to the
+    standard library in the new internal/concurrent package, intended to
+    hold concurrent data structures. (The name comes from how Java names
+    their concurrent data structure library in the standard library.)
+    
+    This data structure is created specially for the upcoming unique
+    package. It is built specifically around frequent successful lookups and
+    comparatively rare insertions and deletions.
+    
+    A valid question is whether this is worth it over a simple locked map.
+    Some microbenchmarks in this new package show that yes, this extra
+    complexity appears to be worth it.
+    
+    Single-threaded performance for LoadOrStore is comparable to a locked
+    map for a map with 128k small string elements. The map scales perfectly
+    up to 24 cores for Loads, which is the maximum available parallelism
+    on my machine. LoadOrStore operations scale less well. Small maps will
+    have a high degree of contention, but for the unique library, small maps
+    are very unlikely to stay small if there are a lot of inserts, since
+    they have a full GC cycle to grow.
+    
+    For #62483.
+    
+    Change-Id: I38e5ac958d19ebdd0c8c02e36720bb3338fe2e35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573956
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go                         |   3 +
+ src/internal/concurrent/hashtriemap.go            | 401 ++++++++++++++++++++++
+ src/internal/concurrent/hashtriemap_bench_test.go |  62 ++++
+ src/internal/concurrent/hashtriemap_test.go       | 371 ++++++++++++++++++++
+ 4 files changed, 837 insertions(+)

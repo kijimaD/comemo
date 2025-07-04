@@ -1,0 +1,41 @@
+commit 61120c634cde434b78d9fcfe53a53aade58ef6be
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 15:07:15 2021 -0400
+
+    cmd/go/internal/modload: use "pruned" instead of "lazy" to describe pruned module graphs
+    
+    The level of support for pruning — not the lazy/eager loading behavior
+    — is the more fundamental property, and what matters in terms of what
+    invariants we need to maintain.
+    
+    If the main module supports pruned module graphs we load its
+    dependencies lazily, and if it does not support pruned module graphs
+    we load its dependencies eagerly. However, in principle we could also
+    load the module graph lazily even in modules that do not support graph
+    pruning — we would just be more likely to overlook inconsistent
+    requirements introduced by hand-edits or bad VCS merges to the go.mod
+    file.
+    
+    (After this change, a “lazy” module is just one in which we happen not
+    to have loaded the module graph, and an “eager” one is one in which we
+    happen to load the module graph more aggressively.)
+    
+    Updates #36460
+    For #47397
+    
+    Change-Id: I0d2ffd21acc913f72ff56b59a6bdc539ebc3d377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345393
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go       |   2 +-
+ src/cmd/go/internal/modload/buildlist.go   | 217 +++++++++++++++--------------
+ src/cmd/go/internal/modload/edit.go        | 114 +++++++--------
+ src/cmd/go/internal/modload/import_test.go |   2 +-
+ src/cmd/go/internal/modload/init.go        |  26 ++--
+ src/cmd/go/internal/modload/list.go        |   4 +-
+ src/cmd/go/internal/modload/load.go        |  83 ++++++-----
+ src/cmd/go/internal/modload/modfile.go     |  39 +++---
+ 8 files changed, 257 insertions(+), 230 deletions(-)

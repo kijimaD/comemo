@@ -1,0 +1,12 @@
+commit 02aa1aeeb1baf9bcfb8b9eeff9c92e93426ae512
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Oct 31 12:03:15 2018 -0400
+
+    doc/go1.12: initial add of release notes for Go 1.12
+    
+    Change-Id: I9cb3c80ea397d964fe745b74d595df3fd8982a47
+    Reviewed-on: https://go-review.googlesource.com/c/146257
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 282 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 282 insertions(+)

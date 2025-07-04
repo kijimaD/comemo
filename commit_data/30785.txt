@@ -1,0 +1,21 @@
+commit b029e943448c2ddf6faa9007a8ba4ab76238f18b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 10 06:22:39 2017 +0900
+
+    net/http: fix possible nil pointer dereference in TestOnlyWriteTimeout
+    
+    TestOnlyWriteTimeout assumes wrongly that:
+    - the Accept method of trackLastConnListener is called only once
+    - the shared variable conn never becomes nil
+    and crashes on some circumstances.
+    
+    Updates #19032.
+    
+    Change-Id: I61de22618cd90b84a2b6401afdb6e5d9b3336b12
+    Reviewed-on: https://go-review.googlesource.com/36735
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

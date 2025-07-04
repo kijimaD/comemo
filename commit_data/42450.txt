@@ -1,0 +1,21 @@
+commit 09e791feb1dfbfc05578a17cd9c035ef82af4033
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jun 1 10:24:46 2020 -0400
+
+    cmd/link: new DWARF line table test case
+    
+    Add a test case for an issue with how Go emits DWARF line tables,
+    specifically relating to the line table "end sequence" operator.
+    
+    Updates #38192.
+    
+    Change-Id: I878b262e6ca6c550c0e460c3d5a1969ac4a2c31b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235917
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go             | 111 +++++++++++++++++++++
+ .../link/internal/ld/testdata/issue38192/main.go   |  11 ++
+ .../link/internal/ld/testdata/issue38192/oneline.s |   8 ++
+ 3 files changed, 130 insertions(+)

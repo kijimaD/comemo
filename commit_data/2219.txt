@@ -1,0 +1,16 @@
+commit 13fbb1d82e7e284d5545466358a7e470a5316c3b
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 15 11:52:58 2009 -0700
+
+    StringVector specialization of Vector
+    
+    R=gri,rsc
+    DELTA=197  (194 added, 0 deleted, 3 changed)
+    OCL=28900
+    CL=28911
+
+ src/lib/container/vector/Makefile        |   5 +-
+ src/lib/container/vector/intvector.go    |  66 +++++++++++++++++
+ src/lib/container/vector/stringvector.go | 118 +++++++++++++++++++++++++++++++
+ src/lib/container/vector/vector_test.go  |  11 ++-
+ 4 files changed, 197 insertions(+), 3 deletions(-)

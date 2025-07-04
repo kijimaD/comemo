@@ -1,0 +1,16 @@
+commit 68b55ab51319ec71fe3f00266f9c467f34c824b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 11:34:24 2020 -0800
+
+    doc/go1.14: fix minor typo (update release notes)
+    
+    Follow-up on https://golang.org/cl/216200/2/doc/go1.14.html#423 .
+    
+    Updates #36878.
+    
+    Change-Id: I693a9eb05c6f1f42721a92fda46a4f3449defa24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217100
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

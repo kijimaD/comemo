@@ -1,0 +1,13 @@
+commit 610f395189528d5eb6a9dde36e39314403d0b7a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 28 12:55:37 2014 +1100
+
+    doc/go1.3.html: contiguous stacks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/81650043
+
+ doc/go1.3.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

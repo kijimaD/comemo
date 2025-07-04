@@ -1,0 +1,25 @@
+commit 2aa5874490495108f9467a8613868b21872066bf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 9 14:39:26 2015 -0800
+
+    cmd/doc: search the tree in breadth-first order
+    
+    This is a simple change to the command that should resolve problems like finding
+    vendored packages before their non-vendored siblings. By searching in breadth-first
+    order, we find the matching package lowest in the hierarchy, which is more likely
+    to be correct than the deeper one, such as a vendored package, that will be found
+    in a depth-first scan.
+    
+    This may be sufficient to resolve the issue, and has the merit that it is very easy
+    to explain. I will leave the issue open for now in case my intuition is wrong.
+    
+    Update #12423
+    
+    Change-Id: Icf69e8beb1845277203fcb7d19ffb7cca9fa41f5
+    Reviewed-on: https://go-review.googlesource.com/17691
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/dirs.go   | 99 +++++++++++++++++++++++++--------------------------
+ src/cmd/go/alldocs.go |  6 ++--
+ src/cmd/go/doc.go     |  6 ++--
+ 3 files changed, 56 insertions(+), 55 deletions(-)

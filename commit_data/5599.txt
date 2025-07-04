@@ -1,0 +1,12 @@
+commit 04721ff309c142d219fda82dba2bc4ad6ef18aeb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 3 13:16:09 2010 -0700
+
+    netchan: fix typo in test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1522041
+
+ src/pkg/netchan/netchan_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

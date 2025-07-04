@@ -1,0 +1,18 @@
+commit aab0280476c01ac5b5f45fe666976dfe54987bce
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Dec 4 11:44:06 2019 +0100
+
+    cmd/objdump: reference tracking bug in TestDisasmCode skip message
+    
+    Issue #12559 was closed and split into #19158 for mips{,le} and #19156
+    for mips64{,le}. Instead of referencing the individual GOARCH-specific
+    issues in the skip test messages of TestDisasmCode use the tracking bug
+    
+    Change-Id: I6929d25f4ec5aef4f069b7692c4e29106088ce65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209817
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

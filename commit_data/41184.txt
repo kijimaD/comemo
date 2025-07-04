@@ -1,0 +1,27 @@
+commit c436eadbc36704012be727457f464d8fbf950638
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 27 16:35:28 2020 -0800
+
+    net/http: don't treat an alternate protocol as a known round tripper
+    
+    As of CL 175857, the client code checks for known round tripper
+    implementations, and uses simpler cancellation code when it finds one.
+    However, this code was not considering the case of a request that uses
+    a user-defined protocol, where the user-defined protocol was
+    registered with the transport to use a different round tripper.
+    The effect was that round trippers that worked with earlier
+    releases would not see the expected cancellation semantics with tip.
+    
+    Fixes #36820
+    
+    Change-Id: I60e75b5d0badcfb9fde9d73a966ba1d3f7aa42b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216618
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go         | 17 ++++++++++++-----
+ src/net/http/omithttp2.go      |  4 ++++
+ src/net/http/transport.go      | 20 ++++++++++++++------
+ src/net/http/transport_test.go | 32 ++++++++++++++++++++++++++++++++
+ 4 files changed, 62 insertions(+), 11 deletions(-)

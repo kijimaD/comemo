@@ -1,0 +1,14 @@
+commit 8a686792e08f1114fd7819a32d8c2e3c4ddddc14
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Mon Apr 2 11:00:55 2012 -0400
+
+    gc: improve error message for composite literals with unexpected newlines
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5857045
+
+ src/cmd/gc/go.errors     |  3 +++
+ src/cmd/gc/yerr.h        |  3 +++
+ test/syntax/composite.go | 11 +++++++++++
+ 3 files changed, 17 insertions(+)

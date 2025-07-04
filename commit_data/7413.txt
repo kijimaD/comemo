@@ -1,0 +1,12 @@
+commit 6d51fc6c1ea9093da0d74958cb5e805db6f97aed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 9 12:46:34 2011 -0800
+
+    codelab: update due to recent changes in go/printer
+    
+    R=gri, adg
+    CC=golang-dev
+    https://golang.org/cl/4169041
+
+ doc/codelab/wiki/srcextract.go | 4 ----
+ 1 file changed, 4 deletions(-)

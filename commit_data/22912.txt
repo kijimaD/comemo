@@ -1,0 +1,14 @@
+commit e9827f62018b87482e647dd88aecdedb24c94680
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 13:19:30 2015 -0700
+
+    testing: document that Log and Logf always print in benchmarks
+    
+    Fixes #10713.
+    
+    Change-Id: Ifdafc340ae3bba751236f0482246c568346a569c
+    Reviewed-on: https://go-review.googlesource.com/9763
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

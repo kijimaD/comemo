@@ -1,0 +1,30 @@
+commit d0b79e3513a29628f3599dc8860666b6eed75372
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Mar 1 09:54:00 2021 -0500
+
+    encoding/xml: prevent infinite loop while decoding
+    
+    This change properly handles a TokenReader which
+    returns an EOF in the middle of an open XML
+    element.
+    
+    Thanks to Sam Whited for reporting this.
+    
+    Fixes CVE-2021-27918
+    Fixes #44913
+    
+    Change-Id: Id02a3f3def4a1b415fa2d9a8e3b373eb6cb0f433
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1004594
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300391
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/encoding/xml/xml.go      |  19 ++++----
+ src/encoding/xml/xml_test.go | 104 ++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 92 insertions(+), 31 deletions(-)

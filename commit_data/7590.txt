@@ -1,0 +1,15 @@
+commit 432b4f309b9d2c82c72a18b917cdccb4ec2bd89f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 1 09:20:32 2011 +1100
+
+    build: convert src/cmd to use make directly and simplify src/make.bash
+    
+    R=adg, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/4221047
+
+ src/cmd/Makefile   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/clean.bash | 16 -------------
+ src/cmd/make.bash  | 30 ------------------------
+ src/make.bash      | 20 ++--------------
+ 4 files changed, 70 insertions(+), 64 deletions(-)

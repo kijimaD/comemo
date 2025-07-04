@@ -1,0 +1,61 @@
+commit b90960e01e883b210538df36188b0e195bc40c09
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 22:18:21 2009 -0700
+
+    rebuilt Makefiles for CL 29923
+    
+    R=r
+    DELTA=761  (1 added, 433 deleted, 327 changed)
+    OCL=29927
+    CL=29966
+
+ src/lib/bignum/Makefile           | 20 ++++++--------------
+ src/lib/bufio/Makefile            | 20 ++++++--------------
+ src/lib/bytes/Makefile            | 20 ++++++--------------
+ src/lib/container/list/Makefile   | 20 ++++++--------------
+ src/lib/container/vector/Makefile | 20 ++++++--------------
+ src/lib/crypto/aes/Makefile       | 20 ++++++--------------
+ src/lib/crypto/block/Makefile     | 20 ++++++--------------
+ src/lib/crypto/hmac/Makefile      | 20 ++++++--------------
+ src/lib/crypto/md5/Makefile       | 20 ++++++--------------
+ src/lib/crypto/sha1/Makefile      | 20 ++++++--------------
+ src/lib/datafmt/Makefile          | 20 ++++++--------------
+ src/lib/exec/Makefile             | 20 ++++++--------------
+ src/lib/exvar/Makefile            | 20 ++++++--------------
+ src/lib/flag/Makefile             | 20 ++++++--------------
+ src/lib/fmt/Makefile              | 20 ++++++--------------
+ src/lib/go/ast/Makefile           | 20 ++++++--------------
+ src/lib/go/doc/Makefile           | 20 ++++++--------------
+ src/lib/go/parser/Makefile        | 20 ++++++--------------
+ src/lib/go/scanner/Makefile       | 20 ++++++--------------
+ src/lib/go/token/Makefile         | 20 ++++++--------------
+ src/lib/hash/Makefile             | 20 ++++++--------------
+ src/lib/hash/adler32/Makefile     | 20 ++++++--------------
+ src/lib/hash/crc32/Makefile       | 20 ++++++--------------
+ src/lib/http/Makefile             | 20 ++++++--------------
+ src/lib/io/Makefile               | 20 ++++++--------------
+ src/lib/json/Makefile             | 20 ++++++--------------
+ src/lib/log/Makefile              | 20 ++++++--------------
+ src/lib/malloc/Makefile           | 20 ++++++--------------
+ src/lib/math/Makefile             | 20 ++++++--------------
+ src/lib/net/Makefile              | 20 ++++++--------------
+ src/lib/once/Makefile             | 20 ++++++--------------
+ src/lib/os/Makefile               | 20 ++++++--------------
+ src/lib/path/Makefile             | 20 ++++++--------------
+ src/lib/rand/Makefile             | 20 ++++++--------------
+ src/lib/reflect/Makefile          | 20 ++++++--------------
+ src/lib/regexp/Makefile           | 20 ++++++--------------
+ src/lib/runtime/Makefile          | 20 ++++++--------------
+ src/lib/sort/Makefile             | 20 ++++++--------------
+ src/lib/strconv/Makefile          | 20 ++++++--------------
+ src/lib/strings/Makefile          | 20 ++++++--------------
+ src/lib/sync/Makefile             | 22 +++++++---------------
+ src/lib/syscall/Makefile          | 20 ++++++--------------
+ src/lib/tabwriter/Makefile        | 20 ++++++--------------
+ src/lib/template/Makefile         | 20 ++++++--------------
+ src/lib/testing/Makefile          | 20 ++++++--------------
+ src/lib/testing/iotest/Makefile   | 20 ++++++--------------
+ src/lib/time/Makefile             | 20 ++++++--------------
+ src/lib/unicode/Makefile          | 20 ++++++--------------
+ src/lib/utf8/Makefile             | 20 ++++++--------------
+ 49 files changed, 295 insertions(+), 687 deletions(-)

@@ -1,0 +1,28 @@
+commit 4e91c5697a77d9f83a34cbd32704254a9b1bde9f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Feb 5 12:20:45 2024 -0500
+
+    internal/goroot: in IsStandardPackage check for go source files
+    
+    Be more strict in IsStandardPackage: before this change we'd just
+    check for the existence of the directory, but now we check to see that
+    there's at least one .go file in the directory.
+    
+    Also update some comments in the modindex package to reflect the fact
+    that an IndexPackage might represent a directory that does not contain
+    any source files.
+    
+    Fixes #65406
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    
+    Change-Id: I82f0c0e7bfcd5bb4df0195c4c8c7fc7c67fae53e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561338
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modindex/read.go         | 14 ++++++--------
+ src/cmd/go/testdata/script/list_testdata.txt | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_list.txt      |  4 ++--
+ src/internal/goroot/gc.go                    | 12 ++++++++++--
+ src/internal/goroot/gccgo.go                 | 13 +++++++++++--
+ 5 files changed, 40 insertions(+), 14 deletions(-)

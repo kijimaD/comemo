@@ -1,0 +1,21 @@
+commit 2925427a47f41622f28f84889ad7aade27581144
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 8 01:06:06 2016 +0000
+
+    os: on Windows, don't fix long paths that aren't long
+    
+    Notably, don't allocate.
+    
+    Follow-up to https://golang.org/cl/32451 which added long path
+    cleaning.
+    
+    Updates #3358
+    
+    Change-Id: I89c59cbd660d0a030f31b6acd070fa9f3250683b
+    Reviewed-on: https://go-review.googlesource.com/32886
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/path_windows.go      | 32 +++++++++++++++++++++++---------
+ src/os/path_windows_test.go | 37 +++++++++++++++++++++++++++----------
+ 2 files changed, 50 insertions(+), 19 deletions(-)

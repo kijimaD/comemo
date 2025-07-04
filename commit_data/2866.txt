@@ -1,0 +1,13 @@
+commit 7deeb5bd7841995bd2b4ffaff770fc129bd47673
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 21:03:40 2009 -0700
+
+    print profile to stderr.  sheesh.
+    
+    R=rsc
+    DELTA=40  (0 added, 0 deleted, 40 changed)
+    OCL=32694
+    CL=32698
+
+ src/cmd/prof/main.c | 81 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 41 insertions(+), 40 deletions(-)

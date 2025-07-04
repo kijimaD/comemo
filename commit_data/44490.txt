@@ -1,0 +1,16 @@
+commit 775f11cda1d30f3f9778e737c2280cfe28ead1b4
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jan 12 02:45:46 2021 +0000
+
+    cmd/internal/obj/arm64: remove unncessary class check in addpool
+    
+    The argument class check in addpool is unnecessary, remove it so that we don't
+    need to list all the compatiable classes.
+    
+    Change-Id: I36f6594db35e25db22fe898273e024c2db4cb771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283492
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 97 +-------------------------------------
+ 1 file changed, 2 insertions(+), 95 deletions(-)

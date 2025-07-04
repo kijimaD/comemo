@@ -1,0 +1,15 @@
+commit 6e63b15567cb67059153bbcd787ed0d2f64dbcf3
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 15 18:13:38 2019 +0100
+
+    misc/android: copy go.mod and go.sum files
+    
+    Fixes TestFindStdlib in x/tools on android.
+    
+    Change-Id: I2da7c702164e23488c7f9574f636ac36f63ab421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167799
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

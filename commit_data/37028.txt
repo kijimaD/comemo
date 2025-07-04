@@ -1,0 +1,18 @@
+commit 0d898353989308cd50c3a1eb5d180dbba9fa4393
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 15 13:40:00 2018 -0700
+
+    cmd/compile: fix gdb stepping test, take 2
+    
+    The fix in CL 141649 is not right, the line in question got moved,
+    not added. Not sure why the -u option didn't do the right thing
+    when preparing the diff.
+    
+    Fixes #28198
+    
+    Change-Id: I6d45fdbbd5a9487cc70da07ab84e090b689a57f5
+    Reviewed-on: https://go-review.googlesource.com/c/142298
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts | 4 ----
+ 1 file changed, 4 deletions(-)

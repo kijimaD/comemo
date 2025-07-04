@@ -1,0 +1,25 @@
+commit 7df585d13d6b85b58045c00460f7c9fed7ecb2ae
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Jul 1 01:35:38 2018 +0530
+
+    time: improve error message for LoadLocation
+    
+    Currently, when a tz file was being checked inside a zoneInfo dir,
+    a syscall.ENOENT error was being returned, which caused it to look
+    in the zoneinfo.zip file and return an error for that case.
+    
+    We return a syscall.ENOENT error for the zip file case too, so that
+    it falls through to the end of the loop and returns an uniform error
+    for both cases.
+    
+    Fixes #20969
+    
+    Change-Id: If1de068022ac7693caabb5cffd1c929878460140
+    Reviewed-on: https://go-review.googlesource.com/121877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/zoneinfo_read.go |  2 +-
+ src/time/zoneinfo_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

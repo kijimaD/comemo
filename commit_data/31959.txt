@@ -1,0 +1,21 @@
+commit 68e1b3e361b84ed7a4d5564e37a12a2c3d473283
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 1 12:14:23 2017 +0200
+
+    testing: clarify rules for concurrent t.Run calls
+    
+    Apparently, "all such calls must happen" means that the t.Run call
+    must *return* before the outer test function returns, or the calls
+    will cause a data race on t.ran.
+    
+    Clarify the docs.
+    
+    Fixes #20339
+    
+    Change-Id: I191a9af2a9095be1e0aaf10b79c30e00a9c495cb
+    Reviewed-on: https://go-review.googlesource.com/47150
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ src/testing/testing.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

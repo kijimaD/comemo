@@ -1,0 +1,25 @@
+commit 15594df6b4e913d1ed9d7b38fa71868be28e9b63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 5 17:21:48 2015 -0800
+
+    math/big: handling of +/-Inf and zero precision, enable zero values
+    
+    - clarified representation of +/-Inf
+    - only 0 and Inf values can have 0 precision
+    - a zero precision value used as result value takes the max precision
+      of the arguments (to be fine-tuned for setters)
+    - the zero precision approach makes Float zero values possible
+      (they represent +0)
+    - more tests
+    
+    Missing: Filling in the blanks. More tests.
+    
+    Change-Id: Ibb4f97e12e1f356c3085ce80f3464e97b82ac130
+    Reviewed-on: https://go-review.googlesource.com/4000
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go          | 179 +++++++++++++++++++++++++++++------------
+ src/math/big/float_test.go     |  62 ++++++++++++++
+ src/math/big/floatconv.go      |  17 +++-
+ src/math/big/floatconv_test.go |   6 +-
+ 4 files changed, 206 insertions(+), 58 deletions(-)

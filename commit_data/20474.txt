@@ -1,0 +1,16 @@
+commit e9ec8e7a2693b322287a96100750c6f00cf574ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 19:40:31 2014 -0400
+
+    bytes, strings: document that FieldsFunc f must not be stateful
+    
+    Fixes #8738.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/143260045
+
+ src/bytes/bytes.go     | 2 ++
+ src/strings/strings.go | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,16 @@
+commit f8c58373e53a9399a9ea75f744c717fc59be3839
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Sep 24 20:08:05 2012 -0400
+
+    runtime: add types to MSpan
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6554060
+
+ src/pkg/runtime/malloc.goc | 230 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/malloc.h   |  56 +++++++++++
+ src/pkg/runtime/mgc0.c     |  65 ++++++++++---
+ src/pkg/runtime/mheap.c    |   8 ++
+ src/pkg/runtime/runtime.h  |   8 ++
+ 5 files changed, 354 insertions(+), 13 deletions(-)

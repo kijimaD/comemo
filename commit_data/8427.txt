@@ -1,0 +1,13 @@
+commit cef64d8e2b465f4c6cbe145ee60afbad28398275
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 10:51:45 2011 -0400
+
+    syscall: add TODO about required manual corrections
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/4553042
+
+ src/pkg/syscall/ztypes_darwin_386.go   | 4 ++++
+ src/pkg/syscall/ztypes_darwin_amd64.go | 4 ++++
+ 2 files changed, 8 insertions(+)

@@ -1,0 +1,18 @@
+commit 274f4cef9329262dcfd4a715ab6c2ebc908d6209
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Oct 2 11:25:24 2019 +0200
+
+    cmd/link: implement Msync for Windows using FlushViewOfFile
+    
+    CL 196846 implemented memory mapped output files but forgot to provide
+    an implementation for Msync. This rectifies that with a simple call to
+    FlushViewOfFile.
+    
+    Change-Id: I5aebef9baf3a2a6ad54ceda096952a5d7d660bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198418
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/outbuf_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

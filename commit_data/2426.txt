@@ -1,0 +1,15 @@
+commit eec4991863ab2cccca6f2ae9833db0f3ea18ae20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 8 14:07:20 2009 -0700
+
+    - bug fix: no need to add extra '.' when renaming custom formatters
+    - added corresponding test case
+    
+    R=rsc
+    DELTA=10  (7 added, 1 deleted, 2 changed)
+    OCL=30055
+    CL=30059
+
+ src/lib/datafmt/datafmt_test.go | 7 +++++++
+ src/lib/datafmt/parser.go       | 5 ++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

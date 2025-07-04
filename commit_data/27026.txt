@@ -1,0 +1,22 @@
+commit 46efe0bc7fb1933c74d80cd3fe7c47f21d042a5d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 15 18:45:17 2016 -0400
+
+    crypto/aes: add s390x assembly implementation
+    
+    Adds support for single block encryption using the cipher message
+    (KM) instruction. KM handles key expansion internally and
+    therefore it is not done up front when using the assembly
+    implementation on s390x.
+    
+    Change-Id: I69954b8ae36d549e1dc40d7acd5a10bedfaaef9c
+    Reviewed-on: https://go-review.googlesource.com/22194
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/asm_s390x.s       | 35 +++++++++++++++++
+ src/crypto/aes/cipher_generic.go |  2 +-
+ src/crypto/aes/cipher_s390x.go   | 84 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 120 insertions(+), 1 deletion(-)

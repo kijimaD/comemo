@@ -1,0 +1,27 @@
+commit c6c00ed4827c68e3c041ec501e823a3b0aa07850
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 18:16:42 2012 -0500
+
+    cmd/dist: generate files for package runtime
+    goc2c moves here.
+    parallel builds like old makefiles (-j4).
+    add clean command.
+    add banner command.
+    implement Go version check.
+    real argument parsing (same as 6g etc)
+    
+    Windows changes will be a separate CL.
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/5622058
+
+ src/cmd/dist/a.h            |  24 +-
+ src/cmd/dist/arg.h          |  50 +++
+ src/cmd/dist/buf.c          |  28 +-
+ src/cmd/dist/build.c        | 749 ++++++++++++++++++++++++++++++++++----------
+ src/cmd/dist/buildruntime.c | 346 ++++++++++++++++++++
+ src/cmd/dist/goc2c.c        | 727 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/main.c         |  17 +-
+ src/cmd/dist/unix.c         | 134 +++++++-
+ 8 files changed, 1892 insertions(+), 183 deletions(-)

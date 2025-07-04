@@ -1,0 +1,16 @@
+commit 797141e94c4b6905dce90238cbc6b8748dfe1026
+Author: Tim King <taking@google.com>
+Date:   Wed Nov 27 13:57:06 2024 -0800
+
+    doc/next: document buildtag changes
+    
+    Fixes #64127
+    
+    Change-Id: I1562953caa3b1b2bc5dd3b7692671e0f3d5d2b9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632355
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md | 7 +++++++
+ 1 file changed, 7 insertions(+)

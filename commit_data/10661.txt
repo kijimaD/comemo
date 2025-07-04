@@ -1,0 +1,15 @@
+commit 2949f3b659f2efb161efca19ff92398fbf37e081
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 8 15:42:44 2011 +1100
+
+    time: use Duration for AfterFunc.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5465043
+
+ src/pkg/net/http/serve_test.go | 18 +++++++++---------
+ src/pkg/testing/testing.go     |  2 +-
+ src/pkg/time/sleep.go          |  6 +++---
+ src/pkg/time/sleep_test.go     | 19 +++++++++----------
+ 4 files changed, 22 insertions(+), 23 deletions(-)

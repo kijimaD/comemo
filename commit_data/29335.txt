@@ -1,0 +1,21 @@
+commit 5ac3e7d6a7717bf2f722803e1852ba991af4e724
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 3 11:50:45 2016 +0100
+
+    net: disallow dialing and listening on port > 65535 on Plan 9
+    
+    Since Dial(":80") was implemented on Plan 9 (CL 32593),
+    TestProtocolDialError is failing because dialing a port
+    superior to 65535 is supported on Plan 9.
+    
+    This change disallows dialing and listening on ports
+    superior to 65535.
+    
+    Fixes #17761.
+    
+    Change-Id: I95e8a163eeacf1ccd8ece7b650f16a0531c59709
+    Reviewed-on: https://go-review.googlesource.com/32594
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/ipsock_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

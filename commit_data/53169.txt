@@ -1,0 +1,16 @@
+commit 858c61b57ec30529d3b935ddf5d83a1702d2f251
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 19 11:42:04 2023 -0400
+
+    doc: add slog to release notes
+    
+    Updates #58645
+    
+    Change-Id: Ice8f115f00c62dcffd0c7b78bb8a7d66d832075d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496194
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ doc/go1.21.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

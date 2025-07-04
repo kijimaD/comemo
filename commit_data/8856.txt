@@ -1,0 +1,12 @@
+commit f79bcb4b86f9a9638e7574d37732ac95db890b67
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 13:45:17 2011 -0400
+
+    codereview: make --ignore_hgpatch_failure work again
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4627067
+
+ lib/codereview/codereview.py | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

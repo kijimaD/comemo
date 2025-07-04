@@ -1,0 +1,17 @@
+commit e75aef80ca3722684e707502c424c0fb28e8b1cc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Nov 11 16:59:55 2020 -0500
+
+    cmd/go: migrate away from semver.Max
+    
+    For #32700
+    
+    Change-Id: Ib5cd7004e4558bebebc5f9e7c9263d720c590845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269338
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

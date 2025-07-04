@@ -1,0 +1,26 @@
+commit 64e7f66b26d7e5a9d4a003e7867a5dcf939bba6d
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Nov 7 17:40:08 2024 -0800
+
+    encoding/json, text/template: use reflect.Value.Equal instead of ==
+    
+    This change applies a fix for a reflect.Value incorrect comparison
+    using "==" or reflect.DeepEqual.
+    This change is a precursor to the change that'll bring in the
+    static analyzer "reflectvaluecompare", by ensuring that all tests
+    pass beforehand.
+    
+    Updates #43993
+    
+    Change-Id: I6c47eb0a1de6353ac7495cb8cb49b318b7ebba56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/encoding/json/decode.go | 2 +-
+ src/text/template/exec.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

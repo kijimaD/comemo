@@ -1,0 +1,21 @@
+commit 8d4b685ab5794f0ee8f95a3a75c566653ba4eb5a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 24 17:43:31 2019 -0700
+
+    cmd/compile: allow embedding overlapping interfaces
+    
+    Quietly drop duplicate methods inherited from embedded interfaces if
+    they have an identical signature to existing methods.
+    
+    Updates #6977.
+    
+    Change-Id: I144151cb7d99695f12b555c0db56207993c56284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187519
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 42 ++++++++++++++++++++++++++----------
+ test/fixedbugs/bug251.go             |  6 +-----
+ test/fixedbugs/issue6977.go          | 40 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 16 deletions(-)

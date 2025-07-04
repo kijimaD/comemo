@@ -1,0 +1,21 @@
+commit e0adc35c470d9bf7f462c9d26340b494cbe7ce43
+Author: Matt Juran <thepciet@gmail.com>
+Date:   Tue Feb 13 14:22:25 2018 -0600
+
+    test: fast GC+concurrency+types verification
+    
+    This test runs independent goroutines modifying a comprehensive variety
+    of local vars to look for garbage collector regressions. This test has
+    been verified to trigger issue 22781 on the go1.9.2 tag. This test
+    expands on test/fixedbugs/issue22781.go.
+    
+    Tests #22781
+    
+    Change-Id: Id32f8dde7ef650aea1b1b4cf518e6d045537bfdc
+    Reviewed-on: https://go-review.googlesource.com/93715
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/gcgort.go | 1850 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1850 insertions(+)

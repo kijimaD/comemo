@@ -1,0 +1,20 @@
+commit 623e7de1871c627ab976113dec4bccf5a807eb74
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 12:38:13 2011 -0700
+
+    os: make Setenv update C environment variables
+    
+    Fixes #1569
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4456045
+
+ misc/cgo/test/Makefile     |  1 +
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/env.go       | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/os/env.go          |  2 ++
+ src/pkg/os/env_unix.go     | 20 +++++++++++++++++++-
+ src/pkg/runtime/cgo/util.c | 11 +++++++++++
+ src/pkg/runtime/proc.c     | 23 +++++++++++++++++++++++
+ 7 files changed, 91 insertions(+), 1 deletion(-)

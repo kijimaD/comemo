@@ -1,0 +1,13 @@
+commit 2d53d227f67fd38b9e4cd0d21f6f29c101b808da
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 10:04:59 2012 +1100
+
+    runtime, syscall: fix freebsd-386 build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5659045
+
+ src/pkg/runtime/signal_freebsd_386.c   |   8 --
+ src/pkg/syscall/zerrors_freebsd_386.go | 131 ++++++++++++++++++++++++---------
+ 2 files changed, 97 insertions(+), 42 deletions(-)

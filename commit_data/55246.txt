@@ -1,0 +1,16 @@
+commit aa4a95011cf13e2a4ca39032dca932de16cb3b4b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 8 15:02:47 2023 -0500
+
+    doc/go1.22: document additional constants in debug/elf package
+    
+    Updates #61974, #63725.
+    For #61422.
+    
+    Change-Id: Ifd6c62e877dbd13f0e86fef801fe70d39fb3a66b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548478
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

@@ -1,0 +1,41 @@
+commit edaa0ffadb7e035089867a176f176b31af86761e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Aug 17 22:46:17 2017 -0700
+
+    math/big: use internal sqr on nats
+    
+    Replace z.mul(x, x) calls on nats in internal code with z.sqr(x)
+    that employs optimized squaring routines. Benchmark results:
+    
+    Exp-4                             12.9ms ± 2%  12.8ms ± 3%     ~     (p=0.165 n=10+10)
+    Exp2-4                            13.0ms ± 4%  12.8ms ± 2%   -2.14%  (p=0.015 n=8+9)
+    ModSqrt225_Tonelli-4               987µs ± 4%   989µs ± 2%     ~     (p=0.673 n=8+9)
+    ModSqrt224_3Mod4-4                 300µs ± 2%   301µs ± 3%     ~     (p=0.546 n=9+9)
+    ModSqrt5430_Tonelli-4              4.88s ± 6%   4.82s ± 5%     ~     (p=0.247 n=10+10)
+    ModSqrt5430_3Mod4-4                1.62s ±10%   1.57s ± 1%     ~     (p=0.094 n=9+9)
+    Exp3Power/0x10-4                   496ns ± 7%   426ns ± 7%  -14.21%  (p=0.000 n=10+10)
+    Exp3Power/0x40-4                   575ns ± 5%   470ns ± 7%  -18.20%  (p=0.000 n=9+10)
+    Exp3Power/0x100-4                  929ns ±19%   770ns ±10%  -17.13%  (p=0.000 n=10+10)
+    Exp3Power/0x400-4                 1.96µs ± 7%  1.79µs ± 5%   -8.68%  (p=0.000 n=10+10)
+    Exp3Power/0x1000-4                10.9µs ± 9%   7.9µs ± 5%  -28.02%  (p=0.000 n=10+10)
+    Exp3Power/0x4000-4                86.8µs ± 8%  67.3µs ± 8%  -22.41%  (p=0.000 n=10+10)
+    Exp3Power/0x10000-4                750µs ± 8%   731µs ± 1%     ~     (p=0.074 n=9+8)
+    Exp3Power/0x40000-4               7.07ms ± 7%  7.05ms ± 4%     ~     (p=0.931 n=9+9)
+    Exp3Power/0x100000-4              64.7ms ± 2%  65.6ms ± 6%     ~     (p=0.661 n=9+10)
+    Exp3Power/0x400000-4               577ms ± 2%   580ms ± 3%     ~     (p=0.931 n=9+9)
+    ProbablyPrime/n=0-4               9.08ms ±17%  9.09ms ±16%     ~     (p=0.447 n=9+10)
+    ProbablyPrime/n=1-4               10.8ms ± 4%  10.7ms ± 2%     ~     (p=0.243 n=10+9)
+    ProbablyPrime/n=5-4               18.5ms ± 3%  18.5ms ± 1%     ~     (p=0.863 n=9+9)
+    ProbablyPrime/n=10-4              28.6ms ± 6%  28.2ms ± 1%     ~     (p=0.050 n=9+9)
+    ProbablyPrime/n=20-4              48.4ms ± 4%  48.4ms ± 2%     ~     (p=0.739 n=10+10)
+    ProbablyPrime/Lucas-4             6.75ms ± 4%  6.75ms ± 2%     ~     (p=0.963 n=9+8)
+    ProbablyPrime/MillerRabinBase2-4  2.00ms ± 5%  2.00ms ± 7%     ~     (p=0.931 n=9+9)
+    
+    Change-Id: Ibe9f58d11dbad25eb369faedf480b666a0250a6b
+    Reviewed-on: https://go-review.googlesource.com/56773
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go     | 14 +++++++-------
+ src/math/big/natconv.go |  2 +-
+ src/math/big/prime.go   | 10 +++++-----
+ 3 files changed, 13 insertions(+), 13 deletions(-)

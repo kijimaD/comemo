@@ -1,0 +1,18 @@
+commit 9402a2bff75907668f8488ea9d32c56fdf101f04
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Feb 16 14:56:03 2018 +0200
+
+    cmd/go: document 'go run' exit codes
+    
+    Updated docs that go run does not return the exit code of
+    the compiled binary.
+    
+    Fixes #23716
+    
+    Change-Id: Ib85459974c4c6d2760ddba957ef711628098661f
+    Reviewed-on: https://go-review.googlesource.com/94795
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go          | 2 ++
+ src/cmd/go/internal/run/run.go | 2 ++
+ 2 files changed, 4 insertions(+)

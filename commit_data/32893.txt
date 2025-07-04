@@ -1,0 +1,20 @@
+commit 1b873f5fd2c5f5d6b0c95da470c4b660e474e5db
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 29 15:42:01 2017 -0400
+
+    cmd/go: declare runtime/cgo dependency for darwin/arm, darwin/arm64 tests
+    
+    I don't know why these tests must import runtime/cgo
+    in _testmain.go, but if they must, they must also tell the
+    rest of the go command that they are doing so.
+    
+    Should fix the newly-broken darwin/arm and darwin/arm64 builders.
+    
+    Change-Id: I9b183f8c84c6f403bf3a90cbfc838d6ef428e16f
+    Reviewed-on: https://go-review.googlesource.com/67230
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/test/test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

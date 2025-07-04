@@ -1,0 +1,15 @@
+commit 4fcb5068f6aa907166535531862cfd4a3dec6be7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 11:43:50 2020 -0500
+
+    doc/go1.16: document switch to MADV_DONTNEED
+    
+    Updates #42330.
+    
+    Change-Id: Ifda10a5c3dca30acf1258e9e0af202e9beffc68e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267137
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

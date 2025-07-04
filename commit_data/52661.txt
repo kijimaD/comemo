@@ -1,0 +1,22 @@
+commit d4bcfe4e834da1d31b7071e83eb045e089271175
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 13 13:17:26 2023 +0100
+
+    regexp: fix copy-paste typo on Regexp.UnmarshalText doc
+    
+    I noticed that https://go.dev/cl/479401 called both methods MarshalText
+    in the godoc, so fix that.
+    
+    While here, add more godoc links for better usability.
+    
+    Change-Id: I8f10bafeca6a1ca1c1ed9be7a7dd9fdecfe991a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484335
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/regexp/regexp.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

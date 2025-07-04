@@ -1,0 +1,17 @@
+commit 82575285913b8b3d7257b21fd33b3226e78e5320
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 20 09:34:30 2019 -0500
+
+    cmd/go: diagnose missing replacement directories
+    
+    I noticed the missing diagnostic when writing a regression test for #33795.
+    
+    Change-Id: Ic3249436a6109d71f9ff720b7096f9b872f6a94b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212201
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go               | 15 +++++++++++++++
+ src/cmd/go/testdata/script/mod_replace_import.txt |  9 +++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

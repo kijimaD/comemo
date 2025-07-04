@@ -1,0 +1,15 @@
+commit 660200528afbcf203d5cdc53a46fd3be7d2bd35c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 13:10:05 2017 -0700
+
+    cmd/compile: don't implicitly dereference pointer to arrays for real/imag
+    
+    Fixes #20602.
+    
+    Change-Id: Iac1589484dec626c018314e0cea7efce091fd87d
+    Reviewed-on: https://go-review.googlesource.com/45075
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  4 +++-
+ test/fixedbugs/issue20602.go             | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

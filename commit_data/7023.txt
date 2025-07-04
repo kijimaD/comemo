@@ -1,0 +1,14 @@
+commit ed1cbca81fcf20bc933a81bb4aa7281b34a96e55
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue Jan 4 11:55:13 2011 -0500
+
+    net: fix close of Listener
+    
+    Fixes #1375.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3731048
+
+ src/pkg/net/fd.go | 4 ++++
+ 1 file changed, 4 insertions(+)

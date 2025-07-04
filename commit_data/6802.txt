@@ -1,0 +1,13 @@
+commit 448c05d7c8f559e3d8ea0b75b57bff5178e38704
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 30 12:53:42 2010 -0800
+
+    strconv: Atof on Infs and NaNs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3359041
+
+ src/pkg/strconv/atof.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strconv/atof_test.go | 10 ++++++++++
+ 2 files changed, 52 insertions(+)

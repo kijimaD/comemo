@@ -1,0 +1,24 @@
+commit fd6ba1c8a23d8a3fffb6c475b21f78510152ef5c
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Fri Dec 11 22:42:11 2020 -0800
+
+    os/signal: fix a deadlock with syscall.AllThreadsSyscall() use
+    
+    The syscall.AllThreadsSyscall() fixup mechanism needs to cooperate
+    with signal handling to ensure a notetsleepg() thread can wake up
+    to run the mDoFixup() function.
+    
+    Fixes #43149
+    
+    Change-Id: I6651b25bc44a4de47d3fb71d0293d51aef8b79c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277434
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_linux_test.go | 42 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go                |  1 +
+ src/runtime/sigqueue.go            | 34 ++++++++++++++++++++++++++++--
+ src/runtime/sigqueue_plan9.go      |  7 +++++++
+ 4 files changed, 82 insertions(+), 2 deletions(-)

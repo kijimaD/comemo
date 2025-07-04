@@ -1,0 +1,13 @@
+commit d76a1e593c221e147fd5d51c98f068a60bb8f74a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 21 10:44:08 2014 +0400
+
+    runtime: fix test on windows
+    The test prints an excessive \n when /dev/null is not present.
+    
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/54890043
+
+ src/pkg/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,37 @@
+commit a9ce0f96e1f2ab69ce3319c5a97c1d01beb9472c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 7 10:25:57 2016 -0800
+
+    crypto/{cipher,tls,internal/cryptohw}: prioritise AES-GCM when hardware support is present.
+    
+    Support for ChaCha20-Poly1305 ciphers was recently added to crypto/tls.
+    These ciphers are preferable in software, but they cannot beat hardware
+    support for AES-GCM, if present.
+    
+    This change moves detection for hardware AES-GCM support into
+    cipher/internal/cipherhw so that it can be used from crypto/tls. Then,
+    when AES-GCM hardware is present, the AES-GCM cipher suites are
+    prioritised by default in crypto/tls. (Some servers, such as Google,
+    respect the client's preference between AES-GCM and ChaCha20-Poly1305.)
+    
+    Fixes #17779.
+    
+    Change-Id: I50de2be486f0b0b8052c4628d3e3205a1d54a646
+    Reviewed-on: https://go-review.googlesource.com/32871
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/aes/asm_amd64.s                     | 11 -------
+ src/crypto/aes/asm_s390x.s                     | 37 ----------------------
+ src/crypto/aes/cipher_amd64.go                 |  4 +--
+ src/crypto/aes/cipher_s390x.go                 |  8 ++---
+ src/crypto/internal/cipherhw/asm_amd64.s       | 17 ++++++++++
+ src/crypto/internal/cipherhw/asm_s390x.s       | 44 ++++++++++++++++++++++++++
+ src/crypto/internal/cipherhw/cipherhw_amd64.go | 16 ++++++++++
+ src/crypto/internal/cipherhw/cipherhw_s390x.go | 18 +++++++++++
+ src/crypto/internal/cipherhw/doc.go            |  7 ++++
+ src/crypto/internal/cipherhw/generic.go        | 11 +++++++
+ src/crypto/tls/common.go                       | 36 +++++++++++++++++++++
+ src/go/build/deps_test.go                      |  3 +-
+ 12 files changed, 155 insertions(+), 57 deletions(-)

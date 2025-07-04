@@ -1,0 +1,12 @@
+commit 547918e3632121cd2fa40e8d6d8f5f0b2e2778c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 17 17:22:16 2011 -0800
+
+    go/scanner: update comment
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4184053
+
+ src/pkg/go/scanner/scanner.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

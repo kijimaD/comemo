@@ -1,0 +1,24 @@
+commit 25b4b862f29900af00c794424b033b01eb5ab0cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 10:52:22 2022 -0800
+
+    go/types, types2: use Checker.implements in operand.assignableTo
+    
+    Now that we have the detailed error reporting in Checker.implements
+    we don't need it anymore in operand.assignableTo and can simply call
+    Checker.implements. This also more directly matches the spec.
+    
+    For #50646.
+    
+    Change-Id: Ic44ced999c75be6cc9edaab01177ee0495147ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381435
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +
+ src/cmd/compile/internal/types2/operand.go         | 47 +++++++--------------
+ .../internal/types2/testdata/check/issues.src      |  4 +-
+ src/go/types/instantiate.go                        |  2 +
+ src/go/types/operand.go                            | 49 +++++++---------------
+ src/go/types/testdata/check/issues.src             |  4 +-
+ 6 files changed, 38 insertions(+), 70 deletions(-)

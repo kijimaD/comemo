@@ -1,0 +1,40 @@
+commit ee69c21747b40f79351dab63b5ac6715c86e04f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 10 12:48:17 2017 -0700
+
+    cmd/compile: don't use statictmps for SSA-able composite literals
+    
+    The writebarrier test has to change.
+    Now that T23 composite literals are passed to the backend,
+    they get SSA'd, so writes to their fields are treated separately,
+    so the relevant part of the first write to t23 is now a dead store.
+    Preserve the intent of the test by splitting it up into two functions.
+    
+    Reduces code size a bit:
+    
+    name        old object-bytes  new object-bytes  delta
+    Template           386k ± 0%         386k ± 0%    ~     (all equal)
+    Unicode            202k ± 0%         202k ± 0%    ~     (all equal)
+    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (all equal)
+    Compiler          3.92M ± 0%        3.91M ± 0%  -0.19%  (p=0.008 n=5+5)
+    SSA               7.91M ± 0%        7.91M ± 0%    ~     (all equal)
+    Flate              228k ± 0%         228k ± 0%  -0.05%  (p=0.008 n=5+5)
+    GoParser           283k ± 0%         283k ± 0%    ~     (all equal)
+    Reflect            952k ± 0%         952k ± 0%  -0.06%  (p=0.008 n=5+5)
+    Tar                188k ± 0%         188k ± 0%  -0.09%  (p=0.008 n=5+5)
+    XML                406k ± 0%         406k ± 0%  -0.02%  (p=0.008 n=5+5)
+    [Geo mean]         649k              648k       -0.04%
+    
+    Fixes #18872
+    
+    Change-Id: Ifeed0f71f13849732999aa731cc2bf40c0f0e32a
+    Reviewed-on: https://go-review.googlesource.com/43154
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 14 +++++++++++++-
+ src/cmd/compile/internal/gc/walk.go     |  2 +-
+ test/writebarrier.go                    |  5 ++++-
+ 3 files changed, 18 insertions(+), 3 deletions(-)

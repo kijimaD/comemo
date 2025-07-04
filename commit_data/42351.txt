@@ -1,0 +1,27 @@
+commit ee0d40cba454c32876a8730d7029bfa6db073735
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 13 12:43:46 2020 -0400
+
+    runtime: reduce timing sensitivity in TestEINTR
+    
+    - Don't assume that a process interrupted at 100μs intervals will have
+      enough remaining time to make progress. (Stop sending signals
+      in between signal storms to allow the process to quiesce.)
+    
+    - Don't assume that a child process that spins for 1ms will block long
+      enough for the parent process to receive signals or make meaningful
+      progress. (Instead, have the child block indefinitely, and unblock
+      it explicitly after the signal storm.)
+    
+    For #39043
+    Updates #22838
+    Updates #20400
+    
+    Change-Id: I85cba23498c346a637e6cfe8684ca0c478562a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/testdata/testprogcgo/eintr.go | 70 +++++++++++++++++++++----------
+ 1 file changed, 48 insertions(+), 22 deletions(-)

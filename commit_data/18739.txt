@@ -1,0 +1,20 @@
+commit a5166a9512215483dae4e2963435cb3803a9f330
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 11:55:35 2014 -0800
+
+    net/http: fix test failure on some Windows machines
+    
+    The network connection dies differently from the server's
+    perspective on (some) Windows when the client goes away. Match
+    on the common prefix (common to Unix and Windows) instead of
+    the network error part.
+    
+    Fixes #7456
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=alex.brainman, golang-codereviews, iant
+    https://golang.org/cl/70010050
+
+ src/pkg/net/http/client_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

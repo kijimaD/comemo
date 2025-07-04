@@ -1,0 +1,21 @@
+commit 62b38000ab42603ec217c99d187e03bd51bfa739
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 25 15:41:59 2022 -0700
+
+    runtime/internal/syscall: use correct result names for loong64
+    
+    Fixes "GOARCH=loong64 go vet runtime/internal/syscall"
+    
+    Change-Id: I5879eec3ff07b0c69a5a8ac8e854733261e98fbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408695
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/syscall/asm_linux_loong64.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

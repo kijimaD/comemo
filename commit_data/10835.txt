@@ -1,0 +1,12 @@
+commit 0358c8957aa6d3de1ad855d95f3ab4334e63b77c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 19:32:47 2011 -0500
+
+    io/ioutil: remove another reference to _test
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5492051
+
+ src/pkg/io/ioutil/ioutil_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

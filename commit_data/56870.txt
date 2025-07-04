@@ -1,0 +1,24 @@
+commit d0146bd85bb6870aa43a498b06ccb473af55cbe3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 4 18:07:45 2024 -0400
+
+    os/exec: only use cachedLookExtensions if Cmd.Path is unmodified
+    
+    Caching the invocation of lookExtensions on an absolute path in Command
+    and reusing the cached result in Start is only viable if Cmd.Path isn't
+    set to a different value after Command returns.
+    
+    For #66586.
+    Fixes #68314.
+    
+    Change-Id: I57007850aca2011b11344180c00faded737617b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596875
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/exec/exec.go      | 65 ++++++++++++++++++++++++++----------------------
+ src/os/exec/exec_test.go | 22 +++++++++++++++-
+ 2 files changed, 56 insertions(+), 31 deletions(-)

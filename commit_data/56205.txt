@@ -1,0 +1,21 @@
+commit cfbe6cd9bb1595e07ede1ffb1fff610819ffab00
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 15 14:50:39 2024 -0400
+
+    cmd/compile/internal/types2: port CL 576975 to types2
+    
+    This CL ports to types2 the (passing) test from CL 576975,
+    which fixed a bug in go/types.
+    
+    Updates #66704
+    Updates #65294
+    
+    Change-Id: Icdf77e39ed177d9f9ecc435d5125f02f2ee4dd0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579015
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/decl.go     |  5 +++++
+ 2 files changed, 30 insertions(+)

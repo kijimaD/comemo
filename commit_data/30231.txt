@@ -1,0 +1,17 @@
+commit c5fed5bb246b794993cc32bfc22a1a202e385bc5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 12 21:11:16 2017 -0800
+
+    cmd/compile: cull some dead arch-specific Ops
+    
+    Change-Id: Iee7daa5b91b7896ce857321e307f2ee47b7f095f
+    Reviewed-on: https://go-review.googlesource.com/36906
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go      | 2 --
+ src/cmd/compile/internal/gc/opnames.go  | 7 -------
+ src/cmd/compile/internal/gc/racewalk.go | 5 -----
+ src/cmd/compile/internal/gc/syntax.go   | 7 -------
+ 4 files changed, 21 deletions(-)

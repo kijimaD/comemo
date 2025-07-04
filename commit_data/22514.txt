@@ -1,0 +1,14 @@
+commit 99162ca1c5258a78950cba09366d6d095a8c4c40
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 14 10:22:23 2015 +0200
+
+    go/build: support -installsuffix with gccgo
+    
+    Fixes #10449
+    
+    Change-Id: I1dc2d0213e6a46f3609222d5460c1a54081e2471
+    Reviewed-on: https://go-review.googlesource.com/8931
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,10 @@
+commit b7490382464e35eca05d772b3c406e1698976e80
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 3 16:38:21 2008 -0700
+
+    Add a rudimentary vector container to ameliorate the inability to allocate dynamic arrays.
+    
+    SVN=114931
+
+ src/lib/container/vector.go | 132 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 132 insertions(+)

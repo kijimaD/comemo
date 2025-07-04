@@ -1,0 +1,25 @@
+commit e49b2308a523c3bb69753caee2eacce41f097039
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 31 13:56:18 2020 -0700
+
+    runtime/race: rebuild some .syso files to remove getauxval dependency
+    
+    We can't depend on getauxval because it only exists in glibc >= 2.16.
+    Tsan has been updated to avoid that dependency
+    (https://reviews.llvm.org/D84859). This CL rebuilds the affected
+    .syso files, and adds a test to make sure we don't regress.
+    
+    Fixes #37485
+    
+    Change-Id: I891f54d28ec0d7da50a8df1adadc76dd6e7ab3e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246258
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/README                  |   6 ++---
+ src/runtime/race/race_linux_amd64.syso   | Bin 518680 -> 521752 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 497656 -> 500584 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 619560 -> 623824 bytes
+ src/runtime/race/syso_test.go            |  39 +++++++++++++++++++++++++++++++
+ 5 files changed, 42 insertions(+), 3 deletions(-)

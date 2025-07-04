@@ -1,0 +1,31 @@
+commit 8d71ae8c775129161fda64e77b2de2276e7362e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 16 08:02:34 2023 -0500
+
+    cmd/go/internal/modindex: remove copy of build.Package
+    
+    modindex defines its own type Package that must be exactly the
+    same as build.Package (there are conversions between them).
+    The normal reason to do this is to provide a different method set,
+    but there aren't any different methods. And if we needed to do that,
+    we could write
+    
+            type Package build.Package
+    
+    instead of repeating the struct definition. Remove the type entirely
+    in favor of direct use of build.Package.
+    
+    This makes the modindex package not break when fields are
+    added to go/build.Package.
+    
+    Change-Id: I8ffe9f8832bbc62be93a72e6a09d807ddbce216b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462255
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modindex/build.go | 81 ++---------------------------------
+ src/cmd/go/internal/modindex/read.go  |  6 +--
+ src/cmd/go/internal/modindex/scan.go  |  2 +-
+ 3 files changed, 8 insertions(+), 81 deletions(-)

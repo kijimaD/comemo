@@ -1,0 +1,17 @@
+commit e70d34330690e385be5dd2a3adea3c38c621826d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 12 10:49:55 2023 -0500
+
+    cmd/go: explicitly name the default branch “main” in testdata/vcstest/git/issue57650.txt
+    
+    Updates #47650.
+    
+    Change-Id: I90c0a51b390326129643d5b90fe935d44e5e5372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/vcstest/git/issue47650.txt | 1 +
+ 1 file changed, 1 insertion(+)

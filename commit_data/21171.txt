@@ -1,0 +1,16 @@
+commit b1370742eedf4f1801d86399374802c4d606a6d7
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 5 14:29:42 2015 -0800
+
+    crypto/rsa: rsa.SignPSS with opts=nil shouldn't crash.
+    
+    SignPSS is documented as allowing opts to be nil, but actually
+    crashes in that case. This change fixes that.
+    
+    Change-Id: Ic48ff5f698c010a336e2bf720e0f44be1aecafa0
+    Reviewed-on: https://go-review.googlesource.com/2330
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/rsa/pss.go      | 2 +-
+ src/crypto/rsa/pss_test.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

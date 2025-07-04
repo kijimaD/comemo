@@ -1,0 +1,20 @@
+commit a866df26711c615dfe92ab1b00d256d3d1085f0e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 18:10:40 2016 -0400
+
+    cmd/internal/obj/arm64: materialize float constant 0 from zero register
+    
+    Materialize float constant 0 from integer zero register, instead
+    of loading from constant pool.
+    
+    Also fix assembling FMOV from zero register to FP register.
+    
+    Change-Id: Ie413dd342cedebdb95ba8cfc220e23ed2a39e885
+    Reviewed-on: https://go-review.googlesource.com/32250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go |  6 ++++--
+ src/cmd/internal/obj/arm64/obj7.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

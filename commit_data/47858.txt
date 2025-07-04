@@ -1,0 +1,16 @@
+commit b357b05b70d2b8c4988ac2a27f2af176e7a09e1b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 13:58:15 2021 -0800
+
+    doc/go1.18: add section for runtime/debug changes
+    
+    For #37475
+    For #47694
+    
+    Change-Id: If8c1f1b756daf32648110f1a669b2ea60f797a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373875
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.18.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

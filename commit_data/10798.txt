@@ -1,0 +1,13 @@
+commit 076ebed0d87e1c9678ece352986d8b1ad877b440
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 14 15:40:35 2011 -0800
+
+    cgo: add basic gccgo support.
+    
+    R=rsc, iant
+    CC=golang-dev, remy
+    https://golang.org/cl/5485070
+
+ src/cmd/cgo/main.go |  2 ++
+ src/cmd/cgo/out.go  | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

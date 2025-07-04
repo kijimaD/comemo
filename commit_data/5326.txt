@@ -1,0 +1,13 @@
+commit 735db765fb4f421190a6b2d2b4ef289e9ef5a0f9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 21 14:54:19 2010 -0700
+
+    test/bench: reenable chameneosredux for gccgo.
+    run reverse-complement only once. (garbage is no longer an issue)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/968041
+
+ test/bench/timing.sh | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

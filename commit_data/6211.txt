@@ -1,0 +1,12 @@
+commit a0fc33a8ca9230f9587976b302ab5883381577e7
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Sep 9 01:42:49 2010 -0400
+
+    test: remove slice syntax test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2145043
+
+ test/syntax/slice.go | 9 ---------
+ 1 file changed, 9 deletions(-)

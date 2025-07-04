@@ -1,0 +1,29 @@
+commit 48297f1fb15206cd13e0f31647e909292fb21975
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri May 27 15:44:55 2022 +0200
+
+    unicode/utf16: add AppendRune
+    
+    AppendRune appends the UTF-16 encoding of a rune to a []uint16.
+    
+        BenchmarkEncodeValidASCII-12                24.61ns 16B 1allocs
+        BenchmarkEncodeValidJapaneseChars-12        18.79ns 8B  1allocs
+        BenchmarkAppendRuneValidASCII-12            6.826ns 0B  0allocs
+        BenchmarkAppendRuneValidJapaneseChars-12    3.547ns 0B  0allocs
+    
+    The ASCII case is written to be inlineable.
+    
+    Fixes #51896
+    
+    Change-Id: I593b1029f603297ef6e80e036f2fee2a0938d38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409054
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ api/next/51896.txt              |  1 +
+ src/unicode/utf16/utf16.go      | 17 +++++++++++++++++
+ src/unicode/utf16/utf16_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+)

@@ -1,0 +1,23 @@
+commit fa7791e92228326d947ff65195bdc11a0a4852ef
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 27 10:09:15 2013 +1000
+
+    all: fix some mistakes found by go tool vet .
+    
+    R=golang-dev, iant, adg
+    CC=golang-dev
+    https://golang.org/cl/14000043
+
+ src/pkg/encoding/gob/encoder_test.go   | 2 +-
+ src/pkg/encoding/gob/gobencdec_test.go | 2 +-
+ src/pkg/math/big/int_test.go           | 2 +-
+ src/pkg/net/http/header_test.go        | 2 +-
+ src/pkg/net/http/request_test.go       | 2 +-
+ src/pkg/net/http/serve_test.go         | 2 +-
+ src/pkg/net/ip_test.go                 | 2 +-
+ src/pkg/net/timeout_test.go            | 2 +-
+ src/pkg/regexp/all_test.go             | 8 ++++----
+ src/pkg/regexp/syntax/parse_test.go    | 2 +-
+ src/pkg/runtime/crash_test.go          | 3 +--
+ src/pkg/runtime/mfinal_test.go         | 2 +-
+ 12 files changed, 15 insertions(+), 16 deletions(-)

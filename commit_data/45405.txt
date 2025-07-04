@@ -1,0 +1,27 @@
+commit 764f53eb6ccc55ad52ddfeed47485de76f4453bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 18:05:20 2021 -0700
+
+    spec: clarify conditions for switch expression type
+    
+    1. The existing prose implied that a switch expression type must
+       be comparable because it is tested for equality against all case
+       expressions. But for an empty switch (no case expressions), it
+       was not clear if the switch expression needed to be comparable.
+       Require it to match the behavior of compiler and type checkers.
+    
+    2. While making this change, remove redundant language explaining
+       what happens with untyped boolean switch expression values: the
+       default type of an untyped boolean value is bool, this is already
+       covered by the first part of the relevant sentence.
+    
+    Fixes #43200.
+    
+    Change-Id: Id8e0f29cfa8722b57cd2b7b58cba85b58c5f842b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314411
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

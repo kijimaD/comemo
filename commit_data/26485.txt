@@ -1,0 +1,20 @@
+commit 633e41432c7c617809ddb22c0c3f2fc214a26b99
+Author: Tilman Dilo <tilman.dilo@gmail.com>
+Date:   Wed Mar 23 22:38:52 2016 +0100
+
+    image/png: ignore trailing IDAT chunks
+    
+    Ignore superfluous trailing IDAT chunks which were not consumed when decoding
+    the image. This change fixes decoding of valid images in which a zero-length
+    IDAT chunk appears after the actual image data. It also prevents decoding of
+    trailing garbage IDAT chunks or maliciously embedded additional images.
+    
+    Fixes #14936
+    
+    Change-Id: I8c76cfa9a03496d9576f72bed2db109271f97c5e
+    Reviewed-on: https://go-review.googlesource.com/21045
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/png/reader.go      |  7 +++++++
+ src/image/png/reader_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,0 +1,14 @@
+commit bbf925aa56bd9b7dbd07ced8506cbdf725e146a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 17:33:50 2010 -0700
+
+    codereview: avoid crash if no config
+    
+    Fixes #959.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1876045
+
+ lib/codereview/codereview.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

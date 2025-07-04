@@ -1,0 +1,16 @@
+commit 80f4ab47ee781a32368dcccd063c6482a97b159c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 15:11:56 2009 -0700
+
+    split heapmap, which is specific to 64-bit pointer addresses,
+    out of malloc proper.
+    
+    TBR=r
+    OCL=26689
+    CL=26689
+
+ src/runtime/malloc.h     |  95 +-------------------------------------
+ src/runtime/mheap.c      | 107 -------------------------------------------
+ src/runtime/mheapmap64.c | 117 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheapmap64.h |  96 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 214 insertions(+), 201 deletions(-)

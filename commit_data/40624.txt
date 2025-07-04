@@ -1,0 +1,22 @@
+commit db6b66edc87fcbb2cead03ed693ea8073536d622
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 6 11:42:29 2019 -0500
+
+    cmd/go: use lockedfile instead of renameio for go.mod and go.sum files
+    
+    This change is based on the previous discussion in CL 202442.
+    
+    Fixes #34634
+    
+    Change-Id: I1319aa26d5cfcd034bc576555787b3ca79968c38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205637
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/lockedfile/lockedfile.go   | 65 ++++++++++++++++++++
+ src/cmd/go/internal/modcmd/edit.go             | 23 ++++---
+ src/cmd/go/internal/modfetch/cache.go          | 19 +++---
+ src/cmd/go/internal/modfetch/fetch.go          | 84 +++++++++++---------------
+ src/cmd/go/internal/modload/init.go            | 50 ++++++++-------
+ src/cmd/go/testdata/script/mod_permissions.txt | 57 +++++++++++++++++
+ 6 files changed, 209 insertions(+), 89 deletions(-)

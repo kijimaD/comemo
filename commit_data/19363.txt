@@ -1,0 +1,65 @@
+commit f5184d34376f92bfa99ec5ca343fe425fd98be85
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 15:34:53 2014 -0400
+
+    cmd/gc: correct handling of globals, func args, results
+    
+    Globals, function arguments, and results are special cases in
+    registerization.
+    
+    Globals must be flushed aggressively, because nearly any
+    operation can cause a panic, and the recovery code must see
+    the latest values. Globals also must be loaded aggressively,
+    because nearly any store through a pointer might be updating a
+    global: the compiler cannot see all the "address of"
+    operations on globals, especially exported globals. To
+    accomplish this, mark all globals as having their address
+    taken, which effectively disables registerization.
+    
+    If a function contains a defer statement, the function results
+    must be flushed aggressively, because nearly any operation can
+    cause a panic, and the deferred code may call recover, causing
+    the original function to return the current values of its
+    function results. To accomplish this, mark all function
+    results as having their address taken if the function contains
+    any defer statements. This causes not just aggressive flushing
+    but also aggressive loading. The aggressive loading is
+    overkill but the best we can do in the current code.
+    
+    Function arguments must be considered live at all safe points
+    in a function, because garbage collection always preserves
+    them: they must be up-to-date in order to be preserved
+    correctly. Accomplish this by marking them live at all call
+    sites. An earlier attempt at this marked function arguments as
+    having their address taken, which disabled registerization
+    completely, making programs slower. This CL's solution allows
+    registerization while preserving safety. The benchmark speedup
+    is caused by being able to registerize again (the earlier CL
+    lost the same amount).
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkEqualPort32     61.4          56.0          -8.79%
+    
+    benchmark                old MB/s     new MB/s     speedup
+    BenchmarkEqualPort32     521.56       570.97       1.09x
+    
+    Fixes #1304. (again)
+    Fixes #7944. (again)
+    Fixes #7984.
+    Fixes #7995.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/97500044
+
+ src/cmd/5g/reg.c                    |  64 ++++++++--------------
+ src/cmd/6g/reg.c                    |  67 ++++++++---------------
+ src/cmd/8g/reg.c                    |  66 ++++++++---------------
+ test/fixedbugs/issue1304.go         |  23 ++++++++
+ test/fixedbugs/issue7995.go         |  25 +++++++++
+ test/fixedbugs/issue7995b.dir/x1.go |  16 ++++++
+ test/fixedbugs/issue7995b.dir/x2.go |  10 ++++
+ test/fixedbugs/issue7995b.go        |   9 ++++
+ test/nilptr3.go                     | 102 ++++++++++++++++++------------------
+ 9 files changed, 202 insertions(+), 180 deletions(-)

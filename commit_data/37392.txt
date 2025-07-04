@@ -1,0 +1,17 @@
+commit 0a72e8eefbdaa62bf782618d50851e4740408cba
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Nov 14 15:25:59 2018 +0100
+
+    cmd/go: fix TestScript/vet_asm for OS without amd64
+    
+    Add GOOS=linux to vet_asm script to avoid errors on OS not working on
+    amd64 architecture.
+    
+    Change-Id: Ic3db43618008ae8e8bc08738c95c200dd4e916d7
+    Reviewed-on: https://go-review.googlesource.com/c/149577
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/vet_asm.txt | 1 +
+ 1 file changed, 1 insertion(+)

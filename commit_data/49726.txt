@@ -1,0 +1,27 @@
+commit 39728f412d5fb6d97568cc84a42f1caf07dbaedc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 3 16:13:56 2022 -0700
+
+    go/internal/gcimporter: rewrite interface receiver parameters
+    
+    For a type definition like `type I interface{ M() }`, the go/types API
+    traditionally sets `M`'s receiver parameter type to `I`, whereas
+    Unified IR was (intentionally) leaving it as `interface{ M() }`.
+    
+    I still think `interface{ M() }` is the more consistent and
+    semantically correct type to use in this scenario, but I concede that
+    users want `I` instead, as evidenced by existing tooling and tests.
+    
+    Updates #49906.
+    
+    Change-Id: I74ba5e8b08e4e98ed9dc49f72b7834d5b552058b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421355
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 12 ++----------
+ src/go/internal/gcimporter/ureader.go         | 26 ++++++++++++++++++++++----
+ src/go/types/eval_test.go                     | 10 +---------
+ 3 files changed, 25 insertions(+), 23 deletions(-)

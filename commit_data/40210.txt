@@ -1,0 +1,16 @@
+commit 26ff21d44da04bc3fdec33caf292a836ac4e692a
+Author: alan <shore.cloud@gmail.com>
+Date:   Thu Oct 10 18:56:27 2019 +0000
+
+    runtime: remove no-op pointer writes in treap rotations
+    
+    Change-Id: If5a272f331fe9da09467efedd0231a4ce34db0f8
+    GitHub-Last-Rev: 4b81a79a92db4b51001ce6660b24c760fd3b630b
+    GitHub-Pull-Request: golang/go#28420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/144999
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/sema.go | 24 ++++--------------------
+ 1 file changed, 4 insertions(+), 20 deletions(-)

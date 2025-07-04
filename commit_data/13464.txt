@@ -1,0 +1,17 @@
+commit 1ca7bc268bd78551cd668df9a45b36769cd0172d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jul 12 23:31:36 2012 +0200
+
+    cmd/gc: avoid an internal error on invalid type switch.
+    
+    The error was caused by a call to implements() even when
+    the type switch variable was not an interface.
+    
+    Fixes #3786.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6354102
+
+ src/cmd/gc/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

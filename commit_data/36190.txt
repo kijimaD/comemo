@@ -1,0 +1,12 @@
+commit d9665d2381f6fc94cc0c71336a8d1caff82d3ccc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 19:34:38 2018 +0000
+
+    syscall: use deprecation convention in package comment, simplify
+    
+    Change-Id: I612041d31c01d49135947796fe2a09db3e6894d4
+    Reviewed-on: https://go-review.googlesource.com/127657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

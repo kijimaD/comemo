@@ -1,0 +1,21 @@
+commit d340a89d9c872438841e9f3ff90e6baa6fa3d8ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:46:15 2013 -0500
+
+    encoding/json: roll back Unmarshal optimization + test
+    
+    The second attempt at the Unmarshal optimization allowed
+    panics to get out of the json package. Add test for that bug
+    and remove the optimization.
+    
+    Let's stop trying to optimize Unmarshal.
+    
+    Fixes #4784.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7300108
+
+ src/pkg/encoding/json/decode.go      | 20 +-------------------
+ src/pkg/encoding/json/decode_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 19 deletions(-)

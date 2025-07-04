@@ -1,0 +1,20 @@
+commit 3f1422c799edb143303c86c0e875d44c3612df64
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 20 09:02:05 2019 -0400
+
+    cmd/link: revise previous __DWARF segment protection fix
+    
+    Tweak the previous fix for issue 32673 (in CL 182958) to work around
+    problems with c-shared build mode that crop up on some of the builders
+    (10.11, 10.12).  We now consistently set vmaddr and vmsize to zero
+    for the DWARF segment regardless of build mode.
+    
+    Updates #32673
+    
+    Change-Id: Id1fc213590ad00c28352925e2d754d760e022b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183237
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 34 +++++++++++++------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

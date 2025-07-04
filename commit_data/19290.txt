@@ -1,0 +1,21 @@
+commit 6f3b84a7575c65aa2f4fd9753c03d0cc03a7638e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 7 08:42:08 2014 -0700
+
+    spec: clarify type properties
+    
+    If the underlying type of a type T is a boolean, numeric,
+    or string type, then T is also a boolean, numeric, or
+    string type, respectively.
+    
+    Not a language change.
+    
+    Fixes #7551.
+    
+    LGTM=iant, rsc, robert.hencke, r
+    R=r, rsc, iant, ken, robert.hencke
+    CC=golang-codereviews
+    https://golang.org/cl/100130044
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

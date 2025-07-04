@@ -1,0 +1,15 @@
+commit e266d6064c7e485673ea651d673b2ca22e0649f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 29 07:45:38 2012 +0900
+
+    net: fix comment on Dial with unixgram
+    
+    We should use DialUnix or ListenPacket for unixgram networks
+    because Dial doesn't take a local UnixAddr.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5706043
+
+ src/pkg/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 3b2eb699a06eb2eb9afdf5fbf2326f87e9deca97
+Author: harsimran1 <kaur.harsimran301@gmail.com>
+Date:   Sat Mar 23 14:51:05 2019 +0100
+
+    net/http/pprof: explicitly mention DefaultServeMux for default handlers
+    
+    Change-Id: I224db88f3809001802e004077ce856f0e3347c67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

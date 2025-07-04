@@ -1,0 +1,23 @@
+commit a6df1cece7f6b62a1e1b09f9027692ac0d5411a1
+Author: Matthew Waters <mwwaters@gmail.com>
+Date:   Mon Sep 24 06:08:54 2018 -0400
+
+    net: concatenate multiple TXT strings in single TXT record
+    
+    When go resolver was changed to use dnsmessage.Parser, LookupTXT
+    returned two strings in one record as two different records. This change
+    reverts back to concatenating multiple strings in a single
+    TXT record.
+    
+    Fixes #27763
+    
+    Change-Id: Ice226fcb2be4be58853de34ed35b4627acb429ea
+    Reviewed-on: https://go-review.googlesource.com/136955
+    Reviewed-by: Ian Gudger <igudger@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup_unix.go         | 16 ++++++++++---
+ 2 files changed, 66 insertions(+), 3 deletions(-)

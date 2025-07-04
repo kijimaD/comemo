@@ -1,0 +1,15 @@
+commit bb0c8b3b6638be30c534445a7bf3c3e6a07ee44a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 16:49:06 2011 -0400
+
+    godoc: use go/build to find files in a package
+    
+    Fixes #1156.
+    Fixes #2172.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5015044
+
+ src/cmd/godoc/godoc.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 66 insertions(+), 1 deletion(-)

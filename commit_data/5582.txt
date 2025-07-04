@@ -1,0 +1,12 @@
+commit 69879f04147ca80f231e6ce6e6c50bbdd3f1cd85
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jun 1 14:08:15 2010 -0700
+
+    runtime: Fix printing -Inf
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1258044
+
+ src/pkg/runtime/print.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

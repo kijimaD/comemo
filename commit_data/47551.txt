@@ -1,0 +1,26 @@
+commit a94409660dbf05c1cdc2013aa2c7aa2489fe5c1c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Nov 18 13:30:55 2021 -0800
+
+    internal/fuzz: compute correct number of mutations
+    
+    When reconstructing inputs, we miscalculated the number of mutations
+    that needed to be applied. If the count%chainedMutation == 0 we would
+    apply 0 mutations, when we should actually be applying chainedMutation
+    mutations, due to how count is incremented.
+    
+    Fixes #49047
+    
+    Change-Id: I76773bff0afd6dfd40deafc317be095da995ecc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365294
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt | 2 --
+ src/internal/fuzz/worker.go                             | 3 ++-
+ 2 files changed, 2 insertions(+), 3 deletions(-)

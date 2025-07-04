@@ -1,0 +1,20 @@
+commit a617d06252e9a529e7c2df43ba725a507a6df677
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 12 08:35:08 2012 +0100
+
+    cmd/6g, cmd/8g: simplify integer division code.
+    
+    Change suggested by iant. The compiler generates
+    special code for a/b when a is -0x80...0 and b = -1.
+    A single instruction can cover the case where b is -1,
+    so only one comparison is needed.
+    
+    Fixes #3551.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6922049
+
+ src/cmd/6g/ggen.c | 30 +++++++++++-------------------
+ src/cmd/8g/ggen.c | 21 ++++++++++-----------
+ 2 files changed, 21 insertions(+), 30 deletions(-)

@@ -1,0 +1,23 @@
+commit 7b69ddc171938b8321a535dd79b8ca2ba56ac72d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 6 11:15:30 2021 +0800
+
+    cmd/compile: merge sign extension and shift into SBFIZ
+    
+    This patch adds some rules to rewrite "(LeftShift (SignExtend x) lc)"
+    expression as "SBFIZ".
+    
+    Add the test cases.
+    
+    Change-Id: I294c4ba09712eeb02c7a952447bb006780f1e60d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267602
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 39 ++++++++++++++++++++++++++++
+ test/codegen/bitfield.go                     | 12 +++++++++
+ 3 files changed, 55 insertions(+)

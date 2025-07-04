@@ -1,0 +1,23 @@
+commit a89c0ff39e6c79f280e9ae2b8dd8990ee15df714
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 14 13:31:37 2011 -0700
+
+    for GCC4.6: fix a bunch of set-and-not-used errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4406048
+
+ src/cmd/6g/reg.c         | 2 --
+ src/cmd/6l/asm.c         | 4 +---
+ src/cmd/6l/obj.c         | 3 +--
+ src/cmd/gc/dcl.c         | 2 --
+ src/cmd/gc/reflect.c     | 4 ----
+ src/cmd/gc/subr.c        | 6 ------
+ src/cmd/gc/swt.c         | 4 +---
+ src/cmd/gc/walk.c        | 5 +----
+ src/cmd/ld/data.c        | 3 +--
+ src/cmd/ld/ldelf.c       | 3 +--
+ src/cmd/ld/lib.c         | 3 +--
+ src/libmach/executable.c | 2 --
+ 12 files changed, 7 insertions(+), 34 deletions(-)

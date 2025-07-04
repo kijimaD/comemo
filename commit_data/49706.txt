@@ -1,0 +1,14 @@
+commit 4509e951ecc4bb81b8463829a639c051c2b967f4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:31:10 2022 -0400
+
+    runtime: tricky replacements of g in proc.go
+    
+    Change-Id: I36cd167ed77e123b3ba7dd4a1a8577cbc51a84d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418588
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

@@ -1,0 +1,22 @@
+commit 34c312e11eafa814db5082404780f633b3e3247a
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Tue Sep 7 09:23:49 2010 -0400
+
+    arm: use the correct stat syscalls
+    
+    We were using the 64-bit struct with the old 32-bit
+    system calls.
+    
+    http://code.google.com/p/go/issues/detail?id=1083
+    
+    This also fixes up mksyscall.sh to generate
+    gofmt-compliant code.
+    
+    R=rsc
+    CC=golang-dev, kaib
+    https://golang.org/cl/2148042
+
+ src/pkg/syscall/mksyscall.sh          | 23 +++++++++++++----------
+ src/pkg/syscall/syscall_linux_arm.go  | 10 +++++-----
+ src/pkg/syscall/zsyscall_linux_arm.go | 10 +++++-----
+ 3 files changed, 23 insertions(+), 20 deletions(-)

@@ -1,0 +1,12 @@
+commit a9fc249f5f5c2485847c63fef226067002408ce4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 15 19:32:36 2017 +0000
+
+    net/http: add a known goroutine, don't check goroutine leaks in benchmark mode
+    
+    Change-Id: I8aa070f8093e80ba19f0546d7447caf847a2b388
+    Reviewed-on: https://go-review.googlesource.com/45912
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/main_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

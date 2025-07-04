@@ -1,0 +1,15 @@
+commit 4c0bba158e28384e7f58938b5b2930e3230220dc
+Author: Lakshay Garg <lakshay.garg.1996@gmail.com>
+Date:   Fri Aug 18 23:04:02 2017 +0530
+
+    math: implement the erfcinv function
+    
+    Fixes: #6359
+    
+    Change-Id: I6c697befd681a253e73a7091faa9f20ff3791201
+    Reviewed-on: https://go-review.googlesource.com/57090
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/erfinv.go   | 11 +++++++++++
+ 2 files changed, 60 insertions(+)

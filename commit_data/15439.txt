@@ -1,0 +1,12 @@
+commit c14d255ac5ff06cb9258beebd5bdc6197a28fbd1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 26 08:34:47 2013 -0800
+
+    cmd/go: do not print GCC environment variables on Plan 9
+    
+    R=seed, rminnich, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7397059
+
+ src/cmd/go/env.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

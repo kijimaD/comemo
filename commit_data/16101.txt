@@ -1,0 +1,15 @@
+commit d97157d3825f12e7b9702474136085276f7ef0a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 13:40:15 2013 -0700
+
+    net/http: better stand-alone FileServer doc example
+    
+    Motivated by a deletion in the wiki, which had a better
+    example.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8288045
+
+ src/pkg/net/http/example_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

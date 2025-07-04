@@ -1,0 +1,13 @@
+commit 71696ac048a6572b47145d1426b3d9f315992a27
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 15:03:22 2008 -0700
+
+    clarification of conversion rules for ideal numbers
+    
+    R=r
+    DELTA=21  (11 added, 1 deleted, 9 changed)
+    OCL=17316
+    CL=17316
+
+ doc/go_spec.txt | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

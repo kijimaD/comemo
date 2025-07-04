@@ -1,0 +1,18 @@
+commit 9c9ed9aa9dae40b97348979cc4b13f6b26624a7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 25 12:50:58 2018 -0700
+
+    misc/cgo/test: log error value in testSigprocmask
+    
+    The test has been flaky, probably due to EAGAIN, but let's find out
+    for sure.
+    
+    Updates #25078
+    
+    Change-Id: I5a5b14bfc52cb43f25f07ca7d207b61ae9d4f944
+    Reviewed-on: https://go-review.googlesource.com/109359
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/test/sigprocmask.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

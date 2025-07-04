@@ -1,0 +1,10 @@
+commit 5132d1030519857627d6810f370b896530b7e916
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 21:23:14 2008 -0700
+
+    O=6 not O=o
+    
+    SVN=124763
+
+ src/cmd/ar/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

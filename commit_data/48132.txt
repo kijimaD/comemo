@@ -1,0 +1,36 @@
+commit 18c2033ba587ce63fc9f2d6f52b8bb2e395c561f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 9 11:04:01 2022 -0500
+
+    runtime/pprof: remove arbitrary sleeps in TestBlockProfile
+    
+    The "block" helpers in TestBlockProfile previously slept for an
+    arbitrary duration and assumed that that duration was long enough for
+    the parent goroutine to have registered as blocking. However —
+    especially on slow or overloaded builders — the current arbitrary
+    duration is sometimes not quite long enough.
+    
+    Rather than increasing the duration to a different arbitrary value
+    (which would make the test slower but not actually eliminate the
+    possibility of flakes!), we can use the runtime's own accounting to
+    detect when the goroutine is actually blocked: we obtain a goroutine
+    dump from the runtime, and assume that blocking has been registered in
+    the profile only if the runtime shows the test goroutine in the
+    appropriate blocked state.
+    
+    That not only makes the test more reliable, but also makes it
+    significantly lower-latency when run on a fast machine.
+    
+    Fixes #6999
+    Fixes #37844
+    
+    Change-Id: I465ed2afd406fd2b621419e1f06925f283525f25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384534
+    Trust: Bryan Mills <bcmills@google.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 67 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 49 insertions(+), 18 deletions(-)

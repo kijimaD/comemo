@@ -1,0 +1,14 @@
+commit 092ef8a2ca60e1a7573442757b02ec1efc456c2c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 8 14:27:35 2016 +1200
+
+    cmd/cgo: fix cgo with gccgo
+    
+    Change-Id: I1780899255e22c16d7f8e9947609a1c284d7c42e
+    Reviewed-on: https://go-review.googlesource.com/21690
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

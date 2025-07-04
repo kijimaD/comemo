@@ -1,0 +1,17 @@
+commit 3ea72fb1a1d05f2d6ebcedd03eb5a94942c23504
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 6 01:16:09 2018 +0000
+
+    doc/go1.10: remove ReverseProxy TODO
+    
+    No longer needs to be done.
+    
+    Updates #23009
+    Updates #21255
+    
+    Change-Id: I78e9e29a923dc03dea89ff3a5bf60f2e0bd0c0aa
+    Reviewed-on: https://go-review.googlesource.com/86476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 7 -------
+ 1 file changed, 7 deletions(-)

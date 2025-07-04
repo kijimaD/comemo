@@ -1,0 +1,23 @@
+commit c8dad424bf01df69af729845acc151a66b87d594
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Sat Jul 1 00:01:26 2023 +0100
+
+    math: fix portable FMA when x*y < 0 and x*y == -z
+    
+    When x*y == -z the portable implementation of FMA copied the sign
+    bit from x*y into the result. This meant that when x*y == -z and
+    x*y < 0 the result was -0 which is incorrect.
+    
+    Fixes #61130.
+    
+    Change-Id: Ib93a568b7bdb9031e2aedfa1bdfa9bddde90851d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507376
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/math/all_test.go | 7 +++++++
+ src/math/fma.go      | 5 +++++
+ 2 files changed, 12 insertions(+)

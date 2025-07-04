@@ -1,0 +1,44 @@
+commit 19a48048543098a05efe48adb1cf8f01bfce75f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 29 13:29:43 2022 +0200
+
+    runtime: support MADV_DONTNEED on the BSDs and Solaris/Illumos
+    
+    Like on Linux, use GODEBUG=madvdontneed=1 to enable madvise with
+    MADV_DONTNEED instead of MADV_FREE.
+    
+    Based on previous work by Marcelo Araujo in CL 181498.
+    
+    Fixes #32519
+    
+    Change-Id: Ib49faf05c42a65591b90e75f663146f213030529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266937
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/defs1_netbsd_386.go     | 3 ++-
+ src/runtime/defs1_netbsd_amd64.go   | 3 ++-
+ src/runtime/defs1_netbsd_arm.go     | 3 ++-
+ src/runtime/defs1_netbsd_arm64.go   | 3 ++-
+ src/runtime/defs1_solaris_amd64.go  | 3 ++-
+ src/runtime/defs_dragonfly.go       | 3 ++-
+ src/runtime/defs_dragonfly_amd64.go | 3 ++-
+ src/runtime/defs_freebsd.go         | 3 ++-
+ src/runtime/defs_freebsd_386.go     | 3 ++-
+ src/runtime/defs_freebsd_amd64.go   | 3 ++-
+ src/runtime/defs_freebsd_arm.go     | 3 ++-
+ src/runtime/defs_freebsd_arm64.go   | 3 ++-
+ src/runtime/defs_netbsd.go          | 3 ++-
+ src/runtime/defs_openbsd.go         | 3 ++-
+ src/runtime/defs_openbsd_386.go     | 3 ++-
+ src/runtime/defs_openbsd_amd64.go   | 3 ++-
+ src/runtime/defs_openbsd_arm.go     | 3 ++-
+ src/runtime/defs_openbsd_arm64.go   | 3 ++-
+ src/runtime/defs_openbsd_mips64.go  | 3 ++-
+ src/runtime/defs_solaris.go         | 3 ++-
+ src/runtime/extern.go               | 5 ++++-
+ src/runtime/mem_bsd.go              | 6 +++++-
+ 22 files changed, 49 insertions(+), 22 deletions(-)

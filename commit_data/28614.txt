@@ -1,0 +1,21 @@
+commit e4dafa32620e80e4e39937d8e2033fb2ee6085f8
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 30 16:54:54 2016 -0700
+
+    crypto/x509: fix name constraints handling.
+    
+    This change brings the behaviour of X.509 name constraints into line
+    with NSS[1]. In this area, the behavior specified by the RFC and by NIST
+    differs and this code follows the NIST behaviour.
+    
+    [1] https://github.com/servo/nss/blob/master/lib/certdb/genname.c
+    
+    Fixes #16347, fixes #14833.
+    
+    Change-Id: I5acd1970041291c2e3936f5b1fd36f2a0338e613
+    Reviewed-on: https://go-review.googlesource.com/30155
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go      | 34 ++++++++++++++++++++++++++++------
+ src/crypto/x509/verify_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 6 deletions(-)

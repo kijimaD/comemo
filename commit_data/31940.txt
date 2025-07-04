@@ -1,0 +1,25 @@
+commit 2d1bd1fe9d2c08ecc2ba710fe80e226e80db966f
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Wed Jun 28 10:58:44 2017 -0700
+
+    syscall: fix Exec on solaris
+    
+    The test added for issue #18146 exposed a long-existing bug in the
+    Solaris port; notably, that syscall.Exec uses RawSyscall -- which is not
+    actually functional for the Solaris port (intentionally) and only exists
+    as a placebo to satisfy build requirements.
+    
+    Call syscall.execve instead for Solaris.
+    
+    Fixes #20832
+    
+    Change-Id: I327d863f4bbbbbb6e5ecf66b82152c4030825d09
+    Reviewed-on: https://go-review.googlesource.com/47032
+    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_solaris.go |  5 +++++
+ src/syscall/exec_unix.go    | 24 +++++++++++++++++++-----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

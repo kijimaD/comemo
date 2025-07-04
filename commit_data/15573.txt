@@ -1,0 +1,16 @@
+commit cea46387b9c042ea19d0b30c7accf0f9a45d8e11
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Mar 4 16:54:37 2013 +0100
+
+    runtime: add garbage collector statistics
+    
+    If the constant CollectStats is non-zero and GOGCTRACE=1
+    the garbage collector will print basic statistics about executed
+    GC instructions.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/7413049
+
+ src/pkg/runtime/mgc0.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 77 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit eaf0e3d4650fd223dec84ee52025c7a82bcb24bd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 08:24:57 2022 -0500
+
+    runtime: remove arbitrary timeouts in finalizer tests
+    
+    These short timeouts can overrun due to system scheduling delay
+    (or GC latency) on a slow or heavily-loaded host.
+    
+    Moreover, if the test deadlocks we will probably want to know what the
+    GC goroutines were doing at the time. With an arbitrary timeout, we
+    never get that information; however, if we allow the test to time out
+    completely we will get a goroutine dump (and, if GOTRACEBACK is
+    configured in the environment, that may even include GC goroutines).
+    
+    Fixes #57166.
+    
+    Change-Id: I136501883373c3ce4e250dc8340c60876b375f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456118
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mfinal_test.go | 26 +++++---------------------
+ 1 file changed, 5 insertions(+), 21 deletions(-)

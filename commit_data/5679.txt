@@ -1,0 +1,12 @@
+commit ceb868bf0aaec012e238d5c01a642f19cbebab50
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 11:21:43 2010 -0700
+
+    gc: fix build - subnode not addable in complexgen
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1677047
+
+ src/cmd/gc/cplx.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

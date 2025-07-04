@@ -1,0 +1,13 @@
+commit 335b3855c6fb8c9e21ad2d3ed8e1bf20f8e5e0e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 21 17:18:32 2009 -0700
+
+    a little more 6l cleanup
+    
+    R=r
+    DELTA=51  (14 added, 24 deleted, 13 changed)
+    OCL=31968
+    CL=31971
+
+ src/cmd/6l/asm.c | 62 ++++++++++++++++++++++++--------------------------------
+ 1 file changed, 26 insertions(+), 36 deletions(-)

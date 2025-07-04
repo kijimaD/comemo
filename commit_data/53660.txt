@@ -1,0 +1,21 @@
+commit 158d11196f732e4c80b03240548bdd373e6a9eff
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Wed Jun 28 23:12:33 2023 +0100
+
+    math: add test that covers riscv64 fnm{add,sub} codegen
+    
+    Adds a test that triggers the RISC-V fused multiply-add code
+    generation bug fixed by CL 506575.
+    
+    Change-Id: Ia3a55a68b48c5cc6beac4e5235975dea31f3faf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507035
+    Auto-Submit: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/all_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

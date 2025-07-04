@@ -1,0 +1,28 @@
+commit 39a51a4b0d698491baaa252e21be2a51516379ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 17:39:11 2019 +0000
+
+    sort, internal/reflectlite: flesh out reflectlite enough for use by sort
+    
+    Now the net package is back to no longer depending on unicode. And lock that in
+    with a test.
+    
+    Fixes #30440
+    
+    Change-Id: I18b89b02f7d96488783adc07308da990f505affd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169137
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go               |  2 +-
+ src/cmd/go/internal/load/pkg.go     |  7 ++++
+ src/go/build/deps_test.go           | 10 ++++-
+ src/internal/reflectlite/swapper.go | 74 +++++++++++++++++++++++++++++++++++++
+ src/internal/reflectlite/type.go    |  8 ++++
+ src/internal/reflectlite/value.go   | 51 +++++++++++++++++++++++++
+ src/runtime/chan.go                 |  8 ++++
+ src/runtime/map.go                  | 12 ++++++
+ src/sort/slice.go                   | 16 ++++----
+ src/sort/slice_pre113.go            | 46 +++++++++++++++++++++++
+ 10 files changed, 224 insertions(+), 10 deletions(-)

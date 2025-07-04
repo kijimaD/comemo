@@ -1,0 +1,18 @@
+commit da4d58587e0e4028ea384580053c3c455127e446
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Dec 7 16:52:10 2019 +0100
+
+    doc: add missing p in install from source page
+    
+    The last paragraph in golang.org/doc/install/source#fetch is missing a
+    p tag, so it doesn't get formatted with the 'max-width: 50rem' like
+    all the other text in the page.
+    
+    Add it.
+    
+    Change-Id: I1a981dd2afde561b4ab21bd90ad99b3a146111f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 2 ++
+ 1 file changed, 2 insertions(+)

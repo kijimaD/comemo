@@ -1,0 +1,15 @@
+commit aaa0bc1043883390e052ec6f6775cbf0395dceb1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 02:34:29 2015 -0500
+
+    net/http: document a few ServeMux behaviors
+    
+    Fixes #13639.
+    Fixes #11757.
+    
+    Change-Id: Iecf9ebcd652c23c96477305a41082e5b63b41d83
+    Reviewed-on: https://go-review.googlesource.com/17955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

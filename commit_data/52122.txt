@@ -1,0 +1,37 @@
+commit dd16258f48bc9e328ef2086a49da0432fe46f413
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 6 17:10:22 2023 -0500
+
+    internal/testdir: simplify and clean up
+    
+    Now that the bare minimum change to make the run.go test runner into
+    a normal go test is done, there remain many opportunities to simplify,
+    modernize and generally clean up the test code.
+    
+    Of all the opportunities available, this change tries to fit somewhere
+    between doing "not enough" and "way too much". This ends up including:
+    
+    • replace verbose flag with testing.Verbose()
+    • replace custom temporary directory creation, removal, -keep flag
+      with testing.T.TempDir
+    • replace custom code to find the go command with testenv.GoToolPath
+    • replace many instances of "t.err = err; return" with "return err",
+      or with t.Fatal when it's clearly a test infrastructure error
+    • replace reliance on changing working directory to GOROOT/test to
+      computing and using absolute paths
+    • replace uses of log.Fatal with t.Fatal
+    • replace uses of deprecated ioutil package with their replacements
+    • add some missing error checks, use more idiomatic identifier names
+    
+    For #56844.
+    
+    Change-Id: I5b301bb83a8e5b64cf211d7f2f4b14d38d48fea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/testdir/testdir_test.go | 668 ++++++++++++++++-------------------
+ 1 file changed, 299 insertions(+), 369 deletions(-)

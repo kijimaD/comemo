@@ -1,0 +1,18 @@
+commit f9bd1d0f113db5a92e59592f0108dad45a9308ad
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Oct 18 10:22:17 2022 -0500
+
+    runtime/internal/syscall: convert PPC64 Syscall6 to ABIInternal
+    
+    This avoids a lot of stacking.
+    
+    Change-Id: If5c5cf33335ffdcb7eecbd3f2db7858a415d817d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/internal/syscall/asm_linux_ppc64x.s | 31 +++++++++++--------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

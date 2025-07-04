@@ -1,0 +1,24 @@
+commit b8ddcc0a03415786bb6278849530c88bfa5b97e6
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 12 13:53:19 2016 +0100
+
+    fmt: cleanup %p and %T code paths
+    
+    Remove check for %p and %T in printValue.
+    These verbs are not recursive and are handled already in
+    printArg which is called on any argument before printValue.
+    
+    Format the type string for %T directly instead of invoking
+    the more complex printArg with %s on the type string.
+    
+    Decouple the %T tests from variables declared in scan_test.go.
+    
+    Change-Id: Ibd51566bd4cc1a260ce6d052f36382ed05020b48
+    Reviewed-on: https://go-review.googlesource.com/20622
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go |  6 ++++--
+ src/fmt/print.go    | 20 +++++---------------
+ 2 files changed, 9 insertions(+), 17 deletions(-)

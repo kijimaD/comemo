@@ -1,0 +1,16 @@
+commit dad553d92f3ff0a8fb07937abcb4d47f761fdfa8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Dec 15 02:08:41 2019 +0700
+
+    cmd/compile: consistently use OXXX for works relate to Op
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8ff2a702c445e98c227913369c139a5ef4a04916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211397
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

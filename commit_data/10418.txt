@@ -1,0 +1,15 @@
+commit c9355596cde33fe025e801066ee718a9941124c9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Nov 16 17:35:47 2011 -0200
+
+    net/http: fix EOF handling on response body
+    
+    http.Response is currently returning 0, nil on EOF.
+    
+    R=golang-dev, bradfitz, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5394047
+
+ src/pkg/net/http/client_test.go | 27 ++++++++++++++++++++++++++-
+ src/pkg/net/http/transfer.go    |  4 +++-
+ 2 files changed, 29 insertions(+), 2 deletions(-)

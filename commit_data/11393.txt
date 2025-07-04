@@ -1,0 +1,12 @@
+commit 9acea02de2eb5ee0ac3a20613a8e1c3ce44e755b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 26 07:38:49 2012 +0900
+
+    net: fix dialing google test
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5573060
+
+ src/pkg/net/dialgoogle_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

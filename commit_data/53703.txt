@@ -1,0 +1,21 @@
+commit 700727151fe3772ecc2315af101d2e5d93269c0c
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 4 13:03:58 2023 +0800
+
+    doc/go1.21: add release notes for linux/loong64
+    
+    Fixes #53301
+    
+    Change-Id: Id447d57d43b12c3748267295928d45a089549340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

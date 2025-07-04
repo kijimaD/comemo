@@ -1,0 +1,12 @@
+commit cb2040b2ab68ab7d2863e65920749ed1266f7acd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 4 07:24:39 2011 -0400
+
+    runtime: fix openbsd nanotime?
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5353041
+
+ src/pkg/runtime/openbsd/amd64/sys.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

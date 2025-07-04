@@ -1,0 +1,15 @@
+commit e22a14b7eb1e4a172d0c20d14a0d2433fdf20e5c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 10:16:48 2022 -0500
+
+    cmd/go: add missing newlines in TestScript '? cmp' output
+    
+    Change-Id: I0314c2e9073b162119060a23c5eee9a78ca08ebf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382239
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

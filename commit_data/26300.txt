@@ -1,0 +1,17 @@
+commit 5305a329d8b6656d357d761afdd8067f61b1cad2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 15:00:57 2016 -0700
+
+    cmd/compile: turn off SSA internal consistency checks
+    
+    They've been on for a few weeks of general use and nothing
+    has tripped up on them yet.
+    
+    Makes the compiler ~18% faster.
+    
+    Change-Id: I42d7bbc0581597f9cf4fb28989847814c81b08a2
+    Reviewed-on: https://go-review.googlesource.com/20741
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 4c394b5638cc2694b1eff6418bc3e7db8132de0e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jan 26 17:28:45 2024 +0000
+
+    Revert "net/http: wrap client errors"
+    
+    This reverts CL 533119.
+    
+    Reason for revert: the test fails frequently, see #65287.
+    
+    Fixes #65287.
+    
+    Change-Id: I5bf2ee2b7ce435608ff76b892da261c0a4a189bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558916
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/client.go      |  4 ++--
+ src/net/http/client_test.go | 19 -------------------
+ src/net/http/transport.go   | 12 +++++-------
+ 3 files changed, 7 insertions(+), 28 deletions(-)

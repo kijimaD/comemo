@@ -1,0 +1,18 @@
+commit 360ab50a9b2ae5eb11b0dbd9df73d68b95864a8a
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 5 18:07:01 2011 -0400
+
+    crypto/rsa: add support for precomputing CRT values.
+    
+    This speeds up private key operations by 3.5x (for a 2048-bit
+    modulus).
+    
+    R=golang-dev, r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4348053
+
+ src/pkg/crypto/rsa/rsa.go        | 49 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/crypto/rsa/rsa_test.go   | 44 ++++++++++++++++++++++++++++++------
+ src/pkg/crypto/x509/x509.go      | 17 +++++++-------
+ src/pkg/crypto/x509/x509_test.go |  7 ++++--
+ 4 files changed, 98 insertions(+), 19 deletions(-)

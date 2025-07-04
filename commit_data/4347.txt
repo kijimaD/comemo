@@ -1,0 +1,11 @@
+commit 86c0c54d27eecb32d4904b57122d5543ce3f4a00
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 19:39:09 2009 -0800
+
+    test/bench: faster fasta (mostly due to bufio fix)
+    
+    R=r
+    https://golang.org/cl/165083
+
+ test/bench/fasta.go | 34 ++++++++++++++++------------------
+ 1 file changed, 16 insertions(+), 18 deletions(-)

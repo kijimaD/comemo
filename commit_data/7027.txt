@@ -1,0 +1,10 @@
+commit 3cd10e3a0d9a1984eb1fd9e418885a989e8a454a
+Merge: 9214016b3d 4e5a59591b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 4 13:40:41 2011 -0500
+
+    merge tree
+
+ src/cmd/gc/walk.c        |  4 +++-
+ test/fixedbugs/bug315.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

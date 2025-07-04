@@ -1,0 +1,14 @@
+commit 3269647502e238e0e9d33f5b5b17cd269ecf5d42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 19:16:56 2009 -0800
+
+    doc/install.html: how to update to a new release
+    
+    Fixes #422.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/180057
+
+ doc/install.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

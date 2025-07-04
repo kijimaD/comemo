@@ -1,0 +1,14 @@
+commit 92c3627950ee5d938cf243236fcecf9c5984cbae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 14:50:17 2009 -0700
+
+    fmt boundary bugs.
+    pow10 was giving up too easily.
+    
+    R=r
+    DELTA=4  (0 added, 3 deleted, 1 changed)
+    OCL=32310
+    CL=32321
+
+ src/lib9/fmt/fltfmt.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

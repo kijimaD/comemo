@@ -1,0 +1,27 @@
+commit 72ee5bad9f9bd8979e14fab02fb07e39c5e9fd8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 2 16:03:37 2020 -0700
+
+    cmd/cgo: split gofrontend mangling checks into cmd/internal/pkgpath
+    
+    This is a step toward porting https://golang.org/cl/219817 from the
+    gofrontend repo to the main repo.
+    
+    Note that this also corrects the implementation of the v2 mangling
+    scheme to use ..u and ..U where appropriate.
+    
+    For #37272
+    
+    Change-Id: I64a1e7ca1c84348efcbf1cf62049eeb05c830ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259298
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/cgo/main.go                      |   3 +-
+ src/cmd/cgo/out.go                       | 118 ++++--------------------------
+ src/cmd/dist/buildtool.go                |   1 +
+ src/cmd/internal/pkgpath/pkgpath.go      | 114 +++++++++++++++++++++++++++++
+ src/cmd/internal/pkgpath/pkgpath_test.go | 121 +++++++++++++++++++++++++++++++
+ 5 files changed, 252 insertions(+), 105 deletions(-)

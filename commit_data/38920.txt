@@ -1,0 +1,23 @@
+commit 1805f425ada8184b53175fd166b5fec7c02850a4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 11:09:51 2019 -0700
+
+    database/sql: check if src is nil before converting to string
+    
+    A nil src (NULL database value) will result in a "nil" string,
+    which will never parse correctly in a ParseInt or similar
+    numeric conversion. The resulting error is confusing. Check
+    for a nil src prior to converting the value to string
+    if the resulting string will be parsed after that.
+    
+    Closes #31274
+    
+    Change-Id: I90f12cceff00fbbfdd3e343b04fa7e2596390e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174177
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go  | 12 ++++++++++++
+ src/database/sql/sql_test.go |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit bafe466a9537d8ea5ac5767504628803302ebb12
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 27 17:36:24 2018 +0200
+
+    syscall/js: add TypedArrayOf
+    
+    The new function js.TypedArrayOf returns a JavaScript typed array for
+    a given slice.
+    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+    
+    This change also changes js.ValueOf to not accept a []byte any more.
+    
+    Fixes #25532.
+    
+    Change-Id: I8c7bc98ca4e21c3514d19eee7a1f92388d74ab2a
+    Reviewed-on: https://go-review.googlesource.com/121215
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rand/rand_js.go   |   4 +-
+ src/net/http/roundtrip_js.go |   8 +++-
+ src/syscall/fs_js.go         |  16 +++++--
+ src/syscall/js/js.go         |  23 ++++++----
+ src/syscall/js/js_test.go    |  22 +++++++++
+ src/syscall/js/typedarray.go | 103 +++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 160 insertions(+), 16 deletions(-)

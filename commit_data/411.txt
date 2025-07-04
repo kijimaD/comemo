@@ -1,0 +1,18 @@
+commit b0ada5ddf71a493bed0d333a029847201bccc1e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 23 16:04:11 2008 -0700
+
+    - more work on semantic checks - not yet enabled by default
+    
+    R=r
+    OCL=13391
+    CL=13391
+
+ usr/gri/gosrc/ast.go     |  32 ++++++-
+ usr/gri/gosrc/export.go  |  43 ++++------
+ usr/gri/gosrc/globals.go |   4 +-
+ usr/gri/gosrc/import.go  |  10 +--
+ usr/gri/gosrc/parser.go  | 215 +++++++++++++++++++++++++++++++++++++++--------
+ usr/gri/gosrc/scope.go   |  14 ---
+ usr/gri/gosrc/type.go    |   4 +-
+ 7 files changed, 233 insertions(+), 89 deletions(-)

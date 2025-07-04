@@ -1,0 +1,15 @@
+commit e9bbe3a8da9043e13b74ec4427608364b068bed7
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Apr 25 13:39:09 2013 +0200
+
+    runtime: prevent the GC from seeing the content of a frame in runfinq()
+    
+    Fixes #5348.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/8954044
+
+ src/pkg/runtime/mgc0.c      |  2 +-
+ test/fixedbugs/issue5348.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

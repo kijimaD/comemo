@@ -1,0 +1,12 @@
+commit 73b83a228e61045b76b758f6948df80f7e7e32cd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 31 08:40:59 2013 +0100
+
+    cmd/gc: inlining of variadic functions.
+    
+    R=rsc, lvd, golang-dev, kardianos
+    CC=golang-dev
+    https://golang.org/cl/7093050
+
+ src/cmd/gc/inl.c | 146 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 128 insertions(+), 18 deletions(-)

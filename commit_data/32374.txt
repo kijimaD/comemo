@@ -1,0 +1,22 @@
+commit 943dd0fe332ebc72a4b02b2a9b6e4344e4cda340
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Aug 18 16:05:33 2017 +0100
+
+    cmd/*: remove negative uint checks
+    
+    All of these are uints of different sizes, so checking >= 0 or < 0 are
+    effectively no-ops.
+    
+    Found with staticcheck.
+    
+    Change-Id: I16ac900eb7007bc8f9018b302136d42e483a4180
+    Reviewed-on: https://go-review.googlesource.com/56950
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 4 ++--
+ src/cmd/internal/obj/sym.go        | 4 ----
+ src/cmd/trace/trace.go             | 3 ---
+ 3 files changed, 2 insertions(+), 9 deletions(-)

@@ -1,0 +1,15 @@
+commit 7aa60d998a5f81f58a09e6b1e5703becaf486043
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 29 19:50:23 2012 -0400
+
+    syscall: apply comment from Mikioh
+    
+    This comment was suggested in CL 6456045
+    but never got applied.
+    
+    R=mikioh, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6447056
+
+ src/pkg/syscall/syscall_bsd.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

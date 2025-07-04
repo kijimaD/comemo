@@ -1,0 +1,14 @@
+commit 2cc9d339e6b7f8cce7faeff2a22e8aa8683d84e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 22 08:55:56 2010 -0700
+
+    fix build
+    
+    bug introduced in https://golang.org/cl/1886043
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1848047
+
+ src/cmd/8l/pass.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

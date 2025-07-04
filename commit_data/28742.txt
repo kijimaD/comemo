@@ -1,0 +1,21 @@
+commit 2756d56c894e5b044907da74b6d5f3c684eab00d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 6 15:43:47 2016 -0400
+
+    cmd/compile: intrinsify math/big.mulWW, divWW on AMD64
+    
+    Change-Id: I59f7afa7a5803d19f8b21fe70fc85ef997bb3a85
+    Reviewed-on: https://go-review.googlesource.com/30542
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go          | 14 ++++++
+ src/cmd/compile/internal/gc/ssa.go             | 47 ++++++++++++++------
+ src/cmd/compile/internal/gc/walk.go            |  7 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 ++-
+ src/cmd/compile/internal/ssa/opGen.go          | 59 +++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 36 ++++++++++++++++
+ 8 files changed, 152 insertions(+), 23 deletions(-)

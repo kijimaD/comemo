@@ -1,0 +1,22 @@
+commit 5947a07d72076f96eb6fb8e54b7979748962713b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 16 00:02:14 2022 -0500
+
+    test: fix noinit on noopt builder
+    
+    Fix noopt build break from CL 450136 by not running test.
+    
+    I can't reproduce the failure locally, but it's entirely reasonable
+    for this test to fail when optimizations are disabled, so just don't
+    run it when optimizations are disabled.
+    
+    Change-Id: I882760fc7373ba0449379f81d295312a6be49be1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450740
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/noinit.go | 1 +
+ 1 file changed, 1 insertion(+)

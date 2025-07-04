@@ -1,0 +1,18 @@
+commit 3b51581261704bfc3e6feeb29b6d2588b163777d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 15 17:05:05 2024 -0500
+
+    cmd/link: replace function pointers to static calls in loadelf
+    
+    When transitioning between the old object loader and the new
+    object loader, to support both we made loadelf to take symbol
+    loading functions as function pointers. Now we only have the new
+    object loader. Change the function pointers back to static calls.
+    
+    Change-Id: Ia623a6010376a3d7c0be5eacae002144d956f28a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564635
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

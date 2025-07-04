@@ -1,0 +1,16 @@
+commit b8d2d6b9c0fcd66fe9579d7525d4ec5ecc2d73a3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jun 29 16:43:25 2015 +1000
+
+    image/gif: accept LZW encodings that do not have an explicit end marker.
+    
+    The spec says this is invalid, but it matches giflib's behavior.
+    
+    Fixes #9856 (together with https://go-review.googlesource.com/11661).
+    
+    Change-Id: I05701f62a9e5e724a2d85c6b87ae4111e537146b
+    Reviewed-on: https://go-review.googlesource.com/11663
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/reader.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

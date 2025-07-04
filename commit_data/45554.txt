@@ -1,0 +1,23 @@
+commit 95dde3f0290b0df797770afc899ae977ed89833e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed May 5 09:23:52 2021 +0700
+
+    cmd/compile: do not substitute OGOTO inside a closure when inlining
+    
+    The inlsubst already does the same thing for OLABEL, so we must do the
+    same thing for OGOTO. Otherwise, new inlined OGOTO node will be
+    associated with non-existed label.
+    
+    Fixes #45947
+    
+    Change-Id: I40eef095f57fd3438c38a0b5d9751d5d7ebf759e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316931
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/inline/inl.go |  4 ++++
+ test/fixedbugs/issue45947.go           | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

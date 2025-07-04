@@ -1,0 +1,23 @@
+commit ee7d9f1c37c768b859c27dec2a897b12fa928c4e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 27 19:18:48 2020 -0400
+
+    cmd/compile: make LivenessMap sparse
+    
+    We're about to switch to having significantly fewer maps in the
+    liveness map, so switch from a dense representation to a sparse
+    representation.
+    
+    Passes toolstash-check.
+    
+    For #36365.
+    
+    Change-Id: Icb17bd6ace17667a280bc5fba4039cae3020a8d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230543
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

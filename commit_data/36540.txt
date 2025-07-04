@@ -1,0 +1,12 @@
+commit e84409ac95d5ed4a9113128c72d8f930f034aebf
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 12:44:54 2018 -0600
+
+    time: add example for LoadLocation
+    
+    Change-Id: I8e55e9397eb6844b5856f8bde9c26185c446a80e
+    Reviewed-on: https://go-review.googlesource.com/132238
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

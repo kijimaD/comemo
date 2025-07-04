@@ -1,0 +1,19 @@
+commit f197988ca596e87f1e971d5873bc3cee5c650b98
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 15 10:56:37 2014 -0700
+
+    test: make maplinear iterdelete test less flaky
+    
+    iterdelete's run time varies; occasionally we get unlucky. To reduce spurious failures, average away some of the variation.
+    
+    On my machine, 8 of 5000 runs (0.15%) failed before this CL. After this CL, there were no failures after 35,000 runs.
+    
+    I confirmed that this adjusted test still fails before CL 141270043.
+    
+    LGTM=khr
+    R=khr
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/140610043
+
+ test/maplinear.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

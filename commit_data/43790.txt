@@ -1,0 +1,15 @@
+commit c167635a6e08cdb1223a6d7b70cffd73c165562e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 12 08:44:29 2020 -0500
+
+    cmd/compile: gofmt
+    
+    Change-Id: I2aa44b9976bdac577db44ef76e18fdf5748df8ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269477
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

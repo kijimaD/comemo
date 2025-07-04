@@ -1,0 +1,18 @@
+commit a5df88355cb8998856a5dbd3550b98e5de1f6009
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Mar 12 19:40:46 2021 +0800
+
+    time: check int64 overflow in Time.addSec
+    
+    Change-Id: Ibbed54239228e7ea31ef5978d427425899c3b943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300890
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Baokun Lee <bk@golangcn.org>
+
+ src/time/export_test.go   |  1 +
+ src/time/internal_test.go |  2 ++
+ src/time/time.go          | 11 +++++++++--
+ src/time/time_test.go     | 27 ++++++++++++++++++++++++++-
+ 4 files changed, 38 insertions(+), 3 deletions(-)

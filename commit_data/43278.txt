@@ -1,0 +1,25 @@
+commit a15ec3895b99cd6b49576a6c1a739b46f8afeaf4
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 13 09:15:52 2020 -0400
+
+    cmd/link: update plt size appropriately on ppc64
+    
+    When attempting to enable internal linking with cgo on ppc64
+    it was discovered that the plt size was not being updated
+    after adding entries to it, which resulted in this error:
+    
+      .plt: initialize bounds (16 < 24)
+    
+    This changes fixes that problem.
+    
+    Updates #21961
+    
+    Change-Id: Ie17539c329f5a4802e5defd93852dcdde19ded8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261837
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 1 +
+ 1 file changed, 1 insertion(+)

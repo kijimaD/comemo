@@ -1,0 +1,20 @@
+commit fb142ee9b99b208d59079e8830fb45131b961991
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 13:52:48 2016 -0500
+
+    cmd/go: for go get -insecure, skip TLS certificate checking
+    
+    The flag is already named -insecure. Make it more so.
+    
+    If we're willing to accept HTTP, it's not much worse to accept
+    HTTPS man-in-the-middle attacks too. This allows servers
+    with self-signed certificates to work.
+    
+    Fixes #13197.
+    
+    Change-Id: Ia5491410bc886da0a26ef3bce4bf7d732f5e19e4
+    Reviewed-on: https://go-review.googlesource.com/18324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/http.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit a121410541db03410eddf9559b0d0f3a3089577d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 22:59:23 2009 -0700
+
+    make Syms smaller.
+    collapse a lot of duplication in dcl.c
+    switch to NodeList* from Dcl*
+    
+    R=ken
+    OCL=32770
+    CL=32770
+
+ src/cmd/5g/ggen.c    |   2 -
+ src/cmd/6g/ggen.c    |   5 +-
+ src/cmd/8g/ggen.c    |   1 -
+ src/cmd/8g/gobj.c    |   8 +-
+ src/cmd/gc/dcl.c     | 296 +++++++++++++--------------------------------------
+ src/cmd/gc/export.c  |  98 +++++++++--------
+ src/cmd/gc/gen.c     |  12 +--
+ src/cmd/gc/go.h      |  74 +++++--------
+ src/cmd/gc/go.y      |   9 +-
+ src/cmd/gc/init.c    |   2 +-
+ src/cmd/gc/lex.c     |   8 --
+ src/cmd/gc/obj.c     |  22 ++--
+ src/cmd/gc/reflect.c |  47 ++++----
+ src/cmd/gc/subr.c    |  44 ++++----
+ 14 files changed, 210 insertions(+), 418 deletions(-)

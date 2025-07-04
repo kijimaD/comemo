@@ -1,0 +1,18 @@
+commit 85d09574fd2ed789eb5550a04eae1d261aaf4d17
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Feb 24 11:11:56 2015 -0500
+
+    runtime: fallback to 128M address space on 32bit
+    
+    Available darwin/arm devices sporadically have trouble mapping 256M.
+    
+    I would really appreciate it if anyone could check my working on
+    this, and make sure sure there aren't obviously bad consequences I
+    haven't considered.
+    
+    Change-Id: Id1a8edae104d974fcf5f9333274f958625467f79
+    Reviewed-on: https://go-review.googlesource.com/5752
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go | 1 +
+ 1 file changed, 1 insertion(+)

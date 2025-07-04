@@ -1,0 +1,13 @@
+commit 92d58c7e466b332129c1fc39f30d1d8e2f9c58c3
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Tue Jun 24 16:59:33 2014 -0700
+
+    fmt: fix typo in help doc
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/110110045
+
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

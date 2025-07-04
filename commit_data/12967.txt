@@ -1,0 +1,12 @@
+commit 555ca36c1d03c0cafa65dcc71a5b7a757e92c602
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Apr 26 11:28:35 2012 +1000
+
+    time: doc fix.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6127050
+
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

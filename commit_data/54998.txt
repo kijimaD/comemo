@@ -1,0 +1,24 @@
+commit 17eb0a2bac79eda8dc71d628474989d05d9755c5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 15 21:54:45 2023 +0000
+
+    runtime: fix liveness issue in test-only getgcmask
+    
+    getgcmask stops referencing the object passed to it sometime between
+    when the object is looked up and when the function returns. Notably,
+    this can happen while the GC mask is actively being produced, and thus
+    the GC might free the object.
+    
+    This is easily reproducible by adding a runtime.GC call at just the
+    right place. Adding a KeepAlive on the heap-object path fixes it.
+    
+    Fixes #64188.
+    
+    Change-Id: I5ed4cae862fc780338b60d969fd7fbe896352ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542716
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/mbitmap_allocheaders.go   | 5 +++++
+ src/runtime/mbitmap_noallocheaders.go | 5 +++++
+ 2 files changed, 10 insertions(+)

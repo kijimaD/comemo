@@ -1,0 +1,23 @@
+commit 7aeaad5c86174f61b084d72d89fb02d7fc64391c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 4 20:55:28 2021 -0700
+
+    runtime/cgo: when using msan explicitly unpoison cgoCallers
+    
+    This avoids an incorrect msan uninitialized memory report when using
+    runtime.SetCgoTraceback when a signal occurs while the fifth argument
+    register is undefined. See the issue for more details.
+    
+    Fixes #47543
+    
+    Change-Id: I3d1b673e2c93471ccdae0171a99b88b5a6062840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339902
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/testsanitizers/msan_test.go      |   1 +
+ misc/cgo/testsanitizers/testdata/msan8.go | 109 ++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_traceback.c           |  20 ++++++
+ 3 files changed, 130 insertions(+)

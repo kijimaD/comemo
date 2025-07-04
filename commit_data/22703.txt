@@ -1,0 +1,20 @@
+commit 14a4649fe2c1cb90093e5a7653c95169cde6cc67
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Fri Jan 9 00:11:44 2015 +0100
+
+    cmd/pprof: handle empty profile gracefully
+    
+    The command "go tool pprof -top $GOROOT/bin/go /dev/null" now logs that
+    profile is empty instead of panicking.
+    
+    Fixes #9207
+    
+    Change-Id: I3d55c179277cb19ad52c8f24f1aca85db53ee08d
+    Reviewed-on: https://go-review.googlesource.com/2571
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go        |  4 ++++
+ src/cmd/pprof/internal/profile/profile.go      |  5 +++++
+ src/cmd/pprof/internal/profile/profile_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+)

@@ -1,0 +1,29 @@
+commit 53279a6af372e3708afe8eaf618d56ee98edf045
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Apr 27 21:39:57 2023 -0700
+
+    internal/testenv: probe for symlink on wasip1
+    
+    Certain WASI runtimes do not support generic symlinks, and
+    instead return permission errors when they are attempted.
+    Perform a runtime probe of symlink support in hasSymlink
+    on wasip1 to determine whether the runtime supports
+    generic symlinks.
+    
+    Also perform the same probe on android.
+    
+    For #59583
+    
+    Change-Id: Iae5b704e670650d38ee350a5a98f99dcce8b5b28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490115
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/testenv.go         |  2 +-
+ src/internal/testenv/testenv_notunix.go |  3 ++-
+ src/internal/testenv/testenv_notwin.go  | 28 +++++++++++++++++++++++++++-
+ 3 files changed, 30 insertions(+), 3 deletions(-)

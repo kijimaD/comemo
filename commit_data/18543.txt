@@ -1,0 +1,20 @@
+commit c3922f0a63b826000e6ab46cadc344782fbae178
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 17 06:29:56 2014 +0400
+
+    testing: ease writing parallel benchmarks
+    Add b.RunParallel function that captures parallel benchmark boilerplate:
+    creates worker goroutines, joins worker goroutines, distributes work
+    among them in an efficient way, auto-tunes grain size.
+    Fixes #7090.
+    
+    R=bradfitz, iant, josharian, tracey.brendan, r, rsc, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/57270043
+
+ doc/go1.3.txt                     |   1 +
+ src/pkg/runtime/chan_test.go      | 213 +++++++++++++-------------------------
+ src/pkg/testing/benchmark.go      |  97 +++++++++++++++--
+ src/pkg/testing/benchmark_test.go |  54 ++++++++++
+ src/pkg/testing/testing.go        |  16 +++
+ 5 files changed, 236 insertions(+), 145 deletions(-)

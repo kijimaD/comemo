@@ -1,0 +1,13 @@
+commit 96d6f9dea432849f141b37a6e15bd511b6cab0b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 22 15:18:41 2010 +1000
+
+    misc/dashboard/builder: -cmd for user-specified build command
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2248043
+
+ misc/dashboard/builder/exec.go | 13 +++++++++++--
+ misc/dashboard/builder/main.go | 14 +++-----------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

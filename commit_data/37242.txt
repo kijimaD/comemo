@@ -1,0 +1,59 @@
+commit c21ba09bcd83e58e862b1acc676dc36f31444022
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 2 00:57:30 2018 -0400
+
+    crypto/tls: implement TLS 1.3 server handshake (base)
+    
+    Implement a basic TLS 1.3 server handshake, only enabled if explicitly
+    requested with MaxVersion.
+    
+    This CL intentionally leaves for future CLs:
+      - PSK modes and resumption
+      - client authentication
+      - compatibility mode ChangeCipherSpecs
+      - early data skipping
+      - post-handshake messages
+      - downgrade protection
+      - KeyLogWriter support
+      - TLS_FALLBACK_SCSV processing
+    
+    It also leaves a few areas up for a wider refactor (maybe in Go 1.13):
+      - the certificate selection logic can be significantly improved,
+        including supporting and surfacing signature_algorithms_cert, but
+        this isn't new in TLS 1.3 (see comment in processClientHello)
+      - handshake_server_tls13.go can be dried up and broken into more
+        meaningful, smaller functions, but it felt premature to do before
+        PSK and client auth support
+      - the monstrous ClientHello equality check in doHelloRetryRequest can
+        get both cleaner and more complete with collaboration from the
+        parsing layer, which can come at the same time as extension
+        duplicates detection
+    
+    Updates #9671
+    
+    Change-Id: Id9db2b6ecc2eea21bf9b59b6d1d9c84a7435151c
+    Reviewed-on: https://go-review.googlesource.com/c/147017
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/auth.go                             |  33 ++
+ src/crypto/tls/common.go                           |   2 +-
+ src/crypto/tls/handshake_messages.go               |   4 +-
+ src/crypto/tls/handshake_server.go                 | 152 ++++---
+ src/crypto/tls/handshake_server_test.go            |  95 ++++-
+ src/crypto/tls/handshake_server_tls13.go           | 461 +++++++++++++++++++++
+ src/crypto/tls/testdata/Server-TLSv12-P256         |  85 ++++
+ ...5519-ECDHE-RSA-AES-GCM => Server-TLSv12-X25519} |   0
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       |  90 ++++
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       |  92 ++++
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         |  94 +++++
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch |  93 +++++
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     |  90 ++++
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     |  86 ++++
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    |  92 ++++
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 118 ++++++
+ src/crypto/tls/testdata/Server-TLSv13-P256         |  95 +++++
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   |  90 ++++
+ src/crypto/tls/testdata/Server-TLSv13-X25519       |  91 ++++
+ 19 files changed, 1787 insertions(+), 76 deletions(-)

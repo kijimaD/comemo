@@ -1,0 +1,14 @@
+commit 34191d943bfe2530703b23e5ce3f936c26c3f80d
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Jan 25 00:09:46 2010 -0800
+
+    Remove top-level (src/) Makefile.
+    
+    R=rsc, dho, r
+    CC=golang-dev
+    https://golang.org/cl/194045
+
+ doc/install.html |  4 ++--
+ src/Makefile     | 16 ----------------
+ src/all.bash     |  9 +++++++--
+ 3 files changed, 9 insertions(+), 20 deletions(-)

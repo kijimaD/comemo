@@ -1,0 +1,22 @@
+commit 22d3bf1da49a6fa168cf16a619d3591100dba426
+Author: Sam Whited <sam@samwhited.com>
+Date:   Fri Sep 9 09:49:47 2016 -0500
+
+    cmd/fix: add golang.org/x/net/context fix
+    
+    Fixes #17040
+    
+    Change-Id: I3682cc0367b919084c280d7dc64746495c1d4aaa
+    Reviewed-on: https://go-review.googlesource.com/28872
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/fix/context.go       | 25 +++++++++++++++++++++++++
+ src/cmd/fix/context_test.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/fix.go           |  9 +++++----
+ src/cmd/fix/gotypes.go       |  8 ++++----
+ src/cmd/fix/main.go          |  9 ++++++++-
+ src/cmd/fix/netipv6zone.go   |  8 ++++----
+ src/cmd/fix/printerconfig.go |  8 ++++----
+ 7 files changed, 92 insertions(+), 17 deletions(-)

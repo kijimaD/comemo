@@ -1,0 +1,20 @@
+commit 3c33c3b327c0ba9e756e5fa6882642acf2fd4012
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 7 08:04:36 2022 +0000
+
+    strconv: remove redundant type conversion
+    
+    Change-Id: I25c8e8b701d6489f360fea30d09090826276b950
+    GitHub-Last-Rev: c2c8319dd5fa2a53fe82b10ecbf45eb54b5d6a68
+    GitHub-Pull-Request: golang/go#54924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428976
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/strconv/ftoaryu.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

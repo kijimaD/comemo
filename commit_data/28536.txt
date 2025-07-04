@@ -1,0 +1,14 @@
+commit 6bcd258095da307dc60ffe1b45b014c0be849dc9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 24 15:53:09 2016 +0200
+
+    math/big: better SetFloat64 example in doc
+    
+    Fixes #17221
+    
+    Change-Id: Idaa2af6b8646651ea72195671d1a4b5c370a5a22
+    Reviewed-on: https://go-review.googlesource.com/29711
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

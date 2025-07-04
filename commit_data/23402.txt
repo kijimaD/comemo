@@ -1,0 +1,12 @@
+commit bc7a3a62cff96c14dc7d97d03a410151fe4ba807
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 17:28:01 2015 -0700
+
+    go/importer: implement support for gccgo
+    
+    Change-Id: I0e1aab2fe2340a1fbb7f377dbd7a72ea6f0477d8
+    Reviewed-on: https://go-review.googlesource.com/11153
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/importer/importer.go | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

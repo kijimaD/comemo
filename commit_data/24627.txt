@@ -1,0 +1,20 @@
+commit fb7178e7cc219062efe7d5da5df4f85b01b0f8ac
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Oct 23 14:49:56 2015 -0700
+
+    runtime: copy sqrt normalization bugfix from math
+    
+    This copies the change from CL 16158 (applied as
+    22d4c8bf13d5edf4670dbdaf0854d653d9c2b81a).
+    
+    Updates #13013
+    
+    Change-Id: Id7d02e63d92806f06a4e064a91b2fb6574fe385f
+    Reviewed-on: https://go-review.googlesource.com/16291
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sqrt.go      | 2 +-
+ src/runtime/sqrt_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

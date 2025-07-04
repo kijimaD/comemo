@@ -1,0 +1,17 @@
+commit 098599003ba78225152d22984f82f78892221dad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 2 14:52:31 2021 -0800
+
+    builtin: document "any" and "comparable"
+    
+    Fixes #49927
+    
+    Change-Id: I8b34cf13b3bc6338309f005648ca3ee6852927f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/builtin/builtin.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

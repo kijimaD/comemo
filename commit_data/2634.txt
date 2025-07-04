@@ -1,0 +1,14 @@
+commit dbc6d91d70e379c74366659e184e925efb8363e1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 7 14:50:39 2009 -0700
+
+    typestring.c is no longer needed.
+    
+    R=rsc
+    DELTA=35  (0 added, 34 deleted, 1 changed)
+    OCL=31301
+    CL=31303
+
+ src/pkg/reflect/Makefile     |  3 +--
+ src/pkg/reflect/typestring.c | 37 -------------------------------------
+ 2 files changed, 1 insertion(+), 39 deletions(-)

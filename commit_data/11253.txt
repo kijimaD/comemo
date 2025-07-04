@@ -1,0 +1,16 @@
+commit e547393fcc9986104440cc70f2a5803da02341db
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 15:00:27 2012 +1100
+
+    godoc: remove "need more packages?" link
+    
+    Its need will be addressed in another way by the redesign.
+    
+    Fixes #2719.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5536062
+
+ lib/godoc/package.html | 5 -----
+ 1 file changed, 5 deletions(-)

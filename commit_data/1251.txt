@@ -1,0 +1,25 @@
+commit d040d268636cd6ee347c7e3138af508b2d95fbec
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 17:17:54 2008 -0800
+
+    new stacktrace format
+    
+    sys·gosched+0x25 /home/rsc/go/src/runtime/proc.c:477
+            sys·gosched()
+    chanrecv+0x29e /home/rsc/go/src/runtime/chan.c:277
+            chanrecv(0x4be80, 0x0, 0x4cf88, 0x0, 0x0, ...)
+    sys·chanrecv1+0x5b /home/rsc/go/src/runtime/chan.c:355
+            sys·chanrecv1(0x4be80, 0x0)
+    once·Server+0x26 /home/rsc/go/src/lib/strconv/atoi.go:-41
+            once·Server()
+    
+    the last line is broken (atoi.go:-41) but that's not new.
+    
+    R=r
+    DELTA=46  (19 added, 14 deleted, 13 changed)
+    OCL=20018
+    CL=20026
+
+ src/runtime/rt2_amd64.c | 49 ++++++++++++++++++++++---------------------------
+ src/runtime/symtab.c    | 10 ++++++++++
+ 2 files changed, 32 insertions(+), 27 deletions(-)

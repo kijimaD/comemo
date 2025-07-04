@@ -1,0 +1,23 @@
+commit 35a5bd64315a989a19f49568beddf39ae69ee420
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Nov 20 00:23:52 2015 -0500
+
+    runtime: make it possible to call syscall on solaris without g
+    
+    The nosplit stack is now much bigger, so we can afford to allocate
+    libcall on stack.
+    
+    Fix asmsysvicall6 to not update errno if g == nil.
+    
+    These two fixes TestCgoCallbackGC on solaris, which used to stuck
+    in a loop.
+    
+    Change-Id: Id1b13be992dae9f059aa3d47ffffd37785300933
+    Reviewed-on: https://go-review.googlesource.com/17076
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_solaris.go       | 28 ++++++++++++++--------------
+ src/runtime/sys_solaris_amd64.s |  4 ++++
+ 2 files changed, 18 insertions(+), 14 deletions(-)

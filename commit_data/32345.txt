@@ -1,0 +1,15 @@
+commit 54f6911af507c7062e2f4ddbd0e7d88fff7d431b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 18 13:53:42 2017 +1000
+
+    misc/cgo/testcshared: use adb instead of ./adb on android
+    
+    Hopefully fixes build.
+    
+    Change-Id: If0629b95b923a65e4507073cf7aa44a5e178fc0f
+    Reviewed-on: https://go-review.googlesource.com/56711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 8027343b6395536aa8bef8158bad8f4c290dd650
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 24 13:03:17 2021 -0800
+
+    cmd/compile: disable inlining functions with closures for now
+    
+    Added a flag '-d=inlfuncswithclosures=1' to allow inlining functions with
+    closures, and change the default to off for now, until #44370 is fixed.
+    
+    Updates #44370.
+    
+    Change-Id: Ic17723aa5c091d91f5f5004d8b63ec7125257acf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296049
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/base/debug.go | 45 +++++++++++++++++-----------------
+ src/cmd/compile/internal/inline/inl.go | 12 ++++-----
+ test/closure3.go                       |  2 +-
+ test/inline.go                         |  2 +-
+ 4 files changed, 31 insertions(+), 30 deletions(-)

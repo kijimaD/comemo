@@ -1,0 +1,14 @@
+commit e9f8d676ae40b0ce35efb5838eec560f7b6cf1fc
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Nov 11 12:02:56 2019 +0530
+
+    flag: clarify that a flag cannot be re-defined
+    
+    Fixes #31694
+    
+    Change-Id: Ifb2ad2dc41c449668c0f6a4d4cfb9b583e5591f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206126
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 3 +++
+ 1 file changed, 3 insertions(+)

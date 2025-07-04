@@ -1,0 +1,30 @@
+commit 2f54081adfc967836842c96619d241378400ece6
+Author: Changkun Ou <hi@changkun.us>
+Date:   Sun Feb 16 14:42:29 2020 +0100
+
+    testing: do not require os.Exit in TestMain
+    
+    If TestMain reports a wrong exit code to os.Exit, the test will be
+    exited with exist code inconsist with test results.
+    
+    This CL eliminates the requirement of calling os.Exit in TestMain.
+    Now, m.Run records the execution status of its test, the outer
+    main func will call os.Exit with that exit code if TestMain does
+    not call os.Exit.
+    
+    If TestMain does not call m.Run, the outer main func remain calls
+    os.Exit(0) as before.
+    
+    Fixes #34129
+    
+    Change-Id: I9598023e03b0a6260f0217f34df41c231c7d6489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219639
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html                                  |  7 ++++++
+ src/cmd/go/internal/load/test.go                 |  5 +++-
+ src/cmd/go/testdata/script/list_importmap.txt    |  2 +-
+ src/cmd/go/testdata/script/list_test_imports.txt |  2 +-
+ src/cmd/go/testdata/script/test_main.txt         | 26 ++++++++++++++++++++
+ src/testing/testing.go                           | 31 +++++++++++++++++-------
+ 6 files changed, 61 insertions(+), 12 deletions(-)

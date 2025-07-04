@@ -1,0 +1,26 @@
+commit 0e8b7110f6db272e354c73cbf2357e2889be964d
+Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+Date:   Mon Mar 5 15:51:54 2018 -0500
+
+    cmd/compile/internal/ssa: inline small memmove for arm64
+    
+    This patch enables the optimization for arm64 target.
+    
+    Performance results on Amberwing for strconv benchmark:
+    name             old time/op  new time/op  delta
+    Quote             721ns ± 0%   617ns ± 0%  -14.40%  (p=0.016 n=5+4)
+    QuoteRune         118ns ± 0%   117ns ± 0%   -0.85%  (p=0.008 n=5+5)
+    AppendQuote       436ns ± 2%   321ns ± 0%  -26.31%  (p=0.008 n=5+5)
+    AppendQuoteRune  34.7ns ± 0%  28.4ns ± 0%  -18.16%  (p=0.000 n=5+4)
+    [Geo mean]        189ns        160ns       -15.41%
+    
+    Change-Id: I5714c474e7483d07ca338fbaf49beb4bbcc11c44
+    Reviewed-on: https://go-review.googlesource.com/98735
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go |  2 +-
+ test/codegen/movesmall.go               | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

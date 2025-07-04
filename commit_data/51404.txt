@@ -1,0 +1,22 @@
+commit 1fdae32407191af004252d5fadb0bfaf92202ce6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 10:37:37 2022 -0800
+
+    go/types, types2: better variable names, cleanups in test
+    
+    For #54258.
+    
+    Change-Id: Ib0d326af2719bca1579f84c125f6573f87dce982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452455
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 16 ++++++++--------
+ src/go/types/issues_test.go                    | 17 +++++++++--------
+ src/go/types/object.go                         |  7 -------
+ src/go/types/typestring.go                     |  2 +-
+ 4 files changed, 18 insertions(+), 24 deletions(-)

@@ -1,0 +1,12 @@
+commit cf513387c3839e0815016ec8d9b4cf0cd1802aae
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 2 08:35:20 2012 +1000
+
+    go/doc: strip example output comment from synthesized main function
+    
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6524047
+
+ src/pkg/go/doc/example.go | 38 ++++++++++++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 12 deletions(-)

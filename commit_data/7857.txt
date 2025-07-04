@@ -1,0 +1,14 @@
+commit d1b75bbc4609087a69bf6bdb908036c58c8947ea
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 23 21:49:19 2011 -0700
+
+    gob: remove another allocation.
+    The top level bytes.Buffer is always there and can be re-used.
+    Rpc goes from 83 to 79 mallocs per round trip.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4271062
+
+ src/pkg/gob/encoder.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

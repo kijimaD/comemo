@@ -1,0 +1,18 @@
+commit f4748f1e218c3584348f2f5c297e73f494182e54
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 17:15:12 2016 -0400
+
+    cmd/dist: skip libgcc test on arm64 and mips64
+    
+    This test was always being run with external linking on these
+    platforms because the linker was silently forcing external linking
+    until CL 28971. Now it produces an error instead.
+    
+    Change-Id: I794e0812711e05b150daf805dc3451507bb4cae8
+    Reviewed-on: https://go-review.googlesource.com/29360
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

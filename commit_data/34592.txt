@@ -1,0 +1,21 @@
+commit eb44b8635cc774d0f2b2f96637116a5b41943bc5
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 10 11:17:05 2018 +0100
+
+    cmd/compile: remove BTQconst rule
+    
+    This rule is meant for code optimization, but it makes other rules
+    potentially more complex, as they need to cope with the fact that
+    a 32-bit op (BTLconst) can appear everywhere a 64-bit rule maches.
+    
+    Move the optimization to opcode expansion instead. Tests will be
+    added in following CL.
+    
+    Change-Id: Ica5ef291e7963c4af17c124d4a2869e6c8f7b0c7
+    Reviewed-on: https://go-review.googlesource.com/99995
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 14 ++++++++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 19 -------------------
+ 3 files changed, 12 insertions(+), 24 deletions(-)

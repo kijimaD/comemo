@@ -1,0 +1,15 @@
+commit 08d41dbb10c1a734630619d5bc5d5f755afd099f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 15:57:47 2020 -0500
+
+    doc: fill in 'go list -m' section in module documentation
+    
+    Updates #33637
+    
+    Change-Id: I14ba3198375b98a270bbce2cd60234b071a6b974
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214379
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 86 insertions(+)

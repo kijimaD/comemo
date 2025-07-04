@@ -1,0 +1,12 @@
+commit 393ea2dfa8128a1f6910a19de2ddb9cb6778f34f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 17 16:37:34 2011 +1100
+
+    doc: mention godoc in "implements" FAQ
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4248066
+
+ doc/go_faq.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

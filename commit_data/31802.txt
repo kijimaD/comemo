@@ -1,0 +1,15 @@
+commit 297c1881071eb2da788e2e20467ff2a436ec6f99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 13 14:17:00 2017 -0700
+
+    cmd/go: fix TestIssue7573 for absolute paths in -L options
+    
+    Updates #20266.
+    Fixes #20664.
+    
+    Change-Id: Ifca30409fc7971497efb6d84f3f98760157c2233
+    Reviewed-on: https://go-review.googlesource.com/45650
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

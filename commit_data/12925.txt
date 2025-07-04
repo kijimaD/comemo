@@ -1,0 +1,19 @@
+commit 904c7c8e9905c7ef7dfe817f8acb50a5f9fdd04b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Apr 21 09:20:38 2012 +1000
+
+    exp/html: more work on inBodyIM
+    
+    Reorder some cases.
+    Handle <pre>, <listing>, </form>, </li>, </dd>, </dt>, </h1>, </h2>,
+    </h3>, </h4>, </h5>, and </h6> tags.
+    
+    Pass 6 additional tests.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6089043
+
+ src/pkg/exp/html/parse.go                 | 150 +++++++++++++++++++-----------
+ src/pkg/exp/html/testlogs/tests19.dat.log |  12 +--
+ 2 files changed, 104 insertions(+), 58 deletions(-)

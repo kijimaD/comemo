@@ -1,0 +1,28 @@
+commit 082afccebfc068207328fcaeb4b01e540784ff24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 1 08:26:58 2022 -0400
+
+    internal/testenv: adjust timeout calculations in CommandContext
+    
+    I noticed some test failures in the build dashboard after CL 445597
+    that made me realize the grace period should be based on the test
+    timeout, not the Context timeout: if the test itself sets a short
+    timeout for a command, we still want to give the test process enough
+    time to consume and log its output.
+    
+    I also put some more thought into how one might debug a test hang, and
+    realized that in that case we don't want to set a WaitDelay at all:
+    instead, we want to leave the processes in their stuck state so that
+    they can be investigated with tools like `ps` and 'lsof'.
+    
+    Updates #50436.
+    
+    Change-Id: I65421084f44eeaaaec5dd2741cd836e9e68dd380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446875
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/testenv/exec.go | 76 +++++++++++++++++++++++---------------------
+ 1 file changed, 39 insertions(+), 37 deletions(-)

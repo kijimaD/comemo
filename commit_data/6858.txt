@@ -1,0 +1,12 @@
+commit 2660c2a7be42bb2f85469a286d8486f44879a351
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Tue Dec 7 16:14:55 2010 -0500
+
+    crypto/tls: fix build of certificate generation example
+    
+    R=agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/3366041
+
+ src/pkg/crypto/tls/generate_cert.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

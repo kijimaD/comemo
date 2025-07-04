@@ -1,0 +1,35 @@
+commit 4f70a2a699d23bb47eae36c5170086688d2fa764
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Mon Sep 18 14:54:10 2017 -0700
+
+    cmd/compile: inline calls to local closures
+    
+    Calls to a closure held in a local, non-escaping,
+    variable can be inlined, provided the closure body
+    can be inlined and the variable is never written to.
+    
+    The current implementation has the following limitations:
+    
+     - closures with captured variables are not inlined because
+       doing so naively triggers invariant violation in the SSA
+       phase
+     - re-assignment check is currently approximated by checking
+       the Addrtaken property of the variable which should be safe
+       but may miss optimization opportunities if the address is
+       not used for a write before the invocation
+    
+    Updates #15561
+    
+    Change-Id: I508cad5d28f027bd7e933b1f793c14dcfef8b5a1
+    Reviewed-on: https://go-review.googlesource.com/65071
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/bitset.go |  10 +++
+ src/cmd/compile/internal/gc/inl.go    | 128 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/syntax.go |  45 ++++++------
+ test/escape4.go                       |   6 +-
+ test/inline.go                        |  49 ++++++++++++-
+ 5 files changed, 211 insertions(+), 27 deletions(-)

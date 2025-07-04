@@ -1,0 +1,21 @@
+commit afad74ec30c208f7cab08b7b80081adc7591dcb3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 7 15:43:48 2016 -0700
+
+    cmd/compile: cgen_append can handle complex targets
+    
+    Post-liveness fix, the slices on both sides can now be
+    indirects of & variables.  The cgen code handles those
+    cases just fine.
+    
+    Fixes #15988
+    
+    Change-Id: I378ad1d5121587e6107a9879c167291a70bbb9e4
+    Reviewed-on: https://go-review.googlesource.com/23863
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/cgen.go |  5 -----
+ test/fixedbugs/issue15988.go        | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 5 deletions(-)

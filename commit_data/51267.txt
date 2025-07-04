@@ -1,0 +1,27 @@
+commit 1fcd4e9099c33b4baa74713d5639e61158d10b49
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Oct 15 12:06:48 2022 +0200
+
+    crypto/rsa: add a test walking through every key size
+    
+    We already had some tests for special cases such as PSS with 513 bit
+    keys. The upcoming backend rewrite also happened to crash at 63 and 504
+    bits for different reasons. Might as well be systematic about it.
+    
+    Also, make sure SignPSS returns ErrMessageTooLong like SignPKCS1v15 when
+    the key is too small, instead of panicking or returning an unnamed error.
+    
+    -all takes a couple minutes on my M1.
+    
+    Change-Id: I656239a00d0831fa7d187a6d3bb30341d41602f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443195
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/rsa/pss.go      |   2 +-
+ src/crypto/rsa/rsa.go      |   7 ++-
+ src/crypto/rsa/rsa_test.go | 149 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 4 deletions(-)

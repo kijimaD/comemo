@@ -1,0 +1,43 @@
+commit 030ac2c719e14925830de5e97d4ef86b3ab5826f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 13 19:39:32 2018 +0100
+
+    cmd/doc: skip directories like other go tools
+    
+    It was skipping dirs starting with ".", but it was missing the "_"
+    prefix and the "testdata" name. From "go help packages":
+    
+            Directory and file names that begin with "." or "_" are ignored
+            by the go tool, as are directories named "testdata".
+    
+    Before the change:
+    
+            $ go doc z # using src/cmd/go/testdata/testvendor/src/q/z
+            package z // import "."
+    
+    After the fix, it falls back to the current directory, as expected when
+    a single argument isn't found as a package in $GOPATH.
+    
+    TestMain needs a small adjustment to keep the tests working, as now
+    their use of cmd/doc/testdata would normally not work.
+    
+    This is the second try for this fix; the first time around, we included
+    cmd/doc/testdata to the dirs list by sending it to the channel via a
+    goroutine. However, that can end up in a send to a closed channel, if
+    GOROOT is a very small directory tree or missing.
+    
+    To avoid that possibility, include the extra directory by pre-populating
+    the paths list, before the walking of GOROOT and GOPATH actually starts.
+    
+    Fixes #24462.
+    
+    Change-Id: I3b95b6431578e0d5cbb8342f305debc4ccb5f656
+    Reviewed-on: https://go-review.googlesource.com/109216
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/doc/dirs.go     | 10 +++++++---
+ src/cmd/doc/doc_test.go | 14 +++++++++++---
+ 2 files changed, 18 insertions(+), 6 deletions(-)

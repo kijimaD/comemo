@@ -1,0 +1,18 @@
+commit 96af8174975dcc18b6d13dad46c35bd1d7264d37
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 2 18:37:04 2017 -0700
+
+    cmd/compile: add block profiling support
+    
+    Updates #15756
+    
+    Change-Id: Ic635812b324af926333122c02908cebfb24d7bce
+    Reviewed-on: https://go-review.googlesource.com/39208
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/doc.go              |  2 ++
+ src/cmd/compile/internal/gc/main.go |  1 +
+ src/cmd/compile/internal/gc/util.go | 12 ++++++++++++
+ 3 files changed, 15 insertions(+)

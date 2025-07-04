@@ -1,0 +1,20 @@
+commit 7f92ccea5ca5832a1dc63c02fc71db2d698f7915
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 24 15:53:40 2022 -0400
+
+    debug/pe: check size in uint64 to avoid overflow
+    
+    uint32(sz) != n*uint32(ddSz) can go wrong if
+    the RHS overflows, so do it in wider precision.
+    
+    Fixes #54640.
+    
+    Change-Id: I776563330e46de6cdacd4055f6ff08e7de67797f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425364
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/pe/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 891547e2d4bc2a23973e2c9f972ce69b2b48478e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 6 21:10:31 2021 -0400
+
+    doc/go1.17: fix a typo introduced in CL 335135
+    
+    Change-Id: I62388bcb6d6f910ffa95d3db856ea29838573256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340590
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

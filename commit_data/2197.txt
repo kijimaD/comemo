@@ -1,0 +1,13 @@
+commit 52f071ed4318634a872e211aebf7d55ddd271bb4
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 13 10:01:55 2009 -0700
+
+    Rename ParseError to Error
+    
+    R=rsc
+    DELTA=13  (6 added, 1 deleted, 6 changed)
+    OCL=28743
+    CL=28746
+
+ src/lib/template/template.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

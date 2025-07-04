@@ -1,0 +1,18 @@
+commit 3a2ba994b6d11f52090b926b80e926902ceb84c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 15:50:57 2010 -0500
+
+    build: add a few missing --no-print-directory
+    
+    Reported by W. Michael Petullo <mike@flyn.org>
+    
+    Fixes #1269.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3618041
+
+ doc/progs/run        | 2 +-
+ src/cmd/gc/mkbuiltin | 2 +-
+ src/make.bash        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

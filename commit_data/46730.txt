@@ -1,0 +1,20 @@
+commit 81b7ec1ad5b50b8e73a63b44d8c2538154def535
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 4 16:42:13 2021 -0700
+
+    cmd/dist: omit cmd/cgo from toolchain1
+    
+    We don't need cmd/cgo for building go_bootstrap or toolchain2, so skip
+    building it as part of toolchain1.
+    
+    This allows cmd/cgo to assume a current go/ast; e.g., that
+    ast.IndexListExpr exists (needed for next CL).
+    
+    Change-Id: I642bba780bf273e6ea9c6e7c5d5d7ccfe86bf462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353884
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go     | 2 +-
+ src/cmd/dist/buildtool.go | 8 +-------
+ 2 files changed, 2 insertions(+), 8 deletions(-)

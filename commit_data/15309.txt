@@ -1,0 +1,15 @@
+commit 1fe8fdf7085f52f4060a06e31ae3033163a20394
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Tue Feb 19 09:20:56 2013 -0800
+
+    go/types: Use left-hand side's type as hint for right-hand
+    side expression evaluation in assignment operations.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/7349046
+
+ src/pkg/exp/gotype/gotype_test.go   | 12 ++++++------
+ src/pkg/go/types/stmt.go            |  4 +++-
+ src/pkg/go/types/testdata/stmt0.src |  5 ++++-
+ 3 files changed, 13 insertions(+), 8 deletions(-)

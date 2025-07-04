@@ -1,0 +1,12 @@
+commit e0533b044daae781ad7b3d01da12a9e68bb2045e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 09:07:20 2011 -0700
+
+    http: fix race in transport_test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4414044
+
+ src/pkg/http/transport_test.go | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)

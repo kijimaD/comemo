@@ -1,0 +1,26 @@
+commit b60e61ab1bf7cca20a03364143e76acf2925ccb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 12:58:25 2017 -0500
+
+    cmd/dist: move cmd/go z files to cmd/go/internal/cfg
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I6ee5b053683034ea9462a9a0a4ea4f5ad24fa5a1
+    Reviewed-on: https://go-review.googlesource.com/36192
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ .gitignore              |  4 ++--
+ src/cmd/dist/build.go   |  4 ++--
+ src/cmd/dist/buildgo.go | 28 +++++++++++++++++++---------
+ src/cmd/dist/deps.go    | 12 +++++++++++-
+ 4 files changed, 34 insertions(+), 14 deletions(-)

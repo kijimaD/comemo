@@ -1,0 +1,36 @@
+commit 79c56addb680b04804e1c3553ba96760d0172d55
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 14 13:52:27 2017 -0400
+
+    runtime: make sweep trace events encompass entire sweep loop
+    
+    Currently, each individual span sweep emits a span to the trace. But
+    sweeps are generally done in loops until some condition is satisfied,
+    so this tracing is lower-level than anyone really wants any hides the
+    fact that no other work is being accomplished between adjacent sweep
+    events. This is also high overhead: enabling tracing significantly
+    impacts sweep latency.
+    
+    Replace this with instead tracing around the sweep loops used for
+    allocation. This is slightly tricky because sweep loops don't
+    generally know if any sweeping will happen in them. Hence, we make the
+    tracing lazy by recording in the P that we would like to start tracing
+    the sweep *if* one happens, and then only closing the sweep event if
+    we started it.
+    
+    This does mean we don't get tracing on every sweep path, which are
+    legion. However, we get much more informative tracing on the paths
+    that block allocation, which are the paths that matter.
+    
+    Change-Id: I73e14fbb250acb0c9d92e3648bddaa5e7d7e271c
+    Reviewed-on: https://go-review.googlesource.com/40810
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mcentral.go | 11 +++++++++++
+ src/runtime/mgcsweep.go | 13 +++++++++----
+ src/runtime/mheap.go    |  6 ++++++
+ src/runtime/runtime2.go |  5 +++++
+ src/runtime/trace.go    | 31 +++++++++++++++++++++++++++++--
+ 5 files changed, 60 insertions(+), 6 deletions(-)

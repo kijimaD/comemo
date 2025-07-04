@@ -1,0 +1,16 @@
+commit 514018c0aa2b0c260d39e080e7d42a4d47185ab0
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 10:16:21 2018 +0300
+
+    cmd/internal/obj/x86: ifelse->switch, named const for cap=6
+    
+    Part of the x86 asm backend cleanup. Passes toolstash-check.
+    
+    Change-Id: Ib9766689fb7edb07f5553868cf89175501ea1e1b
+    Reviewed-on: https://go-review.googlesource.com/107055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 28 ++++++++++------------------
+ src/cmd/internal/obj/x86/ytab.go |  6 +++++-
+ 2 files changed, 15 insertions(+), 19 deletions(-)

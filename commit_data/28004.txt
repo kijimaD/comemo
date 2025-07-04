@@ -1,0 +1,16 @@
+commit 2d85e87f08c325f8be869718c4ac0d7c069161c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 2 11:42:53 2016 -0700
+
+    runtime/cgo: add tsan acquire/release around setenv/unsetenv
+    
+    Change-Id: Iabb25e97714d070c31c657559a97a3bfc979da18
+    Reviewed-on: https://go-review.googlesource.com/25403
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  3 +++
+ misc/cgo/testsanitizers/tsan7.go  | 40 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_setenv.c      |  4 ++++
+ 3 files changed, 47 insertions(+)

@@ -1,0 +1,16 @@
+commit 76cb265f2829be104c5fe395b81cd4721c9f0fa9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 13 06:20:17 2016 +0000
+
+    net/http: update bundled http2 to fix gzip crash on Read after NewReader error
+    
+    Updates x/net/http2 to git rev 62685c2 for https://golang.org/cl/19483
+    
+    Change-Id: Id01331cdba03934a6e55e55ad9c2ae27461ba149
+    Reviewed-on: https://go-review.googlesource.com/19484
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

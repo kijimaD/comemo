@@ -1,0 +1,26 @@
+commit 26b6833308548f78a0926309c3acf7fd59b287f5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Oct 6 13:51:21 2021 -0400
+
+    go/types: export TypeParam.Index and remove TypeParam._SetId
+    
+    This change resolves a TODO regarding a couple uncertain APIs for
+    types.TypeParam. In the case of TypeParam._Index, we've decided it is
+    worth exporting. In the case of TypeParam._SetId, we've decided it is
+    unnecessary.
+    
+    This aligns go/types with types2 (a doc comment in types2 is also
+    updated).
+    
+    Updates #47916
+    
+    Change-Id: I705e8b3437d014775c473e2f8be6f32b1540bb0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354370
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/typeparam.go |  3 ++-
+ src/go/types/typeparam.go                    | 13 +++----------
+ 2 files changed, 5 insertions(+), 11 deletions(-)

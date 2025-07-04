@@ -1,0 +1,15 @@
+commit a2c959fe97e094f337f46e529e9e7d1a34a7c26a
+Author: alirezaarzehgar <alirezaarzehgar82@gmail.com>
+Date:   Wed Feb 19 19:47:14 2025 +0330
+
+    html/template: add available godoc link
+    
+    Change-Id: I50404dbf0f10ee59007bd0dc5353f38e056a0430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650655
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/escape.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

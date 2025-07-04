@@ -1,0 +1,27 @@
+commit b4c124af1e2953e010200fe50651f5ffc967a346
+Author: Chris Gillis <gillisct@gmail.com>
+Date:   Fri Jun 18 02:14:28 2021 +0000
+
+    image/gif: avoid decoding past the first frame in decode()
+    
+    The existing decode() method offers the ability to keep just one
+    frame of the GIF image, however it will read and decompress all
+    subsequent frames regardless.
+    
+    Fixes #41142
+    
+    Change-Id: I0c3c11f9c11cd487b6c365e9a8b98e617d555db0
+    GitHub-Last-Rev: 03ebc8ee7bb19ee80c62d0c935b783d7bc75c2e9
+    GitHub-Pull-Request: golang/go#46813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329329
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Paul Tyng <paul@paultyng.net>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+
+ src/image/gif/reader.go      | 4 ++++
+ src/image/gif/reader_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

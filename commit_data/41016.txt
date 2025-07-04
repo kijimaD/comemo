@@ -1,0 +1,22 @@
+commit 26f8b7074b314f45c2ccaab9dcc0f5730fe8bb68
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Dec 23 13:47:20 2019 +0100
+
+    testing: document that benchmark logs are dumped to stdout
+    
+    The doc for testing.T and testing.B said that both test and benchmark
+    logs are printed to stderr, but in reality that wasn't the case.
+    
+    CL 24311 fixed the doc for T, this change fixes it for B.
+    
+    Fixes #36257
+    
+    Change-Id: I0ff77ff44608f60320a1565b371c81e96039e71c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212457
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

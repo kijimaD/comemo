@@ -1,0 +1,12 @@
+commit 418c7d81747c70b91d4afae245da5e8a4936ab0c
+Author: Julie <julie@golang.org>
+Date:   Wed Jun 12 13:11:03 2019 -0400
+
+    doc: release notes for html/template
+    
+    Change-Id: Ifdc3c5b840e6833f14c8e52948e45d5faa5a0615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

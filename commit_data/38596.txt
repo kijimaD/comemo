@@ -1,0 +1,66 @@
+commit 4a7cd9d9df6750581c76123a8c448a6f22744151
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Mar 27 20:23:13 2019 +0530
+
+    internal/bytealg: simplify memchr for wasm
+    
+    Get rid of an extra register R5 which just recalculated the value of R4.
+    Reuse R4 instead.
+    
+    We also remove the casting of c to an unsigned char because the initial
+    load of R0 is done with I32Load8U anyways.
+    
+    Also indent the code to make it more readable.
+    
+    name                           old time/op  new time/op  delta
+    IndexRune                       597ns ± 3%   580ns ± 3%  -2.93%  (p=0.002 n=10+10)
+    IndexRuneLongString             634ns ± 4%   654ns ± 3%  +3.07%  (p=0.004 n=10+10)
+    IndexRuneFastPath              57.6ns ± 3%  56.9ns ± 4%    ~     (p=0.210 n=10+10)
+    Index                           104ns ± 3%   104ns ± 4%    ~     (p=0.639 n=10+10)
+    LastIndex                      87.1ns ± 5%  85.7ns ± 3%    ~     (p=0.171 n=10+10)
+    IndexByte                      34.4ns ± 4%  32.9ns ± 5%  -4.28%  (p=0.002 n=10+10)
+    IndexHard1                     21.6ms ± 1%  21.8ms ± 3%    ~     (p=0.460 n=8+10)
+    IndexHard2                     21.6ms ± 2%  21.9ms ± 5%    ~     (p=0.133 n=9+10)
+    IndexHard3                     21.8ms ± 3%  21.7ms ± 1%    ~     (p=0.579 n=10+10)
+    IndexHard4                     21.6ms ± 1%  21.9ms ± 4%    ~     (p=0.360 n=8+10)
+    LastIndexHard1                 25.1ms ± 2%  25.4ms ± 5%    ~     (p=0.853 n=10+10)
+    LastIndexHard2                 25.3ms ± 6%  25.2ms ± 5%    ~     (p=0.796 n=10+10)
+    LastIndexHard3                 25.3ms ± 4%  25.2ms ± 3%    ~     (p=0.739 n=10+10)
+    IndexTorture                    130µs ± 3%   133µs ± 5%    ~     (p=0.218 n=10+10)
+    IndexAnyASCII/1:1              98.4ns ± 5%  96.6ns ± 5%    ~     (p=0.054 n=10+10)
+    IndexAnyASCII/1:2               109ns ± 4%   110ns ± 3%    ~     (p=0.232 n=10+10)
+    IndexAnyASCII/1:4               135ns ± 4%   134ns ± 3%    ~     (p=0.671 n=10+10)
+    IndexAnyASCII/1:8               184ns ± 4%   184ns ± 3%    ~     (p=0.749 n=10+10)
+    IndexAnyASCII/1:16              289ns ± 3%   281ns ± 3%  -2.73%  (p=0.001 n=9+10)
+    IndexAnyASCII/16:1              322ns ± 3%   307ns ± 3%  -4.71%  (p=0.000 n=10+10)
+    IndexAnyASCII/16:2              329ns ± 3%   320ns ± 3%  -2.89%  (p=0.008 n=10+10)
+    IndexAnyASCII/16:4              353ns ± 3%   339ns ± 3%  -3.91%  (p=0.001 n=10+10)
+    IndexAnyASCII/16:8              390ns ± 3%   374ns ± 3%  -4.06%  (p=0.000 n=10+10)
+    IndexAnyASCII/16:16             471ns ± 4%   452ns ± 2%  -4.22%  (p=0.000 n=10+10)
+    IndexAnyASCII/256:1            2.94µs ± 4%  2.91µs ± 2%    ~     (p=0.424 n=10+10)
+    IndexAnyASCII/256:2            2.92µs ± 3%  2.90µs ± 2%    ~     (p=0.388 n=9+10)
+    IndexAnyASCII/256:4            2.93µs ± 1%  2.90µs ± 1%  -0.98%  (p=0.036 n=8+9)
+    IndexAnyASCII/256:8            3.03µs ± 5%  2.97µs ± 3%    ~     (p=0.085 n=10+10)
+    IndexAnyASCII/256:16           3.07µs ± 4%  3.01µs ± 1%  -2.03%  (p=0.003 n=10+9)
+    IndexAnyASCII/4096:1           45.8µs ± 3%  45.9µs ± 2%    ~     (p=0.905 n=10+9)
+    IndexAnyASCII/4096:2           46.7µs ± 3%  46.2µs ± 3%    ~     (p=0.190 n=10+10)
+    IndexAnyASCII/4096:4           45.7µs ± 2%  46.4µs ± 3%  +1.37%  (p=0.022 n=9+10)
+    IndexAnyASCII/4096:8           46.4µs ± 3%  46.0µs ± 2%    ~     (p=0.436 n=10+10)
+    IndexAnyASCII/4096:16          46.6µs ± 3%  46.7µs ± 2%    ~     (p=0.971 n=10+10)
+    IndexPeriodic/IndexPeriodic2   1.40ms ± 3%  1.40ms ± 2%    ~     (p=0.853 n=10+10)
+    IndexPeriodic/IndexPeriodic4   1.40ms ± 3%  1.40ms ± 3%    ~     (p=0.579 n=10+10)
+    IndexPeriodic/IndexPeriodic8   1.42ms ± 3%  1.39ms ± 2%  -1.60%  (p=0.029 n=10+10)
+    IndexPeriodic/IndexPeriodic16   616µs ± 5%   583µs ± 5%  -5.32%  (p=0.001 n=10+10)
+    IndexPeriodic/IndexPeriodic32   313µs ± 5%   301µs ± 2%  -3.67%  (p=0.002 n=10+10)
+    IndexPeriodic/IndexPeriodic64   169µs ± 5%   164µs ± 5%  -3.17%  (p=0.023 n=10+10)
+    
+    NodeJS version - 10.2.1
+    
+    Change-Id: I9a8268314b5652c4aeffc4c5c72d2fd1a384aa9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169777
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/bytealg/indexbyte_wasm.s | 271 +++++++++++++++++-----------------
+ 1 file changed, 133 insertions(+), 138 deletions(-)

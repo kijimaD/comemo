@@ -1,0 +1,23 @@
+commit dc9755c2a2b561af6c990399938980ab044406ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 15:30:33 2016 -0700
+
+    runtime: add missing race and msan checks to reflect functions
+    
+    Add missing race and msan checks to reflect.typedmmemove and
+    reflect.typedslicecopy. Missing these checks caused the race detector
+    to miss races and caused msan to issue false positive errors.
+    
+    Fixes #16281.
+    
+    Change-Id: I500b5f92bd68dc99dd5d6f297827fd5d2609e88b
+    Reviewed-on: https://go-review.googlesource.com/24760
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ misc/cgo/testsanitizers/msan5.go          | 57 +++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/test.bash         |  5 +++
+ src/runtime/mbarrier.go                   | 26 +++++++++++++-
+ src/runtime/race/testdata/reflect_test.go | 46 +++++++++++++++++++++++++
+ 4 files changed, 133 insertions(+), 1 deletion(-)

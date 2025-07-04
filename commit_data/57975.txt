@@ -1,0 +1,22 @@
+commit 9fe70bcd65b1380d53d68c9653f973efe8e2657f
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Oct 28 12:21:33 2024 -0700
+
+    runtime: add test for mutex starvation
+    
+    When multiple threads all need to acquire the same runtime.mutex, make
+    sure that none of them has to wait for too long. Measure how long a
+    single thread can capture the mutex, and how long individual other
+    threads must go between having a turn with the mutex.
+    
+    For #68578
+    
+    Change-Id: I56ecc551232f9c2730c128a9f8eeb7bd45c2d3b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622995
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/runtime_test.go | 106 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 106 insertions(+)

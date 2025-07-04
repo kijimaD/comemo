@@ -1,0 +1,16 @@
+commit 0e50bf0e404e65385c597b9bb3339764a444b7f0
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:38:32 2022 +0800
+
+    database: convert Tx.done to atomic type
+    
+    Change-Id: I9ec725009376f5865adedca6c159b14140dde097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426086
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

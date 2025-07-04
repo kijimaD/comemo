@@ -1,0 +1,20 @@
+commit 243757576da812d16e79a721353edb48f55492ec
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 16 14:01:45 2015 -0700
+
+    runtime: merge race1.go -> race.go
+    
+    * append contents of race1.go to race.go
+    * delete "Implementation of the race detector API." comment
+      from race1.go
+    
+    Updates #12952
+    
+    Change-Id: Ibdd9c4dc79a63c3bef69eade9525578063c86c1c
+    Reviewed-on: https://go-review.googlesource.com/16023
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race.go  | 305 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/race1.go | 315 ---------------------------------------------------
+ 2 files changed, 305 insertions(+), 315 deletions(-)

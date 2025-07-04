@@ -1,0 +1,12 @@
+commit dc6f8321b11370a5b3dd2babd64c60228c274e78
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 29 10:02:37 2010 +1100
+
+    http: add HandleFunc as shortcut to Handle(path, HandlerFunc(func))
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/763042
+
+ src/pkg/http/server.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

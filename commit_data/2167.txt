@@ -1,0 +1,15 @@
+commit 63629d530766aeab8a7aff7fbaa3f8e2f7ab3676
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 10:14:55 2009 -0700
+
+    minor cleanup, not required by compiler changes
+    
+    R=r
+    DELTA=14  (1 added, 4 deleted, 9 changed)
+    OCL=28447
+    CL=28509
+
+ src/lib/http/triv.go                   |  3 ++-
+ src/lib/net/ip_test.go                 | 18 +++++++-----------
+ usr/dsymonds/iterable/iterable_test.go |  2 +-
+ 3 files changed, 10 insertions(+), 13 deletions(-)

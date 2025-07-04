@@ -1,0 +1,22 @@
+commit 40ff071e9b7263f20115f7f84c750e537f58b8a0
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Sun Dec 12 14:40:19 2010 -0500
+
+    5g/8g, 8l, ld, prof: fix output of 32-bit values
+    
+    If an %lld argument can be 32 or 64 bits wide, cast to vlong.
+    If always 32 bits, drop the ll.
+    Fixes #1336.
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/3580041
+
+ src/cmd/5g/gsubr.c  |  2 +-
+ src/cmd/8g/gsubr.c  |  2 +-
+ src/cmd/8l/span.c   |  4 ++--
+ src/cmd/ld/data.c   |  6 +++---
+ src/cmd/ld/dwarf.c  |  4 ++--
+ src/cmd/ld/lib.c    |  8 ++++----
+ src/cmd/prof/main.c | 32 ++++++++++++++++----------------
+ 7 files changed, 29 insertions(+), 29 deletions(-)

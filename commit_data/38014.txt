@@ -1,0 +1,38 @@
+commit ffde2ddb95eb265b9031fbb24a7faa2b1d876630
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 14:17:19 2019 -0500
+
+    misc/cgo/testshared: fix tests in module mode
+    
+    Updates #30228
+    
+    Change-Id: I5cc739eb9fdfb648ec45e350d43d4cb02e450553
+    Reviewed-on: https://go-review.googlesource.com/c/163211
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ misc/cgo/testshared/overlaydir_test.go             |  81 +++++
+ misc/cgo/testshared/shared_test.go                 | 339 +++++++++++----------
+ misc/cgo/testshared/{src => testdata}/dep2/dep2.go |   2 +-
+ misc/cgo/testshared/{src => testdata}/dep3/dep3.go |   4 +-
+ .../cgo/testshared/{src => testdata}/depBase/asm.s |   0
+ .../testshared/{src => testdata}/depBase/dep.go    |   0
+ .../testshared/{src => testdata}/depBase/gccgo.go  |   0
+ .../testshared/{src => testdata}/depBase/stubs.go  |   0
+ .../{src => testdata}/division/division.go         |   0
+ misc/cgo/testshared/{src => testdata}/exe/exe.go   |   2 +-
+ misc/cgo/testshared/{src => testdata}/exe2/exe2.go |   2 +-
+ misc/cgo/testshared/{src => testdata}/exe3/exe3.go |   2 +-
+ .../cgo/testshared/{src => testdata}/execgo/exe.go |   0
+ .../{src => testdata}/explicit/explicit.go         |   2 +-
+ .../testshared/{src => testdata}/global/main.go    |   2 +-
+ .../{src => testdata}/globallib/global.go          |   0
+ .../cgo/testshared/{src => testdata}/iface/main.go |   4 +-
+ misc/cgo/testshared/{src => testdata}/iface_a/a.go |   2 +-
+ misc/cgo/testshared/{src => testdata}/iface_b/b.go |   2 +-
+ misc/cgo/testshared/{src => testdata}/iface_i/i.go |   0
+ .../{src => testdata}/implicit/implicit.go         |   0
+ .../{src => testdata}/implicitcmd/implicitcmd.go   |   4 +-
+ .../testshared/{src => testdata}/issue25065/a.go   |   0
+ .../{src => testdata}/trivial/trivial.go           |   0
+ 24 files changed, 276 insertions(+), 172 deletions(-)

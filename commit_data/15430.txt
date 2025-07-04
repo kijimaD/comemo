@@ -1,0 +1,25 @@
+commit b461fe660d82b3f3f21cd4042e0f4d3f800aac6c
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Feb 26 01:26:40 2013 +0100
+
+    net: Implement FileListener, FileConn, and File methods for Plan 9
+    
+    Functions for representing network connections as files
+    and vice versa, on Plan 9.
+    
+    Representing network connections as files is not so
+    straight-forward, because a network connection on Plan 9
+    is represented by a host of files rather than a single
+    file descriptor (as is the case on UNIX). We use the
+    type system to distinguish between listeners and
+    connections, returning the control file in the former
+    case and the data file in the latter case.
+    
+    R=rsc, rminnich, ality, akumar, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7235068
+
+ src/pkg/net/fd_plan9.go      |  23 +++++++-
+ src/pkg/net/file_plan9.go    | 127 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/net/tcpsock_plan9.go |   2 +-
+ 3 files changed, 148 insertions(+), 4 deletions(-)

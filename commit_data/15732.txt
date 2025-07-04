@@ -1,0 +1,12 @@
+commit e1a5aa8105bba0be8d1fd064824983c3c685d953
+Author: Robert Figueiredo <robfig@gmail.com>
+Date:   Tue Mar 12 14:35:14 2013 -0700
+
+    html/template: Ensure release of namespace mutex in Template.Execute()
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6727046
+
+ src/pkg/html/template/template.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

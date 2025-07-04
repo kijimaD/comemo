@@ -1,0 +1,18 @@
+commit ebe5f203bfdf4dce75fff47189892d5f594d6133
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 4 09:07:44 2014 +0900
+
+    net: don't export netFD closeRead and closeWrite methods
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/83910043
+
+ src/pkg/net/fd_plan9.go       | 4 ++--
+ src/pkg/net/fd_unix.go        | 4 ++--
+ src/pkg/net/fd_windows.go     | 4 ++--
+ src/pkg/net/tcpsock_plan9.go  | 4 ++--
+ src/pkg/net/tcpsock_posix.go  | 4 ++--
+ src/pkg/net/unixsock_posix.go | 4 ++--
+ 6 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,27 @@
+commit 06ef97e15d8952d46118427d4e93b490d0366fa8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Nov 13 23:27:20 2011 +1100
+
+    html: auto-close <dd> and <dt> elements
+    
+    Pass tests2.dat, test 8:
+    <!DOCTYPE html><dt><div><dd>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <dt>
+    |       <div>
+    |     <dd>
+    
+    Also pass tests through test 9:
+    <script></x
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5373083
+
+ src/pkg/html/parse.go      | 18 ++++++++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

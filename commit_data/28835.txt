@@ -1,0 +1,19 @@
+commit ca28620db9392d5aa1002256e41bd066f0cc6377
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 16 11:13:37 2016 -0700
+
+    cmd/go: use normal code 2 for 'no such tool'
+    
+    Exit code 3 is unprecedented and inconsistent with other failures here,
+    such as having no tool directory.
+    
+    Fixes #17145
+    
+    Change-Id: Ie7ed56494d4511a600214666ce3a726d63a8fd8e
+    Reviewed-on: https://go-review.googlesource.com/31253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/tool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 2dd1f87d381b9ad2db9da6b5a8e61f6092d95660
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 09:16:22 2017 -0700
+
+    cmd/compile: add Type.NumResults and friends
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id62bacff13fbd30de62b925d97a4e7bee1c66120
+    Reviewed-on: https://go-review.googlesource.com/59331
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/init.go      |  3 +--
+ src/cmd/compile/internal/gc/order.go     |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go      |  6 +++---
+ src/cmd/compile/internal/gc/reflect.go   |  6 +++---
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
+ src/cmd/compile/internal/types/type.go   |  4 ++++
+ 11 files changed, 28 insertions(+), 25 deletions(-)

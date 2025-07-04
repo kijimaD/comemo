@@ -1,0 +1,40 @@
+commit 3a20928157356f98db74db859b36d744400fc462
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 10 14:40:38 2017 +1100
+
+    image: fix the overlap check in Rectangle.Intersect.
+    
+    This is a re-roll of a previous commit,
+    a855da29dbd7a80c4d87a421c1f88a8603c020fa, which was rolled back in
+    14347ee480968c712ea885a4ea62779fd8a0dc44.
+    
+    It was rolled back because it broke a unit test in image/gif. The
+    image/gif code was fixed by 9ef65dbe0683634a2e8a557d12267d0309ae1570
+    "image/gif: fix frame-inside-image bounds checking".
+    
+    The original commit message:
+    
+    image: fix the overlap check in Rectangle.Intersect.
+    
+    The doc comment for Rectangle.Intersect clearly states, "If the two
+    rectangles do not overlap then the zero rectangle will be returned."
+    Prior to this fix, calling Intersect on adjacent but non-overlapping
+    rectangles would return an empty but non-zero rectangle.
+    
+    The fix essentially changes
+    if r.Min.X > r.Max.X || r.Min.Y > r.Max.Y { etc }
+    to
+    if r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y { etc }
+    (note that the > signs have become >= signs), but changing that line to:
+    if r.Empty() { etc }
+    seems clearer (and equivalent).
+    
+    Change-Id: I2e3af1f1686064a573b2e513b39246fe60c03631
+    Reviewed-on: https://go-review.googlesource.com/36734
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/geom.go      | 6 +++++-
+ src/image/geom_test.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)

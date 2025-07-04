@@ -1,0 +1,22 @@
+commit ed18d85ad798441e13d3b428678defb5bb0fb176
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Dec 9 05:50:59 2023 +0000
+
+    internal/reflectlite: delete TODO pass safe to packEface don't need to copy if safe==true
+    
+    reflect on the https://go-review.googlesource.com/c/go/+/548436
+    delete TODO the same.
+    
+    Change-Id: I5b278cbfcb4108e5ffb332ba82dafb1eaa2bd6b2
+    GitHub-Last-Rev: cfc39509085477e9cba8e8ba1698653837a12301
+    GitHub-Pull-Request: golang/go#64628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548615
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/reflectlite/value.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,30 @@
+commit f5ddd94334a63ac8107c976aa4bd6ee2171d7d64
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 8 15:30:28 2021 -0500
+
+    runtime/pprof: increase systemstack calls in TestLabelSystemstack
+    
+    TestLabelSystemstack needs to collect samples within runtime.systemstack
+    to complete the test.
+    
+    The current approach uses fmt.Fprintf, which gets into systemstack
+    through the allocator and GC, but also does lots of other work. In my
+    measurements, approximately 2% of samples contain runtime.systemstack.
+    
+    The new approach uses debug.SetGCPercent, which uses systemstack for
+    most of its work, including contention on mheap_.lock, which extends
+    usage even more. In my measurements, approximately 99% of samples
+    contain runtime.systemstack.
+    
+    Fixes #50050
+    
+    Change-Id: I59e5bb756341b716a12e13d2e3fe0adadd7fe956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370375
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

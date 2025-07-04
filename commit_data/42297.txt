@@ -1,0 +1,18 @@
+commit 85162292af601a1bebb8ec3d63314e39b648829f
+Author: 徐志强 <shore.cloud@gmail.com>
+Date:   Wed Dec 11 05:51:33 2019 +0000
+
+    runtime: call osyield directly in lockextra
+    
+    The `yield := osyield` line doesn't serve any purpose,  it's committed in `2015`, time to delete that line:)
+    
+    Change-Id: I382d4d32cf320f054f011f3b6684c868cbcb0ff2
+    GitHub-Last-Rev: 7a0aa25e555edd901add25a1101e7b145d1f3bd8
+    GitHub-Pull-Request: golang/go#36078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

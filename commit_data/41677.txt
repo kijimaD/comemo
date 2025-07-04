@@ -1,0 +1,56 @@
+commit f1f947af28d1de655fe7eb845a053753d10845aa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 17 19:03:09 2019 +0000
+
+    runtime: don't hold worldsema across mark phase
+    
+    This change makes it so that worldsema isn't held across the mark phase.
+    This means that various operations like ReadMemStats may now stop the
+    world during the mark phase, reducing latency on such operations.
+    
+    Only three such operations are still no longer allowed to occur during
+    marking: GOMAXPROCS, StartTrace, and StopTrace.
+    
+    For the former it's because any change to GOMAXPROCS impacts GC mark
+    background worker scheduling and the details there are tricky.
+    
+    For the latter two it's because tracing needs to observe consistent GC
+    start and GC end events, and if StartTrace or StopTrace may stop the
+    world during marking, then it's possible for it to see a GC end event
+    without a start or GC start event without an end, respectively.
+    
+    To ensure that GOMAXPROCS and StartTrace/StopTrace cannot proceed until
+    marking is complete, the runtime now holds a new semaphore, gcsema,
+    across the mark phase just like it used to with worldsema.
+    
+    This change is being landed once more after being reverted in the Go
+    1.14 release cycle, since CL 215157 allows it to have a positive
+    effect on system performance.
+    
+    For the benchmark BenchmarkReadMemStatsLatency in the runtime, which
+    measures ReadMemStats latencies while the GC is exercised, the tail of
+    these latencies reduced dramatically on an 8-core machine:
+    
+    name                   old 50%tile-ns  new 50%tile-ns  delta
+    ReadMemStatsLatency-8      4.40M ±74%      0.12M ± 2%  -97.35%  (p=0.008 n=5+5)
+    
+    name                   old 90%tile-ns  new 90%tile-ns  delta
+    ReadMemStatsLatency-8       102M ± 6%         0M ±14%  -99.79%  (p=0.008 n=5+5)
+    
+    name                   old 99%tile-ns  new 99%tile-ns  delta
+    ReadMemStatsLatency-8       147M ±18%         4M ±57%  -97.43%  (p=0.008 n=5+5)
+    
+    Fixes #19812.
+    
+    Change-Id: If66c3c97d171524ae29f0e7af4bd33509d9fd0bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216557
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/debug.go                  |  4 ++--
+ src/runtime/mgc.go                    | 15 ++++++++++++
+ src/runtime/proc.go                   | 44 +++++++++++++++++++++++++++++++----
+ src/runtime/trace.go                  | 17 ++++++++------
+ src/runtime/trace/trace_stack_test.go |  1 +
+ 5 files changed, 68 insertions(+), 13 deletions(-)

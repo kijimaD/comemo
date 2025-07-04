@@ -1,0 +1,26 @@
+commit ecc6a81617477ddfa961f44e309707a4f864104a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 16:15:10 2017 -0700
+
+    cmd/compile: prevent modification of ONAME/OLITERAL/OTYPES nodes in walkexpr
+    
+    ONAME, OLITERAL, and OTYPE nodes can be shared between functions.
+    In a concurrent backend, such nodes might be walked concurrently
+    with being read in other functions.
+    Arrange for them to be unmodified by walk.
+    
+    This is a follow-up to CL 38609.
+    
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I03ff1d2c0ad81dafac3fd55caa218939cf7c0565
+    Reviewed-on: https://go-review.googlesource.com/38655
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 6 +++++-
+ src/cmd/compile/internal/gc/walk.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit 0d9c1abb58987571be6db5b1d1acbd4de18f195f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 9 10:57:55 2008 -0800
+
+    replace assembly casts with unsafe.pointer
+    
+    R=r
+    DELTA=178  (18 added, 101 deleted, 59 changed)
+    OCL=20822
+    CL=20826
+
+ src/lib/net/net_darwin.go             | 11 ++---
+ src/lib/net/net_linux.go              | 11 ++---
+ src/lib/syscall/Makefile              |  5 +--
+ src/lib/syscall/cast_amd64.s          | 85 -----------------------------------
+ src/lib/syscall/file_darwin.go        | 27 ++++++-----
+ src/lib/syscall/file_linux.go         | 25 ++++++-----
+ src/lib/syscall/socket_darwin.go      | 23 +++++-----
+ src/lib/syscall/socket_linux.go       | 21 +++++----
+ src/lib/syscall/syscall.go            |  5 ---
+ src/lib/syscall/time_amd64_linux.go   |  7 ++-
+ src/lib/syscall/types_amd64_darwin.go |  7 ---
+ src/lib/syscall/types_amd64_linux.go  |  7 ---
+ src/lib/time/tick.go                  |  7 +--
+ 13 files changed, 77 insertions(+), 164 deletions(-)

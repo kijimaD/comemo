@@ -1,0 +1,27 @@
+commit dc5cffbeb7b697ae6b953507bab731c96075ea7a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 20 00:42:08 2009 -0700
+
+    Use the mutex in exvar.Set since map access is not atomic.
+    
+    Imagine your var has a value of zero. If you have a goroutine calling Set(5),
+    and another calling Increment(+1), then you only want one of these outcomes:
+      - Set completes first, and then Increment occurs => 6
+      - Increment completes first, and then Set occurs => 5
+    
+    However, you could get a sequence:
+      - read (for Increment) 0
+      - set (for Set) 5
+      - write (for Increment) 1
+    This results in a value of 1, which is undesirable.
+    
+    Kudos to dnadasi for catching this.
+    
+    R=r
+    APPROVED=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=27625
+    CL=27625
+
+ src/lib/exvar.go | 3 +++
+ 1 file changed, 3 insertions(+)

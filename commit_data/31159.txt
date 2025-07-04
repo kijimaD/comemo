@@ -1,0 +1,14 @@
+commit 87065a3c13f373072c1db81dbf3832f0b9e17492
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 06:14:27 2017 -0700
+
+    cmd/go: don't generate DWARF in the compiler if the linker will discard it
+    
+    Change-Id: I7610f968f5c22b51a6a8813d6f31ccb772a12ba9
+    Reviewed-on: https://go-review.googlesource.com/40858
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

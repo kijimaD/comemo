@@ -1,0 +1,21 @@
+commit c5178ef69eedce1374e684212ea9cdae6220e0f6
+Author: Joe Tsai <thebrokentoaster@gmail.com>
+Date:   Thu Aug 8 06:01:24 2019 +0000
+
+    Revert "go/ast: fix SortImports to handle block comments"
+    
+    This reverts CL 162337.
+    
+    Reason for revert: this introduces a regression
+    
+    Fixes #33538
+    Updates #18929
+    
+    Change-Id: Ib2320a840c6d3ec7912e8f414e933d04fbf11ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189379
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/testdata/import.golden | 60 --------------------------
+ src/cmd/gofmt/testdata/import.input  | 62 ---------------------------
+ src/go/ast/import.go                 | 81 ++++++++++--------------------------
+ 3 files changed, 23 insertions(+), 180 deletions(-)

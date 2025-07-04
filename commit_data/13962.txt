@@ -1,0 +1,28 @@
+commit 948db4e0919c7ae5553f5ba727bdae1d19fbf8c0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 27 01:54:10 2012 +0800
+
+    crypto/aes: speed up using AES-NI on amd64
+    
+    This CL requires CL 5970055.
+    
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkEncrypt          161           23  -85.71%
+    BenchmarkDecrypt          158           24  -84.24%
+    BenchmarkExpand           526           62  -88.21%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkEncrypt        99.32       696.19    7.01x
+    BenchmarkDecrypt       100.93       641.56    6.36x
+    
+    R=golang-dev, bradfitz, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6549055
+
+ src/pkg/crypto/aes/aes_test.go       |   5 +-
+ src/pkg/crypto/aes/asm_amd64.s       | 287 +++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/aes/block.go          |   6 +-
+ src/pkg/crypto/aes/cipher.go         |   8 +-
+ src/pkg/crypto/aes/cipher_asm.go     |  46 ++++++
+ src/pkg/crypto/aes/cipher_generic.go |  19 +++
+ 6 files changed, 365 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit d87f6356263ca8541f5bf097ad68ac479b8ed3e9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 11:37:17 2018 +1000
+
+    doc: clarify a sentence about *_js.go
+    
+    Change "have to" to "need to" for clarity and to avoid a
+    peculiar English idiom.
+    
+    Change-Id: Iec2b1f841d0353dd7925f8f934fe82d4ed059d7d
+    Reviewed-on: https://go-review.googlesource.com/123495
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

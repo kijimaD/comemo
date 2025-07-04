@@ -1,0 +1,15 @@
+commit 719e9894f9a471cd74b8469d9231cd2798b33999
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 25 19:12:35 2022 -0800
+
+    spec: document the underlying type of comparable
+    
+    For #50791.
+    
+    Change-Id: I7f135bb6626128a3cee9fd71c57535c1fc83ac7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380854
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

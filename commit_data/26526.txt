@@ -1,0 +1,18 @@
+commit a7f7a9cca749a676cee73f28e48c6f7bffa64807
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Mar 24 19:35:10 2016 -0400
+
+    runtime, runtime/cgo: save callee-saved FP registers on arm64
+    
+    For #14876.
+    
+    Change-Id: I0992859264cbaf9c9b691fad53345bbb01b4cf3b
+    Reviewed-on: https://go-review.googlesource.com/21085
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/asm_arm64.s    | 20 ++++++++++++++++++--
+ src/runtime/rt0_darwin_arm64.s | 18 +++++++++++++++++-
+ src/runtime/rt0_linux_arm64.s  | 18 +++++++++++++++++-
+ 3 files changed, 52 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 1e740c766976afc944776c428837dce3e65e3705
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 30 10:18:00 2024 -0400
+
+    cmd/compile: fix an internal crash in embed
+    
+    Observed in the telemetry data. Was causing truncated error outputs.
+    
+    Change-Id: I9f0a86e1e6caa855f97a3d6e51328c4c9685c937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623535
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/staticdata/embed.go |  3 +++
+ src/cmd/compile/testdata/script/embedbad.txt | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)

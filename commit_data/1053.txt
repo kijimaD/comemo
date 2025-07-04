@@ -1,0 +1,15 @@
+commit a45f947c34004bca8002b85a13cfe1902a4f89c8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 4 22:54:11 2008 -0800
+
+    type strings through the reflection library.
+    
+    R=rsc
+    DELTA=187  (107 added, 28 deleted, 52 changed)
+    OCL=18510
+    CL=18510
+
+ src/lib/reflect/test.go  | 55 +++++++++++++++++++++++++++
+ src/lib/reflect/type.go  | 97 +++++++++++++++++++++++++++++-------------------
+ src/lib/reflect/value.go | 51 +++++++++++++------------
+ 3 files changed, 141 insertions(+), 62 deletions(-)

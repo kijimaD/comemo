@@ -1,0 +1,22 @@
+commit 3a052b5f549398f8159d1bb7d2be90ac4ca340b6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 12 15:55:17 2011 +1100
+
+    net: use closesocket api instead of CloseHandle on Windows
+    
+    thanks to piotrnar for the original CL.
+    Fixes #1371.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3834042
+
+ src/pkg/net/fd.go                       |  4 +++
+ src/pkg/net/fd_windows.go               | 63 ++++++++++++++-------------------
+ src/pkg/net/ipsock.go                   |  2 +-
+ src/pkg/net/sock.go                     |  6 ++--
+ src/pkg/net/tcpsock.go                  |  2 +-
+ src/pkg/net/unixsock.go                 |  2 +-
+ src/pkg/syscall/syscall_windows.go      |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go | 15 ++++++++
+ 8 files changed, 53 insertions(+), 42 deletions(-)

@@ -1,0 +1,14 @@
+commit d960de0b6f61a486576dbd5a49151bc6125c7010
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Mon Oct 21 01:45:43 2019 -0700
+
+    runtime: temporarily skip gdb python-related tests on illumos
+    
+    Updates golang/go#20821
+    
+    Change-Id: I186356a78ac385a15b4604e0ea6110c4c212ebc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

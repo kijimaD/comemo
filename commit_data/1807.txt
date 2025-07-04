@@ -1,0 +1,15 @@
+commit 6479d89378a17d009a52888db97c15e056ff57a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 12:50:58 2009 -0700
+
+    document json
+    
+    R=r
+    DELTA=115  (102 added, 0 deleted, 13 changed)
+    OCL=25953
+    CL=26128
+
+ src/lib/json/generic.go | 45 ++++++++++++++++++++++++++++++++--------
+ src/lib/json/parse.go   | 24 +++++++++++++++++++--
+ src/lib/json/struct.go  | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 113 insertions(+), 11 deletions(-)

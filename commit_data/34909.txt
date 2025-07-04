@@ -1,0 +1,25 @@
+commit 60fee0153ff9ae2f03e5db9fa8cf700cd953bf8d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 5 14:45:38 2018 +0100
+
+    cmd/compile: remove last manual node copies
+    
+    When I added the Node.copy method, I converted most of the occurrences
+    but missed a few.
+    
+    One of them, used only for gdata, was an unnecessary copy given that
+    gdata does not modify the node it is passed.
+    
+    No allocation changes in compilebench.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I7fba5212377b75c6d6b3785e594a30568ff0732e
+    Reviewed-on: https://go-review.googlesource.com/104937
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go |  5 ++---
+ src/cmd/compile/internal/gc/sinit.go | 17 ++++++++---------
+ 2 files changed, 10 insertions(+), 12 deletions(-)

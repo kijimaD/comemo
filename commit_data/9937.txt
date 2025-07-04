@@ -1,0 +1,13 @@
+commit 791b2a498e26e98a1ab80a93b6d681cef5037559
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Oct 12 13:45:25 2011 -0400
+
+    net: Return error from CloseRead and CloseWrite.
+    
+    R=bradfitz, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5167043
+
+ src/pkg/net/fd.go         | 17 ++++++++++-------
+ src/pkg/net/fd_windows.go | 17 ++++++++++-------
+ 2 files changed, 20 insertions(+), 14 deletions(-)

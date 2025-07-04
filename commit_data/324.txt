@@ -1,0 +1,10 @@
+commit e4a1fb7e9423caa728574f31a451dd9b0cbf02ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 9 17:08:20 2008 -0700
+
+    - minor bug fix
+    
+    SVN=126585
+
+ usr/gri/src/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

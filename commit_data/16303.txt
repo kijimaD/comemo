@@ -1,0 +1,22 @@
+commit fae362e97e852cf04c6c089e61e92c1ad559b29b
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Wed May 15 13:24:54 2013 +1000
+
+    os/user: faster user lookup on Windows
+    
+    Trying to lookup user's display name with directory services can
+    take several seconds when user's computer is not in a domain.
+    As a workaround, check if computer is joined in a domain first,
+    and don't use directory services if it is not.
+    Additionally, don't leak tokens in user.Current().
+    Fixes #5298.
+    
+    R=golang-dev, bradfitz, alex.brainman, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/8541047
+
+ src/pkg/os/user/lookup_windows.go         | 77 +++++++++++++++++++++----------
+ src/pkg/syscall/security_windows.go       |  9 ++++
+ src/pkg/syscall/zsyscall_windows_386.go   |  9 ++++
+ src/pkg/syscall/zsyscall_windows_amd64.go |  9 ++++
+ 4 files changed, 79 insertions(+), 25 deletions(-)

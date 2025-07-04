@@ -1,0 +1,23 @@
+commit 55e4097cbaf67307eeb981150da774329a03b88d
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 3 11:58:54 2024 -0400
+
+    internal/goexperiment: remove the ExecTracer2 experiment
+    
+    This change removes the ExecTracer2 experiment flag. This flag was
+    created as part of the tracer overhaul described in #60773.
+    
+    Updates #66703
+    For #60773
+    
+    Change-Id: Ib95b9dd8bb68b48e7543c4d28d853c6a518438f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576258
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/buildcfg/exp.go                     | 1 -
+ src/internal/goexperiment/exp_exectracer2_off.go | 8 --------
+ src/internal/goexperiment/exp_exectracer2_on.go  | 8 --------
+ src/internal/goexperiment/flags.go               | 4 ----
+ 4 files changed, 21 deletions(-)

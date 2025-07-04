@@ -1,0 +1,14 @@
+commit b642cf8c002d8ec4ededc239311f2ea54fc9deba
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Oct 25 13:31:25 2008 -0700
+
+    embedded methods
+    
+    R=r
+    OCL=17851
+    CL=17851
+
+ src/cmd/6g/obj.c  | 83 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/go.h   |  4 +--
+ src/cmd/gc/subr.c | 14 ++--------
+ 3 files changed, 71 insertions(+), 30 deletions(-)

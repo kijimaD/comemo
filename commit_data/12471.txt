@@ -1,0 +1,16 @@
+commit e8d1852d6a46caf5d7a00642dd9abf75b5a28098
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 11:38:39 2012 -0500
+
+    doc: update Effective Go init section
+    
+    Goroutines are no longer excluded from init.
+    
+    Fixes #3232.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5764044
+
+ doc/effective_go.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

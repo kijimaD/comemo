@@ -1,0 +1,14 @@
+commit 52c23f300972fefdb7cbc57eadbc524afeea0cf5
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Tue Nov 23 10:42:04 2010 +1100
+
+    Documentation: how to write Makefiles for commands.
+    
+    Fixes #1282.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3152041
+
+ doc/code.html | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

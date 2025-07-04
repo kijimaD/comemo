@@ -1,0 +1,13 @@
+commit 8ee986570adeb4216ad340f3fc5ff30311345efe
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Sep 21 22:58:09 2010 -0400
+
+    strings: fix minor bug in LastIndexFunc
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2250042
+
+ src/pkg/strings/strings.go      | 2 +-
+ src/pkg/strings/strings_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

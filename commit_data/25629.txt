@@ -1,0 +1,12 @@
+commit e8b53c92b8086af8c5f279c795951a9aa1a14d58
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 23 13:28:14 2016 +0900
+
+    net: enable TestLookupDotsWithRemoteSource on builders
+    
+    Change-Id: I2609660b10a16ec2a256fc9c8e046ba4ae67963f
+    Reviewed-on: https://go-review.googlesource.com/18880
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 6e5ccce87f444545de14dff7190171f0b4b15a12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 13 10:05:13 2015 -0700
+
+    misc/cgo/test: fix go vet warnings
+    
+    Fixes these warnings from go vet:
+    buildid_linux.go:25: no formatting directive in Fatalf call
+    callback.go:180: arg pc[i] for printf verb %p of wrong type: uintptr
+    env.go:34: possible misuse of unsafe.Pointer
+    issue7665.go:22: possible misuse of unsafe.Pointer
+    
+    Change-Id: I83811b9c10c617139713a626b4a34ab05564d4fe
+    Reviewed-on: https://go-review.googlesource.com/15802
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/test/buildid_linux.go | 2 +-
+ misc/cgo/test/callback.go      | 2 +-
+ misc/cgo/test/env.go           | 2 +-
+ misc/cgo/test/issue7665.go     | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

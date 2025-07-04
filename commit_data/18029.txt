@@ -1,0 +1,14 @@
+commit bccf029fc09c4b993f6a638b16c5fe33f0102828
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 17 16:32:27 2013 -0800
+
+    net: rewrite toLower more clearly
+    
+    Rob suggested this change.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/43670044
+
+ src/pkg/net/lookup_plan9.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

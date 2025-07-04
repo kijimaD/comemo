@@ -1,0 +1,12 @@
+commit 68382ec021bf928870f74b59fc5394990052c0ff
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 21:31:22 2009 -0700
+
+    add missing Makefile to repair build
+    
+    TBR=gri
+    OCL=28320
+    CL=28320
+
+ src/lib/go/Makefile | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

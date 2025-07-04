@@ -1,0 +1,42 @@
+commit d9db9e32e924a60bbfbb15cc0dd7cfaaf8a62a3b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 15 13:29:40 2019 -0400
+
+    runtime: fix write barrier on wasm
+    
+    The current wasm write barrier implementation incorrectly implements
+    the "deletion" part of the barrier. It correctly greys the new value
+    of the pointer, but rather than also greying the old value of the
+    pointer, it greys the object containing the slot (which, since the old
+    value was just overwritten, is not going to contain the old value).
+    
+    This can lead to unmarked, reachable objects.
+    
+    Often, this is masked by other marking activity, but one specific
+    sequence that can lead to an unmarked object because of this bug is:
+    
+    1. Initially, GC is off, object A is reachable from just one pointer
+    in the heap.
+    
+    2. GC starts and scans the stack of goroutine G.
+    
+    3. G copies the pointer to A on to its stack and overwrites the
+    pointer to A in the heap. (Now A is reachable only from G's stack.)
+    
+    4. GC finishes while A is still reachable from G's stack.
+    
+    With a functioning deletion barrier, step 3 causes A to be greyed.
+    Without a functioning deletion barrier, nothing causes A to be greyed,
+    so A will be freed even though it's still reachable from G's stack.
+    
+    This CL fixes the wasm write barrier.
+    
+    Fixes #30871.
+    
+    Change-Id: I8a74ee517facd3aa9ad606e5424bcf8f0d78e754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167743
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_wasm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

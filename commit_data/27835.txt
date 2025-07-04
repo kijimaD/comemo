@@ -1,0 +1,25 @@
+commit c70bdd378811be6d56a3483fe6b9c5ed7b40cb2d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 30 10:53:47 2016 -0700
+
+    cmd/compile: fix bad generated format strings in test
+    
+    We were generating format strings containing
+    a lone %. Vet legitimately complains:
+    
+    cmd/compile/internal/gc/constFold_test.go:339: unrecognized printf verb ' '
+    
+    The fix doesn't make for very readable code,
+    but it is simple and obviously correct.
+    
+    Updates #11041
+    
+    Change-Id: I90bd2d1d140887f5229752a279f7e46921472fbb
+    Reviewed-on: https://go-review.googlesource.com/27115
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/constFold_test.go      | 4596 ++++++++++----------
+ .../internal/gc/testdata/gen/constFoldGen.go       |    8 +-
+ 2 files changed, 2302 insertions(+), 2302 deletions(-)

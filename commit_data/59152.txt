@@ -1,0 +1,36 @@
+commit 2d2bcdd2ad83ba93e61747417d6865cdd88b32fe
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 5 15:17:20 2025 -0500
+
+    cmd/go: upgrade go install pkg@version's go using local mod, work
+    
+    This CL changes the toolchain selection behavior for go install pkg@v
+    and go run pkg@v to also take into account the go and toolchain version
+    lines in the containing go.mod and go.work file.
+    
+    Before this change, the go command would detect that go install
+    pkg@version or go run pkg@version was being run and skip the standard
+    behavior that would select the toolchain based on the go version in the
+    go.mod or go.work file. It would instead check the go line of the module
+    being downloaded and switch to that version if necessary.
+    
+    With this change, the go command does not skip the standard behavior. It
+    proceeds to determine if an upgrade is required based on the containing
+    go.mod or go.work file's go and toolchain lines. Then, it checks the
+    module being installed to see if it would require a higher version than
+    the determined upgrade (or the local version if no upgrade was
+    determined). If it does require a higher version, then a switch happens
+    to that version, and if not the upgrade logic proceeds as usual doing
+    the upgrade if one was determined.
+    
+    Fixes #66518
+    
+    Change-Id: I00d96170e8713c451cc0fd2203be521585418842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660035
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/toolchain/select.go          | 33 ++++++++++----------
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 38 ++++++++++++++++++++++--
+ src/cmd/go/testdata/script/gotoolchain_path.txt  |  4 +--
+ 3 files changed, 53 insertions(+), 22 deletions(-)

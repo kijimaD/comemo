@@ -1,0 +1,15 @@
+commit 02bd0fd39cb6ffd840901ea751a61047ccad47cb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 19 07:08:37 2019 +1000
+
+    testing/quick: simplify explanation of -quickchecks flag
+    
+    CL 172698 documented this flag but the description was missing
+    punctuation and could be clearer.
+    
+    Change-Id: I310d91ae8c6b947ce7d1ae7559882f49778f770a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172817
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/quick/quick.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit b2400c28cffd3ca1beda6176efd663a9df3aad1a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 18:56:39 2011 -0700
+
+    fix windows build: http.Get finalURL removal missed earlier
+    
+    Not sure why this only broke Windows. Make test is only run
+    on windows for that directory?
+    
+    TBR=golang-dev
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4545044
+
+ src/pkg/unicode/maketables.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

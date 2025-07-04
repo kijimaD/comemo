@@ -1,0 +1,14 @@
+commit fa0537b8af25530506c9b57348a032607c29c5b7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 25 14:57:50 2019 -0400
+
+    doc/go1.13: close <em> and <code> tags
+    
+    Fixup for two typos from CL 183630.
+    
+    Change-Id: I7968a736680e8a6bbd1f4691d443b217702bc190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183843
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit a7059cc7933981b89a4de5954ab5a294e77609c9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 5 06:43:15 2012 +0200
+
+    cmd/[568]g: correct freeing of allocated Regs.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6281050
+
+ src/cmd/5g/reg.c | 4 ++--
+ src/cmd/6g/reg.c | 4 ++--
+ src/cmd/8g/reg.c | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

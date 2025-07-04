@@ -1,0 +1,23 @@
+commit 7f638e90231e56c523ae51ba18dbbf084db8b86e
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 27 14:37:36 2014 -0700
+
+    cmd/go: improve error message when import path contains http://
+    Common mistake (at least for me) because hg etc. require the prefix
+    while the go command forbids it.
+    
+    Before:
+    % go get http://code.google.com/p/go.text/unicode/norm
+    package http:/code.google.com/p/go.text/unicode/norm: unrecognized import path "http:/code.google.com/p/go.text/unicode/norm"
+    
+    After:
+    % go get http://code.google.com/p/go.text/unicode/norm
+    package http:/code.google.com/p/go.text/unicode/norm: "http://" not allowed in import path
+    
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/97630046
+
+ src/cmd/go/vcs.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

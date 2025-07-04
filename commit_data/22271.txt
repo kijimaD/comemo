@@ -1,0 +1,30 @@
+commit 33448d963caf0d66f042e738fe733c66796742b2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 2 11:35:56 2015 -0400
+
+    cmd/7g: fix ACMP entry in progtable
+    
+    On arm64, CMP $foo, R is encoded as from=$foo, reg=R, not as from=$foo,
+    to=R. The progtable entry for ACMP incorrectly described the latter
+    form. Because of this, the registerizer was not accounting the registers
+    used in CMP instructions and was incorrectly re-assigning those registers.
+    
+    This was an old problem, but it only became apparent after b115c35
+    (cmd/internal/gc: move cgen, regalloc, et al to portable code). Previous
+    to this commit, the compiler used a slightly larger register set for the
+    temps than it used for register variables. Since it had plenty registers
+    dedicated to temps, the registers used in CMP instruction never clashed
+    with registers assigned to register variables.
+    
+    Fixes #10253
+    
+    Change-Id: Iedf4bd882bd59440dff310ac0f81e0f53d80d7ed
+    Reviewed-on: https://go-review.googlesource.com/8387
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/7g/prog.go           |  2 +-
+ test/fixedbugs/issue10253.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

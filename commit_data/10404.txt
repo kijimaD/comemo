@@ -1,0 +1,16 @@
+commit 3db596113d1e663969f68df2cfe6fc36b566663f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 12:49:22 2011 -0500
+
+    misc/benchcmp: benchmark comparison script
+    
+    I've been using this since April and posted it on the
+    mailing list, but it seems worth having in the repository.
+    Not sure about the location.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5371100
+
+ misc/benchcmp | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

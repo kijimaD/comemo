@@ -1,0 +1,39 @@
+commit 7a3a2b18ff3b8591eba18b730da7f84751bbfdc5
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Dec 23 10:33:17 2021 -0500
+
+    go/types, types2: eagerly check that constraints are not type params
+    
+    As a result of the change to the underlying of a type parameter to be
+    its constraint interface, we had couple inaccuracies that combined to
+    cause an infinite recursion when type checking the invalid type
+    parameter list [A A].
+     - We deferred tpar.iface() using check.later twice: once in
+       newTypeParam, and then again at the end of collectTypeParams.
+     - We deferred the check that type parameter constraints are not type
+       parameters, even though this is unnecessary: the constraint type is
+       known.
+    
+    With these inaccuracies, tpar.iface() was executing before our guard
+    against using type parameters as constraints, causing an infinite
+    recursion through under().
+    
+    Fix this by eagerly checking whether the constraint is a type
+    parameter, and marking it invalid if so. Also remove the unnecessary
+    calls to tpar.iface() at the end of collectTypeParams, as this will
+    already have been scheduled by newTypeParam.
+    
+    Fixes #50321
+    
+    Change-Id: I4eecbecf21656615867cb94be65b520e9e795bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374294
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go            | 19 ++++---------
+ .../types2/testdata/fixedbugs/issue50321.go2       |  8 ++++++
+ src/go/types/decl.go                               | 31 +++++++++-------------
+ src/go/types/testdata/fixedbugs/issue50321.go2     |  8 ++++++
+ 4 files changed, 34 insertions(+), 32 deletions(-)

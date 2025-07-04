@@ -1,0 +1,25 @@
+commit 4d913b332cf161df7c4f3717c602d491d7ac01dd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 6 21:35:23 2018 +0000
+
+    cmd/vet: fix printf false negative with nested pointers
+    
+    Pointers to compound objects (structs, slices, arrays, maps) are only
+    followed by fmt if the pointer is at the top level of an argument. This
+    is to minimise the chances of fmt running into loops.
+    
+    However, vet did not follow this rule. It likely doesn't help that fmt
+    does not document that restriction well, which is being tracked in
+     #28625.
+    
+    Updates #27672.
+    
+    Change-Id: Ie9bbd9b974eda5ab9a285986d207ef92fca4453e
+    Reviewed-on: https://go-review.googlesource.com/c/147997
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/testdata/print.go | 10 +++++++++-
+ src/cmd/vet/types.go          | 10 +++++++---
+ 2 files changed, 16 insertions(+), 4 deletions(-)

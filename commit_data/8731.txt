@@ -1,0 +1,12 @@
+commit 7c248ae077c3f8f12cb9a3977ce26bcdd93d914d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 15 14:56:12 2011 +1000
+
+    go/build: fix build and clean ups
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4620045
+
+ src/pkg/go/build/build.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

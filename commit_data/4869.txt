@@ -1,0 +1,14 @@
+commit 855986d54f7831fa45f3b30cb9732d0d5758fc88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 17:39:44 2010 -0800
+
+    go/scanner: comply with spec changes (do not allow NUL chars)
+    and complain about illegal UTF-8 code sequences
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/209043
+
+ src/pkg/go/scanner/scanner.go      |  5 +++++
+ src/pkg/go/scanner/scanner_test.go | 35 +++++++++++++++++++----------------
+ 2 files changed, 24 insertions(+), 16 deletions(-)

@@ -1,0 +1,19 @@
+commit 0df762ed7b2ac9484a4f64450424529ecee8aa7f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Nov 3 15:34:05 2016 -0700
+
+    net: add example for CIDRMask
+    
+    I had trouble translating the documentation language into a subnet
+    - e.g. whether /31 was CIDRMask(1, 31) or CIDRMask(1, 32) or
+    CIDRMask(31, 32) so I thought I'd add a short example showing how to
+    create the right masks.
+    
+    Change-Id: Ia6a6de08c5c30b6d2249b3194cced2d3c383e317
+    Reviewed-on: https://go-review.googlesource.com/32677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

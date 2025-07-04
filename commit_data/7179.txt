@@ -1,0 +1,12 @@
+commit 0b08119adc2f6d59d1f0f8022fdb8398c19c708c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 20 12:41:59 2011 +1100
+
+    syscall: attempt to fix windows build, supply missing constant
+    
+    R=r, brainman, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4023043
+
+ src/pkg/syscall/ztypes_windows_386.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

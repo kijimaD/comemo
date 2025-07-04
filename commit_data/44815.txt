@@ -1,0 +1,28 @@
+commit 74fe516c3549e8177aa5326e6ce17efd529e3383
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Mar 24 17:14:29 2021 +0200
+
+    cmd/go: add -benchtime to cacheable test flags
+    
+    Add -benchtime to the list of flags that allow caching test results.
+    
+    If -benchtime is set without -bench, no benchmarks are run. The cache
+    does not need to be invalidated in this case.
+    
+    If -benchtime is set with -bench, benchmarks are run. The cache is
+    invalidated due to the -bench flag in this case.
+    
+    Fixes #44555
+    
+    Change-Id: I2eb5c9f389a587d150fb984590d145251d0fa2dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304689
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                            |  4 ++--
+ src/cmd/go/internal/test/test.go                 |  7 ++++---
+ src/cmd/go/testdata/script/test_cache_inputs.txt | 13 +++++++++++++
+ 3 files changed, 19 insertions(+), 5 deletions(-)

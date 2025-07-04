@@ -1,0 +1,12 @@
+commit 7bbe2c899832706f93c543e68322bf5ca825d39d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 22 12:40:45 2011 -0700
+
+    runtime: Remove extraneous word in comment.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4938045
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

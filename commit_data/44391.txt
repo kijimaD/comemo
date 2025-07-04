@@ -1,0 +1,34 @@
+commit e49612089196be102b4b7f86c417b8cfba2521aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 1 08:35:36 2021 -0800
+
+    database: remove race in TestTxContextWait
+    
+    This test contained a data race.
+    On line 437, db.BeginTx starts a goroutine that runs tx.awaitDone,
+    which reads tx.keepConnOnRollback.
+    On line 445, the test writes to tx.keepConnOnRollback.
+    tx.awaitDone waits on ctx, but because ctx is timeout-based,
+    there's no ordering guarantee between the write and the read.
+    
+    The race detector never caught this before
+    because the context package implementation of Done
+    contained enough synchronization to make it safe.
+    That synchronization is not package of the context API or guarantees,
+    and the first several releases it was not present.
+    Another commit soon will remove that synchronization,
+    exposing the latent data race.
+    
+    To fix the race, emulate a time-based context
+    using an explicit cancellation-based context.
+    This gives us enough control to avoid the race.
+    
+    Change-Id: I103fe9b987b1d4c02e7a20ac3c22a682652128b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288493
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

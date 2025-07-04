@@ -1,0 +1,13 @@
+commit 703b092779ffa003a7f2f5a887ee9385257ac8ed
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun May 15 16:04:37 2011 -0700
+
+    spec: fix copy to return "number of elements copied", not "number
+    of arguments copied".
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/4550041
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

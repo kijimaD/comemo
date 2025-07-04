@@ -1,0 +1,20 @@
+commit be0b649eb1efcf2c0f86e823c364322b7561ad5e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 13:25:49 2010 -0800
+
+    path: Fix Glob when it finds a file in directory position.
+    
+    When searching a list of directories, the files which match
+    the pattern are accumulated in a slice.  If the glob has a
+    wildcard for the directory, and the wildcard matches a file
+    rather than a directory, then the files found so far are
+    discarded.  E.g., path.Glob("*/x") in a directory which
+    contains both files and subdirectories.  This patch avoids
+    discarding matches found so far when a file is found.
+    
+    R=r
+    CC=bsiegert, golang-dev
+    https://golang.org/cl/3015042
+
+ src/pkg/path/match.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

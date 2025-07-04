@@ -1,0 +1,15 @@
+commit 9744c0e175cfaf45d7fc7bdfad10618e1ba69cd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 4 11:55:27 2013 -0800
+
+    net: make some tests less flaky
+    
+    Fixes #4969
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7456049
+
+ src/pkg/net/conn_test.go      | 21 +++++++++++++--------
+ src/pkg/net/protoconn_test.go | 36 ++++++++++++++++++------------------
+ 2 files changed, 31 insertions(+), 26 deletions(-)

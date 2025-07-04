@@ -1,0 +1,15 @@
+commit 517e3457ccf76a3ac5fcfb364f2970206dc2eeef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 11:03:58 2009 -0700
+
+    fix build on amd64
+    
+    R=ken
+    OCL=32521
+    CL=32521
+
+ src/cmd/5g/ggen.c | 2 ++
+ src/cmd/6g/ggen.c | 2 ++
+ src/cmd/6g/list.c | 5 ++++-
+ src/cmd/8g/ggen.c | 2 ++
+ 4 files changed, 10 insertions(+), 1 deletion(-)

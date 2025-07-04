@@ -1,0 +1,26 @@
+commit 6dad55aa25debdeb43e6b7c8348cf923fb8e5cff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:39:12 2017 -0500
+
+    cmd/go: split out cmd/go/internal/get
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Iec17bf2243de129942ae5fba126ec5f217be7303
+    Reviewed-on: https://go-review.googlesource.com/36202
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/{ => internal/get}/discovery.go |  9 +--------
+ src/cmd/go/{ => internal/get}/get.go       | 21 +++++++++++----------
+ src/cmd/go/{ => internal/get}/vcs.go       |  2 +-
+ src/cmd/go/main.go                         |  3 ++-
+ 4 files changed, 15 insertions(+), 20 deletions(-)

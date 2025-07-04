@@ -1,0 +1,16 @@
+commit 09e900eb334ec5f0f1cfffb063c4ebce046e892f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 25 13:18:49 2015 -0800
+
+    spec: clarify that iota is incremented even if not used in a const spec
+    
+    Slightly modified an example.
+    
+    Fixes #13371.
+    
+    Change-Id: I25d260d4200086a0ef9725950132b760657610c5
+    Reviewed-on: https://go-review.googlesource.com/17209
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit a12d70f60d57d4a0b6d796423da7f0c39b27ee26
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 16:16:33 2011 -0400
+
+    gc: fix complex move bug
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4439044
+
+ src/cmd/gc/cplx.c        | 19 +++++++++++++++---
+ test/fixedbugs/bug329.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

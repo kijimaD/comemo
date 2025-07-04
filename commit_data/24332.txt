@@ -1,0 +1,19 @@
+commit 4e99ed6fef28bc263ec42e63fd717a13367fb659
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 18 14:53:33 2015 -0700
+
+    cmd/doc: don't drop const/var block if first entry is unexported
+    
+    The code assumed that if the first entry was unexported, all the
+    entries were. The fix is simple: delete a bunch of code.
+    
+    Fixes #12286.
+    
+    Change-Id: Icb09274e99ce97df4d8bddbe59d17a5c0622e4c6
+    Reviewed-on: https://go-review.googlesource.com/14780
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/doc/doc_test.go     |  2 ++
+ src/cmd/doc/pkg.go          | 13 +------------
+ src/cmd/doc/testdata/pkg.go | 14 ++++++++++++++
+ 3 files changed, 17 insertions(+), 12 deletions(-)

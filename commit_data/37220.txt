@@ -1,0 +1,25 @@
+commit cdad4080695f09d79c403fd3827ef0ba50c399a8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 2 09:12:08 2018 +0100
+
+    os: add support for long path names on aix RemoveAll
+    
+    Follow CL 146020 and enable RemoveAll based on Unlinkat and Openat on
+    aix.
+    
+    Updates #27029
+    
+    Change-Id: I78b34ed671166ee6fa651d5f2025b88548ee6c68
+    Reviewed-on: https://go-review.googlesource.com/c/146937
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Clément Chigot <clement.chigot@atos.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/asm_solaris.s |  2 +-
+ src/internal/syscall/unix/at_aix.go     | 14 +++++++
+ src/internal/syscall/unix/at_libc.go    | 64 +++++++++++++++++++++++++++++++
+ src/internal/syscall/unix/at_solaris.go | 68 +++------------------------------
+ src/os/removeall_at.go                  |  2 +-
+ src/os/removeall_noat.go                |  2 +-
+ src/os/removeall_test.go                |  4 +-
+ 7 files changed, 89 insertions(+), 67 deletions(-)

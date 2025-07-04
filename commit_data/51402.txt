@@ -1,0 +1,26 @@
+commit 998949c09b8925e1f6bab78cb046c6921c5327a1
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 23 15:29:16 2021 +0200
+
+    cmd/dist: update to assume Go 1.17.13 as minimal Go bootstrap version
+    
+    Replace explicit Go version names where possible with generic reference
+    to Go bootstrap version.
+    
+    Updates #44505
+    
+    Change-Id: I4a6439576efd40e72acd26fcc1472a1a8b0b06e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344330
+    Auto-Submit: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/README       | 10 +++++-----
+ src/cmd/dist/build.go     | 20 ++++++--------------
+ src/cmd/dist/buildtool.go | 32 +++++++++-----------------------
+ src/cmd/dist/test.go      | 23 +++++++++++++++--------
+ src/cmd/dist/util.go      |  2 +-
+ 5 files changed, 36 insertions(+), 51 deletions(-)

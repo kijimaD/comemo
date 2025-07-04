@@ -1,0 +1,23 @@
+commit ac39dbdf58e50a2575b891675e7d2e1400b20cfe
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu May 5 21:46:51 2022 +0800
+
+    cmd/compile: allow exporting `.rcvr` ident
+    
+    Noder pass will build a closure to implement generic function
+    instantiation which may produce `.dict` and `.rcvr` ident.
+    Since we allow `.dict` during exporting, we should allow `.rcvr` too.
+    
+    Fixes #52241.
+    
+    Change-Id: Ifc3912ba5155b5ac1887f20830da64f4fb3fceb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404314
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  2 +-
+ test/typeparam/issue52241.go                  | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

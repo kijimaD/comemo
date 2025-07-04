@@ -1,0 +1,20 @@
+commit 7e1d1f899cbfb302447324e96da0e913ef94096c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 29 15:34:29 2015 -0700
+
+    go/types: move gotype command into this directory
+    
+    This is a copy of x/tools/cmd/gotype/gotype.go with the corresponding
+    x/tools/cmd/gotype/doc.go prepended and including a build tag (ignore).
+    
+    This way, go/types can be built unaffected. If we need the gotype command,
+    it is trivially built in the go/types directory with: go build gotype.go .
+    
+    Fixes #12303.
+    
+    Change-Id: I2d792fcb39719cc5cc300f657e4735901cd20faa
+    Reviewed-on: https://go-review.googlesource.com/15152
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/types/gotype.go | 322 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 322 insertions(+)

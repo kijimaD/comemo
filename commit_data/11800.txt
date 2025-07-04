@@ -1,0 +1,32 @@
+commit f91cc3bdbbdad81a4d2be5833a6a1816355d93e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 00:19:24 2012 -0500
+
+    gc: optimize interface ==, !=
+    
+    If the values being compared have different concrete types,
+    then they're clearly unequal without needing to invoke the
+    actual interface compare routine.  This speeds tests for
+    specific values, like if err == io.EOF, by about 3x.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkIfaceCmp100             843          287  -65.95%
+    BenchmarkIfaceCmpNil100          184          182   -1.09%
+    
+    Fixes #2591.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5651073
+
+ src/cmd/5g/cgen.c               | 17 +++++++++++++++++
+ src/cmd/5g/gsubr.c              | 21 +++++++++++++++++++--
+ src/cmd/6g/cgen.c               | 11 +++++++++++
+ src/cmd/6g/gsubr.c              | 12 ++++++++++++
+ src/cmd/8g/cgen.c               | 10 ++++++++++
+ src/cmd/8g/gsubr.c              | 12 ++++++++++++
+ src/cmd/gc/go.h                 |  1 +
+ src/cmd/gc/typecheck.c          | 10 ++++++++++
+ src/cmd/gc/walk.c               | 21 ++++++++++++++++++---
+ src/pkg/runtime/runtime_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 150 insertions(+), 5 deletions(-)

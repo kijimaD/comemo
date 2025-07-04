@@ -1,0 +1,26 @@
+commit a51d5f27e8a6fd97b27fb864cd284589c850836e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 16:34:48 2015 -0700
+
+    cmd/internal/gc: use 512 bits (rather than 464) for multi-precision arithmetic
+    
+    The original implementation used 16 int "words" but only 29 bits per word
+    for a total of 16*29 = 464 bits, with a space consumption of 16*64 = 1024
+    bits on a 64 bit machine. Switching to 512 bits increases precision while
+    still using (in the worst case) half the amount of memory per mp value on
+    a 64 bit machine.
+    
+    Also: Decreased permitted number of least-significant mantissa bits which
+    may be incorrect when considering if a precise floating-point constant is
+    an integer from 29 to 16 bits.
+    
+    Change-Id: Iee9287056f0e9aa4f06ceac0724ff4674f710c53
+    Reviewed-on: https://go-review.googlesource.com/8429
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/go.go       |  9 +++++----
+ src/cmd/internal/gc/mparith2.go |  5 +----
+ src/cmd/internal/gc/mparith3.go | 20 ++++++++++----------
+ test/fixedbugs/issue6889.go     | 10 +++++++++-
+ test/fixedbugs/issue7740.go     |  2 +-
+ 5 files changed, 26 insertions(+), 20 deletions(-)

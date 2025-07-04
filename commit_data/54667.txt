@@ -1,0 +1,20 @@
+commit 574a7f71a564eb4718e3968ed64c44beec84c479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 9 14:49:37 2023 -0700
+
+    go/types: update FileVersions API to match proposal changes
+    
+    For #62605.
+    
+    Change-Id: I6e9032eb92db758bf359e7cc9c4cedc1e0fb2309
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534018
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/api.go      | 15 +++++----------
+ src/go/types/api_test.go | 33 +++++++++++++--------------------
+ src/go/types/check.go    | 21 +++++++--------------
+ 3 files changed, 25 insertions(+), 44 deletions(-)

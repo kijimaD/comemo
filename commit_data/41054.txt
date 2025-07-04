@@ -1,0 +1,21 @@
+commit f9813515c02ac49d350cd3736f8e44cdd5786070
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 6 01:48:43 2020 +1100
+
+    syscall: provide Renameat as a wrapper around renameat2 on riscv64
+    
+    linux/riscv64 does not provide a renameat syscall and there is no SYS_RENAMEAT
+    defined in the syscall package. Provide Renameat as a wrapper around renameat2
+    instead.
+    
+    Updates #27532
+    
+    Change-Id: I4864bdf0055e4272920583dcfb0efe2fd40adcbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212762
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_linux_riscv64.go  | 6 +++++-
+ src/syscall/zsyscall_linux_riscv64.go | 4 ++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit a75ebe192ecf20f4f3f4d53e9d04eafe6fddbf31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 11 13:59:10 2010 -0800
+
+    correct meaning of "absolute" and "relative"
+    (implementation was swapped)
+    
+    R=adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/207069
+
+ src/cmd/godoc/mapping.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

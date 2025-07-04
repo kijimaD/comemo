@@ -1,0 +1,43 @@
+commit 4b43d668c2ae42465af7cbad4bc5fa86d0b6cc15
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 2 10:42:46 2023 -0500
+
+    internal/testenv: avoid rebuilding all of std in WriteImportcfg
+    
+    Instead, have the caller pass in an explicit list of the packages
+    (if any) they need.
+    
+    After #47257, a builder running a test does not necessarily have the
+    entire standard library already cached, especially when running tests
+    in sharded mode. testenv.WriteImportcfg used to write an importcfg for
+    the entire standard library — which required rebuilding the entire
+    standard library — even though most tests need only a tiny subset.
+    
+    This reduces the time to test internal/abi with a cold build cache on
+    my workstation from ~16s to ~0.05s.
+    
+    It somewhat increases the time for 'go test go/internal/gcimporter'
+    with a cold cache, from ~43s to ~54s, presumably due to decreased
+    parallelism in rebuilding the standard library and increased overhead
+    in re-resolving the import map. However, 'go test -short' running time
+    remains stable (~5.5s before and after).
+    
+    Fixes #58248.
+    
+    Change-Id: I9be6b61ae6e28b75b53af85207c281bb93b9346f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464736
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/internal/archive/archive_test.go      |  2 +-
+ src/cmd/link/link_test.go                     | 22 ++++-----
+ src/cmd/objdump/objdump_test.go               |  2 +-
+ src/cmd/pack/pack_test.go                     |  4 +-
+ src/go/internal/gcimporter/gcimporter_test.go | 40 +++-------------
+ src/internal/abi/abi_test.go                  |  8 ++--
+ src/internal/goroot/importcfg.go              | 66 ---------------------------
+ src/internal/testenv/testenv.go               | 51 ++++++++++++++++-----
+ 8 files changed, 65 insertions(+), 130 deletions(-)

@@ -1,0 +1,17 @@
+commit 9d97b55d387ebbd24691bd16af41d74330b920aa
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 27 01:06:48 2013 +0900
+
+    net: fix test data corruption in repetitive test runs by -cpu
+    
+    This CL avoids test data sharing in repetitive test runs;
+    e.g., go test net -cpu=1,1,1
+    
+    R=golang-dev, fullung, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8011043
+
+ src/pkg/net/ipraw_test.go | 33 ++++++++++++++-------------------
+ src/pkg/net/tcp_test.go   | 36 ++++++++++++++----------------------
+ src/pkg/net/udp_test.go   | 36 ++++++++++++++----------------------
+ 3 files changed, 42 insertions(+), 63 deletions(-)

@@ -1,0 +1,13 @@
+commit 873ba78b7959f412cab31bb9d74e54e680e468cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 3 00:34:05 2008 -0700
+
+    Remove doubled #else
+    
+    R=r
+    DELTA=4  (2 added, 2 deleted, 0 changed)
+    OCL=13775
+    CL=13779
+
+ src/runtime/sys_types.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,39 @@
+commit 675a2e70780208dce18a0bc4b3e420de71fe0178
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 6 17:25:51 2019 -0500
+
+    cmd/link: generate relative relocs for PIE
+    
+    Go's PIE binaries have tons of relocations, all R_X86_64_64 [1] when
+    internally linked. R_X86_64_64 relocations require symbol lookup in the
+    dynamic linker, which can be quite slow. The simple Go HTTP server
+    in #36028 takes over 1s to complete dynamic linking!
+    
+    The external linker generates R_X86_64_RELATIVE [2] relocations, which
+    are significantly more efficient. It turns out that generating these
+    relocations internally is quite simple, so lets do it.
+    
+    Rather than referencing targ.Dynid in r_info and having the dynamic
+    linker do a symbol lookup and then add (final targ address) + r.Add, use
+    AddAddrPlus to generate another R_ADDR to have the linker compute (targ
+    address + r.Add). The dynamic linker is then only left with base address
+    + r_addend.
+    
+    Since we don't reference the symbol in the final relocation, Adddynsym
+    is no longer necessary, saving ~1MB (of ~9MB) from the binary size of
+    the example in #36028.
+    
+    [1] R_AARCH64_ABS64 on arm64.
+    [2] R_AARCH64_RELATIVE on arm64.
+    
+    Fixes #36028
+    
+    Change-Id: Ie0f4bb1d911f2e05ab46a0a0454c0f46ac01b43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210181
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 28 ++++++++++++++++++++--------
+ src/cmd/link/internal/arm64/asm.go | 25 +++++++++++++++++++------
+ 2 files changed, 39 insertions(+), 14 deletions(-)

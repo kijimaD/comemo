@@ -1,0 +1,26 @@
+commit f4d51eb2f567d12c8b908f9fe3f9650e8a175eb7
+Author: Austin Clements <austin@google.com>
+Date:   Sat May 16 21:14:37 2015 -0400
+
+    runtime: minor clean up to heapminimum
+    
+    Currently setGCPercent sets heapminimum to heapminimum*GOGC/100. The
+    real intent is to set heapminimum to a scaled multiple of a fixed
+    default heap minimum, not to scale heapminimum based on its current
+    value. This turns out to be okay because setGCPercent is only called
+    once and heapminimum is initially set to this default heap minimum.
+    However, the code as written is confusing, especially since
+    setGCPercent is otherwise written so it could be called again to
+    change GOGC. Fix this by introducing a defaultHeapMinimum constant and
+    using this instead of the current value of heapminimum to compute the
+    scaled heap minimum.
+    
+    As part of this, this commit improves the documentation on
+    heapminimum.
+    
+    Change-Id: I4eb82c73dc2eb44a6e5a17c780a747a2e73d7493
+    Reviewed-on: https://go-review.googlesource.com/10181
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

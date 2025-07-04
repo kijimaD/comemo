@@ -1,0 +1,13 @@
+commit 4f6ba4c8a58494e94c2e5f34a416312bb2d92b07
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 4 14:23:51 2008 -0700
+
+    use new export syntax to avoid repetition
+    
+    R=gri
+    OCL=13819
+    CL=13819
+
+ src/syscall/errstr_darwin.go | 113 +----------------------------------
+ src/syscall/errstr_linux.go  | 138 +------------------------------------------
+ 2 files changed, 4 insertions(+), 247 deletions(-)

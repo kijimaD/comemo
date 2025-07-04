@@ -1,0 +1,18 @@
+commit a3efb96aafc2e8d8a7c7bfc673d59158b692c355
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue May 9 16:22:09 2023 -0400
+
+    log/slog: add json struct tags to Source
+    
+    Add tags to the fields of Source that lower-cases their names for JSON.
+    The implementation still treats Source specially for performance, but
+    now the result would be identical if it did not.
+    
+    Change-Id: I5fd2e500f1a301db62af87be8b877ecd954a26ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494035
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/record.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

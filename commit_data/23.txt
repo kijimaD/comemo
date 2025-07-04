@@ -1,0 +1,12 @@
+commit 78e4320fdc3e92145d5f4a25c842adf4e3f6e0cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 11 16:40:47 2008 -0700
+
+    - changed if/switch initial stat syntax to match go compiler and make
+      it consistent
+    - changed declaration syntax to match go compiler
+    
+    SVN=112122
+
+ doc/go_lang.txt | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 60e4a61d307c0e6c32d1933fbf14cf59193349ab
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 28 12:22:15 2011 -0500
+
+    gc: don't inherit orig from subnodes in constant expression nodes.
+    
+    The wrong value made Nconv() show "1" for node "-1", and "2" from
+    node "2+3".
+    Fixes #2452.
+    
+    R=gri, lvd, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5435064
+
+ src/cmd/gc/const.c       |  5 ++++-
+ test/fixedbugs/bug379.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

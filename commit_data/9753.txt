@@ -1,0 +1,21 @@
+commit fd3978552ba514bff23ebadac6a75066c36f651d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 20 12:21:50 2011 -0400
+
+    exp/ssh: refactor halfConnection to transport
+            This CL generalises the pair of halfConnection members that the
+            serverConn holds into a single transport struct that is shared by
+            both Server and Client, see also CL 5037047.
+    
+            This CL is a replacement for 5040046 which I closed by accident.
+    
+    R=agl, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5075042
+
+ src/pkg/exp/ssh/channel.go        |  14 +--
+ src/pkg/exp/ssh/common.go         |   2 +-
+ src/pkg/exp/ssh/server.go         |  79 ++++++-------
+ src/pkg/exp/ssh/transport.go      | 232 ++++++++++++++++++++------------------
+ src/pkg/exp/ssh/transport_test.go |  37 ++++++
+ 5 files changed, 209 insertions(+), 155 deletions(-)

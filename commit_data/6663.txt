@@ -1,0 +1,15 @@
+commit 96b9efe8a96cb56be756861f337a9cfce822e25b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 29 15:07:56 2010 -0700
+
+    gob: make the debugging (dumping) code work again. Mostly rewrite it, in fact.
+    It's still not compiled in by default.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2754043
+
+ src/pkg/gob/codec_test.go |  47 ++++++++
+ src/pkg/gob/debug.go      | 286 ++++++++++++++++++++++++++++++----------------
+ src/pkg/gob/decoder.go    |   7 +-
+ 3 files changed, 239 insertions(+), 101 deletions(-)

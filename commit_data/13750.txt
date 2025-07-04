@@ -1,0 +1,12 @@
+commit 845f4d6b47895a86d2fba6e4178698612f2a54bc
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Wed Sep 5 14:53:13 2012 +1000
+
+    doc/go_spec: fix a typo
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6499075
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

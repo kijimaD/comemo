@@ -1,0 +1,31 @@
+commit e4ec30965b9ca629922e83b8d335224ae4bdf062
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 12 13:44:21 2020 -0400
+
+    cmd/link: support internal linking on darwin/arm64
+    
+    Add support of internal linking on darwin/arm64 (macOS).
+    
+    Still incomplete. Pure Go binaries work. Cgo doesn't. TLS is not
+    set up when cgo is not used (as before) (so asynchronous
+    preemption is not enabled).
+    
+    Internal linking is not enabled by default but can be requested
+    via -ldflags=-linkmode=internal.
+    
+    Updates #38485.
+    
+    Change-Id: I1e0c81b6028edcb1ac26dcdafeb9bb3f788cf732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261643
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/load/pkg.go    |  7 +++---
+ src/cmd/internal/sys/supported.go  |  2 +-
+ src/cmd/link/internal/arm64/asm.go | 49 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/arm64/obj.go |  2 +-
+ src/cmd/link/internal/ld/config.go | 13 ++++++++--
+ src/cmd/link/internal/ld/macho.go  |  8 +++----
+ src/cmd/link/internal/ld/main.go   |  2 +-
+ src/runtime/rt0_darwin_arm64.s     | 20 +++++++---------
+ 8 files changed, 79 insertions(+), 24 deletions(-)

@@ -1,0 +1,19 @@
+commit f823d305141be6b18f82c875652019eccd0c6679
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 12:48:39 2017 -0800
+
+    cmd/compile/internal/syntax: better error for malformed 'if' statements
+    
+    Use distinction between explicit and automatically inserted semicolons
+    to provide a better error message if the condition in an 'if' statement
+    is missing.
+    
+    For #18747.
+    
+    Change-Id: Iac167ae4e5ad53d2dc73f746b4dee9912434bb59
+    Reviewed-on: https://go-review.googlesource.com/36930
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 42 ++++++++++++++++++++-----------
+ test/fixedbugs/issue18747.go              | 28 +++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 15 deletions(-)

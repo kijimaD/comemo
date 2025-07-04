@@ -1,0 +1,58 @@
+commit c6d9b38dd82fea8775f1dff9a4a70a017463035d
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jan 18 02:52:08 2022 +0000
+
+    cmd/internal/obj/arm64: optimize function prologue/epilogue with STP/LDP
+    
+    In function prologue and epilogue, we save and restore FP and LR
+    registers, and adjust RSP. The current instruction sequence is as
+    follow.
+    
+    For frame size <= 240B,
+      prologue:
+        MOVD.W      R30, -offset(RSP)
+        MOVD        R29, -8(RSP)
+      epilogue:
+        MOVD        -8(RSP), R29
+        MOVD.P      offset(RSP), R30
+    
+    For frame size > 240B,
+      prologue:
+        SUB         $offset, RSP, R27
+        MOVD        R30, (R27)
+        MOVD        R27, RSP
+        MOVD        R29, -8(RSP)
+      epilogue:
+        MOVD        -8(RSP), R29
+        MOVD        (RSP), R30
+        ADD         $offset, RSP
+    
+    Each sequence uses two load or store instructions, actually we can load
+    or store two registers with one LDP or STP instruction. This CL changes
+    the sequences as follow.
+    
+    For frame size <= 496B,
+      prologue:
+        STP         (R29, R30), -(offset+8)(RSP)
+        SUB         $offset, RSP, RSP
+      epilogue:
+        LDP         -8(RSP), (R29, R30)
+        ADD         $offset, RSP, RSP
+    
+    For frame size > 496B,
+      prologue:
+        SUB         $offset, RSP, R20
+        STP         (R29, R30), -8(R20)
+        MOVD        R20, RSP
+      epilogue:
+        LDP         -8(RSP), (R29, R30)
+        ADD         $offset, RSP, RSP
+    
+    Change-Id: Ia58af85fc81cce9b7c393dc38df43bffb203baad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379075
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 188 ++++++++++++++++++++-----------------
+ 1 file changed, 100 insertions(+), 88 deletions(-)

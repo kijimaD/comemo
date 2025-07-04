@@ -1,0 +1,53 @@
+commit f8cf82f6f2de1ea91b525ca70f92b51a3df4d9df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 13:27:32 2012 -0800
+
+    go/printer: implement SourcePos mode
+    
+    If a printer is configured with the SourcePos mode
+    set, it will emit //-line comments as necessary to
+    ensure that the result - if reparsed - reflects the
+    original source position information.
+    
+    This change required a bit of reworking of the
+    output section in printer.go. Specifically:
+    
+    - Introduced new Config mode 'SourcePos'.
+    
+    - Introduced new position 'out' which tracks the
+    position of the generated output if it were read
+    in again. If there is a discrepancy between out
+    and the current AST/source position, a //line
+    comment is emitted to correct for it.
+    
+    - Lazy emission of indentation so that //line
+    comments can be placed correctly. As a result,
+    the trimmer will have to do less work.
+    
+    - Merged writeItem into writeString.
+    
+    - Merged writeByteN into writeByte.
+    
+    - Use a []byte instead of a byte.Buffer both in the
+    printer and in the trimmer (eliminates dependency).
+    
+    Also: introduced explicit printer.Mode type (in
+    sync w/ parser.Mode, scanner.Mode, etc.)
+    
+    Runs all tests. Applied gofmt to src, misc w/o changes.
+    
+    Fixes #1047.
+    Fixes #2697.
+    
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5643066
+
+ doc/go1.html                       |  20 ++++
+ doc/go1.tmpl                       |  20 ++++
+ src/cmd/cgo/godefs.go              |   2 +-
+ src/cmd/cgo/out.go                 |  17 +--
+ src/cmd/gofmt/gofmt.go             |   2 +-
+ src/pkg/go/printer/printer.go      | 234 +++++++++++++++++++++----------------
+ src/pkg/go/printer/printer_test.go | 128 +++++++++++++++++++-
+ 7 files changed, 309 insertions(+), 114 deletions(-)

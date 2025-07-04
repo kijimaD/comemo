@@ -1,0 +1,21 @@
+commit a96e73628402431bbd1d79c926e17a4895db2b7e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Aug 9 10:28:52 2024 +0200
+
+    os/user: document Current improvements
+    
+    Update #21867.
+    Update #68312.
+    Update #68647.
+    
+    Change-Id: Ic41d6747c5a54ba28c1292258aa4d318ccb9fe40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604395
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/next/6-stdlib/99-minor/os/user/21867.md | 3 +++
+ doc/next/6-stdlib/99-minor/os/user/68312.md | 6 ++++++
+ doc/next/6-stdlib/99-minor/os/user/68647.md | 3 +++
+ 3 files changed, 12 insertions(+)

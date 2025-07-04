@@ -1,0 +1,15 @@
+commit 151b2f15094168946993448f7f4a5e2a8441bd76
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 9 11:17:06 2011 +0100
+
+    gc: Fail on implicit assigment to non-exported fields in copy and append.
+    
+    Fixes #1387.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5348046
+
+ src/cmd/gc/typecheck.c   |  5 +++++
+ test/fixedbugs/bug378.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

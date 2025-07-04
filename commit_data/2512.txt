@@ -1,0 +1,12 @@
+commit 466dd8da4ebe07a78bac55bba4e640e516eca5d4
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 24 17:50:25 2009 -0700
+
+    6g crash re mail from gri jun 18.
+    
+    R=r
+    OCL=30719
+    CL=30719
+
+ src/cmd/gc/dcl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

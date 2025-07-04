@@ -1,0 +1,17 @@
+commit 26d0f75f2b1cbc58d7d8e4f835a59f311cffb77e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 16 19:26:45 2014 -0400
+
+    time: change nsec back to int32
+    
+    The garbage collector and stack scans are good enough now.
+    
+    Fixes #7446.
+    
+    LGTM=r
+    R=r, dvyukov
+    CC=golang-codereviews, mdempsky, mtj
+    https://golang.org/cl/112870046
+
+ src/pkg/time/time.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

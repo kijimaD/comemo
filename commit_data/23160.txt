@@ -1,0 +1,25 @@
+commit f90d802b6102ced82377ddc16f81f299c039ce83
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 27 15:20:49 2015 -0400
+
+    cmd/compile: avoid temporary in race mode with slice and append
+    
+    Currently when the race detector is enabled, orderexpr always creates
+    a temporary for slice and append operations. This used to be necessary
+    because the race detector had a different code path for slice
+    assignment that required this temporary. Unfortunately, creating this
+    temporary inhibits the optimization that eliminates write barriers
+    when a slice is assigned only to change its length or cap. For most
+    code, this is bad for performance, and in go:nowritebarrier functions
+    in the runtime, this can mean the difference between compiling and not
+    compiling.
+    
+    Now the race detector uses the regular slice assignment code, so
+    creating this temporary is no longer necessary.
+    
+    Change-Id: I296042e1edc571b77c407f709c2ff9091c4aa795
+    Reviewed-on: https://go-review.googlesource.com/10456
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

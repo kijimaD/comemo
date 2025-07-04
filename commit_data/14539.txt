@@ -1,0 +1,14 @@
+commit 882953f62ce8257bf063a9582b3f58ce8e1856db
+Author: Luit van Drongelen <luitvd@gmail.com>
+Date:   Sat Dec 1 15:15:14 2012 -0800
+
+    encoding/gob: Fix typo in doc.go
+    
+    Exactly how I find minute details like this is beyond me.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6842125
+
+ src/pkg/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

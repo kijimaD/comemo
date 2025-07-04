@@ -1,0 +1,22 @@
+commit 76da2780c3be87bcb18968f021545564fd1413de
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 12 11:17:24 2010 -0700
+
+    gc: less aggressive name binding, for better line numbers in errors
+    
+    Cleans up a few other corner cases too.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1592045
+
+ src/cmd/gc/dcl.c       | 24 ++++--------------------
+ src/cmd/gc/export.c    |  2 +-
+ src/cmd/gc/go.h        |  8 ++++----
+ src/cmd/gc/go.y        | 28 +++++++++++++++-------------
+ src/cmd/gc/lex.c       | 36 ++++++++++++++++++------------------
+ src/cmd/gc/subr.c      | 12 +++++++++---
+ src/cmd/gc/typecheck.c | 49 ++++++++++++++++++++++++++++++++-----------------
+ src/cmd/gc/walk.c      | 34 ++++++++++++++++++++++++++++------
+ test/undef.go          | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 155 insertions(+), 82 deletions(-)

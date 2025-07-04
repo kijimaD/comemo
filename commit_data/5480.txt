@@ -1,0 +1,14 @@
+commit 90d0c3316c1bc0f2b904e758a4446c1cd111bc63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 18 16:31:49 2010 -0700
+
+    big: bug fix for division
+    
+    Fixes #784.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1196043
+
+ src/pkg/big/nat.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

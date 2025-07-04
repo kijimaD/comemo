@@ -1,0 +1,11 @@
+commit daf1676cab3b54a4b9c2f9988e86c99d72cd7a9c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 14:48:56 2009 -0800
+
+    hgtags: add release pointing at 2009-12-09's checkin.
+    
+    R=r
+    https://golang.org/cl/170047
+
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

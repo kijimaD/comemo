@@ -1,0 +1,15 @@
+commit 9f6328633de436e42b3fe5c81cf6278d73c820a9
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 24 08:32:10 2009 -0700
+
+    Fix declared and not set errors in old ptrace package (still
+    used by ogle)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (0 added, 1 deleted, 3 changed)
+    OCL=34852
+    CL=34964
+
+ usr/austin/ptrace/ptrace_linux.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

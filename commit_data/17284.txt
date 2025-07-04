@@ -1,0 +1,14 @@
+commit b1d64f20f29be25b037e814795ef590ea61af662
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 16 13:14:13 2013 +1000
+
+    misc/dist: don't copy godoc templates to lib/godoc
+    
+    They're baked into the godoc binary now.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12751047
+
+ misc/dist/bindist.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

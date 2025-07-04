@@ -1,0 +1,24 @@
+commit f99d14e0de86bc387aef366eef122bd49086ac8c
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Sep 18 13:54:21 2017 -0400
+
+    runtime/pprof: use new profile format for block/mutex profiles
+    
+    Unlike the legacy text format that outputs the count and the number of
+    cycles, the pprof tool expects contention profiles to include the count
+    and the delay time measured in nanoseconds. printCountCycleProfile
+    performs the conversion from cycles to nanoseconds.
+    (See parseContention function in
+     cmd/vendor/github.com/google/pprof/profile/legacy_profile.go)
+    
+    Fixes #21474
+    
+    Change-Id: I8e8fb6ea803822d7eaaf9ecf1df3e236ad225a7b
+    Reviewed-on: https://go-review.googlesource.com/64410
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof.go      |  59 ++++++++---
+ src/runtime/pprof/pprof_test.go | 225 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 230 insertions(+), 54 deletions(-)

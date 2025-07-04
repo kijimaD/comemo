@@ -1,0 +1,26 @@
+commit 4918e3a960c382e673f632c57e155373c73f0c1c
+Author: Pawel Szczur <filemon@google.com>
+Date:   Mon Oct 29 17:56:31 2012 +0100
+
+    net/http/client.go: fix cookie handling on (*Client) Do()
+    
+    Fix the problem with no cookie handling when sending
+    other than GET or HEAD request through
+    (*Client) Do(*Request) (*Resposne, error).
+    https://code.google.com/p/go/issues/detail?id=3985
+    
+    Adds a function (*Client) send(*Request) (*Reponse, error):
+    - sets cookies from CookieJar to request,
+    - sends request
+    - parses a reply cookies and updates CookieJar
+    
+    Fixes #3985
+    
+    R=bradfitz
+    CC=gobot, golang-dev
+    https://golang.org/cl/6653049
+
+ src/pkg/net/http/client.go      | 50 +++++++++++++++++++----------------------
+ src/pkg/net/http/client_test.go |  4 ++++
+ src/pkg/net/http/jar.go         | 17 +++++---------
+ 3 files changed, 33 insertions(+), 38 deletions(-)

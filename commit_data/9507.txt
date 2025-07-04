@@ -1,0 +1,19 @@
+commit d130611f4514ade696ae641ce242ca32b54f34a3
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Aug 26 15:38:02 2011 -0400
+
+    net: disable "tcp" test on openbsd
+    
+    Doing a socket/listen on an unspecified address with an unspecified
+    address family is likely to result in an AF_INET6 socket on an IPv6
+    capable system, which under OpenBSD means IPv6 only - not IPv4 *and*
+    IPv6. In this case trying to connect to this socket from an IPv4
+    loopback address is not going to end well.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4807057
+
+ src/pkg/net/server_test.go   | 4 +++-
+ src/pkg/net/tcpsock_posix.go | 5 +++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

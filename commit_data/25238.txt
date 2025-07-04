@@ -1,0 +1,20 @@
+commit dcc821faf84b147cc8a887cb0e576497cfc6cbfd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 10 19:24:06 2015 -0800
+
+    misc/cgo/gmp: change pi.go to use standard Go copyright header
+    
+    This file is not part of the benchmark shootout, and we wrote it, so use
+    the usual copyright header, not a partial version of the shootout
+    license.
+    
+    Fixes #13575.
+    
+    Change-Id: Ib610e2ad82914b4ef096a2424cfffe3383db2d5b
+    Reviewed-on: https://go-review.googlesource.com/17715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/gmp/pi.go | 41 ++++-------------------------------------
+ 1 file changed, 4 insertions(+), 37 deletions(-)

@@ -1,0 +1,21 @@
+commit 04cf881fbea55d5bca584c78b15454b189af11f5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Dec 20 14:13:44 2014 -0500
+
+    misc/cgo/test: get rid of the backdoor package
+    
+    For Go 1.5, we can use go:linkname rather than assembly thunk for gc.
+    Gccgo already has support for //extern.
+    
+    Change-Id: I5505aa247dd5b555112f7261ed2f192c81cf0bdf
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1888
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/backdoor.go              | 11 +++++++++++
+ misc/cgo/test/backdoor/backdoor.go     |  7 -------
+ misc/cgo/test/backdoor/runtime_gccgo.c | 18 ------------------
+ misc/cgo/test/backdoor/thunk.s         | 17 -----------------
+ misc/cgo/test/callback.go              |  4 ----
+ 5 files changed, 11 insertions(+), 46 deletions(-)

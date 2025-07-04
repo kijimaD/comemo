@@ -1,0 +1,18 @@
+commit cbc403af1d9fa73b99cc07f80a2126771b73adfd
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Oct 29 06:51:14 2023 +0000
+
+    cmd/compile/internal/ssa: adjust default to the end in *Block.AuxIntString
+    
+    Change-Id: Id48cade7811e2dfbf78d3171fe202ad272534e37
+    GitHub-Last-Rev: ea6abb2dc216ebd4a42fc3dc25f39ea6869d2dad
+    GitHub-Pull-Request: golang/go#63808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538377
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/block.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

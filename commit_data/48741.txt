@@ -1,0 +1,32 @@
+commit 27b7b1fa19b5d8c8855859ca64b52f960a446ce7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 7 17:24:40 2022 -0500
+
+    go/doc: use go/doc/comment
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Use go/doc/comment to implement the existing go/doc comment APIs,
+    as well as adding new APIs more tailored to the new world.
+    
+    For #51082.
+    
+    Change-Id: I05b97ecedbf7cf7b8dede7ace6736ed6d89204a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384265
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next/51082.txt                |   6 +
+ src/go/build/deps_test.go         |   2 +-
+ src/go/doc/comment.go             | 543 ++++----------------------------------
+ src/go/doc/comment_test.go        | 274 ++++---------------
+ src/go/doc/doc.go                 | 132 ++++++++-
+ src/go/doc/doc_test.go            |   9 -
+ src/go/doc/reader.go              |  95 ++++++-
+ src/go/doc/synopsis.go            |  91 +++----
+ src/go/doc/synopsis_test.go       |  14 +-
+ src/go/doc/testdata/pkgdoc/doc.go |  19 ++
+ 10 files changed, 390 insertions(+), 795 deletions(-)

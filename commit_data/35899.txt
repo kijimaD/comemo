@@ -1,0 +1,18 @@
+commit f5d4863130dff38f7126df6ed6f0303a4809aa04
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Jul 6 23:39:01 2018 +0000
+
+    cmd/compile: fix a bug in 386 backend
+    
+    The ADDLmodify/SUBLmodify/ANDLmodify/ORLmodify/XORLmodify should
+    have clobberFlags set to true.
+    
+    Change-Id: Ie447d536db51334eddc70c00a722647282186a69
+    Reviewed-on: https://go-review.googlesource.com/122556
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go | 10 +++++-----
+ src/cmd/compile/internal/ssa/opGen.go      |  5 +++++
+ 2 files changed, 10 insertions(+), 5 deletions(-)

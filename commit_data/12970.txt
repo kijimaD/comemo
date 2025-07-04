@@ -1,0 +1,13 @@
+commit b28431ec8e73d5d5fc3fd6b2c7f33ecc206124b3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 26 17:39:04 2012 +1000
+
+    doc: simplify the image_draw article example for converting an image to
+    RGBA.
+    
+    R=adg, r, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/6119054
+
+ doc/progs/image_draw.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

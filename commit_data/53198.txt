@@ -1,0 +1,20 @@
+commit 5322e66a121abd65a5c19f4bdada12851e7f5857
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 11 16:09:38 2023 -0400
+
+    internal/coverage: implement conforming Seek method in slicereader
+    
+    Implement a real Seek() method in the slicereader helper (prior to
+    this it had a simplified SeekTo function), so that slicereader's will
+    satisfy the ReadSeeker interface (needed in a subsequent patch).
+    
+    Change-Id: I832e3ec1e34d0f8c6b5edf390470f6f943c6ece0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495438
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/coverage/decodemeta/decode.go       | 14 +++++++++---
+ src/internal/coverage/slicereader/slicereader.go | 29 ++++++++++++++++++++++--
+ src/internal/coverage/slicereader/slr_test.go    |  7 ++++--
+ 3 files changed, 43 insertions(+), 7 deletions(-)

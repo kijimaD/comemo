@@ -1,0 +1,16 @@
+commit 241dccc4fdaf32830fa32a38a9c7953584b57a17
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 17 15:01:55 2016 +0100
+
+    cmd/internal/browser: add chromium to the list of browsers
+    
+    Many linux distros distribute Chromium instead of Chrome.
+    
+    Change-Id: I5474d94da28a7c79bdd7181f77472d4ce73bb225
+    Reviewed-on: https://go-review.googlesource.com/29293
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/browser/browser.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

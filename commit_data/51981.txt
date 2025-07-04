@@ -1,0 +1,22 @@
+commit f0cb44a7736df649cdb5c7b3dfe8e270ae691626
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Feb 10 14:08:27 2023 -0500
+
+    cmd/trace: fix error message for bad goroutine state transition
+    
+    The error message when an invalid goroutine state transition is found in
+    a trace should show the current state, not the next state, when
+    comparing against the expected current state.
+    
+    This CL also picks up a gofmt change to the file.
+    
+    Change-Id: Ic0ce6c9ce79d8a784b73b115b5db76c311b8593d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467416
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

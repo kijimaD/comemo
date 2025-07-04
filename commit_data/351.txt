@@ -1,0 +1,16 @@
+commit fbab6ae9b56d5c735533c4425a7633f0249779b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 16:57:42 2008 -0700
+
+    - added universe, universe initialization
+    - fixed types, added missing exports, etc.
+    
+    SVN=127104
+
+ usr/gri/gosrc/globals.go  | 164 ++++++++++++++++++++++++++++++++++++++++++----
+ usr/gri/gosrc/go.go       |   6 ++
+ usr/gri/gosrc/list.go     |  93 --------------------------
+ usr/gri/gosrc/object.go   |  17 +----
+ usr/gri/gosrc/type.go     |  19 +++---
+ usr/gri/gosrc/universe.go | 148 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 318 insertions(+), 129 deletions(-)

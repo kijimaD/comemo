@@ -1,0 +1,15 @@
+commit d1a19235212d62843c17dc4f7c61d46bb1bf56ff
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 27 12:09:38 2016 +1000
+
+    doc/faq: explain the meaning of "runtime"
+    
+    This truly is a common point of confusion that deserves
+    explanation in the FAQ.
+    
+    Change-Id: Ie624e31a2042ca99626fe7570d9c8c075aae6a84
+    Reviewed-on: https://go-review.googlesource.com/28275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

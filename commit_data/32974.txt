@@ -1,0 +1,32 @@
+commit 91121ff704b937da9268ef0a7fc71c34233bbd1d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 16 09:23:45 2017 -0400
+
+    runtime: fix exit1 arguments on Darwin
+    
+    exit1 calls the bsdthread_terminate system call on Darwin. Currently
+    it passes no arguments on 386, arm, and arm64, and an exit status on
+    amd64. None of these are right. The signature of bsdthread_terminate
+    is:
+    
+    int bsdthread_terminate(user_addr_t stackaddr, size_t freesize, uint32_t port, uint32_t sem);
+    
+    Fix all of the Darwin exit1 implementations to call
+    bsdthread_terminate with 0 for all of these arguments so it doesn't
+    try to unmap some random memory, free some random port, or signal a
+    random semaphore.
+    
+    This isn't a problem in practice because exit1 is never called.
+    However, we're about to start using exit1.
+    
+    Change-Id: Idc534d196e3104e5253fc399553f21eb608693d7
+    Reviewed-on: https://go-review.googlesource.com/46036
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_darwin_386.s   | 8 +++++++-
+ src/runtime/sys_darwin_amd64.s | 9 ++++++++-
+ src/runtime/sys_darwin_arm.s   | 6 ++++++
+ src/runtime/sys_darwin_arm64.s | 6 ++++++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

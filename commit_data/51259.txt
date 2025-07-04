@@ -1,0 +1,33 @@
+commit d52883f443e1d564b0300acdd382af1769bf0477
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Nov 14 20:50:02 2022 +0000
+
+    net: use a consistent dnsConfig in hostLookupOrder
+    
+    Use the same dnsConfig throughout a DNS lookup operation.
+    Before this CL it was possible to decide to re-read a
+    modified resolv.conf file during the DNS lookup,
+    which could lead to inconsistencies between the lookup order
+    and the name server list.
+    
+    Change-Id: I0689749272b8263268d00b9a9cb4458cd68b23eb
+    GitHub-Last-Rev: 64810a22bc8a7dd5e804b5f5253d11b73942dfe3
+    GitHub-Pull-Request: golang/go#56690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449337
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf.go                |  94 +++++++++++-----------
+ src/net/conf_test.go           | 178 ++++++++++++++++++++---------------------
+ src/net/dnsclient_unix.go      |  56 +++++++------
+ src/net/dnsclient_unix_test.go |  22 +++--
+ src/net/lookup.go              |   8 +-
+ src/net/lookup_plan9.go        |  19 +++--
+ src/net/lookup_unix.go         |  18 +++--
+ src/net/lookup_windows.go      |   9 ++-
+ src/net/net_fake.go            |   2 +-
+ 9 files changed, 213 insertions(+), 193 deletions(-)

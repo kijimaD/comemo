@@ -1,0 +1,24 @@
+commit 55e7f7e12d46292e130a3b48c86bac2a6e5a1739
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 29 17:47:19 2021 -0700
+
+    cmd/compile: fix problem with methods of instantiated types which are nointerface
+    
+    In the case of a nointerface method on an instantiated type, we still
+    have to call methodWrapper, because methodWrapper generates the actual
+    generic method on the type as well. Currently, we don't call
+    methodWrapper, so the method on the instantiated type never gets filled
+    in.
+    
+    Adjusted the code to still call methodWrapper, but not use the result,
+    in the case of a nointerface method on an instantiated type.
+    
+    Change-Id: I34bca58de2861aa772be04eb8dd7695c5b7f3a77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353369
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

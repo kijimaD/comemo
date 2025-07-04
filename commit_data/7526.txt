@@ -1,0 +1,12 @@
+commit bd44684fa01601a2df6c8e260e010d3ba7859aff
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 22 15:42:10 2011 -0500
+
+    .hgignore: add *.cgo*.{c,go}
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4168059
+
+ .hgignore | 2 ++
+ 1 file changed, 2 insertions(+)

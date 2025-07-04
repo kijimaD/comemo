@@ -1,0 +1,14 @@
+commit ce5c1cf0368a7b17254086ab00134e47137ee720
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 3 07:53:50 2011 +1000
+
+    fmt: fix bug in UnreadRune: must clear memory of previous
+    rune if input implements UnreadRune; otherwise the lookahead
+    will lie.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4548082
+
+ src/pkg/fmt/scan.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

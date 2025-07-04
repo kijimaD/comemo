@@ -1,0 +1,17 @@
+commit e30ebaab0bd5d95178f77cf40998ab14a0341d17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 17:52:24 2021 -0800
+
+    spec: add section on the structure of interfaces
+    
+    This change introduces the notion of a structural interface
+    and its corresponding structural type.
+    
+    Change-Id: Ib5442dfd04cb5950b4467428cae51849f8922272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365474
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 62 insertions(+), 4 deletions(-)

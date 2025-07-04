@@ -1,0 +1,12 @@
+commit 5432b4d34616585ce5a1884aeecd0e902e1c2bff
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 28 22:55:29 2015 -0500
+
+    path/filepath: get tests working on darwin/arm
+    
+    Change-Id: Ic44d7837aaec58601e5d9cad8da5b958a809f4a0
+    Reviewed-on: https://go-review.googlesource.com/6400
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

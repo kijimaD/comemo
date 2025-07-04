@@ -1,0 +1,12 @@
+commit f78b09e6734ef69f3acfbf4defdaecc000466f6b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 11:53:37 2010 -0700
+
+    big: assembly routines for 386 long shifts
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/974043
+
+ src/pkg/big/arith_386.s | 99 +++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 67 insertions(+), 32 deletions(-)

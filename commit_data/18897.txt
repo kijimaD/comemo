@@ -1,0 +1,29 @@
+commit 1895014257138311efc6f79be93a8715f8809586
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 19 17:04:51 2014 +0400
+
+    runtime: fix stack split detection around fork
+    If runtime_BeforeFork splits stack, it will unsplit it
+    with spoiled g->stackguard. It leads to check failure in oldstack:
+    
+    fatal error: stackfree: bad fixed size
+    
+    runtime stack:
+    runtime.throw(0xadf3cd)
+    runtime.stackfree(0xc208040480, 0xfffffffffffff9dd, 0x1b00fa8)
+    runtime.oldstack()
+    runtime.lessstack()
+    
+    goroutine 311 [stack unsplit]:
+    syscall.forkAndExecInChild(0xc20802eea0, 0xc208192c00, 0x5, 0x5, 0xc208072a80, ...)
+    syscall.forkExec(0xc20802ed80, 0x54, 0xc2081ccb40, 0x4, 0x4, ...)
+    
+    Fixes #7567.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/77340045
+
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

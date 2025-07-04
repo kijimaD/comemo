@@ -1,0 +1,22 @@
+commit b4c66b176e4ae155565c6e9ad07041540081c792
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 13:45:52 2016 -0800
+
+    cmd/internal/obj/mips: add ALUI const
+    
+    Instead of abusing ALAST.
+    
+    Passes GOARCH=mips64 toolstash -cmp.
+    
+    Updates #14692.
+    
+    Change-Id: Ie85e99cf76508c1d0f5847a4157056b614fd5cc6
+    Reviewed-on: https://go-review.googlesource.com/20341
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/mips/a.out.go  |  1 +
+ src/cmd/internal/obj/mips/anames.go |  1 +
+ src/cmd/internal/obj/mips/asm0.go   | 26 +++++++++++++-------------
+ 3 files changed, 15 insertions(+), 13 deletions(-)

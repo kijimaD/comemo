@@ -1,0 +1,16 @@
+commit 3d032d765318cea13b4aaae882135381cde0c11a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Dec 18 05:05:44 2014 -0800
+
+    runtime: consolidate arch-specific signal handlers on Plan 9
+    
+    Change-Id: I4379418853c523fc9aaeb5d6f37bc96117841418
+    Reviewed-on: https://go-review.googlesource.com/1786
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/defs_plan9_386.go                 |  26 +++++
+ src/runtime/defs_plan9_amd64.go               |  34 +++++++
+ src/runtime/{os_plan9_386.go => os3_plan9.go} |  36 ++-----
+ src/runtime/os_plan9_amd64.go                 | 139 --------------------------
+ 4 files changed, 71 insertions(+), 164 deletions(-)

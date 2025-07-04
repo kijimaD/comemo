@@ -1,0 +1,16 @@
+commit 4a52038c03d13025d074dcdea54d7a21139bb3b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 10:45:49 2017 -0400
+
+    cmd/go: use objdir as consistent variable name for per-package work dir
+    
+    Before it was obj, but if you don't have everything paged in
+    that sounds a bit like an object file. Use objdir, which is more
+    clearly a directory and also matches the Action.Objdir struct field.
+    
+    Change-Id: I268042800f9ca05721814d7f18c728acb4831232
+    Reviewed-on: https://go-review.googlesource.com/56277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 156 +++++++++++++++++++-------------------
+ 1 file changed, 78 insertions(+), 78 deletions(-)

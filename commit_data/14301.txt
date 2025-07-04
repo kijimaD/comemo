@@ -1,0 +1,12 @@
+commit d659633aff6c56997e4400bce0929ffd1efefb6e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Nov 2 17:20:19 2012 +1100
+
+    image/png: update palette out-of-bounds comment.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6817070
+
+ src/pkg/image/png/reader.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

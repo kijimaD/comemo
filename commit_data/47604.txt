@@ -1,0 +1,15 @@
+commit a3b8f627c258f34325d2284ce636f8d4fb103331
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 20 14:35:02 2021 -0800
+
+    spec: add section on instantiation
+    
+    Change-Id: I2770da87b4c977b51dfa046f2f08283917675e1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365916
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ doc/go_spec.html | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 88 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 58f84fdf29ca2f014a813991cf35e52de91a43cb
+Author: Blain Smith <rebelgeek@blainsmith.com>
+Date:   Mon Jul 17 09:42:25 2017 -0600
+
+    fmt: add Stringer example
+    
+    Change-Id: I901f995f8aedee47c48252745816e53192d4b7e4
+    Reviewed-on: https://go-review.googlesource.com/49090
+    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

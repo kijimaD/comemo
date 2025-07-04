@@ -1,0 +1,10 @@
+commit 0006c83231328b65e0ced34f044a98f96ff8b269
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 17:57:31 2008 -0700
+
+    optional semi-colons
+    
+    SVN=123245
+
+ src/cmd/gc/go.y | 36 +++++++++++++++++++++++++-----------
+ 1 file changed, 25 insertions(+), 11 deletions(-)

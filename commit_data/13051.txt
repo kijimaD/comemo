@@ -1,0 +1,13 @@
+commit 38445ca08915c0fb755f9f15f99a3226ed7f45f4
+Author: Joel Sing <jsing@google.com>
+Date:   Fri May 11 03:48:16 2012 +1000
+
+    runtime: fix netbsd sigaction struct
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6198063
+
+ src/pkg/runtime/signal_netbsd_386.c   | 15 +++++++++------
+ src/pkg/runtime/signal_netbsd_amd64.c | 15 +++++++++------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

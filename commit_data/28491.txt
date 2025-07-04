@@ -1,0 +1,41 @@
+commit b4efd09d1880793e33fbb191ccfe1657bfeba0c9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Aug 25 11:07:33 2016 -0500
+
+    cmd/link: split large elf text sections on ppc64x
+    
+    Some applications built with Go on ppc64x with external linking
+    can fail to link with relocation truncation errors if the elf
+    text section that is generated is larger than 2^26 bytes and that
+    section contains a call instruction (bl) which calls a function
+    beyond the limit addressable by the 24 bit field in the
+    instruction.
+    
+    This solution consists of generating multiple text sections where
+    each is small enough to allow the GNU linker to resolve the calls
+    by generating long branch code where needed.  Other changes were added
+    to handle differences in processing when multiple text sections exist.
+    
+    Some adjustments were required to the computation of a method's address
+    when using the method offset table when there are multiple text sections.
+    
+    The number of possible section headers was increased to allow for up
+    to 128 text sections.  A test case was also added.
+    
+    Fixes #15823.
+    
+    Change-Id: If8117b0e0afb058cbc072258425a35aef2363c92
+    Reviewed-on: https://go-review.googlesource.com/27790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go   | 60 ++++++++++++++++++++++---
+ src/cmd/link/internal/ld/elf.go    | 81 ++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/lib.go    | 22 +++++++++
+ src/cmd/link/internal/ld/symtab.go | 64 +++++++++++++++++++++++++++
+ src/cmd/link/internal/ppc64/asm.go | 12 ++---
+ src/cmd/link/linkbig_test.go       | 91 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/symtab.go              | 34 +++++++++++---
+ src/runtime/type.go                | 25 ++++++++++-
+ 8 files changed, 362 insertions(+), 27 deletions(-)

@@ -1,0 +1,53 @@
+commit 6278a9549288784563bfc9dc2f94cb0031e4ab2f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 9 21:50:24 2014 -0700
+
+    net/http: don't reuse Transport connection unless Request.Write finished
+    
+    In a typical HTTP request, the client writes the request, and
+    then the server replies. Go's HTTP client code (Transport) has
+    two goroutines per connection: one writing, and one reading. A
+    third goroutine (the one initiating the HTTP request)
+    coordinates with those two.
+    
+    Because most HTTP requests are done when the server replies,
+    the Go code has always handled connection reuse purely in the
+    readLoop goroutine.
+    
+    But if a client is writing a large request and the server
+    replies before it's consumed the entire request (e.g. it
+    replied with a 403 Forbidden and had no use for the body), it
+    was possible for Go to re-select that connection for a
+    subsequent request before we were done writing the first. That
+    wasn't actually a data race; the second HTTP request would
+    just get enqueued to write its request on the writeLoop. But
+    because the previous writeLoop didn't finish writing (and
+    might not ever), that connection is in a weird state. We
+    really just don't want to get into a state where we're
+    re-using a connection when the server spoke out of turn.
+    
+    This CL changes the readLoop goroutine to verify that the
+    writeLoop finished before returning the connection.
+    
+    In the process, it also fixes a potential goroutine leak where
+    a connection could close but the recycling logic could be
+    blocked forever waiting for the client to read to EOF or
+    error. Now it also selects on the persistConn's close channel,
+    and the closer of that is no longer the readLoop (which was
+    dead locking in some cases before). It's now closed at the
+    same place the underlying net.Conn is closed. This likely fixes
+    or helps Issue 7620.
+    
+    Also addressed some small cosmetic things in the process.
+    
+    Update #7620
+    Fixes #7569
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/86290043
+
+ src/pkg/net/http/transport.go      |  88 +++++++++++++++---------
+ src/pkg/net/http/transport_test.go | 133 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 181 insertions(+), 40 deletions(-)

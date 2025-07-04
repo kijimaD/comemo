@@ -1,0 +1,15 @@
+commit 60513bf2f4c465adafe45fae639a77a2c94ac07b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 23 13:08:00 2013 -0400
+
+    cmd/ld: fix "_image_base__ not defined" problem for cmd/8l.
+    Fixes #6431.
+    
+    Change suggested by kin.wilson.za.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13314048
+
+ src/cmd/ld/pe.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 045ad5bab812657a85707e480c29de9144881be1
+Author: Koki Ide <niconegoto@yahoo.co.jp>
+Date:   Fri Feb 17 00:50:41 2017 +0900
+
+    all: fix a few typos in comments
+    
+    Change-Id: I0455ffaa51c661803d8013c7961910f920d3c3cc
+    Reviewed-on: https://go-review.googlesource.com/37043
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 +-
+ src/reflect/type.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

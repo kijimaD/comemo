@@ -1,0 +1,22 @@
+commit b37b27b595898f6c5e65e3c78d76bc50caef8622
+Author: Brian Palmer <brian@codekitchen.net>
+Date:   Fri Sep 27 14:09:11 2024 -0600
+
+    cmd/cgo: document errno value semantics
+    
+    Added a section about errno values vs normal go
+    error value semantics, and checking the return
+    value of C functions for error before looking at
+    errno.
+    
+    Fixes #63485
+    
+    Change-Id: Id0132a9f11e4127f4adc14e010b7e17f57a0f7d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616264
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/doc.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

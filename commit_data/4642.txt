@@ -1,0 +1,12 @@
+commit 1634b4236b5b8a8c940f0361f2f8b3071cd4b5c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 17:46:21 2010 -0800
+
+    time: make tick.Stop a little more robust
+    
+    R=r
+    CC=golang-dev, jackpal
+    https://golang.org/cl/186228
+
+ src/pkg/time/tick.go | 36 ++++++++++++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 6 deletions(-)

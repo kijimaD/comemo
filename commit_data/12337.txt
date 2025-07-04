@@ -1,0 +1,15 @@
+commit 5aea33742a946b177590d44e6942ff781a18f111
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 3 04:14:31 2012 +0800
+
+    ld: allow more -L options
+            Dynamically allocate the libdir array, so we won't need to bother it again.
+            Enhances CL 5727043.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5731043
+
+ src/cmd/ld/lib.c | 21 ++++++++++++++++-----
+ src/cmd/ld/lib.h |  2 +-
+ 2 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 48a14663f8066f2643d163cec88f3fd526d08e67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 12:40:45 2015 -0800
+
+    test: add test case for issue #13248
+    
+    Issue #13248 was fixed by https://go-review.googlesource.com/#/c/16930/.
+    This is the corresponding test case (original offending program).
+    
+    Change-Id: I7c99783db74a5422704409cea7e5073094beadd3
+    Reviewed-on: https://go-review.googlesource.com/16973
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ test/fixedbugs/issue13248.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

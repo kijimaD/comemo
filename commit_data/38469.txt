@@ -1,0 +1,14 @@
+commit faa7fa03b1e694258d40f8f62076dd96843b861e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:49:22 2019 +0100
+
+    cmd/internal/goobj: add XCOFF support to TestParseCGOArchive
+    
+    Change-Id: I9d14142977b4f2e8cb7ed33582249d0448bae023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164016
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/goobj/goobj_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

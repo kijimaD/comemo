@@ -1,0 +1,12 @@
+commit ddf67af01b49789974201c930a7b13993219c164
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 08:48:21 2011 +1100
+
+    doc: fix misspelt CSS properties.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5498071
+
+ doc/all.css | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

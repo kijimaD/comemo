@@ -1,0 +1,15 @@
+commit def53605418c8134880ffa3700c6a4ba6c689234
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 16:22:34 2021 -0400
+
+    doc/go1.17: add release notes for OpenBSD ports
+    
+    Updates #44513.
+    
+    Change-Id: I8758768f6231fd7fcbaa7109eb49ee56cd60d93d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321310
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

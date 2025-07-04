@@ -1,0 +1,13 @@
+commit 14e0df34fd0feab41e377964d55a23e8b4e05f4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 11 21:58:29 2010 -0700
+
+    5g, 8g: dead code (already removed from 6g)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1983041
+
+ src/cmd/5g/ggen.c | 13 ++-----------
+ src/cmd/8g/ggen.c | 14 ++------------
+ 2 files changed, 4 insertions(+), 23 deletions(-)

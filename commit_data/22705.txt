@@ -1,0 +1,28 @@
+commit 54bb4b9fd771f793c623e82afcb769068736495a
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Wed Mar 11 08:15:23 2015 +0100
+
+    crypto/x509: CertificateRequest signature verification
+    
+    This implements a method for x509.CertificateRequest to prevent
+    certain attacks and to allow a CA/RA to properly check the validity
+    of the binding between an end entity and a key pair, to prove that
+    it has possession of (i.e., is able to use) the private key
+    corresponding to the public key for which a certificate is requested.
+    
+    RFC 2986 section 3 states:
+    
+    "A certification authority fulfills the request by authenticating the
+    requesting entity and verifying the entity's signature, and, if the
+    request is valid, constructing an X.509 certificate from the
+    distinguished name and public key, the issuer name, and the
+    certification authority's choice of serial number, validity period,
+    and signature algorithm."
+    
+    Change-Id: I37795c3b1dfdfdd455d870e499b63885eb9bda4f
+    Reviewed-on: https://go-review.googlesource.com/7371
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go      | 13 ++++++++++++-
+ src/crypto/x509/x509_test.go |  6 ++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 3334eee400ad4dc202f53d3efa34fddb013f9c17
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 30 09:02:14 2018 +0200
+
+    cmd/cgo: add support for GOARCH=riscv64
+    
+    Even though GOARCH=riscv64 is not supported by gc yet, it is easy
+    to make cmd/cgo already support it.
+    
+    Together with the changes in debug/elf in CL 107339 this e.g. allows
+    to generate Go type definitions for linux/riscv64 in the
+    golang.org/x/sys/unix package without using gccgo.
+    
+    Change-Id: I6b849df2ddac56c8c483eb03d56009669ca36973
+    Reviewed-on: https://go-review.googlesource.com/110066
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

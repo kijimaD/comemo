@@ -1,0 +1,16 @@
+commit 111005d32b84929fce7b74761addec44b125d2f0
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Jun 25 11:26:10 2009 -0700
+
+    Add Gobuf.r0 that stores arg0 or return value of
+    goroutine. arm only.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=5  (3 added, 2 deleted, 0 changed)
+    OCL=30644
+    CL=30746
+
+ src/pkg/runtime/arm/asm.s | 4 ++--
+ src/pkg/runtime/runtime.h | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

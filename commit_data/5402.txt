@@ -1,0 +1,48 @@
+commit f81d471940243bf2ca0e18dd8c12c489532d9dbe
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 29 23:45:14 2010 -0700
+
+    rename GOOS=mingw to GOOS=windows
+    
+    R=rsc, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/1015043
+
+ src/cmd/8l/obj.c                                   |  2 +-
+ src/env.bash                                       |  4 +--
+ src/lib9/Makefile                                  |  2 +-
+ src/libcgo/Makefile                                |  2 +-
+ src/libcgo/{mingw_386.c => windows_386.c}          |  0
+ src/libcgo/{mingw_amd64.c => windows_amd64.c}      |  0
+ src/libmach/Makefile                               |  2 +-
+ .../debug/proc/{proc_mingw.go => proc_windows.go}  |  4 +--
+ .../{regs_mingw_386.go => regs_windows_386.go}     |  0
+ .../{regs_mingw_amd64.go => regs_windows_amd64.go} |  0
+ src/pkg/os/Makefile                                |  6 ++--
+ src/pkg/os/{dir_mingw.go => dir_windows.go}        |  0
+ src/pkg/os/{file_mingw.go => file_windows.go}      |  0
+ src/pkg/os/{stat_mingw.go => stat_windows.go}      |  0
+ src/pkg/os/{sys_mingw.go => sys_windows.go}        |  0
+ src/pkg/runtime/Makefile                           |  4 +--
+ src/pkg/runtime/mkasmh.sh                          |  2 +-
+ src/pkg/runtime/runtime.h                          |  4 +--
+ src/pkg/runtime/symtab.c                           |  4 +--
+ src/pkg/runtime/{mingw => windows}/386/defs.h      |  0
+ src/pkg/runtime/{mingw => windows}/386/rt0.s       |  2 +-
+ src/pkg/runtime/{mingw => windows}/386/signal.c    |  0
+ src/pkg/runtime/{mingw => windows}/386/sys.s       |  0
+ src/pkg/runtime/{mingw => windows}/defs.c          |  0
+ src/pkg/runtime/{mingw => windows}/mem.c           |  0
+ src/pkg/runtime/{mingw => windows}/os.h            |  4 +--
+ src/pkg/runtime/{mingw => windows}/syscall.goc     |  0
+ src/pkg/runtime/{mingw => windows}/thread.c        |  2 +-
+ .../syscall/{asm_mingw_386.s => asm_windows_386.s} |  2 +-
+ src/pkg/syscall/mkall.sh                           |  4 +--
+ .../{mksyscall_mingw.sh => mksyscall_windows.sh}   |  4 +--
+ .../{syscall_mingw.go => syscall_windows.go}       | 34 +++++++++++-----------
+ ...syscall_mingw_386.go => syscall_windows_386.go} |  0
+ ...zerrors_mingw_386.go => zerrors_windows_386.go} |  6 ++--
+ ...yscall_mingw_386.go => zsyscall_windows_386.go} |  0
+ ...zsysnum_mingw_386.go => zsysnum_windows_386.go} |  0
+ .../{ztypes_mingw_386.go => ztypes_windows_386.go} |  2 +-
+ 37 files changed, 48 insertions(+), 48 deletions(-)

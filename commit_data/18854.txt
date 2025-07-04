@@ -1,0 +1,15 @@
+commit 5daffee17fdd8c10ead83a87861d99c39f05561d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 13 13:16:02 2014 +0400
+
+    runtime: fix stack size check
+    When we copy stack, we check only new size of the top segment.
+    This is incorrect, because we can have other segments below it.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/73980045
+
+ src/pkg/runtime/stack.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

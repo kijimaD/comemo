@@ -1,0 +1,14 @@
+commit d281748a6d6ead4fa1b9d45b9a4d93dd26bd44db
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jun 22 14:08:00 2009 -0700
+
+    add arm support to mkasmh
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=30587
+    CL=30595
+
+ src/pkg/runtime/mkasmh | 5 +++++
+ 1 file changed, 5 insertions(+)

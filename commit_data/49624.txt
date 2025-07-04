@@ -1,0 +1,25 @@
+commit ac68c6c683409f98250d34ad282b9e1b0c9095ef
+Author: Julie Qiu <julieqiu@google.com>
+Date:   Thu Jun 23 23:18:56 2022 +0000
+
+    path/filepath: fix stack exhaustion in Glob
+    
+    A limit is added to the number of path separators allowed by an input to
+    Glob, to prevent stack exhaustion issues.
+    
+    Thanks to Juho Nurminen of Mattermost who reported the issue.
+    
+    Fixes CVE-2022-30632
+    Fixes #53416
+    
+    Change-Id: I1b9fd4faa85411a05dbc91dceae1c0c8eb021f07
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1498176
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417066
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/path/filepath/match.go      | 12 +++++++++++-
+ src/path/filepath/match_test.go | 10 ++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

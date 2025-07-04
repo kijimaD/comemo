@@ -1,0 +1,26 @@
+commit 07669d2737aa51107a4e54b61d6704f6ad8035b5
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Apr 7 08:01:47 2016 +0200
+
+    cmd/compile: cleanup pragcgo
+    
+    Removes dynimport, dynexport, dynlinker cases since they can not
+    be reached due to prefix check for "go:cgo_" in getlinepragma.
+    
+    Replaces the if chains for verb distinction by a switch statement.
+    Replaces fmt.Sprintf by fmt.Sprintln for string concatenation.
+    
+    Removes the more, getimpsym and getquoted functions by introducing a
+    pragmaFields function that partitions a pragma into its components.
+    
+    Adds tests for cgo pragmas.
+    
+    Change-Id: I43c7b9550feb3ddccaff7fb02198a3f994444123
+    Reviewed-on: https://go-review.googlesource.com/21607
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go      | 218 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/lex_test.go |  79 ++++++++++++
+ 2 files changed, 173 insertions(+), 124 deletions(-)

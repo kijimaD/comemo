@@ -1,0 +1,14 @@
+commit 712473612f211dba692064b4c6d7801698118930
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 02:22:08 2012 -0500
+
+    test/run: fix builders
+    
+    Let the outer environment filter down to the commands being run.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5758066
+
+ test/run.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

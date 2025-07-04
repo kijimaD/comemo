@@ -1,0 +1,20 @@
+commit aed2c06dcbc21a305fb96418a97fcd935e27272d
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Wed Sep 7 15:49:56 2011 -0400
+
+    5a, 5c, 6a, 6c, 8a, 8c: fix Windows file paths
+    
+    Verified with objdump -W.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/4974061
+
+ include/libc.h   |  2 ++
+ src/cmd/5a/lex.c | 16 ++++++++--------
+ src/cmd/5c/swt.c | 12 ++++--------
+ src/cmd/6a/lex.c | 16 ++++++++--------
+ src/cmd/6c/swt.c | 12 ++++--------
+ src/cmd/8a/lex.c | 16 ++++++++--------
+ src/cmd/8c/swt.c | 12 ++++--------
+ 7 files changed, 38 insertions(+), 48 deletions(-)

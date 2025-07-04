@@ -1,0 +1,14 @@
+commit 228f44a1f5b63233a007f52f6553df4acaa7180c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 16:29:22 2012 +1100
+
+    archive/zip: stop using encoding/binary
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5694085
+
+ src/pkg/archive/zip/reader.go |  93 +++++++++++++------------
+ src/pkg/archive/zip/struct.go |  10 ---
+ src/pkg/archive/zip/writer.go | 156 +++++++++++++++++++++++-------------------
+ 3 files changed, 131 insertions(+), 128 deletions(-)

@@ -1,0 +1,12 @@
+commit d8fc38c7b81cb81d6ddae7b61feb7d8727079deb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 13:08:35 2010 -0400
+
+    crypto/ocsp: update for asn1 change (fix build)
+    
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/2221044
+
+ src/pkg/crypto/ocsp/ocsp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

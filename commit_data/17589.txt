@@ -1,0 +1,12 @@
+commit 3714d69b1505b54683a8b28e64b8aece3796a1d2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 13 13:17:47 2013 +1000
+
+    C: Jamie Wilkinson (Googler CLA)
+    
+    R=golang-dev, dave, adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13692043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

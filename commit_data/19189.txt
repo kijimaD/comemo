@@ -1,0 +1,14 @@
+commit 6f25f1d4c901417af1da65e41992d71c30f64f8f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 22:42:24 2014 -0400
+
+    encoding/json: document Encoder will terminate each JSON value with '\n'
+    Fixes #7767.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87420043
+
+ src/pkg/encoding/json/stream.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

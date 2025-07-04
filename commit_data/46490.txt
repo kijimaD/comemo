@@ -1,0 +1,31 @@
+commit 771b8ea4f4c56b3e27351807ade7ef72c3a15750
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 23:46:47 2021 +0700
+
+    cmd/compile: fix missing markHiddenClosureDead in deadcode pass
+    
+    CL 342350 fixed panic with dead hidden closures, by marking discarded
+    hidden closure as dead, and won't compile them. However, the fix is
+    incomplete. In case the "if" or "else" block end with panic or return
+    statement:
+    
+            if true { return }
+            # All nodes starts from here are dead
+    
+    the dead nodes must be processed with markHiddenClosureDead, but they
+    are not, causing the compiler crashes.
+    
+    This CL adds that missing part.
+    
+    Fixes #48459
+    
+    Change-Id: Ibdd10a61fc6459d139bbf4a66b0893b523ac6b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350695
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/deadcode/deadcode.go |  1 +
+ test/fixedbugs/issue48459.go                  | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)

@@ -1,0 +1,18 @@
+commit eb248c4df2c2850d49b9656f6aa1e3d1d67af61b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 22:40:30 2015 -0700
+
+    runtime: require gdb version 7.9 for gdb test
+    
+    Issue 11214 reports problems with older versions of gdb.  It does work
+    with gdb 7.9 on my Ubuntu Trusty system, so take that as the minimum
+    required version.
+    
+    Fixes #11214.
+    
+    Change-Id: I61b732895506575be7af595f81fc1bcf696f58c2
+    Reviewed-on: https://go-review.googlesource.com/12626
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

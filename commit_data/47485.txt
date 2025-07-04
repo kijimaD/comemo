@@ -1,0 +1,20 @@
+commit febbef593e8d77500d0e330db91a7be1a71d05e9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 15 14:42:42 2021 -0800
+
+    doc: mention generics in release notes
+    
+    Also mention local types restriction.
+    
+    We probably want to say more at some point, this is just a
+    placeholder to start.
+    
+    Update #47631
+    
+    Change-Id: I828e451e1e8504d21cb55c7132e9cb330b160a54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364134
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.18.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,0 +1,16 @@
+commit aa63a928ea6b2fb6b2edb10fd8d98c98f20d5274
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Mon Jan 9 11:48:53 2012 -0500
+
+    gc: put limit on size of exported recursive interface
+    
+    Prevents edge-case recursive types from consuming excessive memory.
+    
+    Fixes #1909.
+    
+    R=golang-dev, lvd, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504108
+
+ src/cmd/gc/fmt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

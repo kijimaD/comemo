@@ -1,0 +1,15 @@
+commit d9da346078f4b2887c26c55cdd162b15bf8bfcc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:14:48 2012 -0500
+
+    net/http: document use of DetectContentType
+    
+    Fixes #2365.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5653070
+
+ src/pkg/net/http/server.go |  4 +++-
+ src/pkg/net/http/sniff.go  | 14 +++++++-------
+ 2 files changed, 10 insertions(+), 8 deletions(-)

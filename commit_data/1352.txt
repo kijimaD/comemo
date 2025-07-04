@@ -1,0 +1,14 @@
+commit 67a7abad7f1cfabc5715f6e47887d82186eb8d59
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 16 14:39:29 2008 -0800
+
+    clear flags so that %+v does not pass the +
+    to the first field it prints.
+    
+    R=r
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=21324
+    CL=21328
+
+ src/lib/fmt/print.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

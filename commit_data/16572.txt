@@ -1,0 +1,14 @@
+commit de316388a7fe6879fdaf0ad262c200d3810d0079
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 14 11:42:51 2013 -0700
+
+    runtime: garbage collector runs on g0 now.
+    No need to change to Grunnable state.
+    Add some more checks for Grunning state.
+    
+    R=golang-dev, rsc, khr, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10186045
+
+ src/pkg/runtime/mgc0.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 9bb40ed8ecb8e6e470c70e169cb3cecb2e9dc69a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 12:26:20 2020 -0800
+
+    math/big: update comment on Int.GCD
+    
+    Per the suggestion https://golang.org/cl/216200/2/doc/go1.14.html#423.
+    
+    Updates #28878.
+    
+    Change-Id: I654d2d114409624219a0041916f0a4030efc7573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217104
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/int.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 968e1ce1e4343235de0f753d42130f3d64034a88
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 3 13:33:18 2024 -0700
+
+    os: convert poll.ErrFileClosed to ErrClosed for Stat
+    
+    Fixes #66665
+    
+    Change-Id: I3e3b7433d245daa997d7d502c2ef8978af6664fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/os/stat_test.go | 24 ++++++++++++++++++++++++
+ src/os/stat_unix.go |  2 +-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

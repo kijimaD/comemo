@@ -1,0 +1,12 @@
+commit 85dcc34e0dad613f7f7d0915a52bdacedd570c3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 20 07:00:09 2015 -0800
+
+    doc: add FAQ entry about covariant result types
+    
+    Change-Id: If22b8f358e78deca31bd0b1a25e7966987853405
+    Reviewed-on: https://go-review.googlesource.com/17083
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

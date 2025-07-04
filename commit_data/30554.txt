@@ -1,0 +1,19 @@
+commit 61d9cd73fb3f3748be84320a4e78841c445a38f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 3 17:15:11 2017 -0800
+
+    internal/poll: only start Windows goroutines when we need them
+    
+    We don't need to start the goroutines if the program isn't going to do
+    any I/O.
+    
+    Fixes #19390.
+    
+    Change-Id: I47eef992d3ad05ed5f3150f4d6e5b3e0cb16a551
+    Reviewed-on: https://go-review.googlesource.com/37762
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

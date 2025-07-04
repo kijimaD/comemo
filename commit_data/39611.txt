@@ -1,0 +1,16 @@
+commit d9b13233378668a4fd24ac5d044e9d550cd2a8be
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Aug 20 23:30:43 2019 -0600
+
+    strconv: update documentation
+    
+    Fixes #33750.
+    Updates #31197.
+    
+    Change-Id: I26f63cef57e5f0eec85b84554c82f6d47b4f41a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191078
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/atof.go | 2 +-
+ src/strconv/atoi.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

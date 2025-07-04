@@ -1,0 +1,21 @@
+commit aa381c538af4eeaf5044ca657c5778805bed77d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 18:50:26 2023 -0700
+
+    cmd/compile/internal/types: remove Type.vargen
+    
+    The unified frontend diasmbiguates local types by putting vargen
+    directly into their symbol name instead. We no longer need a separate
+    int field for it.
+    
+    Change-Id: I556c588ed68c5e2cb324cd46abd934894b5aaef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527517
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types/fmt.go         |  8 --------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 27 +--------------------------
+ 3 files changed, 2 insertions(+), 35 deletions(-)

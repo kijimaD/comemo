@@ -1,0 +1,20 @@
+commit f300fc2d2c620feac4e7f9b6cf0125b92943d3c4
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jan 6 11:27:57 2022 +0000
+
+    runtime: crash on netbsd-arm64 when setcontext fails
+    
+    Instead of exiting with status 16962 when we fail to call SYS_setcontext
+    in sigreturn, reference a null pointer and crash. Hopefully, this will
+    enable grabbing a core dump to debug.
+    
+    Updates #42422
+    
+    Change-Id: If02c14a0a37084351f3f00db3dc9766cb68ae4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375834
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/sys_netbsd_arm64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

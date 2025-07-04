@@ -1,0 +1,23 @@
+commit e47fad515d50f685677b7418ae3fc24a0849f663
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 19 20:09:05 2023 +0000
+
+    Revert "cmd/compile/internal/gc: steps towards work-queue"
+    
+    This reverts commit CL 520611.
+    
+    Reason for revert: #62156.
+    
+    Change-Id: Iebd17bdfc00824de3d5011a74d071a41c4fa06f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521155
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/compile/internal/gc/compile.go          |  4 ++
+ src/cmd/compile/internal/gc/main.go             | 47 +++++------------------
+ src/cmd/compile/internal/gc/obj.go              | 51 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 -
+ 4 files changed, 63 insertions(+), 41 deletions(-)

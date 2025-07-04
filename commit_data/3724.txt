@@ -1,0 +1,14 @@
+commit 236a9de93f691ff77dc90cfcb1b05a7d3fe41602
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 2 13:09:31 2009 -0800
+
+    remove goroutines from template parsing.
+    fix up one usage to take advantage.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018023
+
+ src/pkg/rpc/debug.go         |  13 +-----
+ src/pkg/template/template.go | 106 ++++++++++++++++++++++++++++++-------------
+ 2 files changed, 77 insertions(+), 42 deletions(-)

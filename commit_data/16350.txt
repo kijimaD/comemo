@@ -1,0 +1,14 @@
+commit bb3a32ef6e6772ca6fefda119d0238aec6f7e585
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 20 13:27:53 2013 -0700
+
+    spec: fix language about "range" clause
+    
+    Fixes #5434.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9595044
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

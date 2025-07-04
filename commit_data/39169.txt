@@ -1,0 +1,18 @@
+commit 0c47e24df8c7066bf92a4acf96ec90f89825f2de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 14 13:38:15 2019 -0400
+
+    cmd/go: rename renamed testing import
+    
+    _go_testing is equally unlikely and much less concerning
+    than testing_xxxxxxxxxxxx if it appears in an error message
+    (as it does, for example, in https://storage.googleapis.com/go-build-log/0d543f89/linux-amd64_3467a10e.log).
+    
+    Change-Id: I45dc3ebe2d3b6c9e53273cd21782ee11a53f5edb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177197
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

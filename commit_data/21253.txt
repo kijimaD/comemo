@@ -1,0 +1,29 @@
+commit aae0f074c0b42a337b61672ee6b0fd53d4c9d3f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 13 15:55:16 2015 -0500
+
+    runtime: fix a few GC-related bugs
+    
+    1) Move non-preemption check even earlier in newstack.
+    This avoids a few priority inversion problems.
+    
+    2) Always use atomic operations to update bitmap for 1-word objects.
+    This avoids lost mark bits during concurrent GC.
+    
+    3) Stop using work.nproc == 1 as a signal for being single-threaded.
+    The concurrent GC runs with work.nproc == 1 but other procs are
+    running mutator code.
+    
+    The use of work.nproc == 1 in getfull *is* safe, but remove it anyway,
+    since it is saving only a single atomic operation per GC round.
+    
+    Fixes #9225.
+    
+    Change-Id: I24134f100ad592ea8cb59efb6a54f5a1311093dc
+    Reviewed-on: https://go-review.googlesource.com/2745
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go |  5 ++++-
+ src/runtime/mgc.go    | 35 +++++++++++++++--------------------
+ src/runtime/stack1.go | 38 +++++++++++++++++++++++---------------
+ 3 files changed, 42 insertions(+), 36 deletions(-)

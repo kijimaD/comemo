@@ -1,0 +1,17 @@
+commit 45f99d85e0d22a4414ebbdc41de843d88064f374
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 27 17:37:37 2020 -0700
+
+    runtime: avoid racing on pendingUpdates in AIX netpollBreak
+    
+    Instead of calling netpollwakeup, just do the write in netpollBreak.
+    Use the same signaling we now use in other netpollBreak instances.
+    
+    Change-Id: I53a65c22862ecc8484aee91d0e1ffb21a9e62d8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226199
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/netpoll_aix.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

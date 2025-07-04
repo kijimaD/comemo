@@ -1,0 +1,31 @@
+commit 4f04e1d99fac7abf067b6bd3a299f1fbc9a59414
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 11 11:55:27 2022 -0800
+
+    cmd/compile: remove unified IR quirks mode
+    
+    Unified IR quirks mode existed to help bootstrap unified IR by forcing
+    it to produce bit-for-bit identical output to the original gc noder
+    and typechecker. However, I believe it's far enough along now to stand
+    on its own, plus we have good test coverage of generics already for
+    -G=3 mode.
+    
+    Change-Id: I8bf412c8bb5d720eadeac3fe31f49dc73679da70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385998
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/base/debug.go          |   1 -
+ src/cmd/compile/internal/gc/main.go             |  12 -
+ src/cmd/compile/internal/noder/quirks.go        | 369 ------------------------
+ src/cmd/compile/internal/noder/reader.go        |  57 +---
+ src/cmd/compile/internal/noder/unified.go       |   6 +-
+ src/cmd/compile/internal/noder/unified_test.go  | 160 ----------
+ src/cmd/compile/internal/noder/writer.go        |  84 +-----
+ src/cmd/compile/internal/reflectdata/reflect.go |   4 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |   7 -
+ src/cmd/compile/internal/typecheck/iexport.go   |  15 +-
+ src/cmd/compile/internal/walk/closure.go        |   2 +-
+ 11 files changed, 10 insertions(+), 707 deletions(-)

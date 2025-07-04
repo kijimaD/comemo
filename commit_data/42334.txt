@@ -1,0 +1,25 @@
+commit f1ac85c8d10e16fbc07e8b7ef93aa04bdc4c67e9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 8 15:08:55 2020 -0400
+
+    cmd/internal/obj/arm64: fix 32-bit BITCON test
+    
+    The BITCON test, isbitcon, assumes 32-bit constants are expanded
+    repeatedly, i.e. by copying the low 32 bits to high 32 bits,
+    instead of zero extending. We already do such expansion in
+    progedit. In con32class when classifying 32-bit constants, we
+    should use the expanded constant, instead of zero-extending it.
+    
+    TODO: we could have better encoding for things like ANDW $-1, Rx.
+    
+    Fixes #38946.
+    
+    Change-Id: I37d0c95d744834419db5c897fd1f6c187595c926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232984
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  3 +++
+ src/cmd/internal/obj/arm64/asm7.go        | 10 +++++-----
+ 2 files changed, 8 insertions(+), 5 deletions(-)

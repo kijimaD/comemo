@@ -1,0 +1,24 @@
+commit cc0aaff40e02192356ccb65d8acf571d12f74a95
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 7 18:10:39 2018 -0400
+
+    cmd/compile: fix Wasm rule file name
+    
+    The rule generator expects the rule file name matches the arch's
+    name defined in
+    https://go.googlesource.com/go/+/b1df8d6ffa2c4c5be567934bd44432fff8f3c4a7/src/cmd/compile/internal/ssa/gen/WASMOps.go#197
+    
+    Rename the file to match. Also rename WASMOps.go for consistency.
+    
+    Fixes #25282.
+    
+    Change-Id: I35c4bb2659fe67650933eb0ebf95778974511385
+    Reviewed-on: https://go-review.googlesource.com/111975
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/{WASM.rules => Wasm.rules} | 0
+ src/cmd/compile/internal/ssa/gen/{WASMOps.go => WasmOps.go} | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

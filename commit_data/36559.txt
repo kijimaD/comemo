@@ -1,0 +1,26 @@
+commit dbd8af74723d2c98cbdcc70f7e2801f69b57ac5b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Aug 23 20:16:19 2018 -0300
+
+    runtime: add support for VDSO on ppc64x for use in walltime/nanotime
+    
+    This change adds support for VDSO on ppc64x, making it possible to
+    avoid a syscall in walltime and nanotime.
+    
+    BenchmarkClockVDSOAndFallbackPaths/vDSO-192             20000000    66.0 ns/op
+    BenchmarkClockVDSOAndFallbackPaths/Fallback-192          1000000    1456 ns/op
+    
+    Change-Id: I3373bd804b6f122961de3ae9d034e6ccf35748e6
+    Reviewed-on: https://go-review.googlesource.com/131135
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/os_linux_novdso.go   |  2 +-
+ src/runtime/sys_linux_ppc64x.s   | 94 +++++++++++++++++++++++++++++++++++-----
+ src/runtime/vdso_elf64.go        |  2 +-
+ src/runtime/vdso_in_none.go      |  2 +-
+ src/runtime/vdso_linux.go        |  7 ++-
+ src/runtime/vdso_linux_ppc64x.go | 25 +++++++++++
+ src/runtime/vdso_linux_test.go   |  2 +-
+ 7 files changed, 118 insertions(+), 16 deletions(-)

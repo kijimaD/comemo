@@ -1,0 +1,30 @@
+commit 8d88c9ae074d4128556785b7b77ef169edd97c99
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 22 20:07:58 2018 -0500
+
+    cmd/go: fix -coverpkg=all with dot imports
+    
+    If you use -coverpkg=all you get coverage for all packages in the build.
+    Go 1.9 used a global counter for all the GoCover variables, so that they
+    were distinct for the entire build. The global counter caused problems
+    with caching, so we switched to a per-package counter. But now the
+    GoCover_0 in one package may be dot-imported into another and
+    conflict with the GoCover_0 in that other package.
+    
+    Reestablish (overwhelmingly likely) global uniqueness of GoCover
+    variables by appending an _xxxxxxxxxxxx suffix, where the x's are
+    the prefix of the SHA256 hash of the import path. The point is only
+    to avoid accidents, not to defeat people determined to break the tools.
+    
+    Fixes #23432.
+    
+    Change-Id: I3088eceebbe35174f2eefe8d558b7c8b59d3eeac
+    Reviewed-on: https://go-review.googlesource.com/89135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                       | 10 ++++++++++
+ src/cmd/go/internal/test/test.go            | 11 ++++++++++-
+ src/cmd/go/testdata/src/coverdot1/p.go      |  3 +++
+ src/cmd/go/testdata/src/coverdot2/p.go      |  5 +++++
+ src/cmd/go/testdata/src/coverdot2/p_test.go |  7 +++++++
+ 5 files changed, 35 insertions(+), 1 deletion(-)

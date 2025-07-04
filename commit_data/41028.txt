@@ -1,0 +1,19 @@
+commit 4b4370066f97ac40a4f095ca56a7b21a375aa5aa
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Dec 28 14:45:35 2019 +0100
+
+    syscall: use fcntl64 on 32-bit GNU/Linux systems
+    
+    Use fcntl64Syscall in forkAndExecInChild1 to get fcntl64 on 32-bit Linux
+    systems.
+    
+    Updates #36211
+    
+    Change-Id: Id0e34359256beace970e72102fdace7a987ff2b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212598
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

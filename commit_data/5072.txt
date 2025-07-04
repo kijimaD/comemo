@@ -1,0 +1,12 @@
+commit 7f7751837c2072ed14812b75e39e355b03ef2eac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 14:09:17 2010 -0700
+
+    go/doc cleanup: remove some unnecessary string conversions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/642041
+
+ src/pkg/go/doc/doc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

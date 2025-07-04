@@ -1,0 +1,12 @@
+commit a1731ac078c498ca11112b53d27a64d933bfe7bb
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Tue Dec 31 21:18:40 2013 +1100
+
+    container/ring: add test for Move with empty Ring
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/46630044
+
+ src/pkg/container/ring/ring_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,26 @@
+commit a8e4ed6a3dd4a2e555d2f355af018c7ac5b8fbea
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 21:07:26 2009 -0700
+
+    8g: 64-bit arithmetic and assorted bug fixes;
+    can run 64-bit sieve and powser.
+    interfaces are limping along.
+    next hurdle is floating point.
+    
+    R=ken
+    OCL=29418
+    CL=29423
+
+ src/cmd/8g/cgen.c         | 302 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/8g/gg.h           |   2 +-
+ src/cmd/8g/ggen.c         | 126 ++++++++++++++++++-
+ src/cmd/8g/gsubr.c        |  38 ++++--
+ src/cmd/gc/builtin.c.boot |   4 +
+ src/cmd/gc/dcl.c          |   4 +-
+ src/cmd/gc/subr.c         |  64 +++++-----
+ src/cmd/gc/sys.go         |   6 +
+ src/cmd/gc/walk.c         |  29 +++++
+ src/runtime/386/closure.c |   7 +-
+ src/runtime/386/vlrt.c    |  24 ++++
+ src/runtime/Makefile      |   3 +
+ 12 files changed, 557 insertions(+), 52 deletions(-)

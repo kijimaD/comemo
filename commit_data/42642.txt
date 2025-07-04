@@ -1,0 +1,33 @@
+commit 027d7241ce050d197e7fabea3d541ffbe3487258
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Aug 4 11:45:32 2020 -0400
+
+    encoding/binary: read at most MaxVarintLen64 bytes in ReadUvarint
+    
+    This CL ensures that ReadUvarint consumes only a limited
+    amount of input (instead of an unbounded amount).
+    
+    On some inputs, ReadUvarint could read an arbitrary number
+    of bytes before deciding to return an overflow error.
+    After this CL, ReadUvarint returns that same overflow
+    error sooner, after reading at most MaxVarintLen64 bytes.
+    
+    Fix authored by Robert Griesemer and Filippo Valsorda.
+    
+    Thanks to Diederik Loerakker, Jonny Rhea, Raúl Kripalani,
+    and Preston Van Loon for reporting this.
+    
+    Fixes #40618
+    Fixes CVE-2020-16845
+    
+    Change-Id: Ie0cb15972f14c38b7cf7af84c45c4ce54909bb8f
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/812099
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247120
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/encoding/binary/varint.go      |  5 +++--
+ src/encoding/binary/varint_test.go | 18 ++++++++++++------
+ 2 files changed, 15 insertions(+), 8 deletions(-)

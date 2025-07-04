@@ -1,0 +1,13 @@
+commit 8ce468ea2f967b4ae68ed49c329a29016e3f4b6d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 26 14:40:34 2009 -0700
+
+    Restore comment line accidentally dropped in CL 33097.
+    
+    R=rsc
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=33891
+    CL=33891
+
+ src/pkg/reflect/value.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,36 @@
+commit 1409c28707264cd9e30082920da772b841f2bc9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 18 12:29:04 2017 -0400
+
+    cmd/go: rename .o files going into final .a
+    
+    CL 64793 removed the collect step, which took all
+    the generated .o files and merged them into a single _all.o.
+    Now the generated .o files all go directly into the final .a.
+    
+    The only property of the _all.o approach that was lost
+    in CL 64793 was that before we could be sure that the
+    one name we used was "ar-compatible", that is, short
+    enough not to be truncated.
+    
+    Now that the generated .o files are being kept directly,
+    this CL gives them guaranteed ar-compatible names.
+    
+    This doesn't matter for nearly all uses today, but for some
+    future processing it might help not to lose the .o suffix
+    or not to end up with two identical entries with truncated
+    names.
+    
+    I might not have bothered with this except that it's what's
+    leftover after syncing my own CL disabling _all.o
+    (necessary for reproducible builds on macOS) against
+    Ian's CL 64793, which landed first.
+    
+    Change-Id: Ic86ed2a51432a5a4c58dc523e092a86d341f1997
+    Reviewed-on: https://go-review.googlesource.com/67250
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit fcdffb3f334ae4bfa5fda2c01b3cc51c3c4e5715
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 14:12:01 2014 -0500
+
+    cmd/ld: support 2 byte relocations
+    
+    ppc64 has a bunch of these.
+    
+    Change-Id: I3b93ed2bae378322a8dec036b1681e520b56ff53
+    Reviewed-on: https://go-review.googlesource.com/2003
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/ld/data.c  | 9 +++++++++
+ src/cmd/ld/ldelf.c | 2 ++
+ 2 files changed, 11 insertions(+)

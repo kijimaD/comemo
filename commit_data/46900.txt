@@ -1,0 +1,27 @@
+commit 3da0ff8e3b05333c378efe17585609598692791e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 14 16:47:47 2021 -0700
+
+    cmd/go: don't stamp build or vcs info for GOROOT binaries
+    
+    Fixes a test failure in cmd/go TestScript/mod_outside.
+    
+    make.bash (cmd/dist) builds everything with -gcflags=all= -ldflags=all=
+    by default. If those no-op flags aren't used, all GOROOT binaries
+    appear stale.
+    
+    It's likely safe to omit those flags in cmd/dist if they're
+    empty. Checking out a new commit in GOROOT would always cause
+    staleness since the VCS info would change.
+    
+    For #37475
+    
+    Change-Id: Ic9aa0f3b7318e05fbb2f7d2c008ad07a4c61952f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356014
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

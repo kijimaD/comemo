@@ -1,0 +1,17 @@
+commit 59914723df0b120961477040673c21bc88378f92
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 18:38:30 2009 -0700
+
+    declared and not used error, but disabled.
+    fix some bugs involving _.
+    
+    R=ken
+    OCL=34621
+    CL=34621
+
+ src/cmd/gc/gen.c       | 10 +++++++---
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/go.y        |  2 ++
+ src/cmd/gc/typecheck.c | 10 +++++++---
+ src/cmd/gc/walk.c      |  3 +++
+ 5 files changed, 20 insertions(+), 6 deletions(-)

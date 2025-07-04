@@ -1,0 +1,25 @@
+commit 363459479014bde19e83d9fb6781310f63fb0b45
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Nov 10 12:56:40 2021 -0500
+
+    runtime: start ARM atomic kernel helper traceback in caller
+    
+    Like the VDSO, we cannot directly traceback from the Linux kernel ARM
+    atomic/barrier helpers. However, unlike the VDSO, this functions are
+    extremely simple. Neither of the functions we use, kuser_cmpxchg and
+    kuser_memory_barrier, touch SP or LR.
+    
+    We can use this to our advantage to read LR and simply start tracebacks
+    in the caller.
+    
+    Fixes #49182
+    
+    Change-Id: I890edbeb7c128938000fe7baf6f913c02a956edd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362977
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/traceback.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

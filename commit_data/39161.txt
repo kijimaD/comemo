@@ -1,0 +1,27 @@
+commit ab242dcbc92803788b135816823536c4007137e3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 7 17:56:49 2019 +1000
+
+    syscall: implement rawVforkSyscall for linux/ppc64x and linux/s390x
+    
+    This allows the use of CLONE_VFORK and CLONE_VM for fork/exec, preventing
+    "fork/exec ...: cannot allocate memory" failures from occuring when attempting
+    to execute commands from a Go process that has a large memory footprint.
+    Additionally, this should reduce the latency of fork/exec on these platforms.
+    
+    The same problem was addressed on linux/amd64 via issue #5838.
+    
+    Updates #31936
+    
+    Change-Id: I7ae0fbbeaa29cab944a49a11272a380d497eb2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_linux_ppc64x.s      | 20 ++++++++++++++++++++
+ src/syscall/asm_linux_s390x.s       | 21 +++++++++++++++++++++
+ src/syscall/exec_linux.go           |  4 +++-
+ src/syscall/syscall_linux_ppc64x.go |  4 +---
+ src/syscall/syscall_linux_s390x.go  |  4 +---
+ 5 files changed, 46 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 5d414d180bfb631d3835f819f7f524ec271f11eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 19 18:09:30 2021 -0700
+
+    cmd/compile/internal/types2: more detailed error messages for generic conversions
+    
+    - slightly refactor convertibleTo and convertibleToImpl
+    - provide ability to return a conversion failure cause
+    - add detailed cause for generic conversions
+    
+    For #47150.
+    
+    Change-Id: Ie97d89be0234414ef4df22a6920e18acc944a102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357249
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go             |  2 +-
+ src/cmd/compile/internal/types2/conversions.go     | 84 ++++++++++++++--------
+ src/cmd/compile/internal/types2/operand.go         |  1 +
+ .../types2/testdata/examples/conversions.go2       | 22 +++---
+ 4 files changed, 67 insertions(+), 42 deletions(-)

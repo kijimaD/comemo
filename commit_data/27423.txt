@@ -1,0 +1,28 @@
+commit f962e6e0e21b9e73981e6cf2407ea01fce04b989
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 00:35:43 2016 +0000
+
+    net/http: add test confirming a connection reuse case
+    
+    Verify that for a server doing chunked encoding, with the final data
+    and EOF arriving together, the client will reuse the connection even
+    if it closes the body without seeing an EOF. The server sends at least
+    one non-zero chunk and one zero chunk. This verifies that the client's
+    bufio reading reads ahead and notes the EOF, so even if the JSON
+    decoder doesn't read the EOF itself, as long as somebody sees it, a
+    close won't forcible tear down the connection. This was true at least
+    of https://golang.org/cl/21291
+    
+    No code change. Test already passed (even with lots of runs, including
+    in race mode with randomized goroutine scheduling).
+    
+    Updates #15703
+    
+    Change-Id: I2140b3eec6b099b6b6e54f153fe271becac5d949
+    Reviewed-on: https://go-review.googlesource.com/23200
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

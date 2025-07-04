@@ -1,0 +1,22 @@
+commit a99ff24a26939f30440dd0f06dce426ed5e638ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 3 18:33:45 2021 -0800
+
+    cmd/compile/internal/syntax: print type parameters and type lists
+    
+    types2 uses the syntax printer to print expressions (for tracing
+    or error messages), so we need to (at least) print type lists in
+    interfaces.
+    
+    While at it, also implement the printing of type parameter lists.
+    
+    Fixes #44766.
+    
+    Change-Id: I36a4a7152d9bef7251af264b5c7890aca88d8dc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298549
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/printer.go      | 57 +++++++++++++++++++------
+ src/cmd/compile/internal/syntax/printer_test.go | 37 +++++++++++++++-
+ 2 files changed, 79 insertions(+), 15 deletions(-)

@@ -1,0 +1,19 @@
+commit cea365ddfb21ba0538072068a39c358733956ffa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 17:07:28 2024 +0000
+
+    internal/concurrent: remove dependency on math/rand/v2
+    
+    This change uses linkname for the one random function
+    internal/concurrent needs to avoid taking a dependency on math/rand/v2.
+    This lowers the bar to using this package.
+    
+    Change-Id: I9dba1121b66ba35f56521643937f220936ea5321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594057
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/go/build/deps_test.go              | 6 ++----
+ src/internal/concurrent/hashtriemap.go | 9 +++++++--
+ 2 files changed, 9 insertions(+), 6 deletions(-)

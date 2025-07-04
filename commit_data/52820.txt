@@ -1,0 +1,27 @@
+commit 3c46d8f5119475adbadb6141acd463b910c1747b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 17 11:33:28 2023 -0600
+
+    cmd/link: load external ELF PPC64 objects which set st_other=1
+    
+    This indicates the symbol does not use or preserve the TOC pointer in
+    R2. Likewise, it does not have a distinct local entry point. This
+    happens when gcc compiles an object with -mcpu=power10.
+    
+    Recycle the SymLocalentry field of a text symbol to pass through this
+    hint as the bogus value 1 (A valid offset must be a multiple of 4
+    bytes), and update the usage to check and generate errors further into
+    the linking process. This matches the behavior of st_other as used by
+    ELFv2.
+    
+    Change-Id: Ic89ce17b57f400ab44213b21a3730a98c7cdf842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490295
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 12 ++++++++++--
+ src/cmd/link/internal/loader/loader.go |  3 +++
+ src/cmd/link/internal/ppc64/asm.go     | 12 ++++++++++--
+ 3 files changed, 23 insertions(+), 4 deletions(-)

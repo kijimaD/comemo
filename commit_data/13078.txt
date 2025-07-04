@@ -1,0 +1,14 @@
+commit ab708e357889a070247f8788c56680ff6684c142
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 16 14:54:48 2012 +1000
+
+    doc/install: document minimum system requirements
+            Partly copied from CL 5685076.
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/6112064
+
+ doc/install.html | 26 ++++++++++++++++++++++++++
+ doc/style.css    |  1 +
+ 2 files changed, 27 insertions(+)

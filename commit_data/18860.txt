@@ -1,0 +1,18 @@
+commit 4c6d2d6aa8aff8876a511882dd2a1facf4965667
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 13 14:04:29 2014 -0700
+
+    debug/macho: handle missing __debug_str section
+    
+    debug/elf does the same thing, use []byte{} for
+    any missing sections.
+    
+    Fixes #7510
+    
+    LGTM=rsc
+    R=golang-codereviews, iant
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/75230043
+
+ src/pkg/debug/macho/file.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

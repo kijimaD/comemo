@@ -1,0 +1,20 @@
+commit d32133af7791325afd30ba999c2e11bf5c82b6f6
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 31 09:55:14 2024 -0400
+
+    cmd/compile: fix order of map iteration in deadlocals
+    
+    This makes builds reproducible again.
+    
+    Fixes #68672
+    Updates #65158
+    
+    Change-Id: I260180f52e992c702ab89050deb6484087ae265f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/deadlocals/deadlocals.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

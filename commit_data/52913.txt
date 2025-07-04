@@ -1,0 +1,26 @@
+commit 3e35df5edbb02ecf8efd6dd6993aabd5053bfc66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 5 09:29:34 2023 -0400
+
+    internal/testenv: reduce init-time work for MustHaveExec
+    
+    In CL 486275 I added a somewhat complex init function that sets up a
+    callback to probe for exec support. A lot of the complexity was simply
+    to avoid an unnecessary call to os.Environ during init.
+    
+    In CL 491660, I made the os.Environ call unconditional on all
+    platforms anyway in order to make HasGoBuild more robust.
+    
+    Since the init-function indirection no longer serves a useful purpose,
+    I would like to simplify it to a package-level function, avoiding the
+    complexity of changing package variables at init time.
+    
+    Change-Id: Ie0041d52cbde06ff14540192c8fba869a851158e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492977
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/testenv/exec.go | 35 +++++++++++++++--------------------
+ 1 file changed, 15 insertions(+), 20 deletions(-)

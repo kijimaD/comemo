@@ -1,0 +1,16 @@
+commit a7fe1f1612051f683971d3fb22341c6f63c25033
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sun Jul 20 13:14:53 2014 +0300
+
+    build: be verbose when running tests on Plan 9
+    
+    This is a temporary change to see how far the
+    builder gets when it times out.
+    
+    LGTM=aram, 0intro
+    R=0intro, aram
+    CC=golang-codereviews, mischief
+    https://golang.org/cl/111400043
+
+ src/run.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

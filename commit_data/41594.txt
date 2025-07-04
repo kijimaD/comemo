@@ -1,0 +1,22 @@
+commit 92d1fb7cb45fea67584c48ba590a4158864029b7
+Author: Nathan Fiscaletti <nathan.fiscaletti@vrazo.com>
+Date:   Tue Mar 10 00:22:01 2020 +0000
+
+    cmd/cgo: updated exported function parameter names
+    
+    Functions that are exported through cgo will now retain their
+    parameter names provided that their parameter names use only
+    ASCII characters.
+    
+    Fixes #37746
+    
+    Change-Id: Ia5f643e7d872312e81c224febd1f81ce14425c32
+    GitHub-Last-Rev: 220959bebae7d654d96530498f40e3a2abe95080
+    GitHub-Pull-Request: golang/go#37750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222619
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

@@ -1,0 +1,27 @@
+commit 717d37591d9d446007b830c70ff74d8f8dca13d9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 18 20:14:29 2017 -0400
+
+    cmd/compile: allow duplicate DWARF producer symbols
+    
+    When building test binaries, we build one archive with all of the test
+    sources and a second archive with the generated test package main and
+    link them together. If the test sources are themselves in package main
+    and the test was compiled with non-default compiler flags, then both
+    archives will contain a go.cuinfo.producer.main symbol, leading to a
+    duplicate symbol failure.
+    
+    This has been causing test build failures on darwin-arm-a1428ios,
+    darwin-arm64-a1549ios, linux-amd64-noopt, android-arm-wiko-fever, and
+    android-arm64-wiko-fever since CL 71430 added this symbol. This CL
+    should fix the build.
+    
+    Change-Id: I69051c846e7c0d97395a865a361cae07f411f9ad
+    Reviewed-on: https://go-review.googlesource.com/71771
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

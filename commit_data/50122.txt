@@ -1,0 +1,25 @@
+commit f64f12f0b32eba7d49c259480e0fa0c79eb47600
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 9 13:02:57 2022 -0700
+
+    crypto/x509: don't panic marshaling invalid ECDSA keys
+    
+    MarshalPKIXPublicKey, CreateCertificate, CreateCertificateRequest,
+    MarshalECPrivateKey, and MarshalPKCS8PrivateKey started raising a panic
+    when encoding an invalid ECDSA key in Go 1.19. Since they have an error
+    return value, they should return an error instead.
+    
+    Fixes #54288
+    
+    Change-Id: Iba132cd2f890ece36bb7d0396eb9a9a77bdb81df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422298
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/x509/sec1.go      |  3 +++
+ src/crypto/x509/x509.go      |  5 ++++-
+ src/crypto/x509/x509_test.go | 14 ++++++++++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

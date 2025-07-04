@@ -1,0 +1,29 @@
+commit 9f98e49825e38267dc5e91b827cb1db3291ff3bb
+Author: Evgeniy Polyakov <zbr@ioremap.net>
+Date:   Thu Apr 20 16:51:36 2017 +0300
+
+    runtime: make time correctly update on Wine
+    
+    Implemented low-level time system for windows on hardware (software),
+    which does not support memory mapped _KSYSTEM_TIME page update.
+    
+    In particular this problem exists on Wine where _KSYSTEM_TIME
+    only contains time at the start, and is never modified.
+    
+    On start we try to detect Wine and if it's so we fallback to
+    GetSystemTimeAsFileTime() for current time and a monotonic
+    timer based on QueryPerformanceCounter family of syscalls:
+    https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
+    
+    Fixes #18537
+    
+    Change-Id: I269d22467ed9b0afb62056974d23e731b80c83ed
+    Reviewed-on: https://go-review.googlesource.com/35710
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_windows.go       | 83 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/sys_windows_386.s   | 12 +++++-
+ src/runtime/sys_windows_amd64.s | 10 +++++
+ 3 files changed, 102 insertions(+), 3 deletions(-)

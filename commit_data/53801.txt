@@ -1,0 +1,20 @@
+commit b656fa33123709b381f688c92b7421b43d877715
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Jul 1 14:01:23 2023 +0000
+
+    cmd/internal/goobj: use unsafe.String in toString func
+    
+    Change-Id: I93a5e0996e48cc74e6b2e39c3a4c7aa68fd6a3a0
+    GitHub-Last-Rev: afd8feb0deac34f671e0ed11ad55f6be427bd8b1
+    GitHub-Pull-Request: golang/go#61137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507517
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/goobj/objfile.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

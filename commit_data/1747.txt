@@ -1,0 +1,13 @@
+commit 8ba287585a2486132c604981ed1c549d24b9feed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 21:30:07 2009 -0800
+
+    sync: add documentation
+    
+    R=r
+    DELTA=63  (57 added, 1 deleted, 5 changed)
+    OCL=25727
+    CL=25727
+
+ src/lib/sync/mutex.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 62 insertions(+), 6 deletions(-)

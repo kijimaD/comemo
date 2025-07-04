@@ -1,0 +1,43 @@
+commit ff052737a946b5f9381dc054d61857ee4d500899
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 28 20:59:47 2020 -0400
+
+    cmd/go/internal/modload: allow 'go get' to use replaced versions
+    
+    'go mod tidy' has been able to use replaced versions since CL 152739,
+    but 'go get' failed for many of the same paths. Now that we are
+    recommending 'go get' more aggressively due to #40728, we should make
+    that work too.
+    
+    In the future, we might consider factoring out the new replacementRepo
+    type so that 'go list' can report the new versions as well.
+    
+    For #41577
+    For #41416
+    For #37438
+    Updates #26241
+    
+    Change-Id: I9140c556424b584fdd9bdd0a747842774664a7d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258220
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/repo.go               |   9 +
+ src/cmd/go/internal/modget/get.go                  |  17 +
+ src/cmd/go/internal/modget/mvs.go                  |   2 +-
+ src/cmd/go/internal/modload/import.go              |  93 ++--
+ src/cmd/go/internal/modload/modfile.go             |  54 +-
+ src/cmd/go/internal/modload/query.go               | 546 +++++++++++++++------
+ src/cmd/go/internal/modload/query_test.go          |  22 +-
+ src/cmd/go/testdata/script/mod_build_info_err.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt    | 110 +++++
+ src/cmd/go/testdata/script/mod_list_retract.txt    |   4 +-
+ src/cmd/go/testdata/script/mod_replace_import.txt  |   7 +-
+ .../go/testdata/script/mod_replace_readonly.txt    |  36 ++
+ src/cmd/go/testdata/script/mod_retract_replace.txt |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |   2 +-
+ 14 files changed, 676 insertions(+), 230 deletions(-)

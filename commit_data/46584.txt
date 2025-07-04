@@ -1,0 +1,18 @@
+commit d4139083204ab83778ad4ea575fb8370a14d7b7b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Sep 22 02:46:00 2021 +1000
+
+    test/codegen: add shift tests for RISCV64
+    
+    Add tests for shift by constant, masked shifts and bounded shifts. While here,
+    sort tests by architecture and keep order of tests consistent (lsh, rshU, rsh).
+    
+    Change-Id: I512d64196f34df9cb2884e8c0f6adcf9dd88b0fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351289
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ test/codegen/shift.go | 120 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 92 insertions(+), 28 deletions(-)

@@ -1,0 +1,29 @@
+commit 31d13f479a19ca6e07ad60c441298c6eca04eeb2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 8 20:09:48 2016 -0800
+
+    cmd/compile: don't use PPARAMOUT names for temps
+    
+    The location of VARDEFs is incorrect for PPARAMOUT variables
+    which are also used as temporary locations.  We put in VARDEFs
+    when setting the variable at return time, but when the location
+    is also used as a temporary the lifetime values are wrong.
+    
+    Fix copyelim to update the names map properly.  This is a
+    real name bug fix which, as a result, allows me to
+    write a reasonable test to trigger the PPARAMOUT bug.
+    
+    This is kind of a band-aid fix for #14591.  A more pricipled
+    fix (which allows values to be stored in the return variable
+    earlier than the return point) will be harder.
+    
+    Fixes #14591
+    
+    Change-Id: I7df8ae103a982d1f218ed704c080d7b83cdcfdd9
+    Reviewed-on: https://go-review.googlesource.com/20457
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go       |  5 +++++
+ src/cmd/compile/internal/ssa/copyelim.go |  2 +-
+ test/fixedbugs/issue14591.go             | 38 ++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)

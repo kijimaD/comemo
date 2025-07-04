@@ -1,0 +1,23 @@
+commit 4de1d1d5cde4424d9361be516e4db4d7e76dd1f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 3 10:33:11 2018 -0800
+
+    spec: consistently use "element" rather than "value" for map entry values
+    
+    The spec refers to a map's key and element types; thus the respective
+    values are "keys" and "elements". Also, a map value is the value of
+    the entire map.
+    
+    Similar fix for channels, where appropriate.
+    
+    Fixes #23254.
+    
+    Change-Id: I6f03ea6d86586c7b0b3e84f0c2e9446b8109fa53
+    Reviewed-on: https://go-review.googlesource.com/85999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

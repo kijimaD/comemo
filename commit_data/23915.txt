@@ -1,0 +1,19 @@
+commit 80e6d638bf309181eadcb3fecbe99d2d8518e364
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 14:05:04 2015 +0000
+
+    encoding/json: revert "fix decoding of JSON null values"
+    
+    Fixes #11912.
+    Fixes #11937.
+    
+    This reverts commit 1a99ba55df902a2657d1ccfc52a60024c22dba98.
+    
+    Change-Id: I32b76053fdabc59f28ca5bedf1b15c0baa8afae1
+    Reviewed-on: https://go-review.googlesource.com/12893
+    Reviewed-by: Didier Spezia <didier.06@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 76 +---------------------------------------
+ 2 files changed, 2 insertions(+), 76 deletions(-)

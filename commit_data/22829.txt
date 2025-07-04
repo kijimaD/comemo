@@ -1,0 +1,23 @@
+commit 80cedf3e8f912d7d7defd8e0495c6fd67d229555
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Fri May 1 18:20:31 2015 +0000
+
+    text/template: detect unmatched else at parsing time
+    
+    An unmatched {{else}} should trigger a parsing error.
+    
+    The top level parser is able to issue an error in case
+    of unmatched {{end}}. It does it a posteriori (i.e. after having
+    parsed the action).
+    
+    Extend this behavior to also check for unmatched {{else}}
+    
+    Fixes #10611
+    
+    Change-Id: I1d4f433cc64e11bea5f4d61419ccc707ac01bb1d
+    Reviewed-on: https://go-review.googlesource.com/9620
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/parse/parse.go      | 7 ++++---
+ src/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

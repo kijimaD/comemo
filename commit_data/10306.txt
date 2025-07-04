@@ -1,0 +1,18 @@
+commit d5a5855ba19fad0e3b237c5c77c5575af1690d92
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 9 11:27:27 2011 +0100
+
+    gc: Preserve original blank name for .anon substitution on out params.
+    
+    Fixes #1802.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5364043
+
+ src/cmd/gc/dcl.c                 |  9 +++++----
+ src/cmd/gc/fmt.c                 | 28 +++++++++++++++++++++-------
+ test/fixedbugs/bug377.dir/one.go |  6 ++++++
+ test/fixedbugs/bug377.dir/two.go |  4 ++++
+ test/fixedbugs/bug377.go         |  9 +++++++++
+ 5 files changed, 45 insertions(+), 11 deletions(-)

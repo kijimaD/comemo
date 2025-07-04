@@ -1,0 +1,17 @@
+commit 5dd9d582f175701fbf461c2e5ca6bbb1021cbd25
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 2 11:54:24 2014 +1000
+
+    time: update generated zoneinfo_abbrs_windows.go
+    
+    The file in repo has been updated recently, but all these changes
+    are gone off the web site now. It seems web site gets updated once
+    in a while, so we'll update our file occasionally.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/140780043
+
+ src/pkg/time/zoneinfo_abbrs_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit b3309877114d1953f47f484101a9d2e317e5c6ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 18:57:19 2016 +0000
+
+    cmd/compile: fix old comment references to go.y
+    
+    Change-Id: Iec323998133ef20ff962f06a46d15dd342a82f5f
+    Reviewed-on: https://go-review.googlesource.com/20390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  3 +--
+ src/cmd/compile/internal/gc/bimport.go | 44 +++++++++++++++++-----------------
+ 2 files changed, 23 insertions(+), 24 deletions(-)

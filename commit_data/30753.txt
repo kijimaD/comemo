@@ -1,0 +1,20 @@
+commit ee272bbf36afa97b51669e1e8d1aed4fcb7013ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 12:14:16 2017 -0700
+
+    cmd/compile/internal/gc: export interface embedding information
+    
+    Fixes #16369.
+    
+    Change-Id: I23f8c36370d0da37ac5b5126d012d22f78782782
+    Reviewed-on: https://go-review.googlesource.com/38392
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go        | 68 ++++++++++++---------------
+ src/cmd/compile/internal/gc/bimport.go        | 19 ++++----
+ src/go/internal/gcimporter/bimport.go         |  9 ++--
+ src/go/internal/gcimporter/gcimporter_test.go |  2 +-
+ test/fixedbugs/issue16369.go                  |  4 +-
+ 5 files changed, 50 insertions(+), 52 deletions(-)

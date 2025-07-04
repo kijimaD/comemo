@@ -1,0 +1,14 @@
+commit 66fa4fc8b9feb7f636955e630977b8862c0862aa
+Author: Guilherme Rezende <guilhermebr@gmail.com>
+Date:   Mon Sep 4 09:28:27 2017 -0300
+
+    net/http: use canonicalAddr on shouldCopyHeaderOnRedirect
+    
+    Change-Id: Ic3f7f575d3640706adb7d64545ed8027add6c58f
+    Reviewed-on: https://go-review.googlesource.com/61350
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/client.go      | 12 ++----------
+ src/net/http/client_test.go |  8 ++++++--
+ 2 files changed, 8 insertions(+), 12 deletions(-)

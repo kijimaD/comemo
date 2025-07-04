@@ -1,0 +1,19 @@
+commit bbbc6589dfbc05be2bfa59f51c20f9eaa8d0c531
+Author: Roman Kollár <roman.kollar.0@gmail.com>
+Date:   Thu Nov 21 22:25:52 2019 +0000
+
+    net/http: fix Server.ConnContext modifying context for all new connections
+    
+    Fixes #35750
+    
+    Change-Id: I65d38cfc5ddd66131777e104c269cc3559b2471d
+    GitHub-Last-Rev: 953fdfd49b2be665be43f8148d2a6180dae3b91c
+    GitHub-Pull-Request: golang/go#35751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  7 ++++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)

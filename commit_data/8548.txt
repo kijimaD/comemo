@@ -1,0 +1,15 @@
+commit 91cc1e6b778880e7a8f85d057a51fbb0cd23d7c8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 31 10:38:51 2011 -0400
+
+    runtime: reset GOMAXPROCS during tests
+    
+    Fix the fact that the test leaves GOMAXPROCS=3
+    and a running goroutine behind.
+    
+    R=golang-dev, rsc
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/4517121
+
+ src/pkg/runtime/proc_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

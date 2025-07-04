@@ -1,0 +1,20 @@
+commit cd5f2cf50f6372e31dde0b407c1c3be57a2ce90f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 12:20:33 2021 -0800
+
+    doc/go1.18: add documentation for changes to go/types
+    
+    The number of involved CLs is too large (hundreds) so
+    no CLs are mentioned in (html) comments.
+    
+    Updates #47694
+    
+    Change-Id: I655d800a1e56a71e9d70a190f1c42c17baf6861e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369099
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go1.18.html | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

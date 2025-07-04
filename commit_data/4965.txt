@@ -1,0 +1,17 @@
+commit ef531c2b57dcae605a16c8c6fc932c3042ab85a4
+Author: Raif S. Naffah <go@naffah-raif.name>
+Date:   Fri Feb 26 15:24:46 2010 -0800
+
+    crypto/blowfish: new package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217116
+
+ src/pkg/Makefile                         |   1 +
+ src/pkg/crypto/blowfish/Makefile         |  13 ++
+ src/pkg/crypto/blowfish/block.go         | 101 ++++++++++++++++
+ src/pkg/crypto/blowfish/blowfish_test.go | 192 +++++++++++++++++++++++++++++
+ src/pkg/crypto/blowfish/cipher.go        |  79 ++++++++++++
+ src/pkg/crypto/blowfish/const.go         | 199 +++++++++++++++++++++++++++++++
+ 6 files changed, 585 insertions(+)

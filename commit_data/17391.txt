@@ -1,0 +1,17 @@
+commit 519a9e8e9bdfa9b8a1b5c0c1c5be7a16718f7992
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 26 18:36:58 2013 +0900
+
+    net: enable PacketConn test for raw IP network on Windows
+    
+    Just forgot to include this in CL 12843043.
+    Also consolidates the code dealing with test environment.
+    
+    Update #6122
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/13184043
+
+ src/pkg/net/packetconn_test.go | 112 +++++++++++++++++++----------------------
+ 1 file changed, 53 insertions(+), 59 deletions(-)

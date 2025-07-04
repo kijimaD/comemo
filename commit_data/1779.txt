@@ -1,0 +1,30 @@
+commit 1e37e8a417dc36bc6da6828cd7c20dd53d4ba6a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 6 17:51:31 2009 -0800
+
+    document Conn interface better, in preparation
+    for per-method interface documentation
+    by mkdoc.pl.
+    
+    implement timeouts on network reads
+    and use them in dns client.
+    
+    also added locks on i/o to ensure writes
+    are not interlaced.
+    
+    R=r
+    DELTA=340  (272 added, 25 deleted, 43 changed)
+    OCL=25799
+    CL=25874
+
+ src/lib/net/dnsclient.go         |  11 +--
+ src/lib/net/dnsconfig.go         |   2 +-
+ src/lib/net/fd.go                | 160 +++++++++++++++++++++++++++++++++------
+ src/lib/net/fd_darwin.go         |  36 ++++++++-
+ src/lib/net/fd_linux.go          |  55 +++++++++-----
+ src/lib/net/net.go               |  65 ++++++++++++++--
+ src/lib/net/parse_test.go        |   1 -
+ src/lib/net/timeout_test.go      |  42 ++++++++++
+ src/lib/syscall/socket_darwin.go |   2 +-
+ src/lib/syscall/socket_linux.go  |   2 +-
+ 10 files changed, 315 insertions(+), 61 deletions(-)

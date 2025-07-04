@@ -1,0 +1,13 @@
+commit 548dece8f332fdfb55b78ebd678cb8f51207be95
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 26 13:00:47 2014 -0700
+
+    strings: avoid pointless slice growth in makeBenchInputHard
+    
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/108150043
+
+ src/pkg/strings/strings_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

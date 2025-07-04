@@ -1,0 +1,16 @@
+commit 85d60a727cc25cb10cf2a3ff1fd68463a9749d34
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Nov 1 18:45:19 2012 +0100
+
+    cmd/gc: do simple bounds checking of constant indices/slices in typecheck.
+    
+    This should make the compiler emit errors specific to the bounds checking instead of overflow errors on the underlying types.
+    
+    Updates #4232.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6783054
+
+ src/cmd/gc/typecheck.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

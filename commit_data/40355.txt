@@ -1,0 +1,23 @@
+commit 19d2a1cc2c76a14b4d5066c871b3f3c11125e147
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 22 13:07:15 2019 +0200
+
+    cmd/go: fix TestScript/list_ambiguous_path on Plan 9
+    
+    CL 198459 added TestScript/list_ambiguous_path. This
+    test is failing on Plan 9, because the expected error
+    doesn't match the error message returned on Plan 9.
+    
+    This change fixes the test by matching the correct
+    error message on Plan 9.
+    
+    Fixes #35072.
+    
+    Change-Id: If8cdb641e0e9544ae4ac24f8d0c54859a3b23a69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202447
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/list_ambiguous_path.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

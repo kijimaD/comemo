@@ -1,0 +1,36 @@
+commit 0fd427fda70d635a526efc8cf40251718e5a45bf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 25 16:53:04 2018 -0400
+
+    runtime: use entry stack map at function entry
+    
+    Currently, when the runtime looks up the stack map for a frame, it
+    uses frame.continpc - 1 unless continpc is the function entry PC, in
+    which case it uses frame.continpc. As a result, if continpc is the
+    function entry point (which happens for deferred frames), it will
+    actually look up the stack map *following* the first instruction.
+    
+    I think, though I am not positive, that this is always okay today
+    because the first instruction of a function can never change the stack
+    map. It's usually not a CALL, so it doesn't have PCDATA. Or, if it is
+    a CALL, it has to have the entry stack map.
+    
+    But we're about to start emitting stack maps at every instruction that
+    changes them, which means the first instruction can have PCDATA
+    (notably, in leaf functions that don't have a prologue).
+    
+    To prepare for this, tweak how the runtime looks up stack map indexes
+    so that if continpc is the function entry point, it directly uses the
+    entry stack map.
+    
+    For #24543.
+    
+    Change-Id: I85aa818041cd26aff416f7b1fba186e9c8ca6568
+    Reviewed-on: https://go-review.googlesource.com/109349
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/heapdump.go | 3 ++-
+ src/runtime/mbitmap.go  | 3 ++-
+ src/runtime/mgcmark.go  | 7 ++++++-
+ src/runtime/stack.go    | 3 ++-
+ 4 files changed, 12 insertions(+), 4 deletions(-)

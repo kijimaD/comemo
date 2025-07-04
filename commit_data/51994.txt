@@ -1,0 +1,28 @@
+commit 0cd309e12818f988693bf8e4d9f1453331dcf9f2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 13 14:40:01 2023 -0800
+
+    go/internal/gcimporter: restore Go 1.19 Package.SetImports behavior
+    
+    This CL is a port of go.dev/cl/465936 from the x/tools importer, which
+    changes the unified importer to (1) only call Package.SetImports on
+    the main package being imported (not any transitively imported
+    packages), and (2) to only populate it with any packages that were
+    referenced by the exported API.
+    
+    With these changes, it should behave identically to how the indexed
+    importer worked in Go 1.19. It will also allow eventually dropping the
+    serialized import DAG from the export data format, which should help
+    with export data file sizes somewhat.
+    
+    Updates #54096.
+    Updates #58296.
+    
+    Change-Id: I70d252a19cada3333ed59b16d1df2abc5a4cff73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467896
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/internal/gcimporter/ureader.go | 47 ++++++++---------------------------
+ 1 file changed, 11 insertions(+), 36 deletions(-)

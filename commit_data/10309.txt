@@ -1,0 +1,15 @@
+commit ae7a003cf9be6822419d108d6ca1cefa86bef488
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 12:35:45 2011 -0500
+
+    gc: add GOEXPERIMENT=reorg
+    
+    This won't last long but may ease conversions.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5375043
+
+ src/cmd/gc/go.h  |  1 +
+ src/cmd/gc/lex.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

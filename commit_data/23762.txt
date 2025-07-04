@@ -1,0 +1,14 @@
+commit aa5118b1298a11655ea5acf583d858b1017c8af7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jul 18 09:49:23 2015 -0700
+
+    doc: remove mention of default GOMAXPROCS(1) in Effective Go
+    
+    Fixes #11781
+    
+    Change-Id: Idc46a6a4fb5bf1c4d394eadf2d860d7ef75c8ccf
+    Reviewed-on: https://go-review.googlesource.com/12390
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 50 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 27 insertions(+), 23 deletions(-)

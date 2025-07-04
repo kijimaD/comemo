@@ -1,0 +1,17 @@
+commit 0b0a6ec7ec27f711304f86fcfd749173967b91d9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 14 08:46:26 2011 +1100
+
+    gofix: add googlecode module for rewriting Google Code imports
+    goinstall: disallow googlecode.com import paths
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5421049
+
+ src/cmd/gofix/Makefile             |  1 +
+ src/cmd/gofix/googlecode.go        | 41 +++++++++++++++++++++++++++++++
+ src/cmd/gofix/googlecode_test.go   | 31 +++++++++++++++++++++++
+ src/cmd/goinstall/download.go      | 50 +++++++++++++++++++-------------------
+ src/cmd/goinstall/download_test.go | 33 ++++++++++++++++---------
+ 5 files changed, 119 insertions(+), 37 deletions(-)

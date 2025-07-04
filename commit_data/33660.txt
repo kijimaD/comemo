@@ -1,0 +1,26 @@
+commit 64b68bedc52d0b6eb7f464793c2be38382fadb6b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 21 17:19:43 2017 -0500
+
+    runtime/debug: make SetGCPercent(-1) wait for concurrent GC
+    
+    Currently, SetGCPercent(-1) disables GC, but doesn't wait for any
+    currently running concurrent GC to finish, so GC can still be running
+    when it returns. This is a change in behavior from Go 1.8, probably
+    defies user expectations, and can break various runtime tests that
+    depend on SetGCPercent(-1) to disable garbage collection in order to
+    prevent preemption deadlocks.
+    
+    Fix this by making SetGCPercent(-1) block until any concurrently
+    running GC cycle finishes.
+    
+    Fixes #22443.
+    
+    Change-Id: I904133a34acf97a7942ef4531ace0647b13930ef
+    Reviewed-on: https://go-review.googlesource.com/79195
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mgc.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

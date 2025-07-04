@@ -1,0 +1,49 @@
+commit f791b288d1c65420ae6051cdc180e82716952737
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 9 10:45:35 2017 -0800
+
+    cmd/compile: remove some allocs from CSE
+    
+    Pick up a few pennies:
+    
+    * CSE gets run twice for each function,
+    but the set of Aux values doesn't change.
+    Avoid populating it twice.
+    
+    * Don't bother populating auxmap for values
+    that can't be CSE'd anyway.
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       41.0MB ± 0%      40.7MB ± 0%  -0.61%  (p=0.008 n=5+5)
+    Unicode        32.3MB ± 0%      32.3MB ± 0%  -0.22%  (p=0.008 n=5+5)
+    GoTypes         122MB ± 0%       121MB ± 0%  -0.55%  (p=0.008 n=5+5)
+    Compiler        482MB ± 0%       479MB ± 0%  -0.58%  (p=0.008 n=5+5)
+    SSA             865MB ± 0%       862MB ± 0%  -0.35%  (p=0.008 n=5+5)
+    Flate          26.5MB ± 0%      26.5MB ± 0%    ~     (p=0.056 n=5+5)
+    GoParser       32.6MB ± 0%      32.4MB ± 0%  -0.58%  (p=0.008 n=5+5)
+    Reflect        84.2MB ± 0%      83.8MB ± 0%  -0.57%  (p=0.008 n=5+5)
+    Tar            27.7MB ± 0%      27.6MB ± 0%  -0.37%  (p=0.008 n=5+5)
+    XML            44.7MB ± 0%      44.5MB ± 0%  -0.53%  (p=0.008 n=5+5)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         373k ± 0%        373k ± 1%    ~     (p=1.000 n=5+5)
+    Unicode          326k ± 0%        325k ± 0%    ~     (p=0.548 n=5+5)
+    GoTypes         1.16M ± 0%       1.16M ± 0%    ~     (p=0.841 n=5+5)
+    Compiler        4.16M ± 0%       4.15M ± 0%    ~     (p=0.222 n=5+5)
+    SSA             7.57M ± 0%       7.56M ± 0%  -0.22%  (p=0.008 n=5+5)
+    Flate            238k ± 1%        239k ± 1%    ~     (p=0.690 n=5+5)
+    GoParser         304k ± 0%        304k ± 0%    ~     (p=1.000 n=5+5)
+    Reflect         1.01M ± 0%       1.00M ± 0%  -0.31%  (p=0.016 n=4+5)
+    Tar              245k ± 0%        245k ± 1%    ~     (p=0.548 n=5+5)
+    XML              393k ± 0%        391k ± 1%    ~     (p=0.095 n=5+5)
+    
+    Change-Id: I78f1ffe129bd8fd590b7511717dd2bf9f5ecbd6d
+    Reviewed-on: https://go-review.googlesource.com/36690
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/cse.go  | 12 +++++++-----
+ src/cmd/compile/internal/ssa/func.go |  2 ++
+ 2 files changed, 9 insertions(+), 5 deletions(-)

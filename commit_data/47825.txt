@@ -1,0 +1,18 @@
+commit c3561dd346262414caff570c05f2403f9688aca0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 19:50:33 2021 -0800
+
+    cmd/compile/internal/types2: better error message when using comparable in union
+    
+    Fixes #49602.
+    
+    Change-Id: I3499f8a485a2c8ec8afc74c5ef7b20d42c943a05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372674
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../internal/types2/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/union.go              | 11 ++++++++++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

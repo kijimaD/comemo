@@ -1,0 +1,20 @@
+commit a156fc08b7fd289bfc9979c77445f9e4741a7dfd
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon Feb 19 12:34:53 2018 +0000
+
+    syscall: ensure Mkdir(path) on Plan 9 fails if path exists
+    
+    On Plan 9, the underlying create() syscall with DMDIR flag, which is
+    used to implement Mkdir, will fail silently if the path exists and
+    is not a directory.  Work around this by checking for existence
+    first and rejecting Mkdir with error EEXIST if the path is found.
+    
+    Fixes #23918
+    
+    Change-Id: I439115662307923c9f498d3e7b1f32c6d205e1ad
+    Reviewed-on: https://go-review.googlesource.com/94777
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/os/stat_plan9.go         |  6 +++---
+ src/syscall/syscall_plan9.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

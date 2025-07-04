@@ -1,0 +1,30 @@
+commit 034a10d44c8f83d2c36ab4e242c14e9744c54949
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:15:03 2015 -0400
+
+    cmd/internal/obj/arm64: reject misaligned stack frames, except empty frames
+    
+    The layout code has to date insisted on stack frames that are 16-aligned
+    including the saved LR, and it ensured this by growing the frame itself.
+    This breaks code that refers to values near the top of the frame by positive
+    offset from SP, and in general it's too magical: if you see TEXT xxx, $N,
+    you expect that the frame size is actually N, not sometimes N and sometimes N+8.
+    
+    This led to a serious bug in the compiler where ambiguously live values
+    were not being zeroed correctly, which in turn triggered an assertion
+    in the GC about finding only valid pointers. The compiler has been
+    fixed to always emit aligned frames, and the hand-written assembly
+    has also been fixed.
+    
+    Now that everything is aligned, make unaligned an error instead of
+    something to "fix" silently.
+    
+    For #9880.
+    
+    Change-Id: I05f01a9df174d64b37fa19b36a6b6c5f18d5ba2d
+    Reviewed-on: https://go-review.googlesource.com/12848
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 18 ++++++++++++++----
+ test/nosplit.go                    |  2 +-
+ 2 files changed, 15 insertions(+), 5 deletions(-)

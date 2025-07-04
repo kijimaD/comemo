@@ -1,0 +1,20 @@
+commit 88ea8a5fe0526bc53e944420c42cf75fc7b11c4f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 29 09:49:54 2021 -0700
+
+    runtime: extract text address calculation into a separate method
+    
+    Pure code movement.
+    
+    Change-Id: I7216e50fe14afa3d19c5047c92e515c90838f834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353129
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/type.go   | 29 +----------------------------
+ 2 files changed, 37 insertions(+), 28 deletions(-)

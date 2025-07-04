@@ -1,0 +1,16 @@
+commit f78ead3ca461e2e3bd003e11c49eae610a10ab97
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Aug 29 21:44:46 2012 +0800
+
+    syscall: extract an ExampleLoadLibrary from comment
+       while we are at it, fix some out-of-date comments.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6498054
+
+ src/pkg/syscall/asm_windows_386.s       |  2 +-
+ src/pkg/syscall/asm_windows_amd64.s     |  2 +-
+ src/pkg/syscall/syscall_windows.go      | 39 +--------------------------------
+ src/pkg/syscall/syscall_windows_test.go | 21 ++++++++++++++++++
+ 4 files changed, 24 insertions(+), 40 deletions(-)

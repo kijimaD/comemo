@@ -1,0 +1,17 @@
+commit 41191e192cb3d499ca8a2552117029493c6be1a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 8 14:50:45 2016 -0800
+
+    go/constant: fix String() implementation
+    
+    Fixes #14262.
+    
+    Change-Id: Id590995dd4460e81f6b91bcfb3f02515a97650fe
+    Reviewed-on: https://go-review.googlesource.com/19361
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/constant/value.go      | 2 +-
+ src/go/constant/value_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

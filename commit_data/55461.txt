@@ -1,0 +1,20 @@
+commit 99efe7c39e80b92511bb06153da4d4d8db6138a6
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jan 27 03:27:17 2024 +0000
+
+    cmd/internal/moddeps: fix test fail when the last element of GOROOT start with a dot or underscore
+    
+    Fixes #54221
+    
+    Change-Id: Id16f553251daf0b7c51f45232a4133f7dfb1ebb9
+    GitHub-Last-Rev: 675c2bfcbb4fd31da0442dd0e612874934cc0d87
+    GitHub-Pull-Request: golang/go#65298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558696
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

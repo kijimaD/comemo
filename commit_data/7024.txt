@@ -1,0 +1,13 @@
+commit 2aa75f702c71fba0b30269719c0b40e3ab9a3365
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 4 13:07:00 2011 -0500
+
+    A+C: Patrick Gavlin (individual CLA)
+    
+    R=r
+    CC=golang-dev, pgavlin
+    https://golang.org/cl/3763043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

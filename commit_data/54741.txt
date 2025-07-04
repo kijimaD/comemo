@@ -1,0 +1,18 @@
+commit d1cb2483b70827f8f2f839fe7b0f140c910fc5b7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 13:07:28 2023 +0800
+
+    database: add available godoc link
+    
+    Change-Id: I6150858f1186edc6cebd38ff166d57287fa430f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535078
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/driver/driver.go | 156 +++++++++----------
+ src/database/sql/driver/types.go  |  41 ++---
+ src/database/sql/sql.go           | 308 +++++++++++++++++++-------------------
+ 3 files changed, 253 insertions(+), 252 deletions(-)

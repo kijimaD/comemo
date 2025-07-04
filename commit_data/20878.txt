@@ -1,0 +1,21 @@
+commit 2ad99f09609de1e709aeacaeb277d637729e8081
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:21:03 2014 -0500
+
+    runtime: fix sudog leak in syncsemrelease
+    
+    Manifested as increased memory usage in a Google production system.
+    
+    Not an unbounded leak, but can significantly increase the number
+    of sudogs allocated between garbage collections.
+    
+    I checked all the other calls to acquireSudog.
+    This is the only one that was missing a releaseSudog.
+    
+    LGTM=r, dneil
+    R=dneil, r
+    CC=golang-codereviews
+    https://golang.org/cl/169260043
+
+ src/runtime/sema.go | 1 +
+ 1 file changed, 1 insertion(+)

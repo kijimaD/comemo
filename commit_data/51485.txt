@@ -1,0 +1,20 @@
+commit 93587d3591f6cb5cd21951a03c3aa750873f2601
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Dec 1 17:54:49 2022 +0000
+
+    net: retry with bigger buffer in resSearch
+    
+    Glibc returns size > bufSize, when the entire dns reply does not fit inside the provided buffer.
+    
+    Change-Id: Ie1c1c6a3411880bd8bdb4371f1f1b7bcce837ea2
+    GitHub-Last-Rev: 488cd3ed0db2a86433aa921117b8f1e9192b1fa5
+    GitHub-Pull-Request: golang/go#57020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

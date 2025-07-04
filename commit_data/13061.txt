@@ -1,0 +1,23 @@
+commit 2a47e0444c4d75ee28f1f60ed41aa274be56dda9
+Author: Joel Sing <jsing@google.com>
+Date:   Mon May 14 10:40:13 2012 -0700
+
+    syscall: regenerate z* files for netbsd
+    
+    Fix mkerrors.sh so that it works on NetBSD.
+    
+    Remove directory mode bits from types - this already appears in errors.
+    
+    Regenerate the z* files now that cgo is working.
+    
+    R=golang-dev, m4dh4tt3r, r
+    CC=golang-dev
+    https://golang.org/cl/6201077
+
+ src/pkg/syscall/mkerrors.sh             |   3 +
+ src/pkg/syscall/types_netbsd.go         |  17 -
+ src/pkg/syscall/zerrors_netbsd_386.go   | 744 ++++++++++++++++++++------------
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 736 +++++++++++++++++++------------
+ src/pkg/syscall/ztypes_netbsd_386.go    | 278 +++++-------
+ src/pkg/syscall/ztypes_netbsd_amd64.go  | 263 +++++------
+ 6 files changed, 1139 insertions(+), 902 deletions(-)

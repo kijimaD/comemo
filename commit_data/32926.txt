@@ -1,0 +1,26 @@
+commit ca8c361d867d62bd46013c5abbaaad0b2ca6077f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 28 10:26:39 2017 -0400
+
+    cmd/dist: use -buildmode=pie for pie testing
+    
+    Some tests in misc/cgo/test are run with various options including
+    '-linkmode=external "-extldflags=-pie"'. On ppc64x passing -pie to
+    the external linker with code that was not compiled as position
+    independent is incorrect. This works by luck in many cases but is
+    not guaranteed to work. I suspect it is an issue on other targets
+    as well.
+    
+    This will now run the tests using -buildmode=pie for the platforms
+    that support that buildmode option.
+    
+    Fixes #21954
+    
+    Change-Id: I25fc7573f2d3cb5b0d1c691a0ac91aef7715404f
+    Reviewed-on: https://go-review.googlesource.com/66870
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 41 ++++++++++++++---------------------------
+ 1 file changed, 14 insertions(+), 27 deletions(-)

@@ -1,0 +1,16 @@
+commit c88a6719255f5dc8c85b367eaf9569f171e73b56
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 28 03:18:27 2014 -0800
+
+    net: make it possible to use FilePacketConn with IPConn
+    
+    Fixes #6803.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/57560043
+
+ src/pkg/net/file_test.go | 6 ++++++
+ src/pkg/net/file_unix.go | 2 ++
+ 2 files changed, 8 insertions(+)

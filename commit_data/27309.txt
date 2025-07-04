@@ -1,0 +1,24 @@
+commit 2210d88a889e0ea463bcdef2b658aaec1050cf01
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Apr 29 16:19:17 2016 +0300
+
+    crypto/sha256: Use AVX2 if possible
+    
+    name          old time/op    new time/op    delta
+    Hash8Bytes-4     376ns ± 0%     246ns ± 0%  -34.57%  (p=0.000 n=20+20)
+    Hash1K-4        5.21µs ± 0%    2.82µs ± 0%  -45.83%  (p=0.000 n=20+20)
+    Hash8K-4        38.6µs ± 0%    20.8µs ± 0%  -46.05%  (p=0.000 n=20+20)
+    
+    name          old speed      new speed      delta
+    Hash8Bytes-4  21.2MB/s ± 0%  32.4MB/s ± 0%  +52.70%  (p=0.000 n=15+19)
+    Hash1K-4       197MB/s ± 0%   363MB/s ± 0%  +84.60%  (p=0.000 n=20+20)
+    Hash8K-4       212MB/s ± 0%   393MB/s ± 0%  +85.36%  (p=0.000 n=20+20)
+    
+    Change-Id: Ib50119c591074ff486d11d3566e24b691bcc6598
+    Reviewed-on: https://go-review.googlesource.com/22608
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/sha256/sha256block_amd64.s | 873 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 829 insertions(+), 44 deletions(-)

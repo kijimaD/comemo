@@ -1,0 +1,23 @@
+commit bc9194752749640c61c339140cf11d13e6262a6a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 7 04:25:57 2020 +1100
+
+    runtime: correct assembly for openbsd/arm64
+    
+    Correct the pipe and pipe2 implementations by using the correct RSP offsets,
+    used to store and return the file descriptor array.
+    
+    Fix setNonblock by using the correct immediate value for O_NONBLOCK and
+    replace EOR (exclusive OR) with ORR.
+    
+    Also correct the write1 implementation, which has a uintptr value for the fd
+    argument.
+    
+    Change-Id: Ibca77af44b649e8bb330ca54f9c36a7a8b0f9cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212765
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_openbsd_arm64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

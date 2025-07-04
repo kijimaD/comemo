@@ -1,0 +1,13 @@
+commit 0ae408eb727e8abf25cd7e7001422dc7684c16f6
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Oct 21 14:20:17 2012 +1100
+
+    A+C: add Willem van der Schyff (Individual CLA).
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/6733047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

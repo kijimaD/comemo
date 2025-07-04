@@ -1,0 +1,13 @@
+commit d06753876f5190ea3c4b0e981d3923dcc1463682
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 29 09:13:55 2011 -0700
+
+    C+A: add Mike Rosset (individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4963047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

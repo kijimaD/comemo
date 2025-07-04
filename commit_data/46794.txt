@@ -1,0 +1,24 @@
+commit 6f74ed06c5b0e1d69fb70e89f31f002f18554c79
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 6 19:38:15 2021 -0700
+
+    go/types: implement copy for generic argument types
+    
+    This is a port of CL 354432 from types2 to go/types
+    with minor adjustments:
+    - an error message has a different position
+    - the constraint literals are wrapped in interfaces
+      because the interface-free notation has not been
+      ported yet
+    
+    Change-Id: I167094b57b39027566f2b7ce3aa97a071bae4da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354489
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/builtins.go                 |  4 +---
+ src/go/types/testdata/check/builtins.go2 | 37 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 3 deletions(-)

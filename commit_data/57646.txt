@@ -1,0 +1,26 @@
+commit 18131ec8dc0db3992509f08649ae34063f00823a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 9 10:48:07 2024 +0200
+
+    syscall: simplify O_TRUNC handling on Windows
+    
+    The current implementation of O_TRUNC in syscall.Open on Windows is
+    prone to TOCTOU issues, as it opens the file twice if the first open
+    detects that the file doesn't exist. The file could
+    be created in between the two open calls, leading to the creation
+    of a new file with the undesired readonly attribute.
+    
+    This CL implements O_TRUNC by just calling CreateFile once without
+    taking O_TRUNCATE into account, and then using Ftruncate if O_TRUNC is
+    set to truncate the file.
+    
+    Updates #38225.
+    
+    Change-Id: Ic3ad1bab75c9a1c16f99c8c5bed867c5dbc3a23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/syscall_windows.go | 42 +++++++++++++++++-------------------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

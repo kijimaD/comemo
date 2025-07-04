@@ -1,0 +1,14 @@
+commit 8149a8c666a79e2dc8898fcc8debbc2bc3626638
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Aug 13 15:14:41 2009 -0700
+
+    fix typo
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=33209
+    CL=33227
+
+ src/pkg/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

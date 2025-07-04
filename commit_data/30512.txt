@@ -1,0 +1,97 @@
+commit ed70f37e73a656551077332449074b6b19686ab3
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Feb 27 19:56:38 2017 +0200
+
+    cmd/compile: pack bool fields in Node, Name, Func and Type structs to bitsets
+    
+    This reduces compiler memory usage by up to 4% - see compilebench
+    results below.
+    
+    name       old time/op     new time/op     delta
+    Template       245ms ± 4%      241ms ± 2%  -1.88%  (p=0.029 n=10+10)
+    Unicode        126ms ± 3%      124ms ± 3%    ~     (p=0.105 n=10+10)
+    GoTypes        805ms ± 2%      813ms ± 3%    ~     (p=0.515 n=8+10)
+    Compiler       3.95s ± 2%      3.83s ± 1%  -2.96%  (p=0.000 n=9+10)
+    MakeBash       47.4s ± 4%      46.6s ± 1%  -1.59%  (p=0.028 n=9+10)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        324M ± 5%       326M ± 3%    ~     (p=0.935 n=10+10)
+    Unicode         186M ± 5%       178M ±10%    ~     (p=0.067 n=9+10)
+    GoTypes        1.08G ± 7%      1.09G ± 4%    ~     (p=0.956 n=10+10)
+    Compiler       5.34G ± 4%      5.31G ± 1%    ~     (p=0.501 n=10+8)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      41.0MB ± 0%     39.8MB ± 0%  -3.03%  (p=0.000 n=10+10)
+    Unicode       32.3MB ± 0%     31.0MB ± 0%  -4.13%  (p=0.000 n=10+10)
+    GoTypes        119MB ± 0%      116MB ± 0%  -2.39%  (p=0.000 n=10+10)
+    Compiler       499MB ± 0%      487MB ± 0%  -2.48%  (p=0.000 n=10+10)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        380k ± 1%       379k ± 1%    ~     (p=0.436 n=10+10)
+    Unicode         324k ± 1%       324k ± 0%    ~     (p=0.853 n=10+10)
+    GoTypes        1.15M ± 0%      1.15M ± 0%    ~     (p=0.481 n=10+10)
+    Compiler       4.41M ± 0%      4.41M ± 0%  -0.12%  (p=0.007 n=10+10)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       623k ± 0%       623k ± 0%    ~     (all equal)
+    CmdGoSize      6.64M ± 0%      6.64M ± 0%    ~     (all equal)
+    
+    name       old data-bytes  new data-bytes  delta
+    HelloSize      5.81k ± 0%      5.81k ± 0%    ~     (all equal)
+    CmdGoSize       238k ± 0%       238k ± 0%    ~     (all equal)
+    
+    name       old bss-bytes   new bss-bytes   delta
+    HelloSize       134k ± 0%       134k ± 0%    ~     (all equal)
+    CmdGoSize       152k ± 0%       152k ± 0%    ~     (all equal)
+    
+    name       old exe-bytes   new exe-bytes   delta
+    HelloSize       967k ± 0%       967k ± 0%    ~     (all equal)
+    CmdGoSize      10.2M ± 0%      10.2M ± 0%    ~     (all equal)
+    
+    Change-Id: I1f40af738254892bd6c8ba2eb43390b175753d52
+    Reviewed-on: https://go-review.googlesource.com/37445
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go     |   2 +-
+ src/cmd/compile/internal/arm/ggen.go       |   2 +-
+ src/cmd/compile/internal/arm64/ggen.go     |   2 +-
+ src/cmd/compile/internal/gc/alg.go         |  18 +--
+ src/cmd/compile/internal/gc/align.go       |  18 +--
+ src/cmd/compile/internal/gc/bexport.go     |  16 +--
+ src/cmd/compile/internal/gc/bimport.go     |  10 +-
+ src/cmd/compile/internal/gc/bitset.go      |  25 ++++
+ src/cmd/compile/internal/gc/closure.go     |  52 ++++----
+ src/cmd/compile/internal/gc/const.go       |  22 ++--
+ src/cmd/compile/internal/gc/dcl.go         |  52 ++++----
+ src/cmd/compile/internal/gc/esc.go         |  28 ++---
+ src/cmd/compile/internal/gc/fmt.go         |  46 ++++----
+ src/cmd/compile/internal/gc/gen.go         |  12 +-
+ src/cmd/compile/internal/gc/gsubr.go       |   8 +-
+ src/cmd/compile/internal/gc/inl.go         |  30 ++---
+ src/cmd/compile/internal/gc/main.go        |   6 +-
+ src/cmd/compile/internal/gc/noder.go       |  30 ++---
+ src/cmd/compile/internal/gc/order.go       |  24 ++--
+ src/cmd/compile/internal/gc/pgen.go        |  34 +++---
+ src/cmd/compile/internal/gc/pgen_test.go   |  24 ++--
+ src/cmd/compile/internal/gc/plive.go       |  18 +--
+ src/cmd/compile/internal/gc/racewalk.go    |   2 +-
+ src/cmd/compile/internal/gc/range.go       |   6 +-
+ src/cmd/compile/internal/gc/reflect.go     |  30 ++---
+ src/cmd/compile/internal/gc/select.go      |  10 +-
+ src/cmd/compile/internal/gc/sinit.go       |  20 ++--
+ src/cmd/compile/internal/gc/sizeof_test.go |   8 +-
+ src/cmd/compile/internal/gc/ssa.go         |  36 +++---
+ src/cmd/compile/internal/gc/subr.go        |  58 ++++-----
+ src/cmd/compile/internal/gc/swt.go         |   6 +-
+ src/cmd/compile/internal/gc/syntax.go      | 183 +++++++++++++++++------------
+ src/cmd/compile/internal/gc/type.go        |  68 ++++++++---
+ src/cmd/compile/internal/gc/typecheck.go   | 142 +++++++++++-----------
+ src/cmd/compile/internal/gc/walk.go        |  78 ++++++------
+ src/cmd/compile/internal/mips/ggen.go      |   2 +-
+ src/cmd/compile/internal/mips64/ggen.go    |   2 +-
+ src/cmd/compile/internal/ppc64/ggen.go     |   2 +-
+ src/cmd/compile/internal/s390x/ggen.go     |   2 +-
+ src/cmd/compile/internal/x86/ggen.go       |   2 +-
+ 40 files changed, 611 insertions(+), 525 deletions(-)

@@ -1,0 +1,17 @@
+commit 595dcef80af6cf252714e8bd5518889c0cf1c303
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:43:10 2014 -0400
+
+    cmd/5l, cmd/6l, cmd/8l: remove mkenam.
+    
+    Unused. cmd/dist will generate enams as liblink/anames[568].c.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/119940043
+
+ src/cmd/5l/mkenam | 45 ---------------------------------------------
+ src/cmd/6l/mkenam | 45 ---------------------------------------------
+ src/cmd/8l/mkenam | 45 ---------------------------------------------
+ 3 files changed, 135 deletions(-)

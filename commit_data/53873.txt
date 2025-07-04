@@ -1,0 +1,20 @@
+commit 64939f62aa70c601820fd6e0bbdd0fae9c6883e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 12:38:43 2023 -0700
+
+    net/rpc: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: I56586b68d5e38a46560f4ced19214f1d2db2850e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/rpc/server.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

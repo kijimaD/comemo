@@ -1,0 +1,14 @@
+commit 1d2e548b428373461e92c7490edb49fc39df0c85
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 8 15:18:44 2019 -0800
+
+    doc: go1.12: mention os.File.SyscallConn
+    
+    Updates #24331
+    
+    Change-Id: I2d7c996bbe29d5b3922588e199a106eb722c02e6
+    Reviewed-on: https://go-review.googlesource.com/c/156839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

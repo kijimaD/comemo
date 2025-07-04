@@ -1,0 +1,14 @@
+commit d07709ed7b798a1eca3394202a241e6f36fe9695
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 16 21:42:07 2016 -0700
+
+    crypto/x509: gofmt
+    
+    Change-Id: I05659a836612f958083fea9a27805eb9f0ac0836
+    Reviewed-on: https://go-review.googlesource.com/22145
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

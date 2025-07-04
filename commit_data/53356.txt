@@ -1,0 +1,19 @@
+commit d8782e7061fab0644af8d20180a4d3821402787a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 26 15:04:37 2023 -0400
+
+    cmd/go: remove stray reference to mkalldocs.sh
+    
+    Clean up a stray reference in the docs to 'mkalldocs.sh', which no
+    longer exists (was replaced by a Go program, in 676794f73e).
+    
+    Change-Id: I058e86395b14756d7afc184f99f89dbc5ba0184e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498715
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go            | 2 +-
+ src/cmd/go/internal/help/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

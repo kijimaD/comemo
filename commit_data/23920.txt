@@ -1,0 +1,14 @@
+commit ca6f7e45cbe33a1952a47d0846b1a9096bda5db7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 13:39:30 2015 -0400
+
+    runtime/trace: report negative frequency as a time-ordering problem
+    
+    This should fix the solaris/amd64 builder.
+    
+    Change-Id: Idd6460cc9e842f7b874c9757379986aa723c974c
+    Reviewed-on: https://go-review.googlesource.com/12922
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/trace/parser.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

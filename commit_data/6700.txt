@@ -1,0 +1,33 @@
+commit 02939dec80e398d77a842f064da4fe412182951b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 3 10:43:43 2010 -0400
+
+    crypto: switch block ciphers to detination first.
+    
+    Previously all the functions took two arguments: src, dst. This is the
+    reverse of the usual Go style and worth changing sooner rather than
+    later.
+    
+    Unfortunately, this is a change that the type system doesn't help
+    with. However, it's not a subtle change: any unittest worth the name
+    should catch this.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2751042
+
+ src/pkg/crypto/aes/aes_test.go           | 8 ++++----
+ src/pkg/crypto/aes/block.go              | 4 ++--
+ src/pkg/crypto/aes/cipher.go             | 4 ++--
+ src/pkg/crypto/block/cbc.go              | 6 +++---
+ src/pkg/crypto/block/cfb.go              | 8 ++++----
+ src/pkg/crypto/block/cipher.go           | 6 +++---
+ src/pkg/crypto/block/cmac.go             | 2 +-
+ src/pkg/crypto/block/ctr.go              | 2 +-
+ src/pkg/crypto/block/ecb_test.go         | 4 ++--
+ src/pkg/crypto/blowfish/blowfish_test.go | 4 ++--
+ src/pkg/crypto/blowfish/cipher.go        | 4 ++--
+ src/pkg/crypto/xtea/block.go             | 4 ++--
+ src/pkg/crypto/xtea/cipher.go            | 4 ++--
+ src/pkg/crypto/xtea/xtea_test.go         | 8 ++++----
+ 14 files changed, 34 insertions(+), 34 deletions(-)

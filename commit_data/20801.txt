@@ -1,0 +1,25 @@
+commit ea295a4cfbb0641f58c41d3722e7e8fb3b3f493f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 11:14:25 2014 -0400
+
+    cmd/go: add get -f flag
+    
+    get -u now checks that remote repo paths match the
+    ones predicted by the import paths: if you are get -u'ing
+    rsc.io/pdf, it has to be checked out from the right location.
+    This is important in case the rsc.io/pdf redirect changes.
+    
+    In some cases, people have good reasons to use
+    non-standard remote repos. Add -f flag to allow that.
+    The f can stand for force or fork, as you see fit.
+    
+    Fixes #8850.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/164120043
+
+ src/cmd/go/get.go    | 14 ++++++++++++--
+ src/cmd/go/test.bash | 10 ++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

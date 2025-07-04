@@ -1,0 +1,24 @@
+commit 5ff38e476177ce9e67375bd010bea2e030f2fe19
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 1 10:49:27 2019 -0400
+
+    runtime: platform-independent faketime support
+    
+    This adds a platform-independent implementation of nacl's faketime
+    support. It can be enabled by setting the faketime build tag.
+    
+    Updates #30439.
+    
+    Change-Id: Iee097004d56d796e6d2bfdd303a092c067ade87e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192740
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_nacl.go                        |   3 +
+ src/runtime/testdata/testfaketime/faketime.go |  28 +++++++
+ src/runtime/time.go                           |   3 -
+ src/runtime/time_fake.go                      | 101 ++++++++++++++++++++++++++
+ src/runtime/time_nofake.go                    |   7 ++
+ src/runtime/time_test.go                      |  93 ++++++++++++++++++++++++
+ 6 files changed, 232 insertions(+), 3 deletions(-)

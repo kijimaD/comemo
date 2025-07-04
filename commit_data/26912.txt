@@ -1,0 +1,36 @@
+commit f120936dfffa3ac935730699587e6957f2d5ea61
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 31 10:02:10 2016 -0400
+
+    cmd/compile, etc: use name for type pkgPath
+    
+    By replacing the *string used to represent pkgPath with a
+    reflect.name everywhere, the embedded *string for package paths
+    inside the reflect.name can be replaced by an offset, nameOff.
+    This reduces the number of pointers in the type information.
+    
+    This also moves all reflect.name types into the same section, making
+    it possible to use nameOff more widely in later CLs.
+    
+    No significant binary size change for normal binaries, but:
+    
+    linux/amd64 PIE:
+            cmd/go: -440KB (3.7%)
+            jujud:  -2.6MB (3.2%)
+    
+    For #6853.
+    
+    Change-Id: I3890b132a784a1090b1b72b32febfe0bea77eaee
+    Reviewed-on: https://go-review.googlesource.com/21395
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/go.go      |   2 +-
+ src/cmd/compile/internal/gc/reflect.go | 117 +++++++++++++++++++--------------
+ src/cmd/internal/obj/data.go           |  13 +++-
+ src/reflect/type.go                    |  64 +++++++++---------
+ src/runtime/heapdump.go                |   5 +-
+ src/runtime/iface.go                   |   8 +--
+ src/runtime/type.go                    |  72 ++++++++++++--------
+ 7 files changed, 168 insertions(+), 113 deletions(-)

@@ -1,0 +1,25 @@
+commit 4889afe8f82433599a38b74808eb572f972d4ff9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 23 11:57:36 2021 -0400
+
+    cmd/go/internal/load: use setLoadPackageDataError in loadImport
+    
+    This makes the error handling in loadImport somewhat more uniform,
+    with no discernable effect on reported errors.
+    
+    Noticed in CL 303869.
+    
+    Updates #36087
+    Updates #38034
+    
+    This somewhat simplifies the code, with no discernable effect on
+    
+    Change-Id: I30521f658f264d6f99d1844d6701269bbb372246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304069
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

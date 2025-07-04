@@ -1,0 +1,21 @@
+commit d1d466f6207ff0c90e3ae079578399e86328c631
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jul 7 18:06:50 2011 -0400
+
+    crypto/x509: prevent chain cycles in Verify
+    
+    It's possible to include a self-signed root certificate as an
+    intermediate and push Verify into a loop.
+    
+    I already had a test for this so I thought that it was ok, but it
+    turns out that the test was void because the Verisign root certificate
+    doesn't contain the "IsCA" flag and so it wasn't an acceptable
+    intermediate certificate for that reason.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4657080
+
+ src/pkg/crypto/x509/verify.go      |  6 ++++++
+ src/pkg/crypto/x509/verify_test.go | 11 ++++++-----
+ 2 files changed, 12 insertions(+), 5 deletions(-)

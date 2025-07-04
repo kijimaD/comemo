@@ -1,0 +1,13 @@
+commit 218a412e73a946c93aea42d0298b937a2ebebd93
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 18:10:00 2009 -0700
+
+    forgot to update Makefile in last CL
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35737
+    CL=35745
+
+ src/pkg/exp/datafmt/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

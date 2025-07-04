@@ -1,0 +1,25 @@
+commit 9466c27fec1d5e37c37f73a4cd2e32ad16460384
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 19:50:42 2012 -0800
+
+    net/http: remove more garbage from chunk reading
+    
+    Noticed this while closing tabs. Yesterday I thought I could
+    ignore this garbage and hope that a fix for issue 2205 handled
+    it, but I just realized that's the opposite case,
+    string->[]byte, whereas this is []byte->string.  I'm having a
+    hard time convincing myself that an Issue 2205-style fix with
+    static analysis and faking a string header would be safe in
+    all cases without violating the memory model (callee assumes
+    frozen memory; are there non-racy ways it could keep being
+    modified?)
+    
+    R=dsymonds
+    CC=dave, gobot, golang-dev
+    https://golang.org/cl/6850067
+
+ src/pkg/net/http/chunked.go               | 46 +++++++++++++++++----------
+ src/pkg/net/http/chunked_test.go          | 52 +++++++++++++++++++++++++++++++
+ src/pkg/net/http/httputil/chunked.go      | 46 +++++++++++++++++----------
+ src/pkg/net/http/httputil/chunked_test.go | 52 +++++++++++++++++++++++++++++++
+ 4 files changed, 164 insertions(+), 32 deletions(-)

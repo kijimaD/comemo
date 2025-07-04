@@ -1,0 +1,12 @@
+commit bcf3bfe2fe6828ca787c8559f741f706ed792eb0
+Author: Ross Light <rlight2@gmail.com>
+Date:   Wed May 4 15:01:33 2011 -0400
+
+    http/spdy: add type to FlagClearPreviouslyPersistedSettings constant
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4436074
+
+ src/pkg/http/spdy/protocol.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

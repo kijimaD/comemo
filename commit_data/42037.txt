@@ -1,0 +1,19 @@
+commit 876c1feb7d5e10a6ff831de9db19b9ff0ea92fa8
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Mon Apr 20 20:33:19 2020 +0000
+
+    test/codegen, runtime/pprof, runtime: apply fmt
+    
+    Change-Id: Ife4e065246729319c39e57a4fbd8e6f7b37724e1
+    GitHub-Last-Rev: e71803eaeb366c00f6c156de0b0b2c50927a0e82
+    GitHub-Pull-Request: golang/go#38527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228901
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/pprof/proto.go      |  2 +-
+ src/runtime/runtime-gdb_test.go |  1 +
+ test/codegen/condmove.go        |  2 +-
+ test/codegen/copy.go            | 28 ++++++++++++++--------------
+ 4 files changed, 17 insertions(+), 16 deletions(-)

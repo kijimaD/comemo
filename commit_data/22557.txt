@@ -1,0 +1,23 @@
+commit 4a7e5bca3c67a8696005371947fcaf23bf131e1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 6 19:36:36 2015 -0700
+
+    cmd/internal/gc: clean up bgen
+    
+    This cleanup is in anticipation of implementing
+    jump-free booleans (CL 2284) and zero-aware
+    comparisons (issue 10381).
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I50f394c60fa2927e177d7fc85b75085060a9e912
+    Reviewed-on: https://go-review.googlesource.com/8738
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/8g/ggen.go          | 135 ++++++---------
+ src/cmd/internal/gc/cgen.go | 405 ++++++++++++++++++++------------------------
+ src/cmd/internal/gc/cplx.go |  77 ++++-----
+ src/cmd/internal/gc/gen.go  |   8 +
+ src/cmd/internal/gc/go.go   |   4 +-
+ src/cmd/internal/gc/subr.go |  18 +-
+ 6 files changed, 284 insertions(+), 363 deletions(-)

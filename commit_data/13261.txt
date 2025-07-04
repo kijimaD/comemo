@@ -1,0 +1,14 @@
+commit 290115fdf4609c1fb0ba87aa1940a24308213543
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 3 22:40:16 2012 -0700
+
+    net/http: change a Del to delete
+    
+    No need to fix case of "Host" string literal.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6278049
+
+ src/pkg/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

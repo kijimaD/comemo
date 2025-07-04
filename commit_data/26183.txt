@@ -1,0 +1,18 @@
+commit 6cb2e1d015b87f4627f40d7b208b58ecb4e102e1
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Mar 8 22:13:20 2016 -0600
+
+    cmd/compile: remove values from const cache upon free
+    
+    When calling freeValue for possible const values, remove them from the
+    cache as well.
+    
+    Change-Id: I087ed592243e33c58e5db41700ab266fc70196d9
+    Reviewed-on: https://go-review.googlesource.com/20481
+    Run-TryBot: Todd Neal <tolchz@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/func.go      | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/func_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

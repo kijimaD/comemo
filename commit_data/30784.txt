@@ -1,0 +1,21 @@
+commit 0b4e8d00fe6267550e7e11149f6cd992e6edd04d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 20:58:00 2017 -0700
+
+    cmd/compile: pass an explicit position to namedAuto
+    
+    To enable this, inline the call to nod and simplify.
+    Eliminates a reference to lineno from the backend.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: I9c4bd77d10d727aa8f5e6c6bb16b0e05de165631
+    Reviewed-on: https://go-review.googlesource.com/38441
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 37 +++++++++++++++++++++----------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

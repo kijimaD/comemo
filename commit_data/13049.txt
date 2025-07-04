@@ -1,0 +1,21 @@
+commit 0355a717517f7e1435e6f9eeb94e2b77d33eb43b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 9 12:03:55 2012 +0200
+
+    exp/locale/collate: Add maketables tool and generated tables.
+    Also set maxContractLen automatically.
+    Note that the table size is much bigger than it needs to be.
+    Optimization is best done, though, when the language specific
+    tables are added.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6167044
+
+ src/pkg/exp/locale/collate/Makefile         |   16 +
+ src/pkg/exp/locale/collate/build/builder.go |    3 +
+ src/pkg/exp/locale/collate/build/table.go   |    1 +
+ src/pkg/exp/locale/collate/collate.go       |    4 -
+ src/pkg/exp/locale/collate/maketables.go    |  185 +
+ src/pkg/exp/locale/collate/tables.go        | 7272 +++++++++++++++++++++++++++
+ 6 files changed, 7477 insertions(+), 4 deletions(-)

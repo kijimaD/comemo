@@ -1,0 +1,24 @@
+commit 1b301bac1ad29bb3633109b1450555654189d555
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 14:40:20 2009 -0700
+
+    throw away os._Error.
+    make some error types in a few packages
+    
+    R=r
+    DELTA=110  (25 added, 46 deleted, 39 changed)
+    OCL=28382
+    CL=28561
+
+ src/lib/bufio/bufio.go   | 14 +++++++++-----
+ src/lib/http/request.go  | 15 +++++++++------
+ src/lib/http/url.go      | 12 ++++++------
+ src/lib/io/io.go         |  5 ++++-
+ src/lib/net/Makefile     | 10 +++++-----
+ src/lib/net/dnsclient.go | 23 ++++++++++++----------
+ src/lib/net/fd_darwin.go |  4 +++-
+ src/lib/net/net.go       | 10 +++++-----
+ src/lib/net/parse.go     |  4 ++++
+ src/lib/net/port.go      |  2 +-
+ src/lib/os/error.go      | 50 +++++-------------------------------------------
+ 11 files changed, 64 insertions(+), 85 deletions(-)

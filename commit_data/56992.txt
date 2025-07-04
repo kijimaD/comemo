@@ -1,0 +1,22 @@
+commit aec5cc52add9d8da0b5ac4e51758d10ee35589db
+Author: limeidan <limeidan@loongson.cn>
+Date:   Tue Oct 24 16:41:25 2023 +0800
+
+    cmd/link/internal/loadelf: remove useless relocation size information of loong64
+    
+    As of CL 455017 we have switched to following the new style relocations on
+    loong64, these stack based relocations should be removed.
+    
+    Change-Id: Ic129a5665cf6f183a32e13b6f1a55d712a99d721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537335
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Commit-Queue: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

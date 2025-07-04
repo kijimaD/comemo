@@ -1,0 +1,21 @@
+commit 7e66a8ad400792bcf8049313a3142496ce5fd9a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 18 14:48:36 2023 -0700
+
+    net: check for NUL bytes in strings passed to C functions
+    
+    Use syscall.BytePtrFromString and syscall.ByteSliceFromString.
+    
+    Change-Id: I9409ecd93aaca82390bf3f34be56ec354148a241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go         | 22 ++++++++++++++--------
+ src/net/cgo_unix_cgo.go     |  1 -
+ src/net/cgo_unix_syscall.go |  6 ------
+ 3 files changed, 14 insertions(+), 15 deletions(-)

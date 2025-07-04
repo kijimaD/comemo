@@ -1,0 +1,20 @@
+commit 865cf5c5f626d2546b3023217f0a0fb2e5ad9304
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Thu May 2 18:38:35 2024 +0200
+
+    testing: improve the documentation around b.N
+    
+    Fixes #67137
+    
+    - Make it clear the benchmark function is called multiple times.
+    - Demonstrate range over int.
+    
+    Change-Id: I7e993d938b0351012cdd4aed8528951e0ad406ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582835
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

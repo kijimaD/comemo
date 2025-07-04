@@ -1,0 +1,20 @@
+commit f24d2e175e3eca114b316694af1fc59d5dd63c5d
+Author: limeidan <limeidan@loongson.cn>
+Date:   Mon Dec 16 16:31:37 2024 +0800
+
+    cmd/internal/obj, cmd/asm: reclassify 32-bit immediate value of loong64
+    
+    Change-Id: If9fd257ca0837a8c8597889c4f5ed3d4edc602c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636995
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |   4 +-
+ src/cmd/asm/internal/asm/testdata/loong64enc2.s |   2 +-
+ src/cmd/internal/obj/loong64/a.out.go           |  36 ++-
+ src/cmd/internal/obj/loong64/asm.go             | 279 ++++++++++++------------
+ src/cmd/internal/obj/loong64/cnames.go          |  30 ++-
+ 5 files changed, 185 insertions(+), 166 deletions(-)

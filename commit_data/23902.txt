@@ -1,0 +1,15 @@
+commit bfac8623d554043c710a2a6b8fe971167d7700c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 19:05:07 2015 -0400
+
+    runtime: enable TestEmptySlice
+    
+    It says to disable until #7564 is fixed. It was fixed in April 2014.
+    
+    Change-Id: I9bebfe96802bafdd2d1a0a47591df346d91b000c
+    Reviewed-on: https://go-review.googlesource.com/12858
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mfinal_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,24 @@
+commit b53809d75dced5729f30d247d8694bfc2940da18
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Jan 11 15:12:50 2024 +0800
+
+    cmd/internal/obj/loong64: optimize instruction implementation
+    
+    The plan9 instructions ASLLV and -ASLLV are translated into the same assembly
+    instructions, so -ASLLV can be removed and replaced with ASLLV in the
+    corresponding position.
+    
+    ASRLV and -ASRLV have the same reason as the above two instructions.
+    
+    Change-Id: I4bd79ca7bb070f7a924a0205ef2f19cf2b9ae2c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565623
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+
+ src/cmd/internal/obj/loong64/asm.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

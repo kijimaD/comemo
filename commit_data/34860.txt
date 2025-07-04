@@ -1,0 +1,44 @@
+commit 638f112d6982e83132051ccb4f0b27684b9c0f34
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 4 18:42:39 2018 -0700
+
+    cmd/compile: cleanup method symbol creation
+    
+    There were multiple ad hoc ways to create method symbols, with subtle
+    and confusing differences between them. This CL unifies them into a
+    single well-documented encoding and implementation.
+    
+    This introduces some inconsequential changes to symbol format for the
+    sake of simplicity and consistency. Two notable changes:
+    
+    1) Symbol construction is now insensitive to the package currently
+    being compiled. Previously, non-exported methods on anonymous types
+    received different method symbols depending on whether the method was
+    local or imported.
+    
+    2) Symbols for method values parenthesized non-pointer receiver types
+    and non-exported method names, and also always package-qualified
+    non-exported method names. Now they use the same rules as normal
+    method symbols.
+    
+    The methodSym function is also now stricter about rejecting
+    non-sensical method/receiver combinations. Notably, this means that
+    typecheckfunc needs to call addmethod to validate the method before
+    calling declare, which also means we no longer emit errors about
+    redeclaring bogus methods.
+    
+    Change-Id: I9501c7a53dd70ef60e5c74603974e5ecc06e2003
+    Reviewed-on: https://go-review.googlesource.com/104876
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/fmt_test.go              |   1 -
+ src/cmd/compile/internal/gc/bimport.go   |   2 +-
+ src/cmd/compile/internal/gc/closure.go   |  30 +--------
+ src/cmd/compile/internal/gc/dcl.go       | 102 +++++++++++++------------------
+ src/cmd/compile/internal/gc/go.go        |   3 +
+ src/cmd/compile/internal/gc/main.go      |   3 +
+ src/cmd/compile/internal/gc/reflect.go   |   6 +-
+ src/cmd/compile/internal/gc/subr.go      |   2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  16 ++---
+ test/alias2.go                           |   4 +-
+ 10 files changed, 66 insertions(+), 103 deletions(-)

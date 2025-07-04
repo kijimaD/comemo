@@ -1,0 +1,12 @@
+commit e880ab112e9eb4ff6f7c6f3410b68238f8e7403f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 22:04:17 2013 +0800
+
+    runtime: remove unused file mkversion.c
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10107044
+
+ src/pkg/runtime/mkversion.c | 21 ---------------------
+ 1 file changed, 21 deletions(-)

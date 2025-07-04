@@ -1,0 +1,21 @@
+commit 38ce599494be0274f3b9dd3391a60c548420f562
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 25 15:59:13 2014 +1000
+
+    runtime: convert NewCallback and NewCallbackCDecl to Go
+    
+    LGTM=khr
+    R=khr, remyoudompheng
+    CC=golang-codereviews
+    https://golang.org/cl/132820043
+
+ src/cmd/api/goapi.go                |  5 +-
+ src/cmd/dist/buildruntime.c         |  5 ++
+ src/pkg/runtime/callback_windows.c  | 77 -------------------------------
+ src/pkg/runtime/syscall_windows.go  | 92 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/syscall_windows.goc |  8 ----
+ src/pkg/syscall/asm_windows.s       | 13 ++++++
+ src/pkg/syscall/asm_windows_386.s   |  7 ---
+ src/pkg/syscall/asm_windows_amd64.s |  7 ---
+ src/pkg/syscall/syscall_windows.go  | 18 ++++++--
+ 9 files changed, 127 insertions(+), 105 deletions(-)

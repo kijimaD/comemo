@@ -1,0 +1,27 @@
+commit b8a4eb4bd8820ca50fee3aff4b8d5adb7a0a9b49
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue May 23 11:15:41 2017 +0000
+
+    cmd/internal/obj/arm: fix illegal forms of ARM VFP instruction
+    
+    "ADDF F0, R1, F2" is silently accepted by the arm assembler and
+    assembled to the same binary code of "ADDF F0, F1, F2". So does
+    "CMPF F0, R1".
+    
+    "ABSF F0, F1, F2" is also silently accepted and assembled to a
+    different instruction.
+    
+    This patch reports those illegal forms and adds test cases.
+    
+    fix #20464
+    
+    Change-Id: I88b80dc29de24c6266ac7bf7bce1578c5adbc68c
+    Reviewed-on: https://go-review.googlesource.com/43931
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go    |  2 +-
+ src/cmd/asm/internal/asm/testdata/armerror.s | 13 +++++++++++
+ src/cmd/internal/obj/arm/asm5.go             | 35 +++++++++++++++++++---------
+ 3 files changed, 38 insertions(+), 12 deletions(-)

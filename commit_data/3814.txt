@@ -1,0 +1,14 @@
+commit 2a89915485c6f4c7cf74e39ed33e41454c683685
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:42:28 2009 -0800
+
+    gofmt-ify draw
+    
+    R=rsc
+    http://go/go-review/1017055
+
+ src/pkg/exp/draw/arith.go | 71 +++++++++++++++++++++++------------------------
+ src/pkg/exp/draw/color.go | 54 +++++++++++++++++------------------
+ src/pkg/exp/draw/draw.go  | 28 +++++++++----------
+ src/pkg/exp/draw/event.go |  7 ++---
+ 4 files changed, 79 insertions(+), 81 deletions(-)

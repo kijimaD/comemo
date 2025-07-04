@@ -1,0 +1,14 @@
+commit 6f2a8810b01d6332d35c9b3e3e64c13f60d31776
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 6 11:53:26 2016 +1000
+
+    expvar: Ensure strings are written as valid JSON.
+    
+    Change-Id: I5147dbf4e85cf42cd1f32c57861e4c16d9dbd049
+    Reviewed-on: https://go-review.googlesource.com/21529
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/expvar/expvar.go      |  6 ++++--
+ src/expvar/expvar_test.go | 10 ++++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

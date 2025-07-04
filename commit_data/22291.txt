@@ -1,0 +1,39 @@
+commit 92dba0d2780331d68e56bdb1a5e0af13b714be73
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 1 16:02:34 2015 -0400
+
+    cmd/internal/gc: use hardware instruction for math.Sqrt (amd64/arm)
+    
+    I first prototyped this change in Sept 2011, and I discarded it
+    because it made no difference in the obvious benchmark loop.
+    It still makes no difference in the obvious benchmark loop,
+    but in a less obvious one, doing some extra computation
+    around the calls to Sqrt, not making the call does have a
+    significant effect.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkSqrt             4.56          4.57          +0.22%
+    BenchmarkSqrtIndirect     4.56          4.56          +0.00%
+    BenchmarkSqrtGo           69.4          69.4          +0.00%
+    BenchmarkSqrtPrime        4417          3647          -17.43%
+    
+    This is a warmup for using hardware expansions for some
+    calls to 1-line assembly routines in the runtime (for example getg).
+    
+    Change-Id: Ie66be23f8c09d0f7dc4ddd7ca8a93cfce28f55a4
+    Reviewed-on: https://go-review.googlesource.com/8356
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/5g/gsubr.go           |  3 +++
+ src/cmd/5g/peep.go            |  1 +
+ src/cmd/5g/prog.go            | 21 ++++++++++----------
+ src/cmd/6g/gsubr.go           |  3 +++
+ src/cmd/6g/prog.go            |  1 +
+ src/cmd/internal/gc/cgen.go   |  9 +++++++++
+ src/cmd/internal/gc/gen.go    |  3 +++
+ src/cmd/internal/gc/syntax.go |  3 ++-
+ src/cmd/internal/gc/walk.go   | 10 ++++++++++
+ src/math/all_test.go          | 45 +++++++++++++++++++++++++++++++++++++++++--
+ src/math/sqrt.go              |  5 +++++
+ 11 files changed, 91 insertions(+), 13 deletions(-)

@@ -1,0 +1,21 @@
+commit bc13a1a374809112a321915c5be9618f68b7b9da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 7 19:32:22 2008 -0700
+
+    first primitive cut at resolving missing imports automatically:
+    if an import file is missing, the corresponding source
+    is compiled automatically, if found
+    
+    R=r
+    OCL=13990
+    CL=13990
+
+ usr/gri/gosrc/compilation.go | 23 +++++++-----
+ usr/gri/gosrc/export.go      |  8 ++++-
+ usr/gri/gosrc/globals.go     | 41 +++++++++++++++-------
+ usr/gri/gosrc/go.go          | 83 ++++++++++++++++++++++++++++++--------------
+ usr/gri/gosrc/import.go      | 65 ++++++++++++++++++++++++++++++++--
+ usr/gri/gosrc/parser.go      |  6 ++--
+ usr/gri/gosrc/scanner.go     |  2 +-
+ usr/gri/gosrc/utils.go       | 48 ++++++++++++++++---------
+ 8 files changed, 207 insertions(+), 69 deletions(-)

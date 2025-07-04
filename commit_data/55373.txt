@@ -1,0 +1,20 @@
+commit 7e7b16c9723d946031803d46baac91dc1fa80812
+Author: Dan Peterson <danp@danp.net>
+Date:   Thu Dec 21 13:58:00 2023 -0400
+
+    doc: fill out net/http.Request.PathValue,SetPathValue section
+    
+    And add a missing code tag wrap elsewhere.
+    
+    Updates #61410
+    Updates #61422
+    
+    Change-Id: I70a9c4ecaf4056af2e88d777b8db892a45dfcb9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552195
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dan Peterson <danp@danp.net>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.22.html | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

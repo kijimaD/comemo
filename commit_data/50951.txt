@@ -1,0 +1,55 @@
+commit 72c58fb77192f7d17d87663c943360a48aae11dc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Sep 28 11:06:08 2022 -0700
+
+    time: implement strict RFC 3339 during marshal and unmarshal
+    
+    We add strict checking to marshal and unmarshal methods,
+    rather than Parse to maintain compatibility in Parse behavior.
+    Also, the Time.Format method has no ability to report errors.
+    
+    The Time.Marshal{Text,JSON} and Time.Unmarshal{Time,JSON} methods
+    are already documented as complying with RFC 3339, but have
+    edge cases on both marshal and unmarshal where it is incorrect.
+    The Marshal methods already have at least one check to comply
+    with RFC 3339, so it seems sensible to expand this to cover
+    all known violations of the specification.
+    This commit fixes all known edge cases for full compliance.
+    
+    Two optimizations are folded into this change:
+    
+            1. parseRFC3339 is made generic so that it can operate
+               directly on a []byte as well as string.
+               This avoids allocating or redundant copying
+               when converting from string to []byte.
+    
+            2. When marshaling, we verify for correctness based
+               on the serialized output, rather than calling
+               attribute methods on the Time type. For example,
+               it is faster to check that the 5th byte is '-'
+               rather than check that Time.Year is within [0,9999],
+               since Year is a relatively expensive operation.
+    
+    Performance:
+    
+            name            old time/op  new time/op  delta
+            MarshalJSON     109ns ± 2%    99ns ± 1%   -9.43%  (p=0.000 n=10+10)
+            UnmarshalText   158ns ± 4%   143ns ± 1%   -9.17%  (p=0.000 n=9+9)
+    
+    Updates #54580
+    Updates #54568
+    Updates #54571
+    
+    Change-Id: I1222e45a7625d1ffd0629be5738670a84188d301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444277
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/export_test.go    |  2 +-
+ src/time/format.go         | 16 +++++-----
+ src/time/format_rfc3339.go | 58 +++++++++++++++++++++++++++++++++--
+ src/time/time.go           | 47 ++++++++++++++--------------
+ src/time/time_test.go      | 76 +++++++++++++++++++++++++++++++++++-----------
+ 5 files changed, 147 insertions(+), 52 deletions(-)

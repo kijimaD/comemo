@@ -1,0 +1,17 @@
+commit 38ea0ae05f1f2839949ca491a3541ada0e4c1211
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 12 14:27:27 2014 -0800
+
+    net/url: add example of using URL.Opaque with http.Request
+    
+    Per private thread soliciting help. I realized part of this is
+    documented in several places, but we lacked a unifying
+    example.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=adg, golang-codereviews, iant, rsc
+    https://golang.org/cl/171620043
+
+ src/net/url/example_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

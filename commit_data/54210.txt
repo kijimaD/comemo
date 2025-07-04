@@ -1,0 +1,51 @@
+commit 3b4d428ca0efaa309f7254ed378111cf76a1267d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 24 12:49:10 2023 -0700
+
+    encoding/json: modernize tests
+    
+    There are no changes to what is being tested.
+    No test cases were removed or added.
+    
+    Changes made:
+    * Use a local implementation of test case position marking. See #52751.
+    * Use consistent names for all test tables and variables.
+    * Generally speaking, follow modern Go style guide for tests.
+    * Move global tables local to the test function if possible.
+    * Make every table entry run in a distinct testing.T.Run.
+    
+    The purpose of this change is to make it easier to perform
+    v1-to-v2 development where we want v2 to support close to
+    bug-for-bug compatibility when running in v1 mode.
+    
+    Annotating each test case with the location of the test data
+    makes it easier to jump directly to the test data itself
+    and understand why this particular case is failing.
+    
+    Having every test case run in its own t.Run makes it easier
+    to isolate a particular failing test and work on fixing the code
+    until that test case starts to pass again.
+    
+    Unfortunately, many tests are annotated with an empty name.
+    An empty name is better than nothing, since the testing framework
+    auto assigns a numeric ID for duplicate names.
+    It is not worth the trouble to give descriptive names to each
+    of the thousands of test cases.
+    
+    Change-Id: I43905f35249b3d77dfca234b9c7808d40e225de8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522880
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/encoding/json/bench_test.go   |   53 +-
+ src/encoding/json/decode_test.go  | 1644 +++++++++++++++++++------------------
+ src/encoding/json/encode_test.go  |  565 ++++++-------
+ src/encoding/json/scanner_test.go |  223 ++---
+ src/encoding/json/stream_test.go  |  403 ++++-----
+ src/encoding/json/tagkey_test.go  |   83 +-
+ src/encoding/json/tags_test.go    |    2 +-
+ 7 files changed, 1528 insertions(+), 1445 deletions(-)

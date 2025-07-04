@@ -1,0 +1,29 @@
+commit 638ef0794f5e278f3348d3591c6323c79c66467d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 14:14:22 2010 -0700
+
+    bignum: deprecate by moving into exp directory
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1211047
+
+ src/pkg/Makefile                        |  2 +-
+ src/pkg/{ => exp}/bignum/Makefile       |  6 +++---
+ src/pkg/{ => exp}/bignum/arith.go       |  0
+ src/pkg/{ => exp}/bignum/arith_amd64.s  |  0
+ src/pkg/{ => exp}/bignum/bignum.go      |  0
+ src/pkg/{ => exp}/bignum/bignum_test.go | 10 ++++++++++
+ src/pkg/{ => exp}/bignum/integer.go     |  0
+ src/pkg/{ => exp}/bignum/nrdiv_test.go  |  0
+ src/pkg/{ => exp}/bignum/rational.go    |  0
+ src/pkg/exp/eval/eval_test.go           |  2 +-
+ src/pkg/exp/eval/expr.go                |  2 +-
+ src/pkg/exp/eval/expr1.go               |  2 +-
+ src/pkg/exp/eval/expr_test.go           |  2 +-
+ src/pkg/exp/eval/stmt.go                |  2 +-
+ src/pkg/exp/eval/type.go                |  2 +-
+ src/pkg/exp/eval/util.go                |  2 +-
+ src/pkg/exp/eval/value.go               |  2 +-
+ test/hilbert.go                         |  2 +-
+ 18 files changed, 23 insertions(+), 13 deletions(-)

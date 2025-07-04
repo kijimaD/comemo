@@ -1,0 +1,21 @@
+commit 6485e8f50334f4ff369984759c22fba327a5d064
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 22 14:09:21 2022 -0700
+
+    cmd/compile: use stricter rule for possible partial overlap
+    
+    Partial overlaps can only happen for strict sub-pieces of larger arrays.
+    That's a much stronger condition than the current optimization rules.
+    
+    Update #54467
+    
+    Change-Id: I11e539b71099e50175f37ee78fddf69283f83ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433056
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 28 ++++++----------
+ test/codegen/issue54467.go             | 59 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 18 deletions(-)

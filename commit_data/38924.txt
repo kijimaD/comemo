@@ -1,0 +1,15 @@
+commit 930d6ecb69d2a26c545d4ee6e4f217022b945d35
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Sat Apr 27 08:16:36 2019 -0500
+
+    bootstrap.bash: preserve file times when copying
+    
+    Preserve file modification times when copying bootstrap tree,
+    this makes generated bootstrap more friendly to rsyncing.
+    
+    Change-Id: I32cde58c25b48d3c00d4413860dbd49a265b0ff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bootstrap.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

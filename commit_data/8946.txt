@@ -1,0 +1,15 @@
+commit 4657d7d7db3b28206c7fc98907f998140843ed88
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 10:13:53 2011 +1000
+
+    exp/template: remove the visibility of the token channel from the parser.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4675053
+
+ src/pkg/exp/template/lex.go      |  9 +++++++--
+ src/pkg/exp/template/lex_test.go |  4 ++--
+ src/pkg/exp/template/parse.go    | 17 +++++++----------
+ src/pkg/exp/template/set.go      |  4 ++--
+ 4 files changed, 18 insertions(+), 16 deletions(-)

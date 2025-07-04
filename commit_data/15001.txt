@@ -1,0 +1,20 @@
+commit 66bf59712e6ee1ea84ce88ff35cea78e525ac5a7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jan 28 18:06:14 2013 -0500
+
+    exp/ssa: (#2 of 5): core utilities
+    
+    This CL includes the implementation of Literal, all the
+    Value.String and Instruction.String methods, the sanity
+    checker, and other misc utilities.
+    
+    R=gri, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/7199052
+
+ src/pkg/exp/ssa/literal.go | 137 ++++++++++++++++
+ src/pkg/exp/ssa/print.go   | 383 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/sanity.go  | 263 +++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/ssa.go     |  21 +--
+ src/pkg/exp/ssa/util.go    | 172 ++++++++++++++++++++
+ 5 files changed, 961 insertions(+), 15 deletions(-)

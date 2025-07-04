@@ -1,0 +1,20 @@
+commit e395e3246a2d643587dc53c61402d5413728c0c7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Jan 14 14:27:40 2017 +0100
+
+    net/http: skip TestServerHijackGetsBackgroundByte_big on Plan 9
+    
+    CL 35234 added TestServerHijackGetsBackgroundByte_big, which is failing
+    on Plan 9, because CloseWrite is not implemented on Plan 9 yet.
+    
+    Updates #17906.
+    Updates #18658.
+    
+    Change-Id: Icaf3fe3600d586515ecd92aca874104ea81ce6b9
+    Reviewed-on: https://go-review.googlesource.com/35179
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

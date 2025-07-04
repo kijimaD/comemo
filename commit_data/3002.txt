@@ -1,0 +1,25 @@
+commit f7e4fc9b1fde08034741505c006f2fcf46e9d725
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 17 17:40:52 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug165.go:13:6: error: invalid recursive type 'S'
+    
+    This is a different line from the 6g error message, which is
+    "invalid map key type".  I accomodated both compilers by
+    merging the line.
+    
+    bug188.go:13:2: error: unexpected reference to package
+    
+    I made the error message less specific, which I think is fine
+    here.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=33398
+    CL=33426
+
+ test/fixedbugs/bug165.go | 2 +-
+ test/fixedbugs/bug188.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

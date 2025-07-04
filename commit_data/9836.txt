@@ -1,0 +1,14 @@
+commit 585294db73b35f5c2992f433739b1e2ac0c8f231
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 30 13:11:20 2011 +1000
+
+    doc: link to image/draw blog post.
+    
+    R=adg
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/5154046
+
+ doc/docs.html              | 1 +
+ src/pkg/image/draw/draw.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

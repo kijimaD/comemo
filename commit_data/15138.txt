@@ -1,0 +1,13 @@
+commit 6b1b613d6aa77da31348bfe76991e564c106bbba
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Feb 5 13:08:07 2013 +0400
+
+    runtime/race: do not include pthread.h
+    Fixes #4721.
+    
+    R=alex.brainman, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7275048
+
+ src/pkg/runtime/race/testdata/cgo_test_main.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

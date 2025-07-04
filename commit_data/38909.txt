@@ -1,0 +1,29 @@
+commit 8feeada50cf3f783fe3c8113d5da51ad8c0b3014
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 30 12:38:15 2019 +0700
+
+    time: fix misleading error with the leading zero format
+    
+    When the leading zero format is used, we currently don't handle the
+    month and year properly.
+    
+    For the month, we were reporting an out of range error when getnum
+    returns zero of its own, as it also returns the month 0. That's
+    confusing, so only check the range when getnum returns a nil error.
+    
+    For the year, we don't restore the value when parsing error occurs. For
+    example, with the incorrect input "111-01", "01" will be used to report
+    an error. So restore the value when an error occurs fix the problem.
+    
+    Fixes #29918
+    Fixes #29916
+    
+    Change-Id: I3145f8c46813a0457766b7c302482e6b56f94ed6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go      |  7 +++++--
+ src/time/format_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

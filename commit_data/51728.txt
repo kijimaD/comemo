@@ -1,0 +1,32 @@
+commit bb5ff5342d31723ecf245e8e53b79bce23b88839
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Oct 3 18:08:29 2022 +0200
+
+    cmd/compile: make loopbce handle 8, 16 and 32 bit induction variables
+    
+    Compute limits and increment values for all integer widths.
+    Resolves 2 TODO's in loopbce.go
+    
+    compilecmp linux/amd64:
+    
+    compress/flate
+    compress/flate.(*huffmanEncoder).bitCounts 1235 -> 1207  (-2.27%)
+    
+    cmd/internal/obj/wasm
+    cmd/internal/obj/wasm.assemble 7443 -> 7303  (-1.88%)
+    cmd/internal/obj/wasm.assemble.func1 165 -> 138  (-16.36%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.(*Link).findfunctab.func1 1646 -> 1627  (-1.15%)
+    
+    Change-Id: I2d79b7376eb67d6bcc8fdaf0c197c11e631562d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435258
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 49 ++++++++++++++++++---------------
+ test/loopbce.go                         | 24 ++++++++++++++++
+ 2 files changed, 51 insertions(+), 22 deletions(-)

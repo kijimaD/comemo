@@ -1,0 +1,18 @@
+commit 0f1491ded51769588b9306b9d789498dc75b5caa
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 2 12:30:56 2023 +0000
+
+    encoding/json: adjust comment to keep the same style as comment above
+    
+    Change-Id: Id47d32d18031883b874bba4cf8541f75c5d7f9db
+    GitHub-Last-Rev: 98c671c00c112e7bdf70b2f901a4f7682f922725
+    GitHub-Pull-Request: golang/go#61711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515215
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/encoding/json/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

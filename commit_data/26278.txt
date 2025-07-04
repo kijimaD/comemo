@@ -1,0 +1,17 @@
+commit eb4d1be28586d17bc1e04abaf126c1e414e6446e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 13:40:01 2016 -0800
+
+    cmd/compile: keep variable numbering for inlineable exported functions
+    
+    Another step towards hooking up exported inlined function bodies.
+    
+    Change-Id: Ib8094b03ac7970fee0e51b5826b5f8aa232e23fb
+    Reviewed-on: https://go-review.googlesource.com/20605
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 67 ++++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/bimport.go | 25 +++++++++----
+ src/go/internal/gcimporter/bimport.go  |  4 +-
+ 3 files changed, 60 insertions(+), 36 deletions(-)

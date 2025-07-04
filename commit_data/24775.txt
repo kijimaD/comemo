@@ -1,0 +1,12 @@
+commit 6c967c0ad2a23c8824d9be8fef18aaf00d2ff0f4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 4 08:31:43 2015 +1200
+
+    cmd/dist: run more cgo tests on ppc64x
+    
+    Change-Id: I992655bb02690ad95122a9e4c45cbd0948b545a0
+    Reviewed-on: https://go-review.googlesource.com/14238
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

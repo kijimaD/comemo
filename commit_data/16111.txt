@@ -1,0 +1,12 @@
+commit 44c4a0d1c495809c881ed3105f32d54a99a31741
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Sun Apr 7 04:11:12 2013 +0800
+
+    misc: update zsh completion
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8437043
+
+ misc/zsh/go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

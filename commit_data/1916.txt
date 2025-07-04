@@ -1,0 +1,23 @@
+commit d30285a6f5a4fb6bdf61e3395a5fa6a79595d7e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 17:52:21 2009 -0700
+
+    move some portable pieces of 6g/gsubr.c into gc/subr.c
+    
+            int     brcom(int);
+            int     brrev(int);
+            void    setmaxarg(Type*);
+            Sig*    lsort(Sig*, int(*)(Sig*, Sig*));
+            int     dotoffset(Node*, int*, Node**);
+            void    stringpool(Node*);
+            void    tempname(Node*, Type*);
+    
+    R=ken
+    OCL=26922
+    CL=26922
+
+ src/cmd/6g/gg.h    |  30 -------
+ src/cmd/6g/gsubr.c | 244 -----------------------------------------------------
+ src/cmd/gc/go.h    |  33 +++++++-
+ src/cmd/gc/subr.c  | 240 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 272 insertions(+), 275 deletions(-)

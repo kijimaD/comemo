@@ -1,0 +1,35 @@
+commit 6fc49c18540938cd4699c1eb8cb05bd00ff9f59c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 19 11:19:18 2013 -0700
+
+    runtime: cleanup: use ArgsSizeUnknown to mark all functions
+    whose argument size is unknown (C vararg functions, and
+    assembly code without an explicit specification).
+    
+    We used to use 0 to mean "unknown" and 1 to mean "zero".
+    Now we use ArgsSizeUnknown (0x80000000) to mean "unknown".
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11590043
+
+ src/cmd/5a/a.y                  |    9 +-
+ src/cmd/5a/y.tab.c              | 1137 ++++++++++++++++++------------
+ src/cmd/5a/y.tab.h              |   46 +-
+ src/cmd/5c/sgen.c               |   13 +-
+ src/cmd/6a/a.y                  |   15 +-
+ src/cmd/6a/y.tab.c              | 1466 +++++++++++++++++++++++----------------
+ src/cmd/6a/y.tab.h              |   46 +-
+ src/cmd/6c/sgen.c               |   11 +-
+ src/cmd/8a/a.y                  |   13 +-
+ src/cmd/8a/y.tab.c              | 1183 +++++++++++++++++++------------
+ src/cmd/8a/y.tab.h              |   46 +-
+ src/cmd/8c/sgen.c               |   11 +-
+ src/cmd/cc/pgen.c               |    7 +-
+ src/cmd/ld/lib.c                |    9 +-
+ src/cmd/ld/lib.h                |    7 -
+ src/pkg/runtime/funcdata.h      |    6 +
+ src/pkg/runtime/runtime.h       |    6 -
+ src/pkg/runtime/traceback_arm.c |    1 +
+ src/pkg/runtime/traceback_x86.c |    1 +
+ 19 files changed, 2408 insertions(+), 1625 deletions(-)

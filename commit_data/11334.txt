@@ -1,0 +1,12 @@
+commit fcfed1479e0fd96cc8c5fb21b4b8b590267491f1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 23 08:39:53 2012 -0800
+
+    FAQ: update to Go 1.
+    
+    R=adg, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5562051
+
+ doc/go_faq.html | 142 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 77 insertions(+), 65 deletions(-)

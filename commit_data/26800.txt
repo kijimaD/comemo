@@ -1,0 +1,21 @@
+commit 0fb7b4cccd02df10f239ed77d6d85566b6388b83
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 8 15:14:37 2016 +0200
+
+    runtime: emit file:line info into traces
+    
+    This makes traces self-contained and simplifies trace workflow
+    in modern cloud environments where it is simpler to reach
+    a service via HTTP than to obtain the binary.
+    
+    Change-Id: I6ff3ca694dc698270f1e29da37d5efaf4e843a0d
+    Reviewed-on: https://go-review.googlesource.com/21732
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/main.go                 |   5 -
+ src/internal/trace/parser.go          | 174 +++++++++++++---------------------
+ src/runtime/trace.go                  |  98 ++++++++++++++++---
+ src/runtime/trace/trace_stack_test.go |   7 +-
+ 4 files changed, 156 insertions(+), 128 deletions(-)

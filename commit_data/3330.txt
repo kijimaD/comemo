@@ -1,0 +1,20 @@
+commit fed4770685cbec361636ba796af0a34f13be79b2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 21 12:20:15 2009 -0700
+
+    step 2 of the great buffer shift.
+    make strings.Buffer handle strings and bytes with comparable efficiency.
+    if ok, next step will be to move this code to bytes.Buffer and terminate
+    strings.Buffer's short happy life.
+    
+    R=rsc
+    DELTA=292  (212 added, 0 deleted, 80 changed)
+    OCL=34837
+    CL=34849
+
+ src/pkg/base64/base64_test.go  |   4 +-
+ src/pkg/bufio/bufio_test.go    |   8 +-
+ src/pkg/gob/encoder_test.go    |   2 +-
+ src/pkg/strings/buffer.go      | 259 +++++++++++++++++++++++++++++++++--------
+ src/pkg/strings/buffer_test.go |  75 ++++++++++--
+ 5 files changed, 280 insertions(+), 68 deletions(-)

@@ -1,0 +1,19 @@
+commit 0ca4488cc1b91caef2667b6b58ff1562d44a2c74
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 16:59:39 2015 -0500
+
+    runtime: change p.runq from []*g to []guintptr
+    
+    This eliminates many write barriers in the scheduler code that are
+    unnecessary and will interfere with upcoming changes where the garbage
+    collector will have to invoke run queue functions in contexts that
+    must not have write barriers.
+    
+    Change-Id: I702d0ac99cfd00ffff406e7362917db6a43e7e55
+    Reviewed-on: https://go-review.googlesource.com/16556
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go     | 14 +++++++-------
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

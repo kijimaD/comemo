@@ -1,0 +1,12 @@
+commit 10da5260690e6b41097686f379e1b629ef148dc5
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Jan 28 16:57:36 2013 -0800
+
+    cmd/gc: document more of the declaration context enumeration
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7231051
+
+ src/cmd/gc/go.h | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

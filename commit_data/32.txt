@@ -1,0 +1,12 @@
+commit e4ca60eca70ee949aa927c290726b1d062cefcd7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 17 19:05:07 2008 -0700
+
+    change Main, Init to lower case.
+    make new() take an optional expression, not expression list.
+    add an example for new().
+    
+    SVN=112895
+
+ doc/go_lang.txt | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

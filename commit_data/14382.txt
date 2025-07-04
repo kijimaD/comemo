@@ -1,0 +1,16 @@
+commit 16072c749750b7e4e6e1e48d4724afdfec574efa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Nov 13 00:08:04 2012 +0100
+
+    cmd/6g: extend componentgen to small arrays and structs.
+    
+    Fixes #4092.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6819083
+
+ src/cmd/6g/cgen.c |  66 +++++++++++++++++++++++++++-
+ src/cmd/6g/gg.h   |   1 +
+ src/cmd/gc/gen.c  | 126 ++++++++++++++++++++++++++++--------------------------
+ 3 files changed, 132 insertions(+), 61 deletions(-)

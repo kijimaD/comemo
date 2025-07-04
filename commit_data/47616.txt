@@ -1,0 +1,23 @@
+commit f7e34e705c533cca0970f1c6d1eafc2666a6a947
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Nov 23 20:57:24 2021 +0100
+
+    runtime: support non-cooperative preemption on windows/arm64
+    
+    This adds support for injecting asynchronous preemption calls on
+    windows/arm64. This code exactly follows sigctxt.pushCall for POSIX OSes
+    on arm64.
+    
+    Fixes #49759.
+    
+    Change-Id: Id35ff6bc105c1db9d7ed2918d3ecab0e4e9a9431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366735
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+
+ src/runtime/os_windows.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

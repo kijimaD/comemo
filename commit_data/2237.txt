@@ -1,0 +1,21 @@
+commit be869ba4d66ad7028ea84ee380072a23ec54c469
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 13:31:56 2009 -0700
+
+    add io.ByteReader.
+    add testing/iotest package.
+    make bufio return error on short write.
+    
+    R=r
+    DELTA=423  (208 added, 154 deleted, 61 changed)
+    OCL=28997
+    CL=28999
+
+ src/lib/Makefile                 |   4 +-
+ src/lib/bufio/bufio.go           |  28 ++--
+ src/lib/bufio/bufio_test.go      | 305 ++++++++++++++-------------------------
+ src/lib/io/bytebuffer.go         |   6 +-
+ src/lib/io/io.go                 |  26 ++++
+ src/lib/testing/iotest/Makefile  |  68 +++++++++
+ src/lib/testing/iotest/reader.go |  44 ++++++
+ 7 files changed, 270 insertions(+), 211 deletions(-)

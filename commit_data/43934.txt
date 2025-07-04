@@ -1,0 +1,29 @@
+commit b1369d5862bc78eaa902ae637c874e6a6133f1f9
+Author: Jonathan Albrecht <jonathan.albrecht@ibm.com>
+Date:   Wed Dec 2 10:44:10 2020 -0500
+
+    math/big: remove the s390x assembly for shlVU and shrVU
+    
+    The s390x assembly for shlVU does a forward copy when the shift amount s
+    is 0. This causes corruption of the result z when z is aliased to the
+    input x.
+    
+    This fix removes the s390x assembly for both shlVU and shrVU so the pure
+    go implementations will be used.
+    
+    Test cases have been added to the existing TestShiftOverlap test to
+    cover shift values of 0, 1 and (_W - 1).
+    
+    Fixes #42838
+    
+    Change-Id: I75ca0e98f3acfaa6366a26355dcd9dd82499a48b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274442
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith_s390x.s | 192 +--------------------------------------------
+ src/math/big/arith_test.go |  55 ++++++++++++-
+ 2 files changed, 54 insertions(+), 193 deletions(-)

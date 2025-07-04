@@ -1,0 +1,20 @@
+commit ef954a03eb9d4e8d19e1024db088095110e19a0b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:57:46 2019 +0100
+
+    bytes: hoist error creation out of function
+    
+    generating frame information in errors will cause this
+    function to no longer be inlined.
+    
+    Updates #29934.
+    
+    Change-Id: I1d7bc11707f1872d7315f627bfb9a12afa41e358
+    Reviewed-on: https://go-review.googlesource.com/c/161760
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

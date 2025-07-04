@@ -1,0 +1,21 @@
+commit 4a5d78ff8b7e777d70b18a61698b1ac07bbd623d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Apr 11 18:11:48 2021 +0000
+
+    runtime: move pacer time updates and state resets into methods
+    
+    Currently GC pacer updates are applied somewhat haphazardly via direct
+    field access. To facilitate ease of testing, move these field updates
+    into methods. Further CLs will move more of these updates into methods.
+    
+    For #44167.
+    
+    Change-Id: I25b10d2219ae27b356b5f236d44827546c86578d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309274
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 39 +++++++++++----------------------------
+ src/runtime/mgcpacer.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 51 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit e831bd1fcae591a4dd985c4f75b455355033c75b
+Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
+Date:   Sun Mar 12 12:19:32 2017 +0100
+
+    net/http: fix body close statement is missing
+    
+    Call body close after ioutil.ReadAll is done
+    
+    Change-Id: Ieceb1965a6a8f2dbc024e983acdfe22df17d07d1
+    Reviewed-on: https://go-review.googlesource.com/38059
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/filetransport_test.go | 1 +
+ 1 file changed, 1 insertion(+)

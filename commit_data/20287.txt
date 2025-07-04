@@ -1,0 +1,13 @@
+commit 1b47af21995cfbb5f8367b371b37f7c6f8454f5d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 4 10:16:57 2014 +0400
+
+    runtime: fix arm build
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/140990043
+
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

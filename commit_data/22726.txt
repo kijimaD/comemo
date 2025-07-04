@@ -1,0 +1,16 @@
+commit d707a6e0e2fe68c7cdcb552e920e8c286286fb56
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 27 10:56:38 2015 -0400
+
+    runtime: remove unnecessary noescape to fix netbsd
+    
+    I introduced this build failure in golang.org/cl/9302 but failed to
+    notice due to the other failures on the dashboard.
+    
+    Change-Id: I84bf00f664ba572c1ca722e0136d8a2cf21613ca
+    Reviewed-on: https://go-review.googlesource.com/9363
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os_netbsd.go | 1 -
+ 1 file changed, 1 deletion(-)

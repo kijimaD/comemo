@@ -1,0 +1,19 @@
+commit d33ee0c5e52cbdc66066f54b9b2e2c930268784a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 12:31:07 2014 -0700
+
+    testing: read coverage counters atomically
+    For -mode=atomic, we need to read the counters
+    using an atomic load to avoid a race. Not worth worrying
+    about when -mode=atomic is set during generation
+    of the profile, so we use atomic loads always.
+    
+    Fixes #8630.
+    
+    LGTM=rsc
+    R=dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/141800043
+
+ src/testing/cover.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

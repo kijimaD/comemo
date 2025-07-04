@@ -1,0 +1,17 @@
+commit e93eb2843c6b6b8e0e6c5e9eb1a4417328055ec6
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 2 22:24:22 2017 -0700
+
+    strings: avoid unnecessary variable setting
+    
+    We initialize fieldStart to 0, then set it to i without ever reading
+    0, so we might as well just initialize it to i.
+    
+    Change-Id: I17905b25d54a62b6bc76f915353756ed5eb6972b
+    Reviewed-on: https://go-review.googlesource.com/52933
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

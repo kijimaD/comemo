@@ -1,0 +1,55 @@
+commit 6ed4661807b219781d1aa452b7f210e21ad1974b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 23 13:50:07 2018 +0200
+
+    cmd/compile: optimize make+copy pattern to avoid memclr
+    
+    match:
+     m = make([]T, x); copy(m, s)
+    for pointer free T and x==len(s) rewrite to:
+     m = mallocgc(x*elemsize(T), nil, false); memmove(&m, &s, x*elemsize(T))
+    otherwise rewrite to:
+     m = makeslicecopy([]T, x, s)
+    
+    This avoids memclear and shading of pointers in the newly created slice
+    before the copy.
+    
+    With this CL "s" is only be allowed to bev a variable and not a more
+    complex expression. This restriction could be lifted in future versions
+    of this optimization when it can be proven that "s" is not referencing "m".
+    
+    Triggers 450 times during make.bash..
+    Reduces go binary size by ~8 kbyte.
+    
+    name                           old time/op  new time/op  delta
+    MakeSliceCopy/mallocmove/Byte  71.1ns ± 1%  65.8ns ± 0%  -7.49%  (p=0.000 n=10+9)
+    MakeSliceCopy/mallocmove/Int   71.2ns ± 1%  66.0ns ± 0%  -7.27%  (p=0.000 n=10+8)
+    MakeSliceCopy/mallocmove/Ptr    104ns ± 4%    99ns ± 1%  -5.13%  (p=0.000 n=10+10)
+    MakeSliceCopy/makecopy/Byte    70.3ns ± 0%  68.0ns ± 0%  -3.22%  (p=0.000 n=10+9)
+    MakeSliceCopy/makecopy/Int     70.3ns ± 0%  68.5ns ± 1%  -2.59%  (p=0.000 n=9+10)
+    MakeSliceCopy/makecopy/Ptr      102ns ± 0%    99ns ± 1%  -2.97%  (p=0.000 n=9+9)
+    MakeSliceCopy/nilappend/Byte   75.4ns ± 0%  74.9ns ± 2%  -0.63%  (p=0.015 n=9+9)
+    MakeSliceCopy/nilappend/Int    75.6ns ± 0%  76.4ns ± 3%    ~     (p=0.245 n=9+10)
+    MakeSliceCopy/nilappend/Ptr     107ns ± 0%   108ns ± 1%  +0.93%  (p=0.005 n=9+10)
+    
+    Fixes #26252
+    
+    Change-Id: Iec553dd1fef6ded16197216a472351c8799a8e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/146719
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 626 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +
+ src/cmd/compile/internal/gc/fmt.go             | 176 +++----
+ src/cmd/compile/internal/gc/op_string.go       | 161 +++----
+ src/cmd/compile/internal/gc/order.go           |  76 ++-
+ src/cmd/compile/internal/gc/syntax.go          |  60 ++-
+ src/cmd/compile/internal/gc/typecheck.go       |  43 ++
+ src/cmd/compile/internal/gc/walk.go            |  60 +++
+ src/runtime/slice.go                           |  49 ++
+ src/runtime/slice_test.go                      |  78 +++
+ test/codegen/slices.go                         | 183 ++++++++
+ test/makeslice.go                              | 149 ++++++
+ 12 files changed, 1160 insertions(+), 503 deletions(-)

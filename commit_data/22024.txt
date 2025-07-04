@@ -1,0 +1,18 @@
+commit be3133bfda9c71b70d7494588c01a86e437ea920
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Feb 16 02:03:53 2015 +1100
+
+    runtime: add support for openbsd/arm
+    
+    Change-Id: I2bc101aa19172e705ee4de5f3c73a8b4bbf4fa6f
+    Reviewed-on: https://go-review.googlesource.com/4912
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/defs_openbsd_arm.go   | 170 +++++++++++++++++
+ src/runtime/os_openbsd_arm.go     |  17 ++
+ src/runtime/rt0_freebsd_arm.s     |   6 +-
+ src/runtime/rt0_netbsd_arm.s      |   4 +-
+ src/runtime/rt0_openbsd_arm.s     |  11 ++
+ src/runtime/signal_openbsd_arm.go |  53 ++++++
+ src/runtime/sys_openbsd_arm.s     | 377 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 631 insertions(+), 7 deletions(-)

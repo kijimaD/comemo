@@ -1,0 +1,18 @@
+commit 3185cfbfbbf7ab7067ea96a2198dbbd510a78515
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 16 16:24:45 2015 +0900
+
+    net: rename netFD.proto to netFD.net on Plan 9
+    
+    In followup changes, we'll move OpError around from the netFD layer to
+    the Conn layer for fixing #4856. Before doing that, this change makes
+    netFD of Plan 9 match netFD for POSIX platforms to avoid conflict.
+    
+    Change-Id: Iea7632716d48722a1758e52effefec964a3a9442
+    Reviewed-on: https://go-review.googlesource.com/8990
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_plan9.go     | 10 +++++-----
+ src/net/ipsock_plan9.go | 12 ++++++------
+ 2 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,40 @@
+commit 3c6eaa7c0dd93ad40a46940c4d7a62d966de82e7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 18 16:33:54 2019 +0100
+
+    cmd/compile: parallelize one more bit of rulegen
+    
+    'go tool trace' pointed at an obvious inefficiency; roughly the first
+    fifth of the program's life was CPU-heavy and making use of only one CPU
+    core at a time.
+    
+    This was due to genOp being run before genLower. We did make genLower
+    use goroutines to parallelize the work between architectures, but we
+    didn't make genOp run in parallel too.
+    
+    Do that. To avoid having two layers of goroutines, simply fire off all
+    goroutines from the main function, and inline genLower, since it now
+    becomes just two lines of code.
+    
+    Overall, this shaves another ~300ms from 'go run *.go' on my laptop.
+    
+            name     old time/op         new time/op         delta
+            Rulegen          2.04s ± 2%          1.76s ± 2%  -13.93%  (p=0.008 n=5+5)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          9.04s ± 1%          9.25s ± 1%   +2.37%  (p=0.008 n=5+5)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          235ms ±14%          245ms ±16%     ~     (p=0.690 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen          179MB ± 1%          190MB ± 2%   +6.21%  (p=0.008 n=5+5)
+    
+    Change-Id: I057e074c592afe06c831b03ca447fba12005e6f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196177
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go | 58 ++++++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 26 deletions(-)

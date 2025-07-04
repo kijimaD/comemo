@@ -1,0 +1,29 @@
+commit e46d586eddfdd2186d77a5e996bbd6415cfcf2f5
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Sat Jun 28 16:53:37 2025 -0400
+
+    cmd/compile/internal/escape: add debug hash for literal allocation optimizations
+    
+    Several CLs earlier in this stack added optimizations to reduce
+    user allocations by recognizing and taking advantage of literals,
+    including CL 649555, CL 649079, and CL 649035.
+    
+    This CL adds debug hashing of those changes, which enables use of the
+    bisect tool, such as 'bisect -compile=literalalloc go test -run=Foo'.
+    This also allows these optimizations to be manually disabled via
+    '-gcflags=all=-d=literalallochash=n'.
+    
+    Updates #71359
+    
+    Change-Id: I854f7742a6efa5b17d914932d61a32b2297f0c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/debug.go     | 1 +
+ src/cmd/compile/internal/base/flag.go      | 4 ++++
+ src/cmd/compile/internal/base/hashdebug.go | 1 +
+ src/cmd/compile/internal/escape/escape.go  | 8 ++++++++
+ src/cmd/compile/internal/walk/order.go     | 8 ++++++--
+ 5 files changed, 20 insertions(+), 2 deletions(-)

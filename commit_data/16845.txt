@@ -1,0 +1,65 @@
+commit abe384f68a8572e94acea0f3966cc72cbedd9c29
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 23 11:59:49 2013 +1000
+
+    all: be more idiomatic when documenting boolean return values.
+    Phrases like "returns whether or not the image is opaque" could be
+    describing what the function does (it always returns, regardless of
+    the opacity) or what it returns (a boolean indicating the opacity).
+    Even when the "or not" is missing, the phrasing is bizarre.
+    
+    Go with "reports whether", which is still clunky but at least makes
+    it clear we're talking about the return value.
+    
+    These were edited by hand. A few were cleaned up in other ways.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/11699043
+
+ doc/play/life.go                         |  2 +-
+ src/cmd/dist/plan9.c                     |  2 +-
+ src/cmd/dist/unix.c                      |  2 +-
+ src/cmd/dist/windows.c                   |  2 +-
+ src/cmd/gc/export.c                      |  2 +-
+ src/cmd/gc/subr.c                        |  2 +-
+ src/cmd/go/pkg.go                        |  4 ++--
+ src/pkg/bufio/scan.go                    |  2 +-
+ src/pkg/bytes/bytes.go                   |  2 +-
+ src/pkg/crypto/ecdsa/ecdsa.go            |  4 ++--
+ src/pkg/crypto/x509/pkix/pkix.go         |  2 +-
+ src/pkg/debug/gosym/symtab.go            |  2 +-
+ src/pkg/encoding/asn1/asn1.go            |  2 +-
+ src/pkg/encoding/gob/encode.go           |  2 +-
+ src/pkg/encoding/json/tags.go            |  2 +-
+ src/pkg/flag/flag.go                     |  2 +-
+ src/pkg/fmt/print.go                     |  2 +-
+ src/pkg/go/ast/ast.go                    |  6 +++---
+ src/pkg/go/doc/testdata/testing.0.golden |  4 ++--
+ src/pkg/go/doc/testdata/testing.1.golden |  6 +++---
+ src/pkg/go/doc/testdata/testing.2.golden |  4 ++--
+ src/pkg/go/doc/testdata/testing.go       |  2 +-
+ src/pkg/html/template/context.go         |  2 +-
+ src/pkg/html/template/css.go             |  8 ++++----
+ src/pkg/html/template/escape.go          |  2 +-
+ src/pkg/html/template/js.go              |  2 +-
+ src/pkg/html/template/transition.go      |  4 ++--
+ src/pkg/image/format.go                  |  2 +-
+ src/pkg/image/geom.go                    | 12 ++++++------
+ src/pkg/image/image.go                   | 18 +++++++++---------
+ src/pkg/image/jpeg/dct_test.go           |  2 +-
+ src/pkg/image/names.go                   |  2 +-
+ src/pkg/math/bits.go                     | 10 +++++-----
+ src/pkg/mime/multipart/multipart.go      |  6 +++---
+ src/pkg/net/http/cookiejar/jar.go        |  8 ++++----
+ src/pkg/net/http/header.go               |  2 +-
+ src/pkg/net/http/request.go              |  2 +-
+ src/pkg/net/http/response.go             |  2 +-
+ src/pkg/net/http/server.go               |  4 ++--
+ src/pkg/net/http/transfer.go             |  2 +-
+ src/pkg/os/doc.go                        |  2 +-
+ src/pkg/os/error.go                      | 15 +++++++++------
+ src/pkg/regexp/regexp.go                 | 11 ++++-------
+ src/pkg/sort/sort.go                     |  4 ++--
+ src/pkg/text/template/exec.go            |  2 +-
+ 45 files changed, 92 insertions(+), 92 deletions(-)

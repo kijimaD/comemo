@@ -1,0 +1,12 @@
+commit 7606e4a032616f2321754311731aea528d04088e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Feb 23 19:20:41 2016 -0500
+
+    cmd/compile/internal/gc: update comment after c2go
+    
+    Change-Id: I02c60f6c767e917a8ed3772c2773fe266f781e44
+    Reviewed-on: https://go-review.googlesource.com/19834
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/popt.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

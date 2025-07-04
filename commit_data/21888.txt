@@ -1,0 +1,22 @@
+commit 81d4072eb062a6af09e9a36314887a88acd50ebf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 27 15:13:05 2015 +0900
+
+    cmd/internal/gc, runtime: change growslice to use int instead of int64
+    
+    Gc already calculates n as an int, so converting to int64 to call
+    growslice doesn't serve any purpose except to emit slightly larger
+    code on 32-bit platforms.  Passing n as an int shrinks godoc's text
+    segment by 8kB (9472633 => 9464133) when building for ARM.
+    
+    Change-Id: Ief9492c21d01afcb624d3f2a484df741450b788d
+    Reviewed-on: https://go-review.googlesource.com/6231
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/builtin.go          | 2 +-
+ src/cmd/internal/gc/builtins/runtime.go | 2 +-
+ src/cmd/internal/gc/walk.go             | 8 ++++----
+ src/runtime/slice.go                    | 9 +++------
+ 4 files changed, 9 insertions(+), 12 deletions(-)

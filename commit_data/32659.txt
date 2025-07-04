@@ -1,0 +1,18 @@
+commit e7d46cee2f67667982c091dc7c6e872b829b754e
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Tue Jul 4 19:46:59 2017 +0100
+
+    crypto/tls: fix and expand TestVerifyPeerCertificate and TestGetClientCertificate
+    
+    TestGetClientCertificate had disabled verification, and was only passing
+    because it was mistakenly checking for empty verifiedChains.
+    
+    Change-Id: Iea0ddbdbbdf8ac34b499569820a2e4ce543a69c7
+    Reviewed-on: https://go-review.googlesource.com/47430
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 35 +++++++++++++++++++++++----------
+ 1 file changed, 25 insertions(+), 10 deletions(-)

@@ -1,0 +1,25 @@
+commit 33576247e295b19311484d943d85495006d2fb39
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 13:37:30 2021 -0700
+
+    cmd/compile/internal/types2: mark implicit interfaces as such
+    
+    Provide an accessor for clients, and don't print the interface
+    around implicitly wrapped embedded types.
+    
+    For #48424.
+    
+    Change-Id: Ib2c76315508fc749ea4337d52e13d17de80e04da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353396
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go                       | 11 ++++++-----
+ src/cmd/compile/internal/types2/interface.go                  |  5 ++++-
+ .../compile/internal/types2/testdata/examples/typesets.go2    | 10 ++++++++++
+ src/cmd/compile/internal/types2/typeparam.go                  |  2 +-
+ src/cmd/compile/internal/types2/typestring.go                 |  9 +++++++++
+ src/cmd/compile/internal/types2/universe.go                   |  4 ++--
+ 6 files changed, 32 insertions(+), 9 deletions(-)

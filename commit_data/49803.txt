@@ -1,0 +1,18 @@
+commit 60d3276a944c3a6a65a8e462bc432d1e9cb040ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 22:00:30 2022 -0700
+
+    test: test method expressions promoted to derived types
+    
+    This CL adds a test that method expressions where the receiver type is
+    a derived type and embeds a promoted method work correctly.
+    
+    Change-Id: I2e7c96007b6d9e6f942dc14228970ac508ff5c15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/run.go                   |  1 +
+ test/typeparam/mdempsky/20.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

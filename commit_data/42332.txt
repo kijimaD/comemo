@@ -1,0 +1,25 @@
+commit 65126c588e5c3ea73cd6721f831b01957f7ecbe0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 8 12:13:11 2020 -0700
+
+    strconv: fix ParseComplex for strings with separators
+    
+    The recently added function parseFloatPrefix tested the entire
+    string for correct placement of separators rather than just the
+    consumed part. The 4-char fix is in readFloat (atof.go:303).
+    
+    Added more tests. Also added some white space for nicer
+    grouping of the test cases.
+    
+    While at it, removed the need for calling testing.Run.
+    
+    Fixes #38962.
+    
+    Change-Id: Ifce84f362bb4ede559103f8d535556d3de9325f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233017
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strconv/atoc_test.go | 39 +++++++++++++++++++++++----------------
+ src/strconv/atof.go      |  2 +-
+ src/strconv/atof_test.go |  2 +-
+ 3 files changed, 25 insertions(+), 18 deletions(-)

@@ -1,0 +1,19 @@
+commit 7d80a2ea18f48d309115bbe950422c54e31a14e8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jul 19 00:09:35 2017 +0200
+
+    runtime: allow crash() to raise SIGABRT on darwin/arm64
+    
+    To avoid gigantic core dumps, the runtime avoids raising SIGABRT
+    on crashes on 64-bit Darwin systems. Mobile OS'es (probably) don't
+    generate huge core dumps, so to aid crash reporters, allow SIGABRT
+    on crashes on darwin/arm64.
+    
+    Change-Id: I4a29608f400967d76f9bd0643fea22244c2da9df
+    Reviewed-on: https://go-review.googlesource.com/49770
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

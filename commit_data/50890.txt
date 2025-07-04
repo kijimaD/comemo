@@ -1,0 +1,26 @@
+commit 5fde02e312796012b5ddacd79cbaafb91d329c72
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 8 10:52:19 2022 -0500
+
+    runtime: add msan support on freebsd/amd64
+    
+    Adjust build constraints and change the runtime to call the C mmap function
+    when using cgo.
+    
+    R=go1.20
+    
+    For #53298
+    
+    Change-Id: If9c3306dc16a8645d1bb9be0343e0472d6c4783f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411274
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/cgo/gcc_mmap.c      |  2 +-
+ src/runtime/cgo/mmap.go         |  2 +-
+ src/runtime/cgo_mmap.go         |  2 +-
+ src/runtime/mmap.go             |  2 +-
+ src/runtime/msan/msan.go        |  2 +-
+ src/runtime/sys_freebsd_amd64.s | 35 +++++++++++++++++++++++++++++++++--
+ 6 files changed, 38 insertions(+), 7 deletions(-)

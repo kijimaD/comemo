@@ -1,0 +1,12 @@
+commit 94fab3cad33b7d5eb7422d319fd88b2db9896a75
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 21 21:59:46 2013 +0400
+
+    runtime: fix heap corruption
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7397049
+
+ src/pkg/runtime/proc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

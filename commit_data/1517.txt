@@ -1,0 +1,12 @@
+commit aedf121e30ec9bb155cfdeffa7fc12cc5edad66c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 15:28:33 2009 -0800
+
+    casify struct fields in entire tree.
+    
+    TBR=r
+    OCL=22997
+    CL=22997
+
+ src/lib/testing.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

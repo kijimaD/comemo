@@ -1,0 +1,21 @@
+commit 4d920410d2a61b9df697337faff3944834b55162
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 24 22:32:38 2016 -0400
+
+    cmd/compile: avoid pointers in go.string.* symbols
+    
+    When creating binaries for dynamic linking, the linker moves
+    read-only data symbols that contain pointers into relro sections.
+    It is not setup for handling a go.string symbol moving to relro.
+    
+    Instead of teaching it how (because go.string symbols with pointers
+    are unusual anyhow), put the data in a type.. section.
+    
+    Fixes the android builder.
+    
+    Change-Id: Ica4722d32241643c060923517b90276ff8ac6b07
+    Reviewed-on: https://go-review.googlesource.com/21110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

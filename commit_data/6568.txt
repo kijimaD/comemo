@@ -1,0 +1,15 @@
+commit c00f9f49bb0e511773ff4d5fc344b1b0d8521a88
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 00:40:06 2010 -0400
+
+    6g: avoid too-large immediate constants
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2566042
+
+ src/cmd/6g/cgen.c  | 22 +++++++---------------
+ src/cmd/6g/gg.h    |  1 +
+ src/cmd/6g/ggen.c  | 12 ++++--------
+ src/cmd/6g/gsubr.c | 28 +++++++++++++++++++++++++---
+ 4 files changed, 37 insertions(+), 26 deletions(-)

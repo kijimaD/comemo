@@ -1,0 +1,31 @@
+commit e256afff51f49c872975f5a5f73faa46ee64c334
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Dec 5 17:23:25 2018 +0100
+
+    all: move cmd/internal/xcoff to internal/xcoff
+    
+    This commit moves cmd/internal/xcoff package to internal/xcoff because
+    it will be needed to add XCOFF support in go/internal/gccgoimporter.
+    
+    Change-Id: Id12df0c438fb7db4a6a458fc1478480851bf7771
+    Reviewed-on: https://go-review.googlesource.com/c/152719
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/nacl/testzip.proto                                     |   6 +++---
+ src/cmd/cgo/gcc.go                                          |   2 +-
+ src/cmd/cgo/out.go                                          |   2 +-
+ src/cmd/compile/internal/ssa/stmtlines_test.go              |   2 +-
+ src/cmd/dist/buildtool.go                                   |   2 +-
+ src/cmd/internal/buildid/buildid.go                         |   2 +-
+ src/cmd/internal/objfile/xcoff.go                           |   2 +-
+ src/cmd/link/internal/loadxcoff/ldxcoff.go                  |   2 +-
+ src/cmd/nm/nm_test.go                                       |   2 +-
+ src/go/build/deps_test.go                                   |   1 +
+ src/{cmd => }/internal/xcoff/file.go                        |   0
+ src/{cmd => }/internal/xcoff/file_test.go                   |   0
+ .../internal/xcoff/testdata/gcc-ppc32-aix-dwarf2-exec       | Bin
+ .../internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec       | Bin
+ src/{cmd => }/internal/xcoff/testdata/hello.c               |   0
+ src/{cmd => }/internal/xcoff/xcoff.go                       |   0
+ 16 files changed, 12 insertions(+), 11 deletions(-)

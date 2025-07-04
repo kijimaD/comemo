@@ -1,0 +1,13 @@
+commit 74d2e096db77a055c8bec035ae7c024ff635adea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 2 19:14:13 2013 -0700
+
+    build: ignore new zfiles, delete temp goplay binary in run.bash
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12320045
+
+ .hgignore    | 2 ++
+ src/run.bash | 1 +
+ 2 files changed, 3 insertions(+)

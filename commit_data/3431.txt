@@ -1,0 +1,35 @@
+commit 11d380557949c454fcda1f4b7909d4de2556d0e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 3 10:38:03 2009 -0700
+
+    clean more
+    
+    R=r
+    DELTA=40  (9 added, 3 deleted, 28 changed)
+    OCL=35277
+    CL=35305
+
+ src/clean.bash           | 18 +++++++++---------
+ src/cmd/5a/Makefile      |  2 +-
+ src/cmd/5c/Makefile      |  2 +-
+ src/cmd/5g/Makefile      |  2 +-
+ src/cmd/5l/Makefile      |  2 +-
+ src/cmd/6a/Makefile      |  2 +-
+ src/cmd/6c/Makefile      |  2 +-
+ src/cmd/6g/Makefile      |  2 +-
+ src/cmd/6l/Makefile      |  2 +-
+ src/cmd/8a/Makefile      |  4 +---
+ src/cmd/8c/Makefile      |  2 +-
+ src/cmd/8g/Makefile      |  2 +-
+ src/cmd/8l/Makefile      |  2 +-
+ src/cmd/ar/Makefile      |  2 +-
+ src/cmd/cc/Makefile      |  2 +-
+ src/cmd/clean.bash       |  2 +-
+ src/cmd/cov/Makefile     |  2 +-
+ src/cmd/gc/Makefile      |  2 +-
+ src/cmd/godefs/Makefile  |  2 +-
+ src/cmd/nm/Makefile      |  2 +-
+ src/cmd/prof/Makefile    |  2 +-
+ test/bench/clean.bash    |  4 ++++
+ usr/austin/ogle/Makefile |  2 ++
+ 23 files changed, 35 insertions(+), 31 deletions(-)

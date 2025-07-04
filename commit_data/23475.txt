@@ -1,0 +1,13 @@
+commit 0dccee6061aad469d196e4abd3eafe53b379275d
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jun 18 20:58:50 2015 +0200
+
+    text/scanner: add runnable example for package
+    
+    Change-Id: I42a952b04a56fb888fa7d5d9c2b56cbdd3434034
+    Reviewed-on: https://go-review.googlesource.com/11246
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/scanner/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/text/scanner/scanner.go      | 11 -----------
+ 2 files changed, 38 insertions(+), 11 deletions(-)

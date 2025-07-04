@@ -1,0 +1,30 @@
+commit 0f153ec6b47382f4df8f3b62acdee89208d97584
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 20:52:13 2009 -0700
+
+    build packages in obj/ subdirectory that mimics $GOROOT/pkg.
+    for example, if building in src/lib/container,
+    objects go in obj/container/, so that 6g -Iobj
+    will find "container/vector".
+    
+    install packages in hierarchy in $GOROOT.
+    
+    this change only updates gobuild.
+    another change will have to update all
+    the sources to refer to "container/vector" etc
+    and regenerate all the Makefiles.
+    
+    there are some pretty lame functions here
+    (e.g., Mkdir, Remove, the Getenv("PWD"))
+    but i will implement better ones in another CL.
+    
+    R=r
+    DELTA=117  (99 added, 2 deleted, 16 changed)
+    OCL=27550
+    CL=27574
+
+ src/cmd/gobuild/Makefile    | 21 ++++++++++++++++---
+ src/cmd/gobuild/gobuild.go  | 50 +++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/gobuild/makefile.go | 20 ++++++++++--------
+ src/cmd/gobuild/util.go     | 42 ++++++++++++++++++++++++++++++++++---
+ 4 files changed, 115 insertions(+), 18 deletions(-)

@@ -1,0 +1,19 @@
+commit f5b0012362f0ab801a657ff01d2d55f2391b1792
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 12:12:20 2016 -0700
+
+    go/types: ignore struct tags when converting structs
+    
+    Implementation of spec change https://golang.org/cl/24190/.
+    
+    For #16085.
+    
+    Change-Id: I17bbbce38d98a169bc64e84983a7ebfe7142f6e9
+    Reviewed-on: https://go-review.googlesource.com/30190
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check_test.go             |   1 +
+ src/go/types/conversions.go            |   9 +-
+ src/go/types/predicates.go             |  31 ++--
+ src/go/types/testdata/conversions2.src | 313 +++++++++++++++++++++++++++++++++
+ 4 files changed, 337 insertions(+), 17 deletions(-)

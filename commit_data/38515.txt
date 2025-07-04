@@ -1,0 +1,22 @@
+commit d0cbf9bf53ceb989f79addf4b91346840b3b8a57
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Mar 21 03:24:47 2019 +0000
+
+    cmd/compile: follow up intrinsifying math/bits.Add64 for arm64
+    
+    This CL deals with the additional comments of CL 159017.
+    
+    Change-Id: I4ad3c60c834646d58dc0c544c741b92bfe83fb8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168857
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  4 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 47 +++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 33 +++++++++++++++++++
+ src/math/bits/bits_test.go                   |  4 +--
+ test/codegen/mathbits.go                     |  4 +--
+ 7 files changed, 77 insertions(+), 23 deletions(-)

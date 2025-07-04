@@ -1,0 +1,13 @@
+commit 2cda191aef7cb94a6f2535aec5de5ad29d7cf31f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 10 11:53:51 2010 -0400
+
+    6c, 8c: show line numbers in -S output
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2107047
+
+ src/cmd/6c/list.c | 15 ++++++++-------
+ src/cmd/8c/list.c | 30 +++++++++++++++++++++---------
+ 2 files changed, 29 insertions(+), 16 deletions(-)

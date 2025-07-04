@@ -1,0 +1,31 @@
+commit 355c3a037edd8107bc4f1918d7a84764039ac6d1
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Feb 1 07:47:06 2021 +0000
+
+    cmd/internal/obj/asm64: add support for moving BITCON to RSP
+    
+    Constant of BITCON type can be moved into RSP by MOVD or MOVW instructions
+    directly, this CL enables this format of these two instructions.
+    
+    For 32-bit ADDWop instructions with constant, rewrite the high 32-bit
+    to be a repetition of the low 32-bit, just as ANDWop instructions do,
+    so that we can optimize ADDW $bitcon, Rn, Rt as:
+    MOVW $bitcon, Rtmp
+    ADDW Rtmp, Rn, Rt
+    The original code is:
+    MOVZ $bitcon_low, Rtmp
+    MOVK $bitcon_high,Rtmp
+    ADDW Rtmp, Rn, Rt
+    
+    Change-Id: I30e71972bcfd6470a8b6e6ffbacaee79d523805a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289649
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  3 +++
+ src/cmd/internal/obj/arm64/asm7.go        | 19 ++++++-------------
+ src/cmd/internal/obj/arm64/obj7.go        | 14 +++++++-------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

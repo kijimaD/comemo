@@ -1,0 +1,14 @@
+commit 01cc462bfcfe805ea86723b0c7553dfbe63a3464
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 22 12:22:14 2013 +1000
+
+    doc: fix wiki content error
+    
+    Fixes #5898.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11556043
+
+ doc/articles/wiki/index.html | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

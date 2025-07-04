@@ -1,0 +1,13 @@
+commit ea5cc6c021081753955c0063214b443479317331
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 22:14:34 2009 -0800
+
+    add a test for %+v in nested structures.
+    threw in an embedded one for good measure.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157058
+
+ src/pkg/fmt/fmt_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

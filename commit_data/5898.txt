@@ -1,0 +1,16 @@
+commit f930d281645566a254e22181a62844fac238ce87
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 27 13:43:58 2010 -0700
+
+    5g: fix build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1893042
+
+ src/cmd/5g/gobj.c    | 4 ++--
+ src/cmd/6g/gobj.c    | 2 +-
+ src/cmd/8g/gobj.c    | 2 +-
+ src/cmd/gc/go.h      | 2 +-
+ src/cmd/gc/reflect.c | 4 ++--
+ 5 files changed, 7 insertions(+), 7 deletions(-)

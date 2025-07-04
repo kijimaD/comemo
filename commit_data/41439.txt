@@ -1,0 +1,22 @@
+commit ba093c4562e7464e95a4bde6505d270b71ed623f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Feb 23 20:45:51 2020 -0800
+
+    doc/articles/race_detector: mention memory leak potential
+    
+    As far as I can tell, there is no public documentation on this topic,
+    which cost me several days of debugging.
+    
+    I am possibly unusual in that I run binaries in production with the
+    race detector turned on, but I think that others who do the same may
+    want to be aware of the risk.
+    
+    Updates #26813.
+    Updates #37233.
+    
+    Change-Id: I1f8111bd01d0000596e6057b7cb5ed017d5dc655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220586
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/articles/race_detector.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

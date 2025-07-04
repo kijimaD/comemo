@@ -1,0 +1,33 @@
+commit 49ea9207b6512c2400de11bc097d974bb527ba63
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 30 20:20:17 2016 -0400
+
+    runtime: exit idle worker if there's higher-priority work
+    
+    Idle GC workers trigger whenever there's a GC running and the
+    scheduler doesn't find any other work. However, they currently run for
+    a full scheduler quantum (~10ms) once started.
+    
+    This is really bad for event-driven applications, where work may come
+    in on the network hundreds of times during that window. In the
+    go-gcbench rpc benchmark, this is bad enough to often cause effective
+    STWs where all Ps are in the idle worker. When this happens, we don't
+    even poll the network any more (except for the background 10ms poll in
+    sysmon), so we don't even know there's more work to do.
+    
+    Fix this by making idle workers check with the scheduler roughly every
+    100 µs to see if there's any higher-priority work the P should be
+    doing. This check includes polling the network for incoming work.
+    
+    Fixes #16528.
+    
+    Change-Id: I6f62ebf6d36a92368da9891bafbbfd609b9bd003
+    Reviewed-on: https://go-review.googlesource.com/32433
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     |  4 +++-
+ src/runtime/mgcmark.go | 34 +++++++++++++++++++++++++++++++---
+ src/runtime/proc.go    | 21 +++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 4 deletions(-)

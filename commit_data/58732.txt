@@ -1,0 +1,39 @@
+commit 89c2f282dc84a9b3842dca375a4635305c86ad9b
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 15:28:22 2025 -0800
+
+    cmd/compile: move []byte->string map key optimization to ssa
+    
+    If we call slicebytetostring immediately (with no intervening writes)
+    before calling map access or delete functions with the resulting
+    string as the key, then we can just use the ptr/len of the
+    slicebytetostring argument as the key. This avoids an allocation.
+    
+    Fixes #44898
+    Update #71132
+    
+    There's old code in cmd/compile/internal/walk/order.go that handles
+    some of these cases.
+    
+    1. m[string(b)]
+    2. s := string(b); m[s]
+    3. m[[2]string{string(b1),string(b2)}]
+    
+    The old code handled cases 1&3. The new code handles cases 1&2.
+    We'll leave the old code around to keep 3 working, although it seems
+    not terribly common.
+    
+    Case 2 happens particularly after inlining, so it is pretty common.
+    
+    Change-Id: I8913226ca79d2c65f4e2bd69a38ac8c976a57e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640656
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules | 19 +++++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go         |  8 ++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 36 +++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/order.go          |  8 ++++++
+ test/codegen/maps.go                            | 22 +++++++++++++++
+ 5 files changed, 93 insertions(+)

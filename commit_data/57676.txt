@@ -1,0 +1,25 @@
+commit 6853d89477e0886c7c96b08e7efaf74abedfcf71
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 16 16:18:45 2024 +0200
+
+    syscall: keep write access when O_TRUNC is used on Windows
+    
+    CL 618836 introduces a regression where O_APPEND and O_TRUNC could
+    not be used together on Windows.
+    
+    This CL fixes the issue by keeping the write access when O_TRUNC is used
+    , which is required when overwriting data (as per the file
+    access rights docs: https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants).
+    
+    Fixes #69902.
+    
+    Change-Id: I77ec60ca6929124dd4490bdad6c3280c4db3efcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620575
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/syscall/syscall_windows.go      |  6 +++++-
+ src/syscall/syscall_windows_test.go | 30 ++++++++++++++++++++----------
+ 2 files changed, 25 insertions(+), 11 deletions(-)

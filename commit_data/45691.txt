@@ -1,0 +1,15 @@
+commit f22ec51debeddc0903096e66bfaf641568bede3b
+Author: Dan Scales <danscales@google.com>
+Date:   Sat May 22 13:40:20 2021 -0700
+
+    doc: add Go 1.17 release note about inlining functions with closures
+    
+    Fixes #45781
+    
+    Change-Id: Ia5bc2845f7f94aff4f3f0ff15533feb148223adb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322089
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.17.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

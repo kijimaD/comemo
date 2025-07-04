@@ -1,0 +1,15 @@
+commit 744b23fe4827598a3e76b8fd014fccc824048788
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 02:05:08 2012 -0400
+
+    cmd/gc: do not crash on struct with _ field
+    
+    Fixes #3607.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6296052
+
+ src/cmd/gc/subr.c        |  4 ++--
+ test/fixedbugs/bug442.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

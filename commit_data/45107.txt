@@ -1,0 +1,26 @@
+commit e69f02265c74529a368a2ff27fdce4aeb3483e8b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 13 08:32:21 2021 -0400
+
+    runtime: use newm for profileloop
+    
+    This replaces the externalthreadhandler-based implementation of
+    profileloop with one that uses newm to start a new thread. This is a
+    step toward eliminating externalthreadhandler.
+    
+    For #45530.
+    
+    Change-Id: Id8e5540423fe2d2004024b649afec6998f77b092
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309633
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_windows.go       | 18 +++++++++---------
+ src/runtime/sys_windows_386.s   |  9 ---------
+ src/runtime/sys_windows_amd64.s |  6 ------
+ src/runtime/sys_windows_arm.s   |  4 ----
+ src/runtime/sys_windows_arm64.s |  4 ----
+ 5 files changed, 9 insertions(+), 32 deletions(-)

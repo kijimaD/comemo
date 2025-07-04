@@ -1,0 +1,15 @@
+commit d873e642cd78cd4943157bcef7cc27f8f4e9d3cc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 28 11:34:52 2014 +0900
+
+    syscall: add missing SendmsgN for NaCl
+    
+    Update #7645
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98790044
+
+ src/pkg/syscall/net_nacl.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit 14332ed5b8fb91cbf26f4f815862a883cfa9e310
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Dec 21 11:29:24 2017 +0000
+
+    cmd/internal/obj/arm: fix wrong encoding of NMULAF/NMULAD/NMULSF/NMULSD
+    
+    NMULAF/NMULAD/NMULSF/NMULSD are incorrectly encoded by the arm
+    assembler.
+    
+    Instruction            Right binary      Current wrong binary
+    "NMULAF F5, F6, F7"    0xee167a45        0xee167a05
+    "NMULAD F5, F6, F7"    0xee167b45        0xee167b05
+    "NMULSF F5, F6, F7"    0xee167a05        0xee167a45
+    "NMULSD F5, F6, F7"    0xee167b05        0xee167b45
+    
+    This patch fixes this issue.
+    
+    fixes issue #23212
+    
+    Change-Id: Ic9c203f92c34b90d6eef492a694c0e95b4d479c5
+    Reviewed-on: https://go-review.googlesource.com/85116
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/armv6.s | 8 ++++----
+ src/cmd/internal/obj/arm/asm5.go          | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

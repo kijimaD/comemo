@@ -1,0 +1,18 @@
+commit be9c514f84ed45872f8ed89046dc600a1408eb1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 15 00:47:28 2014 +0900
+
+    syscall: make use of include/linux when generating system constants
+    
+    On Linux include/net directory is just to help porting applications
+    from BSDs and files under net keep less information than include/linux.
+    Making use of files under include/linux instead of include/net prevents
+    lack of information.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/63930043
+
+ src/pkg/syscall/mkerrors.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

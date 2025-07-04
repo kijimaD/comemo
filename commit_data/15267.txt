@@ -1,0 +1,27 @@
+commit 5b20a18f3b985cdf116a0ea6dd589d26056b16ad
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 15 10:40:17 2013 -0500
+
+    crypto/x509: support IP SANs.
+    
+    Subject Alternative Names in X.509 certificates may include IP
+    addresses. This change adds support for marshaling, unmarshaling and
+    verifying this form of SAN.
+    
+    It also causes IP addresses to only be checked against IP SANs,
+    rather than against hostnames as was previously the case. This
+    reflects RFC 6125.
+    
+    Fixes #4658.
+    
+    R=golang-dev, mikioh.mikioh, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7336046
+
+ src/pkg/crypto/tls/generate_cert.go | 60 ++++++++++++++++++++++++++++++-----
+ src/pkg/crypto/x509/verify.go       | 41 +++++++++++++++++++++---
+ src/pkg/crypto/x509/x509.go         | 29 ++++++++++++++---
+ src/pkg/crypto/x509/x509_test.go    | 63 +++++++++++++++++++++++++++++++++++--
+ src/pkg/go/build/deps_test.go       |  2 +-
+ src/pkg/net/http/httptest/server.go | 37 +++++++++++-----------
+ 6 files changed, 194 insertions(+), 38 deletions(-)

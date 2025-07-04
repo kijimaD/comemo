@@ -1,0 +1,16 @@
+commit ee07504d26a4d61ca0bc0728fea58f7b2fd52cc2
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 13 13:58:11 2015 -0400
+
+    misc/cgo/testcshared: use -pie for android-L.
+    
+    Also, handle the case where 'read' returns EINVAL instead of EBADF
+    when the descriptor is not ready. (android 4.4.4/cyanogenmod, nexus7)
+    
+    Change-Id: I56c5949d27303d44a4fd0de38951b85e20cef167
+    Reviewed-on: https://go-review.googlesource.com/15810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/main2.c   |  2 +-
+ misc/cgo/testcshared/test.bash | 15 ++++++++++-----
+ 2 files changed, 11 insertions(+), 6 deletions(-)

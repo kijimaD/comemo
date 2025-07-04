@@ -1,0 +1,19 @@
+commit 1dcef7b3bdcea4a829ea22c821e6a9484c325d61
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Jul 9 11:28:50 2022 +0800
+
+    cmd/internal/obj/loong64: add MASKEQZ and MASKNEZ instructions support
+    
+    Change-Id: Ied16c3be47c863a94d46bd568191057ded4b7d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416734
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 3 +++
+ src/cmd/internal/obj/loong64/a.out.go           | 3 +++
+ src/cmd/internal/obj/loong64/anames.go          | 2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 8 ++++++++
+ 4 files changed, 16 insertions(+)

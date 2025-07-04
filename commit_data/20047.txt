@@ -1,0 +1,14 @@
+commit c6442c994a1976a2fecd01af1d26c925eb03c8a1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 19 08:07:58 2014 -0700
+
+    cmd/6a, cmd/8a: document AJxx condition codes
+    
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/130870043
+
+ src/cmd/6a/lex.c | 34 +++++++++++++++++-----------------
+ src/cmd/8a/lex.c | 34 +++++++++++++++++-----------------
+ 2 files changed, 34 insertions(+), 34 deletions(-)

@@ -1,0 +1,14 @@
+commit 3f69909851813006216f49083932badee396c4f1
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:12 2016 +0200
+
+    test: disable unsupported test for GOARCH=mips{,le}
+    
+    External linking on mips/mipsle is not supported yet (issue #17792).
+    
+    Change-Id: Ic25f4f8fe9e0ec35c72ca9f85c053b398df4952c
+    Reviewed-on: https://go-review.googlesource.com/31512
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

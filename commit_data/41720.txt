@@ -1,0 +1,21 @@
+commit 3adbdb6d9931276894c5e2524f5ca8ca26bfeab5
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Mar 22 13:27:02 2020 -0700
+
+    cmd/compile: disable mem+op operations on 386
+    
+    Rolling back portions of CL 222782 to see if that helps
+    issue #37881 any.
+    
+    Update #37881
+    
+    Change-Id: I9cc3ff8c469fa5e4b22daec715d04148033f46f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224837
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go | 37 +++++++++++------------
+ test/codegen/arithmetic.go                      |  4 ---
+ test/codegen/memops.go                          | 39 -------------------------
+ 3 files changed, 19 insertions(+), 61 deletions(-)

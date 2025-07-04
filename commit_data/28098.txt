@@ -1,0 +1,12 @@
+commit e6a96a6277da312d71c76ecb6f4a9a99ba88c389
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 09:05:33 2016 -0700
+
+    doc: add cmd/go pkgdir changes to go1.8.txt
+    
+    Change-Id: I451ca386781b50ab47b313e07a610867fa14aeaf
+    Reviewed-on: https://go-review.googlesource.com/27990
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

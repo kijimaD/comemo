@@ -1,0 +1,12 @@
+commit 2180506169e448ce1473b25875195f3681291f54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 26 13:12:38 2013 -0700
+
+    godoc: internal cleanup: remove a TODO
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8005044
+
+ src/cmd/godoc/format.go | 70 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 41 insertions(+), 29 deletions(-)

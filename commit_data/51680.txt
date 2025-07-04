@@ -1,0 +1,59 @@
+commit f959fb3872a32d29c93f10deae31e4e6d79f2da9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 21 22:22:36 2022 -0800
+
+    cmd/compile: add anchored version of SP
+    
+    The SPanchored opcode is identical to SP, except that it takes a memory
+    argument so that it (and more importantly, anything that uses it)
+    must be scheduled at or after that memory argument.
+    
+    This opcode ensures that a LEAQ of a variable gets scheduled after the
+    corresponding VARDEF for that variable.
+    
+    This may lead to less CSE of LEAQ operations. The effect is very small.
+    The go binary is only 80 bytes bigger after this CL. Usually LEAQs get
+    folded into load/store operations, so the effect is only for pointerful
+    types, large enough to need a duffzero, and have their address passed
+    somewhere. Even then, usually the CSEd LEAQs will be un-CSEd because
+    the two uses are on different sides of a function call and the LEAQ
+    ends up being rematerialized at the second use anyway.
+    
+    Change-Id: Ib893562cd05369b91dd563b48fb83f5250950293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452916
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules     |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules    |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/S390X.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules    |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |  7 +++---
+ src/cmd/compile/internal/ssa/lower.go           |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  7 ++++++
+ src/cmd/compile/internal/ssa/rewrite.go         |  4 +---
+ src/cmd/compile/internal/ssa/rewrite386.go      | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteWasm.go     | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/schedule.go        | 29 +++++++++++++++++++++++++
+ test/codegen/arithmetic.go                      | 18 +++++++++------
+ test/codegen/logic.go                           |  6 +----
+ 29 files changed, 384 insertions(+), 41 deletions(-)

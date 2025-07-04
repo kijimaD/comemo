@@ -1,0 +1,12 @@
+commit 0c2a479a3990a8536bc9a1caa10a6f9db0cfb09a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:50:42 2009 -0800
+
+    significant cleanup of the main FAQ
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017008
+
+ doc/go_faq.html | 169 ++++++++++++++++++++++++++------------------------------
+ 1 file changed, 78 insertions(+), 91 deletions(-)

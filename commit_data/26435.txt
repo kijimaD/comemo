@@ -1,0 +1,17 @@
+commit 07749aef988e55aba0c67aeb3607f42b58d4e249
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 21 10:52:03 2016 -0700
+
+    cmd/compile: special-case const comparisons against zero
+    
+    Constant comparisons against 0 are reasonably common.
+    Special-case and avoid allocating a new zero value each time.
+    
+    Change-Id: I6c526c8ab30ef7f0fef59110133c764b7b90ba05
+    Reviewed-on: https://go-review.googlesource.com/20956
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/mpfloat.go | 10 +++++-----
+ src/cmd/compile/internal/gc/mpint.go   |  7 +++++--
+ src/cmd/compile/internal/gc/walk.go    |  4 +---
+ 3 files changed, 11 insertions(+), 10 deletions(-)

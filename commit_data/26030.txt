@@ -1,0 +1,25 @@
+commit 033e3e106e6132b530759bf97f7b359b9897ae25
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 19:47:43 2016 +0100
+
+    fmt: optimize %x and %X formatting for byte slices and strings
+    
+    No extra buffering is needed to save the encoding
+    since the left padding can be computed and written out
+    before the encoding is generated.
+    
+    Add extra tests to both string and byte slice formatting.
+    
+    name                old time/op  new time/op  delta
+    SprintfHexString-2   410ns ± 3%   194ns ± 3%  -52.60%  (p=0.000 n=20+19)
+    SprintfHexBytes-2    431ns ± 3%   202ns ± 2%  -53.13%  (p=0.000 n=18+20)
+    
+    Change-Id: Ibca4316427c89f834e4faee61614493c7eedb42b
+    Reviewed-on: https://go-review.googlesource.com/20097
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/fmt/format.go   | 82 +++++++++++++++++++++++++++++++--------------
+ 2 files changed, 134 insertions(+), 44 deletions(-)

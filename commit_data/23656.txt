@@ -1,0 +1,12 @@
+commit 902345e596d71bf728d20a587777e98147387412
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 14 15:20:19 2015 +1000
+
+    doc: document behavior change in image/color in release notes
+    
+    Change-Id: I7ad90ab78abb8a39d56c837610d5c311a96b7039
+    Reviewed-on: https://go-review.googlesource.com/12162
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ doc/go1.5.html | 37 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 30 insertions(+), 7 deletions(-)

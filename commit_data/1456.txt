@@ -1,0 +1,30 @@
+commit 40d5435278e4c7de42c7067244df03be0befc5d6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 9 15:16:31 2009 -0800
+
+    update tutorial to new language.
+    add a section on printing
+    add a section on allocation
+    
+    R=rsc
+    DELTA=500  (278 added, 15 deleted, 207 changed)
+    OCL=22381
+    CL=22456
+
+ doc/go_tutorial.txt       | 365 +++++++++++++++++++++++++++++++++++++---------
+ doc/prog.sh               |  23 ++-
+ doc/progs/cat.go          |  32 ++--
+ doc/progs/cat_rot13.go    |  50 +++----
+ doc/progs/echo.go         |  16 +-
+ doc/progs/fd.go           |  46 +++---
+ doc/progs/helloworld2.go  |   4 +-
+ doc/progs/helloworld3.go  |  10 +-
+ doc/progs/print.go        |  20 +++
+ doc/progs/print_string.go |  18 +++
+ doc/progs/printf.go       |  11 ++
+ doc/progs/run             |   9 +-
+ doc/progs/server.go       |   4 +-
+ doc/progs/sort.go         |  61 ++++----
+ doc/progs/sortmain.go     |  32 ++--
+ doc/progs/sum.go          |   4 +-
+ 16 files changed, 490 insertions(+), 215 deletions(-)

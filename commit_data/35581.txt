@@ -1,0 +1,25 @@
+commit 41dd2ebcee5652571f8cfa924597e67f3ddb6111
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Sat Jun 2 01:09:10 2018 +0300
+
+    cmd/asm/internal/asm: add extra AVX-512 tests
+    
+    These tests were meant to be included into https://golang.org/cl/113315,
+    but were lost somewhere in the middle.
+    
+    This CL adds hand-written AVX-512 tests that complement
+    auto-generated test suite.
+    
+    It's worth including it, because:
+    
+            - It covers every new Z-case explicitly
+            - Does checks every opcode suffix encoding
+    
+    Change-Id: Id6da5f58773e07bef3d532fc3ca5db391d380ebf
+    Reviewed-on: https://go-review.googlesource.com/115858
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 678 +++++++++++++++++++++
+ 1 file changed, 678 insertions(+)

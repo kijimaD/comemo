@@ -1,0 +1,22 @@
+commit e1fa05f59e443cddf5128860a98839f454d554cd
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Thu Mar 25 00:23:07 2010 -0700
+
+    arm: disable some problematic tests
+    
+    test/64bit.go:  segfaults on sheevaplug(armv5)
+    
+    The following have long runtimes when GC is on.
+    Sample run time in seconds for android emulator
+    and sheevaplug
+    test/stack.go:          4934s   1780s
+    test/ken/chan.go:        860s    296s
+    test/gc1.go:             218s     69s
+    
+    R=rsc, kaib
+    CC=golang-dev
+    https://golang.org/cl/749041
+
+ test/arm-pass.txt   | 4 ----
+ test/golden-arm.out | 3 ---
+ 2 files changed, 7 deletions(-)

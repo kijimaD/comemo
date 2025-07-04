@@ -1,0 +1,15 @@
+commit dd5f32330c51ab1d9db238ec486795c7f2d9a1b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:18:27 2009 -0700
+
+    6g: save all 64 bits of AX/DX
+    
+    8g: save AX/DX around div
+    
+    R=ken
+    OCL=33094
+    CL=33096
+
+ src/cmd/6g/ggen.c |  8 +++---
+ src/cmd/8g/ggen.c | 83 ++++++++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 58 insertions(+), 33 deletions(-)

@@ -1,0 +1,23 @@
+commit ceeb52d86214757b25a39a939fe945eb8e787bf6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 13 21:04:10 2016 +0900
+
+    net: LookupAddr("127.0.0.1") is "localhost" not "localhost." on Plan 9 and Windows
+    
+    This change applies the fix for #13564 to Plan 9 and Windows.
+    Also enables Lookup API test cases on builders.
+    
+    Updates #13564.
+    
+    Change-Id: I863f03c7cb6fbe58b3a55223bfa0ac5f9bf9c3df
+    Reviewed-on: https://go-review.googlesource.com/18559
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/lookup_plan9.go        | 23 ++++++-----------------
+ src/net/lookup_test.go         | 30 +++++++++++++++++-------------
+ src/net/lookup_windows.go      | 25 +++++++------------------
+ src/net/lookup_windows_test.go |  8 ++++----
+ src/net/non_unix_test.go       | 13 ++++++++++++-
+ 5 files changed, 46 insertions(+), 53 deletions(-)

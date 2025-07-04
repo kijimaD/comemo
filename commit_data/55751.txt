@@ -1,0 +1,26 @@
+commit 09bfea95cff2ae1fe5afba4049bfaedac7f31d76
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:58 2024 -0500
+
+    runtime: merge timerRemoving into timerModifying
+    
+    timerRemoving is just a kind of "locked for modification",
+    so merge it into timerModifying. This does potentially remove
+    a fast path from deltimer, in that deltimer of timerRemoving
+    is a fast-path exit while deltimer of timerModifying has to
+    wait for the timer to settle. Since all the timerModifying
+    critical paths are bounded and short, this should not matter.
+    
+    This is part of a larger simplification of the state set.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I039bf6a5a041a158dc3d1af8127f28eed50fc540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564120
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)

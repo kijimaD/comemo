@@ -1,0 +1,20 @@
+commit b04eb73a6891e81e2e611ee93b3aa8c4769d5967
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Tue Oct 20 13:50:52 2020 -0700
+
+    crypto/x509: bypass signature verification in CreateCertificate when using MD5WithRSA
+    
+    Bypasses the signature verification check we previously added if the
+    signature algorithm is MD5WithRSA, as we only support this algorithm
+    for signing and not verification.
+    
+    Change-Id: Idba6dbba8b365d6199d467526746b88a5f734af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264019
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509.go      |  8 ++++++--
+ src/crypto/x509/x509_test.go | 16 ++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

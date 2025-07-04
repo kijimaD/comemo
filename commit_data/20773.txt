@@ -1,0 +1,16 @@
+commit 18051c086012e3ea279994e987ffe826308f93df
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 22 08:06:15 2014 -0700
+
+    test: add more cases to recover.go
+    
+    test16 used to fail with gccgo.  The withoutRecoverRecursive
+    test would have failed in some possible implementations.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/151630043
+
+ test/recover.go | 44 +++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 41 insertions(+), 3 deletions(-)

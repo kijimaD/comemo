@@ -1,0 +1,12 @@
+commit aa2187efa36193a313f9e8f7f34ad7728726447c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 22 09:15:35 2010 +1000
+
+    faq: more up-to-date info about the Windows port
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/961041
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

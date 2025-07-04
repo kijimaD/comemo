@@ -1,0 +1,39 @@
+commit d60166d5eea5084e0957e9028237cc87ecadbf7d
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Feb 27 21:32:29 2017 -0300
+
+    runtime: improve IndexByte for ppc64x
+    
+    This change adds a better implementation of IndexByte for ppc64x.
+    
+    Improvement for bytes·IndexByte:
+    
+    benchmark                             old ns/op     new ns/op     delta
+    BenchmarkIndexByte/10-16              12.5          8.48          -32.16%
+    BenchmarkIndexByte/32-16              34.4          9.85          -71.37%
+    BenchmarkIndexByte/4K-16              3089          217           -92.98%
+    BenchmarkIndexByte/4M-16              3154810       207051        -93.44%
+    BenchmarkIndexByte/64M-16             50564811      5579093       -88.97%
+    
+    benchmark                             old MB/s     new MB/s     speedup
+    BenchmarkIndexByte/10-16              800.41       1179.64      1.47x
+    BenchmarkIndexByte/32-16              930.60       3249.10      3.49x
+    BenchmarkIndexByte/4K-16              1325.71      18832.53     14.21x
+    BenchmarkIndexByte/4M-16              1329.49      20257.29     15.24x
+    BenchmarkIndexByte/64M-16             1327.19      12028.63     9.06x
+    
+    Improvement for strings·IndexByte:
+    
+    benchmark                             old ns/op     new ns/op     delta
+    BenchmarkIndexByte-16                 25.9          7.69          -70.31%
+    
+    Fixes #19030
+    
+    Change-Id: Ifb82bbb3d643ec44b98eaa2d08a07f47e5c2fd11
+    Reviewed-on: https://go-review.googlesource.com/37670
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/asm_ppc64x.s | 200 ++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 165 insertions(+), 35 deletions(-)

@@ -1,0 +1,24 @@
+commit a0862ea568dd91aebda60dd4df4290b3d3d55023
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 22 18:45:36 2009 -0800
+
+    Cleanup: remove Exp ending in identifiers
+    as it is not needed anymore (only one impl.
+    of vector package).
+    
+    Makefile, vector_test.go, and nogen_test.go
+    were modified manually (find/replace), the
+    other files (intvector_test.go, strinvector_test.go
+    are generated).
+    
+    Runs all tests.
+    
+    R=r
+    https://golang.org/cl/182041
+
+ src/pkg/container/vector/Makefile             |  52 ++++++------
+ src/pkg/container/vector/intvector_test.go    | 112 +++++++++++++-------------
+ src/pkg/container/vector/nogen_test.go        |   8 +-
+ src/pkg/container/vector/stringvector_test.go | 112 +++++++++++++-------------
+ src/pkg/container/vector/vector_test.go       | 112 +++++++++++++-------------
+ 5 files changed, 198 insertions(+), 198 deletions(-)

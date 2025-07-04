@@ -1,0 +1,24 @@
+commit 8f47c837fd4f550c5b3f25f3725c7101c281e363
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 16 22:11:26 2014 +0400
+
+    runtime: fix memory profiler
+    There are 3 issues:
+    1. Skip argument of callers is off by 3,
+    so that all allocations are deep inside of memory profiler.
+    2. Memory profiling statistics are not updated after runtime.GC.
+    3. Testing package does not update memory profiling statistics
+    before capturing the profile.
+    Also add an end-to-end test.
+    Fixes #8867.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/148710043
+
+ src/runtime/mgc0.c              |   3 +-
+ src/runtime/mprof.go            |   2 +-
+ src/runtime/pprof/mprof_test.go | 146 ++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go          |   1 +
+ 4 files changed, 150 insertions(+), 2 deletions(-)

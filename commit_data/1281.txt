@@ -1,0 +1,14 @@
+commit c597845e1302a4ad58b00bbc927bc17bfb97495f
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 4 15:33:40 2008 -0800
+
+    const/var/iota declarations as discussed
+    
+    R=r
+    OCL=20506
+    CL=20506
+
+ src/cmd/gc/dcl.c | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h  |  2 ++
+ src/cmd/gc/go.y  | 53 ++++++++++--------------------------
+ 3 files changed, 100 insertions(+), 38 deletions(-)

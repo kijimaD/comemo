@@ -1,0 +1,24 @@
+commit e8fe3b77574d9afadab664104a669d8e9f0f4303
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 12 21:42:29 2023 +0000
+
+    cmd/go: skip TestScript/list_goroot_symlink on darwin
+    
+    The list_goroot_symlink test relies on fsys.Walk (and ultimately
+    syscall.Lstat) conforming to POSIX pathname resolution semantics.
+    POSIX requires that symlinks ending in a slash be fully resolved,
+    but it appears that lstat in current darwin kernels does not fully
+    resolve the last pathname component when it is a symlink to a symlink.
+    
+    For #59586.
+    For #35678.
+    
+    Change-Id: I37526f012ba94fa1796b33109a41c3226c967d3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484216
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
+ 1 file changed, 1 insertion(+)

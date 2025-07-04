@@ -1,0 +1,15 @@
+commit 8cda58c25ebdd46dc29c6aee776e286ed8c31081
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Nov 22 13:37:46 2014 -0500
+
+    cmd/go: fix running pprof on windows.
+    
+    Fixes #9149.
+    
+    LGTM=alex.brainman, rsc
+    R=rsc, dave, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/176170043
+
+ src/cmd/go/tool.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit 0d19b91b40a971cad50b894d543c201763d4085e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 21 16:29:18 2020 -0700
+
+    cmd/go: use response files when command line would be too long
+    
+    Fixes #37768
+    
+    Change-Id: I799a8da632890ad7595697d461c90e3c4c065d95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229317
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit 967d68c00a97c69009dd97a72c1400cbe2b14355
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 23 09:25:10 2011 -0700
+
+    exp/template/html: tighten rules on dynamic attr names.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5076049
+
+ src/pkg/exp/template/html/Makefile       |   1 +
+ src/pkg/exp/template/html/attr.go        | 184 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/content.go     |   4 +
+ src/pkg/exp/template/html/escape_test.go |  40 +++++++
+ src/pkg/exp/template/html/html.go        |  16 ++-
+ src/pkg/exp/template/html/transition.go  |  39 ++-----
+ 6 files changed, 253 insertions(+), 31 deletions(-)

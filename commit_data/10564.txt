@@ -1,0 +1,14 @@
+commit 6bee4e556fddec07cbdeb348dd91d3e55f7e2960
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 1 14:46:32 2011 +0100
+
+    gc: avoid re-genning ninit in branches involving float comparison.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5451050
+
+ src/cmd/5g/cgen.c | 4 ++++
+ src/cmd/6g/cgen.c | 4 ++++
+ src/cmd/8g/cgen.c | 4 ++++
+ 3 files changed, 12 insertions(+)

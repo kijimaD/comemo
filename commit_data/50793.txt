@@ -1,0 +1,30 @@
+commit 9c2fd81ee11c1c49e55f1c59a96e170f2d53e6c8
+Author: Tomasz Jezierski <tjomek.jezierski@gmail.com>
+Date:   Fri Sep 30 16:17:45 2022 +0200
+
+    encoding/asn1: remove allocation from init
+    
+    asn1 allocates due to reflect.TypeOf(new(big.Int)) in init time.
+    We could replace it with (*big.Int)(nil).
+    
+    Before:
+    init encoding/asn1 @1.0 ms, 0.009 ms clock, 224 bytes, 7 allocs
+    
+    After:
+    init encoding/asn1 @0.70 ms, 0.002 ms clock, 192 bytes, 6 allocs
+    
+    Fixes #55973
+    
+    Change-Id: I7c3cc0f48631af73cf34ad3c731c380f46c72359
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435257
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/asn1/asn1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

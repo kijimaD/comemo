@@ -1,0 +1,14 @@
+commit 013cfea362fabbe52bb5aa873ec4ed0868d0fbe6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 8 12:05:40 2011 -0700
+
+    gofmt: update test script so that it passes again
+    
+    (TODO: should replace this with a Go program, eventually)
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4584047
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit fd080ea3bcc2b170b787b38ab7920d170ca65682
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 17:06:57 2019 -0500
+
+    cmd/go: resolve non-standard imports from within GOROOT/src using vendor directories
+    
+    Updates #30228
+    Fixes #26924
+    
+    Change-Id: Ie625c64721559c7633396342320536396cd1fcf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164621
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                   |  2 +-
+ src/cmd/go/internal/load/pkg.go                  | 38 +++++-----
+ src/cmd/go/internal/modload/build.go             |  3 -
+ src/cmd/go/internal/modload/import.go            | 13 ++++
+ src/cmd/go/internal/modload/init.go              |  6 ++
+ src/cmd/go/internal/modload/load.go              | 93 +++++++++++++++++++++---
+ src/cmd/go/internal/modload/query.go             |  5 ++
+ src/cmd/go/internal/modload/search.go            | 30 ++++----
+ src/cmd/go/testdata/script/gopath_std_vendor.txt |  3 +
+ src/cmd/go/testdata/script/mod_list_std.txt      | 57 +++++++++++++++
+ src/cmd/go/testdata/script/mod_patterns.txt      |  3 +-
+ src/cmd/go/testdata/script/mod_std_vendor.txt    | 60 ++++++++++++++-
+ src/cmd/go/testdata/script/std_vendor.txt        | 19 +++++
+ 13 files changed, 276 insertions(+), 56 deletions(-)

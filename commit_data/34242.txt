@@ -1,0 +1,17 @@
+commit 8e402dcaec5509861d463e208f755395af7e6cf1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 16 16:17:44 2018 -0800
+
+    cmd/go: permit pkg-config flags in any argument position
+    
+    Fixes #23875
+    
+    Change-Id: I503af71f44d11cd6b787fef100246b55735614a0
+    Reviewed-on: https://go-review.googlesource.com/94896
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go            | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go | 16 ++++++++++++----
+ 2 files changed, 45 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit a95ee61aea79b999021f7242e9b02ae6b3408765
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 15:45:55 2009 -0700
+
+    ideal bools and related fixes
+    
+    R=ken
+    OCL=34859
+    CL=34865
+
+ src/cmd/8g/cgen.c      |  6 +++---
+ src/cmd/gc/const.c     | 35 +++++++++++++++++++++++++++--------
+ src/cmd/gc/export.c    |  2 +-
+ src/cmd/gc/gen.c       |  3 ++-
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/lex.c       | 20 +++++++++++---------
+ src/cmd/gc/reflect.c   |  6 +++---
+ src/cmd/gc/subr.c      | 11 ++++++-----
+ src/cmd/gc/swt.c       |  2 +-
+ src/cmd/gc/typecheck.c | 26 +++++++++++++++++++-------
+ src/cmd/gc/walk.c      |  4 ++--
+ 11 files changed, 76 insertions(+), 40 deletions(-)

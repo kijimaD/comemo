@@ -1,0 +1,14 @@
+commit 1a948950f73e79e41ff416cdb7d5987aa4e64e5b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 20 15:23:45 2013 +1000
+
+    net: move system common global variables into fd_unix.go
+    
+    R=golang-dev, bradfitz
+    CC=dvyukov, golang-dev, mikioh.mikioh
+    https://golang.org/cl/9495044
+
+ src/pkg/net/fd_poll_runtime.go | 5 -----
+ src/pkg/net/fd_poll_unix.go    | 4 +---
+ src/pkg/net/fd_unix.go         | 5 +++++
+ 3 files changed, 6 insertions(+), 8 deletions(-)

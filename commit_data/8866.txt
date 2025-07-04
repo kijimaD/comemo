@@ -1,0 +1,15 @@
+commit ac213ab834654c76af18e0dc6f04c0f6ff7dbe2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 15:53:48 2011 -0700
+
+    http: respect Handlers setting Connection: close in their response
+    
+    Fixes #2011
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4667043
+
+ src/pkg/http/serve_test.go | 30 ++++++++++++++++++++++++------
+ src/pkg/http/server.go     |  4 ++++
+ 2 files changed, 28 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 0e6007e4f91f6c1527c8420ba50056092b58c217
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue May 14 16:38:12 2013 -0700
+
+    runtime: enable stack scanning by frames
+    
+    Update #5134
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9406046
+
+ src/pkg/runtime/mgc0.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

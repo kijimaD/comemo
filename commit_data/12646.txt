@@ -1,0 +1,12 @@
+commit a4e6197b91e2bc16616245a3a704b89ab99db949
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 10:06:25 2012 -0700
+
+    net/http: couple more triv.go modernizations
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5834049
+
+ src/pkg/net/http/triv.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

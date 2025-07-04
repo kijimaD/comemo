@@ -1,0 +1,16 @@
+commit d11bb3b177feb47d20e00246fb915af50773904a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 29 09:55:33 2014 -0700
+
+    runtime: implement 64 bit division in Go
+    
+    LGTM=rsc, dave
+    R=minux, rsc, remyoudompheng, dave
+    CC=golang-codereviews
+    https://golang.org/cl/133790043
+
+ src/pkg/runtime/vlop_386.s |   6 +-
+ src/pkg/runtime/vlop_arm.s |   9 +++
+ src/pkg/runtime/vlrt.c     |  33 ++--------
+ src/pkg/runtime/vlrt.go    | 155 ++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 170 insertions(+), 33 deletions(-)

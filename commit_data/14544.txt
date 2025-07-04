@@ -1,0 +1,21 @@
+commit cc3f21cefeb24c214487d89ebe50818c08e37d88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 3 14:23:41 2012 -0800
+
+    spec: channel operations are restricted by the channel direction
+    
+    Also:
+    - 'for' statements with a range clause do not accept send-only
+       channels
+    - '_, _ = range ch' is not equivalent to "_ = range ch" if ch
+       is a channel (rewriting the latter to the former leads to
+       an invalid range clause).
+    
+    These clarifications document the status quo.
+    
+    R=rsc, r, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6874053
+
+ doc/go_spec.html | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

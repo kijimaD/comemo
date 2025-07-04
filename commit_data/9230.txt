@@ -1,0 +1,21 @@
+commit a65f4ccb8994c1e6cfd8031012957a85e943b9b1
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jul 28 11:15:59 2011 +1000
+
+    image/tiff: Do not panic when RowsPerStrip is missing.
+    
+    The RowsPerStrip tag is mandatory according to the spec. However,
+    Mac OS sometimes (?) omits it. I managed to create such an image
+    by applying "tiffutil -none" on a compressed image.
+    
+    If RowsPerStrip is 0, there was a division by zero in the decoder.
+    Assume that the image is a single strip in this case.
+    
+    R=nigeltao, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4815061
+
+ src/pkg/image/tiff/reader.go            |   4 ++++
+ src/pkg/image/tiff/reader_test.go       |  25 +++++++++++++++++++++++++
+ src/pkg/image/tiff/testdata/no_rps.tiff | Bin 0 -> 1294 bytes
+ 3 files changed, 29 insertions(+)

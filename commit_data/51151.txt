@@ -1,0 +1,16 @@
+commit 0409314db39db8f1d587fff31f79a24f1aa36ad2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 7 18:04:58 2022 -0500
+
+    cmd/compile: fix PGO line offset matching
+    
+    Appears to be a typo in CL 447315.
+    
+    Change-Id: I9f380a3c7521f5ac5a1d7e271eaa60bd4bbcfb29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448515
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

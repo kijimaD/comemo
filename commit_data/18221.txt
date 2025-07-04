@@ -1,0 +1,16 @@
+commit c7ef348bad102b3427b4242018e92eba17d079ba
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jan 12 12:20:16 2014 +1100
+
+    net: ignore some errors in windows Accept
+    
+    Fixes #6987
+    
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/49490043
+
+ src/pkg/net/fd_windows.go         |  48 ++++++++++---
+ src/pkg/net/net_windows_test.go   | 146 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |   2 +
+ 3 files changed, 188 insertions(+), 8 deletions(-)

@@ -1,0 +1,35 @@
+commit cd2c9df7612795cad5b56cabe5ec29c7771db5fe
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Oct 14 00:59:19 2016 -0700
+
+    html/template: fix Clone so that t.Lookup(t.Name()) yields t
+    
+    Template.escape makes the assumption that t.Lookup(t.Name()) is t
+    (escapeTemplate looks up the associated template by name and sets
+    escapeErr appropriately).
+    
+    This assumption did not hold for a Cloned template, because the template
+    associated with t.Name() was a second copy of the original.
+    
+    Add a test for the assumption that t.Lookup(t.Name()) == t.
+    
+    One effect of this broken assumption was #16101: parallel Executes
+    racily accessed the template namespace because each Execute call saw
+    t.escapeErr == nil and re-escaped the template concurrently with read
+    accesses occurring outside the namespace mutex.
+    
+    Add a test for this race.
+    
+    Related to #12996 and CL 16104.
+    
+    Fixes #16101
+    
+    Change-Id: I59831d0847abbabb4ef9135f2912c6ce982f9837
+    Reviewed-on: https://go-review.googlesource.com/31092
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/clone_test.go | 35 +++++++++++++++++++++++++++++++++++
+ src/html/template/template.go   |  3 +++
+ 2 files changed, 38 insertions(+)

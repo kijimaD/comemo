@@ -1,0 +1,16 @@
+commit 3081261b588b1c93da8bf4292e99a535bdb86a3f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 26 12:25:13 2014 -0800
+
+    cmd/gc: fix bad checknil with ints on 32 bit compilers
+    
+    Fixes #7413.
+    
+    LGTM=rsc
+    R=remyoudompheng
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/69180044
+
+ src/cmd/gc/pgen.c |  4 ++--
+ test/nilptr4.go   | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

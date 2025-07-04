@@ -1,0 +1,19 @@
+commit 199fbd4b5911d90a99b13db44e5f2a9ca85f0d9e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 15:45:13 2023 -0400
+
+    cmd/internal/testdir: skip Test if GOROOT/test does not exist
+    
+    cmd/distpack removes GOROOT/test from its distribution.
+    
+    For #24904.
+    
+    Change-Id: I6d1a8c608a1a1fe3fddfe0cd5279202ea9c2b3ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504058
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/testdir/testdir_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

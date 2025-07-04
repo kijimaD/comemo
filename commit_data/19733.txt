@@ -1,0 +1,15 @@
+commit c213b8864fa8b48225bac97245031613db89572a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jul 15 14:45:59 2014 +1000
+
+    cmd/go: skip vcs tests on nacl and android
+    
+            Fixes build failures on nacl/* and android/* platforms.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/113140043
+
+ src/cmd/go/vcs_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

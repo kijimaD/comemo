@@ -1,0 +1,12 @@
+commit 2546a54148ba91b48c4a5ea4b288976b40eda58f
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Thu Jun 27 20:51:46 2013 +1000
+
+    crypto/sha512: update comment for the Sum512 function.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10660043
+
+ src/pkg/crypto/sha512/sha512.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

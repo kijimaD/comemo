@@ -1,0 +1,19 @@
+commit 1a111ea2c7bfc9283f04a3be58ae46b339c691a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 17:27:32 2015 -0800
+
+    cmd/compile/internal/gc: fix parsing of <-x (recv op vs recv-only chan)
+    
+    Also:
+    - better error messages in some cases
+    - factored out function to produce syntax error at given line number
+    
+    Fixes #13273.
+    
+    Change-Id: I0192a94731cc23444680a26bd0656ef663e6da0b
+    Reviewed-on: https://go-review.googlesource.com/16992
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 66 ++++++++++++++++++++++++++++-------
+ test/fixedbugs/issue13273.go          | 55 +++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+), 13 deletions(-)

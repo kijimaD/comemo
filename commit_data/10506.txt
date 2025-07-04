@@ -1,0 +1,13 @@
+commit e38a1053a9a0be021d6d93ebbd3deeb81ed28115
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 26 11:01:49 2011 +1100
+
+    os: fail if Open("") is called on windows
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5432071
+
+ src/pkg/os/file_windows.go | 3 +++
+ src/pkg/os/os_test.go      | 8 ++++++++
+ 2 files changed, 11 insertions(+)

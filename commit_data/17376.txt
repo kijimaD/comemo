@@ -1,0 +1,17 @@
+commit d4f719ee13312e283af3346b7814f578e6db2155
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 23 22:26:49 2013 +0200
+
+    syscall: define CLONE_* constants on Linux.
+    
+    Update #6214
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13160043
+
+ src/pkg/syscall/mkerrors.sh            |  2 ++
+ src/pkg/syscall/zerrors_linux_386.go   | 26 ++++++++++++++++++++++----
+ src/pkg/syscall/zerrors_linux_amd64.go | 26 ++++++++++++++++++++++----
+ src/pkg/syscall/zerrors_linux_arm.go   | 22 ++++++++++++++++++++++
+ 4 files changed, 68 insertions(+), 8 deletions(-)

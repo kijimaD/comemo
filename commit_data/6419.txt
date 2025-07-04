@@ -1,0 +1,15 @@
+commit ffdb855be18a74d33e9d00af1f0727035d1c4f0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 23:51:55 2010 -0400
+
+    build: clear custom variables like GREP_OPTIONS
+    
+    Fixes #946.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2137048
+
+ src/Make.inc      | 13 +++++++++++++
+ src/pkg/deps.bash |  2 ++
+ 2 files changed, 15 insertions(+)

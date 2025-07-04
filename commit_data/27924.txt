@@ -1,0 +1,21 @@
+commit bcd54f6ca514ae0e347c780b45d743f2c4145bf3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 18 17:14:43 2016 -0700
+
+    crypto/x509: recognise ISO OID for RSA+SHA1
+    
+    For some reason, ISO decided to duplicate the OID for RSA+SHA1. Most
+    pertinantly, the makecert.exe utility on Windows is known to have used
+    this OID.
+    
+    This change makes the ISO OID an alias for the normal one.
+    
+    Change-Id: I60b76265bf1721282bdb0d5c99c98d227c18a878
+    Reviewed-on: https://go-review.googlesource.com/27394
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      |  6 ++++++
+ src/crypto/x509/x509_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

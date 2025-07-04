@@ -1,0 +1,12 @@
+commit 9ff712ecd1c8d89ea5f69aab516d421f685ad7d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 19:20:34 2009 -0800
+
+    make.bash: check $PATH indirectly via which quietgcc
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/152056
+
+ src/make.bash | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

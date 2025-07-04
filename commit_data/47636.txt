@@ -1,0 +1,37 @@
+commit 2f6d3820501b34ce530be8193789659c18db0867
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 24 16:48:00 2021 -0800
+
+    go/types: report types for mismatched call and return statements
+    
+    This is a port of CL 364874 from types2 to go/types with various
+    adjustments:
+    
+    - the error position for "not enough arguments" in calls is the
+      closing ) rather than the position of the last provided argument
+    
+    - the ERROR comments in tests are positioned accordingly
+    
+    - the reg. expression for matching error strings accepts newlines
+      for the . pattern (added s flag)
+    
+    For #48834.
+    For #48835.
+    
+    Change-Id: I64362ecf605bcf9d89b8dc121432e0131bd5da1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367196
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/assignments.go             | 82 +++++++++++++++++++++++++++++----
+ src/go/types/call.go                    | 25 +++++++---
+ src/go/types/check_test.go              |  2 +-
+ src/go/types/decl.go                    |  2 +-
+ src/go/types/stmt.go                    |  2 +-
+ src/go/types/testdata/check/errors.src  | 28 ++++++-----
+ src/go/types/testdata/check/expr3.src   | 12 ++---
+ src/go/types/testdata/check/stmt0.src   | 14 +++---
+ src/go/types/testdata/check/vardecl.src |  2 +-
+ 9 files changed, 126 insertions(+), 43 deletions(-)

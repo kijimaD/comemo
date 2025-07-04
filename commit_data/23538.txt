@@ -1,0 +1,22 @@
+commit 85d4d46f3cefceb87924ad1b0acec9f753413736
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 22 10:58:57 2015 +1000
+
+    runtime: store syscall parameters in m not on stack
+    
+    Stack can move during callback, so libcall struct cannot be stored on stack.
+    asmstdcall updates return values and errno in libcall struct parameter, but
+    these could be at different location when callback returns.
+    Store these in m, so they are not affected by GC.
+    
+    Fixes #10406
+    
+    Change-Id: Id01c9d2b4b44530494e6d9e9e1c875261ce477cd
+    Reviewed-on: https://go-review.googlesource.com/10370
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/cgocall.go              |  6 +++
+ src/runtime/runtime2.go             |  1 +
+ src/runtime/syscall_windows.go      | 42 +++++++++----------
+ src/runtime/syscall_windows_test.go | 83 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 111 insertions(+), 21 deletions(-)

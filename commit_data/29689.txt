@@ -1,0 +1,23 @@
+commit 74628a8b9f102bddd5078ee426efe0fd57033115
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 14:56:58 2016 -0500
+
+    doc, cmd/go: adjust documentation for default GOPATH
+    
+    Replaces CL 33356.
+    
+    Fixes #17262.
+    
+    Change-Id: Idfb2343e90771775e51a66c63760f458737a288c
+    Reviewed-on: https://go-review.googlesource.com/33730
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/articles/go_command.html | 48 +++++++++++---------------------
+ doc/code.html                | 37 +++++++++++++++++--------
+ doc/go_faq.html              |  2 +-
+ doc/install-source.html      |  4 +--
+ doc/install.html             | 66 ++++++++++++++++++--------------------------
+ src/cmd/go/alldocs.go        | 14 ++++++----
+ src/cmd/go/help.go           | 14 ++++++----
+ 7 files changed, 87 insertions(+), 98 deletions(-)

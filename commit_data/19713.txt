@@ -1,0 +1,14 @@
+commit 0829533b6e480d8abdcefe58b25bb07e98b825c4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:15:32 2014 -0400
+
+    misc/nacl: add go_nacl_arm_exec, update README
+    
+    LGTM=dave, rsc
+    R=rsc, iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/109390043
+
+ misc/nacl/README           | 10 +++++++---
+ misc/nacl/go_nacl_arm_exec | 10 ++++++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)

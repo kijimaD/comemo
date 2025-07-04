@@ -1,0 +1,14 @@
+commit 0a47d2eff1d13e5867a76a472558b0d672879026
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Nov 13 07:08:29 2012 +0100
+
+    cmd/gc: fix typos in clearslim.
+    
+    Fixes build failure.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/6847043
+
+ src/cmd/gc/gen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

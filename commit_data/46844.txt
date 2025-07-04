@@ -1,0 +1,41 @@
+commit d973bb107e9142cf17e4a7f2666a71ed2d457e91
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 11 11:12:38 2021 +0100
+
+    encoding/gob: follow documented io.EOF semantics
+    
+    The docs say:
+    
+            If the input is at EOF, Decode returns io.EOF and does not modify e.
+    
+    However, the added test fails:
+    
+            --- FAIL: TestDecodePartial (0.00s)
+                    encoder_test.go:1263: 31/81: expected io.ErrUnexpectedEOF: EOF
+                    encoder_test.go:1263: 51/81: expected io.ErrUnexpectedEOF: EOF
+    
+    In particular, the decoder would return io.EOF after reading a valid
+    message for a type specification, and then hit EOF before reading a data
+    item message.
+    
+    Fix that by only allowing a Decode call to return io.EOF if the reader
+    hits EOF immediately, without successfully reading any message.
+    Otherwise, hitting EOF is an ErrUnexpectedEOF, like in other cases.
+    
+    Also fix a net/rpc test that, coincidentally, expected an io.EOF
+    as an error when feeding bad non-zero data to a gob decoder.
+    An io.ErrUnexpectedEOF is clearly better in that scenario.
+    
+    Fixes #48905.
+    
+    Change-Id: Ied6a0d8ac8377f89646319a18c0380c4f2b09b85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354972
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/decoder.go      |  9 ++++++
+ src/encoding/gob/encoder_test.go | 63 ++++++++++++++++++++++++++++++++++++++++
+ src/net/rpc/client_test.go       |  4 +--
+ 3 files changed, 74 insertions(+), 2 deletions(-)

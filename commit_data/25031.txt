@@ -1,0 +1,17 @@
+commit c28a8e4553fed920425c6c9cb32d20f2da2f7a9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 23 15:21:13 2015 -0800
+
+    test: add test case for issue 13268
+    
+    See https://go-review.googlesource.com/#/c/17047/ for the bug fix.
+    
+    Change-Id: Id5b0a37439d0f8f1e668f7c2ac84335b37f3a300
+    Reviewed-on: https://go-review.googlesource.com/17177
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue13268.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

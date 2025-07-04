@@ -1,0 +1,21 @@
+commit 6bfaafd3c34325515e8ffbe7446b9beda3f49698
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Mar 29 20:09:37 2024 +0000
+
+    database/sql: use slices to simplify the code
+    
+    Change-Id: Ia198272330626271ee7d4e1ae46afca819ab2933
+    GitHub-Last-Rev: e713ac31638671f60cc3cf62fa514f784e834e66
+    GitHub-Pull-Request: golang/go#66572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574995
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+
+ src/database/sql/fakedb_test.go | 50 +++++++++++++++--------------------------
+ src/database/sql/sql.go         | 10 ++++-----
+ src/database/sql/sql_test.go    | 23 +++++++------------
+ 3 files changed, 30 insertions(+), 53 deletions(-)

@@ -1,0 +1,23 @@
+commit fd6ef06296b55a234d4fd5ebf5dd3e5bfd8f4e25
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Mon Mar 28 18:49:05 2022 +0000
+
+    io: add an Err field to LimitedReader
+    
+    Fixes #51115
+    
+    Change-Id: I3c5296e4adc71c1c1b1808a45abd4801ae43465a
+    GitHub-Last-Rev: 4c197acd51e1cac051302deba57b97da66e004e1
+    GitHub-Pull-Request: golang/go#51990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396215
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/51115.txt     |  1 +
+ src/io/example_test.go | 14 ++++++++++++++
+ src/io/io.go           | 16 +++++++++++-----
+ 3 files changed, 26 insertions(+), 5 deletions(-)

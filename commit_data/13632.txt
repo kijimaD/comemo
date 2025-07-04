@@ -1,0 +1,13 @@
+commit ace14d01bda6f8384dea8ab7307e657d80471054
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 15 11:09:34 2012 -0700
+
+    text/scanner: report illegal hexadecimal numbers (bug fix)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6450136
+
+ src/pkg/text/scanner/scanner.go      | 11 ++++++++---
+ src/pkg/text/scanner/scanner_test.go |  3 +++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

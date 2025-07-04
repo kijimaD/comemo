@@ -1,0 +1,20 @@
+commit 228903c5da29fd4d65d244475348e85dab5e8841
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 11:06:46 2010 -0800
+
+    go/printer: use general comment intersperse mechanism everywhere
+    - remove several TODOs
+    - as a side-effect, comment stylers are now used always and comments
+      will be properly colored in godoc pkg documentation pages (and not
+      only when looking at source text)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/222041
+
+ src/pkg/go/printer/nodes.go                 | 90 +++++++++++++----------------
+ src/pkg/go/printer/printer.go               | 22 +++----
+ src/pkg/go/printer/testdata/comments.golden |  9 +++
+ src/pkg/go/printer/testdata/comments.input  |  9 +++
+ src/pkg/go/printer/testdata/comments.x      | 16 ++---
+ 5 files changed, 77 insertions(+), 69 deletions(-)

@@ -1,0 +1,50 @@
+commit ec721d92bf35cd47543acf6792acd474fdd39446
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 29 17:38:20 2021 -0400
+
+    runtime: fix uses of ABIInternal PCs in assembly
+    
+    The covers three kinds of uses:
+    
+    1. Calls of closures from assembly. These are always ABIInternal calls
+    without wrappers. I went through every indirect call in the runtime
+    and I think mcall is the only case of assembly calling a Go closure in
+    a way that's affected by ABIInternal. systemstack also calls a
+    closure, but it takes no arguments.
+    
+    2. Calls of Go functions that expect raw ABIInternal pointers. I also
+    only found one of these: callbackasm1 -> cgocallback on Windows. These
+    are trickier to find, though.
+    
+    3. Finally, I found one case on NetBSD where new OS threads were
+    directly calling the Go runtime entry-point from assembly via a PC,
+    rather than going through a wrapper. This meant new threads may not
+    have special registers set up. In this case, a change on all other
+    OSes had already forced new thread entry to go through an ABI wrapper,
+    so I just caught NetBSD up with that change.
+    
+    With this change, I'm able to run a "hello world" with
+    GOEXPERIMENT=regabi,regabiargs.
+    
+    For #40724.
+    
+    Change-Id: I2a6d0e530c4fd4edf13484d923891c6160d683aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305669
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/objabi/util.go | 10 +++++++---
+ src/runtime/asm_amd64.s         | 29 +++++++++++++++++++++++++++++
+ src/runtime/cgocall.go          |  2 +-
+ src/runtime/os_netbsd.go        | 10 +++++++---
+ src/runtime/proc.go             |  2 +-
+ src/runtime/sys_linux_amd64.s   |  2 +-
+ src/runtime/sys_netbsd_386.s    |  4 ++++
+ src/runtime/sys_netbsd_amd64.s  |  6 +++++-
+ src/runtime/sys_netbsd_arm.s    |  4 ++++
+ src/runtime/sys_netbsd_arm64.s  |  4 ++++
+ src/runtime/sys_windows_amd64.s |  2 +-
+ 11 files changed, 64 insertions(+), 11 deletions(-)

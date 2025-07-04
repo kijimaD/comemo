@@ -1,0 +1,23 @@
+commit 58f5f4f18dd2102543975aba3d352c55c35d511c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 17:59:09 2009 -0700
+
+    use separate lex buf for better errors:
+    
+    package main
+    func main() { func(){}() + + }
+    
+    x.go:2: syntax error near _f001
+    
+    becomes
+    
+    x.go:2: syntax error near func
+    
+    R=ken
+    OCL=27047
+    CL=27047
+
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/lex.c  | 24 ++++++++++++------------
+ src/cmd/gc/subr.c |  2 +-
+ 3 files changed, 14 insertions(+), 13 deletions(-)

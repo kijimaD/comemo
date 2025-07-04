@@ -1,0 +1,20 @@
+commit 9ea6364a5e9f776af36604c2c20501e6d07f8467
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 20 13:59:29 2020 -0800
+
+    cmd/compile: add test for 42753
+    
+    This issue was already fixed at tip. Just adding the test that
+    failed on 1.14/1.15.
+    
+    Update #42753
+    
+    Change-Id: I00d13ade476b9c17190d762d7fdcb30cf6c83954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272029
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue42753.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,21 @@
+commit e50f0f372b07149e9cf16b8fec80d2d72efe2a87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 20:10:33 2022 -0800
+
+    spec: describe processing of function arguments for type inference more precisely
+    
+    The outcome of type inference depends critically on when function
+    argument type inference stops processing arguments. Describe this
+    and explain an example with some detail.
+    
+    Also: In the section on the built-in function delete, refer to the
+    value rather than the type of the second argument, as it may be an
+    untyped constant.
+    
+    Change-Id: Ice7fbb33f985afe082380b8d37eaf763238a3818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385034
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

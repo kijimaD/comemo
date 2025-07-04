@@ -1,0 +1,24 @@
+commit 6f35430faa622bad63a527c97e87b9291e480688
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 13:51:37 2021 -0700
+
+    cmd/compile: allow rotates to be merged with logical ops on arm64
+    
+    Fixes #48002
+    
+    Change-Id: Ie3a157d55b291f5ac2ef4845e6ce4fefd84fc642
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350912
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        |  11 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  26 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   8 +
+ src/cmd/compile/internal/ssa/opGen.go        | 124 +++++++
+ src/cmd/compile/internal/ssa/rewrite.go      |   4 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 502 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go          |   7 +-
+ test/codegen/rotate.go                       |  23 ++
+ 8 files changed, 702 insertions(+), 3 deletions(-)

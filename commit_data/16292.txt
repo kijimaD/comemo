@@ -1,0 +1,15 @@
+commit 9c945809219d88148a2c83f04f69b88dc86ebc0d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 15 04:40:42 2013 +0800
+
+    archive/tar: skip NUL-filled unused octal fields
+    Fixes #5290.
+    
+    R=golang-dev, dave, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/8763044
+
+ src/pkg/archive/tar/reader.go            |  16 +++++++++-------
+ src/pkg/archive/tar/reader_test.go       |  19 +++++++++++++++++++
+ src/pkg/archive/tar/testdata/nil-uid.tar | Bin 0 -> 1024 bytes
+ 3 files changed, 28 insertions(+), 7 deletions(-)

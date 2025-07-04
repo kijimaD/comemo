@@ -1,0 +1,24 @@
+commit ea51e92c8a76ef476d99973468d755df5ab5ee0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 6 18:46:29 2023 -0700
+
+    go/types, types2: don't crash when using trace with an invalid argument
+    
+    This only affects tests, typically manual tests, but when using trace
+    we're debugging and we don't want to crash because of trace itself.
+    
+    No test because a test would cause trace output. Manually verified.
+    
+    Fixes #60649.
+    
+    Change-Id: I97abdb94db05774801ec5da56171f4a1aff35615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go | 3 +++
+ src/go/types/builtins.go                    | 3 +++
+ 2 files changed, 6 insertions(+)

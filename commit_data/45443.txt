@@ -1,0 +1,15 @@
+commit e99dfb0e5cd964c94d946cabeca9856634416737
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 24 01:05:19 2021 -0400
+
+    cmd/compile: make GC prog symbol content-addressable
+    
+    Change-Id: I759ac021ae5882429f26455fd849613a33e41783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313513
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 1 +
+ 1 file changed, 1 insertion(+)

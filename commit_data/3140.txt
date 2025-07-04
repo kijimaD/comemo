@@ -1,0 +1,18 @@
+commit 3c098e27896bf2fe5d7b17aa452bbeb29b402b4f
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 30 14:02:42 2009 -0700
+
+    add the Upper/Lower sequence optimization.
+    tables shrink 900 lines.
+    mapping code gets a little slower
+    
+    R=rsc
+    DELTA=1124  (105 added, 952 deleted, 67 changed)
+    OCL=34079
+    CL=34089
+
+ src/pkg/unicode/letter.go      |   47 +-
+ src/pkg/unicode/letter_test.go |    2 +-
+ src/pkg/unicode/maketables.go  |   88 +++-
+ src/pkg/unicode/tables.go      | 1052 ++--------------------------------------
+ 4 files changed, 171 insertions(+), 1018 deletions(-)

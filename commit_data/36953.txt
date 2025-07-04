@@ -1,0 +1,17 @@
+commit d82e51a11973714708ddc7f9f055ae8ea3d509f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 12 10:54:06 2018 +0200
+
+    internal/poll: add FD.Fsync on aix
+    
+    Follow-up for CL 138717. This fixes the build of the os package on
+    aix.
+    
+    Change-Id: I879b9360e71837ab622ae3a7b6144782cf5a9ce7
+    Reviewed-on: https://go-review.googlesource.com/c/141797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/fd_fsync_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit f3e3b71a50d7a247d07cc4e4295ec2dc44b04b6a
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Thu Aug 22 06:51:44 2019 +0000
+
+    net/http: change TimeoutHandler's docs to match its new interfaces
+    
+    As of Go 1.13rc1, TimeoutHandler supports the Flusher and Pusher interfaces and
+    this change corrects its documentation to say that.
+    
+    Fixes #33769
+    Updates #29193
+    
+    Change-Id: Ia0523f7f2e3dc1f8f0b68950b85a7bf81c4abe60
+    GitHub-Last-Rev: 5310d2c9608a1af2d3030a9573e920906c76744e
+    GitHub-Pull-Request: golang/go#33770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191237
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

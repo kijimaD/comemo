@@ -1,0 +1,15 @@
+commit cd66c38619cbf6e031d9af4cea8197cd6980ffa1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 16:27:27 2016 +0000
+
+    runtime/pprof: skip profiling tests on mips if highres timers not available
+    
+    Fixes #17936
+    
+    Change-Id: I20d09712b7d7303257994356904052ba64bc5bf2
+    Reviewed-on: https://go-review.googlesource.com/33306
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 52 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 964639cc338db650ccadeafb7424bc8ebb2c0f6c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 15 19:50:59 2016 -0400
+
+    cmd/compile: intrinsify runtime/internal/atomic.Xaddint64
+    
+    This aliases to Xadd64.
+    
+    Change-Id: I95d49e1d03eecc242e9e6fd4b2742b1c1a1d5ade
+    Reviewed-on: https://go-review.googlesource.com/29274
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 ++
+ 1 file changed, 2 insertions(+)

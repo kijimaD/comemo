@@ -1,0 +1,20 @@
+commit 123393a535dc9f4b7fe80b564139de2ff7030ac4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 5 07:42:48 2021 +0700
+
+    cmd/go: enable test build concurrent backend on darwin/arm64
+    
+    After CL 353871, darwin/arm64 now do concurrent build, so enable the
+    test for it.
+    
+    Updates #48490
+    
+    Change-Id: I29336f6fc7d7d2f463d8ad2a620534bd7f048d2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353949
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/build_concurrent_backend.txt | 4 ----
+ 1 file changed, 4 deletions(-)

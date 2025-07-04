@@ -1,0 +1,27 @@
+commit d6320f1a58f1f7820daee06a086c83a0274a777f
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Apr 8 16:44:13 2022 +0800
+
+    cmd/compile: add SARX instruction for GOAMD64>=3
+    
+    name                    old time/op  new time/op  delta
+    ShiftArithmeticRight-8  0.68ns ± 5%  0.30ns ± 6%  -56.14%  (p=0.000 n=10+10)
+    
+    Change-Id: I052a0d7b9e6526d526276444e588b0cc288beff4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399055
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   4 +
+ src/cmd/compile/internal/amd64/versions_test.go |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  44 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   3 +
+ src/cmd/compile/internal/ssa/opGen.go           |  30 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 422 ++++++++++++++++++++++++
+ src/cmd/compile/internal/test/shift_test.go     |  10 +
+ test/codegen/bmi.go                             |  10 +
+ 8 files changed, 504 insertions(+), 20 deletions(-)

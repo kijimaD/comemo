@@ -1,0 +1,58 @@
+commit b2290229c23fed8e4a63241568e436b1daa1196f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 19:41:01 2016 -0400
+
+    cmd/cgo: add #line directives to avoid printing bogus references to Go source files
+    
+    A bit contrived to come up with an example, but it happened in #15836, somehow.
+    
+            $ cat /tmp/x.go
+            package main
+    
+            /*
+            #include <stddef.h>
+    
+            int foo(void);
+    
+            int foo(void) {
+                    return 2;
+            }
+    
+            #define int asdf
+            */
+            import "C"
+    
+            func main() {
+                    println(C.foo())
+            }
+    
+            $ go run /tmp/x.go
+            # command-line-arguments
+            cgo-builtin-prolog:9:31: error: unknown type name 'asdf'   <<<<<
+            _GoString_ GoStringN(char *p, int l);
+                                          ^
+            /tmp/x.go:12:13: note: expanded from macro 'int'
+            #define int asdf
+                        ^
+            cgo-builtin-prolog:10:28: error: unknown type name 'asdf'  <<<<<
+            _GoBytes_ GoBytes(void *p, int n);
+                                       ^
+            /tmp/x.go:12:13: note: expanded from macro 'int'
+            #define int asdf
+                        ^
+            2 errors generated.
+    
+    The two marked lines used to refer incorrectly to /tmp/x.go.
+    
+    Fixes #15836.
+    
+    Change-Id: I08ef60a53cfd148112fceb651eaf7b75d94a7a8d
+    Reviewed-on: https://go-review.googlesource.com/32613
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/ast.go |  1 +
+ src/cmd/cgo/gcc.go |  1 +
+ src/cmd/cgo/out.go | 13 +++++++++++++
+ 3 files changed, 15 insertions(+)

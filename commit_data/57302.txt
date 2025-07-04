@@ -1,0 +1,22 @@
+commit f49fe2955de792377d2a0411531bb95d745e1d9b
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Aug 7 22:16:00 2024 +0200
+
+    cmd/compile: compute bits.TrailingZeros*'s limits from argument's limits
+    
+    y := bits.TrailingZeros(x)
+    if y > bits.Len(x.umax)-1 {
+     then must always be true 1 << y > x.umax which is impossible
+    }
+    
+    Change-Id: Iab4fce1c2ef828bee3a8a4a977cbadb5f9333136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  8 +--
+ test/prove.go                         | 97 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+), 4 deletions(-)

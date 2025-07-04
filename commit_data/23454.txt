@@ -1,0 +1,12 @@
+commit 1be335b6086bbf5a6c37e62fbf0440ef115a0a5a
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jun 18 09:37:06 2015 +0200
+
+    encoding/csv: add examples for package
+    
+    Change-Id: I3463826aa760aa5984dec4fc043b95fd2a5120ac
+    Reviewed-on: https://go-review.googlesource.com/11240
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/csv/example_test.go | 131 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)

@@ -1,0 +1,14 @@
+commit 7d48237f7f6cb4fe9a47d9e2f0f3c5df481ea775
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 15 12:52:07 2015 +1000
+
+    doc/articles/wiki: don't run tests when 'patch' command unavailable
+    
+    Change-Id: I21cfea3eadb37904252900324c23e2664b121bbb
+    Reviewed-on: https://go-review.googlesource.com/11099
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/articles/wiki/test.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

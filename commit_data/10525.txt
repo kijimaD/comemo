@@ -1,0 +1,16 @@
+commit 5f6027e9ad9a6f115399a93c5d330cbf2d66e85f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 28 10:42:57 2011 -0800
+
+    text/template: address a couple of issues for html/template
+    - allow Lookup to work on uninitialized templates
+    - fix bug in add: can't error after parser is stopped
+    - add Add method for html/template
+    
+    R=adg, rogpeppe, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5436080
+
+ src/pkg/text/template/parse/parse.go |  2 +-
+ src/pkg/text/template/template.go    | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

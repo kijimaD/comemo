@@ -1,0 +1,21 @@
+commit f3d54789f764f0f6dba1d2f12ad01986d66ea31c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Jun 16 18:12:48 2016 -0400
+
+    cmd/compile: use power5 instructions for uint64 to float casts
+    
+    Use the same technique as mips64 for these casts (CL 22835).
+    
+    We could use the FCFIDU instruction for ppc64le however it seems
+    better to keep it the same as ppc64 for now.
+    
+    Updates #15539, updates #16004.
+    
+    Change-Id: I550680e485327568bf3238c4615a6cc8de6438d7
+    Reviewed-on: https://go-review.googlesource.com/24191
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ppc64/gsubr.go | 61 ++++++++++++++++++---------------
+ 1 file changed, 34 insertions(+), 27 deletions(-)

@@ -1,0 +1,15 @@
+commit d7b4a09ca8037d91a5a89ea0e9ab36cef37cef74
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 10:12:14 2013 -0400
+
+    debug/gosym: update for Go 1.2 pcln table
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11495043
+
+ src/pkg/debug/gosym/pclinetest.asm  |   4 +-
+ src/pkg/debug/gosym/pclntab.go      | 360 +++++++++++++++++++++++++++++++++++-
+ src/pkg/debug/gosym/pclntab_test.go |  43 +++--
+ src/pkg/debug/gosym/symtab.go       |  91 +++++++--
+ 4 files changed, 458 insertions(+), 40 deletions(-)

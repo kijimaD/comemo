@@ -1,0 +1,19 @@
+commit 5e20f2e4dfdfea7deb9ad9e2a9909a32588334a0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:25:33 2022 +0700
+
+    runtime/trace: convert tracing.enabled to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I8a063ae94568cd2ea65c2e891618069a96139891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423884
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/trace/annotation.go | 3 +--
+ src/runtime/trace/trace.go      | 8 ++++----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 3dda43c6aa89d72f82e441b83a1d747900e1b12d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 11 11:18:23 2016 -0800
+
+    runtime: fix ppc64le cgocallback code
+    
+    Change-Id: I5a4a842cab2173357e8d3e349011c0c2b63be4f9
+    Reviewed-on: https://go-review.googlesource.com/18512
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_ppc64x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

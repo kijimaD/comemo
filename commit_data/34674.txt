@@ -1,0 +1,26 @@
+commit 0b37f05d8dc17a52a9ac1fc827075cd36fe977bb
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 13 14:46:06 2017 -0700
+
+    crypto/x509: follow OpenSSL and emit Extension structures directly in CSRs.
+    
+    I don't know if I got lost in the old PKCS documents, or whether this is
+    a case where reality diverges from the spec, but OpenSSL clearly stuffs
+    PKIX Extension objects in CSR attributues directly[1].
+    
+    In either case, doing what OpenSSL does seems valid here and allows the
+    critical flag in extensions to be serialised.
+    
+    Fixes #13739.
+    
+    [1] https://github.com/openssl/openssl/blob/e3713c365c2657236439fea00822a43aa396d112/crypto/x509/x509_req.c#L173
+    
+    Change-Id: Ic1e73ba9bd383a357a2aa8fc4f6bd76811bbefcc
+    Reviewed-on: https://go-review.googlesource.com/70851
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go      | 107 +++++++++++++++++++++++++------------------
+ src/crypto/x509/x509_test.go |   9 +++-
+ 2 files changed, 70 insertions(+), 46 deletions(-)

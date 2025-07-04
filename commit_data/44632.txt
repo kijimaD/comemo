@@ -1,0 +1,19 @@
+commit 78052f4c4eac5a964a0037f6e18d1a2d31b65189
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 12 10:56:08 2021 -0500
+
+    cmd/compile: minor cleanup -- remove dead code conditional on test
+    
+    It would fail now if it were turned on.
+    
+    Updsates #44816.
+    
+    Change-Id: I19d94f0cb2dd84271f5304c796d7c81e1e64af25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301270
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 71 ++++++++++++----------------------
+ 1 file changed, 24 insertions(+), 47 deletions(-)

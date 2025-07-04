@@ -1,0 +1,23 @@
+commit 695a53620fda42487f02a40af7fc3bc8da45425a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 5 11:11:10 2023 -0400
+
+    internal/coverage/encodecounter: followup changes from code review
+    
+    This patch contains a small set of changes with fixes for some
+    issues that surfaced during the code review for CL 484535. Due
+    to an error on my part, these never got included in the final version
+    that was checked in (I rebased, mailed the rebase, but then never
+    mailed the final patch set with the changes). This patch sends
+    the remaining bits and pieces.
+    
+    Updates #59563.
+    
+    Change-Id: I87dc05a83f8e44c8bfe7203bc2b035defc817af9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492981
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/coverage/encodecounter/encode.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit e81263c79153e98c553c17f7c0417364bea827f5
+Author: liu-xuewen <liiuxuewen@gmail.com>
+Date:   Wed Nov 2 02:07:12 2022 +0000
+
+    cmd/compile: remove issueSpill
+    
+    Remove the useless issueSpill and continue directly.
+    
+    Change-Id: I085e566be6f7200235e1bfe1f56a8e959316386a
+    GitHub-Last-Rev: 84db90cf34b135f9830d03effc3faa685fd8626e
+    GitHub-Pull-Request: golang/go#56520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447195
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

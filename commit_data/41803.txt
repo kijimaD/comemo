@@ -1,0 +1,38 @@
+commit 3ff9c4f2a6670edaee3962571ef6241c1bfcc2fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 30 15:43:08 2020 -0400
+
+    os/signal: make TestStop resilient to initially-blocked signals
+    
+    For reasons unknown, SIGUSR1 appears to be blocked at process start
+    for tests on the android-arm-corellium and android-arm64-corellium
+    builders. (This has been observed before, too: see CL 203957.)
+    Make the test resilient to blocked signals by always calling Notify
+    and waiting for potential signal delivery after sending any signal
+    that is not known to be unblocked.
+    
+    Also remove the initial SIGWINCH signal from testCancel. The behavior
+    of an unhandled SIGWINCH is already tested in TestStop, so we don't
+    need to re-test that same case: waiting for an unhandled signal takes
+    a comparatively long time (because we necessarily don't know when it
+    has been delivered), so this redundancy makes the overall test binary
+    needlessly slow, especially since it is called from both TestReset and
+    TestIgnore.
+    
+    Since each signal is always unblocked while we have a notification
+    channel registered for it, we don't need to modify any other tests:
+    TestStop and testCancel are the only functions that send signals
+    without a registered channel.
+    
+    Fixes #38165
+    Updates #33174
+    Updates #15661
+    
+    Change-Id: I215880894e954b62166024085050d34323431b63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226461
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/signal/signal_test.go | 102 +++++++++++++++++++++----------------------
+ 1 file changed, 49 insertions(+), 53 deletions(-)

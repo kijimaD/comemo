@@ -1,0 +1,19 @@
+commit eca45997dfd6cd14a59fbdea2385f6648a0dc786
+Author: Michael Darakananda <pongad@google.com>
+Date:   Thu Sep 21 10:25:35 2017 +1000
+
+    context: fix references to "d" in WithDeadline docs
+    
+    Docs of WithDeadline refers to variable "d" which does not exist
+    in the docs.
+    
+    This commit renames the time argument to "d" to make the doc work.
+    
+    Change-Id: Ifd2c1be7d2e3f7dfb21cd9bb8ff7fc5039c8d3bd
+    Reviewed-on: https://go-review.googlesource.com/65130
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/context/context.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

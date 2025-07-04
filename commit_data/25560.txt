@@ -1,0 +1,12 @@
+commit 4525571f7e911102636ce0af3bedcd467ee8b45c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 06:52:27 2016 -0500
+
+    doc: document Go 1.5.3
+    
+    Change-Id: I9b4b76abfba66ff655aef55b43d9b4721aba604a
+    Reviewed-on: https://go-review.googlesource.com/18587
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

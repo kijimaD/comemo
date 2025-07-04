@@ -1,0 +1,12 @@
+commit fafc92d4a6756c00683513a21a8f055b01595792
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 24 10:11:26 2019 -0400
+
+    doc/go1.13: remove bytes TODO since it does not require a release note
+    
+    Change-Id: I8c19c6df6fec74dcc8c3bfdc667576ea00e86ec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183617
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.13.html | 4 ----
+ 1 file changed, 4 deletions(-)

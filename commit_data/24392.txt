@@ -1,0 +1,20 @@
+commit c73df92be6dd24603fe51f90db668980a7a9ef19
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Sep 23 23:31:17 2015 +0200
+
+    cmd/compile/internal/gc: remove stringsCompare
+    
+    Inlined the last occurrence of stringsCompare into exprcmp.
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    
+    Change-Id: I8fd99e3fbffc84283cc269368595cba950533066
+    Reviewed-on: https://go-review.googlesource.com/14872
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go      |   8 +-
+ src/cmd/compile/internal/gc/swt_test.go | 144 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/util.go     |  11 ---
+ 3 files changed, 151 insertions(+), 12 deletions(-)

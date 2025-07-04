@@ -1,0 +1,21 @@
+commit 56b3b244fdd7a50fcd9ffb20d7cfdbfae3af81f0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 17:01:47 2023 -0400
+
+    cmd/internal/objabi,cmd/compile: move NoInstrumentPkgs and NoRacePkgs to PkgSpecials
+    
+    This consolidates the NoInstrumentPkgs and NoRacePkgs lists into the
+    objabi.LookupPkgSpecial mechanism.
+    
+    Change-Id: I411654afdd690fb01c412e7e8b57ddfbe85415e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521702
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/base/base.go  | 41 ----------------------------------
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ src/cmd/compile/internal/types/type.go | 15 +++----------
+ src/cmd/compile/internal/walk/race.go  |  3 ++-
+ src/cmd/internal/objabi/pkgspecial.go  | 39 +++++++++++++++++++++++++++++++-
+ 5 files changed, 44 insertions(+), 56 deletions(-)

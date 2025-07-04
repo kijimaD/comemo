@@ -1,0 +1,17 @@
+commit 94280237f4863db90e442481c5cc4edfd13389a9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 20 13:18:09 2018 -0700
+
+    database/sql: add note to Scanner that the database owns values
+    
+    It was unclear that users must copy values out of the src value
+    for value types like []byte.
+    
+    Fixes #24492
+    
+    Change-Id: I99ad61e0ad0075b9efc5ee4e0d067f752f91b8fa
+    Reviewed-on: https://go-review.googlesource.com/108535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 4 ++++
+ 1 file changed, 4 insertions(+)

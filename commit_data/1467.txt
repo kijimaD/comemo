@@ -1,0 +1,22 @@
+commit 8b8ff164b3cf622f2394dad0c399c220503f0fb7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 13 16:32:40 2009 -0800
+
+    delete playpen copy of malloc
+    
+    R=r
+    DELTA=905  (0 added, 905 deleted, 0 changed)
+    OCL=22663
+    CL=22690
+
+ usr/rsc/mem/Makefile           |  38 ----
+ usr/rsc/mem/allocator.go       |  15 --
+ usr/rsc/mem/malloc.c           | 493 -----------------------------------------
+ usr/rsc/mem/malloc.h           |  80 -------
+ usr/rsc/mem/mem.c              |  39 ----
+ usr/rsc/mem/pagemap.c          |  66 ------
+ usr/rsc/mem/testrandom.go      |  68 ------
+ usr/rsc/mem/testrepeat.go      |  37 ----
+ usr/rsc/mem/testsizetoclass.go |  11 -
+ usr/rsc/mem/triv.c             |  74 -------
+ 10 files changed, 921 deletions(-)

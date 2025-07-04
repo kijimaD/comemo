@@ -1,0 +1,19 @@
+commit 2e777b44b8bc8d2dcb7518c91950351ad92754ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 27 15:44:32 2008 -0700
+
+    - created staging area for getting bignum package up-to-speed again,
+    now using up-to-date language features
+    - moved old code away from pkg (defunct anyway because of language changes)
+    
+    R=r
+    OCL=17916
+    CL=17916
+
+ usr/gri/bignum/Makefile                     |  20 ++
+ usr/gri/bignum/bignum.go                    | 527 ++++++++++++++++++++++++++++
+ usr/gri/bignum/bignum_test.go               |  43 +++
+ {src/pkg => usr/gri/bignum}/integer.go      |   0
+ {src/pkg => usr/gri/bignum}/make.bash       |   0
+ {src/pkg => usr/gri/bignum}/test_integer.go |   0
+ 6 files changed, 590 insertions(+)

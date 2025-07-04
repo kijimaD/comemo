@@ -1,0 +1,15 @@
+commit 2bea43b0e7f3e636ffc8239f9d3fccdd5d763c8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 16:21:45 2022 -0700
+
+    spec: state that variable names must be unique in short var decls
+    
+    Fixes #45652.
+    
+    Change-Id: I5e1434480c12815369a6ce204f3729eb63139125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405757
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

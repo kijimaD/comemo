@@ -1,0 +1,22 @@
+commit 8a368c63ec2d48e1c8965341c982987de96164fd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 29 16:34:32 2020 -0400
+
+    cmd/go: print deprecation messages for -i
+    
+    build, install, and test will now print deprecation messages when the
+    -i flag is used. clean will continue to support -i.
+    
+    For #41696
+    
+    Change-Id: I956c235c487a872c5e6c1395388b4d6cd5ef817a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266368
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.16.html                                  | 12 ++++++++++
+ src/cmd/go/alldocs.go                            |  7 ++++--
+ src/cmd/go/internal/test/test.go                 |  2 ++
+ src/cmd/go/internal/work/build.go                | 30 +++++++++++++++++++++---
+ src/cmd/go/testdata/script/build_i_deprecate.txt | 24 +++++++++++++++++++
+ 5 files changed, 70 insertions(+), 5 deletions(-)

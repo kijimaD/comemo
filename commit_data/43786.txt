@@ -1,0 +1,20 @@
+commit d7974c31d0eb0ef377a8681f6f7306d46854eb1c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 12 11:01:23 2020 +0100
+
+    os: gofmt
+    
+    As reported by John Papandriopoulos, some parts of CL 216622 weren't
+    properly formatted.
+    
+    Change-Id: I3a76abb6213bb17ef440036295c86d930703b456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269218
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/executable_dragonfly.go | 6 +++---
+ src/os/executable_freebsd.go   | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

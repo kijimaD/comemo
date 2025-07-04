@@ -1,0 +1,25 @@
+commit 138bfc28090ccf03450cf02cb24f06b60f57cd3b
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Oct 18 15:53:38 2018 +0200
+
+    syscall/js: make zero js.Value represent "undefined"
+    
+    This commit changes the encoding of js.Value so that the zero js.Value
+    represents the JavaScript value "undefined". This is what users
+    intuitively expect.
+    
+    Specifically, the encodings of "undefined" and the number zero have
+    been swapped.
+    
+    Fixes #27592.
+    
+    Change-Id: Icfc832c8cdf7a8a78bd69d20e00a04dbed0ccd10
+    Reviewed-on: https://go-review.googlesource.com/c/143137
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js    | 17 ++++++++++++-----
+ src/syscall/js/js.go      | 21 ++++++++++++++++-----
+ src/syscall/js/js_test.go | 14 ++++++++++++++
+ 3 files changed, 42 insertions(+), 10 deletions(-)

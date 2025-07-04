@@ -1,0 +1,30 @@
+commit 0a4b962c17a9584a177c06b3c0c3119f250bbbaa
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Thu Feb 15 12:21:48 2018 +0200
+
+    runtime/internal/atomic: don't use Cas in atomic.Load on ARM
+    
+    Instead issue a memory barrier on ARMv7 after reading the address.
+    
+    Fixes #23777
+    
+    Change-Id: I7aff2ab0246af64b437ebe0b31d4b30d351890d8
+    Reviewed-on: https://go-review.googlesource.com/94275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/atomic/asm_arm.s          |  3 +++
+ src/runtime/internal/atomic/atomic_arm.go      | 22 ++++++----------------
+ src/runtime/internal/atomic/sys_linux_arm.s    | 20 ++++++++++++++++++++
+ src/runtime/internal/atomic/sys_nonlinux_arm.s | 12 ++++++++++++
+ src/sync/atomic/asm_arm.s                      |  3 +++
+ src/sync/atomic/asm_darwin_arm.s               | 12 ------------
+ src/sync/atomic/asm_freebsd_arm.s              | 10 ----------
+ src/sync/atomic/asm_linux_arm.s                | 10 ----------
+ src/sync/atomic/asm_nacl_arm.s                 | 10 ----------
+ src/sync/atomic/asm_netbsd_arm.s               | 10 ----------
+ src/sync/atomic/asm_openbsd_arm.s              | 10 ----------
+ src/sync/atomic/asm_plan9_arm.s                | 11 -----------
+ 12 files changed, 44 insertions(+), 89 deletions(-)

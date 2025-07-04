@@ -1,0 +1,25 @@
+commit 1308f118974fab4bd08d04a6a982db6dde6f9e52
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Nov 18 04:00:57 2020 +0000
+
+    cmd/link: add relocation type R_AARCH64_LDST16_ABS_LO12_NC for arm64
+    
+    The linker already has R_AARCH64_LDST{8,32,64,128}_ABS_LO12_NC, some cgo tests require
+     R_AARCH64_LDST16_ABS_LO12_NC, this CL adds this relocation type.
+    
+    Fixes #42660
+    
+    Change-Id: I9a5120cd872f5095c61175cb602427c6ab3225cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271017
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ src/cmd/internal/objabi/reloctype.go        |  3 ++
+ src/cmd/internal/objabi/reloctype_string.go | 47 +++++++++++++++--------------
+ src/cmd/link/internal/arm64/asm.go          | 16 ++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go      |  1 +
+ 4 files changed, 44 insertions(+), 23 deletions(-)

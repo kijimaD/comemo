@@ -1,0 +1,15 @@
+commit 880beafc9f60806597d143b71afd6da226367896
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 13 09:21:42 2010 +1000
+
+    http: fix ParseURL to handle //relative_path properly
+    
+    Fixes #900.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1756042
+
+ src/pkg/http/url.go      |  2 +-
+ src/pkg/http/url_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

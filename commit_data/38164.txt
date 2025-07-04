@@ -1,0 +1,36 @@
+commit 44d3bb998ca00e49d9e0138954287af206b614bf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 28 20:20:40 2019 +1100
+
+    path/filepath: do not call GetFinalPathNameByHandle from EvalSymlinks
+    
+    EvalSymlinks is using GetFinalPathNameByHandle to handle symlinks with
+    unusual targets like \??\Volume{ABCD}\. But since CL 164201, os.Readlink
+    handles path like that too.
+    
+    So remove all that extra code that EvalSymlinks calls when os.Readlink
+    fails - it is not needed any more.
+    
+    Now that windows EvalSymlinks implementation is similar to unix
+    implementation, we can remove all slashAfterFilePathError related code
+    too. So do that.
+    
+    This also makes TestIssue29372 pass even when TMP directory refers to
+    symlinks with target like \??\Volume{ABCD}\. So remove TestIssue29372
+    code that helped it pass on windows-arm. TestIssue29372 should pass as
+    is now.
+    
+    Fixes #29746
+    
+    Change-Id: I568d142c89d3297bff8513069bceaa6be51fe7e4
+    Reviewed-on: https://go-review.googlesource.com/c/164202
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path_test.go         | 10 ----
+ src/path/filepath/path_windows_test.go |  6 +++
+ src/path/filepath/symlink.go           |  3 +-
+ src/path/filepath/symlink_unix.go      |  9 ----
+ src/path/filepath/symlink_windows.go   | 99 +---------------------------------
+ 5 files changed, 9 insertions(+), 118 deletions(-)

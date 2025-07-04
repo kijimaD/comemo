@@ -1,0 +1,14 @@
+commit a6e4aa3ef2f0a0132bb7294a7a662b4b96143742
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 9 07:31:25 2013 -0800
+
+    doc: Mention godoc's handling of example functions.
+    
+    Fixes #4625.
+    
+    R=iant, adg
+    CC=golang-dev
+    https://golang.org/cl/7064052
+
+ doc/articles/godoc_documenting_go_code.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,31 @@
+commit 712cba3bf258c0c75bf1a638cb2119dbb11ed6c7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 9 15:16:13 2020 -0400
+
+    cmd/go: ignore retracted versions when converting revisions to versions
+    
+    When a module author retracts a version, the go command should act as
+    if it doesn't exist unless it's specifically requested.
+    
+    When converting a revision to a version, we should ignore tags for
+    retracted versions. For example, if the tag v1.0.0 is retracted, and
+    branch B points to the same revision, we should convert B to a
+    pseudo-version, not v1.0.0. Similarly, if B points to a commit after
+    v1.0.0, we should not use v1.0.0 as the base; we can use an earlier
+    non-retracted tag or no base.
+    
+    Fixes #41700
+    
+    Change-Id: Ia596b05b0780e5acfe6616a04e94d24bd342fbae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261079
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  5 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |  7 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  2 +-
+ src/cmd/go/internal/modfetch/coderepo.go           | 78 ++++++++++++++++++++--
+ .../go/testdata/script/mod_retract_pseudo_base.txt | 62 +++++++++++++++++
+ 5 files changed, 143 insertions(+), 11 deletions(-)

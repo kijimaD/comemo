@@ -1,0 +1,24 @@
+commit 27ed1fcb04701477a62cc7cf883a1d64e26e6da9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 10:37:01 2015 -0500
+
+    runtime: on Plan 9, zero memory returned to the brk by sysFree
+    
+    Plan 9's sysFree has an optimization where if the object being freed
+    is the last object allocated, it will roll back the brk to allow the
+    memory to be reused by sysAlloc.  However, it does not zero this
+    "returned" memory, so as a result, sysAlloc can return non-zeroed
+    memory after a sysFree.  This leads to corruption because the runtime
+    assumes sysAlloc returns zeroed memory.
+    
+    Fix this by zeroing the memory returned by sysFree.
+    
+    Fixes #9846.
+    
+    Change-Id: Id328c58236eb7c464b31ac1da376a0b757a5dc6a
+    Reviewed-on: https://go-review.googlesource.com/4700
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/mem_plan9.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 03b0065204df9cd141919890b23de6291ab52885
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 13:41:30 2015 -0700
+
+    doc: go1.6.txt: -msan option for cmd/{go,compile,link}
+    
+    Change-Id: I8b41de496e4b58214b98267b529f3525ff6d9745
+    Reviewed-on: https://go-review.googlesource.com/16171
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.txt | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit 3098cf01754a2cda60ff2953f5c09c010d7683bf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 13 09:11:49 2017 +0200
+
+    archive/tar: populate Devmajor and Devminor in FileInfoHeader on *BSD
+    
+    Extract device major/minor number on all the BSDs and set Devmajor and
+    Devminor in FileInfoHeader. Code based on the corresponding Major/Minor
+    implementations in golang.org/x/sys/unix.
+    
+    Change-Id: Ieffa7ce0cdbe6481950de666b2f5f88407a32382
+    Reviewed-on: https://go-review.googlesource.com/63470
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+
+ src/archive/tar/stat_unix.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

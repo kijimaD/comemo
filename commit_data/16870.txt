@@ -1,0 +1,12 @@
+commit c0a4ce52c604829f9b2b320a54bf0c41057c78ca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 25 19:29:20 2013 +0900
+
+    net: simplify probeIPv6Stack
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11807043
+
+ src/pkg/net/ipsock_posix.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

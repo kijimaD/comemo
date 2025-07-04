@@ -1,0 +1,15 @@
+commit b8b2253ac78ac76aa5ef171171005b8214e44fec
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 01:23:54 2012 -0500
+
+    cmd/dist: fix build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5630049
+
+ src/cmd/dist/build.c   | 15 +++++++++------
+ src/cmd/dist/unix.c    |  8 ++------
+ src/cmd/dist/windows.c |  6 +++---
+ src/make.bash          |  3 ++-
+ 4 files changed, 16 insertions(+), 16 deletions(-)

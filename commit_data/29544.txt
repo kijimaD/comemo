@@ -1,0 +1,18 @@
+commit 816aa99b9a905c5a1fb1d1853698d87b74099720
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Nov 15 16:33:22 2016 +0100
+
+    syscall: define bind flags on Plan 9
+    
+    These bind flags were removed by mistake in CL 2167.
+    
+    Fixes #17921.
+    
+    Change-Id: I1e8089dade30a212b8db0b216c8299946d924d4b
+    Reviewed-on: https://go-review.googlesource.com/33271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/const_plan9.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

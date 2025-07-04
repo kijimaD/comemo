@@ -1,0 +1,36 @@
+commit 8d581f589eb9b9eac05c75f0dfe82a49c3afcd2f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 10:09:13 2022 -0500
+
+    crypto/aes: simplify key expansion in ppc64le asm
+    
+    The ported cryptogam implementation uses a subtle and tricky mechanism
+    using lxv/vperm/lvsl to load unaligned vectors. This is difficult to
+    read, and may read and write unrelated bytes if reading from an
+    unaligned address.
+    
+    Instead, POWER8 instructions can be used to load from unaligned memory
+    with much less overhead. Alignment interrupts only occur when reading
+    or writing cache-inhibited memory, which we assume isn't used in go
+    today, otherwise alignment penalties are usually marginal.
+    
+    Instead lxvd2x+xxpermdi and xxpermdi+stxvd2x can be used to emulate
+    unaligned LE bytewise loads, similar to lxv/stxv on POWER9 in
+    little-endian mode.
+    
+    Likewise, a custom permute vector is used to emulate BE bytewise
+    storage operations, lxvb16x/stxvb16x, on POWER9.
+    
+    This greatly simplifies the code, and it makes it much easier to store
+    the keys in reverse (which is exactly how the decrypt keys are expected
+    to be stored).
+    
+    Change-Id: I2334337e31a8fdf8d13ba96231142a039f237098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395494
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/aes/asm_ppc64le.s | 132 ++++++++++++++++++-------------------------
+ 1 file changed, 54 insertions(+), 78 deletions(-)

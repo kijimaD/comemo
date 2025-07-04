@@ -1,0 +1,15 @@
+commit 66429dcf75f37cdae380081396b86b8f6787a96a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jun 13 10:13:05 2012 +1000
+
+    exp/html: simplify some of the parser's internal methods.
+    
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkParser      4006888      3950604   -1.40%
+    
+    R=r, andybalholm
+    CC=golang-dev
+    https://golang.org/cl/6301070
+
+ src/pkg/exp/html/parse.go | 166 ++++++++++++++++++++++++----------------------
+ 1 file changed, 87 insertions(+), 79 deletions(-)

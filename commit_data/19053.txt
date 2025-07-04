@@ -1,0 +1,22 @@
+commit fc6753c7cd788cbd50cb80e18764541934141e63
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 7 17:40:00 2014 -0700
+
+    runtime: make sure associated defers are copyable before trying to copy a stack.
+    
+    Defers generated from cgo lie to us about their argument layout.
+    Mark those defers as not copyable.
+    
+    CL 83820043 contains an additional test for this code and should be
+    checked in (and enabled) after this change is in.
+    
+    Fixes bug 7695.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/84740043
+
+ src/pkg/runtime/stack.c       | 69 +++++++++++++++++++++++++++++++++++--------
+ src/pkg/runtime/stack_test.go | 17 +++++++++++
+ 2 files changed, 74 insertions(+), 12 deletions(-)

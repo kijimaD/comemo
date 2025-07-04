@@ -1,0 +1,16 @@
+commit 3443656bce7e91d243118091f5de1eb448d66dbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 27 11:16:34 2009 -0700
+
+    clean up ideal handling; reject attempts
+    to write type descriptors for ideal types
+    
+    R=ken
+    OCL=33958
+    CL=33958
+
+ src/cmd/gc/const.c   | 40 +++++++++++-----------------------------
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/reflect.c | 13 +++++++++++--
+ src/cmd/gc/subr.c    | 10 ++++++++++
+ 4 files changed, 33 insertions(+), 31 deletions(-)

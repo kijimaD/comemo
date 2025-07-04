@@ -1,0 +1,16 @@
+commit a7295523336cd5af59e50442071471402f3966c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 15 17:47:02 2014 -0700
+
+    crypto/x509: SystemRootsError style tweaks, document in Verify
+    
+    In retrospect this should've been a variable instead of a type,
+    but oh well.
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/129250044
+
+ src/pkg/crypto/x509/verify.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

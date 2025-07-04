@@ -1,0 +1,14 @@
+commit bea2008b83424b9693c0e38940ffd53a5e1e80a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 21 09:11:45 2016 -0700
+
+    math/cmplx: added clarifying comment
+    
+    Fixes #14890.
+    
+    Change-Id: Ie790276b0e2ef94c92db3a777042d750269f876a
+    Reviewed-on: https://go-review.googlesource.com/20953
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/cmplx/cmath_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

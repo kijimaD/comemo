@@ -1,0 +1,18 @@
+commit 6b7b0f9a0cc3d647af3494bfc716bb878211e97e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 14:51:49 2015 -0500
+
+    runtime: move all parfor-related code to parfor.go
+    
+    This cleanup was slated for after the conversion of the runtime to Go.
+    Also improve type and function documentation.
+    
+    Change-Id: I55a16b09e00cf701f246deb69e7ce7e3e04b26e7
+    Reviewed-on: https://go-review.googlesource.com/3393
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/parfor.go   | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.go  |  8 --------
+ src/runtime/runtime2.go | 30 ------------------------------
+ 3 files changed, 41 insertions(+), 38 deletions(-)

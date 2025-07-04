@@ -1,0 +1,30 @@
+commit 4477107b7b94c291726268a978d30913cc0b130b
+Author: Frank Somers <fsomers@arista.com>
+Date:   Tue Oct 10 21:15:56 2017 +0100
+
+    runtime: move vdso_linux_amd64.go to vdso_linux.go
+    
+    This is a preparation step for adding vDSO support on linux/386.
+    
+    In a follow-on change, the vDSO ELF symbol lookup code in this
+    file will be refactored so it can be used on multiple architectures.
+    
+    First, move the file to an architecture-neutral file name so that
+    the change history is preserved. Build tags are added so that the
+    build behaves as it did before.
+    
+    vdso_linux_amd64.go will be recreated later, just containing the
+    amd64 specifics.
+    
+    If the move and refactor were combined in a single change, then the
+    history to date would be lost because git would see the existing code
+    as a new file.
+    
+    Change-Id: Iddb5da0d7faf141fd7cc835fe6a80c80153897e9
+    Reviewed-on: https://go-review.googlesource.com/69710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/{vdso_linux_amd64.go => vdso_linux.go} | 3 +++
+ 1 file changed, 3 insertions(+)

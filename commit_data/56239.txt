@@ -1,0 +1,26 @@
+commit 68c0ad3a689833344fada8acc1f36a06c343caa4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 18 13:52:44 2024 -0400
+
+    cmd/go: only attempt to match subset of $GOCACHE in test
+    
+    This test attempted to be clever by looking for the entirety of $GOCACHE
+    in the compile command line to ensure that the profile was coming from
+    cache.
+    
+    Unfortunately, on Windows $GOCACHE contains \, which needs extra
+    escaping in a regexp. As an approximate alternative, just look for the
+    "gocache" component specified when defining GOCACHE.
+    
+    This fixes the Windows longtest builders.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: If6c77cf066d8612431e0720405254e1fdf528e9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580137
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Michael Pratt <mpratt@google.com>
+
+ src/cmd/go/testdata/script/build_cache_pgo.txt | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

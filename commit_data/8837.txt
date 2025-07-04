@@ -1,0 +1,15 @@
+commit 89873e60e27cbe015331ad2dab80317afd7f7e2e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 23 21:10:51 2011 -0700
+
+    http: buffer Request.Write
+    
+    Fixes #1996
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4639068
+
+ src/pkg/http/client_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/request.go     | 17 +++++++++--------
+ 2 files changed, 55 insertions(+), 8 deletions(-)

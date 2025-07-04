@@ -1,0 +1,18 @@
+commit f5aecc1d1dfab8ad3397915f13920825e2ce6701
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Feb 24 15:51:48 2019 +0000
+
+    Revert "androidtest.bash: wait for device to be ready before using it"
+    
+    This reverts commit 27b9571de800c05a41081ea80cd934e48e0a8f70.
+    
+    Reason for revert: broke the multi-device Android builder. And the wait logic is moving to the exec wrapper anyway.
+    
+    Change-Id: I3e429106bbe70b3a12286f8f229a2b558279eec4
+    Reviewed-on: https://go-review.googlesource.com/c/163620
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/androidtest.bash | 6 ------
+ 1 file changed, 6 deletions(-)

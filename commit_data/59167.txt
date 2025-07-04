@@ -1,0 +1,30 @@
+commit 936bb82ddb7f6456e3008b26f0398880d11ce3c0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 25 10:29:22 2025 +0100
+
+    internal/poll,net: set SIO_UDP_CONNRESET in net
+    
+    Setting the SIO_UDP_CONNRESET option in internal/poll.FD.Init
+    adds unnecessary complexity to the FD.Init signature and
+    implementation. Better to set it in the net package when initializing
+    the UDP connection, which is where conceptually it belongs.
+    
+    While here, update an outdated comment in FD.Init that said the runtime
+    poller doesn't support I/O operations initialized by the user
+    outside the internal/poll package. It does support those operations
+    since CL 561895.
+    
+    For #19098.
+    Updates #21172.
+    
+    Change-Id: I9a70b0deafdb4619830abe2147e2d366b4c2b890
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660496
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/poll/fd_windows.go      | 41 +++++++++++-------------------------
+ src/internal/poll/fd_windows_test.go |  3 +--
+ src/net/fd_windows.go                | 19 +++++++++++++----
+ 3 files changed, 28 insertions(+), 35 deletions(-)

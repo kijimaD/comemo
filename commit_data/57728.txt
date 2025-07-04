@@ -1,0 +1,44 @@
+commit bdc6dbbc6465bc617b778e6e3a1ae49daa35ea69
+Author: Max Neverov <neverov.max@gmail.com>
+Date:   Wed Oct 9 00:00:28 2024 +0000
+
+    go/types: improve recursive type error message
+    
+    This change improves error message for recursive types.
+    Currently, compilation of the [following program](https://go.dev/play/p/3ef84ObpzfG):
+    
+    package main
+    
+    type T1[T T2] struct{}
+    type T2[T T1] struct{}
+    
+    returns an error:
+    
+    ./prog.go:3:6: invalid recursive type T1
+            ./prog.go:3:6: T1 refers to
+            ./prog.go:4:6: T2 refers to
+            ./prog.go:3:6: T1
+    
+    With the patch applied the error message looks like:
+    
+    ./prog.go:3:6: invalid recursive type T1
+            ./prog.go:3:6: T1 refers to T2
+            ./prog.go:4:6: T2 refers to T1
+    
+    Change-Id: Ic07cdffcffb1483c672b241fede4e694269b5b79
+    GitHub-Last-Rev: cd042fdc384cf5591b3258ca80fdc002bb8c5e0d
+    GitHub-Pull-Request: golang/go#69574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614084
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/types2/decl.go      | 17 +++++++----------
+ src/cmd/compile/internal/types2/initorder.go | 10 ++++------
+ src/go/types/decl.go                         | 18 ++++++++----------
+ src/go/types/initorder.go                    | 10 ++++------
+ test/fixedbugs/bug195.go                     |  2 +-
+ test/fixedbugs/issue41575.go                 | 10 +++++-----
+ test/fixedbugs/issue50788.dir/b.go           |  2 +-
+ test/initloop.go                             |  2 +-
+ 8 files changed, 31 insertions(+), 40 deletions(-)

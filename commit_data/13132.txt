@@ -1,0 +1,29 @@
+commit 576d648b2a961a474acd6b2236ae062b901bb404
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 23 02:32:27 2012 +0800
+
+    cmd/ld, cmd/6l, cmd/8l, cmd/5l: fix hidden/local symbol import for ELF systems
+       Introduce a newsym() to cmd/lib.c to add a symbol but don't add
+    them to hash table.
+       Introduce a new bit flag SHIDDEN and bit mask SMASK to handle hidden
+    and/or local symbols in ELF symbol tables. Though we still need to order
+    the symbol table entries correctly.
+       Fix for issue 3261 comment #9.
+       For CL 5822049.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/5823055
+
+ src/cmd/5l/asm.c    |   2 +-
+ src/cmd/5l/pass.c   |   2 +-
+ src/cmd/6l/asm.c    |   2 +-
+ src/cmd/6l/pass.c   |   2 +-
+ src/cmd/8l/asm.c    |   2 +-
+ src/cmd/8l/pass.c   |   2 +-
+ src/cmd/ld/data.c   |   2 +-
+ src/cmd/ld/ldelf.c  | 160 ++++++++++++++++++++++++++++++----------------------
+ src/cmd/ld/lib.c    |  49 ++++++++++------
+ src/cmd/ld/lib.h    |   5 +-
+ src/cmd/ld/symtab.c |  24 ++++----
+ 11 files changed, 149 insertions(+), 103 deletions(-)

@@ -1,0 +1,18 @@
+commit 4a954fafa3bc294ac56d5aea19dc3b0b3124d4c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 10:40:31 2022 -0700
+
+    cmd/compile/internal/types2: match go/types for "..." related error msg
+    
+    For #54511.
+    
+    Change-Id: I571680dfc25d7b7198e84e11bd311ab8b24d72d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424818
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go                          | 2 +-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

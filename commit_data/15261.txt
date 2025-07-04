@@ -1,0 +1,15 @@
+commit c5b4292eb3dd41766a9ea0e89f630c5ec783bf42
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Thu Feb 14 20:35:08 2013 -0800
+
+    cmd/godoc: add support for doc.Package.Notes
+    
+    Add support for displaying the notes of the form 'MARKER(userid): comment' now collected by the go/doc package. Any two or more uppercase letters are recognised as a marker.
+    
+    R=gri, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7334044
+
+ lib/godoc/package.html | 13 +++++++++++++
+ lib/godoc/package.txt  |  7 ++++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

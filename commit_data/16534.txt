@@ -1,0 +1,22 @@
+commit 02a891b30ba44fd2185ad6292ff6d862b3946084
+Author: Gerasimos Dimitriadis <gedimitr@gmail.com>
+Date:   Mon Jun 10 18:14:47 2013 -0400
+
+    asn1: Improved encoding/decoding for OID types
+    
+    The first identifier in an Object Identifer must be between 0 and 2
+    inclusive. The range of values that the second one can take depends
+    on the value of the first one.
+    The two first identifiers are not necessarily encoded in a single octet,
+    but in a varint.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/10140046
+
+ src/pkg/crypto/x509/x509_test.go      |  2 +-
+ src/pkg/encoding/asn1/asn1.go         | 22 +++++++++++++++++-----
+ src/pkg/encoding/asn1/asn1_test.go    |  1 +
+ src/pkg/encoding/asn1/marshal.go      |  4 ++--
+ src/pkg/encoding/asn1/marshal_test.go |  1 +
+ 5 files changed, 22 insertions(+), 8 deletions(-)

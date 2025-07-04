@@ -1,0 +1,21 @@
+commit c193279e2c9e62e8ddc0893484251b4411461d62
+Author: Chris Waldon <christopher.waldon.dev@gmail.com>
+Date:   Sun Nov 29 23:58:29 2020 +0000
+
+    os: return proper user directories on iOS
+    
+    Separating iOS into its own runtime constant broke the logic
+    here to derive the correct home, cache, and config directories
+    on iOS devices.
+    
+    Fixes #42878
+    
+    Change-Id: Ie4ff57895fcc34b0a9af45554ea3a346447d2e7a
+    GitHub-Last-Rev: 5e74e64917fa46e9c6e0d963cab5194ab89e2f64
+    GitHub-Pull-Request: golang/go#42879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273947
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/os/file.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

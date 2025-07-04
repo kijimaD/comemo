@@ -1,0 +1,17 @@
+commit ccf2c019921999f49ba2ab8cbfe70ebecc986f46
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:27:30 2016 +0300
+
+    go/types: fix certain vet warnings
+    
+    Updates #11041
+    
+    Change-Id: I4e1c670d2b7fc04927d77c6f933cee39b7d48b6e
+    Reviewed-on: https://go-review.googlesource.com/23083
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/resolver.go | 2 +-
+ src/go/types/stmt.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

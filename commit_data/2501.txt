@@ -1,0 +1,21 @@
+commit be639b9a51294413be3dc8aa6583654d82e63b97
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jun 23 11:54:23 2009 -0700
+
+    Runtime is now starting up with a dummy c program as target:
+    - morestack and gosave/gogo/gocall support
+    - memclr and memset from inferno
+    - bugfixes in _rt0_arm
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=304  (174 added, 36 deleted, 94 changed)
+    OCL=30636
+    CL=30642
+
+ src/cmd/5l/noop.c               |  64 +++++++------
+ src/pkg/runtime/Makefile        |   6 +-
+ src/pkg/runtime/arm/asm.s       | 200 ++++++++++++++++++++++++----------------
+ src/pkg/runtime/arm/memset.s    |  94 +++++++++++++++++++
+ src/pkg/runtime/linux/arm/sys.s |  23 +++--
+ 5 files changed, 263 insertions(+), 124 deletions(-)

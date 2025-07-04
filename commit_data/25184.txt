@@ -1,0 +1,17 @@
+commit a6869d1c5c5172dda7fdbea5e6b6ffbd2f997db1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 12:15:30 2015 -0500
+
+    net/url: accept non-ASCII bytes in URL per RFC 3986
+    
+    Fixes #7991.
+    Fixes #12719.
+    
+    Change-Id: I5650fa35ec5d49addeda6cc6e7fa93cfbe1cdfc0
+    Reviewed-on: https://go-review.googlesource.com/17385
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      | 73 +++++++++++++++++++++++++++++++------------------
+ src/net/url/url_test.go | 34 +++++++++++++++++++++--
+ 2 files changed, 77 insertions(+), 30 deletions(-)

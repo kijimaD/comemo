@@ -1,0 +1,14 @@
+commit f1b64aa7586551e0d433188a000481c29bc37c2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 22:12:41 2011 -0400
+
+    os, syscall: update for error
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5333052
+
+ src/pkg/os/env_windows.go      |  3 ++-
+ src/pkg/os/exec_windows.go     |  5 +++--
+ src/pkg/syscall/dll_windows.go | 15 +++++----------
+ 3 files changed, 10 insertions(+), 13 deletions(-)

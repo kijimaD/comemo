@@ -1,0 +1,15 @@
+commit 07bcc165475f3c34433ebf48b05f704fd40e5639
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 8 09:49:31 2016 -0700
+
+    runtime: simplify getargp
+    
+    Change-Id: I9ed62e8a6d8b9204c18748efd7845adabf3460b9
+    Reviewed-on: https://go-review.googlesource.com/28775
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/panic.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

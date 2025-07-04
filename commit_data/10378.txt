@@ -1,0 +1,16 @@
+commit 869aabbdd092f71858caffa502598148417f3a70
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 11:31:58 2011 -0500
+
+    syscall: more linux arm build fixes
+    
+    Don't know if it runs, but at least it builds.
+    
+    R=bradfitz
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5373093
+
+ src/pkg/syscall/syscall_linux_arm.go |  16 ++-
+ src/pkg/syscall/zerrors_linux_arm.go | 262 ++++++++++++++++++-----------------
+ 2 files changed, 144 insertions(+), 134 deletions(-)

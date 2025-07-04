@@ -1,0 +1,24 @@
+commit a37d95c74a68da299073ff5a5bb077aa60aeab39
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 28 14:34:45 2018 -0800
+
+    cmd/compile: fix constant index bounds check and error message
+    
+    While here, rename nonnegintconst to indexconst (because that's
+    what it is) and add Fatalf calls where we are not expecting the
+    indexconst call to fail, and fixed wrong comparison in smallintconst.
+    
+    Fixes #23781.
+    
+    Change-Id: I86eb13081c450943b1806dfe3ae368872f76639a
+    Reviewed-on: https://go-review.googlesource.com/c/151599
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     | 22 +++++++++++++---------
+ src/cmd/compile/internal/gc/sinit.go     | 17 +++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++++++++++----
+ src/cmd/compile/internal/gc/walk.go      |  6 +++++-
+ test/fixedbugs/issue23781.go             | 10 ++++++++++
+ 5 files changed, 51 insertions(+), 18 deletions(-)

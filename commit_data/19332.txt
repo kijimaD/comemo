@@ -1,0 +1,26 @@
+commit 2497c430d846d52dbfd2e8150c51e1ad59aeee3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 16:52:55 2014 -0400
+
+    cmd/go: detect import cycle caused by test code
+    
+    The runtime was detecting the cycle already,
+    but we can give a better error without even
+    building the binary.
+    
+    Fixes #7789.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96290043
+
+ src/cmd/go/pkg.go                               |  2 +-
+ src/cmd/go/test.bash                            | 13 ++++++++++
+ src/cmd/go/test.go                              | 33 ++++++++++++++++++++++++-
+ src/cmd/go/testdata/src/testcycle/p1/p1.go      |  7 ++++++
+ src/cmd/go/testdata/src/testcycle/p1/p1_test.go |  6 +++++
+ src/cmd/go/testdata/src/testcycle/p2/p2.go      |  7 ++++++
+ src/cmd/go/testdata/src/testcycle/p3/p3.go      |  5 ++++
+ src/cmd/go/testdata/src/testcycle/p3/p3_test.go | 10 ++++++++
+ 8 files changed, 81 insertions(+), 2 deletions(-)

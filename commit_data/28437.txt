@@ -1,0 +1,14 @@
+commit f7e49f6644bde3f17b4a795218a35876347455a1
+Author: Suyash <dextrous93@gmail.com>
+Date:   Fri Sep 16 19:54:44 2016 +0530
+
+    sort: fix search descending order example
+    
+    Change-Id: I27b82d8c63a06ddf7e148b15853aba24a22a6282
+    Reviewed-on: https://go-review.googlesource.com/29336
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sort/example_search_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit af686da46ffeb463c113607bac3ec5e8f53acaf9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 14 10:00:33 2019 +0700
+
+    cmd/compile: allow print/println(f()) where f() is multi-value
+    
+    Fixes #35576
+    
+    Change-Id: Ia128f412120069e9f8813e9e910e62644f950bfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207118
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue35576.go             | 16 ++++++++++++++++
+ test/fixedbugs/issue35576.out            |  1 +
+ 3 files changed, 18 insertions(+), 1 deletion(-)

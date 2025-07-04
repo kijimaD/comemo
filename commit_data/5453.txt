@@ -1,0 +1,27 @@
+commit 3f287b50027d42e17d9eb6feaea5b9efd887794f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 6 18:20:01 2010 -0700
+
+    big: implemented overlap-tolerant shifts in assembly
+    
+    - no need to make copies in cases of aliases
+    - removed deprecated internal shift functions
+    - minor unrelated simplifications
+    
+    This change improves pidigits -s -n10000 by almost 20%:
+    
+    user 0m6.156s (old)
+    user 0m4.999s (new)
+    
+    (pidigits -s -n20000 goes from ~25s to ~19s)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1149041
+
+ src/pkg/big/arith.go      |  28 +++++++---
+ src/pkg/big/arith_386.s   |  78 ++++++++++++++++----------
+ src/pkg/big/arith_amd64.s | 140 ++++++++++++++++++++++++++++++----------------
+ src/pkg/big/int.go        |   4 +-
+ src/pkg/big/nat.go        | 102 ++++++++-------------------------
+ 5 files changed, 188 insertions(+), 164 deletions(-)

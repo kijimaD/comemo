@@ -1,0 +1,14 @@
+commit 574dac9d9707ddd35d57aaea646710dfae67bd89
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 9 14:16:44 2020 -0400
+
+    doc/go1.15: fix TODO about -buildmode=pie
+    
+    Updates #37419.
+    
+    Change-Id: If77067eb348de47a4b101325de8a43502383b6d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241740
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ doc/go1.15.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

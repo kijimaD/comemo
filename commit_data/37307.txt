@@ -1,0 +1,14 @@
+commit 5e9ad4a9b4a11e1e879ff061e09a10eef6bd605b
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Nov 8 09:48:06 2018 +0530
+
+    time: handle negative offsets on js/wasm
+    
+    Fixes #28649
+    
+    Change-Id: I9f6807ee3c3007f670dd509780805c7b255a2bda
+    Reviewed-on: https://go-review.googlesource.com/c/148338
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_js.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

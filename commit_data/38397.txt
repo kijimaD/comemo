@@ -1,0 +1,14 @@
+commit 6aa710f7231bd02eac4389579dc11bb7d9c1bdad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 13 20:49:19 2019 +0000
+
+    cmd/go/internal/work: remove commented-out import
+    
+    Somebody wasn't using goimports. :)
+    
+    Change-Id: Ibad3c0781ea70d538592b2e90d8b578e4fae8173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167385
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/build.go | 1 -
+ 1 file changed, 1 deletion(-)

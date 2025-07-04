@@ -1,0 +1,19 @@
+commit 5fbadf0bc375d63049c210b640dd6384b7ca890b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 12 19:57:30 2009 -0700
+
+    warn -> yyerror in mparith.
+    close two more bugs.
+    
+    R=ken
+    OCL=26226
+    CL=26226
+
+ src/cmd/gc/go.y                    |  8 +-------
+ src/cmd/gc/mparith1.c              |  4 ++--
+ src/cmd/gc/mparith2.c              | 34 +++++++++++++++++-----------------
+ src/cmd/gc/mparith3.c              |  6 +++---
+ test/{bugs => fixedbugs}/bug108.go |  2 +-
+ test/{bugs => fixedbugs}/bug125.go |  2 +-
+ test/golden.out                    |  7 -------
+ 7 files changed, 25 insertions(+), 38 deletions(-)

@@ -1,0 +1,12 @@
+commit 60a6ec1c9367d50c039c589aee5637f21c6a11cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:48:18 2010 -0800
+
+    ld: typo
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/194073
+
+ src/cmd/ld/go.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

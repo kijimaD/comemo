@@ -1,0 +1,24 @@
+commit c5540e53b1f692a8c977fd1e4ee0915eea66f999
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 12:25:43 2022 -0800
+
+    go/types, types2: ensure that signature type bounds are interfaces
+    
+    Do this by running verification for instantiated signatures
+    later, after the delayed type parameter set-up had a chance
+    to wrap type bounds in implicit interfaces where needed.
+    
+    Fixes #50450
+    
+    Change-Id: If3ff7dc0be6af14af854830bfddb81112ac575cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375737
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 24 +++++++++++---------
+ .../types2/testdata/fixedbugs/issue50450.go2       | 11 +++++++++
+ src/go/types/call.go                               | 26 +++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue50450.go2     | 11 +++++++++
+ 4 files changed, 51 insertions(+), 21 deletions(-)

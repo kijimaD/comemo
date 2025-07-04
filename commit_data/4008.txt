@@ -1,0 +1,13 @@
+commit e5636d6e276089f840a282e3ed8ddf77188e6439
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 22:20:05 2009 -0800
+
+    avoid seg fault when return type is unknown
+    
+    Fixes #80.
+    
+    R=ken
+    https://golang.org/cl/154079
+
+ src/cmd/gc/subr.c | 5 +++++
+ 1 file changed, 5 insertions(+)

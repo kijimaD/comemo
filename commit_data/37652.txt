@@ -1,0 +1,20 @@
+commit da6294a35abfb62825da3e27b8ba998e71a4d81d
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 11 14:57:59 2018 -0800
+
+    runtime/pprof: fix TestCPUProfileWithFork on Windows/ARM
+    
+    Use smaller heap on Windows/ARM, which generally does not have
+    page file enabled and therefore has limited virtual address space.
+    
+    Updates #26148
+    
+    Signed-off-by: Jordan Rhee <jordanrh@microsoft.com>
+    
+    Change-Id: I4030be24a10fab7b9b659e3736b7e83f10710bfa
+    Reviewed-on: https://go-review.googlesource.com/c/153719
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

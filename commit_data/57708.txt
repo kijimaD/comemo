@@ -1,0 +1,23 @@
+commit 67f662b29165a0fb27dd15e9370b6e411a653c95
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 16 16:33:03 2024 +0200
+
+    internal/syscall/windows: set write access when O_TRUNC is used
+    
+    Whenn O_TRUNC is set, Opentat ends up calling syscall.Ftruncate, which
+    needs write access. Make sure write access is not removed when O_TRUNC
+    and O_APPEND are both set.
+    
+    Updates #67002.
+    
+    Change-Id: Iccc470b7be3c62144318d6a707057504f3b74c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620576
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/syscall/windows/at_windows.go      |  6 ++-
+ src/internal/syscall/windows/at_windows_test.go | 58 +++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

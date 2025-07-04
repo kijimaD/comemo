@@ -1,0 +1,19 @@
+commit ff8f3f0fa126c71059f53f81be3b87237fb55546
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 12 19:49:45 2015 -0700
+
+    cmd/vet: extend copylocks to anonymous functions
+    
+    Running -copylocks over a large corpus generates 1507 warnings.
+    Of those, only 3 are from the new anonymous function check,
+    but they are all bugs.
+    
+    Fixes #10927.
+    
+    Change-Id: I2672f6871036bed711beec5f88bc39aa8b3b6a94
+    Reviewed-on: https://go-review.googlesource.com/11051
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/copylock.go               | 26 ++++++++++++++------------
+ src/cmd/vet/testdata/copylock_func.go |  5 +++++
+ 2 files changed, 19 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit ec7963565af567b5b5a29eef53c5fb56801cb7ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 11 11:47:24 2011 -0700
+
+    godoc: show source code if -src flag is set in command-line mode
+    
+    This also shows the source code of exported functions in server
+    mode (e.g. pkg/big/?m=src).
+    
+    Fixes #2360.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5254057
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

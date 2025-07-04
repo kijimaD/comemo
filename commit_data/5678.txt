@@ -1,0 +1,18 @@
+commit d67717c29bb11933ea6db186f5122fb9658f97e7
+Author: James Whitehead <jnwhiteh@gmail.com>
+Date:   Sun Jun 20 11:46:12 2010 +0200
+
+    misc/vim: reorganize plugin so it uses ftplugin and syntax
+    
+    This sets up vim to work out of the box with go programs as long as syntax
+    highlighting is enabled. Both files must be copied to the vim runtime
+    directory in order for the file-type detection and syntax loading to work.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1723044
+
+ misc/vim/ftdetect/gofiletype.vim |  1 +
+ misc/vim/readme.txt              | 12 ++++++++++++
+ misc/vim/{ => syntax}/go.vim     |  0
+ 3 files changed, 13 insertions(+)

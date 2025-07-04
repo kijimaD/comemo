@@ -1,0 +1,30 @@
+commit 8f6d68ebaa660c6db8a87d418e95f8c0d3a221e4
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Feb 22 14:40:17 2017 +0100
+
+    net/http: send more cookie values in double quotes
+    
+    According to RFC 6255 a cookie value may contain neither spaces " "
+    nor commas ",". But browsers seem to handle these pretty well and such
+    values are not uncommon in the wild so we do allow spaces and commas
+    in cookie values too. Up to now we use the double-quoted wire format
+    only for cookie values with leading and/or trailing spaces and commas.
+    Values with internal spaces/commas are sent without the optional double
+    quotes. This seems to be a problem for some agents.
+    
+    This CL changes the behaviour for cookie values with spaces or commas:
+    Such values are always sent in double quotes. This should not have
+    any impact on existing agents and the increases of data transmitted
+    is negligible.
+    
+    Fixes #18627
+    
+    Change-Id: I575a98d589e048aa39d976a3c984550daaca730a
+    Reviewed-on: https://go-review.googlesource.com/37328
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go      | 2 +-
+ src/net/http/cookie_test.go | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

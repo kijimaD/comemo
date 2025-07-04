@@ -1,0 +1,14 @@
+commit ddf83eeb2359f28f81bce78a6d4521852d5e6dfe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 11:21:38 2018 -0700
+
+    cmd/compile: s/eqtype/types.Identical/ (fix build)
+    
+    TBR=khr
+    
+    Change-Id: Ia5a08f1acd9f37c466829754990733330264f546
+    Reviewed-on: https://go-review.googlesource.com/c/143758
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

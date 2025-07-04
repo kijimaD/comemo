@@ -1,0 +1,18 @@
+commit 38ca0466d3fa961b7841a3758948fd70448b84d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 14 05:36:03 2016 +0000
+
+    net/http: fix flaky TestServerValidatesHostHeader
+    
+    Passes with go test -race -count=1000 -name=TestServerValidatesHostHeader now
+    without hanging.
+    
+    Fixes #13950
+    
+    Change-Id: I41c3a555c642595c95c8c52f19a05a4c68e67630
+    Reviewed-on: https://go-review.googlesource.com/18660
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

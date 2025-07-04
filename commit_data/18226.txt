@@ -1,0 +1,14 @@
+commit a2edc469a0d4f744c26d3245a6600a02b4ebf426
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 11:39:04 2014 -0500
+
+    runtime: remove redundant 0x prefix in error print
+    
+    %x already adds the prefix unconditionally
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/51550043
+
+ src/pkg/runtime/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

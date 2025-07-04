@@ -1,0 +1,13 @@
+commit a9e8befb49edaf07abc7401e656fb654fa544a9c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 15 09:19:54 2009 +1100
+
+    generate replacement rune when asked to encode a negative rune value.
+    Fixes #425.
+    
+    R=rsc
+    https://golang.org/cl/178043
+
+ src/pkg/utf8/utf8.go      |  5 +++++
+ src/pkg/utf8/utf8_test.go | 30 +++++++++++++++++++++---------
+ 2 files changed, 26 insertions(+), 9 deletions(-)

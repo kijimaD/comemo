@@ -1,0 +1,12 @@
+commit 3a23da657d8d0213a963c07ef4f69363068dbfd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 18:18:12 2009 -0700
+
+    fix build
+    
+    TBR=austin
+    OCL=32496
+    CL=32496
+
+ test/bugs/bug136.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

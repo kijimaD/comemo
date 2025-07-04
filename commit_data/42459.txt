@@ -1,0 +1,22 @@
+commit f72d7cfc8fb5326c37e47414f388562460abae56
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 20:38:20 2020 -0700
+
+    cmd/compile: add interface equality tests
+    
+    Add interfaces which differ in type. Those used so far only
+    differ in value, not type.
+    
+    These additional tests are needed to generate a failure
+    before CL 236278 went in.
+    
+    Update #8606
+    
+    Change-Id: Icdb7647b1973c2fff7e5afe2bd8b8c1b384f583e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236418
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue8606.go | 4 ++++
+ 1 file changed, 4 insertions(+)

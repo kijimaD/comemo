@@ -1,0 +1,24 @@
+commit 7e455b628c2d9f2286270238fbd2b1ab38643a2a
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Thu Jul 13 22:51:08 2017 -0400
+
+    testing: ensure profiles are written upon -timeout panic
+    
+    This addresses the case of a -timeout panic, but not the more
+    general case of a signal arriving. See CL 48370 and CL 44352
+    for recent difficulties in that area.
+    
+    "-timeout" here means flag usage to distinguish from the
+    default timeout termination which uses signals.
+    
+    Fixes #19394
+    
+    Change-Id: I5452d5422c0c080e940cbcc8c6606049975268c6
+    Reviewed-on: https://go-review.googlesource.com/48491
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go  | 31 +++++++++++++++++++++++++++++++
+ src/testing/testing.go | 27 +++++++++++++++++----------
+ 2 files changed, 48 insertions(+), 10 deletions(-)

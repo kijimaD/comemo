@@ -1,0 +1,14 @@
+commit fab7ae15ee70cfd7d4b6aac85df361fd2ad9f35d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 1 16:13:37 2009 -0800
+
+    Use the environment variable CC as the bootstrap compiler used
+    to build 6g, 6l, etc.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018015
+
+ src/make.bash     |  3 ++-
+ src/quietgcc.bash | 14 +++++---------
+ 2 files changed, 7 insertions(+), 10 deletions(-)

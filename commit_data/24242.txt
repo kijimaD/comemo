@@ -1,0 +1,18 @@
+commit 3ed6e830b9cb7541e20a19665f4e1c41453170f2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 10 14:16:41 2015 -0700
+
+    mime: fix docs for WordDecoder.Decode
+    
+    It was correct for an early version of the CL which introduced the
+    type, but later versions of the CL changed the behavior without
+    updating the documentation.
+    
+    Fixes #12568
+    
+    Change-Id: Ia4090a02ba122e9f8317ed86c4c9839ae2c539e0
+    Reviewed-on: https://go-review.googlesource.com/14496
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/mime/encodedword.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

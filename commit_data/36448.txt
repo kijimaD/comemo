@@ -1,0 +1,21 @@
+commit eeb8aebed6d158ad55cea346fdd659f6d6112de5
+Author: Oryan Moshe <iamoryanmoshe@gmail.com>
+Date:   Fri Aug 3 14:52:39 2018 +0300
+
+    cmd/cgo: pass explicit -O0 to the compiler
+    
+    The current implementation removes all of the optimization flags from
+    the compiler.
+    Added the -O0 optimization flag after the removal loop, so go can
+    compile cgo on every OS consistently.
+    
+    Fixes #26487
+    
+    Change-Id: Ia98bca90def186dfe10f50b1787c2f40d85533da
+    Reviewed-on: https://go-review.googlesource.com/127755
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,48 @@
+commit 001438bdfec2b97e04a053abfbe42efe499f78e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 22:58:10 2015 -0400
+
+    runtime: fix callwritebarrier
+    
+    Given a call frame F of size N where the return values start at offset R,
+    callwritebarrier was instructing heapBitsBulkBarrier to scan the block
+    of memory [F+R, F+R+N). It should only scan [F+R, F+N). The extra N-R
+    bytes scanned might lead into the next allocated block in memory.
+    Because the scan was consulting the heap bitmap for type information,
+    scanning into the next block normally "just worked" in the sense of
+    not crashing.
+    
+    Scanning the extra N-R bytes of memory is a problem mainly because
+    it causes the GC to consider pointers that might otherwise not be
+    considered, leading it to retain objects that should actually be freed.
+    This is very difficult to detect.
+    
+    Luckily, juju turned up a case where the heap bitmap and the memory
+    were out of sync for the block immediately after the call frame, so that
+    heapBitsBulkBarrier saw an obvious non-pointer where it expected a
+    pointer, causing a loud crash.
+    
+    Why is there a non-pointer in memory that the heap bitmap records as
+    a pointer? That is more difficult to answer. At least one way that it
+    could happen is that allocations containing no pointers at all do not
+    update the heap bitmap. So if heapBitsBulkBarrier walked out of the
+    current object and into a no-pointer object and consulted those bitmap
+    bits, it would be misled. This doesn't happen in general because all
+    the paths to heapBitsBulkBarrier first check for the no-pointer case.
+    This may or may not be what happened, but it's the only scenario
+    I've been able to construct.
+    
+    I tried for quite a while to write a simple test for this and could not.
+    It does fix the juju crash, and it is clearly an improvement over the
+    old code.
+    
+    Fixes #10844.
+    
+    Change-Id: I53982c93ef23ef93155c4086bbd95a4c4fdaac9a
+    Reviewed-on: https://go-review.googlesource.com/10317
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbarrier.go | 2 +-
+ src/runtime/mbitmap.go  | 6 ++++++
+ src/runtime/mheap.go    | 2 ++
+ 3 files changed, 9 insertions(+), 1 deletion(-)

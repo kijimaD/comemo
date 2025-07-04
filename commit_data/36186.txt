@@ -1,0 +1,16 @@
+commit a7df7b9cdb34133aba9ba1581bc1f5ea6650309c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 1 14:50:11 2018 -0700
+
+    misc/cgo/testcshared: force descriptor 30 to be closed when execing test
+    
+    Fixes #26730
+    
+    Change-Id: I3396598282c814e75c0c4ef16f692dbe83d2935e
+    Reviewed-on: https://go-review.googlesource.com/127395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

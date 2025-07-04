@@ -1,0 +1,22 @@
+commit 1163acf3eaedf870d069058b540bfef5c470f520
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 9 18:09:46 2022 +1000
+
+    internal/cpu: deduplicate arm64 ISAR parsing code
+    
+    Deduplicate code for parsing system registers - this matches what is done
+    in golang.org/x/sys/cpu.
+    
+    Change-Id: If3524eb2e361179c68678f8214230d7068fe4c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422217
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/cpu/cpu_arm64.go         | 38 +++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_arm64_freebsd.go | 36 +--------------------------------
+ src/internal/cpu/cpu_arm64_openbsd.go | 37 +---------------------------------
+ 3 files changed, 40 insertions(+), 71 deletions(-)

@@ -1,0 +1,22 @@
+commit 8f91865e1b2f2df95fb4833babbd0a8fb26085c8
+Author: Zev Goldstein <zev.goldstein@gmail.com>
+Date:   Fri Oct 28 11:42:27 2016 -0400
+
+    path/filepath: fix Abs on Windows
+    
+    The filepath.Abs function in windows did not call Clean as the
+    documentation claimed.  This change not only fixes that behavior but
+    also adjusts TestAbs to verify Abs calls Clean as documented.
+    
+    Fixes #17210
+    
+    Change-Id: I20c5f5026042fd7bd9d929ff5b17c8b2653f8afe
+    Reviewed-on: https://go-review.googlesource.com/32292
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_test.go    | 5 ++++-
+ src/path/filepath/path_windows.go | 6 +++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

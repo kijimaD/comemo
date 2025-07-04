@@ -1,0 +1,36 @@
+commit ef23bd11a813176fe5fdd2c0fd19031ea3492b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 13:22:45 2023 -0400
+
+    cmd/go: convert semver.Compare to gover.ModCompare
+    
+    This sets up for introducing the 'go' and 'toolchain' modules
+    but should be a no-op by itself.
+    
+    For #57001.
+    
+    Change-Id: I2e02b5d417f1edd4f4653b101e4975fe23093f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497456
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go          |  3 ++-
+ src/cmd/go/internal/modcmd/vendor.go     |  2 +-
+ src/cmd/go/internal/modget/get.go        |  6 +++---
+ src/cmd/go/internal/modload/build.go     |  4 ++--
+ src/cmd/go/internal/modload/buildlist.go | 26 +++++++++++++-------------
+ src/cmd/go/internal/modload/edit.go      | 15 ++++++++-------
+ src/cmd/go/internal/modload/import.go    |  6 +++---
+ src/cmd/go/internal/modload/init.go      |  7 +++----
+ src/cmd/go/internal/modload/load.go      |  4 ++--
+ src/cmd/go/internal/modload/modfile.go   |  2 +-
+ src/cmd/go/internal/modload/mvs.go       | 14 +++++++-------
+ src/cmd/go/internal/modload/mvs_test.go  |  2 +-
+ src/cmd/go/internal/modload/query.go     | 24 +++++++++++++-----------
+ src/cmd/go/internal/modload/vendor.go    |  2 +-
+ src/cmd/go/internal/mvs/graph.go         | 11 ++++++-----
+ src/cmd/go/internal/mvs/mvs.go           | 19 ++++++++++---------
+ src/cmd/go/internal/mvs/mvs_test.go      |  4 ++--
+ src/cmd/go/internal/workcmd/sync.go      |  3 ++-
+ 18 files changed, 80 insertions(+), 74 deletions(-)

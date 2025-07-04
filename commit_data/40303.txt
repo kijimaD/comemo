@@ -1,0 +1,28 @@
+commit dc3b7883b5f11812785a8561afb5ee33e9f15f69
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 18 10:14:32 2019 +0700
+
+    syscall: fix wrong unsafe.Pointer alignment in syscall
+    
+    Caught with:
+    
+            go test -a -short -gcflags=all=-d=checkptr log/syslog
+    
+    and:
+    
+            grep -rE '\*\[([^2]|.{2,})\].*\)\(unsafe.Pointer' syscall
+    
+    Updates #34972
+    
+    Change-Id: Iafd199b3a34beb7cc3e88484bf2fbae45183f951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201877
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/syscall/security_windows.go | 4 +++-
+ src/syscall/syscall_bsd.go      | 2 +-
+ src/syscall/syscall_linux.go    | 2 +-
+ src/syscall/syscall_solaris.go  | 2 +-
+ src/syscall/syscall_windows.go  | 2 +-
+ 5 files changed, 7 insertions(+), 5 deletions(-)

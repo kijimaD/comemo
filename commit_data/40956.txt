@@ -1,0 +1,26 @@
+commit 94ddb2d6217e3d031cfacb8eed68786df9227bf1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 6 15:40:04 2019 -0500
+
+    cmd/go/internal/modload: revert duplicate path suppression in modload.ImportMissingError
+    
+    CL 210338 suppressed duplication for import paths mentioned in an
+    ImportMissingError.
+    
+    Unfortunately, that broke one of the cases in
+    cmd/go/internal/modload.TestImport, and the new error message is still
+    kind of awkward anyway.
+    
+    Let's revert that part of the change — we can try again with more
+    coverage for that case.
+    
+    Updates #35986
+    
+    Change-Id: Ib0858aec4f89a7231e32c35ec876da80d80f2098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210342
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go | 3 ---
+ 1 file changed, 3 deletions(-)

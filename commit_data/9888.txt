@@ -1,0 +1,17 @@
+commit 155e21cc7f37ade106171ac53fd6826869811001
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 6 11:00:02 2011 -0700
+
+    exec: add Command.ExtraFiles
+    
+    Allows passing extra fds to the child process.
+    
+    Fixes #2329
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5162050
+
+ src/pkg/exec/exec.go      |  6 ++++++
+ src/pkg/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

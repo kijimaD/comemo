@@ -1,0 +1,18 @@
+commit 5c5e8d41054940ccf9e1c025bf21c86e85f33bde
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Sat Feb 13 22:39:16 2016 -0800
+
+    cmd/compile: avoid leak of dottype expression if type does not contain pointers.
+    
+    Fixes #13805
+    
+    Change-Id: Ica9aae2e054b74f67d28ab27f72c52a3f03eeb59
+    Reviewed-on: https://go-review.googlesource.com/19489
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go       | 15 ++++++++++-----
+ src/cmd/compile/internal/gc/typecheck.go |  1 -
+ test/escape_iface.go                     | 20 ++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 6 deletions(-)

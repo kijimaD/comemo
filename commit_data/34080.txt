@@ -1,0 +1,23 @@
+commit 7ac393a3f208ab72263a245b80e22ad62abae565
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 16:17:54 2018 -0800
+
+    go/parser: improved error message for unexpected literals
+    
+    R=go1.11
+    
+    This is a follow up for #11377 which reported that an error like
+    
+    /tmp/xx.go:9:6: expected '(', found 'IDENT' F1
+    
+    shouldn't print 'IDENT', as it's just an internal detail.
+    The relevant change wasn't made in the original fix, so here it is.
+    
+    For #11377.
+    
+    Change-Id: Ib76957d86b88e3e63646fbe4abf03a3b9d045139
+    Reviewed-on: https://go-review.googlesource.com/87900
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/parser/parser.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,21 @@
+commit 495a9dc2b3ac76004e1324ca38761efad848ad96
+Author: Joel Sing <jsing@google.com>
+Date:   Wed May 23 01:33:48 2012 +1000
+
+    syscall: implement nametomib() on netbsd
+    
+    Implement nametomib() on NetBSD using the CTL_QUERY node discovery
+    mechanism.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6211071
+
+ src/pkg/syscall/mkerrors.sh             |  6 ++--
+ src/pkg/syscall/syscall_netbsd.go       | 60 ++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/types_netbsd.go         |  5 +++
+ src/pkg/syscall/zerrors_netbsd_386.go   |  6 ++++
+ src/pkg/syscall/zerrors_netbsd_amd64.go |  6 ++++
+ src/pkg/syscall/ztypes_netbsd_386.go    | 13 +++++++
+ src/pkg/syscall/ztypes_netbsd_amd64.go  | 13 +++++++
+ 7 files changed, 105 insertions(+), 4 deletions(-)

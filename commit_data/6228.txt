@@ -1,0 +1,18 @@
+commit 41e5a78441000c039e845d20a0e74191d185f5f7
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Fri Sep 10 14:05:57 2010 -0400
+
+    windows: disable unimplemented tests
+    
+    Add windows NOTEST list to pkg make file.
+    5a make file. the change removes a space
+    character that was included when appending
+    an extension to TARG.
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/2140046
+
+ src/cmd/5a/Makefile |  3 +--
+ src/pkg/Makefile    | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

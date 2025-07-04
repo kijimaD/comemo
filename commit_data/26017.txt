@@ -1,0 +1,19 @@
+commit d7cdf66978935664d783ff02d06c6c0856ef4bec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 2 14:29:44 2016 -0800
+
+    cmd/link: stop generating garbage in elfhash
+    
+    All callers already had strings. No need to generate byte slice copies
+    to work on bytes.
+    
+    Performance not measured, but probably helps at least a bit.
+    
+    Change-Id: Iec3230b69724fac68caae7aad46f2ce1504e82e5
+    Reviewed-on: https://go-review.googlesource.com/20136
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

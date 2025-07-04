@@ -1,0 +1,12 @@
+commit b6adb3272fee72e40cbea42369f25140bcc9a6f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 28 12:27:43 2009 -0800
+
+    simplify some code that is using vectors
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/181080
+
+ src/pkg/go/parser/parser.go | 74 ++++++++++++++++++++++-----------------------
+ 1 file changed, 37 insertions(+), 37 deletions(-)

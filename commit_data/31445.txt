@@ -1,0 +1,31 @@
+commit 11eaf428867417b9d5fab4deadd0ef03c9fd9773
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 21 16:45:12 2017 -0400
+
+    runtime: reduce Windows timer resolution when idle
+    
+    Currently Go sets the system-wide timer resolution to 1ms the whole
+    time it's running. This has negative affects on system performance and
+    power consumption. Unfortunately, simply reducing the timer resolution
+    to the default 15ms interferes with several sleeps in the runtime
+    itself, including sysmon's ability to interrupt goroutines.
+    
+    This commit takes a hybrid approach: it only reduces the timer
+    resolution when the Go process is entirely idle. When the process is
+    idle, nothing needs a high resolution timer. When the process is
+    non-idle, it's already consuming CPU so it doesn't really matter if
+    the OS also takes timer interrupts more frequently.
+    
+    Updates #8687.
+    
+    Change-Id: I0652564b4a36d61a80e045040094a39c19da3b06
+    Reviewed-on: https://go-review.googlesource.com/38403
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/os_windows.go | 19 ++++++++++++++++++-
+ src/runtime/proc.go       |  2 ++
+ src/runtime/relax_stub.go | 11 +++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

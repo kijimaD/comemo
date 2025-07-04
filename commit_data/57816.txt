@@ -1,0 +1,17 @@
+commit 0c934b5645c3220de21a5733c60c81e46d06d4e3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 29 15:32:09 2024 -0400
+
+    runtime: skip most map benchmark combinations by default
+    
+    Fixes #70008.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race
+    Change-Id: I1fd7d1cbda20cc96016c864bcf0696382453e807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623335
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/map_benchmark_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

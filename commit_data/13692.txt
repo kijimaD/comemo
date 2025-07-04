@@ -1,0 +1,15 @@
+commit 49f29c9c22f15120811719f4f451c3469e9e174a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Aug 26 11:17:55 2012 -0700
+
+    net/http: send an explicit zero Content-Length when Handler never Writes
+    
+    Fixes #4004
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6472055
+
+ src/pkg/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 12 ++++++++++--
+ 2 files changed, 42 insertions(+), 2 deletions(-)

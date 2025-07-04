@@ -1,0 +1,15 @@
+commit b219e8cbcf67e10b47ab6ebe97eb6497f6010000
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 6 13:54:22 2011 -0800
+
+    strconv: squeezed a bit more out of int/uint formatting
+    
+    - less code
+    - slightly better performance (0-4%)
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5448120
+
+ src/pkg/strconv/itoa.go | 41 ++++++++++++++++++-----------------------
+ 1 file changed, 18 insertions(+), 23 deletions(-)

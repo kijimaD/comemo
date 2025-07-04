@@ -1,0 +1,29 @@
+commit 60cf9ec677cb87cce1480b2d442c64f051b7c007
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Nov 13 09:43:17 2017 +0000
+
+    all: add more uses of stringer
+    
+    By grepping for ]string{$, one can find many manual implementations of
+    stringer. The debug/dwarf ones needed the new -trimprefix flag, too.
+    
+    html/template was fairly simple, just implementing the fallback as
+    stringer would. The changes there are trivial.
+    
+    The ones in debug/dwarf needed a bit of extra logic since the GoString
+    wants to use its own format, depending on whether or not the value is
+    one of the known constants.
+    
+    Change-Id: I501ea7deaa538fa425c8e9c2bb895f480169273f
+    Reviewed-on: https://go-review.googlesource.com/77253
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/attr_string.go   |  89 +++++++++++++++++++
+ src/debug/dwarf/class_string.go  |   8 +-
+ src/debug/dwarf/const.go         | 181 ++-------------------------------------
+ src/debug/dwarf/tag_string.go    |  44 ++++++++++
+ src/html/template/attr_string.go |  16 ++++
+ src/html/template/context.go     |  18 +---
+ 6 files changed, 164 insertions(+), 192 deletions(-)

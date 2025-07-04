@@ -1,0 +1,24 @@
+commit d546bebe34960952d8555bd5b19b32f5a90476d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 3 10:56:23 2018 -0700
+
+    cmd/compile/internal/gc: disable binary package export format
+    
+    The new indexed package export format appears stable, and no reports
+    of needing to revert back to binary package export.
+    
+    This CL disables the binary package export format by mechanically
+    replacing 'flagiexport' with 'true', and then superficial code
+    cleanups to keep the resulting code idiomatic. The resulting dead code
+    is removed in a followup CL.
+    
+    Change-Id: Ic30d85f78778a31d279a56b9ab14e80836d50135
+    Reviewed-on: https://go-review.googlesource.com/c/139337
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 10 ++--------
+ src/cmd/compile/internal/gc/inl.go    |  4 +---
+ src/cmd/compile/internal/gc/main.go   | 24 ++++++------------------
+ 3 files changed, 9 insertions(+), 29 deletions(-)

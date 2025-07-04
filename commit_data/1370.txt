@@ -1,0 +1,14 @@
+commit dcc064fe941b17dad67a13cd635c76a04cde7a69
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 18 21:33:45 2008 -0800
+
+    cmp [] to nil
+    
+    R=r
+    OCL=21567
+    CL=21567
+
+ src/cmd/6g/cgen.c  | 14 ++++++++++++++
+ src/cmd/gc/const.c | 14 ++++++++++----
+ src/cmd/gc/walk.c  |  4 ++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 63d05642d48ec81637481518df962f2b3be435a3
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Aug 27 12:49:25 2022 +0930
+
+    debug/pe: be careful to avoid potential uint32 overflow
+    
+    Change-Id: Ic3c1c972bec39e14ea1af50ab2b5d887dac29eab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426114
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/debug/pe/file.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

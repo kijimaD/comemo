@@ -1,0 +1,48 @@
+commit 2123a6c64455f6e1cceeefa97e4a033c873e2631
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 7 15:58:28 2017 -0800
+
+    cmd/compile: fix recorded export data position info
+    
+    The position information recorded now consists of the line-
+    directive relative filename and line number. It would be
+    relatively easy to also encode absolute position information
+    as necessary (by serializing src.PosBase data).
+    
+    For example, given $GOROOT/src/tmp/x.go:
+    
+            package p
+    
+            const C0 = 0
+    
+            //line c.go:10
+            const C1 = 1
+    
+            //line t.go:20
+            type T int
+    
+            //line v.go:30
+            var V T
+    
+            //line f.go:40
+            func F() {}
+    
+    The recorded positions for the exported entities are:
+    
+            C0 $GOROOT/src/tmp/x.go 3
+            C1 c.go 10
+            T t.go 20
+            V v.go 30
+            F f.go 40
+    
+    Fix verified by manual inspection. There's currently no easy way
+    to test this, but it will eventually be tested when we fix #7311.
+    
+    Fixes #19391.
+    
+    Change-Id: I6269067ea58358250fe6dd1f73bdf9e5d2adfe3d
+    Reviewed-on: https://go-review.googlesource.com/37936
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

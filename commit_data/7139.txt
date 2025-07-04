@@ -1,0 +1,13 @@
+commit eaade07d6318bf59948b89bdead4ad07882df477
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 18 11:07:02 2011 -0800
+
+    tutorial: update go_tutorial.txt
+    should have been included in last CL; no idea why it was not
+    
+    R=brainman
+    CC=golang-dev
+    https://golang.org/cl/4005043
+
+ doc/go_tutorial.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

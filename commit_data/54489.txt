@@ -1,0 +1,24 @@
+commit 98f05093638728e7c57c48f14ab4d56076118836
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 15 10:56:32 2023 -0400
+
+    runtime: remove an arbitrary timeout in TestProfBuf
+    
+    The failure observed in
+    https://build.golang.org/log/766ad55d098ee1979ba1ae261e0813063567743e
+    appears to be spurious. If it is, this change will fix it.
+    
+    If it is not, and somehow the Read has deadlocked,
+    then this change will help to diagnose it
+    (by causing the test to time out and dump its running goroutines).
+    
+    For #56196.
+    
+    Change-Id: Ic74f018384a64e95566a5b5d8126cbd59ab5e5fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528399
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/runtime/profbuf_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit ef51f4baf44ea7669392c007c9563c21727f017f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 14 08:43:32 2009 -0800
+
+    restore "os" identifier to keep consistent with text.
+    
+    R=presotto
+    OCL=22733
+    CL=22733
+
+ doc/progs/helloworld2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

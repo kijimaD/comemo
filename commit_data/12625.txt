@@ -1,0 +1,16 @@
+commit 9eeb90945eb56edc9095c662741b89170e522419
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 14 13:07:25 2012 +0900
+
+    runtime/cgo: linux signal masking
+    
+    Fixes #3314.
+    Fixes #3101 (again).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5820047
+
+ src/pkg/runtime/cgo/gcc_linux_386.c   | 8 ++++++++
+ src/pkg/runtime/cgo/gcc_linux_amd64.c | 8 ++++++++
+ 2 files changed, 16 insertions(+)

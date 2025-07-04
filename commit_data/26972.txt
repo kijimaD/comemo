@@ -1,0 +1,20 @@
+commit 1151473077fb03df798d4eb57a22fa820f9e41f8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 13:40:35 2016 -0400
+
+    runtime: check that sysUnused is always physical-page aligned
+    
+    If sysUnused is passed an address or length that is not aligned to the
+    physical page boundary, the kernel will unmap more memory than the
+    caller wanted. Add a check for this.
+    
+    For #9993.
+    
+    Change-Id: I68ff03032e7b65cf0a853fe706ce21dc7f2aaaf8
+    Reviewed-on: https://go-review.googlesource.com/22065
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/runtime/mem_linux.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

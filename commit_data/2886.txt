@@ -1,0 +1,17 @@
+commit 6b7bf384876cd6788522a3996c358d122b912d26
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 11:33:59 2009 -0700
+
+    fannkuch
+    
+    R=rsc
+    DELTA=240  (239 added, 0 deleted, 1 changed)
+    OCL=32783
+    CL=32785
+
+ test/bench/fannkuch.c   | 134 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/fannkuch.go  | 117 ++++++++++++++++++++++++++++++++++++++++++
+ test/bench/fannkuch.txt |  31 +++++++++++
+ test/bench/timing.log   |   8 +++
+ test/bench/timing.sh    |  10 +++-
+ 5 files changed, 299 insertions(+), 1 deletion(-)

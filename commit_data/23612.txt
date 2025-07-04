@@ -1,0 +1,18 @@
+commit b6ead9f171742cd5b519a22ecc690354b0d1ce27
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 17:51:20 2015 -0400
+
+    cmd/go: disable vendoredImportPath for code outside $GOPATH
+    
+    It was crashing.
+    This fixes the build for
+    GO15VENDOREXPERIMENT=1 go test -short runtime
+    
+    Fixes #11416.
+    
+    Change-Id: I74a9114cdd8ebafcc9d2a6f40bf500db19c6e825
+    Reviewed-on: https://go-review.googlesource.com/11964
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

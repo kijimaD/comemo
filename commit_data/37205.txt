@@ -1,0 +1,27 @@
+commit 484fc06849fa54d168af1d513c37d1b22bf38e7c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Oct 31 13:18:17 2018 -0400
+
+    cmd/link: don't link sections not named .o
+    
+    For many build systems, modular static analysis is most conveniently
+    implemented by saving analysis facts (which are analogous to export
+    data) in an additional section in the archive file, similar to
+    __PKGDEF. See golang.org/x/tools/go/analysis for an overview.
+    
+    Because such sections are not object files, the linker must not
+    attempt to link them. This change causes the linker to skip special
+    sections whose name does not end with .o (and is short enough not to
+    be truncated).
+    
+    Fixes #28429
+    
+    Change-Id: I830852decf868cb017263308b114f72838032993
+    Reviewed-on: https://go-review.googlesource.com/c/146297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go |  7 +++++++
+ src/cmd/link/link_test.go       | 46 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

@@ -1,0 +1,12 @@
+commit c604f48d243b235ec741c117b32bcf6c89ff6c66
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue Sep 22 20:45:16 2015 -0700
+
+    doc: document go1.4.3
+    
+    Change-Id: Ib1bfe4038e2b125a31acd9ff7772e462b0a6358f
+    Reviewed-on: https://go-review.googlesource.com/14852
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,13 @@
+commit 859e4d51c30dce31eaa0d11ad1477a5465a194e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 25 10:02:39 2010 -0800
+
+    strings: remove a couple of redundant tests
+    (per suggestion from Heresy.Mc@gmail.com)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223052
+
+ src/pkg/strings/strings.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

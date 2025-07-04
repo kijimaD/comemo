@@ -1,0 +1,18 @@
+commit 9fa6a2d42d5d6ded4e05f06148305354e66344d6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 20 10:42:05 2015 -0500
+
+    os: use different test files on android
+    
+    Some Android OS installations have very strange permissions on their
+    /system/etc directory, meaning that Readdir fails. Instead use
+    /system/framework, which is far more regular.
+    
+    Change-Id: Iefc140614183cda0f875e0f6ef859f4d4eaad9da
+    Reviewed-on: https://go-review.googlesource.com/17078
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

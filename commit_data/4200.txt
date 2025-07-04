@@ -1,0 +1,12 @@
+commit c95c27a91ff41d2cd1f5ced53b07e068acd58ace
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 23 18:11:00 2009 -0800
+
+    json: expose map in generic representation
+    
+    R=r, r1
+    https://golang.org/cl/157146
+
+ src/pkg/json/generic.go      | 3 +++
+ src/pkg/json/generic_test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

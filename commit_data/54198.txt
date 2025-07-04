@@ -1,0 +1,22 @@
+commit 96b6e78ea906001a31d03d0acbfc4a4f20eb7db9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 24 11:58:58 2023 +0200
+
+    cmd/compile/internal/syntax: use strings.LastIndexByte in trailingDigits
+    
+    Previously, strings.LastIndexByte couldn't be used because it was only
+    added in Go 1.5 but Go 1.4 was required for bootstrapping. In Go 1.18,
+    the bootstrap toolchain was bumped to Go 1.17 (see #44505), thus
+    strings.LastIndexByte can be used now.
+    
+    Change-Id: I01a70a59dbfc853cf03d49747a2dd62d21ba74e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522197
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/syntax/parser.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

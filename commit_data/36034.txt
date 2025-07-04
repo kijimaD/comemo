@@ -1,0 +1,17 @@
+commit 30678788b2fef14a614a1cb5b0ea4a7b12a61236
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 21:29:39 2018 -0400
+
+    cmd/go/internal/modfetch: make subdirectories unwritable too
+    
+    The top-level directory in a module was marked unwritable
+    but not the subdirectories. Fix that.
+    
+    Change-Id: Ia57e5343624753851d9fe1ddfe496b870b67f924
+    Reviewed-on: https://go-review.googlesource.com/124381
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/unzip.go |  2 +-
+ src/cmd/go/mod_test.go                | 19 ++++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)

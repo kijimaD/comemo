@@ -1,0 +1,13 @@
+commit 7870672c7f9759b8d7ce578f2476313115342972
+Author: Sergei Skorobogatov <skorobo@rambler.ru>
+Date:   Mon Feb 22 14:32:40 2010 -0800
+
+    json: fix quoted strings in Marshal
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217047
+
+ src/pkg/json/struct.go      | 91 ++++++++++++++++++++++++++++++---------------
+ src/pkg/json/struct_test.go | 23 ++++++++++++
+ 2 files changed, 85 insertions(+), 29 deletions(-)

@@ -1,0 +1,26 @@
+commit ac2ec69e195ef7cb8d991e3db76dcc162cb45941
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 30 04:57:57 2023 +0000
+
+    all: use io.{SeekStart, SeekCurrent, SeekEnd}
+    
+    Currently we include these symbols in bootstrap code.
+    
+    Change-Id: I19b504237b0344f0e87cda0fbe651811c72daba1
+    GitHub-Last-Rev: 5134baec387659c5e2ca8c4fc65a5e73c07f00ce
+    GitHub-Pull-Request: golang/go#62368
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524258
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/importer/iimport.go |  6 ++----
+ src/debug/elf/file.go                        | 21 +++++----------------
+ src/debug/elf/reader.go                      |  6 +++---
+ src/debug/pe/file.go                         |  7 ++-----
+ src/debug/pe/section.go                      |  2 +-
+ src/debug/pe/string.go                       |  2 +-
+ src/debug/pe/symbol.go                       |  2 +-
+ 7 files changed, 15 insertions(+), 31 deletions(-)

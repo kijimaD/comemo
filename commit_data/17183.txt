@@ -1,0 +1,22 @@
+commit 39a7017c26eeb1b5514ca6b756e1c7eede170e6b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 13 20:00:58 2013 +0900
+
+    net: make deadline helpers join to netFD as its methods
+    
+    Just for readability reasons; to prevent overlooking deadline stuff
+    across over platforms.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/8656044
+
+ src/pkg/net/fd_plan9.go        |  6 +++---
+ src/pkg/net/fd_poll_runtime.go | 12 ++++++------
+ src/pkg/net/fd_poll_unix.go    | 14 +++++++-------
+ src/pkg/net/net.go             |  6 +++---
+ src/pkg/net/sock_posix.go      |  4 ++--
+ src/pkg/net/tcpsock_plan9.go   |  2 +-
+ src/pkg/net/tcpsock_posix.go   |  2 +-
+ src/pkg/net/unixsock_posix.go  |  2 +-
+ 8 files changed, 24 insertions(+), 24 deletions(-)

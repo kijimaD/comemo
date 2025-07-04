@@ -1,0 +1,43 @@
+commit 20f4385af0690b6f1c7a0ba5380f0b057a87485d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 3 00:16:18 2012 -0200
+
+    os: turn FileStat.Sys into a method on FileInfo
+    
+    This reduces the overhead necessary to work with OS-specific
+    file details, hides the implementation of FileStat, and
+    preserves the implementation-specific nature of Sys.
+    
+    Expressions such as:
+    
+      stat.(*os.FileInfo).Sys.(*syscall.Stat_t).Uid
+      fi1.(*os.FileStat).SameFile(fi2.(*os.FileStat))
+    
+    Are now spelled as::
+    
+      stat.Sys().(*syscall.Stat_t).Uid
+      os.SameFile(fi1, fi2)
+    
+    R=cw, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5448079
+
+ src/cmd/godoc/httpzip.go           |  1 +
+ src/cmd/godoc/zip.go               |  4 ++++
+ src/pkg/archive/zip/struct.go      |  1 +
+ src/pkg/archive/zip/zip_test.go    |  3 +++
+ src/pkg/net/http/fs_test.go        |  2 +-
+ src/pkg/os/file_unix.go            |  2 +-
+ src/pkg/os/getwd.go                |  8 ++++----
+ src/pkg/os/os_test.go              |  8 ++++----
+ src/pkg/os/os_unix_test.go         |  4 ++--
+ src/pkg/os/stat_darwin.go          | 14 +++++++-------
+ src/pkg/os/stat_freebsd.go         | 14 +++++++-------
+ src/pkg/os/stat_linux.go           | 14 +++++++-------
+ src/pkg/os/stat_netbsd.go          | 12 ++++++------
+ src/pkg/os/stat_openbsd.go         | 14 +++++++-------
+ src/pkg/os/stat_plan9.go           | 12 ++++++------
+ src/pkg/os/stat_windows.go         | 16 ++++++++--------
+ src/pkg/os/types.go                | 34 ++++++++++++++++++++--------------
+ src/pkg/path/filepath/path_test.go |  2 +-
+ 18 files changed, 90 insertions(+), 75 deletions(-)

@@ -1,0 +1,30 @@
+commit 14560da7e469aff46a6f1270ce84204bbd6ffdb3
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 19 17:42:11 2018 -0400
+
+    cmd/link: start file-local symbols at version 10
+    
+    We're going to use the linker's symbol versions to track ABIs.
+    Currently, version 0 is used for global symbols and version > 0 is
+    used for file-local symbols. This CL reserves versions 0 to 9 for
+    global symbols with ABIs and uses version 10 and up for file-local
+    symbols. To make this clean, it also introduces a method on Symbol for
+    querying whether it's file-local.
+    
+    For #27539.
+    
+    Change-Id: Id3bc7369268f35128b14318a62e86335181a80e5
+    Reviewed-on: https://go-review.googlesource.com/c/146859
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/arm64/asm.go   |  2 +-
+ src/cmd/link/internal/ld/dwarf.go    | 16 +++++++++++++---
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/ld/pe.go       |  2 +-
+ src/cmd/link/internal/ld/symtab.go   |  4 ++--
+ src/cmd/link/internal/sym/symbol.go  |  8 ++++++++
+ src/cmd/link/internal/sym/symbols.go |  9 ++++-----
+ 7 files changed, 30 insertions(+), 13 deletions(-)

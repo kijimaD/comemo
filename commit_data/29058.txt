@@ -1,0 +1,18 @@
+commit 050f378085da91ce65d2c0157b9bebcced5f883f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 11:45:26 2016 -0700
+
+    cmd/go: add more env variables to "go bug"
+    
+    CL 31330 added more envvars to "go env".
+    This CL brings them to "go bug" as well.
+    
+    Change-Id: Iae122072c8178007eda8b765aaa3f38c3c6e39a0
+    Reviewed-on: https://go-review.googlesource.com/32011
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/bug.go |  4 +++-
+ src/cmd/go/env.go | 27 +++++++++++++++------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

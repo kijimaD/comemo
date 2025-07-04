@@ -1,0 +1,19 @@
+commit f71bd516b7003abed2c86b64ade6c0026075b6e8
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Nov 5 18:02:15 2019 +0100
+
+    src/vendor: update to latest version of net
+    
+    Change-Id: Ide3b689dd6808fc82f6310e4608e6d3574fafa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205339
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go.mod                                       |    2 +-
+ src/go.sum                                       |    4 +-
+ src/vendor/golang.org/x/net/idna/tables11.0.0.go |    2 +-
+ src/vendor/golang.org/x/net/idna/tables12.00.go  | 4733 ++++++++++++++++++++++
+ src/vendor/golang.org/x/net/nettest/nettest.go   |   36 +-
+ src/vendor/modules.txt                           |    2 +-
+ 6 files changed, 4757 insertions(+), 22 deletions(-)

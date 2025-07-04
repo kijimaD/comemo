@@ -1,0 +1,39 @@
+commit cd6f3a54e4aa1c608f27275cdbb23f8b2a839faa
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 8 11:35:35 2021 -0500
+
+    cmd/go: revise 'go help' documentation for modules
+    
+    Module-related help pages now contain a brief summary and point to the
+    reference documentation at golang.org/ref/mod for details.
+    
+    Help pages for commands like 'go get' still describe the basic usage
+    and summarize flags but don't provide as much background detail.
+    
+    Fixes #41427
+    Fixes #43419
+    
+    Change-Id: Icacd38e0f33c352c447cc5a496c99674493abde2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282615
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                  | 836 +++++----------------------------
+ src/cmd/go/internal/help/helpdoc.go    |  19 +-
+ src/cmd/go/internal/list/list.go       |   2 +-
+ src/cmd/go/internal/modcmd/download.go |   4 +-
+ src/cmd/go/internal/modcmd/edit.go     |   4 +-
+ src/cmd/go/internal/modcmd/graph.go    |   2 +
+ src/cmd/go/internal/modcmd/init.go     |   2 +
+ src/cmd/go/internal/modcmd/tidy.go     |   2 +
+ src/cmd/go/internal/modcmd/vendor.go   |   2 +
+ src/cmd/go/internal/modcmd/verify.go   |   2 +
+ src/cmd/go/internal/modcmd/why.go      |   2 +
+ src/cmd/go/internal/modfetch/fetch.go  | 108 +----
+ src/cmd/go/internal/modfetch/proxy.go  |  61 +--
+ src/cmd/go/internal/modget/get.go      | 125 ++---
+ src/cmd/go/internal/modload/help.go    | 484 +------------------
+ src/cmd/go/internal/work/build.go      |   5 +-
+ 16 files changed, 212 insertions(+), 1448 deletions(-)

@@ -1,0 +1,30 @@
+commit d75cc4b9c6e2acb4d0ed3d90c9a8b38094af281b
+Author: Ruinan <Ruinan.Sun@arm.com>
+Date:   Thu May 4 12:31:36 2023 +0800
+
+    cmd/asm: encode instructions like SHA1SU0 with a separate case for arm64
+    
+    Before this CL, instructions such as SHA1SU0, AESD and AESE are encoded
+    in case 1 together with FMOV/ADD, and some error checking is missing,
+    for example:
+    
+      SHA1SU0       V1.B16, V2.B16, V3.B16   // wrong data arrangement
+      SHA1SU0       V1.4S, V2.S4, V3.S4      // correct
+    
+    Both will be accepted by the assembler, but the first one is totally
+    incorrect.
+    
+    This CL fixes these potential encoding issues by moving them into
+    separate cases, adds some error tests, and also fixes a wrong encoding
+    operand for ASHA1C.
+    
+    Change-Id: Ic778321a567735d48bc34a1247ee005c4ed9e11f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493195
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 11 ++++
+ src/cmd/internal/obj/arm64/asm7.go             | 72 ++++++++++++++++++++++----
+ 2 files changed, 72 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 6a0544091e04dc972069d6ce031f886a873daf32
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sun Mar 18 10:03:00 2012 -0700
+
+    syscall: Test SCM_CREDENTIALS, SO_PASSCRED on Linux.
+    
+    R=bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/5846059
+
+ src/pkg/syscall/creds_linux_test.go | 107 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 107 insertions(+)

@@ -1,0 +1,42 @@
+commit 643d240a11b2d00e1718b02719707af0708e7519
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Nov 19 19:09:14 2020 +0800
+
+    internal/poll: implement a pipe pool for splice() call
+    
+    In scenarios where splice() is called, splice() is usually called not just once, but many times,
+    which means that a lot of pipes will be created and destroyed frequently, costing an amount of system resources
+    and slowing down performance, thus I suggest that we add a pipe pool for reusing pipes.
+    
+    Benchmark tests:
+    
+    goos: linux
+    goarch: amd64
+    pkg: internal/poll
+    cpu: AMD EPYC 7K62 48-Core Processor
+    
+    name                  old time/op    new time/op    delta
+    SplicePipe-8            1.36µs ± 1%    0.02µs ± 0%   -98.57%  (p=0.001 n=7+7)
+    SplicePipeParallel-8     747ns ± 4%       4ns ± 0%   -99.41%  (p=0.001 n=7+7)
+    
+    name                  old alloc/op   new alloc/op   delta
+    SplicePipe-8             24.0B ± 0%      0.0B       -100.00%  (p=0.001 n=7+7)
+    SplicePipeParallel-8     24.0B ± 0%      0.0B       -100.00%  (p=0.001 n=7+7)
+    
+    name                  old allocs/op  new allocs/op  delta
+    SplicePipe-8              1.00 ± 0%      0.00       -100.00%  (p=0.001 n=7+7)
+    SplicePipeParallel-8      1.00 ± 0%      0.00       -100.00%  (p=0.001 n=7+7)
+    
+    Fixes #42740
+    
+    Change-Id: Idff654b7264342084e089b5ba796c87c380c471b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/export_linux_test.go | 22 ++++++++
+ src/internal/poll/splice_linux.go      | 87 +++++++++++++++++++++++-------
+ src/internal/poll/splice_linux_test.go | 96 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 185 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit 0e9d293db773b443e1e37b7cfcb75a114989c041
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 9 17:24:00 2017 +1000
+
+    doc: explain Windows DWARF linker changes in go1.9.html
+    
+    Updates #20587
+    
+    Change-Id: If1f17a110ef3cc367849bd01e2733c60d85f124b
+    Reviewed-on: https://go-review.googlesource.com/45118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

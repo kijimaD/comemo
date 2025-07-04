@@ -1,0 +1,13 @@
+commit f15dfa7802a9ba59406a476f999071149470257b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 10:40:57 2008 -0800
+
+    Polymorphic printing.
+    
+    R=rsc
+    DELTA=100  (70 added, 10 deleted, 20 changed)
+    OCL=18663
+    CL=18669
+
+ src/lib/fmt/print.go | 118 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 89 insertions(+), 29 deletions(-)

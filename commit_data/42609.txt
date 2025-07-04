@@ -1,0 +1,18 @@
+commit 72735e7e05a79dd9272659e3095aa754c741a54e
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Thu Jul 9 09:55:49 2020 -0600
+
+    doc/go1.15: add line for testing streaming change
+    
+    Updates #37419.
+    Updates #38458.
+    Updates #24929.
+    
+    Change-Id: I793bb20fa9db4432fc3a5b69956b7108e4695081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241660
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

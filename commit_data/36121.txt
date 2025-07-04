@@ -1,0 +1,20 @@
+commit c0e5485bd59827d6def05020b201133982a52790
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 14:09:02 2018 -0700
+
+    runtime: ignore GNU/Linux sigaction errors for signals 32 and 33
+    
+    This avoids problems when running under QEMU. It seems that at least
+    some QEMU versions turn the sigaction implementation into a call to
+    the C library sigaction function. The C library function will reject
+    attempts to set the signal handler for signals 32 and 33. Ignore
+    errors in that case.
+    
+    Change-Id: Id443a9a32f6fb0ceef5c59a398e7ede30bf71646
+    Reviewed-on: https://go-review.googlesource.com/125955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_linux.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

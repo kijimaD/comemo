@@ -1,0 +1,24 @@
+commit 070139a130bfd914e05dba7245a33e25b5e96399
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 19:23:51 2023 +0800
+
+    cmd/compile,cmd/internal,runtime: change registers on loong64 to avoid regABI arguments
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Ic7e2e7fb4c1d3670e6abbfb817aa6e4e654e08d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521777
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  8 +--
+ src/cmd/compile/internal/ssa/opGen.go           | 12 ++--
+ src/cmd/internal/obj/loong64/obj.go             | 68 +++++++++++------------
+ src/runtime/asm_loong64.s                       | 74 ++++++++++++-------------
+ 4 files changed, 81 insertions(+), 81 deletions(-)

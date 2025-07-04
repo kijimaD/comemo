@@ -1,0 +1,28 @@
+commit c955bb2040e601c474e547b8badbe44677c9fbdf
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 12:12:45 2016 -0400
+
+    runtime: common auxv parser
+    
+    Currently several different Linux architectures have separate copies
+    of the auxv parser. Bring these all together into a single copy of the
+    parser that calls out to a per-arch handler for each tag/value pair.
+    This is in preparation for handling common auxv tags in one place.
+    
+    For #9993.
+    
+    Change-Id: Iceebc3afad6b4133b70fca7003561ae370445c10
+    Reviewed-on: https://go-review.googlesource.com/22061
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/runtime/os_linux.go         | 23 ++++++++++++++++++
+ src/runtime/os_linux_386.go     | 24 ++++---------------
+ src/runtime/os_linux_arm.go     | 48 ++++++++++++++-----------------------
+ src/runtime/os_linux_arm64.go   | 32 +++++++------------------
+ src/runtime/os_linux_noauxv.go  | 10 ++++++++
+ src/runtime/vdso_linux_amd64.go | 52 +++++++++++++----------------------------
+ src/runtime/vdso_none.go        |  5 +---
+ 7 files changed, 81 insertions(+), 113 deletions(-)

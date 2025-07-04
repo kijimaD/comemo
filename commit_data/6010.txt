@@ -1,0 +1,14 @@
+commit 4fb5883253e36d6ec6b93b08c68052c19103c3bd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 12 16:47:52 2010 +1000
+
+    testing: delete the less useful methods in the testing regexp package
+    We can add them back using the new naming scheme should it become important.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1968042
+
+ src/pkg/testing/regexp.go      |  61 +--------------
+ src/pkg/testing/regexp_test.go | 164 -----------------------------------------
+ 2 files changed, 1 insertion(+), 224 deletions(-)

@@ -1,0 +1,20 @@
+commit 86a3a542844a8c6040656006697e16b207c1d3f6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 28 00:26:56 2014 +0400
+
+    runtime: fix windows build
+    Currently windows crashes because early allocs in schedinit
+    try to allocate tiny memory blocks, but m->p is not yet setup.
+    I've considered calling procresize(1) earlier in schedinit,
+    but this refactoring is better and must fix the issue as well.
+    Fixes #7218.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/54570045
+
+ src/pkg/runtime/malloc.goc | 16 +++++++---------
+ src/pkg/runtime/malloc.h   |  4 ++++
+ src/pkg/runtime/mgc0.c     |  8 ++++++--
+ src/pkg/runtime/runtime.h  |  5 -----
+ 4 files changed, 17 insertions(+), 16 deletions(-)

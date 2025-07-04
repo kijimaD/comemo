@@ -1,0 +1,26 @@
+commit 4d8d138318123d2cb92fb2674bfb910282516550
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 26 12:00:18 2017 -0400
+
+    vendor/golang_org/x/net/route: refresh from upstream
+    
+    This picks up a few changes and should stop the macOS crashes.
+    
+    Fixes #22456.
+    
+    Change-Id: I7e0aae119a5564fcfaa16eeab7422bdd5ff0497b
+    Reviewed-on: https://go-review.googlesource.com/73691
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/vendor/golang_org/x/net/route/defs_openbsd.go  | 11 +++++++++++
+ src/vendor/golang_org/x/net/route/route_classic.go | 10 +++++++++-
+ src/vendor/golang_org/x/net/route/route_test.go    |  4 ++++
+ src/vendor/golang_org/x/net/route/sys_darwin.go    |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_dragonfly.go |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_freebsd.go   |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_netbsd.go    |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_openbsd.go   |  5 +++--
+ src/vendor/golang_org/x/net/route/zsys_openbsd.go  | 13 ++++++++++++-
+ 9 files changed, 47 insertions(+), 12 deletions(-)

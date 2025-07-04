@@ -1,0 +1,16 @@
+commit 72dcab1c40f5160e6bbcc5f26887c8f08b2f5d28
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 10:37:26 2011 -0700
+
+    godoc: fix local link for factory functions
+    
+    - fix suggested by rodrigo.moraes
+    
+    Fixes #1755.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4977057
+
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

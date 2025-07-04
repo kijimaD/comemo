@@ -1,0 +1,18 @@
+commit a53e3d5f885ca7a0df1cd6cf65faa5b63a802dce
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Aug 6 10:33:08 2021 -0700
+
+    net: deprecate (net.Error).Temporary
+    
+    Fixes #45729.
+    
+    Change-Id: I819dd0cc79fc23baac46cafd78bb80f5133c992b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340261
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

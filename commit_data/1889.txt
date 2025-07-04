@@ -1,0 +1,51 @@
+commit 99cc2fee815e6377d5de1244fda8b220df43ad5a
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Mar 25 16:31:38 2009 -0700
+
+    This is really two changes in one but given interdependencies
+    and expected review latency I needed to combine the CLs.
+    
+    1. Made the 5* toolpath build using the go build
+       system. Hooked the subdirectories to clean.bash but added a
+       separate make5.bash for now. Minor massage to make the code
+       more similar to the current structure of 6c/6a/6l.
+    
+    2. Change all references from long to int32 in line with
+       similar change for the other toolchains.
+    
+    The end result is that 5c, 5a and 5l can now be compiled and
+    the executables start up properly. Haven't thrown any input at
+    them yet.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1052  (392 added, 328 deleted, 332 changed)
+    OCL=26757
+    CL=26761
+
+ src/cmd/5a/Makefile        |  42 +++++++++++++++++
+ src/cmd/5a/a.h             |  48 ++++++-------------
+ src/cmd/5a/a.y             |   4 +-
+ src/cmd/5a/lex.c           |   6 +--
+ src/cmd/5c/Makefile        |  38 +++++++++++++++
+ src/cmd/5c/cgen.c          |  14 +++---
+ src/cmd/5c/gc.h            |  87 +++++++++++++++++-----------------
+ src/cmd/5c/mul.c           |  17 +++----
+ src/cmd/5c/reg.c           |  57 ++++++++++++-----------
+ src/cmd/5c/sgen.c          |   4 +-
+ src/cmd/5c/swt.c           |  50 ++++++++++----------
+ src/cmd/5c/txt.c           |  20 ++++----
+ src/cmd/{5c => 5l}/5.out.h |   4 +-
+ src/cmd/5l/Makefile        |  40 ++++++++++++++++
+ src/cmd/5l/asm.c           |  90 +++++++++++++++++------------------
+ src/cmd/5l/l.h             | 114 ++++++++++++++++++++++-----------------------
+ src/cmd/5l/list.c          |   4 +-
+ src/cmd/{5c => 5l}/mkenam  |   2 +-
+ src/cmd/5l/noop.c          |   4 +-
+ src/cmd/5l/obj.c           |  26 +++++------
+ src/cmd/5l/pass.c          |  34 +++++++-------
+ src/cmd/5l/span.c          |  42 ++++++++---------
+ src/cmd/5l/thumb.c         |  60 ++++++++++++------------
+ src/cmd/clean.bash         |   2 +-
+ src/cmd/make5.bash         |  22 +++++++++
+ 25 files changed, 476 insertions(+), 355 deletions(-)

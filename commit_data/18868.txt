@@ -1,0 +1,16 @@
+commit f210fd1fa905ad381c8cb358ed7c004ec582f90f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 14 19:37:39 2014 +0100
+
+    cmd/6g, runtime: alignment fixes for amd64p32.
+    
+    LGTM=rsc
+    R=rsc, dave, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/75820044
+
+ src/cmd/6g/ggen.c              |  2 +-
+ src/pkg/runtime/hashmap_fast.c | 66 +++++++++++++++++-------------------------
+ src/pkg/runtime/panic.c        | 11 +++----
+ src/pkg/runtime/print.c        |  4 +--
+ 4 files changed, 35 insertions(+), 48 deletions(-)

@@ -1,0 +1,14 @@
+commit c18af467fdec00d4369bc9b5a140ff1d043aab2e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 14 07:03:56 2013 +1000
+
+    encoding/binary: make Write work like Read
+    Use the fast path calculation to shorten the code.
+    No effect on benchmarks.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12696046
+
+ src/pkg/encoding/binary/binary.go | 198 +++++++++++++++++++-------------------
+ 1 file changed, 97 insertions(+), 101 deletions(-)

@@ -1,0 +1,19 @@
+commit 0286b4738e33c5a043d454b23af88fb95127bf13
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Jul 1 21:42:29 2013 -0400
+
+    time: prevent a panic from leaving the timer mutex held
+    
+    When deleting a timer, a panic due to nil deref
+    would leave a lock held, possibly leading to a deadlock
+    in a defer. Instead return false on a nil timer.
+    
+    Fixes #5745.
+    
+    R=golang-dev, daniel.morsing, dvyukov, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/10373047
+
+ src/pkg/runtime/time.goc   |  5 +++++
+ src/pkg/time/sleep_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

@@ -1,0 +1,27 @@
+commit 92c9b81447649d5a8ed38ca79b71640c099e0243
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 21 15:17:22 2022 -0700
+
+    net: don't set netGo = true on Windows with no cgo
+    
+    Windows can call the C DNS lookup routines even without cgo,
+    so don't force it to use the Go routines in that scenario.
+    
+    No test because the test requires building the tools with CGO_ENABLED=0.
+    
+    For #33097
+    Fixes #53490
+    
+    Change-Id: I3595a68e788be0d3bbd1bbd431836aca20a7d757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413458
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_stub.go | 2 --
+ src/net/netgo.go    | 6 +++++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

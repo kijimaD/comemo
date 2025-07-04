@@ -1,0 +1,17 @@
+commit 8f14451fe5dce9d2a497fda7e4c277531be8e049
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 20 13:21:22 2009 -0800
+
+    6l: ignore undefined symbols in gotypesigs.
+       they end up in the symbol table with type==0
+       if they are in a library but not pulled in.
+       also add a few debugging prints.
+    
+    R=r
+    DELTA=11  (5 added, 1 deleted, 5 changed)
+    OCL=23104
+    CL=23108
+
+ src/cmd/6l/go.c  | 5 ++---
+ src/cmd/6l/obj.c | 9 +++++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

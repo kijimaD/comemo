@@ -1,0 +1,14 @@
+commit 3c9f60c99a1212e6dd1233fea930d45ce9c32198
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 16:28:28 2015 -0400
+
+    database/sql: document closing requirements for Stmts
+    
+    Fixes #8952.
+    
+    Change-Id: I678f9706eccb5a344eeb0244f45b7b7669830bdc
+    Reviewed-on: https://go-review.googlesource.com/12204
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/database/sql/sql.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

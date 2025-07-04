@@ -1,0 +1,15 @@
+commit 6551763a60ce25d171feaa69089a7f1ca60f43b6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 8 16:42:02 2021 -0400
+
+    doc/go1.17: mention block profile bias fix
+    
+    Re-apply the doc part of CL 324471, originally written by Felix Geisendörfer.
+    
+    Change-Id: I831bead9a385bc5a5eed3058649a25ef17373bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326171
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

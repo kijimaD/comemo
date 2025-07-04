@@ -1,0 +1,15 @@
+commit 52d8d7b93a54a3d7c7357ff8f52bed360c892c1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 5 20:24:48 2017 -0700
+
+    cmd/compile: remove InterMethod type - not used anywhere
+    
+    Change-Id: I2c402d9491b373316775b515ce389555e58acb1a
+    Reviewed-on: https://go-review.googlesource.com/39636
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sizeof_test.go | 1 -
+ src/cmd/compile/internal/gc/type.go        | 6 ------
+ 2 files changed, 7 deletions(-)

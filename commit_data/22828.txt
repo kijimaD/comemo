@@ -1,0 +1,22 @@
+commit 8a072ada84d552a5d1511271f36d91f4fb236908
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Thu Apr 30 11:56:32 2015 +0000
+
+    cmd/internal/gc,ld: use new flag argument syntax
+    
+    The usage messages for the flags in gc and ld are using the old
+    flag argument syntax:
+       "arg: description using arg"
+    
+    Update them to the Go 1.5 flag package's syntax:
+       "description using arg"
+    
+    Fixes #10505
+    
+    Change-Id: Ifa54ff91e1fd644cfc9a3b41e10176eac3654137
+    Reviewed-on: https://go-review.googlesource.com/9505
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/lex.go  | 18 +++++++++---------
+ src/cmd/internal/ld/pobj.go | 38 +++++++++++++++++++-------------------
+ 2 files changed, 28 insertions(+), 28 deletions(-)

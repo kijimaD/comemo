@@ -1,0 +1,25 @@
+commit a835c7396d884b29e861594228fac89ba3f0d28d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 31 23:36:44 2018 +0100
+
+    cmd/compile: add initial README
+    
+    As a follow-up to the first README for cmd/compile/internal/ssa.
+    
+    Since this is the parent package for all the compiler packages, this
+    README serves as an overview of the compiler and its packages. As more
+    READMEs are added for specific parts with more detail, such as ssa's,
+    they can be linked from this one.
+    
+    Thanks to Iskander Sharipov, Josh Bleecher Snyder, Matthew Dempsky,
+    Alberto Donizetti, and Robert Griesemer for helping with all the details
+    in this document.
+    
+    Change-Id: I820a535e25dce86ccc667ce1c6e92b75fc32f3af
+    Reviewed-on: https://go-review.googlesource.com/103935
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/README.md | 116 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 116 insertions(+)

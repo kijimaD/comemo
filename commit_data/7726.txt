@@ -1,0 +1,17 @@
+commit ee23ab16da704b427d3c592752cd1122921f49c3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 10:36:04 2011 -0500
+
+    crypto/openpgp: s/serialise/serialize/
+    
+    (No code changes, Americanization only.)
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4250075
+
+ src/pkg/crypto/openpgp/packet/packet.go      |  8 ++++----
+ src/pkg/crypto/openpgp/packet/packet_test.go |  4 ++--
+ src/pkg/crypto/openpgp/packet/public_key.go  |  2 +-
+ src/pkg/crypto/openpgp/packet/signature.go   | 18 +++++++++---------
+ 4 files changed, 16 insertions(+), 16 deletions(-)

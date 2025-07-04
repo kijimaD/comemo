@@ -1,0 +1,25 @@
+commit 2630085afed763777021ab87d095ff3b7039e2b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 12:16:36 2018 -0400
+
+    cmd/go: add support for vet-specific export data
+    
+    This CL makes it possible for vet to write down notes about one package
+    and then access those notes later, when analyzing other code importing
+    that package. This is much like what the compiler does with its own export
+    data for type-checking, so we call it "vet-export" data or vetx data.
+    
+    The next CL in the stack makes vet actually use this functionality.
+    
+    Change-Id: Ic70043ab407dfbfdb3f30eaea7c0e3c8197009cf
+    Reviewed-on: https://go-review.googlesource.com/108558
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cache/cache.go  | 15 ++++++++
+ src/cmd/go/internal/vet/vetflag.go  |  2 +-
+ src/cmd/go/internal/work/action.go  | 31 +++++++++++----
+ src/cmd/go/internal/work/buildid.go | 28 ++++++++------
+ src/cmd/go/internal/work/exec.go    | 77 +++++++++++++++++++++++++++++--------
+ 5 files changed, 116 insertions(+), 37 deletions(-)

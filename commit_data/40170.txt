@@ -1,0 +1,19 @@
+commit 01ff213a51a6713958f80619f483eb2e731e034a
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 3 12:19:42 2019 -0400
+
+    cmd/compile: suppress statement marks on interior of switch tree
+    
+    The lines on nodes within the IF-tree generated for switch
+    statements looks like control flow so the lines get marked
+    as statement boundaries.  Except for the first/root comparison,
+    explicitly disable the marks.
+    
+    Change-Id: I64b966ed8e427cdc6b816ff6b6a2eb754346edc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198738
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 2 ++
+ 1 file changed, 2 insertions(+)

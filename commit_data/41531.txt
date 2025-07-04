@@ -1,0 +1,23 @@
+commit 12d02e7d8e7df75ccbf07ec40028329fcc35c55b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 2 10:16:39 2020 -0500
+
+    net/http: verify RoundTripper invariants in the send function
+    
+    Issue #37598 reports a nil-panic in *Client.send that can
+    only occur if one of the RoundTripper invariants is violated.
+    Unfortunately, that condition is currently difficult to diagnose: it
+    manifests as a panic during a Response field access, rather than
+    something the user can easily associate with an specific erroneous
+    RoundTripper implementation.
+    
+    No test because the new code paths are supposed to be unreachable.
+    
+    Updates #37598
+    
+    Change-Id: If0451e9c6431f6fab7137de43727297a80def05b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221818
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

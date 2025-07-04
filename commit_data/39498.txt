@@ -1,0 +1,25 @@
+commit 06ef108cec98b3dfc0fba3f49e733a18eb9badd5
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Jul 7 23:08:20 2019 +0700
+
+    cmd/compile: fix unsafeValue handles OLSH/ORSH wrong
+    
+    For OLSH/ORSH, the right node is not a uintptr-typed. However,
+    unsafeValue still be called recursively for it, causing the
+    compiler crashes.
+    
+    To fixing, the right node only needs to be evaluated
+    for side-effects, so just discard its value.
+    
+    Fixes #32959
+    
+    Change-Id: I34d5aa0823a0545f6dad1ec34774235ecf11addc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185039
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/escape.go |  7 ++++++-
+ test/fixedbugs/issue32959.go          | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

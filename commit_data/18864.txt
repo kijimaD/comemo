@@ -1,0 +1,15 @@
+commit 22aa54965e1cc7f0a2b194588c1bd8c7c627182d
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 14 16:44:54 2014 +0100
+
+    cmd/go: fix invalid go pack command line in the output of go build -x
+    
+    Fixes #7262
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76110043
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

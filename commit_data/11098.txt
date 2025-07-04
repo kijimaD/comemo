@@ -1,0 +1,13 @@
+commit 4a6b07f2356644e0aa58925799771d79ec0541a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 10 20:08:53 2012 -0800
+
+    gc: enable inlining by default
+    
+    R=lvd, r
+    CC=golang-dev
+    https://golang.org/cl/5531058
+
+ src/cmd/gc/lex.c | 7 +++++++
+ test/escape2.go  | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

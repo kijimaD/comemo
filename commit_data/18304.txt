@@ -1,0 +1,12 @@
+commit 8027660abc871b0b7a3a9374ba313be7d3e2ac99
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 13:31:22 2014 -0500
+
+    cmd/gc: fix crash in -live debugging output
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/53930043
+
+ src/cmd/gc/plive.c | 39 +++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

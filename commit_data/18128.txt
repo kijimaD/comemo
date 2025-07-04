@@ -1,0 +1,12 @@
+commit c989a0b2f7f7a51edbf4f46ae383ce78047a7500
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Dec 29 11:05:30 2013 -0800
+
+    reflect: remove length check for arrays in deepValueEqual
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/39910044
+
+ src/pkg/reflect/deepequal.go | 3 ---
+ 1 file changed, 3 deletions(-)

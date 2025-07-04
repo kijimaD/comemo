@@ -1,0 +1,16 @@
+commit 4f40f5eaab52ede5b5e14c9660442ef69a135c81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 6 11:39:48 2009 -0700
+
+    - bug fix: do not strip lower-case parameter and result names in signatures
+    - display: show '...' if a struct/interface has fields/methods removed; show
+      struct/interface w/o {}'s if all fields/methods were removed; and show the
+      {}'s if the struct/interface was empty to begin with
+    
+    R=rsc
+    DELTA=41  (36 added, 0 deleted, 5 changed)
+    OCL=31201
+    CL=31204
+
+ src/pkg/go/ast/filter.go | 46 +++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 41 insertions(+), 5 deletions(-)

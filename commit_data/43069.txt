@@ -1,0 +1,17 @@
+commit d140c357442471ca0d56615811fb4226e99fadd5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 22 09:19:04 2020 +0200
+
+    syscall: use libc-based ioctl for Ioctl in tests on darwin
+    
+    Direct syscalls are no longer supported on darwin, instead wrap the
+    existing func ioctl for tests.
+    
+    Change-Id: Ie2c5b6e5f54e992f4d6b21513ca8f89fcf28ef10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256219
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/export_darwin_test.go | 13 +++++++++++++
+ src/syscall/export_unix_test.go   |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

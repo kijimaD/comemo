@@ -1,0 +1,19 @@
+commit 63756e0c8f76856a436274fc47d912815f9f17e6
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:38:08 2018 +0100
+
+    crypto/rand, crypto/x509: add js/wasm architecture
+    
+    This commit adds the js/wasm architecture to the crypto packages.
+    
+    Updates #18892
+    
+    Change-Id: Id41a9d54920746d5019cbeedcff1b83874f2ef73
+    Reviewed-on: https://go-review.googlesource.com/110095
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/crypto/rand/rand.go      |  1 +
+ src/crypto/rand/rand_js.go   | 25 +++++++++++++++++++++++++
+ src/crypto/x509/root_js.go   | 10 ++++++++++
+ src/crypto/x509/root_unix.go |  2 +-
+ 4 files changed, 37 insertions(+), 1 deletion(-)

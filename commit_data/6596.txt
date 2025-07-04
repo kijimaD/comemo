@@ -1,0 +1,12 @@
+commit b12f32372ad3bcb5f868e45fbc52e142b873e9ae
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 21 11:00:54 2010 -0700
+
+    Make.inc: delete unnecessary -no-inline flag to quietgcc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2654041
+
+ src/Make.inc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit a52027a491c27a057ed7413607393f5f0a256c8d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 17 14:39:50 2012 +1100
+
+    fix: walk ast.Ellipsis values.
+    
+    Fixes #2583.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5671078
+
+ src/cmd/fix/error_test.go | 8 ++++++++
+ src/cmd/fix/fix.go        | 1 +
+ 2 files changed, 9 insertions(+)

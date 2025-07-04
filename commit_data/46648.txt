@@ -1,0 +1,23 @@
+commit 8cf0a087c00db2e9ba24f763db903adcbffaade4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 09:56:38 2021 -0700
+
+    cmd/compile/internal/types2: add Interface.IsMethodSet, remove Interface.IsContraint
+    
+    This is a port of CL 352616 from go/types to types2. It also removes
+    Interface.IsConstraint and adjusts all uses to use IsMethodSet. The
+    dual changes are made to the (unexported) type set implementation.
+    
+    Change-Id: I292b741d1f7cdbaefb483eed75faf7b85a8d2792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352872
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/writer.go     | 2 +-
+ src/cmd/compile/internal/types2/call.go      | 2 +-
+ src/cmd/compile/internal/types2/decl.go      | 2 +-
+ src/cmd/compile/internal/types2/interface.go | 4 ++--
+ src/cmd/compile/internal/types2/typeset.go   | 4 ++--
+ src/cmd/compile/internal/types2/typexpr.go   | 2 +-
+ 6 files changed, 8 insertions(+), 8 deletions(-)

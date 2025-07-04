@@ -1,0 +1,13 @@
+commit 6c1f4ff15f45e9a00aea334b25094aebfdbf78fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 14 14:27:26 2011 -0400
+
+    A+C: Luca Greco (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5274045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

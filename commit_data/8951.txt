@@ -1,0 +1,12 @@
+commit 9d5ed1744a794e2dbaa20ae241e944adb37854a4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 6 15:14:10 2011 +1000
+
+    exp/template: add missing dotNode case.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4672044
+
+ src/pkg/exp/template/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

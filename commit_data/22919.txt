@@ -1,0 +1,16 @@
+commit 76d67eaccc4aa613bb794e53abef906551cc8f55
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 10:41:01 2015 +0900
+
+    net: align temporary file, directory names in tests
+    
+    Also adds missing temporary file deletion.
+    
+    Change-Id: Ia644b0898022e05d2f5232af38f51d55e40c6fb5
+    Reviewed-on: https://go-review.googlesource.com/9772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient_unix_test.go | 2 +-
+ src/net/error_test.go          | 3 ++-
+ src/net/mockserver_test.go     | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 58012ea785851052a28f20544d7e2da0e0e6eefa
+Author: Julia Hansbrough <flowerhack@google.com>
+Date:   Mon Apr 18 15:53:29 2016 -0700
+
+    runtime: updated SIGSYS to cause a panic + stacktrace
+    
+    On GNU/Linux, SIGSYS is specified to cause the process to terminate
+    without a core dump. In https://codereview.appspot.com/3749041 , it
+    appears that Golang accidentally introduced incorrect behavior for
+    this signal, which caused Golang processes to keep running after
+    receiving SIGSYS. This change reverts it to the old/correct behavior.
+    
+    Updates #15204
+    
+    Change-Id: I3aa48a9499c1bc36fa5d3f40c088fdd7599e0db5
+    Reviewed-on: https://go-review.googlesource.com/22202
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

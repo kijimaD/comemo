@@ -1,0 +1,15 @@
+commit 18d8c7dac611f48b8da79f342b2a4dcf55968768
+Author: James Whitehead <jnwhiteh@gmail.com>
+Date:   Mon Jul 19 14:05:27 2010 +1000
+
+    http/transferWriter: Write body when content length unknown
+    
+    Fixes #923.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/1846043
+
+ src/pkg/http/responsewrite_test.go | 15 +++++++++++++++
+ src/pkg/http/transfer.go           |  2 ++
+ 2 files changed, 17 insertions(+)

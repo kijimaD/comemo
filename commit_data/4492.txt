@@ -1,0 +1,12 @@
+commit 2be48978007b69726e0f84febd4a537524297cd2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 23 22:08:49 2009 -0800
+
+    Use t.Errorf for formatted error output.
+    
+    R=dsymonds1
+    CC=golang-dev
+    https://golang.org/cl/183049
+
+ src/pkg/os/signal/signal_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

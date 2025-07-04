@@ -1,0 +1,17 @@
+commit a85fce282e779cb8e342b5efafcd2e11eea3f9ce
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 4 16:51:42 2013 +0100
+
+    cmd/gc: simplify and fix defaultlit.
+    
+    Fixes #4882.
+    Fixes #4936.
+    Fixes #4937.
+    
+    R=golang-dev, dave, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/7432044
+
+ src/cmd/gc/const.c | 149 ++++++++++++++++++++++++++++-------------------------
+ test/shift1.go     |   7 +++
+ 2 files changed, 86 insertions(+), 70 deletions(-)

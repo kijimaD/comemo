@@ -1,0 +1,22 @@
+commit 2afaa018550ceb42e7a89d1bb53e7fe2d3890377
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon May 14 13:50:56 2018 +0200
+
+    encoding/binary: add word size to the error message of the failed constraint
+    
+    Test added.
+    
+    Fixes #22860
+    
+    Change-Id: I08304834a2b7b10b4ac729bf36761692eb4731da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/113075
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/binary/binary.go      |  2 +-
+ src/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

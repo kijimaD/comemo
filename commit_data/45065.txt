@@ -1,0 +1,17 @@
+commit e12abe4bd63883b16a76f650222dd4617504e43f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 11 14:33:16 2021 +0200
+
+    net: fix (*ipStackCapabilities).probe godoc
+    
+    Change-Id: I2e5db6e7e9a7b3c84449d16b6bc32afe1d0ffee9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308991
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ipsock_plan9.go | 2 +-
+ src/net/ipsock_posix.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

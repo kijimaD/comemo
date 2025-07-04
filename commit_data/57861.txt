@@ -1,0 +1,16 @@
+commit 2fd2718f6b64000fa25e0c5d1ee48aa1426d5a6f
+Author: cuishuang <imcusg@gmail.com>
+Date:   Fri Nov 1 17:55:50 2024 +0800
+
+    bufio: add example for ReadFrom and remove unused code
+    
+    Change-Id: Ia4fbb436ca573b1820f2b4d06d2332f588334768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624357
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bufio/bufio_test.go   |  1 -
+ src/bufio/example_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

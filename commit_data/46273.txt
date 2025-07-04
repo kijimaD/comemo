@@ -1,0 +1,26 @@
+commit 1ae7ddc2350b2dd30e1f3ad877c3c70ef745111d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 2 11:06:27 2021 +0700
+
+    test: always run test in unified IR mode regardless of explicit -G flag
+    
+    Currently, if a test explicitly specify -G flag, if that flag conflict
+    with compiler default -G flag, the test will be skipped. That's the
+    reason CL 346469 haven't fixed the unified IR stuff, but still make the
+    unified builder passed.
+    
+    This CL makes run.go always run the test in unified IR mode, regardless
+    of the explicit -G flag specified.
+    
+    Updates #48094
+    
+    Change-Id: I959ecaff6aca07844f0ffcf36caa60cf0747e8ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347271
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/run.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

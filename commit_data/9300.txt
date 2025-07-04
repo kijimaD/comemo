@@ -1,0 +1,13 @@
+commit 7d87f3d2338817fee1fac0332417fce5b95f563c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 6 11:21:59 2011 +1000
+
+    FAQ: variant types, unions
+    Fixes #1935.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4850044
+
+ doc/go_faq.html | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

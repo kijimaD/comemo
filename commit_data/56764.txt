@@ -1,0 +1,37 @@
+commit 1634fde4f918223614fd8893db8dd7ca4ebcda01
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 3 21:00:51 2024 +0000
+
+    iter: don't iterate if stop is called before next on Pull
+    
+    Consider the following code snippet:
+    
+        next, stop := iter.Pull(seq)
+        stop()
+    
+    Today, seq will iterate exactly once before it notices that its
+    iteration is invalid to begin with. This effect is observable in a
+    variety of ways. For example, if the iterator panics, since that panic
+    must propagate to the caller of stop. But if the iterator is stateful in
+    anyway, then it may update some state.
+    
+    This is somewhat unexpected and because it's observable, can be depended
+    upon. This behavior does not align well with other possible
+    implementations of Pull, like CPS performed by the compiler. It's also
+    just odd to let even one iteration happen, precisely because of
+    unexpected state modification.
+    
+    Fix this by not iterating at all of the done flag is set before entering
+    the iterator.
+    
+    For #67712.
+    
+    Change-Id: I18162e29df45a2e8968f68379450d92e1de47c4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590075
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/iter/iter.go      |   8 ++++
+ src/iter/pull_test.go | 102 +++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 96 insertions(+), 14 deletions(-)

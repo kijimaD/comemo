@@ -1,0 +1,13 @@
+commit 37a5374c81491d25d723e20b33c4b05fb38f1ec5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 19:01:48 2009 -0700
+
+    document and partially fix a race
+    
+    R=r
+    DELTA=24  (21 added, 0 deleted, 3 changed)
+    OCL=27527
+    CL=27527
+
+ src/lib/net/fd.go | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)

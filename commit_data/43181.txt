@@ -1,0 +1,19 @@
+commit 059ca6185c19404e991cc7714b1df047fd78785f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 2 21:57:24 2020 -0400
+
+    cmd/dist: detect gohostarch on ios/arm64
+    
+    Add a case for gohostos == "ios" along with "darwin".
+    
+    Updates #38485.
+    
+    Change-Id: Ic7310e6c97d405f78a5e5db1a639860455e61327
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259337
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

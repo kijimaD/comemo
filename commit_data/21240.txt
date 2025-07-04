@@ -1,0 +1,12 @@
+commit 1a27c07c6fbc8af742ee186f35e1f40c37cb017d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 13 10:16:30 2015 +1100
+
+    go1.5.txt: better checking of struct tags
+    
+    Change-Id: I0e726a2c0fa1231011b183c3e917414d876555d8
+    Reviewed-on: https://go-review.googlesource.com/2700
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 3 +++
+ 1 file changed, 3 insertions(+)

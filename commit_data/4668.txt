@@ -1,0 +1,14 @@
+commit 6d8829e931fa92d9228f6b67e0832195cd477248
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 25 12:03:53 2010 -0800
+
+    A <- token in an expression may introduce a channel type.
+    Fixes #530.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/193091
+
+ src/pkg/go/parser/parser.go      | 17 +++++++++++++++--
+ src/pkg/go/parser/parser_test.go |  2 ++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

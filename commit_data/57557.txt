@@ -1,0 +1,24 @@
+commit 6ad3933e285b036137a339f598f00a21578fcbfb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 27 10:54:26 2024 -0700
+
+    go/types, types2: move go/types-only Scope methods into scopes2.go
+    
+    Remove them them from types2.
+    
+    Updates #69673.
+    
+    Change-Id: I7843f6da1edf3a19f85c61706104d173e04088d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616261
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 158 --------------------------
+ src/cmd/compile/internal/types2/scope.go    |  60 ----------
+ src/go/types/api_test.go                    | 152 -------------------------
+ src/go/types/scope.go                       |  60 ----------
+ src/go/types/scope2.go                      |  72 ++++++++++++
+ src/go/types/scope2_test.go                 | 167 ++++++++++++++++++++++++++++
+ 6 files changed, 239 insertions(+), 430 deletions(-)

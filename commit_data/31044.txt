@@ -1,0 +1,20 @@
+commit ce9bef261cefb7a00a90a4aa592774438f1b7f52
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 13:47:10 2017 -0700
+
+    cmd/compile/internal/gc: cleanup mkinlcall
+    
+    I had too many failed attempts trying to remove iterFields that I
+    decided to overhaul this function. Much simpler and easier to
+    understand now (at least IMO).
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I41d00642a969698df3f4689e41a386346b966638
+    Reviewed-on: https://go-review.googlesource.com/39856
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 235 +++++++++++--------------------------
+ 1 file changed, 70 insertions(+), 165 deletions(-)

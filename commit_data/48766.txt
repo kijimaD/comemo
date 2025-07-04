@@ -1,0 +1,16 @@
+commit d85694ab4fdf1d8f99d6cb96878bfb7acab8df13
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 16:02:59 2022 -0400
+
+    doc/go1.19: document cmd/go changes involving -trimpath
+    
+    Updates #51461.
+    
+    Change-Id: Ie878a9f630062d62027de895750a070b50428a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399214
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

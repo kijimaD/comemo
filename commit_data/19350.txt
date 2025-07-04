@@ -1,0 +1,26 @@
+commit 61d8a33719e0a90f74adb432cdfd3ab3d261d1d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 14 11:47:19 2014 -0700
+
+    spec: more precise description of select statement
+    
+    - use previously defined terms (with links) throughout
+    - specify evaluation order more precisely (in particular,
+      the evaluation time of rhs expressions in receive cases
+      was not specified)
+    - added extra example case
+    
+    Not a language change.
+    
+    Description matches observed behavior of code compiled
+    with gc and gccgo.
+    
+    Fixes #7669.
+    
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/91230043
+
+ doc/go_spec.html | 96 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 63 insertions(+), 33 deletions(-)

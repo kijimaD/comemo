@@ -1,0 +1,18 @@
+commit e456d015fb670b82554284d74c5b88ee278b6f08
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 25 13:15:48 2012 +0200
+
+    exp/locale/collate: implementation of trie that is used for detecting contractions.
+    (See http://www.unicode.org/reports/tr10/#Contractions.)  Each rune that is at the
+    start of any contraction is associated a trie. This trie, in turn, may be shared
+    by other runes that have the same set of suffixes.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5970066
+
+ src/pkg/exp/locale/collate/build/contract.go      | 301 ++++++++++++++++++++++
+ src/pkg/exp/locale/collate/build/contract_test.go | 264 +++++++++++++++++++
+ src/pkg/exp/locale/collate/contract.go            |  81 ++++++
+ src/pkg/exp/locale/collate/contract_test.go       | 132 ++++++++++
+ 4 files changed, 778 insertions(+)

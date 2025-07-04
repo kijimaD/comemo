@@ -1,0 +1,16 @@
+commit c4af8abae11841d20dfa495a62acc96e5f701f4a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 20 14:22:35 2023 -0400
+
+    runtime: print fault addr in fatalsignal
+    
+    Fixes #60894.
+    
+    Change-Id: I2e97c9ed527395303548bebe68ca7764e43132d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/signal_unix.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

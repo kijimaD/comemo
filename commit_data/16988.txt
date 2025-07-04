@@ -1,0 +1,12 @@
+commit 13507e0697b2749e49341c25b9c1f5414f88d26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 18:51:55 2013 -0400
+
+    runtime: fix traceback across morestack
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12287043
+
+ src/pkg/runtime/asm_arm.s | 4 ++++
+ 1 file changed, 4 insertions(+)

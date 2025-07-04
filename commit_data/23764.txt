@@ -1,0 +1,12 @@
+commit abf943aa37b205b34c02b2edd9f0267782283d0a
+Author: Paul Marks <pmarks@google.com>
+Date:   Fri Jul 17 14:23:26 2015 -0700
+
+    doc/go1.5.html: update the net.Dial release notes.
+    
+    Change-Id: Ie02426b2b726170d858de96fdd8c51bfdf20d7dc
+    Reviewed-on: https://go-review.googlesource.com/12376
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

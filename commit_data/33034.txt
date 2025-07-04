@@ -1,0 +1,55 @@
+commit 07f7db3ea99fae98dd041d54cceda7ac5d4ac1fe
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Oct 8 14:12:40 2017 +0200
+
+    cmd/compile: fix OTYPESW Op comment
+    
+    OTYPESW Op comment says
+    
+      // List = Left.(type)
+    
+    this seems to be wrong. Adding
+    
+      fmt.Printf("n: %v\n", cond)
+      fmt.Printf("  n.List: %v\n", cond.List)
+      fmt.Printf("  n.Left: %v\n", cond.Left)
+      fmt.Printf("  n.Right: %v\n", cond.Right)
+    
+    to (s *typeSwitch) walk(sw *Node), and compiling the following code
+    snippet
+    
+      var y interface{}
+      switch x := y.(type) {
+      default:
+        println(x)
+      }
+    
+    prints
+    
+      n: <node TYPESW>
+        n.List:
+        n.Left: x
+        n.Right: y
+    
+    The correct OTYPESW Node field positions are
+    
+      // Left = Right.(type)
+    
+    This is confirmed by the fact that, further in the code,
+    typeSwitch.walk() checks that Right (and not Left) is of type
+    interface:
+    
+      cond.Right = walkexpr(cond.Right, &sw.Ninit)
+      if !cond.Right.Type.IsInterface() {
+        yyerror("type switch must be on an interface")
+        return
+      }
+    
+    This patch fixes the OTYPESW comment.
+    
+    Change-Id: Ief1e409cfabb7640d7f7b0d4faabbcffaf605450
+    Reviewed-on: https://go-review.googlesource.com/69112
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

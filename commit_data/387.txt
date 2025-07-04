@@ -1,0 +1,11 @@
+commit 4c5a1658737d0db6f72c6b88d75e0f81f5fba22a
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jul 18 11:59:35 2008 -0700
+
+    len(fixed array)
+    
+    SVN=128050
+
+ src/cmd/gc/go.h   | 1 +
+ src/cmd/gc/walk.c | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 57804f1d2d01c0e329b2efc64ad95d0764502802
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 17:28:33 2008 -0700
+
+    escape \ in %Z
+    
+    R=ken
+    OCL=18202
+    CL=18202
+
+ src/cmd/gc/subr.c | 1 +
+ 1 file changed, 1 insertion(+)

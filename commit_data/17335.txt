@@ -1,0 +1,15 @@
+commit 33d531dfa49b7477dd51b54b870508b8b7eafee2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 19 22:56:54 2013 -0700
+
+    net/http: support WriteString on the ResponseWriter
+    
+    Fixes #5377
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12991046
+
+ src/pkg/net/http/serve_test.go | 15 +++++++++++++++
+ src/pkg/net/http/server.go     | 19 ++++++++++++++++---
+ 2 files changed, 31 insertions(+), 3 deletions(-)

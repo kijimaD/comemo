@@ -1,0 +1,30 @@
+commit 6feb61325a501b3e122c081624c837eeae5bd0a9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Sep 26 21:17:11 2012 +0200
+
+    cmd/6g, cmd/8g: fix two "out of fixed registers" cases.
+    
+    In two cases, registers were allocated too early resulting
+    in exhausting of available registers when nesting these
+    operations.
+    
+    The case of method calls was due to missing cases in igen,
+    which only makes calls but doesn't allocate a register for
+    the result.
+    
+    The case of 8-bit multiplication was due to a wrong order
+    in register allocation when Ullman numbers were bigger on the
+    RHS.
+    
+    Fixes #3907.
+    Fixes #4156.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6560054
+
+ src/cmd/6g/cgen.c | 23 ++++++++++++++++++-----
+ src/cmd/6g/ggen.c | 51 ++++++++++++++++++++-------------------------------
+ src/cmd/8g/cgen.c | 14 +++++++++++++-
+ src/cmd/8g/ggen.c | 52 +++++++++++++++++++++-------------------------------
+ 4 files changed, 72 insertions(+), 68 deletions(-)

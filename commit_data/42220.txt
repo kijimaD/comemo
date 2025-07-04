@@ -1,0 +1,28 @@
+commit 41f6388e70063fedf3c85f851cf7e685e4480198
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 01:45:59 2020 +1000
+
+    cmd/cover: include a package name in the HTML title
+    
+    A recent change added a title to the HTML coverage report but
+    neglected to include the package name. Add the package name here.
+    It's a little trickier than you'd think because there may be multiple
+    packages and we don't want to parse the files, so we just extract
+    a directory name from the path of the first file.  This will almost
+    always be right, and has the advantage that it gives a better result
+    for package main. There are rare cases it will get wrong, but that
+    will be no hardship.
+    
+    If this turns out not to be good enough, we can refine it.
+    
+    Fixes #38609
+    
+    Change-Id: I2201f6caef906e0b0258b90d7de518879041fe72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230517
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/html.go         | 23 ++++++++++++++++++++++-
+ src/cmd/cover/pkgname_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 1 deletion(-)

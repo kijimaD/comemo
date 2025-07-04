@@ -1,0 +1,15 @@
+commit bc4a10d16ca8582eaa92e5b834616df55c777503
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 20:20:03 2018 -0700
+
+    cmd/compile/internal/gc: remove toolstash hacks
+    
+    Change-Id: I221f77075a25e934e20b41307758a89c19169e05
+    Reviewed-on: https://go-review.googlesource.com/c/145201
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/iexport.go | 1 -
+ src/cmd/compile/internal/gc/iimport.go | 3 ---
+ 2 files changed, 4 deletions(-)

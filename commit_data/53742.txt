@@ -1,0 +1,18 @@
+commit d1612071d979e11311fb4a838503d1fe7989373b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 27 10:05:56 2023 +0700
+
+    cmd/compile/internal/walk: remove un-used func/var
+    
+    Change-Id: I0ea1340cbca3dfb8b6bd71df439edd410e452fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506478
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/walk/range.go | 15 ---------------
+ src/cmd/compile/internal/walk/walk.go  |  3 ---
+ 2 files changed, 18 deletions(-)

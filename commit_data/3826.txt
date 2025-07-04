@@ -1,0 +1,13 @@
+commit 10242e806fdfc261e61f8c8467125eaabbf1a6f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:58:28 2009 -0800
+
+    gofmt'ed parts of go
+    
+    R=rsc
+    http://go/go-review/1023001
+
+ src/pkg/go/printer/nodes.go        |  70 +++++++++--------
+ src/pkg/go/printer/printer.go      | 155 +++++++++++++++++++------------------
+ src/pkg/go/printer/printer_test.go |  39 +++++-----
+ 3 files changed, 137 insertions(+), 127 deletions(-)

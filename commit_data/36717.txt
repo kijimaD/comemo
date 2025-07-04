@@ -1,0 +1,23 @@
+commit 3ff28f7d7117713b684014cbf79e858180a45f5d
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Tue Jun 19 21:19:47 2018 +0300
+
+    mime: derestrict value backslash unescaping for all encodings
+    
+    Previously consumeValue performed consumption of "unnecessary backslashes"
+    strictly for non-ASCII and non-token runes. Thus if it encountered a
+    backslash before a rune that is out of the ASCII range, it would
+    erroneously skip that backslash. This change now derestricts
+    "unnecessary backslash" unescaping for all character encodings,
+    using "isTSpecial" instead of "!isTokenChar".
+    This change is a follow-up of CL 32175.
+    
+    Fixes #25888
+    
+    Change-Id: I5e02bbf9c42f753a6eb31399b8d20315af991490
+    Reviewed-on: https://go-review.googlesource.com/119795
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/mediatype.go      | 2 +-
+ src/mime/mediatype_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

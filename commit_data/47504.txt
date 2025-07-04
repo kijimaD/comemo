@@ -1,0 +1,15 @@
+commit 5e59d6ebd110a7c19770c7d996930ff379ba5726
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Sep 22 07:59:11 2021 +0800
+
+    sort: improve sort documentation
+    
+    Fixes #48527
+    
+    Change-Id: Ib5df0819cbcd5c2e4f03bda841871d237af96b19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351336
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sort/sort.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

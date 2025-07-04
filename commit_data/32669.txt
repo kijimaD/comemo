@@ -1,0 +1,29 @@
+commit 1134411a833caa79017a1fffb9dd9afb102d5da9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Sep 4 21:23:29 2017 +0900
+
+    cmd/go, cmd/link, cmd/dist: re-enable plugin mode on darwin/amd64
+    
+    1. remove broken verification
+       The runtime check assumes that no-pcln symbol entry have zero value,
+       but the linker emit no entries if the symbol is no-pcln.
+       As a result, if there are no-pcln symbols at the very end of pcln
+       table, it will panic.
+    2. correct condition of export
+       Handle special chracters in pluginpath correcty.
+       Export "go.itab.*", so different plugins can share the same itab.
+    
+    Fixes #18190
+    
+    Change-Id: Ia4f9c51d83ce8488a9470520f1ee9432802cfc1d
+    Reviewed-on: https://go-review.googlesource.com/61091
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testplugin/test.bash     | 12 +++++++++++-
+ src/cmd/dist/test.go              |  2 ++
+ src/cmd/go/internal/work/build.go |  3 +++
+ src/cmd/link/internal/ld/macho.go |  6 +++++-
+ src/runtime/symtab.go             | 25 -------------------------
+ 5 files changed, 21 insertions(+), 27 deletions(-)

@@ -1,0 +1,18 @@
+commit f8b20e40838e90f6ac0eae383749189bac73b73c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 10:57:48 2008 -0800
+
+    add cov, prof to default build; clean up compiler warnings
+    
+    R=r
+    DELTA=8  (1 added, 0 deleted, 7 changed)
+    OCL=19245
+    CL=19245
+
+ src/cmd/cc/cc.h              | 2 +-
+ src/cmd/clean.bash           | 2 +-
+ src/cmd/make.bash            | 2 +-
+ src/cmd/prof/main.c          | 6 +++---
+ src/lib/reflect/typestring.c | 2 +-
+ src/runtime/runtime.c        | 1 +
+ 6 files changed, 8 insertions(+), 7 deletions(-)

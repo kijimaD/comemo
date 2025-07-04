@@ -1,0 +1,11 @@
+commit aaa2374b74ff75f8562018b50844a53868d9dfff
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 17:22:43 2009 -0800
+
+    Make.conf: fix if $HOME has spaces
+    
+    R=r
+    https://golang.org/cl/164086
+
+ src/Make.conf | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

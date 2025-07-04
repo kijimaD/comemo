@@ -1,0 +1,27 @@
+commit 3c4c10ea8c87836a75c4065660c72c0929309dd7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 7 11:33:30 2022 -0500
+
+    misc/cgo: fix aliasing bugs in parallel tests that append to shared slices
+    
+    These tests use a slice to represent the base C compiler command (with
+    flags). Appending to that slice can cause subtle aliasing bugs, such
+    as commands that silently corrupt the arguments of other concurrent
+    commands in parallel tests.
+    
+    In this change, we explicitly reduce the capacity of the command slice
+    to force appends to it to always allocate unique new slices.
+    
+    Fixes #49693
+    
+    Change-Id: Ide466bf65f12cb6cead3dcba69f513cccb60a160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383754
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/errors/badsym_test.go         |  4 ++++
+ misc/cgo/testcarchive/carchive_test.go | 30 +++---------------------------
+ misc/cgo/testcshared/cshared_test.go   |  3 +++
+ 3 files changed, 10 insertions(+), 27 deletions(-)

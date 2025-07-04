@@ -1,0 +1,18 @@
+commit 12991a75e0d93443642137d63719d63c286729be
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 8 23:11:15 2017 +0100
+
+    cmd/gofmt: fix diff on Plan 9
+    
+    On Plan 9, GNU diff is called ape/diff.
+    
+    Fixes #18999.
+    
+    Change-Id: I7cf6c23c97bcc47172bbf838fd9dd72aefa4c18b
+    Reviewed-on: https://go-review.googlesource.com/36650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

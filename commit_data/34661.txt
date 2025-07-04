@@ -1,0 +1,28 @@
+commit 77c3ef6f6fdb53708484e944f6ef37b222e1ae89
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 21 12:36:58 2018 +0000
+
+    cmd/doc: use empty GOPATH when running the tests
+    
+    Otherwise, a populated GOPATH might result in failures such as:
+    
+            $ go test
+            [...] no buildable Go source files in [...]/gopherjs/compiler/natives/src/crypto/rand
+            exit status 1
+    
+    Move the initialization of the dirs walker out of the init func, so that
+    we can control its behavior in the tests.
+    
+    Updates #24464.
+    
+    Change-Id: I4b26a7d3d6809bdd8e9b6b0556d566e7855f80fe
+    Reviewed-on: https://go-review.googlesource.com/101836
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/doc/dirs.go     |  5 ++---
+ src/cmd/doc/doc_test.go | 11 +++++++++--
+ src/cmd/doc/main.go     |  5 ++++-
+ src/cmd/doc/pkg.go      |  2 +-
+ 4 files changed, 16 insertions(+), 7 deletions(-)

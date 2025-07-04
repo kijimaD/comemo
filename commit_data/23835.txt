@@ -1,0 +1,14 @@
+commit 6b8762104a90c93ebd51149e7a031738832c5cdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 00:14:33 2015 -0400
+
+    runtime/pprof: document content of heap profile
+    
+    Fixes #11343.
+    
+    Change-Id: I46efc24b687b9d060ad864fbb238c74544348e38
+    Reviewed-on: https://go-review.googlesource.com/12556
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/pprof/pprof.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

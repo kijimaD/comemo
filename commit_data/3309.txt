@@ -1,0 +1,25 @@
+commit 7be770071f66f40aca69c7ba7b7db35098becc97
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 23:51:06 2009 -0700
+
+    use buf.String() instead of string(buf.Bytes())
+    use strings.Buffer instead of bytes.Buffer in some places
+    
+    R=rsc
+    DELTA=40  (0 added, 3 deleted, 37 changed)
+    OCL=34770
+    CL=34775
+
+ src/pkg/base64/base64_test.go        |  9 ++++-----
+ src/pkg/bufio/bufio_test.go          | 11 +++++------
+ src/pkg/compress/gzip/gunzip_test.go |  2 +-
+ src/pkg/compress/zlib/reader_test.go |  2 +-
+ src/pkg/datafmt/datafmt.go           |  2 +-
+ src/pkg/exvar/exvar.go               |  2 +-
+ src/pkg/gob/encoder_test.go          |  2 +-
+ src/pkg/http/triv.go                 |  2 +-
+ src/pkg/json/parse.go                |  2 +-
+ src/pkg/os/os_test.go                |  4 ++--
+ src/pkg/regexp/regexp.go             |  2 +-
+ src/pkg/template/template_test.go    | 16 ++++++++--------
+ 12 files changed, 27 insertions(+), 29 deletions(-)

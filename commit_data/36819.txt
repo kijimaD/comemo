@@ -1,0 +1,17 @@
+commit c3304edf10223364bc1989bc1daa6908dbdd9c03
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Sep 29 08:35:32 2018 +0000
+
+    cmd/internal/obj/arm: delete unnecessary code
+    
+    In the arm assembler, "AMOVW" never falls into optab
+    case 13, so the check "if p.As == AMOVW" is useless.
+    
+    Change-Id: Iec241d5b4cffb358a1477f470619dc9a6287884a
+    Reviewed-on: https://go-review.googlesource.com/c/138575
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

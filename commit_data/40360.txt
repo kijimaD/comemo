@@ -1,0 +1,26 @@
+commit 3db6d46a4e0ee33eb34cef29f797ab7c12530a80
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 16 16:05:10 2019 +0700
+
+    cmd/compile: add marker for skipping dowidth when tracing typecheck
+    
+    The root cause of #33658 is that fmt.Printf does have side effects when
+    printing Type.
+    
+    typefmt for TINTER will call Type.Fields to get all embedded fields and
+    methods. The thing is that type.Fields itself will call dowidth, which will
+    expand the embedded interface, make it non-embedded anymore.
+    
+    To fix it, we add a marker while we are tracing, so dowidth can know and
+    return immediately without doing anything.
+    
+    Fixes #33658
+    
+    Change-Id: Id4b70ff68a3b802675deae96793fdb8f7ef1a4a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190537
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go     | 5 +++++
+ src/cmd/compile/internal/gc/typecheck.go | 5 +++++
+ 2 files changed, 10 insertions(+)

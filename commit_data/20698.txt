@@ -1,0 +1,16 @@
+commit 73711533210a3ddc85e092eb06c1373277b65e99
+Author: Casey Marshall <casey.marshall@gmail.com>
+Date:   Mon Oct 13 12:41:14 2014 -0700
+
+    math/big: Fixes issue 8920
+    
+    (*Rat).SetString checks for denominator.
+    
+    LGTM=gri
+    R=golang-codereviews, gri
+    CC=golang-codereviews
+    https://golang.org/cl/159760043
+
+ src/math/big/rat.go      | 3 +++
+ src/math/big/rat_test.go | 1 +
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,17 @@
+commit 01a9cf8487df2b108f0dfd7060ff5ffbda972c3a
+Author: geedchin <geedchin@gmail.com>
+Date:   Tue May 5 01:43:57 2020 +0000
+
+    runtime: correct waitReasonForceGGIdle to waitResonForceGCIdle
+    
+    Change-Id: I211db915ce2e98555c58f4320ca58e91536f8f3d
+    GitHub-Last-Rev: 40a7430f88ed125f2ae0db13f3be603c99d06312
+    GitHub-Pull-Request: golang/go#38852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232037
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go     | 2 +-
+ src/runtime/runtime2.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

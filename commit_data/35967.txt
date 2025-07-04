@@ -1,0 +1,19 @@
+commit bb364d49a9db585534aac965d1068bee0bda3054
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 12 00:16:00 2018 -0400
+
+    cmd/go: delete TestGoBuildDashA*
+    
+    The behavior of -a no longer changes depending on which kind
+    of branch of Go you are using (the new build cache fixed all that).
+    These tests are not doing anything useful (and failing).
+    
+    Change-Id: I1c65120a3e05286e888951d61bca4a903e2c1158
+    Reviewed-on: https://go-review.googlesource.com/123575
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 38 --------------------------------------
+ 1 file changed, 38 deletions(-)

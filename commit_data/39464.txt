@@ -1,0 +1,16 @@
+commit 998a98984b5b32a0cab53e0fd690b5a01683db6a
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Thu Jun 27 11:49:43 2019 +0800
+
+    fmt: fix typo in errors.go
+    
+    Fixes #32802
+    
+    Change-Id: I756ca49285130b45777bd29de440db296d9632e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184057
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/fmt/errors.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

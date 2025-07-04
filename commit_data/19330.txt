@@ -1,0 +1,16 @@
+commit f078711b412e9949d242e2bb54fc26d759232f5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 14:45:05 2014 -0400
+
+    cmd/gc: fix escape analysis for slice of array
+    
+    Fixes #7931.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/100390044
+
+ src/cmd/gc/esc.c |  7 +++++--
+ test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

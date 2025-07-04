@@ -1,0 +1,21 @@
+commit f65ad0dda7ffef9397d1aaa47259ad4d4f12474f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun May 24 00:09:20 2020 +0200
+
+    cmd/go: fix parallel chatty tests on solaris-amd64 builder
+    
+    The parallel chatty tests added in CL 229085 fail on the
+    solaris-amd64-oraclerel builder, because a +NN:NN offset time zone is
+    used. Allow for the `+` character in the corresponding regex to fix
+    these tests. Also move the '-' to the end of the character class, so it
+    is not interpreted as the range 9-T.
+    
+    Change-Id: Iec9ae82ba45d2490176f274f0dc6812666eae718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234978
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/test_chatty_parallel_fail.txt    | 6 +++---
+ src/cmd/go/testdata/script/test_chatty_parallel_success.txt | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

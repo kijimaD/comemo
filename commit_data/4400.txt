@@ -1,0 +1,15 @@
+commit f646296185f18ae36db3b074d4be621af7d7b7e5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 14 06:34:51 2009 +1100
+
+    Update goyacc to new syntax, still with semicolons.
+    Update units.y too.
+    Fixes #417.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/176063
+
+ src/cmd/goyacc/goyacc.go | 21 ++++--------
+ src/cmd/goyacc/units.y   | 83 +++++++++++++++++-------------------------------
+ 2 files changed, 37 insertions(+), 67 deletions(-)

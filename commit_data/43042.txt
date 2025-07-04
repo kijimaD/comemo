@@ -1,0 +1,27 @@
+commit 7e54aa2c25690f5a7f5baad112d231b6ff8d4e5e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 18 11:56:43 2020 -0400
+
+    cmd/link: don't mark a symbol's GoType reachable when -linkshared
+    
+    In CL 231397, we stopped marking symbols' GoType reachable in
+    general, but not when -linkshared. It was left as a TODO. This CL
+    addresses it.
+    
+    The problem was that the type names are mangled in the shared
+    library, so we need to mangle the name consistently in the
+    executable as well (regardless of whether the symbol is reachable
+    or not), so that the GCProg generation code can find the
+    corresponding symbol from the shared library.
+    
+    Change-Id: I1040747402929a983ec581109f1681a77893682e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255964
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 6 +-----
+ src/cmd/link/internal/ld/lib.go      | 7 ++++++-
+ 2 files changed, 7 insertions(+), 6 deletions(-)

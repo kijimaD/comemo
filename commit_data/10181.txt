@@ -1,0 +1,12 @@
+commit e67d3c44f702639e0be75ca3e69542eeaf62c498
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:47:33 2011 -0400
+
+    exp/types: add error type to universe
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5327051
+
+ src/pkg/exp/types/universe.go | 1 +
+ 1 file changed, 1 insertion(+)

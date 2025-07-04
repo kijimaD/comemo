@@ -1,0 +1,23 @@
+commit 9923162f1cb88295bccb4d86ccc6829931199fdf
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 14:54:34 2022 -0400
+
+    runtime: don't use trace.lock for trace reader parking
+    
+    We're about to require that all uses of trace.lock be on the system
+    stack. That's mostly easy, except that it's involving parking the
+    trace reader. Fix this by changing that parking protocol so it instead
+    synchronizes through an atomic.
+    
+    For #53979.
+    
+    Change-Id: Icd6db8678dd01094029d7ad1c612029f571b4cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418955
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go  |  2 +-
+ src/runtime/trace.go | 53 +++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 41 insertions(+), 14 deletions(-)

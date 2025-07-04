@@ -1,0 +1,17 @@
+commit a9384eef7ae3a2587d215e3ec3d79bc1b335ce82
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Feb 1 21:24:51 2022 +0100
+
+    doc/go1.18: add crypto/tls, crypto/x509, and crypto/elliptic release notes
+    
+    Updates #45428
+    Updates #41682
+    
+    Change-Id: I811bc4f8ec8de6b6db6a2917e265a72134a05e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382454
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.18.html | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

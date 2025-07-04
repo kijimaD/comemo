@@ -1,0 +1,22 @@
+commit 91bbe5388d44e485275a8f5892255fdef66d708b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 15 13:14:41 2018 -0700
+
+    cmd/compile: sort method sets earlier
+    
+    By sorting method sets earlier, we can change the interface
+    satisfaction problem from taking O(NM) time to O(N+M). This is the
+    same algorithm already used by runtime and reflect for dynamic
+    interface satisfaction testing.
+    
+    For #22075.
+    
+    Change-Id: I3d889f0227f37704535739bbde11f5107b4eea17
+    Reviewed-on: https://go-review.googlesource.com/100845
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  1 -
+ src/cmd/compile/internal/gc/subr.go    | 59 +++++++++++++++++++---------------
+ 2 files changed, 33 insertions(+), 27 deletions(-)

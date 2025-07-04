@@ -1,0 +1,19 @@
+commit 7e29f1add8a4cebf533a70236fd1c9c0b21c1a9a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 10:37:33 2011 -0700
+
+    http: do TLS handshake explicitly before copying TLS state
+    
+    Previously we were snapshotting the TLS state into *Request
+    before we did the HTTP ReadRequest, the first Read of which
+    triggered the TLS handshake implicitly.
+    
+    Fixes #1956
+    
+    R=golang-dev, rsc
+    CC=agl, golang-dev
+    https://golang.org/cl/4630072
+
+ src/pkg/http/serve_test.go | 22 ++++++++++++----------
+ src/pkg/http/server.go     |  1 +
+ 2 files changed, 13 insertions(+), 10 deletions(-)

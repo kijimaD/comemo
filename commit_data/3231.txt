@@ -1,0 +1,15 @@
+commit 019e14e32ea17924de4acc696e913f8b8c11cb7f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 8 14:29:41 2009 -0700
+
+    - clarify vector comment
+    - adjusted a test to check claim
+    
+    R=rsc
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=34454
+    CL=34456
+
+ src/pkg/container/vector/vector.go      | 1 +
+ src/pkg/container/vector/vector_test.go | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

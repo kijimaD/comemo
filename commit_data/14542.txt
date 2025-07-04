@@ -1,0 +1,15 @@
+commit b1c4a8efa998e0d6b6eb423ad441b349968233be
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 3 14:04:18 2012 +0100
+
+    bytes: avoid duplicate malloc/copy in Buffer.ReadString
+    
+    Twice faster and twice less garbage.
+    
+    R=golang-dev, dave, daniel.morsing, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6849128
+
+ src/pkg/bytes/buffer.go      | 24 ++++++++++++++++--------
+ src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 8 deletions(-)

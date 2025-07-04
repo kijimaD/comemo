@@ -1,0 +1,17 @@
+commit 49448badb6367835b43aeb9cda3af44ff191bda7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 14:41:09 2019 -0400
+
+    cmd/internal/obj/x86: avoid os.Chdir in issue19518_test.go
+    
+    Chdir leaves the test in the wrong working directory if objdumpOutput
+    calls t.Fatalf (or panics), and it isn't necessary here anyway. Set
+    the Dir field on the commands instead.
+    
+    Change-Id: I9f0eb0d4f8d15043f1e13472126ca1a1ce4b7cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167081
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/internal/obj/x86/issue19518_test.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

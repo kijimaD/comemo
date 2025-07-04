@@ -1,0 +1,19 @@
+commit 46bed9d04c5f1e0da557d79b9a35bf9331fcd33f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 11 13:12:47 2022 -0500
+
+    runtime/race: add missing copyright headers to syso import files
+    
+    These were apparently missed in CL 424034.
+    
+    Change-Id: I60fcdd8c16992177a23c0e701f4224b250cfabee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449855
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/race/race_v1_amd64.go | 4 ++++
+ src/runtime/race/race_v3_amd64.go | 4 ++++
+ 2 files changed, 8 insertions(+)

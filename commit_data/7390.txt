@@ -1,0 +1,29 @@
+commit b9183b986ad29266e686622ea7e93516fcfacf70
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 8 15:40:11 2011 -0500
+
+    cgo: don't run cgo when not compiling
+    
+    The logic introduced to avoid running cgo when
+    introducing _cgo_flags is faulty.  My goal was
+    to handle it with the following statement:
+    
+        -include _cgo_flags
+    
+    The dash tells make to ignore errors if it can't
+    include the file.
+    
+    What I missed, though, was the fact that it
+    *will* attempt to build the file if it knows
+    how.
+    
+    This change will introduce the originally
+    intended semantics of not attempting to build
+    the file before necessary.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4023069
+
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit 97b3ce430bb64fb6c8dfb244d400468932f2e984
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 1 16:50:53 2021 -0400
+
+    runtime: make gcTestMoveStackOnNextCall not double the stack
+    
+    Currently, gcTestMoveStackOnNextCall doubles the stack allocation on
+    each call because stack movement always doubles the stack. That's
+    rather unfortunate if you're doing a bunch of stack movement tests in
+    a row that don't actually have to grow the stack because you'll
+    quickly hit the stack size limit even though you're hardly using any
+    of the stack.
+    
+    Fix this by adding a special stack poison value for
+    gcTestMoveStackOnNextCall that newstack recognizes and inhibits the
+    allocation doubling.
+    
+    Change-Id: Iace7055a0f33cb48dc97b8f4b46e45304bee832c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306672
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/gc_test.go | 17 +++++++++++++++++
+ src/runtime/mgc.go     |  2 +-
+ src/runtime/stack.go   | 13 ++++++++++++-
+ 3 files changed, 30 insertions(+), 2 deletions(-)

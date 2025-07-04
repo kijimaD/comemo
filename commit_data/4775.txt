@@ -1,0 +1,12 @@
+commit 3a295ab7046b137de87fd097da8500cdb28a0a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 3 16:53:19 2010 -0800
+
+    debug/gosym: fix test for new 6l
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/199091
+
+ src/pkg/debug/gosym/pclntab_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

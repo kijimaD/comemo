@@ -1,0 +1,20 @@
+commit 148ec3e3bc8083ccb9ac9b7050ce540d1e0f0539
+Author: Kyohei Kadota <lufia@lufia.org>
+Date:   Thu Sep 26 13:39:52 2019 +0900
+
+    net/http/cgi: skip tests if not functional perl
+    
+    TestEnvOverride sets PATH to /wibble before executing a CGI.
+    So customized Perl that is starting with '#!/usr/bin/env bash' will fail
+    because /usr/bin/env can't lookup bash.
+    
+    Fixes #27790
+    
+    Change-Id: I25e433061a7ff9da8c86429e934418fc15f12f90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196845
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cgi/host_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

@@ -1,0 +1,19 @@
+commit 84c188008e4a2c772308e2b6c74d4c353303d308
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 29 12:56:21 2022 +0000
+
+    crypto: fix a few function names on comments
+    
+    Change-Id: I06f85f78c4c802142fc9207b100753decd568274
+    GitHub-Last-Rev: 4ad4c0f5e93df9ea83deb86b814167e661bba0ff
+    GitHub-Pull-Request: golang/go#55945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436639
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/tls/key_schedule.go | 2 +-
+ src/crypto/x509/x509.go        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 3cdf8bae1a47948804d782ef5e8c4de38ea0ac9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 8 10:04:17 2013 -0800
+
+    database/sql: fix Conn leak
+    
+    Fixes #4902
+    
+    R=golang-dev, alex.brainman, r, google
+    CC=golang-dev
+    https://golang.org/cl/7579045
+
+ src/pkg/database/sql/sql.go      |  1 +
+ src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

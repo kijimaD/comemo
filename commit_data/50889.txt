@@ -1,0 +1,31 @@
+commit 76e4833b7a3f1ab2d8f30e497d00809b1f6cf1e6
+Author: Alexander Efremov <alexander.efremov@id.thesoul.io>
+Date:   Mon Oct 10 13:24:36 2022 +0000
+
+    image/png: optimise RGBA encoding
+    
+    Optimised RGBA image encoding to PNG. Improved test coverage. Reworked benchmark.
+    
+    Performance improvement with both old and new versions of the benchmark:
+    
+    name                           old speed      new speed      delta
+    EncodeRGBA_OriginalVersion-10   115MB/s ± 1%   308MB/s ± 1%  +166.70%  (p=0.000 n=19+17)
+    EncodeRGBA_NewVersion-10       40.3MB/s ± 1%  51.1MB/s ± 2%   +26.93%  (p=0.000 n=18+20)
+    
+    name                           old allocs/op  new allocs/op  delta
+    EncodeRGBA_OriginalVersion-10      614k ± 0%        0k ± 0%   -99.99%  (p=0.000 n=20+20)
+    EncodeRGBA_NewVersion-10           614k ± 0%        0k ± 0%   -99.99%  (p=0.000 n=20+20)
+    
+    Change-Id: I450013909c2410b043cd9c1239facd5bd6e3f3f9
+    GitHub-Last-Rev: 329d6ac011b08efcba5c1d737ba5395b0a66a6ea
+    GitHub-Pull-Request: golang/go#55119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431575
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/png/writer.go      | 30 +++++++++++++++++++
+ src/image/png/writer_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 98 insertions(+), 3 deletions(-)

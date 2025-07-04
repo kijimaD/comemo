@@ -1,0 +1,28 @@
+commit 05cc8b5369b4c3571f0fb2aeed67f9229301b382
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 10 10:03:21 2022 -0500
+
+    go/build: omit PkgObj for packages "unsafe" and "builtin"
+    
+    Package "builtin" is not a real, importable package; it exists only
+    for documentation. Package "unsafe" is not compiled into an object
+    file from its source code; instead, imports of "unsafe" are handled
+    specially by the compiler.
+    
+    (In Go 1.19.3, package "unsafe" did not have an install target, while
+    package "builtin" did but that target was never written.)
+    
+    Fixes #56687.
+    Updates #47257.
+    
+    Change-Id: I1d1e90ff9e1629b80e0df93e1f7e17242c8dab69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449376
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modindex/read.go                  |  2 +-
+ src/cmd/go/testdata/script/install_goroot_targets.txt | 16 ++++++++++------
+ src/go/build/build.go                                 |  2 +-
+ 3 files changed, 12 insertions(+), 8 deletions(-)

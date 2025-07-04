@@ -1,0 +1,15 @@
+commit 93166e29d3c6d9fc7e7ee352b1b6f5ca31425a4f
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Oct 9 11:23:11 2024 +0800
+
+    net/mail: add example for ParseDate
+    
+    Change-Id: Id22d199ea4b0a9795dc3d9e5f7a74be13ff0cf58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618755
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/mail/example_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

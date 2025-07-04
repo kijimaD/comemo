@@ -1,0 +1,13 @@
+commit 4a25f6ca05896f25bd8a1b561b09915b456f36c6
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 9 22:39:45 2015 -0400
+
+    math, math/big: added support for mips64{,le}
+    
+    Change-Id: I5129a5b9dbbc57d97da723c2fc247bd28f951817
+    Reviewed-on: https://go-review.googlesource.com/14451
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/math/big/arith_mips64x.s | 46 ++++++++++++++++++++++
+ src/math/stubs_mips64x.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+)

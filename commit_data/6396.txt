@@ -1,0 +1,14 @@
+commit 7e92e1cbfa549b13509f2ffcbdd9ba86587426e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 27 12:59:26 2010 -0400
+
+    gc: fix non-canonical import error message
+    
+    Fixes #1142.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2218046
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

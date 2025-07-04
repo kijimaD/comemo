@@ -1,0 +1,26 @@
+commit 106827990466b9246f9395233882b1e816df398a
+Author: Shane Hansen <shanemhansen@gmail.com>
+Date:   Mon Feb 11 11:36:29 2013 +1100
+
+    archive/tar: read/write extended pax/gnu tar archives
+    
+    Support reading pax archives and applying extended attributes
+    like long names, subsecond mtime resolutions, etc. Default to
+    writing pax archives for long file and link names.
+    Support reading gnu archives using the ././@LongLink extended
+    header for file name and link target.
+    
+    Fixes #3300
+    
+    R=dsymonds, dave, rogpeppe, remyoudompheng, chressie, rsc
+    CC=golang-dev
+    https://golang.org/cl/6700047
+
+ src/pkg/archive/tar/common.go          |   9 ++
+ src/pkg/archive/tar/reader.go          | 179 ++++++++++++++++++++++++++++++++-
+ src/pkg/archive/tar/reader_test.go     | 106 ++++++++++++++++++-
+ src/pkg/archive/tar/testdata/pax.tar   | Bin 0 -> 10240 bytes
+ src/pkg/archive/tar/testdata/ustar.tar | Bin 0 -> 2048 bytes
+ src/pkg/archive/tar/writer.go          | 107 +++++++++++++++++++-
+ src/pkg/archive/tar/writer_test.go     |  80 +++++++++++++++
+ 7 files changed, 472 insertions(+), 9 deletions(-)

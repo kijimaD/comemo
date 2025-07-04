@@ -1,0 +1,17 @@
+commit 1e6a19be641b348547563b762b51d2b62de12da4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 10 16:52:37 2014 -0700
+
+    net/http: fix double Content-Length in response
+    
+    Fixes #8180
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/105040043
+
+ src/pkg/net/http/response.go           |  5 ++++-
+ src/pkg/net/http/responsewrite_test.go | 16 ++++++++++++++++
+ src/pkg/net/http/transfer.go           |  4 +++-
+ 3 files changed, 23 insertions(+), 2 deletions(-)

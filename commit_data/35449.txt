@@ -1,0 +1,16 @@
+commit faa69b906f59bfbe53c079f284fa452e82426c57
+Author: dchenk <dcherchenko@gmail.com>
+Date:   Mon May 21 21:36:53 2018 -0700
+
+    encoding/base32: remove redundant conditional
+    
+    Immediately following the conditional block removed here is a loop
+    which checks exactly what the conditional already checked, so the
+    entire conditional is redundant.
+    
+    Change-Id: I892fd9f2364d87e2c1cacb0407531daec6643183
+    Reviewed-on: https://go-review.googlesource.com/114000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base32/base32.go | 4 ----
+ 1 file changed, 4 deletions(-)

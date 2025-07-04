@@ -1,0 +1,31 @@
+commit c26a32a5004afd4598f844ab49332c25d7613133
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 21 18:04:55 2021 -0700
+
+    cmd/compile,cmd/link: introduce generic interface call relocations
+    
+    To capture the fact that a method was called on a generic interface,
+    so we can make sure the linker doesn't throw away any implementations
+    that might be the method called.
+    
+    See the comment in reflect.go for details.
+    
+    Fixes #49049
+    
+    Change-Id: I0be74b6e727c1ecefedae072b149f59d539dc1e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357835
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 28 ++++++++-
+ src/cmd/compile/internal/walk/expr.go           | 12 +---
+ src/cmd/internal/objabi/reloctype.go            |  5 ++
+ src/cmd/internal/objabi/reloctype_string.go     | 79 +++++++++++++------------
+ src/cmd/link/internal/ld/deadcode.go            | 24 ++++++--
+ test/typeparam/issue49049.go                    | 27 +++++++++
+ 6 files changed, 119 insertions(+), 56 deletions(-)

@@ -1,0 +1,42 @@
+commit 92a3cb9ed14bce659540de8fef5e11fdb4973946
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 17:35:03 2023 -0400
+
+    go/parser: report //go:build-derived Go version in ast.File.GoVersion
+    
+    For #57001, compilers and others tools will need to understand that
+    a different Go version can be used in different files in a program,
+    according to the //go:build lines in those files.
+    
+    Update go/parser to populate the new ast.File.GoVersion field.
+    
+    This requires running the go/scanner in ParseComments mode
+    always and then implementing discarding of comments in the
+    parser instead of the scanner. The same work is done either way,
+    since the scanner was already preparing the comment result
+    and then looping. The loop has just moved into go/parser.
+    
+    Also make the same changes to cmd/compile/internal/syntax,
+    both because they're necessary and to keep in sync with go/parser.
+    
+    For #59033.
+    
+    Change-Id: I7b867f5f9aaaccdca94af146b061d16d9a3fd07f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476277
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/syntax/nodes.go  |  9 +++++----
+ src/cmd/compile/internal/syntax/parser.go | 25 +++++++++++++++++++------
+ src/go/build/deps_test.go                 |  8 +++++---
+ src/go/parser/parser.go                   | 30 ++++++++++++++++++++++++------
+ src/go/parser/parser_test.go              | 20 ++++++++++++++++++++
+ src/go/parser/testdata/goversion/t01.go   |  3 +++
+ src/go/parser/testdata/goversion/t02.go   |  3 +++
+ src/go/parser/testdata/goversion/t03.go   |  3 +++
+ src/go/parser/testdata/goversion/t04.go   |  5 +++++
+ src/go/parser/testdata/goversion/t05.go   |  3 +++
+ src/go/parser/testdata/goversion/t06.go   |  3 +++
+ 11 files changed, 93 insertions(+), 19 deletions(-)

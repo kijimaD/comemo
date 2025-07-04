@@ -1,0 +1,19 @@
+commit 8d6a455df42b016ed2f7071e70718cad940937f9
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Fri Sep 21 03:32:47 2018 +0200
+
+    net: don't use splice for unix{packet,gram} connections
+    
+    As pointed out in the aftermath of CL 113997, splice is not supported
+    for SOCK_SEQPACKET or SOCK_DGRAM unix sockets. Don't call poll.Splice
+    in those cases.
+    
+    Change-Id: Ieab18fb0ae706fdeb249e3f54d51a3292e3ead62
+    Reviewed-on: https://go-review.googlesource.com/136635
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/splice_linux.go |  5 ++++-
+ src/net/splice_test.go  | 52 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit b87c8c3523010be38c53e0c82e58016202be6a0d
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Feb 23 19:03:00 2023 +0000
+
+    net/url: simplify values Get
+    
+    Checking if v == nil is unnecessary, nil map always return the zero value of the value type.
+    
+    Change-Id: I9c5499bc7db72c4c62e02013ba7f9a6ee4795c09
+    GitHub-Last-Rev: 03fc2330e2ae568eafeb4d2e25e3f3535491062a
+    GitHub-Pull-Request: golang/go#58662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/url/url.go | 3 ---
+ 1 file changed, 3 deletions(-)

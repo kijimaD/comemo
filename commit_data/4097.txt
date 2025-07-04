@@ -1,0 +1,11 @@
+commit c7ec6ef8594f4b66a17e9306f8c92ec9544b3b5a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 11:40:25 2009 -0800
+
+    case insensitive matching in CONTRIBUTORS file
+    
+    R=rsc
+    https://golang.org/cl/157043
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

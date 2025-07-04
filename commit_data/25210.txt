@@ -1,0 +1,12 @@
+commit d86088037762bac6ca95c5e590529a29b5996469
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 9 14:20:36 2015 +1100
+
+    doc: update go1.6.txt
+    
+    Change-Id: I1164c7a76cf6e6c48ca5153d4c163f5962c4f0cd
+    Reviewed-on: https://go-review.googlesource.com/17622
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

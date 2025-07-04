@@ -1,0 +1,20 @@
+commit 1cb7f85d74f03668294267d465b9c20d49318ab9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 14:58:28 2011 -0500
+
+    gc: 0 expected bugs
+    
+    Now that Luuk's qualified exporting code
+    is in, fixing this bug is trivial.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5479048
+
+ src/cmd/gc/subr.c                        |  6 +-----
+ test/bugs/bug367.dir/main.go             | 12 ------------
+ test/fixedbugs/bug367.dir/main.go        | 24 ++++++++++++++++++++++++
+ test/{bugs => fixedbugs}/bug367.dir/p.go |  7 +++----
+ test/{bugs => fixedbugs}/bug367.go       |  2 +-
+ test/golden.out                          |  4 ----
+ 6 files changed, 29 insertions(+), 26 deletions(-)

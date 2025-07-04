@@ -1,0 +1,73 @@
+commit c4afec232cec72ce030139ae2772450fad89f188
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 19 08:28:24 2023 -0700
+
+    go/types, types2: consider shared methods when unifying against interfaces
+    
+    When unifying two types A and B where one or both of them are
+    interfaces, consider the shared method signatures in unification.
+    
+    1) If a defined interface (an interface with a type name) is unified
+       with another (defined) interface, currently they must originate
+       in the same type declaration (same origin) for unification to
+       succeed. This is more restrictive than necessary for assignments:
+       when interfaces are assigned to each other, corresponding methods
+       must match, but the interfaces don't have to be identical.
+       In unification, we don't know which direction the assignment is
+       happening (or if we have an assignment in the first place), but
+       in any case one interface must implement the other. Thus, we
+       check that one interface has a subset of the methods of the other
+       and that corresponding method signatures unify.
+       The assignment or instantiation may still not be possible but that
+       will be checked when instantiation and parameter passing is checked.
+       If two interfaces are compared as part of another type during
+       unification, the types must be equal. If they are not, unifying
+       a method subset may still succeed (and possibly produce more type
+       arguments), but that is ok: again, subsequent instantiation and
+       assignment will fail if the types are indeed not identical.
+    
+    2) In a non-interface type is unified with an interface, currently
+       unification fails. If this unification is a consequence of an
+       assignment (parameter passing), this is again too restrictive:
+       the non-interface type must only implement the interface (possibly
+       among other type set requirements). In any case, all methods of the
+       interface type must be present in the non-interface type and unify
+       with the corresponding interface methods. If they don't, unification
+       will fail either way. If they do, we may infer additional type
+       arguments. Again, the resulting types may still not be correct but
+       that will be determined by the instantiation and parameter passing
+       or assignment checks. If the non-interface type and the interface
+       type appear as component of another type, unification may now
+       produce additional type arguments. But that is again ok because the
+       respective types won't pass instantiation or assignment checks since
+       they are different types.
+    
+    This CL introduces a new Config flag, EnableInterfaceInference, to
+    enable this new behavior. If not set, unification remains unchanged.
+    To be able to test the flag durign unification, a *Checker is passed
+    and stored with the unifier.
+    
+    For #60353.
+    Fixes #41176.
+    Fixes #57192.
+    
+    Change-Id: I6b167a9afa378d0682e9b101d9d86f5777308af7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go             |   5 +
+ src/cmd/compile/internal/types2/check_test.go      |   1 +
+ src/cmd/compile/internal/types2/infer.go           |   2 +-
+ src/cmd/compile/internal/types2/unify.go           | 154 ++++++++++++++++++++-
+ src/go/types/api.go                                |   5 +
+ src/go/types/check_test.go                         |   1 +
+ src/go/types/generate_test.go                      |  11 +-
+ src/go/types/infer.go                              |   2 +-
+ src/go/types/unify.go                              | 154 ++++++++++++++++++++-
+ .../types/testdata/fixedbugs/issue41176.go         |  23 +++
+ .../types/testdata/fixedbugs/issue57192.go         |  24 ++++
+ 11 files changed, 364 insertions(+), 18 deletions(-)

@@ -1,0 +1,25 @@
+commit d240226fe5aa94a41f1bdd481e71b88d2a987272
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 14 14:07:37 2023 -0400
+
+    cmd/compile: rework marking of dead hidden closure functions
+    
+    This patch generalizes the code in the inliner that marks unreferenced
+    hidden closure functions as dead. Rather than doing the marking on the
+    fly (previous approach), this new approach does a single pass at the
+    end of inlining, which catches more dead functions.
+    
+    Fixes #59638.
+    Updates #59404.
+    Updates #59547.
+    
+    Change-Id: I54fd63e9e37c9123b08a3e7def7d1989919bba91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484859
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 95 +++++++++++++++++++++-------------
+ test/fixedbugs/issue59638.go           | 65 +++++++++++++++++++++++
+ 2 files changed, 124 insertions(+), 36 deletions(-)

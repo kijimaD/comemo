@@ -1,0 +1,20 @@
+commit 75d367e34b42b8428d535122eadead87a0c11c8c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 19 08:19:50 2016 -0800
+
+    cmd/compile: restore zero assignment optimization for non-pointer types
+    
+    golang.org/cl/31572 disabled some write barrier optimizations, but
+    inadvertantly disabled optimizations for some non-pointer composite
+    literal assignments too.
+    
+    Fixes #18370.
+    
+    Change-Id: Ia25019bd3016b6ab58173298c7d16202676bce6b
+    Reviewed-on: https://go-review.googlesource.com/34564
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 4 ++++
+ 1 file changed, 4 insertions(+)

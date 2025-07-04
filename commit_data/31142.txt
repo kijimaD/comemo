@@ -1,0 +1,23 @@
+commit 7337181daf686714e2de88aa93c793ae441c94fa
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 13 18:00:35 2017 +0900
+
+    net: validate network in Dial{,IP} and Listen{Packet,IP} for IP networks
+    
+    The argument of the first parameter for connection setup functions on
+    IP networks must contain a protocol name or number. This change adds
+    validation for arguments of IP networks to connection setup functions.
+    
+    Fixes #18185.
+    
+    Change-Id: I6aaedd7806e3ed1043d4b1c834024f350b99361d
+    Reviewed-on: https://go-review.googlesource.com/40512
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go            | 21 ++++++++------
+ src/net/iprawsock.go       |  2 +-
+ src/net/iprawsock_posix.go |  4 +--
+ src/net/iprawsock_test.go  | 72 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 87 insertions(+), 12 deletions(-)

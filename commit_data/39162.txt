@@ -1,0 +1,22 @@
+commit 599ec7720fefdb60344bb4a9dab481ed302aa473
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon May 6 14:06:47 2019 -0400
+
+    crypto/x509: add support for Ed25519 certificates and keys
+    
+    Based on RFC 8410.
+    
+    Updates #25355
+    
+    Change-Id: If7abb7eeb0ede10a9bb3d2004f2116e587c6207a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175478
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/pkcs8.go      |  36 ++++++++++--
+ src/crypto/x509/pkcs8_test.go |   9 +++
+ src/crypto/x509/x509.go       | 130 ++++++++++++++++++++++++++++++------------
+ src/crypto/x509/x509_test.go  | 124 ++++++++++++++++++++++++++++++++++++----
+ src/go/build/deps_test.go     |   2 +-
+ 5 files changed, 246 insertions(+), 55 deletions(-)

@@ -1,0 +1,24 @@
+commit 30e9bfbcefb9492d66bd56ea7df6d6426ae8a711
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 13:30:36 2021 -0700
+
+    cmd/compile/internal/types2: implement deduplication of instances using the Environment
+    
+    This is a port of CL 344390 with adjustments to names to make it
+    work for types2.
+    
+    Change-Id: I05c33d9858f973adfbf48d8a1faaf377280f6985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348572
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/reader2.go          |  4 +-
+ src/cmd/compile/internal/types2/check.go           |  4 +-
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/environment.go     | 54 +++++++++++++++++++
+ src/cmd/compile/internal/types2/instantiate.go     | 46 ++++++----------
+ .../compile/internal/types2/instantiate_test.go    | 62 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/named.go           | 22 +++++---
+ src/cmd/compile/internal/types2/subst.go           | 44 +++++++--------
+ src/cmd/compile/internal/types2/typestring.go      | 55 ++++++++-----------
+ 9 files changed, 195 insertions(+), 98 deletions(-)

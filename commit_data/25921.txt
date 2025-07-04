@@ -1,0 +1,14 @@
+commit ee177279a00398d7a986fbaa1db527845c6a888b
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Sun Aug 16 14:59:23 2015 +0200
+
+    misc/cgo: fix wrong quote character
+    
+    Single quotes to not expand variables inside of them.
+    
+    Change-Id: I4a0622c0aebfc1c3f9d299f93f7a8253893b5858
+    Reviewed-on: https://go-review.googlesource.com/13661
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

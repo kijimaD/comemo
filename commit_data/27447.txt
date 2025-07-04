@@ -1,0 +1,20 @@
+commit d8bd7b24fcc72fb4117f7fc249ceaa79f69d4e00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 17:59:12 2016 +0000
+
+    net/http: update bundled x/net/http2 for Server context changes
+    
+    Updates x/net/http2 to golang.org/cl/23220
+    (http2: with Go 1.7 set Request.Context in ServeHTTP handlers)
+    
+    Fixes #15134
+    
+    Change-Id: I73bac2601118614528f051e85dab51dc48e74f41
+    Reviewed-on: https://go-review.googlesource.com/23221
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/h2_bundle.go  | 49 +++++++++++++++++++++++++++++++++++++++-------
+ src/net/http/serve_test.go | 32 +++++++++++++++++++++---------
+ 2 files changed, 65 insertions(+), 16 deletions(-)

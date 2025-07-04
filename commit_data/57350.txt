@@ -1,0 +1,20 @@
+commit e7047bd14d78022d514566d15aed56fc5056d3e2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 23:57:41 2024 +0700
+
+    cmd/compile/internal/liveness: use slices.Reverse
+    
+    Now that we're bootstrapping from a toolchain that has the slices
+    package.
+    
+    Updates #64751
+    
+    Change-Id: Id50d76de05e353ef06d64b47ad6400b2b7572205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610775
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/liveness/intervals.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

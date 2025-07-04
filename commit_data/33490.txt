@@ -1,0 +1,26 @@
+commit d7ac9bb9927bfdbb1e6aa582d94e10b3374b88ce
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Nov 8 09:43:56 2017 +0100
+
+    cmd/compile: do not write slices/strings > 2g
+    
+    The linker will refuse to work on objects larger than
+    2e9 bytes (see issue #9862 for why).
+    
+    With this change, the compiler gives a useful error
+    message explaining this, instead of leaving it to the
+    linker to give a cryptic message later.
+    
+    Fixes #1700.
+    
+    Change-Id: I3933ce08ef846721ece7405bdba81dff644cb004
+    Reviewed-on: https://go-review.googlesource.com/74330
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go  | 19 ++++++++++++++-----
+ src/cmd/compile/internal/gc/ssa.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go |  2 +-
+ src/cmd/link/internal/ld/data.go    |  6 ++++--
+ 4 files changed, 20 insertions(+), 9 deletions(-)

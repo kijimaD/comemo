@@ -1,0 +1,19 @@
+commit fefadcf51cc8b00fad84f6c0a8ed79bf6aeff46f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 11:46:50 2011 -0700
+
+    netchan: move to old/netchan
+    Part of Go version 1 rearrangement.
+    No gofix, since the new name is not in Go 1.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5245055
+
+ src/pkg/Makefile                          | 2 +-
+ src/pkg/{ => old}/netchan/Makefile        | 6 +++---
+ src/pkg/{ => old}/netchan/common.go       | 0
+ src/pkg/{ => old}/netchan/export.go       | 0
+ src/pkg/{ => old}/netchan/import.go       | 0
+ src/pkg/{ => old}/netchan/netchan_test.go | 0
+ 6 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 8366497625d308aa9b0bc022ad1efd2a5d45bb32
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 10:29:47 2023 -0400
+
+    cmd/go: convert semver.IsValid to gover.ModIsValid
+    
+    Change-Id: Id584c4bd6d1c12fd085414188bc7e7ca08164c04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497416
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/gover/mod.go       | 22 ++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go        |  5 +++--
+ src/cmd/go/internal/modfetch/cache.go  | 12 +++++------
+ src/cmd/go/internal/modload/list.go    |  2 +-
+ src/cmd/go/internal/modload/modfile.go |  3 +--
+ src/cmd/go/internal/modload/mvs.go     |  2 +-
+ src/cmd/go/internal/modload/query.go   | 38 +++++++++-------------------------
+ 7 files changed, 44 insertions(+), 40 deletions(-)

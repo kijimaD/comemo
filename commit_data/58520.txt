@@ -1,0 +1,27 @@
+commit 2b2314e9f6103de322b2e247387c8b01fd0cd5a4
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Dec 9 11:31:22 2024 -0800
+
+    crypto/x509: properly check for IPv6 hosts in URIs
+    
+    When checking URI constraints, use netip.ParseAddr, which understands
+    zones, unlike net.ParseIP which chokes on them. This prevents zone IDs
+    from mistakenly satisfying URI constraints.
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    Fixes #71156
+    Fixes CVE-2024-45341
+    
+    Change-Id: Iecac2529f3605382d257996e0fb6d6983547e400
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1700
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643096
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/name_constraints_test.go | 17 +++++++++++++++++
+ src/crypto/x509/verify.go                |  7 +++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

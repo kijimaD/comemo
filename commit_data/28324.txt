@@ -1,0 +1,16 @@
+commit e4691d92dac9c46ea9ae380d5110dbceff45fad3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 8 23:58:17 2016 +0000
+
+    net/http: skip test needing good DNS in short mode, except on builders
+    
+    Fixes #16732
+    
+    Change-Id: If0a7f9425cf75b9e31b3091c43cb23d6e039f568
+    Reviewed-on: https://go-review.googlesource.com/28782
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/transport_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

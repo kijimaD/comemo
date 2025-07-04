@@ -1,0 +1,20 @@
+commit a16e631e7434b620cf74835625265ab07e973630
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Feb 7 18:32:27 2017 -0500
+
+    cmd/compile: remove unnecessary type conversions on s390x
+    
+    Some rules insert MOVDreg ops to ensure that type changes are kept.
+    If there is no type change (or the input is constant) then the MOVDreg
+    can be omitted, allowing further optimization.
+    
+    Reduces the size of the .text section in the asm tool by ~33KB.
+    
+    Change-Id: I386883bb35b843c7b99a269cd6840dca77cf4371
+    Reviewed-on: https://go-review.googlesource.com/36547
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 10 ++++-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 61 ++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)

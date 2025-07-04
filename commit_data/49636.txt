@@ -1,0 +1,20 @@
+commit 1355ea3045cd1327740ecfb7387918db45bf4f89
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 13:03:51 2022 -0700
+
+    cmd/compile: remove -importmap flag
+    
+    Obsoleted by -importcfg, and no longer used by anything.
+    
+    Updates #51225.
+    
+    Change-Id: I49e646d2728347f862f90805051bb03dd4f4bed2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415235
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/doc.go                |  3 ---
+ src/cmd/compile/internal/base/flag.go | 19 +------------------
+ 2 files changed, 1 insertion(+), 21 deletions(-)

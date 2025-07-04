@@ -1,0 +1,15 @@
+commit ead7a6d47a3cce69a5e102ed21ffb6eedc9ce824
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Aug 12 16:36:18 2008 -0700
+
+    i2s and i2i
+    
+    R=r
+    OCL=14140
+    CL=14140
+
+ src/cmd/6g/gen.c | 15 +++++++++------
+ src/cmd/gc/go.h  |  4 ++--
+ src/cmd/gc/go.y  | 11 ++++++++---
+ src/cmd/gc/lex.c | 17 +++++++++--------
+ 4 files changed, 28 insertions(+), 19 deletions(-)

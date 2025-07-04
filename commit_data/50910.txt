@@ -1,0 +1,31 @@
+commit 7ffc1e47b4e3b163f06fc33c9adbc29cb1622d47
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Oct 7 22:42:15 2022 +0800
+
+    reflect: panic when Value.Equal using two non-comparable values
+    
+    Assuming the two values are valid and non-comparable, Equal should panic.
+    
+            x := reflect.ValueOf([]int{1, 2, 3})
+            x.Equal(x) // can not report false, should panic
+    
+    Assuming one of them is non-comparable and the other is invalid, it should
+    always report false.
+    
+            x := reflect.ValueOf([]int{1, 2, 3})
+            y := reflect.ValueOf(nil)
+            x.Equal(y) // should report false
+    
+    For #46746.
+    
+    Change-Id: Ifecd77ca0b3de3019fae2be39048f9277831676c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440037
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/all_test.go | 50 ++++++++++++++++++++++++++++++++++---------------
+ src/reflect/value.go    |  5 +++--
+ 2 files changed, 38 insertions(+), 17 deletions(-)

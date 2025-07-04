@@ -1,0 +1,12 @@
+commit aad62bf409da1890cff5591954099e7982bd2840
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 23 14:26:28 2011 +1100
+
+    misc/vim: remove 'closed' as a builtin function.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4285059
+
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

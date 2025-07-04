@@ -1,0 +1,16 @@
+commit 5759c6022c7d5fe43357fc69b5b0b2eec28c01a9
+Author: Adam Langley <agl@golang.org>
+Date:   Tue May 22 10:33:14 2012 -0400
+
+    crypto/ecdsa: add full set of NIST test vectors.
+    
+    This includes the NIST test suite for ECDSA and alters the test to
+    parse and evaluate it.
+    
+    R=golang-dev, bradfitz, rsc, b
+    CC=golang-dev
+    https://golang.org/cl/6219058
+
+ src/pkg/crypto/ecdsa/ecdsa_test.go           | 256 ++++++++++++---------------
+ src/pkg/crypto/ecdsa/testdata/SigVer.rsp.bz2 | Bin 0 -> 95485 bytes
+ 2 files changed, 110 insertions(+), 146 deletions(-)

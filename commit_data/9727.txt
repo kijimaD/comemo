@@ -1,0 +1,31 @@
+commit b4e1ca25b1fe02f37dcf6371732727fdd5036909
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Sun Sep 18 19:10:15 2011 -0700
+
+    exp/template/html: allow quotes on either side of conditionals and dynamic HTML names
+    
+    This addresses several use cases:
+    
+    (1) <h{{.HeaderLevel}}> used to build hierarchical documents.
+    (2) <input on{{.EventType}}=...> used in widgets.
+    (3) <div {{" dir=ltr"}}> used to embed bidi-hints.
+    
+    It also makes sure that we treat the two templates below the same:
+    
+    <img src={{if .Avatar}}"{{.Avatar}}"{{else}}"anonymous.png"{{end}}>
+    <img src="{{if .Avatar}}{{.Avatar}}{{else}}anonymous.png{{end}}">
+    
+    This splits up tTag into a number of sub-states and adds testcases.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5043042
+
+ src/pkg/exp/template/html/content.go      |   9 ++-
+ src/pkg/exp/template/html/content_test.go |  26 ++++++++
+ src/pkg/exp/template/html/context.go      |  55 ++++++++++++++--
+ src/pkg/exp/template/html/escape.go       |  49 ++++++++++++++
+ src/pkg/exp/template/html/escape_test.go  |  63 +++++++++++++++++-
+ src/pkg/exp/template/html/html.go         |  19 ++++++
+ src/pkg/exp/template/html/transition.go   | 105 ++++++++++++++++++++----------
+ 7 files changed, 286 insertions(+), 40 deletions(-)

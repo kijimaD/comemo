@@ -1,0 +1,24 @@
+commit 8891b82332de4afa23f935b58263d08a3a5c6d95
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 5 22:35:18 2020 -0400
+
+    cmd/go: remove a bogus assertion in mod_convert_dep
+    
+    The removed line assumed that the script's WORK directory is not a
+    child of any directory containing version-control metadata.
+    While that assumption does hold in most cases, it does not hold when,
+    for example, $TMPDIR is $HOME/tmp and $HOME/.git/config exists.
+    
+    A similar situation may or may not arise when using
+    golang.org/x/build/cmd/release. Either way, the assertion is incorrect
+    and was interfering with local testing for #39385.
+    
+    Updates #39385
+    Fixes #39431
+    
+    Change-Id: I67813d7ce455aa9b56a6eace6eddebf48d0f7fa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236818
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/testdata/script/mod_convert_dep.txt | 1 -
+ 1 file changed, 1 deletion(-)

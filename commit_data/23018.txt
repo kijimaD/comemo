@@ -1,0 +1,15 @@
+commit d2130573e871dc7437b14713c2a7107a20bb0390
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 11:20:08 2015 -0700
+
+    go/scanner: don't return previous comment as literal value if none is expected
+    
+    Fixes #10213.
+    
+    Change-Id: Ia587dd51eea702058da926717ad305792c9fc42b
+    Reviewed-on: https://go-review.googlesource.com/10081
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/scanner/scanner.go      |  3 ++-
+ src/go/scanner/scanner_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

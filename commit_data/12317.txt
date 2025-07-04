@@ -1,0 +1,12 @@
+commit 04450d8a26406f46f2fc6659469b872ce0b85579
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Mar 1 20:13:04 2012 -0300
+
+    cmd/go: fix -I flag for gc command
+    
+    R=rsc, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5711056
+
+ src/cmd/go/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

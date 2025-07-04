@@ -1,0 +1,13 @@
+commit 895e48cac53a12f0793bacc872cdc1532170637f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 18:09:38 2014 +1100
+
+    reflect: remove a double negative, use the rtype.pointers method for clarity
+    
+    Change-Id: Ia24e9f0da1622cededa17b2c54ff9e4bb80cf946
+    Reviewed-on: https://go-review.googlesource.com/1633
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

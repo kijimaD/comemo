@@ -1,0 +1,30 @@
+commit 8ac98e7b3fcadc497c4ca7d8637ba9578e8159be
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 27 16:48:23 2019 +0000
+
+    runtime: add scavtrace debug flag and remove scavenge info from gctrace
+    
+    Currently, scavenging information is printed if the gctrace debug
+    variable is >0. Scavenging information is also printed naively, for
+    every page scavenged, resulting in a lot of noise when the typical
+    expectation for GC trace is one line per GC.
+    
+    This change adds a new GODEBUG flag called scavtrace which prints
+    scavenge information roughly once per GC cycle and removes any scavenge
+    information from gctrace. The exception is debug.FreeOSMemory, which may
+    force an additional line to be printed.
+    
+    Fixes #32952.
+    
+    Change-Id: I4177dcb85fe3f9653fd74297ea93c97c389c1811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212640
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/extern.go      | 28 +++++++++++++---------------
+ src/runtime/mgcscavenge.go | 35 ++++++++++++++++++++++++++++-------
+ src/runtime/mheap.go       |  9 +++------
+ src/runtime/mpagealloc.go  |  5 +++++
+ src/runtime/runtime1.go    |  2 ++
+ 5 files changed, 51 insertions(+), 28 deletions(-)

@@ -1,0 +1,18 @@
+commit 44ca04d3d60250abe69c0f8fe000666fa4e91386
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 19:53:08 2010 -0700
+
+    big, bytes: move assembly externs to separate file
+    to make it easier to build package without assembly.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/1680045
+
+ src/pkg/big/Makefile        |  1 +
+ src/pkg/big/arith.go        | 11 -----------
+ src/pkg/big/arith_decl.go   | 18 ++++++++++++++++++
+ src/pkg/bytes/Makefile      |  1 +
+ src/pkg/bytes/bytes.go      |  3 ---
+ src/pkg/bytes/bytes_decl.go |  8 ++++++++
+ 6 files changed, 28 insertions(+), 14 deletions(-)

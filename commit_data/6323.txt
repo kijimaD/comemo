@@ -1,0 +1,12 @@
+commit c20e024df3d7ecd84572184d53a9848d36ab85d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 16:19:17 2010 -0700
+
+    godoc: default filter file name should be ""
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2241043
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

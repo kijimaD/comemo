@@ -1,0 +1,25 @@
+commit 71052169be2d4de14f2e93ea6ba9811b54434bc3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 03:38:04 2023 +0000
+
+    cmd/trace/v2: add support for task and region endpoints
+    
+    This change fills out the last of cmd/trace's subpages for v2 traces by
+    adding support for task and region endpoints.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: Ifc4c660514b3904788785a1b20e3abc3bb9e55f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542077
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/v2/goroutines.go |   6 +-
+ src/cmd/trace/v2/main.go       |   8 +
+ src/cmd/trace/v2/pprof.go      |  90 -------
+ src/cmd/trace/v2/regions.go    | 529 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/tasks.go      | 477 +++++++++++++++++++++++++++++++++++++
+ src/internal/trace/summary.go  |   6 +
+ 6 files changed, 1023 insertions(+), 93 deletions(-)

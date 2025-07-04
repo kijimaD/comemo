@@ -1,0 +1,24 @@
+commit 76f3e0ac8d094b2bc5f8a3fb8a19d1d17a07fe2c
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Fri Nov 1 11:17:49 2024 +0800
+
+    go/types, types2: print variadic argument in dotdotdot form in error message
+    
+    If a variadic call to a variadic function has not enough/too many
+    arguments, then print the variadic argument in dotdotdot form
+    instead of as a slice type in the error message.
+    
+    Fixes #70150
+    
+    Change-Id: I81a802619b3b66195b303e2df2bafeb1433ad310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624335
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/call.go             |  2 +-
+ src/go/types/call.go                                |  2 +-
+ src/internal/types/testdata/fixedbugs/issue70150.go | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

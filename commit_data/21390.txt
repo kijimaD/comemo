@@ -1,0 +1,110 @@
+commit 0e80b2e082db784c55ec26ed997226e11c4f5f46
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 19 22:59:58 2015 +0300
+
+    cmd/gc: capture variables by value
+    
+    Language specification says that variables are captured by reference.
+    And that is what gc compiler does. However, in lots of cases it is
+    possible to capture variables by value under the hood without
+    affecting visible behavior of programs. For example, consider
+    the following typical pattern:
+    
+            func (o *Obj) requestMany(urls []string) []Result {
+                    wg := new(sync.WaitGroup)
+                    wg.Add(len(urls))
+                    res := make([]Result, len(urls))
+                    for i := range urls {
+                            i := i
+                            go func() {
+                                    res[i] = o.requestOne(urls[i])
+                                    wg.Done()
+                            }()
+                    }
+                    wg.Wait()
+                    return res
+            }
+    
+    Currently o, wg, res, and i are captured by reference causing 3+len(urls)
+    allocations (e.g. PPARAM o is promoted to PPARAMREF and moved to heap).
+    But all of them can be captured by value without changing behavior.
+    
+    This change implements simple strategy for capturing by value:
+    if a captured variable is not addrtaken and never assigned to,
+    then it is captured by value (it is effectively const).
+    This simple strategy turned out to be very effective:
+    ~80% of all captures in std lib are turned into value captures.
+    The remaining 20% are mostly in defers and non-escaping closures,
+    that is, they do not cause allocations anyway.
+    
+    benchmark                                    old allocs     new allocs     delta
+    BenchmarkCompressedZipGarbage                153            126            -17.65%
+    BenchmarkEncodeDigitsSpeed1e4                91             69             -24.18%
+    BenchmarkEncodeDigitsSpeed1e5                178            129            -27.53%
+    BenchmarkEncodeDigitsSpeed1e6                1510           1051           -30.40%
+    BenchmarkEncodeDigitsDefault1e4              100            75             -25.00%
+    BenchmarkEncodeDigitsDefault1e5              193            139            -27.98%
+    BenchmarkEncodeDigitsDefault1e6              1420           985            -30.63%
+    BenchmarkEncodeDigitsCompress1e4             100            75             -25.00%
+    BenchmarkEncodeDigitsCompress1e5             193            139            -27.98%
+    BenchmarkEncodeDigitsCompress1e6             1420           985            -30.63%
+    BenchmarkEncodeTwainSpeed1e4                 109            81             -25.69%
+    BenchmarkEncodeTwainSpeed1e5                 211            151            -28.44%
+    BenchmarkEncodeTwainSpeed1e6                 1588           1097           -30.92%
+    BenchmarkEncodeTwainDefault1e4               103            77             -25.24%
+    BenchmarkEncodeTwainDefault1e5               199            143            -28.14%
+    BenchmarkEncodeTwainDefault1e6               1324           917            -30.74%
+    BenchmarkEncodeTwainCompress1e4              103            77             -25.24%
+    BenchmarkEncodeTwainCompress1e5              190            137            -27.89%
+    BenchmarkEncodeTwainCompress1e6              1327           919            -30.75%
+    BenchmarkConcurrentDBExec                    16223          16220          -0.02%
+    BenchmarkConcurrentStmtQuery                 17687          16182          -8.51%
+    BenchmarkConcurrentStmtExec                  5191           5186           -0.10%
+    BenchmarkConcurrentTxQuery                   17665          17661          -0.02%
+    BenchmarkConcurrentTxExec                    15154          15150          -0.03%
+    BenchmarkConcurrentTxStmtQuery               17661          16157          -8.52%
+    BenchmarkConcurrentTxStmtExec                3677           3673           -0.11%
+    BenchmarkConcurrentRandom                    14000          13614          -2.76%
+    BenchmarkManyConcurrentQueries               25             22             -12.00%
+    BenchmarkDecodeComplex128Slice               318            252            -20.75%
+    BenchmarkDecodeFloat64Slice                  318            252            -20.75%
+    BenchmarkDecodeInt32Slice                    318            252            -20.75%
+    BenchmarkDecodeStringSlice                   2318           2252           -2.85%
+    BenchmarkDecode                              11             8              -27.27%
+    BenchmarkEncodeGray                          64             56             -12.50%
+    BenchmarkEncodeNRGBOpaque                    64             56             -12.50%
+    BenchmarkEncodeNRGBA                         67             58             -13.43%
+    BenchmarkEncodePaletted                      68             60             -11.76%
+    BenchmarkEncodeRGBOpaque                     64             56             -12.50%
+    BenchmarkGoLookupIP                          153            139            -9.15%
+    BenchmarkGoLookupIPNoSuchHost                508            466            -8.27%
+    BenchmarkGoLookupIPWithBrokenNameServer      245            226            -7.76%
+    BenchmarkClientServer                        62             59             -4.84%
+    BenchmarkClientServerParallel4               62             59             -4.84%
+    BenchmarkClientServerParallel64              62             59             -4.84%
+    BenchmarkClientServerParallelTLS4            79             76             -3.80%
+    BenchmarkClientServerParallelTLS64           112            109            -2.68%
+    BenchmarkCreateGoroutinesCapture             10             6              -40.00%
+    BenchmarkAfterFunc                           1006           1005           -0.10%
+    
+    Fixes #6632.
+    
+    Change-Id: I0cd51e4d356331d7f3c5f447669080cd19b0d2ca
+    Reviewed-on: https://go-review.googlesource.com/3166
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/closure.c     | 181 +++++++++++++++++++++++++++++++----------------
+ src/cmd/gc/dcl.c         |   1 -
+ src/cmd/gc/esc.c         |  16 +++--
+ src/cmd/gc/fmt.c         |   6 ++
+ src/cmd/gc/go.h          |  10 ++-
+ src/cmd/gc/lex.c         |  18 +++--
+ src/cmd/gc/range.c       |   4 +-
+ src/cmd/gc/typecheck.c   |  50 ++++++++++---
+ src/cmd/gc/walk.c        |   2 +-
+ src/runtime/proc_test.go |  20 ++++++
+ test/closure1.go         |  19 +++++
+ test/closure2.go         |  64 +++++++++++++++++
+ test/escape2.go          |  84 +++++++++++++++++-----
+ test/escape2n.go         |  84 +++++++++++++++++-----
+ 14 files changed, 441 insertions(+), 118 deletions(-)

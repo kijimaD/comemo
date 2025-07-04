@@ -1,0 +1,17 @@
+commit bb8bbb29088138b3cf86fd4c001ecf9ed088b505
+Author: Paul Lalonde <paul.a.lalonde@gmail.com>
+Date:   Thu Sep 8 16:32:40 2011 +1000
+
+    Windows: net, syscall: implement SetsockoptIPMReq(), move to winsock v2.2 for multicast support.
+    I don't know the protocol regarding the zsyscall files which appear to
+    be hand-generated, so I've re-done them and added them to the change.
+    
+    R=rsc, alex.brainman, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4975060
+
+ src/pkg/net/fd_windows.go                 |  2 +-
+ src/pkg/syscall/syscall_windows.go        | 38 ++++++++++++++++---------------
+ src/pkg/syscall/zsyscall_windows_386.go   | 30 ++++++++++++------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 30 ++++++++++++------------
+ 4 files changed, 51 insertions(+), 49 deletions(-)

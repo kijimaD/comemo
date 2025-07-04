@@ -1,0 +1,27 @@
+commit 02d234e34dafe81bffb0165970e4d2a914d5abcd
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 24 12:14:38 2023 +0000
+
+    Revert "cmd/compile: sparse conditional constant propagation"
+    
+    This reverts CL 483875.
+    
+    Reason for revert: appears to cause internal compiler errors on the ssacheck builder.
+    
+    Change-Id: I662418384291470c1962c417797a5890dd9aa7a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497855
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   2 -
+ src/cmd/compile/internal/ssa/block.go           |  10 +-
+ src/cmd/compile/internal/ssa/compile.go         |   1 -
+ src/cmd/compile/internal/ssa/sccp.go            | 576 ------------------------
+ src/cmd/compile/internal/ssa/sccp_test.go       |  95 ----
+ test/checkbce.go                                |   4 -
+ test/codegen/compare_and_branch.go              |  12 +-
+ test/loopbce.go                                 |  33 +-
+ 8 files changed, 20 insertions(+), 713 deletions(-)

@@ -1,0 +1,17 @@
+commit 034d5fcc30ff97350d16df65d403cfcc8ac5d22b
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 5 17:53:08 2013 -0700
+
+    runtime: Use old reflect.call implementation from cgo.
+    
+    Basically a partial rollback of 12053043 until I can
+    figure out what is really going on.
+    Fixes bug 6051.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12496043
+
+ misc/cgo/test/callback.go | 1 -
+ src/pkg/runtime/cgocall.c | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

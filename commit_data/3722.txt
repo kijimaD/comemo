@@ -1,0 +1,30 @@
+commit 72ec930fa70c20ce69b21bf32a7916c04c2e9c2f
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 2 12:02:16 2009 -0800
+
+    Fix cgo for GCC 4.4
+    
+    Firstly, with -Werror, GCC switched to printing warnings starting
+    with "error:". Widening the string matches solves this as the messages
+    are otherwise unchanged.
+    
+    Secondly, GCC 4.4 outputs DWARF sections with with NUL bytes in all
+    the offsets and requires the relocation section for .debug_info to be
+    processed in order to result in valid DWARF data. Thus we add minimal
+    handling for relocation sections, which is sufficient for our needs.
+    
+    BUG=1
+    Fixes #1.
+    
+    R=rsc, iant
+    CC=go-dev
+    http://go/go-review/1017003
+
+ src/cmd/cgo/gcc.go                                 |  12 +-
+ src/pkg/debug/elf/file.go                          | 130 +++++++++++++++++++++
+ src/pkg/debug/elf/file_test.go                     |  51 ++++++++
+ .../testdata/go-relocation-test-gcc424-x86-64.o    | Bin 0 -> 3088 bytes
+ .../testdata/go-relocation-test-gcc441-x86-64.o    | Bin 0 -> 2936 bytes
+ .../elf/testdata/go-relocation-test-gcc441-x86.o   | Bin 0 -> 1884 bytes
+ src/pkg/encoding/binary/binary.go                  |  49 ++++++++
+ 7 files changed, 236 insertions(+), 6 deletions(-)

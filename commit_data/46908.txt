@@ -1,0 +1,36 @@
+commit cfe6763783615233ec7ae863784b898718d14c40
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 13 16:49:27 2021 -0400
+
+    internal/fuzz: fix bugs with minimization
+    
+    This pulls in some code and tests from CL 353355.
+    
+    This change makes some refactors for when we read
+    to and write from memory during minimization.
+    That fixes a bug when minimizing interesting inputs.
+    Now, if an error occurs while minimizing an interesting
+    input, that value will continue to be minimized as a
+    crash, and returned to the user.
+    
+    This change also allows minimization of a crash that
+    occurred during the warmup phase. We don't want to
+    minimize failures in the seed corpus, but if an entry
+    in the cache causes a new failure, then there's no
+    compelling reason why we shouldn't try to minimize it.
+    
+    Fixes #48731
+    
+    Change-Id: I7262cecd8ea7ae6fdf932f3a36db55fb062a1f2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355691
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 112 +++++++++++++--------
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   |  38 ++++++-
+ src/internal/fuzz/fuzz.go                          |   6 +-
+ src/internal/fuzz/minimize_test.go                 |  13 ++-
+ src/internal/fuzz/worker.go                        |  71 +++++++------
+ 5 files changed, 151 insertions(+), 89 deletions(-)

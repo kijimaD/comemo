@@ -1,0 +1,16 @@
+commit 5318a1b5b12d2836b23eb6b706f96f0247f2144a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 13:10:14 2014 -0400
+
+    database/sql: add Drivers, returning list of registered drivers
+    
+    Fixes #7969.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/158950043
+
+ src/database/sql/fakedb_test.go | 22 ++++++++++++++++++++++
+ src/database/sql/sql.go         | 11 +++++++++++
+ 2 files changed, 33 insertions(+)

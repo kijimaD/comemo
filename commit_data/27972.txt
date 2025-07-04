@@ -1,0 +1,16 @@
+commit 355d7fa8a8c362ee148d3394ce834d0b742c6872
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 22 18:59:20 2016 +0000
+
+    net/http: make Transport.CancelRequest doc recommend Request.WithContext
+    
+    The old deprecation docs were referencing another deprecated field.
+    
+    Fixes #16752
+    
+    Change-Id: I44a690048e00ddc790a80214ecb7f5bb0a5b7b34
+    Reviewed-on: https://go-review.googlesource.com/27510
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/net/http/transport.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

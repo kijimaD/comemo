@@ -1,0 +1,16 @@
+commit dc3961cfdc636ed6526a452051d41e1a12bfa386
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 23:49:27 2015 -0500
+
+    cmd/5l, cmd/8g: fix build failures
+    
+    REG_R0 etc are defined in <ucontext.h> on ARM systems.
+    Possible use of uninitialized n in 8g/reg.c.
+    
+    Change-Id: I6e8ce83a6515ca2b779ed8a344a25432db629cc2
+    Reviewed-on: https://go-review.googlesource.com/3578
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/5.out.h | 18 ++++++++++++++++++
+ src/cmd/8g/reg.c   |  2 ++
+ 2 files changed, 20 insertions(+)

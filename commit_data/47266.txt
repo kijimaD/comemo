@@ -1,0 +1,15 @@
+commit 76c48e9346bba98689e059aaee5952c17d45a48c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Nov 4 11:33:39 2021 -0700
+
+    net: add UDP allocs test
+    
+    Change-Id: Ibefd1ca0236d17d57fc5aa5938a56ae92272ca60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361396
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/udpsock_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

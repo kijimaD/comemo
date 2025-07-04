@@ -1,0 +1,24 @@
+commit b12e341616365cafd6f7eab9aaaa29c4155c1a76
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Wed May 30 17:11:31 2018 +0000
+
+    net/http: add js/wasm compatible DefaultTransport
+    
+    Adds a new Transport type for the js/wasm target that uses the
+    JavaScript Fetch API for sending HTTP requests. Support for
+    streaming response bodies is used when available, falling back
+    to reading the entire response into memory at once.
+    
+    Updates #25506
+    
+    Change-Id: Ie9ea433a1a2ed2f65b03c6cc84a16e70c06fcf5c
+    GitHub-Last-Rev: 6df646745b8e0474781f4b1a3084536e573e8e8c
+    GitHub-Pull-Request: golang/go#25550
+    Reviewed-on: https://go-review.googlesource.com/114515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go    |   1 +
+ src/net/http/roundtrip.go    |  15 +++
+ src/net/http/roundtrip_js.go | 267 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go    |   7 +-
+ 4 files changed, 285 insertions(+), 5 deletions(-)

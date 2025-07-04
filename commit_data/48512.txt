@@ -1,0 +1,21 @@
+commit 60be4ec096a180d74208230207e839bd2c8a030a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 16:06:19 2022 -0700
+
+    test: remove unused oldescape_linkname.dir directory
+    
+    CL 187617 removed oldescape_linkname.go, but forgot to remove this
+    directory too.
+    
+    Change-Id: I6d208c4d96d636b3df93adec1ee22fe1d4f5f61d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395259
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/oldescape_linkname.dir/linkname1.go | 10 ----------
+ test/oldescape_linkname.dir/linkname2.go | 13 -------------
+ test/oldescape_linkname.dir/linkname3.go | 11 -----------
+ 3 files changed, 34 deletions(-)

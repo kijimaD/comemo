@@ -1,0 +1,15 @@
+commit 839d47add56515fc9f127e60398ea7132f0b1d38
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 08:47:08 2013 -0800
+
+    net/http: add Transport.ResponseHeaderTimeout
+    
+    Update #3362
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7369055
+
+ src/pkg/net/http/transport.go      | 16 ++++++++++++-
+ src/pkg/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

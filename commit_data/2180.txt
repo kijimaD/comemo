@@ -1,0 +1,25 @@
+commit b3533dfd72ca505ac0f16e51f1a0e38f1ad90c34
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 15:40:31 2009 -0700
+
+    6g:
+            new type equality restrictions
+            better handling of renamed packages
+            "sys" is no longer available to programs
+    
+    R=ken
+    OCL=28553
+    CL=28578
+
+ src/cmd/6g/cgen.c   |  2 +-
+ src/cmd/6g/gsubr.c  |  4 +--
+ src/cmd/6g/obj.c    |  2 +-
+ src/cmd/gc/const.c  | 25 +++++++++-------
+ src/cmd/gc/dcl.c    |  5 ++--
+ src/cmd/gc/export.c | 20 ++-----------
+ src/cmd/gc/go.h     |  9 ++++--
+ src/cmd/gc/go.y     | 86 +++++++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/gc/lex.c    | 25 +++++++++++-----
+ src/cmd/gc/subr.c   | 71 +++++++++++++++++++++++++++++++------------
+ src/cmd/gc/walk.c   | 11 ++-----
+ 11 files changed, 172 insertions(+), 88 deletions(-)

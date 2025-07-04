@@ -1,0 +1,39 @@
+commit 5f859ba83d4c47b6a6a75559041207387acab7ba
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Sun May 31 13:17:59 2015 +0200
+
+    time: Use AppendFormat in Marshal[Text|JSON]
+    
+    The current implementations of MarshalJSON and MarshalText use
+    time.Format which returns a string (converted from a byte slice),
+    only to convert it back to a byte slice.
+    
+    Avoid the conversion (and thus an allocation) by directly appending
+    the formatted time to a preallocated byte slice, using the new
+    AppendFormat function, introduced in golang.org/cl/1760.
+    
+    This reduces the allocations done in Marshal[Text|JSON] by 50%.
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkMarshalJSON     626           507           -19.01%
+    BenchmarkMarshalText     598           511           -14.55%
+    
+    benchmark                old allocs     new allocs     delta
+    BenchmarkMarshalJSON     2              1              -50.00%
+    BenchmarkMarshalText     2              1              -50.00%
+    
+    benchmark                old bytes     new bytes     delta
+    BenchmarkMarshalJSON     96            48            -50.00%
+    BenchmarkMarshalText     96            48            -50.00%
+    
+    Fixes #11025
+    
+    Change-Id: I468f78d075a6ecc1cdc839df7fb407fbc6ff2e70
+    Reviewed-on: https://go-review.googlesource.com/10555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time.go      | 11 +++++++++--
+ src/time/time_test.go | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

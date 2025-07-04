@@ -1,0 +1,15 @@
+commit af8ca3387a62f83f9ee740d62c0007273e5fe1af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 9 19:54:09 2016 -0700
+
+    cmd/compile: improved format string handling, faster operation
+    
+    - only accept a-z, A-Z as format verbs
+    - blacklist vendored math package (no need to include it)
+    
+    Change-Id: Ica0fcbfe712369f79dd1d3472dfd4759b8bc3752
+    Reviewed-on: https://go-review.googlesource.com/28953
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go | 162 ++++++++++++++------------------------------
+ 1 file changed, 50 insertions(+), 112 deletions(-)

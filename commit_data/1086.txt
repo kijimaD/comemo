@@ -1,0 +1,13 @@
+commit d5ba668eddd4be60ffdc0ad2ab32da6b5051a44f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 6 22:27:32 2008 -0800
+
+    Test case for evaluation order of select statement.
+    
+    R=r
+    DELTA=47  (47 added, 0 deleted, 0 changed)
+    OCL=18581
+    CL=18748
+
+ test/chan/select.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

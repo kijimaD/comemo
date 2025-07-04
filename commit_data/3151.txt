@@ -1,0 +1,29 @@
+commit 8d29f7f1c922b8fe8fcd7237372fb1b3fdf8fa58
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 31 14:43:27 2009 -0700
+
+    Consistency changes to container/* packages for iteration.
+    
+    container/list:
+      - change Iter to go over the list values
+    
+    container/ring:
+      - add Iter, drop Forward/Backward
+    
+    container/vector:
+      - add channel direction constraints
+    
+    R=rsc,gri
+    APPROVED=rsc
+    DELTA=86  (23 added, 40 deleted, 23 changed)
+    OCL=33935
+    CL=34132
+
+ src/pkg/container/list/list.go           | 23 +++++++++++++++--------
+ src/pkg/container/list/list_test.go      | 15 ++++++++++++++-
+ src/pkg/container/ring/ring.go           | 31 +++++--------------------------
+ src/pkg/container/ring/ring_test.go      | 28 ++++++----------------------
+ src/pkg/container/vector/intvector.go    |  4 ++--
+ src/pkg/container/vector/stringvector.go |  4 ++--
+ src/pkg/container/vector/vector.go       |  4 ++--
+ 7 files changed, 46 insertions(+), 63 deletions(-)

@@ -1,0 +1,24 @@
+commit 708ac9aacb7227debb8d77cea52bded6980a29b6
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Wed Apr 22 19:38:30 2020 +0000
+
+    cmd/go/internal/modget: improve GOINSECURE docs
+    
+    Recommend use of GOINSECURE over -insecure flang and clarify that GOINSECURE
+    environment variable does not also imply GONOSUMDB.
+    
+    Updates #37519 by adding documentation as discussed.
+    
+    Change-Id: Ia8ab6b3ed1aa559343b72e4ca76c372ee6bf1941
+    GitHub-Last-Rev: 8d86991f0c1a759f45568c1cc6ef6dc41225f2ba
+    GitHub-Pull-Request: golang/go#38572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229223
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 8 +++++++-
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ src/cmd/go/internal/modget/get.go   | 5 ++++-
+ 3 files changed, 14 insertions(+), 2 deletions(-)

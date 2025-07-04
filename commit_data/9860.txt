@@ -1,0 +1,12 @@
+commit 0b534bc9c3a8d02fc449c92a609eb78d2eac4d81
+Author: Paul Borman <borman@google.com>
+Date:   Tue Oct 4 13:58:31 2011 -0700
+
+    pkg/syscall: add Mkfifo for linux platforms
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5131055
+
+ src/pkg/syscall/syscall_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

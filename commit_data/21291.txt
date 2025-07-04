@@ -1,0 +1,12 @@
+commit fd2642bfe3b4fd3d9e56125cf69553cafc366891
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 18 16:00:10 2015 -0800
+
+    doc: update go1.5.txt
+    
+    Change-Id: I58d66a7fc25b172baf0df6b634e9e2cc792967d5
+    Reviewed-on: https://go-review.googlesource.com/3021
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)

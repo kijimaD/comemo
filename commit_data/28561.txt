@@ -1,0 +1,28 @@
+commit fdc167164ecde259bd356cc8e7ae5ccb0903469c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 27 13:42:28 2016 -0700
+
+    runtime: remove sigmask type, use sigset instead
+    
+    The OS-independent sigmask type was not pulling its weight. Replace it
+    with the OS-dependent sigset type. This requires adding an OS-specific
+    sigaddset function, but permits removing the OS-specific sigmaskToSigset
+    function.
+    
+    Change-Id: I43307b512b0264ec291baadaea902f05ce212305
+    Reviewed-on: https://go-review.googlesource.com/29950
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go      |  6 ++----
+ src/runtime/os_darwin.go        |  4 ++--
+ src/runtime/os_dragonfly.go     |  6 ++----
+ src/runtime/os_freebsd.go       |  6 ++----
+ src/runtime/os_linux_generic.go | 10 ++--------
+ src/runtime/os_linux_mips64x.go | 10 ++--------
+ src/runtime/os_linux_s390x.go   |  8 ++------
+ src/runtime/os_netbsd.go        |  6 ++----
+ src/runtime/os_openbsd.go       |  4 ++--
+ src/runtime/signal_unix.go      | 39 ++++++++++++---------------------------
+ 10 files changed, 30 insertions(+), 69 deletions(-)

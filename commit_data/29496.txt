@@ -1,0 +1,26 @@
+commit 238247eb59cdddeedaa5c5db67734df2cd1049ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 17:14:02 2016 +0000
+
+    net/http: deflake new TestInterruptWithPanic_h2
+    
+    TestInterruptWithPanic_h2 was added yesterday in
+    https://golang.org/cl/33099 and https://golang.org/cl/33103
+    
+    Deflake it. The http2 server sends an error before logging.
+    
+    Rather than reorder the http2 code to log before writing the RSTStream
+    frame, just loop for a bit waiting for the condition we're
+    expecting.
+    
+    This goes from 2 in 500 flakes for me to unreproducible.
+    
+    Change-Id: I062866a5977f50c820965aaf83882ddd7bf98f91
+    Reviewed-on: https://go-review.googlesource.com/33140
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/clientserver_test.go | 33 +++++++++++++++++++++------------
+ src/net/http/main_test.go         | 13 +++++++++++++
+ 2 files changed, 34 insertions(+), 12 deletions(-)

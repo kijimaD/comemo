@@ -1,0 +1,17 @@
+commit 58c7b1d160d87a86623b59237888e4ff1efb9a0f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 21:51:30 2017 -0400
+
+    runtime: fix dragonfly/amd64
+    
+    CL 69292 unified the amd64 entry-points, but Dragonfly doesn't follow
+    the same entry-point argument conventions as most other amd64
+    platforms. Fix the Dragonfly entry point.
+    
+    Change-Id: I0f84e2e4101ce68217af185ee9baaf455b8b6dad
+    Reviewed-on: https://go-review.googlesource.com/70212
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_dragonfly_amd64.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 7f4a54c0dfb7c1d6db08429675e97df7279edb1a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 7 17:19:04 2023 -0600
+
+    cmd/internal/obj/ppc64: add VC[LT]ZLSBB instructions
+    
+    These are ISA 3.0 power9 instructions which are helpful when reducing
+    a vector compare result into a GPR.
+    
+    They are used in a future patch to improve the bytes.IndexByte asm
+    routine.
+    
+    Change-Id: I424e2628e577167b9b7c0fcbd82099daf568ea35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478115
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 2 ++
+ src/cmd/internal/obj/ppc64/a.out.go       | 2 ++
+ src/cmd/internal/obj/ppc64/anames.go      | 2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 9 +++++++++
+ 4 files changed, 15 insertions(+)

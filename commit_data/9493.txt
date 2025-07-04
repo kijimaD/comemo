@@ -1,0 +1,14 @@
+commit 0462f77e24125d7337fd8956171f3e2fe901f1db
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Aug 25 19:12:03 2011 -0300
+
+    goinstall: report lack of $GOPATH on errors
+    
+    Fixes #2175.
+    
+    R=alex.brainman, rsc, gustavo, adg
+    CC=golang-dev
+    https://golang.org/cl/4929047
+
+ src/cmd/goinstall/main.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

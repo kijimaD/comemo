@@ -1,0 +1,13 @@
+commit 5bd3c3b75523763e00129be24367f2d0856ee564
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 6 17:39:25 2009 -0800
+
+    - support for [...] parsing and pretty printing
+    
+    R=r
+    OCL=22185
+    CL=22185
+
+ usr/gri/pretty/parser.go    | 5 ++++-
+ usr/gri/pretty/selftest2.go | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

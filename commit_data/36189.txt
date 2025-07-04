@@ -1,0 +1,18 @@
+commit faadda040d49c581a82fc459c34186c8bff58a2b
+Author: Roberto Clapis <robclap8@gmail.com>
+Date:   Thu Aug 2 15:27:14 2018 +0200
+
+    os: add check for empty executable path on darwin
+    
+    os used to panic (access out of bounds) if executablePath was left empty
+    
+    Fixes #22529
+    
+    Change-Id: Iead5e60a3b000dbde421a8e8612c3690340879ce
+    Reviewed-on: https://go-review.googlesource.com/127546
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable_darwin.go | 5 +++++
+ 1 file changed, 5 insertions(+)

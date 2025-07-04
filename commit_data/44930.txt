@@ -1,0 +1,26 @@
+commit ee51e3d89520221fb572b54851f6c642df3bd4da
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 31 14:19:41 2021 -0400
+
+    cmd/go: refactor modload.ListModules to accept bit flags
+    
+    Instead of accepting bool flags, ListModules now accepts ListMode, a
+    set of bit flags.
+    
+    Four flags are defined. listRetracted is split into ListRetracted and
+    ListRetractedVersion to avoid ambiguity with -u, -retracted, and
+    -versions.
+    
+    For #40357
+    
+    Change-Id: Ibbbe44dc1e285ed17f27a6581f3392679f2124fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306331
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go       | 23 ++++++++++++++++----
+ src/cmd/go/internal/modcmd/download.go |  5 +----
+ src/cmd/go/internal/modcmd/why.go      |  5 +----
+ src/cmd/go/internal/modload/build.go   | 12 +++++------
+ src/cmd/go/internal/modload/list.go    | 39 +++++++++++++++++++++-------------
+ 5 files changed, 50 insertions(+), 34 deletions(-)

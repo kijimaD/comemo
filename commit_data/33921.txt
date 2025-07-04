@@ -1,0 +1,13 @@
+commit 92b142a653afb8bd43bc172b08f667591c89ff3e
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sat Dec 16 09:35:52 2017 -0400
+
+    crypto/tls: document VerifyPeerCertificate behavior in relation to ClientAuth
+    
+    Change-Id: I3ff478912a5a178492d544d2f4ee9cc7570d9acc
+    Reviewed-on: https://go-review.googlesource.com/84475
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

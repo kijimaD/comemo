@@ -1,0 +1,29 @@
+commit d5a80d0ba4c0e5d9414bca7564a7afd42c3cd072
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 14 11:24:51 2010 -0700
+
+    gc: no more ...
+    various cleanup, deleting unused code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1663041
+
+ src/cmd/gc/bits.c      |   6 +-
+ src/cmd/gc/const.c     |   2 +-
+ src/cmd/gc/dcl.c       | 135 +--------
+ src/cmd/gc/export.c    |  31 +-
+ src/cmd/gc/gen.c       |   9 +-
+ src/cmd/gc/go.h        | 753 ++++++++++++++++++++++++-------------------------
+ src/cmd/gc/go.y        |  13 +-
+ src/cmd/gc/init.c      |   2 +-
+ src/cmd/gc/lex.c       |  42 +--
+ src/cmd/gc/mparith2.c  |   2 +-
+ src/cmd/gc/obj.c       |  10 +-
+ src/cmd/gc/reflect.c   |   2 +-
+ src/cmd/gc/sinit.c     |   2 +-
+ src/cmd/gc/subr.c      | 117 +-------
+ src/cmd/gc/swt.c       |  24 +-
+ src/cmd/gc/typecheck.c |   8 +-
+ src/cmd/gc/walk.c      | 177 ++----------
+ 17 files changed, 497 insertions(+), 838 deletions(-)

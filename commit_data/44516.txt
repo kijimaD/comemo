@@ -1,0 +1,22 @@
+commit d891ebdce1ac2c72e1d923c24f5a65ec14ba7cf8
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 26 14:27:59 2021 -0500
+
+    cmd/compile: return (and receive) medium-large results
+    
+    includes three tests
+    
+    Change-Id: I33ac0cfe35085d4b6ad2775abcaa3d7d6527b49f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297031
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 80 ++++++++++++--------------
+ src/cmd/compile/internal/ssa/op.go           |  9 ++-
+ src/cmd/compile/internal/ssagen/ssa.go       | 85 ++++++++++++++++++----------
+ test/abi/double_nested_addressed_struct.go   | 62 ++++++++++++++++++++
+ test/abi/double_nested_struct.go             | 55 ++++++++++++++++++
+ test/abi/too_big_to_ssa.go                   | 47 +++++++++++++++
+ test/abi/too_big_to_ssa.out                  |  2 +
+ 7 files changed, 264 insertions(+), 76 deletions(-)

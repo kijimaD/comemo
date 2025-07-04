@@ -1,0 +1,14 @@
+commit 6442f38a9198c8a4e9fc9655cc96533405c507fc
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Nov 1 16:42:33 2010 -0400
+
+    syscall: SIO constants for Linux
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2303043
+
+ src/pkg/syscall/mkerrors.sh            |  2 ++
+ src/pkg/syscall/zerrors_linux_386.go   | 59 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 59 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 120 insertions(+)

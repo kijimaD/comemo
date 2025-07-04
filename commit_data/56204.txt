@@ -1,0 +1,21 @@
+commit b107d95b9a66bfe7150fd4f2915e9bb876a6999a
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Sun Apr 14 08:45:12 2024 +0000
+
+    compress/bzip2: simplify Huffman tree construction
+    
+    This change simplifies the construction of the Huffman tree in the
+    bzip2 package by replacing custom sort logic with the more concise and
+    idiomatic use of "slices" and "cmp" packages.
+    
+    Change-Id: I2a8aef146b54b9433038b133d2cc8856ba077c72
+    GitHub-Last-Rev: c031bb56635552205c12b87add5f4337a7def74f
+    GitHub-Pull-Request: golang/go#66817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578438
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/compress/bzip2/huffman.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

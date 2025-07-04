@@ -1,0 +1,12 @@
+commit d488c4b4acc4ffadb4ac09b5c6f0f2898fd29fa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 09:47:02 2009 -0800
+
+    json: fix doc comment
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/179128
+
+ src/pkg/json/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 413d4c6c11e23b79a26465a840bce7b0f1392425
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:33:20 2013 -0400
+
+    net: make IP implement encoding.MarshalerText, encoding.UnmarshalerText
+    
+    See golang.org/s/go12encoding for design.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/12705043
+
+ src/pkg/net/ip.go      | 23 +++++++++++++++++++++++
+ src/pkg/net/ip_test.go | 15 +++++++++++++++
+ 2 files changed, 38 insertions(+)

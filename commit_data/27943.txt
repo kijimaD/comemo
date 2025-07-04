@@ -1,0 +1,41 @@
+commit 4338e5a8914be2216de09363288177c806ef845e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Aug 21 13:52:23 2016 -0400
+
+    cmd/link/internal: remove global Ctxt variable
+    
+    This change threads the *ld.Link Ctxt variable through
+    code in arch-specific packages. This removes all remaining
+    uses of Ctxt, so remove the global variable too.
+    
+    This CL continues the work in golang.org/cl/27408
+    
+    Updates #16818
+    
+    Change-Id: I5f4536847a1825fd0b944824e8ae4e122ec0fb78
+    Reviewed-on: https://go-review.googlesource.com/27459
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go  | 204 ++++++++++++++++++------------------
+ src/cmd/link/internal/amd64/obj.go  |   8 +-
+ src/cmd/link/internal/arm/asm.go    | 135 ++++++++++++------------
+ src/cmd/link/internal/arm/obj.go    |   6 +-
+ src/cmd/link/internal/arm64/asm.go  |  67 ++++++------
+ src/cmd/link/internal/arm64/obj.go  |   6 +-
+ src/cmd/link/internal/ld/data.go    |   6 +-
+ src/cmd/link/internal/ld/elf.go     |   4 +-
+ src/cmd/link/internal/ld/lib.go     |  21 ++--
+ src/cmd/link/internal/ld/macho.go   |   2 +-
+ src/cmd/link/internal/ld/pe.go      |   2 +-
+ src/cmd/link/internal/ld/pobj.go    |   5 +-
+ src/cmd/link/internal/mips64/asm.go |  25 +++--
+ src/cmd/link/internal/mips64/obj.go |   6 +-
+ src/cmd/link/internal/ppc64/asm.go  | 184 ++++++++++++++++----------------
+ src/cmd/link/internal/ppc64/obj.go  |   8 +-
+ src/cmd/link/internal/s390x/asm.go  | 189 +++++++++++++++++----------------
+ src/cmd/link/internal/s390x/obj.go  |   4 +-
+ src/cmd/link/internal/x86/asm.go    | 140 ++++++++++++-------------
+ src/cmd/link/internal/x86/obj.go    |  10 +-
+ 20 files changed, 511 insertions(+), 521 deletions(-)

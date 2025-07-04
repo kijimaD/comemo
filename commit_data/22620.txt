@@ -1,0 +1,15 @@
+commit fb9fd2bdd7024e8d92e7c2a1436843cbca6e1ed1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 12:24:22 2015 -0400
+
+    runtime: atomic ops for int64
+    
+    These currently use portable implementations in terms of their uint64
+    counterparts.
+    
+    Change-Id: Icba5f7134cfcf9d0429edabcdd73091d97e5e905
+    Reviewed-on: https://go-review.googlesource.com/8831
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/stubs.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

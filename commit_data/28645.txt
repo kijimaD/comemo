@@ -1,0 +1,17 @@
+commit 39055700b1c69e791405518a914017b8c5551436
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 11:40:43 2016 -0700
+
+    cmd/compile: ignore struct tags when converting structs
+    
+    Implementation of spec change https://golang.org/cl/24190/.
+    
+    For #16085.
+    
+    Change-Id: Id71ef29af5031b073e8be163f578d1bb768ff97a
+    Reviewed-on: https://go-review.googlesource.com/30169
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  29 ++--
+ test/convert2.go                    | 315 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 332 insertions(+), 12 deletions(-)

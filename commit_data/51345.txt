@@ -1,0 +1,23 @@
+commit 38b9ff60071fc40d197e7002db1320539e74a678
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Nov 17 08:51:03 2022 -0800
+
+    crypto/x509: reduce boring test key size
+    
+    Generating 8192 bit keys times out on builders relatively frequently. We
+    just need something that isn't a boringAllowCert allowed key size so we
+    can test that a non-boringAllowCert signed intermediate works, so just
+    use 512 instead since it'll be significantly faster.
+    
+    Fixes #56798
+    
+    Change-Id: I416e0d8c3aa11ff44e9870755efa95c74d1013f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451656
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/x509/boring_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

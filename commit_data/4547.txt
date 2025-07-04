@@ -1,0 +1,12 @@
+commit 4cde1a903bbe762ef4de0f07ba18377c7c2bcca8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 18:19:56 2010 -0800
+
+    sync make-arm.bash with make.bash
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183135
+
+ src/make-arm.bash | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

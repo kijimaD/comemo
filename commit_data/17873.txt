@@ -1,0 +1,12 @@
+commit c4f5421bc773f55be51097b9e29d70b68edb7f99
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Nov 12 09:28:07 2013 +1100
+
+    misc/vim: add a gofmt_command flag for :Fmt
+    
+    R=dsymonds, dominik.honnef, n13m3y3r, rsc, kamil.kisiel
+    CC=golang-dev
+    https://golang.org/cl/22940044
+
+ misc/vim/ftplugin/go/fmt.vim | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

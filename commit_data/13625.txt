@@ -1,0 +1,12 @@
+commit 0b8392d19ccb1c42f409f7690fa3fa0e0adb48e4
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed Aug 15 10:30:20 2012 +1000
+
+    api: add recent API additions to next.txt
+    
+    R=golang-dev, nigeltao, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6441138
+
+ api/next.txt | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

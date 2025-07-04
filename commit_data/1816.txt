@@ -1,0 +1,19 @@
+commit 6f321e28f48c12e7dd9830198daefc2a8cfb410b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 12 11:04:11 2009 -0700
+
+    - remove special handling of '\n' characters (used to be treated as comments
+    for pretty printer purposes - now properly ignored as white space since we
+    have line/col information)
+    - changed sample use in comment to an actually compiled function to make sure
+    sample is actually working
+    - added extra tests (checking line and column values, and the tokenize function)
+    
+    R=rsc
+    DELTA=253  (61 added, 67 deleted, 125 changed)
+    OCL=26143
+    CL=26181
+
+ src/lib/go/scanner.go      |  74 +++++-------
+ src/lib/go/scanner_test.go | 294 +++++++++++++++++++++++----------------------
+ 2 files changed, 181 insertions(+), 187 deletions(-)

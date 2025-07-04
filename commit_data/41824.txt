@@ -1,0 +1,25 @@
+commit aa4d92b8aab63c847ab077417b809694a2a6ea81
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 02:48:24 2020 +1100
+
+    cmd/link: skip symbol references when looking for missing symbols
+    
+    ErrorUnresolved attempts to find the missing symbol in another ABI,
+    in order to provide more friendly error messages. However, in doing so
+    it checks the same ABI and can find the symbol reference for the symbol
+    that it is currently reporting the unresolved error for. Avoid this by
+    ignoring SXREF symbols, which is the same behaviour used when linking
+    is performed.
+    
+    Fixes #33979
+    
+    Change-Id: I9bfc40146dec2666d25e93d3bcd1984da5c71215
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220917
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/link.go |  2 +-
+ src/cmd/link/link_test.go        | 87 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 1 deletion(-)

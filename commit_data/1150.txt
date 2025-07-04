@@ -1,0 +1,22 @@
+commit 654bc2badc69ef4db50ed245db1f458af63b8d17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 17 19:58:52 2008 -0800
+
+    - factored out tabwriter a separate writer filter
+      (to be moved into std lib eventually)
+    - rewrote tabwriter to use byte buffers instead of strings
+      (byte buffers to be moved into stdlib eventually)
+    - support for recent syntax changes
+    - no space printed after function name and before function parameters
+    - comments still disabled due to a known bug
+    
+    R=r
+    OCL=19430
+    CL=19430
+
+ usr/gri/pretty/Makefile     |   3 +-
+ usr/gri/pretty/parser.go    |  13 +-
+ usr/gri/pretty/printer.go   | 216 +++++----------------------------
+ usr/gri/pretty/selftest2.go |   4 +-
+ usr/gri/pretty/tabwriter.go | 285 ++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 326 insertions(+), 195 deletions(-)

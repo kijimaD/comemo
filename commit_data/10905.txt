@@ -1,0 +1,17 @@
+commit 82a6a4f39ed3fb78e49122a93c32998a5bcd0624
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 16:25:57 2011 -0500
+
+    gc: allow use of unsafe.Pointer in generated code
+    
+    The functions we generate to implement == on structs
+    or arrays may need to refer to unsafe.Pointer even in
+    safe mode, in order to handle unexported fields contained
+    in other packages' structs.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5505046
+
+ src/cmd/gc/subr.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

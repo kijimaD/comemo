@@ -1,0 +1,26 @@
+commit 5e1e3a002528714f7c5954dd13068a89f41f747a
+Author: Audi P. R. Putra <doelaudi@gmail.com>
+Date:   Fri Sep 15 23:37:53 2023 +0700
+
+    cmd/go: show deprecation message on go run/install
+    
+    Add check for deprecations in PackagesAndErrorsOutsideModule. This affects go run/install outside module when run in module-aware mode.
+    
+    Fixes #59230
+    
+    Change-Id: I106df36a856894fb1b634decfa812e31cf88fe74
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528775
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/load/pkg.go                            |  7 +++++++
+ .../go/testdata/mod/example.com_deprecated_a_v1.0.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_deprecated_a_v1.9.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_undeprecated_v1.0.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_undeprecated_v1.0.1.txt    |  7 +++++++
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt     | 13 +++++++++++++
+ src/cmd/go/testdata/script/mod_list_deprecated.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt         | 14 ++++++++++++++
+ 8 files changed, 63 insertions(+), 1 deletion(-)

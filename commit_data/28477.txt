@@ -1,0 +1,16 @@
+commit b7426089e597d20bade4b4bbfea1188844a07af8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 20 13:59:40 2016 -0700
+
+    cmd/compile: simple cleanups
+    
+    Change-Id: If2cf3c5a29afc6cf74c3b08b9745e950231ead37
+    Reviewed-on: https://go-review.googlesource.com/29441
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go      | 2 +-
+ src/cmd/compile/internal/gc/ssa_test.go | 8 +-------
+ 2 files changed, 2 insertions(+), 8 deletions(-)

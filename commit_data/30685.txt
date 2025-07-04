@@ -1,0 +1,16 @@
+commit 793e4ec3dd440ddb68ec4d154f5711ef76d32b60
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 16 15:26:13 2017 -0400
+
+    cmd/compile: fix MIPS Zero lower rule
+    
+    A copy-paste error in CL 38150. Fix build.
+    
+    Change-Id: Ib2afc83564ebe7dab934d45522803e1a191dea18
+    Reviewed-on: https://go-review.googlesource.com/38292
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

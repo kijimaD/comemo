@@ -1,0 +1,17 @@
+commit 1ab9f6837d6da80dad41657a913e47fa13a4fee8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 7 17:29:24 2019 -0500
+
+    cmd/go/internal/modfetch: handle codeRoot == path for paths with major-version suffixes
+    
+    Fixes #30647
+    
+    Change-Id: Icbcfdb3907bc003ac17a8c7df17ecb41daf82eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166117
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go      | 100 ++++++++++++++++++--------
+ src/cmd/go/internal/modfetch/coderepo_test.go |   9 +++
+ 2 files changed, 81 insertions(+), 28 deletions(-)

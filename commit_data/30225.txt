@@ -1,0 +1,40 @@
+commit 45c6f59e1fd94ccb11fde61ca8d5b33b3d06dd9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 14:45:41 2017 -0500
+
+    runtime: use two-level list for semaphore address search in semaRoot
+    
+    If there are many goroutines contending for two different locks
+    and both locks hash to the same semaRoot, the scans to find the
+    goroutines for a particular lock can end up being O(n), making
+    n lock acquisitions quadratic.
+    
+    As long as only one actively-used lock hashes to each semaRoot
+    there's no problem, since the list operations in that case are O(1).
+    But when the second actively-used lock hits the same semaRoot,
+    then scans for entries with for a given lock have to scan over the
+    entries for the other lock.
+    
+    Fix this problem by changing the semaRoot to hold only one sudog
+    per unique address. In the running example, this drops the length of
+    that list from O(n) to 2. Then attach other goroutines waiting on the
+    same address to a separate list headed by the sudog in the semaRoot list.
+    Those "same address list" operations are still O(1), so now the
+    example from above works much better.
+    
+    There is still an assumption here that in real programs you don't have
+    many many goroutines queueing up on many many distinct addresses.
+    If we end up with that problem, we can replace the top-level list with
+    a treap.
+    
+    Fixes #17953.
+    
+    Change-Id: I78c5b1a5053845275ab31686038aa4f6db5720b2
+    Reviewed-on: https://go-review.googlesource.com/36792
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime2.go |   9 ++--
+ src/runtime/sema.go     | 106 ++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 90 insertions(+), 25 deletions(-)

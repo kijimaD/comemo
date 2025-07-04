@@ -1,0 +1,12 @@
+commit f70e285178bbc87830cdd3bb02b7de3c8fe2dcb2
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 10 11:20:33 2009 -0700
+
+    bug in int8 mod
+    
+    R=rsc
+    OCL=32971
+    CL=32971
+
+ src/cmd/6g/ggen.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

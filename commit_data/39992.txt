@@ -1,0 +1,22 @@
+commit ced2454220e472c233d4f58a2bc9d01347dedfd3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 8 04:11:07 2019 +1000
+
+    cmd/internal/obj/riscv: add environment call/breakpoint and base counter/timer instructions
+    
+    This implements assembler support for ECALL/EBREAK, along with base
+    counter/timer instructions.
+    
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I690a9fd835eeddee1fe9a5616d2b2f856d3952b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195918
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 13 +++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 40 ++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

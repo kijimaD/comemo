@@ -1,0 +1,18 @@
+commit af9009a989d69d3f5560dc7bd8ccf1574ea6a519
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 15:08:02 2021 -0400
+
+    cmd/go/internal/modload: remove go117LazyTODO
+    
+    Replace the last remaining use with a reference to #48024.
+    
+    Change-Id: I699711b4e42abe9c6d3512c28d2ee81a84e3263a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345392
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/edit.go    | 10 ++++------
+ src/cmd/go/internal/modload/modfile.go |  7 -------
+ 2 files changed, 4 insertions(+), 13 deletions(-)

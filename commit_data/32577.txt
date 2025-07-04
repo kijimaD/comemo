@@ -1,0 +1,21 @@
+commit d39649087b9a55ddb1105274963f50842448c3d9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 30 18:49:18 2017 -0700
+
+    compress/flate: remove non-standard extensions to flate
+    
+    Some constants were added to flate that seem to be an experimental
+    attempt at increasing the window size. However, according to RFC1951,
+    the largest window size is 32KiB, so these constants are non-standard.
+    Delete them.
+    
+    Fixes #18458
+    
+    Change-Id: Ia94989637ca031a56bce2548624fa48044caa7b9
+    Reviewed-on: https://go-review.googlesource.com/60490
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/compress/flate/huffman_bit_writer.go | 8 --------
+ 1 file changed, 8 deletions(-)

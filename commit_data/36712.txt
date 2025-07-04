@@ -1,0 +1,19 @@
+commit 9a033bf9d3f5f7485d82836ec95e51a3fa74a926
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Sep 20 01:26:17 2018 +0000
+
+    cmd/compile: optimize 386's assembly generator
+    
+    The ADDconstmodify has similar logic with other constmodify like
+    instructions. This CL optimize them to share code via fallthrough.
+    And the size of pkg/linux_386/cmd/compile/internal/x86.a decreases
+    about 0.3KB.
+    
+    Change-Id: Ibdf06228afde875e8fe8e30851b50ca2be513dd9
+    Reviewed-on: https://go-review.googlesource.com/136398
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/x86/ssa.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

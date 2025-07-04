@@ -1,0 +1,27 @@
+commit dbe327a640b5ac4d6c55b5d966224d3095f1cdde
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 15:09:46 2022 -0500
+
+    make.bash, make.rc: fix GOROOT detection when GOEXPERIMENT is set
+    
+    We need to clear GOEXPERIMENT any time we are invoking a bootstrap
+    toolchain. One line missed the clearing of GOEXPERIMENT.
+    
+    There were three different lines using different syntaxes and subtly
+    different sets of variables being cleared, so hoist them into a function
+    so it's all in one place.
+    
+    Also quote $GOROOT_BOOTSTRAP consistently.
+    
+    
+    
+    Change-Id: I6c5a5d70c694c24705bbc61298b28ae906c0cf6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456635
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/make.bash | 12 ++++++++----
+ src/make.rc   | 10 +++++++---
+ 2 files changed, 15 insertions(+), 7 deletions(-)

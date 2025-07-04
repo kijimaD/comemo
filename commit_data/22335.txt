@@ -1,0 +1,24 @@
+commit 8e95654ac84d5a5ad2303bedc26065a057b263fc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 7 12:44:28 2015 +0900
+
+    net/url: allow Parse, ParseRequestURI to parse ipv6 zone identifiers in URIs
+    
+    Using IPv6 link-local addresses to make connections between on-link
+    nodes is useful for small distributed applications but it requires zone
+    identifiers to distinguish a correct IP link. It's the same for
+    transports using URI for destination discovery such as HTTP, WebSocket.
+    
+    This change allows Parse, ParseRequestURI functions and String method of
+    URL to parse/return a literal IPv6 address followed by a zone identifier
+    within a URI as described in RFC 6874.
+    
+    Fixes #6530.
+    
+    Change-Id: I2936ea65c1446994770cf2ee2c28a1c73faaa0ca
+    Reviewed-on: https://go-review.googlesource.com/2431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      |  85 ++++++++++++++++++++++++++++++++------
+ src/net/url/url_test.go | 106 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 178 insertions(+), 13 deletions(-)

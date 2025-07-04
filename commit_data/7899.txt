@@ -1,0 +1,30 @@
+commit b2658452a6d50c9f2e738719a09d160ced730b90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 16:44:28 2011 -0700
+
+    go/scanner: return literal as string instead of []byte
+    
+    Removed many string conversions in dependent code.
+    Runs all tests. No change to gofmt output.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4291070
+
+ src/cmd/cgo/gcc.go                         |   2 +-
+ src/cmd/godoc/spec.go                      |   6 +-
+ src/cmd/govet/govet.go                     |  17 ++---
+ src/pkg/ebnf/parser.go                     |   8 +-
+ src/pkg/exp/datafmt/parser.go              |  10 +--
+ src/pkg/exp/ogle/cmd.go                    |   2 +-
+ src/pkg/go/ast/ast.go                      |   4 +-
+ src/pkg/go/ast/filter.go                   |   2 +-
+ src/pkg/go/doc/comment.go                  |   2 +-
+ src/pkg/go/doc/doc.go                      |   8 +-
+ src/pkg/go/parser/parser.go                |  40 ++++------
+ src/pkg/go/printer/nodes.go                |   4 +-
+ src/pkg/go/printer/printer.go              | 119 +++++++++++++++--------------
+ src/pkg/go/scanner/scanner.go              |  22 +++---
+ src/pkg/go/scanner/scanner_test.go         |  15 ++--
+ src/pkg/go/typechecker/typechecker_test.go |   2 +-
+ 16 files changed, 130 insertions(+), 133 deletions(-)

@@ -1,0 +1,15 @@
+commit 549ca046ffeb1f76833c15059d3a5da301cf1eb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 14:21:57 2016 -0700
+
+    cmd/compile: fix argument for given format verb
+    
+    Follow-up to https://go-review.googlesource.com/28394.
+    
+    Change-Id: Ic4147e9ae786a4de0a3454131fac03e940ae2e76
+    Reviewed-on: https://go-review.googlesource.com/28417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

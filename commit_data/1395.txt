@@ -1,0 +1,14 @@
+commit b0d62676d2a01c96ab0bb9d328a85526498cd807
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 22 11:04:17 2008 -0800
+
+    print array (not just *array) using %v
+    
+    TBR=rsc
+    DELTA=34  (33 added, 0 deleted, 1 changed)
+    OCL=21718
+    CL=21718
+
+ src/lib/fmt/fmt_test.go | 14 ++++++++++++++
+ src/lib/fmt/print.go    | 21 ++++++++++++++++++++-
+ 2 files changed, 34 insertions(+), 1 deletion(-)

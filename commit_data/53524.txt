@@ -1,0 +1,18 @@
+commit bd8c1330974bf403f0d6b167b81914dbdde0f846
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Jun 10 21:06:25 2023 -0400
+
+    doc/go1.21: add heading for cmp package
+    
+    For #59488.
+    For #58645.
+    
+    Change-Id: Ia9b76d49825dd74f7e52d829ec6d47e6c2addd76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501825
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 2 ++
+ 1 file changed, 2 insertions(+)

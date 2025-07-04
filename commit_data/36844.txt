@@ -1,0 +1,16 @@
+commit fa1a49aa556d87d41315329811de328e19022608
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 21:21:55 2018 +0000
+
+    os: add UserHomeDir
+    
+    Fixes #26463
+    
+    Change-Id: Iaef1c7456ffaeadeead6027a37d09c44a3d05bd5
+    Reviewed-on: https://go-review.googlesource.com/c/139418
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/example_test.go | 33 +++++++++++++++++++--------------
+ src/os/file.go         | 18 ++++++++++++++++++
+ src/os/os_test.go      | 14 ++++++++++++++
+ 3 files changed, 51 insertions(+), 14 deletions(-)

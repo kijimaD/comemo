@@ -1,0 +1,45 @@
+commit 6144c7270e5812d9de8fb97456ee4e5ae657fcbb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 9 16:50:41 2017 +1000
+
+    os: make windows Stat as fast as Lstat for files and directories
+    
+    Recent CL 41834 made windows Stat work for all symlinks.
+    But CL 41834 also made Stat slow.
+    
+    John Starks sugested
+    (see https://github.com/golang/go/issues/19922#issuecomment-300031421)
+    to use GetFileAttributesEx for files and directories instead.
+    This makes Stat as fast as at go1.9.
+    
+    I see these improvements on my Windows 7
+    
+    name       old time/op  new time/op  delta
+    StatDot    26.5µs ± 1%  20.6µs ± 2%  -22.37%  (p=0.000 n=9+10)
+    StatFile   22.8µs ± 2%   6.2µs ± 1%  -72.69%  (p=0.000 n=10+10)
+    StatDir    21.0µs ± 2%   6.1µs ± 3%  -71.12%  (p=0.000 n=10+9)
+    LstatDot   20.1µs ± 1%  20.7µs ± 6%   +3.37%  (p=0.000 n=9+10)
+    LstatFile  6.23µs ± 1%  6.36µs ± 8%     ~     (p=0.587 n=9+10)
+    LstatDir   6.10µs ± 0%  6.14µs ± 4%     ~     (p=0.590 n=9+10)
+    
+    and on my Windows XP
+    
+    name         old time/op  new time/op  delta
+    StatDot-2    20.6µs ± 0%  10.8µs ± 0%  -47.44%  (p=0.000 n=10+10)
+    StatFile-2   20.2µs ± 0%   7.9µs ± 0%  -60.91%  (p=0.000 n=8+10)
+    StatDir-2    19.3µs ± 0%   7.6µs ± 0%  -60.51%  (p=0.000 n=10+9)
+    LstatDot-2   10.8µs ± 0%  10.8µs ± 0%   -0.48%  (p=0.000 n=10+8)
+    LstatFile-2  7.83µs ± 0%  7.83µs ± 0%     ~     (p=0.844 n=10+8)
+    LstatDir-2   7.59µs ± 0%  7.56µs ± 0%   -0.46%  (p=0.000 n=10+10)
+    
+    Updates #19922
+    
+    Change-Id: Ice1fb5825defb05c79bab4dec0692e0fd1bcfcd5
+    Reviewed-on: https://go-review.googlesource.com/43071
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go | 20 ++++++++++++++++++--
+ 2 files changed, 62 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 9ee78af806954e90ba8c9947b66742d210200002
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Feb 23 10:40:12 2018 +0100
+
+    cmd/compile: intrinsify math.Sqrt on 386
+    
+    It seems like all the pieces were already there, it only needed the
+    final plumbing.
+    
+    Before:
+    
+            0x001b 00027 (test.go:9)        MOVSD   X0, (SP)
+            0x0020 00032 (test.go:9)        CALL    math.Sqrt(SB)
+            0x0025 00037 (test.go:9)        MOVSD   8(SP), X0
+    
+    After:
+    
+            0x0018 00024 (test.go:9)        SQRTSD  X0, X0
+    
+    name    old time/op  new time/op  delta
+    Sqrt-4  4.60ns ± 2%  0.45ns ± 1%  -90.33%  (p=0.000 n=10+10)
+    
+    Change-Id: I0f623958e19e726840140bf9b495d3f3a9184b9d
+    Reviewed-on: https://go-review.googlesource.com/96615
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

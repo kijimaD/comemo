@@ -1,0 +1,18 @@
+commit 6a861010be9eed02d5285509cbaf3fb26d2c5041
+Author: Zxilly <zxilly@outlook.com>
+Date:   Wed Jan 24 21:27:41 2024 +0000
+
+    debug/gosym: add detailed doc for text argument in NewLineTable
+    
+    Fixes #65232
+    
+    Change-Id: I9ef76355cec4bea2d77811a69c61c1806c486be8
+    GitHub-Last-Rev: 9c617b65be9b01e9708e05a540316f98c8a0d165
+    GitHub-Pull-Request: golang/go#65263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557957
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/debug/gosym/pclntab.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

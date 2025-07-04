@@ -1,0 +1,24 @@
+commit 5a68303a15dadb6c5681f69f6e09a1ff0625883a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 12:12:57 2009 -0700
+
+    throw away most of the compat.h compatibility layer
+    in favor of the lib9 compatibility layer.  no need for two.
+    
+    now that mycreate is gone, .6 files are 0644 not 0755.
+    
+    TBR=r
+    OCL=26679
+    CL=26679
+
+ src/cmd/5a/lex.c   | 21 ++++++--------
+ src/cmd/6a/lex.c   | 46 ++++++++++++++++++++----------
+ src/cmd/6l/asm.c   |  4 +--
+ src/cmd/8a/lex.c   | 21 ++++++--------
+ src/cmd/cc/cc.h    | 21 +++++++-------
+ src/cmd/cc/lex.c   | 82 +++++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/cc/macbody |  2 +-
+ src/cmd/gc/go.h    |  1 -
+ src/cmd/gc/lex.c   |  6 ++--
+ src/cmd/gc/subr.c  |  4 +--
+ 10 files changed, 128 insertions(+), 80 deletions(-)

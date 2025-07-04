@@ -1,0 +1,15 @@
+commit 4ef836faf6c33dbdb25db12e0ddd903730ccaa0f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 11 17:19:39 2015 +1000
+
+    cmd/dist: disable misc/scgo/testsovar on netbsd
+    
+    Update #11654
+    
+    Change-Id: Ia199b8dd349542ad8b92b463dd2f3734dd7e66a4
+    Reviewed-on: https://go-review.googlesource.com/12060
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

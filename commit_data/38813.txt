@@ -1,0 +1,30 @@
+commit 825ff1e3171a97fba1f29473d0be484ebfdc08b4
+Author: jfbus <jf@bustarret.com>
+Date:   Thu Apr 18 12:39:24 2019 +0000
+
+    net: use DNS over TCP when use-vc is set in resolv.conf
+    
+    There is a DNS resolution bug in Kubernetes (UDP response packets get dropped by conntrack, causing timeouts in DNS queries).
+    
+    The recommended workaround on Linux is to configure the resolver to use TCP for DNS queries, by setting the use-vc option in resolv.conf.
+    
+    With this PR, the pure Go resolver searches for "use-vc" in resolv.conf and switches to TCP when found.
+    
+    Fixes #29358
+    
+    Change-Id: I26b935cae2c80e5bb9955da83299a8dea84591de
+    GitHub-Last-Rev: 70bc00fe41f44f0b2b3cfebe67bbcc45701968cf
+    GitHub-Pull-Request: golang/go#29594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156366
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go                  | 18 +++++++++++++---
+ src/net/dnsclient_unix_test.go             | 33 +++++++++++++++++++++++++++---
+ src/net/dnsconfig_unix.go                  |  9 ++++++++
+ src/net/dnsconfig_unix_test.go             | 33 ++++++++++++++++++++++++++++++
+ src/net/testdata/freebsd-usevc-resolv.conf |  1 +
+ src/net/testdata/linux-use-vc-resolv.conf  |  1 +
+ src/net/testdata/openbsd-tcp-resolv.conf   |  1 +
+ 7 files changed, 90 insertions(+), 6 deletions(-)

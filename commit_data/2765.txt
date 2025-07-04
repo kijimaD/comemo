@@ -1,0 +1,21 @@
+commit 90ffb7b8f5b062ffa30b63dbdeed42c805af3aa9
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 21 13:31:23 2009 -0700
+
+    Cleanup of Type/Value interface.  Add Type.ZeroVal, replace
+    all type-specific value functions, and use ZeroVal to create
+    new frames.  Remove Value.Type; it was unused and difficult
+    for values with composite types.  Add Value.Assign methods.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=282  (135 added, 90 deleted, 57 changed)
+    OCL=31894
+    CL=31930
+
+ usr/austin/eval/decls.go |  17 +++-
+ usr/austin/eval/expr.go  |  36 ++++----
+ usr/austin/eval/scope.go |  29 +++++-
+ usr/austin/eval/type.go  |  18 ++--
+ usr/austin/eval/value.go | 235 +++++++++++++++++++++++++----------------------
+ 5 files changed, 190 insertions(+), 145 deletions(-)

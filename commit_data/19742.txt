@@ -1,0 +1,14 @@
+commit 59af2c647bc728270604e8db649d23367060f15d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jul 16 20:48:57 2014 +1000
+
+    cmd/go/doc: Fix example domain
+    code.org exists
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/95500043
+
+ src/cmd/go/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

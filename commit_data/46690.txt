@@ -1,0 +1,15 @@
+commit 822f349eb9586ff75dbf0fba7e8e939ad208a6fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 14:39:52 2021 -0700
+
+    go/types: switch uses of NewSignature to NewSignatureType (cleanup)
+    
+    Change-Id: I05ed5806e2a35a57ef3e8c9275a157574abcb0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353399
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/internal/gccgoimporter/parser.go | 4 ++--
+ src/go/types/universe.go                | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

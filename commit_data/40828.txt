@@ -1,0 +1,18 @@
+commit 93d7034b1586679b6215e4ebb6fe850de6673a90
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 15:40:42 2019 -0500
+
+    cmd/go: convert TestImportMain to a script test
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I6192cc02b9e4fce3015cc47da9ec63fbea79a935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207698
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                      |  89 ----------------------
+ src/cmd/go/testdata/script/import_main.txt | 114 +++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 89 deletions(-)

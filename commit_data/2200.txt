@@ -1,0 +1,19 @@
+commit f3b08744a257f2798255956ebb109c0615b494ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 13 15:18:05 2009 -0700
+
+    Simplified AST:
+    - one node for array and slice types
+    - one node for index and slice expressions
+    - simplified parser, astprinter, and ast.txt
+    
+    R=r
+    DELTA=71  (0 added, 43 deleted, 28 changed)
+    OCL=28768
+    CL=28768
+
+ src/lib/go/ast/ast.go        | 26 +++++---------------------
+ src/lib/go/parser/parser.go  | 26 ++++++++------------------
+ usr/gri/pretty/ast.txt       | 18 ++++++------------
+ usr/gri/pretty/astprinter.go | 25 +++++++------------------
+ 4 files changed, 26 insertions(+), 69 deletions(-)

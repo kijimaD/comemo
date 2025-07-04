@@ -1,0 +1,36 @@
+commit bcc1870fcfaf121ed69096c21a9d82f69a8e6a18
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 25 14:51:02 2015 +1200
+
+    cmd/internal/ld: store the libraries a shared library was linked against in a note
+    
+    The motivation for this is the innocuous looking test case that is added. This
+    creates a stack exe -> libdep2.so -> libdep.so -> libruntime.so. The problem
+    comes from the fact that a function from libdep.so gets inlined all the way
+    into exe. This (unsurprisingly) means that the object file for exe references
+    symbols from libdep.so, which means that -ldep needs to be passed when linking
+    exe and it isn't. The fix is simply to pass it -- there is no harm in passing
+    it when it's not needed.
+    
+    The thing is, it's not clear at all in the current code to see how the linker
+    can know that libdep2 is linked against libdep. It could look through the
+    DT_NEEDED entries in libdep2 and try to guess which are Go libraries, but it
+    feels better to be explicit. So this adds another SHT_NOTE section that lists
+    the shared libraries a shared library was linked against, and makes sure the
+    complete set of depended upon shared libraries is passed to the external
+    linker.
+    
+    Change-Id: I79aa6f98b4db4721d657a7eb7b7f062269bf49e2
+    Reviewed-on: https://go-review.googlesource.com/10376
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go   | 35 +++++++++++++++++++
+ misc/cgo/testshared/src/dep2/dep2.go |  9 +++++
+ misc/cgo/testshared/src/exe2/exe2.go |  7 ++++
+ src/cmd/link/internal/ld/elf.go      | 11 ++++++
+ src/cmd/link/internal/ld/go.go       |  9 +++--
+ src/cmd/link/internal/ld/lib.go      | 67 ++++++++++++++++++++++++------------
+ src/cmd/link/internal/ld/link.go     |  1 +
+ 7 files changed, 112 insertions(+), 27 deletions(-)

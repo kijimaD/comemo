@@ -1,0 +1,12 @@
+commit 92743615fbc1e41f6bc090d6309c73dd4b97cc1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 14:44:16 2009 -0800
+
+    TBR:
+    fix typo that prevented function bodies from being indexed (ouch!)
+    
+    R=rsc
+    http://go/go-review/1024035
+
+ src/cmd/godoc/index.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

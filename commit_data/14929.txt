@@ -1,0 +1,53 @@
+commit bb192d13996abdeeec86cf756f8176a42e5c2672
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 18 17:29:53 2013 -0500
+
+    cmd/6c: Optimize rotate expressions to use rotate instructions.
+    
+    For simplicity, only recognizes expressions of the exact form
+    "(x << a) | (x >> b)" where x is a variable and a and b are
+    integer constant expressions that add to x's bit width.
+    
+    Fixes #4629.
+    
+    $ cat rotate.c
+    unsigned int
+    rotate(unsigned int x)
+    {
+            x = (x << 3) | (x >> (sizeof(x) * 8 - 3));
+            return x;
+    }
+    
+    ## BEFORE
+    $ go tool 6c -S rotate.c
+    (rotate.c:2)    TEXT    rotate+0(SB),$0-8
+    (rotate.c:2)    MOVL    x+0(FP),!!DX
+    (rotate.c:4)    MOVL    DX,!!AX
+    (rotate.c:4)    SALL    $3,!!AX
+    (rotate.c:4)    MOVL    DX,!!CX
+    (rotate.c:4)    SHRL    $29,!!CX
+    (rotate.c:4)    ORL     CX,!!AX
+    (rotate.c:5)    RET     ,!!
+    (rotate.c:5)    RET     ,!!
+    (rotate.c:5)    END     ,!!
+    
+    ## AFTER
+    $ go tool 6c -S rotate.c
+    (rotate.c:2)    TEXT    rotate+0(SB),$0-8
+    (rotate.c:4)    MOVL    x+0(FP),!!AX
+    (rotate.c:4)    ROLL    $3,!!AX
+    (rotate.c:5)    RET     ,!!
+    (rotate.c:5)    RET     ,!!
+    (rotate.c:5)    END     ,!!
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7069056
+
+ src/cmd/6c/cgen.c | 12 ++++++++++++
+ src/cmd/6c/txt.c  | 10 ++++++++++
+ src/cmd/8c/cgen.c | 12 ++++++++++++
+ src/cmd/8c/txt.c  |  8 ++++++++
+ src/cmd/cc/cc.h   |  1 +
+ src/cmd/cc/sub.c  |  1 +
+ 6 files changed, 44 insertions(+)

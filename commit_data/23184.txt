@@ -1,0 +1,14 @@
+commit ae38ef4cdf2e8cf843b9d3872e66586327d744ae
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 1 12:43:18 2015 -0700
+
+    regexp: suggest go doc, not godoc
+    
+    In 1.6, go doc is more likely to be available.
+    
+    Change-Id: I970ad1d3317b35273f5c8d830f75713d3570c473
+    Reviewed-on: https://go-review.googlesource.com/10518
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

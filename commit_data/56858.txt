@@ -1,0 +1,24 @@
+commit d3c93f2f00fe40eb6f8b0bf9c81b15ddd9872119
+Author: Mohamed Yousif <mmbusif@gmail.com>
+Date:   Mon Jun 24 16:14:03 2024 +0000
+
+    cmd/go: update go clean help message
+    
+    Update the help message for the go clean command to include
+    the correct usage and flags for better clarity.
+    
+    This change follows instructions by Ian on this thread <https://groups.google.com/g/golang-nuts/c/VENQ0fqLCSc/m/qO8EuawVBwAJ?pli=1>.
+    
+    Change-Id: Ia509a38ee9ec7c31d384c3563535c5e3ccd9a9ce
+    GitHub-Last-Rev: 3048b2e4bd10a8d25da479f96c9d90ecb3c63082
+    GitHub-Pull-Request: golang/go#68135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593639
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/alldocs.go              | 2 +-
+ src/cmd/go/internal/clean/clean.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

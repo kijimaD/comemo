@@ -1,0 +1,20 @@
+commit 0cf7e54f2fe033a1e596d9aaed0e728cda1fc5e7
+Author: Ron Minnich <rminnich@gmail.com>
+Date:   Tue Aug 29 09:59:27 2017 -0700
+
+    os: don't assume /bin/pwd in test, find it in $PATH
+    
+    There are several distros now that no longer have /bin.
+    Instead of assuming /bin/pwd, we will look for it in $PATH.
+    
+    Fixes #21684.
+    
+    Change-Id: I61478326500edeadc3c26803990550dad00c7971
+    Signed-off-by: Ron Minnich <rminnich@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/60010
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit a0785a53add4253db84349d58abbe2ba8be130d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 15:10:38 2014 -0400
+
+    cmd/go: prohibit C sources files unless using cgo
+    
+    Those C files would have been compiled with 6c.
+    It's close to impossible to use C correctly anymore,
+    and the C compilers are going away eventually.
+    Make them unavailable now.
+    
+    go1.4.txt change in CL 145890046
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/149720043
+
+ misc/cgo/test/backdoor/backdoor.go       |  3 +--
+ misc/cgo/test/backdoor/backdoor_gccgo.go | 11 -----------
+ misc/cgo/test/backdoor/runtime.c         | 18 ------------------
+ misc/cgo/test/issue7695_test.go          | 30 ------------------------------
+ src/cmd/go/pkg.go                        | 10 ++++++++++
+ src/cmd/go/test.bash                     | 14 ++++++++++++++
+ src/cmd/go/testdata/src/badc/x.c         |  1 +
+ src/cmd/go/testdata/src/badc/x.go        |  1 +
+ src/net/{empty.c => empty.s}             |  0
+ src/runtime/debug/{debug.c => debug.s}   |  0
+ 10 files changed, 27 insertions(+), 61 deletions(-)

@@ -1,0 +1,66 @@
+commit 3367475e83eeccd79a5c73c2cc2e91e85e482295
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 8 17:04:06 2023 -0700
+
+    go/types, types2: use correct reverse inference approach
+    
+    To infer type arguments in an assignment of the form
+    
+            var target func(t1, t2, ...) = g
+    
+    where g is a generic function
+    
+            func g[P1, P2, ...](p1, p2, ...)
+    
+    the type checker used the synthetic function call
+    
+            g(t1, t2, ...)
+    
+    But because each argument (of type) t1, t2, ... is assigned to its
+    corresponding parameter p1, p2, ..., type inference uses assignment
+    rules ("inexact match") for unification.
+    
+    As a result, types such as mystring and string match even though
+    they should not (they are not identical), yet function parameter
+    types must be identical to match.
+    
+    This CL fixes this by constructing the synthetic call
+    
+            g'(func(t1, t2, ...))
+    
+    where g' is the generic function
+    
+            func g'[P1, P2, ...](func(p1, p2, ...))
+    
+    This mimics the function assignment directly by representing it as
+    a single argument passing (of a function-typed argument). Function
+    parameter types must now be identical to unify.
+    
+    As an added benefit, the implementation is simpler.
+    
+    As a consequence, when such an assignment is invalid because the
+    function types cannot possibly match, we now correctly get an
+    inference error. Without this change, in some cases unification
+    would succeed, only to lead to an assignment error afterwards.
+    
+    While at it, update the date in the copyright notice of
+    testdata/manual.go so we don't need to fix it each time we copy
+    code from a test case in manual.go into a issueXXXXX.go file.
+    
+    Fixes #60688.
+    
+    Change-Id: I716247f426ef33d76c7849b0c33c59124e55b859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501938
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go            | 63 ++++++---------------
+ src/cmd/compile/internal/types2/testdata/manual.go |  2 +-
+ src/go/types/call.go                               | 66 +++++++---------------
+ src/go/types/testdata/manual.go                    |  2 +-
+ src/internal/types/testdata/examples/inference2.go | 12 ++--
+ .../types/testdata/fixedbugs/issue60688.go         | 16 ++++++
+ 6 files changed, 61 insertions(+), 100 deletions(-)

@@ -1,0 +1,16 @@
+commit 92d4af301e5c69b066b75475b3fce24e4fa51ab3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 12 15:55:39 2012 +1100
+
+    cmd/godoc: always include /doc files in union filesystems
+    
+    Makes Path rewrites work, as the metadata was never being scanned.
+    
+    Fixes #3282.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5783076
+
+ src/cmd/godoc/filesystem.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

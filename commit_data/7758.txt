@@ -1,0 +1,12 @@
+commit 31a72d1a53f8584a78f9d7c89a8951a553015ba4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 14 14:12:37 2011 -0700
+
+    libmach: correct string comparison to revive 6cov on darwin
+    
+    R=golang-dev, r, dsymonds, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4277046
+
+ src/libmach/darwin.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

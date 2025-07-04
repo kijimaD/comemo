@@ -1,0 +1,24 @@
+commit 09bb6434f9a8681b81a667e1ff186c61bbe0a50f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 19:48:35 2016 +0000
+
+    net/http: update bundled http2
+    
+    Update bundled x/net/http2 to x/net git rev 6c4ac8bd for:
+    
+       http2: fix Transport race sending RST_STREAM while reading DATA on cancels
+       https://golang.org/cl/32571
+    
+       http2: remove h2-14 ALPN proto
+       https://golang.org/cl/32576
+    
+    Fixes #16974
+    
+    Change-Id: I6ff8493a13d2641499fedf33e8005004735352ff
+    Reviewed-on: https://go-review.googlesource.com/32578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

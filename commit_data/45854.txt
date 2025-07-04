@@ -1,0 +1,18 @@
+commit 197a5ee2ab8b64c687c74b986bf92139057366b6
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 20:14:21 2021 -0400
+
+    cmd/gofmt: remove stale documentation for the -G flag
+    
+    This documentation remained from the original dev.typeparams merge. This
+    flag no longer exists.
+    
+    Change-Id: Ic9a82071c512614dc1382780d69ef13253fca21d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329792
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/doc.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,13 @@
+commit adcd34c732d01d60ca336627fc0fd7647d46a0c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 14:13:41 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for *Node formats %s, %v, %j
+    
+    Change-Id: I44ee5843bb9dfd65b9a18091f365355e84888f21
+    Reviewed-on: https://go-review.googlesource.com/28330
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  10 +--
+ src/cmd/compile/internal/gc/fmt.go | 136 ++++++++++++++++++++++++-------------
+ 2 files changed, 93 insertions(+), 53 deletions(-)

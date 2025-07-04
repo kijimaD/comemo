@@ -1,0 +1,17 @@
+commit 2959ba1f550b9a8498a8b9e4363cec6764e527e9
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Sep 9 16:39:43 2019 -0400
+
+    cmd/link: prefix syms with "_" on external darwin links
+    
+    Fixes #33808
+    
+    Change-Id: If1f30bc80004093ffdf9121768464dfb3a6e1f63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194381
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/issue33808_test.go | 53 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go           |  5 +--
+ 2 files changed, 56 insertions(+), 2 deletions(-)

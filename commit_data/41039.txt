@@ -1,0 +1,29 @@
+commit a7be8cccf80e04bb5c09e9f8c53d2eec4bc36d3a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 17:51:16 2019 -0500
+
+    cmd/go: convert tests using testdata/src/syntaxerror to scripts
+    
+    This includes TestMatchesNoTestsDoesNotOverrideBuildFailure
+    and TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL.
+    Convert the tests that use the testdata/src/syntaxerror directory
+    to the script framework.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I2b2b616e8c124996ae8c8e5b737f15bb493ec588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212816
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                 | 19 -------------------
+ .../script/test_match_no_tests_build_failure.txt      | 15 +++++++++++++++
+ .../testdata/script/test_syntax_error_says_fail.txt   | 14 ++++++++++++++
+ src/cmd/go/testdata/src/syntaxerror/x.go              |  1 -
+ src/cmd/go/testdata/src/syntaxerror/x_test.go         |  4 ----
+ 5 files changed, 29 insertions(+), 24 deletions(-)

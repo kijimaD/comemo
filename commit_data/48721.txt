@@ -1,0 +1,16 @@
+commit db7183ccf9e7c245872864833e78a469e8747031
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 8 16:23:35 2022 -0700
+
+    go/build: remove unused fileInfo.embedErr field
+    
+    Change-Id: If86a0402dae32c57d07545ee6d818010e0e4b5ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399255
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/build/build.go | 1 -
+ src/go/build/read.go  | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

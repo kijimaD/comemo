@@ -1,0 +1,19 @@
+commit 71984fd6abdcb93cf4ea1bc31cafc102a7c90549
+Author: Piyush Mishra <piyush@codeitout.com>
+Date:   Fri Feb 9 03:32:17 2018 +0000
+
+    cmd/go/internal/get: fix regexes for "any" character matching
+    
+    Minor bug: `hubajazz.net` and `gitbapache.org` would match, probably shouldn't
+    
+    GitHub-Last-Rev: 75bd338569ca41f83b9c36fe3d5ae3b4db0a26cc
+    GitHub-Pull-Request: golang/go#23755
+    Change-Id: Ie9c9ab1c15364eccdab8cf3b106b9c370e7f532f
+    Reviewed-on: https://go-review.googlesource.com/92997
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/get/vcs.go      | 4 ++--
+ src/cmd/go/internal/get/vcs_test.go | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

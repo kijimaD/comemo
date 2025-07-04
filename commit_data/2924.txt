@@ -1,0 +1,16 @@
+commit 812f06b3ca425d26ea18f02dd7392a72be4f3eda
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 8 16:53:21 2009 -0700
+
+    another plateau - almost done
+    only need to fix up certain
+    denominators
+    
+    R=rsc
+    OCL=32928
+    CL=32928
+
+ src/cmd/6g/ggen.c    |  71 ++++++++--
+ test/ken/divconst.go | 366 +++++++++++++++++++++++++++++++++++++++++++++++---
+ test/ken/modconst.go | 371 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 775 insertions(+), 33 deletions(-)

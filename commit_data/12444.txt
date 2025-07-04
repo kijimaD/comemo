@@ -1,0 +1,14 @@
+commit 8f61631c74a46d148690cc84c21f0a0366895eed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 14:10:49 2012 +1100
+
+    go/build: delete Makefile
+    We can write syslist.go by hand.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5757057
+
+ src/pkg/go/build/Makefile   | 11 -----------
+ src/pkg/go/build/syslist.go |  4 +++-
+ 2 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,24 @@
+commit b71eafbcece175db33acfb205e9090ca99a8f984
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 20 17:00:48 2020 -0800
+
+    time: use extended time format past end of zone transitions
+    
+    This gives us better expected information for daylight savings time
+    transitions in year 2038 and beyond.
+    
+    Fixes #36654
+    
+    Change-Id: I5a39aed3c40b184e1d7bb7d6ce3aff5307c4c146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215539
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/export_test.go   |  31 +++++
+ src/time/time.go          |  50 ++++---
+ src/time/time_test.go     |   7 +
+ src/time/zoneinfo.go      | 348 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_read.go |  15 +-
+ src/time/zoneinfo_test.go |  94 +++++++++++++
+ 6 files changed, 523 insertions(+), 22 deletions(-)

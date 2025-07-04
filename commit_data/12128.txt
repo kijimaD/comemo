@@ -1,0 +1,17 @@
+commit 433e47dc030c19402af1f62f78789ff2ccbb66ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 23:04:38 2012 -0500
+
+    ld: only set SNOPTRBSS during load
+    
+    dodata will convert to SNOPTRDATA if appropriate.
+    Should fix arm build (hope springs eternal).
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5687074
+
+ src/cmd/5l/obj.c | 8 ++------
+ src/cmd/6l/obj.c | 8 ++------
+ src/cmd/8l/obj.c | 4 ++--
+ 3 files changed, 6 insertions(+), 14 deletions(-)

@@ -1,0 +1,17 @@
+commit 9b2bd2f7151381cc54638726808f55c6088fa30a
+Author: Eduard Urbach <e.urbach@gmail.com>
+Date:   Tue May 21 06:06:11 2019 +0000
+
+    mime: add .webp for builtin
+    
+    This change modifies Go to include image/webp as a built-in mime type for the .webp file extension.
+    
+    Change-Id: Id46d34fac8cc859ddd69aa8669294815654214f8
+    GitHub-Last-Rev: f191e1c325126e2caeb3123c912131ce5236542b
+    GitHub-Pull-Request: golang/go#32157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

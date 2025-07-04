@@ -1,0 +1,18 @@
+commit 832c573595157b805634f2c723eac8e7650e472c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 19 23:42:11 2015 +0900
+
+    net: add helpers for server testing
+    
+    Also moves a few server test helpers into mockserver_test.go.
+    
+    Change-Id: I5a95c9bc6f0c4683751bcca77e26a8586a377466
+    Reviewed-on: https://go-review.googlesource.com/9106
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/conn_test.go       |  42 ++-------
+ src/net/error_test.go      |   5 +
+ src/net/mockserver_test.go | 225 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/protoconn_test.go  |  22 ++---
+ src/net/tcp_test.go        |   9 +-
+ 5 files changed, 249 insertions(+), 54 deletions(-)

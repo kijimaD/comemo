@@ -1,0 +1,19 @@
+commit 16ebe9f72eee1ccba4e94fb2a79afa0785cb554a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 14:41:02 2015 -0400
+
+    cmd/go: use ELF note instead of binary stamp on ELF systems
+    
+    Other binary formats to follow.
+    
+    For #11048.
+    
+    Change-Id: Ia2d8b47c99c99d171c014b7cfd23c1c7ada5231c
+    Reviewed-on: https://go-review.googlesource.com/10707
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go     |  3 +++
+ src/cmd/go/note.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/note_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/pkg.go       | 33 +++++++++++++++++++++++++-------
+ 4 files changed, 124 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 652d59861ee34b7cbef49cdd9da71fa822124e6e
+Author: Max Ushakov <ushmax@gmail.com>
+Date:   Fri Dec 21 17:53:33 2018 +0300
+
+    time: return ENOENT if a zoneinfo zip file is not found
+    
+    Updates #20969
+    
+    Change-Id: Ibcf0bf932d5b1de67c22c63dd8514ed7a5d198fb
+    Reviewed-on: https://go-review.googlesource.com/c/155538
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/zoneinfo_read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

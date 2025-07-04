@@ -1,0 +1,19 @@
+commit 926994fd7cf65b2703552686965fb05569699897
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Thu Nov 26 17:01:35 2020 +0100
+
+    log: make Default doc comment consistent with package doc
+    
+    None of the other, older, doc comments use the '*Logger' form, and while
+    'Logger' and 'logger' are both used in the package doc comment, the
+    common term used with the intended meaning is 'standard logger', which
+    appears another eleven times in doc comments.
+    
+    Change-Id: I089103198fc82390517615eb27bbe7ef77107d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273486
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

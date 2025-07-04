@@ -1,0 +1,15 @@
+commit be827826eff2e339d8d8eb4315e518bb2e5b8905
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 2 12:47:33 2009 -0700
+
+    Verify that a send on a sychronous channel waits until the
+    value has been received.  This failed with gccgo before
+    today.
+    
+    R=ken,r
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=28185
+    CL=28190
+
+ test/fixedbugs/bug147.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

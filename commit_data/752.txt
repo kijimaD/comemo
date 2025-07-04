@@ -1,0 +1,13 @@
+commit 8545700af87ec2c2cc29b90c79965b2258ddeebd
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Sep 26 17:41:23 2008 -0700
+
+    export
+    
+    R=r
+    OCL=16018
+    CL=16022
+
+ src/cmd/6g/cgen.c   |  3 +++
+ src/cmd/gc/export.c | 19 +++++++++++--------
+ 2 files changed, 14 insertions(+), 8 deletions(-)

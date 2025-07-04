@@ -1,0 +1,20 @@
+commit 17bfa32fde692b3d299ced5e1879b4f6bfefbfac
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jun 1 20:30:42 2011 -0300
+
+    sync: always wake up previously sleeping goroutines on Cond.Signal
+    
+    This changes the internal implementation of Cond so that
+    it uses two generations of waiters.  This enables Signal
+    to guarantee that it will only wake up waiters that are
+    currently sleeping at the call time.
+    
+    Fixes #1648.
+    
+    R=dvyukov, gustavo, rsc
+    CC=golang-dev
+    https://golang.org/cl/4524083
+
+ src/pkg/sync/cond.go      | 69 +++++++++++++++++++++++++++++++----------------
+ src/pkg/sync/cond_test.go | 27 +++++++++++++++++++
+ 2 files changed, 73 insertions(+), 23 deletions(-)

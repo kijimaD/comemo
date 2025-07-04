@@ -1,0 +1,13 @@
+commit 91a576eb0f35c36ce7a63f73c7b3e1a9f0dc134a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 11 14:46:29 2014 -0700
+
+    C: add another email address for David Crawshaw
+    
+    LGTM=crawshaw
+    R=crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/99180043
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

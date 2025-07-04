@@ -1,0 +1,13 @@
+commit a5f21c95dc279f421c094a592d65bf2ef89e87d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 18 04:45:43 2012 -0800
+
+    os: document the type of link errors
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5673090
+
+ src/pkg/os/file_plan9.go | 8 +++++---
+ src/pkg/os/file_posix.go | 2 ++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

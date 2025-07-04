@@ -1,0 +1,15 @@
+commit 97c859f8da0c85c33d0f29ba5e11094d8e691e87
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Wed Sep 2 19:05:22 2015 +0200
+
+    encoding/xml: reject invalid comments
+    
+    Fixes #11112.
+    
+    Change-Id: I16e7363549a0dec8c61addfa14af0866c1fd7c40
+    Reviewed-on: https://go-review.googlesource.com/14173
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/read_test.go | 21 +++++++++++++++++++++
+ src/encoding/xml/xml.go       |  7 ++++++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

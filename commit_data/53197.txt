@@ -1,0 +1,20 @@
+commit 0cd04724aaa180703244d7af1b67be906059206e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 16 16:56:13 2023 -0400
+
+    cmd/go: add some test skips for GOEXPERIMENT=nocoverageredesign
+    
+    Couple of test need to be skipped for GOEXPERIMENT=nocoverageredesign,
+    since they use "go build -cover". [This is a test-only CL].
+    
+    Change-Id: I48c0855e2d8f042f9bc293e4cf48f326682112c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495597
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt | 1 +
+ src/cmd/go/testdata/script/cover_main_import_path.txt   | 1 +
+ src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 1 +
+ src/cmd/internal/cov/read_test.go                       | 4 ++++
+ 4 files changed, 7 insertions(+)

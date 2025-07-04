@@ -1,0 +1,23 @@
+commit b2363ee9f6c37f0c0ac0dd6b992c0de54c7d40f5
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Tue May 9 16:25:13 2017 +0800
+
+    cmd/internal/objabi: fix the bug of shrinking SymType down to a uint8
+    
+    Previous CL (cmd/internal/objabi: shrink SymType down to a uint8) shrinks
+    SymType down to a uint8 but forgot making according change in goobj.
+    
+    Fixes #20296
+    Also add a test to catch such Goobj format inconsistency bug
+    
+    Change-Id: Ib43dd7122cfcacf611a643814e95f8c5a924941f
+    Reviewed-on: https://go-review.googlesource.com/42971
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/goobj/read.go  |  2 +-
+ src/cmd/internal/objabi/doc.go  |  2 +-
+ src/cmd/objdump/objdump_test.go | 47 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 2 deletions(-)

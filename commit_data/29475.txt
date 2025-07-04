@@ -1,0 +1,21 @@
+commit 0457957c991dde4bbdeefb73bc9fb01827298bd9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 23:16:14 2016 +0000
+
+    net/http: update bundled http2 for ErrAbortHandler support, document it more
+    
+    Updates http2 to x/net/http2 git rev 0e2717d for:
+    
+       http2: conditionally log stacks from panics in Server Handlers like net/http
+       https://golang.org/cl/33102
+    
+    Fixes #17790
+    
+    Change-Id: Idd3f0c65540398d41b412a33f1d80de3f7f31409
+    Reviewed-on: https://go-review.googlesource.com/33103
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/net/http/clientserver_test.go |  3 ---
+ src/net/http/h2_bundle.go         | 16 +++++++++++-----
+ src/net/http/server.go            |  4 +++-
+ 3 files changed, 14 insertions(+), 9 deletions(-)

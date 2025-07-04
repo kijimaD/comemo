@@ -1,0 +1,12 @@
+commit 8627e5c0a1da23e0fe2eb10c306aed77c0743f08
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 19 12:07:25 2012 +1000
+
+    misc/cgo/test and test/bench/go1: enable these tests on windows
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6488127
+
+ src/run.bat | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

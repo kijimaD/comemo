@@ -1,0 +1,16 @@
+commit 83ff4fd5713cbccdf1e5c3433b34d6213cfd825c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 19:36:05 2024 -0700
+
+    go/types, types2: factor out check for updated type arguments (cleanup)
+    
+    Change-Id: I3e2668e4a24c145f121199a5f7f4278ff5d5f1da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587676
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/subst.go | 67 ++++++--------------------------
+ src/go/types/subst.go                    | 67 ++++++--------------------------
+ 2 files changed, 24 insertions(+), 110 deletions(-)

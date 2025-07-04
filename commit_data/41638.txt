@@ -1,0 +1,24 @@
+commit 74bc90a9a86365ca158a2d4e8697b0f4650e31c5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 7 13:53:15 2020 -0800
+
+    cmd/compile: rename a local variable in shortcircuitBlock
+    
+    v is pretty generic. Subsequent changes will make this function
+    more complicated, so rename it now, independently, for easier review.
+    
+    v is the control value for the block (or its underlying phi);
+    call it ctl.
+    
+    Passes toolstash-check.
+    
+    Updates #37608
+    
+    Change-Id: I3fbae3344f1c95aff0a69c1e4f61ef637a54774e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222917
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/shortcircuit.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

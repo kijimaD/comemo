@@ -1,0 +1,21 @@
+commit d2af73136e15ba380fd405a909d8ca48f66c6309
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:30:18 2009 -0800
+
+    gofmt-ify ogle
+    
+    R=rsc
+    http://go/go-review/1016053
+
+ src/pkg/exp/ogle/abort.go     |   2 +-
+ src/pkg/exp/ogle/arch.go      |  10 +--
+ src/pkg/exp/ogle/cmd.go       |  21 ++++---
+ src/pkg/exp/ogle/event.go     |  30 ++++-----
+ src/pkg/exp/ogle/frame.go     |  12 ++--
+ src/pkg/exp/ogle/goroutine.go |   6 +-
+ src/pkg/exp/ogle/process.go   |  50 +++++++--------
+ src/pkg/exp/ogle/rruntime.go  | 140 +++++++++++++++++++++---------------------
+ src/pkg/exp/ogle/rtype.go     |  64 ++++++++-----------
+ src/pkg/exp/ogle/rvalue.go    |  50 +++++++--------
+ src/pkg/exp/ogle/vars.go      |  20 +++---
+ 11 files changed, 197 insertions(+), 208 deletions(-)

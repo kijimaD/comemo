@@ -1,0 +1,21 @@
+commit 983986f23d81eae6ee202bd31383d04e73187536
+Author: kawakami <kawakami.ozone@gmail.com>
+Date:   Thu May 16 03:11:44 2019 +0900
+
+    image/gif: fix transparency loss when encoding a wrapped *image.Paletted
+    
+    This keeps transparency of a wrapped image.Image even after it is encoded.
+    
+    Fixes #30995
+    
+    Change-Id: I1f7ac98b1741f83ed740f6eda6c36b7e9b16e5af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177377
+    Reviewed-by: Hayato Kawakami <kawakami.ozone@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/gif/writer.go             |  14 ++++++-
+ src/image/gif/writer_test.go        |  81 ++++++++++++++++++++++++++++++++++--
+ src/image/testdata/triangle-001.gif | Bin 0 -> 1476 bytes
+ 3 files changed, 90 insertions(+), 5 deletions(-)

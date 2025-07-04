@@ -1,0 +1,23 @@
+commit 6e0adde1e9467f5a0b9bdbe3d64f9093981ba5df
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 12 12:38:42 2021 -0400
+
+    cmd/compile: do not reuse dead value in expand_calls pass
+    
+    We reuse a value for the same selector on the same arg. But if the
+    value is already marked dead, don't reuse it. A use of an
+    OpInvalid will confuse the compiler.
+    
+    Fixes #48916.
+    
+    Change-Id: I15b9e15b49f6e1991fe91df246cd12a193385e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355409
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 10 ++++++--
+ test/fixedbugs/issue48916.go                 | 37 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

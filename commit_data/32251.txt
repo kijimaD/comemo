@@ -1,0 +1,17 @@
+commit 445717530ca2e2d5e9a6fc21b0222206f22e64d9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 09:55:05 2017 -0700
+
+    runtime: refactor out tophash calculation
+    
+    No functional changes; tophash is inlined.
+    
+    Change-Id: Ic8ce95b3622eafbddcfbc97f8c630ab8c5bfe7ad
+    Reviewed-on: https://go-review.googlesource.com/55233
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go      | 39 +++++++++++++++------------------------
+ src/runtime/hashmap_fast.go | 40 ++++++++--------------------------------
+ 2 files changed, 23 insertions(+), 56 deletions(-)

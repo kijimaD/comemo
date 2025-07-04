@@ -1,0 +1,15 @@
+commit ace7ce1025402a9a47f70e72ac60a5932b22199f
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Thu Jul 20 08:16:36 2017 -0700
+
+    sync: update Map documentation with usage rule of thumb
+    
+    As per bcmills’s lightning talk at GopherCon 2017:
+    https://github.com/gophercon/2017-talks/tree/master/lightningtalks/BryanCMills-AnOverviewOfSyncMap
+    
+    Change-Id: I12dd0daa608af175d110298780f32c6dc5e1e0a0
+    Reviewed-on: https://go-review.googlesource.com/50310
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/sync/map.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

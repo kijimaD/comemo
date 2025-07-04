@@ -1,0 +1,12 @@
+commit 334761a666ec22855091904f0f9c5a80fffb8e38
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Aug 1 12:05:05 2013 -0700
+
+    net/http: document that Error is to be used with plain text
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12276043
+
+ src/pkg/net/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,21 @@
+commit d2dfd76b3d30b601e9a92919cd41841459d4473e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 12:54:44 2008 -0800
+
+    build with warnings enabled.
+    
+    new script "quietgcc" installed in $HOME/bin during make.bash
+            runs gcc with warnings, turns off inappropriate ones,
+            greps out useless output.
+    
+    quietgcc also makes sure to run the correct 64-bit gcc.
+    
+    R=r
+    DELTA=38  (36 added, 0 deleted, 2 changed)
+    OCL=17493
+    CL=19599
+
+ src/Make.conf     |  4 ++--
+ src/make.bash     |  3 +++
+ src/quietgcc.bash | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 2 deletions(-)

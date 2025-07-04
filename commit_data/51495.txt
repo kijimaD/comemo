@@ -1,0 +1,25 @@
+commit 6ec6492f5599f9fa811258ddec5cdf3dced6af82
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 16:30:11 2022 -0500
+
+    cmd/api: track darwin arm64 port
+    
+    The darwin arm64 port was added in Go 1.16 and is a first-class port,
+    so it should be tracked by cmd/api. This CL does that, backfilling
+    API files as needed.
+    
+    It also removes a spurious cgo.Incomplete API feature.
+    
+    Change-Id: Idd995677915e81bf1c2e09be65b31e084b75f668
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453260
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/go1.16.txt     | 7357 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/go1.17.txt     |   10 +
+ api/next/46731.txt |    2 +-
+ src/cmd/api/api.go |    2 +
+ 4 files changed, 7370 insertions(+), 1 deletion(-)

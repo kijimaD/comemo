@@ -1,0 +1,27 @@
+commit 09834d1c082a2437b12584bebaa7353377e66f1a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 20 15:53:11 2016 -0700
+
+    runtime: panic with the right error on iface conversion
+    
+    A straight conversion from a type T to an interface type I, where T does
+    not implement I, should always panic with an interface conversion error
+    that shows the missing method.  This was not happening if the conversion
+    was done once using the comma-ok form (the result would not be OK) and
+    then again in a straight conversion.  Due to an error in the runtime
+    package the second conversion was failing with a nil pointer
+    dereference.
+    
+    Fixes #16130.
+    
+    Change-Id: I8b9fca0f1bb635a6181b8b76de8c2385bb7ac2d2
+    Reviewed-on: https://go-review.googlesource.com/24284
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michel Lespinasse <walken@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/iface.go         |  2 +-
+ test/fixedbugs/issue16130.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

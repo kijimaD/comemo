@@ -1,0 +1,16 @@
+commit c78cddd7de4c7f5a9d071b70e0452b11e3d55a7a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 14 16:33:29 2011 -0700
+
+    gofmt: gofmt test harness bug fix
+    
+    Don't use the rewrite rule from a previous test
+    for the next test if there is no rewrite rule
+    provided.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4419045
+
+ src/cmd/gofmt/rewrite.go | 1 +
+ 1 file changed, 1 insertion(+)

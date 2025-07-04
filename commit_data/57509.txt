@@ -1,0 +1,15 @@
+commit 83fbd0a37bb8c67400e29437db67b6098cf3d5ff
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu May 23 23:17:52 2024 +0800
+
+    reflect: slightly improve iter tests
+    
+    Change-Id: Ia0e3d668a2435b2ee72e1c641092445902168e4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/iter_test.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

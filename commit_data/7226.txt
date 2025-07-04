@@ -1,0 +1,15 @@
+commit 59a6395279e8529b54d96bb84051d38206d63e50
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Jan 24 14:16:24 2011 -0500
+
+    codereview: fix windows
+    
+    Uploading go files on Windows aborts with gofmt: exceptions.ValueError:
+    close_fds is not supported on Windows platforms if you redirect stdin/stdout/stderr
+    
+    R=rsc, mattn, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/4025046
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

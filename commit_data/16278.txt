@@ -1,0 +1,16 @@
+commit 8a28085a0fdfea041ff923353c7e482455322c2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 8 06:28:33 2013 -0700
+
+    cmd/cgo: pass -Wsystem-headers when looking for errors
+    
+    This works around a bug in GCC 4.8.0.
+    
+    Fixes #5118.
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9120045
+
+ src/cmd/cgo/gcc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

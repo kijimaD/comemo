@@ -1,0 +1,17 @@
+commit feb509c794584d634ad1a51d88c0f6d109bf42d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 13 16:21:25 2012 +0900
+
+    net: make TestDialTimeoutFDLeak a bit robust
+    
+    TestDialTimeoutFDLeak will fail when system state somaxconn is
+    greater than expected fixed value.
+    
+    Fixes #4384 (again).
+    
+    R=fullung, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6873069
+
+ src/pkg/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

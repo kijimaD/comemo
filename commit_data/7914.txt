@@ -1,0 +1,16 @@
+commit a7bb288f99e338f39a53a97e27977208679cf2eb
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Mar 29 10:35:34 2011 -0400
+
+    crypto/x509: Parse Extended Key Usage extension
+    
+    This changeset makes it possible for crypto/x509 to parse
+    certificates that include the 'Extended Key Usage' extension
+    with the critical bit set.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/4277075
+
+ src/pkg/crypto/x509/x509.go | 77 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

@@ -1,0 +1,25 @@
+commit f776d51bf7fe90926f8b929aee65d802a9091d5e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 26 10:43:15 2018 -0400
+
+    cmd/internal/obj/ppc64: generate float 0 more efficiently on ppc64x
+    
+    This change makes use of a VSX instruction to generate the
+    float 0 value instead of generating a constant in memory and
+    loading it from there.
+    
+    This uses 1 instruction instead of 2 and avoids a memory reference.
+    in the +0 case, uses 2 instructions in the -0 case but avoids
+    the memory reference.
+    
+    Since this is done in the assembler for ppc64x, an update has
+    been made to the assembler test.
+    
+    Change-Id: Ief7dddcb057bfb602f78215f6947664e8c841464
+    Reviewed-on: https://go-review.googlesource.com/c/139420
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  3 +++
+ src/cmd/internal/obj/ppc64/asm9.go           | 22 ++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/obj9.go           | 11 +++++++----
+ 3 files changed, 32 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit d11f41118116e0b5c2fb3b3296323d888dff2d6e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 22 19:07:05 2014 -0800
+
+    reflect: add kindNoPointers if a function layout has no pointers.
+    
+    malloc checks kindNoPointers and if it is not set and the object
+    is one pointer in size, it assumes it contains a pointer.  So we
+    must set kindNoPointers correctly; it isn't just a hint.
+    
+    Fixes #9425
+    
+    Change-Id: Ia43da23cc3298d6e3d6dbdf66d32e9678f0aedcf
+    Reviewed-on: https://go-review.googlesource.com/2055
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/type.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

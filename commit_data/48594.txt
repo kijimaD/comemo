@@ -1,0 +1,17 @@
+commit 2b8178c14d8f71a3f022653c2e779e92eea9cdec
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Mar 22 20:53:10 2022 +0000
+
+    text/template: remove newline special casing in documentation
+    
+    Updates #29770
+    Fixes #51872
+    
+    Change-Id: Icee660c8cc6c69a79ad11e818dd8ab40a344e800
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394676
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/doc.go | 1 -
+ 1 file changed, 1 deletion(-)

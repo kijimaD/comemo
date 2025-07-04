@@ -1,0 +1,22 @@
+commit 9435dc2bdfa595562655de56c77cf6f4eb103d75
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 15:13:37 2009 -0700
+
+    allow forward declaration of struct in another file
+    (in the same package).
+    
+    allow forward method declaration to be satisfied
+    by implementation in another file (in the same package).
+    all methods must be declared in the same file
+    as the receiver type.
+    
+    R=ken
+    OCL=30864
+    CL=30869
+
+ src/cmd/ar/ar.c     | 92 ++++++++++++++++++++++++-----------------------------
+ src/cmd/gc/dcl.c    | 25 ++++++++-------
+ src/cmd/gc/export.c | 40 +++++++++++++++++------
+ src/cmd/gc/go.y     |  8 +++++
+ src/cmd/ld/go.c     | 74 ++++++++++++++++++++++--------------------
+ 5 files changed, 131 insertions(+), 108 deletions(-)

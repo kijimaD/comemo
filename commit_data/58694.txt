@@ -1,0 +1,27 @@
+commit 0be3701cb618713611fe3c21c13b2aee34020fff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 27 21:42:34 2025 +0000
+
+    internal/trace: clean up parser.go
+    
+    parser.go is an old file that contains trace v1 definitions and a second
+    equivalent definition for stack frames. These are redundant and useless.
+    Delete these definitions and rename the file to fakep.go, which
+    describes the only thing left in this file, a bunch of fake P IDs used
+    by the trace viewer.
+    
+    We should consider moving the fake P definitions elsewhere, too.
+    
+    Change-Id: Ifd0768bd73c39009069445afe0155f1e352f00c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644875
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/pprof.go                    | 11 ++---
+ src/cmd/trace/viewer.go                   | 14 ++----
+ src/internal/trace/fakep.go               | 15 ++++++
+ src/internal/trace/parser.go              | 79 -------------------------------
+ src/internal/trace/traceviewer/emitter.go |  6 +--
+ src/internal/trace/traceviewer/pprof.go   | 10 ++--
+ 6 files changed, 30 insertions(+), 105 deletions(-)

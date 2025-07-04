@@ -1,0 +1,19 @@
+commit 87151c82b68023e4224b016a6a66ead2c4b8ece7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Mar 13 17:59:26 2016 -0700
+
+    encoding/base64: correct DecodedLen overestimate for unpadded encodings
+    
+    While we're at it, add tests for EncodedLen and DecodedLen.
+    
+    Fixes #14803.
+    
+    Change-Id: I200c72cf11c51669b8d9f70c6e57ece359f7ae61
+    Reviewed-on: https://go-review.googlesource.com/20649
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64.go      |  2 +-
+ src/encoding/base64/base64_test.go | 45 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

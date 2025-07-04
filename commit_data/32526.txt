@@ -1,0 +1,12 @@
+commit 2034297bdbcb21352dd108f7653b79ed8ebbe278
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:39:19 2017 +1000
+
+    cmd/link: introduce and use peFile.writeSymbols
+    
+    Change-Id: If629b19cebc6ae8dfbf603dcd7f2dd3d0046a935
+    Reviewed-on: https://go-review.googlesource.com/59425
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 118 ++++++++++++++++++++---------------------
+ 1 file changed, 59 insertions(+), 59 deletions(-)

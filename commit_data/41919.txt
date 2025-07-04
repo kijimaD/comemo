@@ -1,0 +1,21 @@
+commit fb16f4b82e2f7cb1a44cc6e32adad7ce2b0d0553
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Apr 13 01:39:45 2020 +1000
+
+    cmd/compile: log large copies on riscv64
+    
+    Log large copies in the riscv64 compiler.
+    
+    This was missed in 47ade08141b23cfeafed92943e16012d5dc5eb8b, resulting in
+    the new test added to cmd/compile/internal/logopt failing on riscv64.
+    
+    Change-Id: I6f763e86f42834148e911d16928f9fbabcfa4290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227804
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

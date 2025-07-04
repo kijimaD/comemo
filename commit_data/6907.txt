@@ -1,0 +1,14 @@
+commit 6555cfc6c6f8fc6d62a846acf5f28103ebc3dc93
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 9 13:55:59 2010 -0500
+
+    syscall: add network interface constants for linux/386, linux/amd64
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3266042
+
+ src/pkg/syscall/mkerrors.sh            | 11 ++++++++---
+ src/pkg/syscall/zerrors_linux_386.go   | 36 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 36 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 3 deletions(-)

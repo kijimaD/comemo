@@ -1,0 +1,35 @@
+commit d5d4ab78195aac74bf1824c0b13cb91d2d7d3f07
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 22 23:38:29 2015 +0100
+
+    os/signal, runtime: implement notes on Plan 9
+    
+    This change is an implementation of the signal
+    runtime and os/signal package on Plan 9.
+    
+    Contrary to Unix, on Plan 9 a signal is called
+    a note and is represented by a string.
+    
+    For this reason, the sigsend and signal_recv
+    functions had to be reimplemented specifically
+    for Plan 9.
+    
+    In order to reuse most of the code and internal
+    interface of the os/signal package, the note
+    strings are mapped to integers.
+    
+    Thanks to Russ Cox for the early review.
+    
+    Change-Id: I95836645efe21942bb1939f43f87fb3c0eaaef1a
+    Reviewed-on: https://go-review.googlesource.com/2164
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/signal/signal.go            |   2 -
+ src/os/signal/signal_plan9.go      |  55 +++++++++++
+ src/os/signal/signal_plan9_test.go | 181 +++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal_stub.go       |  17 ----
+ src/runtime/os3_plan9.go           |   6 +-
+ src/runtime/sigqueue.go            |   2 +
+ src/runtime/sigqueue_plan9.go      | 115 +++++++++++++++++++++++
+ 7 files changed, 356 insertions(+), 22 deletions(-)

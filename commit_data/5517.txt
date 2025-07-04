@@ -1,0 +1,22 @@
+commit 72fd5c80f8f14699303e1d930ec636512c7de41a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 20:25:08 2010 -0700
+
+    go/printer, gofmt: fix printing of labels,
+    apply gofmt to src, misc
+    
+    Fixes #752.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1240044
+
+ src/pkg/exp/draw/draw_test.go                 |  3 ++-
+ src/pkg/fmt/print.go                          |  3 ++-
+ src/pkg/go/parser/parser.go                   |  3 ++-
+ src/pkg/go/printer/nodes.go                   | 15 +++++++-----
+ src/pkg/go/printer/testdata/statements.golden | 33 +++++++++++++++++++--------
+ src/pkg/go/printer/testdata/statements.input  | 10 ++++++++
+ src/pkg/net/ip.go                             |  3 ++-
+ src/pkg/reflect/type.go                       |  3 ++-
+ 8 files changed, 53 insertions(+), 20 deletions(-)

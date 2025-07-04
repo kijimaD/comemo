@@ -1,0 +1,13 @@
+commit fe7dbea00e36d649f072d38070630c53c4efab17
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Thu Feb 7 06:41:35 2013 -0800
+
+    os/exec: LookPath on Unix shouldn't look in cwd when PATH is empty
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7305053
+
+ src/pkg/os/exec/lp_unix.go      |  3 +++
+ src/pkg/os/exec/lp_unix_test.go | 52 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

@@ -1,0 +1,62 @@
+commit d97b975d5c1f87ecdda29211c46fa81b747248dc
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Feb 25 10:37:17 2013 +1100
+
+    cmd/godoc: show examples in text mode
+    
+    Added the command line flag -ex to godoc to print examples in
+    text output.
+    
+    Samples from the generated output:
+    
+    $ godoc -ex strings Index
+    ...
+    func Index(s, sep string) int
+        Index returns the index of the first instance of sep in s, or -1 if sep
+        is not present in s.
+    
+        Example:
+            fmt.Println(strings.Index("chicken", "ken"))
+            fmt.Println(strings.Index("chicken", "dmr"))
+            // Output:
+            // 4
+            // -1
+    ...
+    
+    $ godoc -ex container/heap
+    ...
+    package heap
+        import "container/heap"
+    
+        Package heap provides heap operations for any type that implements
+        heap.Interface. A heap is a tree with the property that each node is the
+        minimum-valued node in its subtree.
+    
+        Example:
+            // This example demonstrates an integer heap built using the heap interface.
+            package heap_test
+    
+            import (
+                "container/heap"
+                "fmt"
+            ...
+    
+        Example:
+            // This example demonstrates a priority queue built using the heap interface.
+            package heap_test
+    
+            import (
+                "container/heap"
+                "fmt"
+            )
+    ...
+    
+    Fixes #3587.
+    
+    R=golang-dev, minux.ma, adg, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/7356043
+
+ lib/godoc/package.txt  | 11 ++++++++---
+ src/cmd/godoc/godoc.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 3 deletions(-)

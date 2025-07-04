@@ -1,0 +1,13 @@
+commit 1a1c45b32e987544d4c23f6df5108bf747d44c31
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 9 17:54:43 2018 -0400
+
+    cmd/go/testdata/script: fix typos in test comments
+    
+    Change-Id: I2a55cda76f1074b997349dfd6e001dc7277faade
+    Reviewed-on: https://go-review.googlesource.com/134655
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/testdata/script/list_bad_import.txt     | 2 +-
+ src/cmd/go/testdata/script/mod_list_bad_import.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

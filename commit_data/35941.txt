@@ -1,0 +1,14 @@
+commit d49572eaf38f85b661078ec6a628ce0fa3903275
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 13:25:46 2018 -0700
+
+    test: add order of evaluation test case that gccgo got wrong
+    
+    Updates #23188
+    
+    Change-Id: Idc5567546d1c4c592f997a4cebbbf483b85331e0
+    Reviewed-on: https://go-review.googlesource.com/123115
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue23188.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

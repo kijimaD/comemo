@@ -1,0 +1,12 @@
+commit cb3fe3aa0d15f2e827252b2a0b4ba48bad1d8e00
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:49:15 2017 +1000
+
+    cmd/link: introduce and use peFile.dataDirectory
+    
+    Change-Id: I61f64287a488ed82e71639540697b6ade5a0426a
+    Reviewed-on: https://go-review.googlesource.com/59428
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

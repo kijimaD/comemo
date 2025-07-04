@@ -1,0 +1,21 @@
+commit d169268a1a9b0f6b28a02ffd6590ba7b288e7aab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 2 20:27:09 2009 -0800
+
+    scanner cleanup - getting it ready to as a library
+    - removed unneeded code that accumulated over time
+    - change src from string to []byte (perhaps should be io.Read
+    but that has some other disadvantages)
+    - simplified interface
+    
+    R=r
+    OCL=25615
+    CL=25615
+
+ usr/gri/pretty/compilation.go |  11 ++-
+ usr/gri/pretty/parser.go      |  24 ++++--
+ usr/gri/pretty/platform.go    |  14 ++--
+ usr/gri/pretty/pretty.go      |   6 +-
+ usr/gri/pretty/scanner.go     | 183 +++++++++++++-----------------------------
+ usr/gri/pretty/test.sh        |  10 ---
+ 6 files changed, 88 insertions(+), 160 deletions(-)

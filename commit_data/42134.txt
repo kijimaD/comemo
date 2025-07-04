@@ -1,0 +1,25 @@
+commit 6a569f243e028f823a9f20bfd9da7bdfab8699a4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 18 17:34:00 2020 +0100
+
+    cmd/compile: minor rulegen simplifications
+    
+    The commuteDepth variable is no longer necessary; remove it.
+    
+    Else branches after a log.Fatal call are unnecessary.
+    
+    Also make the unbalanced return an integer, so we can differentiate
+    positive from negative cases. We only want to continue a rule with the
+    following lines if this balance is positive, for example.
+    
+    While at it, make the balance loop stop when it goes negative, to not
+    let ")(" seem balanced.
+    
+    Change-Id: I8aa313343ca5a2f07f638b62a0398fdf108fc9eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228822
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 35 ++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

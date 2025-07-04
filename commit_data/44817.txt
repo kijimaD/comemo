@@ -1,0 +1,21 @@
+commit 34ef294b76cc129411a572dc1df18a44eaa5768e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:19:50 2021 -0700
+
+    cmd/compile/internal/types2: review of lookup.go
+    
+    The changes between (equivalent, and reviewed) go/types/lookup.go
+    and lookup.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    Note: The function ptrRecv in types2/lookup.go is found in
+          methodset.go in go/types (methodset.go doesn't exist
+          in types2).
+    
+    Change-Id: I48cfd3df0947becb4c3b5e55b89263917bcfbf16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304129
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/lookup.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

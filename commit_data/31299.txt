@@ -1,0 +1,22 @@
+commit 8a07469663f7a876ec54d64f723395dd17e6d73d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 22 13:41:50 2017 +0200
+
+    syscall: define ESPIPE on Plan 9
+    
+    TestSeekError has been added in CL 41311. This
+    test doesn't build on Plan 9 because syscall.ESPIPE
+    is not defined on Plan 9.
+    
+    This change defines syscall.ESPIPE on Plan 9.
+    
+    Fixes #20078.
+    
+    Change-Id: I3d9e95b00e0c4e43312eada6441d80961ae6bd67
+    Reviewed-on: https://go-review.googlesource.com/41471
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/errors_plan9.go | 1 +
+ 1 file changed, 1 insertion(+)

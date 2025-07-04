@@ -1,0 +1,24 @@
+commit 0e08b02ac54c9232759704812f41a5836f920cff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 15 10:15:53 2022 -0700
+
+    spec: clarify rules for type set construction of an interface
+    
+    Be explicit that we always mean non-interface types when we
+    talk about sets of types.
+    
+    Also, clarify that the quantification "all non-interface types"
+    means all such types in all possible programs, not just the
+    current program.
+    
+    Per suggestion from Philip Wadler.
+    
+    Change-Id: Ibc7b5823164e547bfcee85d4e523e58c7c27ac8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

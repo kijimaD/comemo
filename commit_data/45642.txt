@@ -1,0 +1,20 @@
+commit 02699f810a05215060ba2181f394d551819ad7d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 18:19:42 2021 -0400
+
+    runtime: mark osyield nosplit on OpenBSD
+    
+    osyield is called in code paths that are not allowed to split
+    stack, e.g. casgstatus called from entersyscall/exitsyscall.
+    It is nosplit on all other platforms. Mark it nosplit on OpenBSD
+    as well.
+    
+    Change-Id: I3fed5d7f58b3d50610beca6eed2c7e902b8ec52c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319969
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/runtime/sys_openbsd1.go | 1 +
+ 1 file changed, 1 insertion(+)

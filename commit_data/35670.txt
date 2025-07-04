@@ -1,0 +1,26 @@
+commit ec989337c5d3203d52de1a2314813996c711fce6
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 20 08:57:53 2018 -0700
+
+    runtime: use libc's signal functions on Darwin
+    
+    sigaction, sigprocmask, sigaltstack, and raiseproc.
+    
+    Fix bug in mstart_stub where we weren't saving callee-saved registers,
+    so if an m finished the pthread library calling mstart_stub would
+    sometimes fail.
+    
+    Update #17490
+    Update #22805
+    
+    Change-Id: Ie297ede0997910aa956834e49e85711b90cdfaa7
+    Reviewed-on: https://go-review.googlesource.com/116875
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_darwin.go     |   1 +
+ src/runtime/os_darwin.go       |  29 +++-----
+ src/runtime/sys_darwin.go      |  40 +++++++++++
+ src/runtime/sys_darwin_386.s   | 151 ++++++++++++++++++++++++++++-------------
+ src/runtime/sys_darwin_amd64.s | 141 +++++++++++++++++++++++++-------------
+ 5 files changed, 244 insertions(+), 118 deletions(-)

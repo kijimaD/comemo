@@ -1,0 +1,19 @@
+commit 73e791a38a719885df48817b2272ede1819c7053
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 1 21:38:05 2015 -0400
+
+    cmd/internal/obj: do not generate data for $f32. and $f64. symbols at assemble time
+    
+    When reading the object files for linking, liblink takes care of
+    generate the data for them.
+    
+    This is a port of https://golang.org/cl/3101 to Go.
+    
+    Change-Id: Ie3e2d6515bd7d253a8c1e25c70ef8fed064436d8
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8383
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm/obj5.go | 10 ----------
+ src/cmd/internal/obj/x86/obj6.go | 10 ----------
+ 2 files changed, 20 deletions(-)

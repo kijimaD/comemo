@@ -1,0 +1,69 @@
+commit 085be1740afeb292c3aeb6c43c002f06884f763a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 13 15:51:21 2010 -0400
+
+    5l, 6l, 8l: first pass cleanup
+    
+    * Maintain Sym* list for text with individual
+      prog lists instead of using one huge list and
+      overloading p->pcond.
+    * Comment what each file is for.
+    * Move some output code from span.c to asm.c.
+    * Move profiling into prof.c, symbol table into symtab.c.
+    * Move mkfwd to ld/lib.c.
+    * Throw away dhog dynamic loading code.
+    * Throw away Alef become.
+    * Fix printing of WORD instructions in 5l -a.
+    
+    Goal here is to be able to handle each piece of text or data
+    as a separate piece, both to make it easier to load the
+    occasional .o file and also to make it possible to split the
+    work across multiple threads.
+    
+    R=ken2, r, ken3
+    CC=golang-dev
+    https://golang.org/cl/2335043
+
+ src/cmd/5c/peep.c                |   2 -
+ src/cmd/5g/list.c                |   2 -
+ src/cmd/5l/5.out.h               |   4 +-
+ src/cmd/5l/Makefile              |   2 +
+ src/cmd/5l/asm.c                 | 234 +++---------------
+ src/cmd/5l/l.h                   |  58 ++---
+ src/cmd/5l/list.c                |  25 +-
+ src/cmd/5l/noop.c                | 261 ++++----------------
+ src/cmd/5l/obj.c                 | 363 ++++------------------------
+ src/cmd/5l/pass.c                | 404 ++++---------------------------
+ src/cmd/5l/prof.c                | 214 +++++++++++++++++
+ src/cmd/5l/softfloat.c           |  18 +-
+ src/cmd/5l/span.c                | 275 ++++-----------------
+ src/cmd/5l/symtab.c              | 160 +++++++++++++
+ src/cmd/6l/6.out.h               |   4 +-
+ src/cmd/6l/Makefile              |   2 +
+ src/cmd/6l/asm.c                 |  58 ++---
+ src/cmd/6l/l.h                   |  64 ++---
+ src/cmd/6l/list.c                |  19 +-
+ src/cmd/6l/obj.c                 | 373 +++--------------------------
+ src/cmd/6l/pass.c                | 485 +++++++++----------------------------
+ src/cmd/6l/prof.c                | 171 +++++++++++++
+ src/cmd/6l/span.c                | 506 +++++++++------------------------------
+ src/cmd/6l/symtab.c              | 246 +++++++++++++++++++
+ src/cmd/8l/8.out.h               |   4 +-
+ src/cmd/8l/Makefile              |   2 +
+ src/cmd/8l/asm.c                 |  66 ++---
+ src/cmd/8l/l.h                   |  62 ++---
+ src/cmd/8l/list.c                |  19 +-
+ src/cmd/8l/obj.c                 | 318 +++---------------------
+ src/cmd/8l/optab.c               |   4 +-
+ src/cmd/8l/pass.c                | 459 ++++++++---------------------------
+ src/cmd/8l/prof.c                | 173 +++++++++++++
+ src/cmd/8l/span.c                | 379 ++++++-----------------------
+ src/cmd/8l/symtab.c              | 164 +++++++++++++
+ src/cmd/ld/dwarf.c               |  35 ++-
+ src/cmd/ld/elf.c                 |   2 +-
+ src/cmd/ld/go.c                  |  79 ++++--
+ src/cmd/ld/lib.c                 | 110 ++++-----
+ src/cmd/ld/lib.h                 |   1 +
+ src/cmd/ld/macho.c               |   2 +-
+ src/pkg/debug/gosym/pclinetest.s |   2 -
+ 42 files changed, 2091 insertions(+), 3740 deletions(-)

@@ -1,0 +1,81 @@
+commit 9aad9fef76f49240a33f253e2db4e2de5c2f192f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 3 17:25:15 2008 -0700
+
+    make 6a, 6c, 6g, 6l, libmach_amd64 build on 64-bit gcc.
+    these guys really really want long to be 32-bits,
+    so ,s/long/int32/ (and then manual fixup).
+    still passes all tests.
+    
+    (i started out looking for just those longs that
+    needed to be int32 instead, and it was just too hard
+    to track them down one by one.)
+    
+    the longs were rare enough that i don't think
+    it will cause integration problems.
+    
+    R=ken
+    OCL=13787
+    CL=13789
+
+ include/bootexec.h             | 146 ++++++++++++++++++++---------------------
+ include/mach_amd64.h           |  62 ++++++++---------
+ include/u.h                    |  10 +++
+ include/ureg_x86.h             |  40 +++++------
+ src/cmd/6a/a.h                 |  17 +++--
+ src/cmd/6a/lex.c               |   2 +-
+ src/cmd/6c/cgen.c              |  26 ++++----
+ src/cmd/6c/div.c               |  14 ++--
+ src/cmd/6c/gc.h                |  84 ++++++++++++------------
+ src/cmd/6c/mul.c               |  20 +++---
+ src/cmd/6c/pgen.c              |   6 +-
+ src/cmd/6c/pswt.c              |  12 ++--
+ src/cmd/6c/reg.c               |  72 ++++++++++----------
+ src/cmd/6c/swt.c               |  32 ++++-----
+ src/cmd/6c/txt.c               |  22 +++----
+ src/cmd/6g/align.c             |  16 ++---
+ src/cmd/6g/cgen.c              |   6 +-
+ src/cmd/6g/gen.c               |  14 ++--
+ src/cmd/6g/gg.h                |  22 +++----
+ src/cmd/6g/gsubr.c             |   8 +--
+ src/cmd/6g/list.c              |   2 +-
+ src/cmd/6g/obj.c               |   6 +-
+ src/cmd/6l/6.out.h             |   4 +-
+ src/cmd/6l/asm.c               |  32 ++++-----
+ src/cmd/6l/l.h                 |  66 +++++++++----------
+ src/cmd/6l/obj.c               |  26 ++++----
+ src/cmd/6l/pass.c              |  30 ++++-----
+ src/cmd/6l/span.c              |  24 +++----
+ src/cmd/cc/acid.c              |   2 +-
+ src/cmd/cc/bits.c              |   2 +-
+ src/cmd/cc/cc.h                | 132 ++++++++++++++++++-------------------
+ src/cmd/cc/cc.y                |   6 +-
+ src/cmd/cc/com.c               |   2 +-
+ src/cmd/cc/dcl.c               |  34 +++++-----
+ src/cmd/cc/lex.c               |  30 ++++-----
+ src/cmd/cc/lexbody             |  14 ++--
+ src/cmd/cc/macbody             |   8 +--
+ src/cmd/cc/pgen.c              |   4 +-
+ src/cmd/cc/pickle.c            |   2 +-
+ src/cmd/cc/pswt.c              |  12 ++--
+ src/cmd/cc/sub.c               |  72 ++++++++++----------
+ src/cmd/gc/const.c             |   4 +-
+ src/cmd/gc/dcl.c               |   2 +-
+ src/cmd/gc/export.c            |   2 +-
+ src/cmd/gc/go.h                |  62 ++++++++---------
+ src/cmd/gc/lex.c               |  18 ++---
+ src/cmd/gc/mpatof.c            |   8 +--
+ src/cmd/gc/subr.c              |  38 +++++------
+ src/cmd/gc/walk.c              |   8 +--
+ src/libmach_amd64/6obj.c       |   2 +-
+ src/libmach_amd64/8.c          |   2 +-
+ src/libmach_amd64/8db.c        |  40 +++++------
+ src/libmach_amd64/access.c     |   6 +-
+ src/libmach_amd64/elf.h        |  42 ++++++------
+ src/libmach_amd64/executable.c |  58 ++++++++--------
+ src/libmach_amd64/machdata.c   |  22 +++----
+ src/libmach_amd64/macho.h      |  48 +++++++-------
+ src/libmach_amd64/obj.c        |   4 +-
+ src/libmach_amd64/swap.c       |  12 ++--
+ src/libmach_amd64/sym.c        |  58 ++++++++--------
+ 60 files changed, 793 insertions(+), 784 deletions(-)

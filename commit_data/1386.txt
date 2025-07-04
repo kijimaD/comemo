@@ -1,0 +1,14 @@
+commit 33907d1346f13f0ce30a3b3fce73965df8248b74
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 15:52:21 2008 -0800
+
+    allow Listen on ":9999" as an alias for "0.0.0.0:9999"
+    
+    R=r
+    DELTA=21  (12 added, 0 deleted, 9 changed)
+    OCL=21653
+    CL=21653
+
+ src/lib/net/net.go            | 29 ++++++++++++++++++++---------
+ src/lib/net/tcpserver_test.go |  1 +
+ 2 files changed, 21 insertions(+), 9 deletions(-)

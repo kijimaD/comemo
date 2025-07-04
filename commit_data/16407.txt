@@ -1,0 +1,12 @@
+commit a2ec8abd2d1f6b1ac0cdbfc4a66677308f6a5cd9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat May 25 20:53:55 2013 +1000
+
+    cmd/cgo: do not output empty struct for -cdefs
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9574043
+
+ src/cmd/cgo/godefs.go | 5 +++++
+ 1 file changed, 5 insertions(+)

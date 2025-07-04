@@ -1,0 +1,20 @@
+commit a94e906c41e83b663cd51751cbb74e801a54aba8
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 18:25:42 2015 -0500
+
+    runtime: remove always false comparison in sigsend
+    
+    s is a uint32 and can never be zero. It's max value is already tested
+    against sig.wanted, whose size is derived from _NSIG.  This also
+    matches the test in signal_enable.
+    
+    Fixes #11282
+    
+    Change-Id: I8eec9c7df8eb8682433616462fe51b264c092475
+    Reviewed-on: https://go-review.googlesource.com/13940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sigqueue.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

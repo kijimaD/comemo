@@ -1,0 +1,19 @@
+commit 5ccd8e5133a43e574be8d66aae3a230c39b4b67a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 10 15:26:22 2022 -0800
+
+    internal/cpu: disallow disabling options that are required for microarch
+    
+    e.g., if GOAMD64=v3, don't allow GODEBUG=cpu.XXX=off for XXX which
+    are required for v3.
+    
+    Change-Id: Ib58a4c8b13c5464ba476448ba44bbb261218787c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391694
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+
+ src/internal/cpu/cpu_x86.go | 34 ++++++++++++++++++++++++----------
+ src/internal/cpu/cpu_x86.s  | 17 +++++++++++++++++
+ 2 files changed, 41 insertions(+), 10 deletions(-)

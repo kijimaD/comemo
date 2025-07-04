@@ -1,0 +1,21 @@
+commit c7c78f1a3a4c94043c140962f2916a69e466d255
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 10:15:27 2022 +0200
+
+    cmd/internal/osinfo: use unix.ByteSliceToString
+    
+    The golang.org/x/sys/unix package is already imported for Utsname and
+    Uname. Use ByteSliceToString from that package as well to replace the
+    locally defined utsString helper which serves the same purpose and
+    matches ByteSliceToString's implementation.
+    
+    Change-Id: I5d9de186a5aeb1feed1387beedefbcd260fe22ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415654
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/osinfo/os_unix.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

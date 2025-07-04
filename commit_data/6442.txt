@@ -1,0 +1,16 @@
+commit 558477eeb16aa81bc8bd7776c819cb98f96fc5c1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 1 14:04:55 2010 +1000
+
+    fmt: add Errorf helper function
+    
+    This crops up in a lot of places.
+    It's just a one-liner, but doesn't add any dependancies.
+    Seems worth it.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2344041
+
+ src/pkg/fmt/print.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

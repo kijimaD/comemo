@@ -1,0 +1,33 @@
+commit d419f9c6124557e0bf08e00d7848e3e518ac4cbd
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 11:57:04 2021 -0400
+
+    go/types: spell out 'Type' in type parameter APIs
+    
+    As discussed on the go/types proposal (#47916), we should spell out the
+    word 'Type', rather than using 'T'.
+    
+    Change-Id: I5f51255eedc07fea61f909b7ecb3093a7fab765e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348376
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/internal/gcimporter/iimport.go |  6 ++---
+ src/go/types/api_test.go              |  2 +-
+ src/go/types/assignments.go           |  2 +-
+ src/go/types/call.go                  | 18 +++++++--------
+ src/go/types/decl.go                  |  4 ++--
+ src/go/types/index.go                 |  2 +-
+ src/go/types/instantiate.go           | 10 ++++-----
+ src/go/types/lookup.go                | 12 +++++-----
+ src/go/types/named.go                 | 42 +++++++++++++++++------------------
+ src/go/types/object.go                |  4 ++--
+ src/go/types/predicates.go            |  8 +++----
+ src/go/types/signature.go             | 28 +++++++++++------------
+ src/go/types/subst.go                 |  6 ++---
+ src/go/types/typelists.go             | 16 ++++++-------
+ src/go/types/typeparam.go             |  2 +-
+ src/go/types/typestring.go            |  8 +++----
+ 16 files changed, 85 insertions(+), 85 deletions(-)

@@ -1,0 +1,29 @@
+commit c4ef597c47a00c3f78916425153aefa171a3b12f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 1 14:27:40 2017 -0500
+
+    cmd/compile: redo writebarrier pass
+    
+    SSA's writebarrier pass requires WB store ops are always at the
+    end of a block. If we move write barrier insertion into SSA and
+    emits normal Store ops when building SSA, this requirement becomes
+    impractical -- it will create too many blocks for all the Store
+    ops.
+    
+    Redo SSA's writebarrier pass, explicitly order values in store
+    order, so it no longer needs this requirement.
+    
+    Updates #17583.
+    Fixes #19067.
+    
+    Change-Id: I66e817e526affb7e13517d4245905300a90b7170
+    Reviewed-on: https://go-review.googlesource.com/36834
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           |  16 --
+ src/cmd/compile/internal/ssa/nilcheck.go     | 160 -------------
+ src/cmd/compile/internal/ssa/schedule.go     | 164 +++++++++++++
+ src/cmd/compile/internal/ssa/writebarrier.go | 344 +++++++++++++--------------
+ 4 files changed, 332 insertions(+), 352 deletions(-)

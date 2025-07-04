@@ -1,0 +1,21 @@
+commit 75a7675ed6c85de5bd17060e39fb0cf1cb400ab1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 31 15:42:44 2018 -0400
+
+    cmd/go/internal/renameio: add package
+    
+    renameio.WriteFile writes files atomically by renaming temporary files.
+    
+    See the subsequent changes for usage examples.
+    
+    Updates #26794
+    Updates #22397
+    
+    Change-Id: I4bfe3125a53f58060587f98afbb4260bb1cc3d32
+    Reviewed-on: https://go-review.googlesource.com/c/146377
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/renameio/renameio.go | 63 ++++++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)

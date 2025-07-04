@@ -1,0 +1,18 @@
+commit 805f174e5c948b4ba5d044fc816be0c23b1015c5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 13 12:19:37 2022 +0700
+
+    reflect: allow conversion from slice to array
+    
+    Updates #46505
+    
+    Change-Id: Ib8f52d6ae199338f278731267c966da85dd0acdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/reflect/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 33 +++++++++++++++++++++++++++++----
+ 2 files changed, 78 insertions(+), 4 deletions(-)

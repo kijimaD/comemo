@@ -1,0 +1,16 @@
+commit 91cf0af1811ad8ed22de4b054476d227c1235023
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 13:51:05 2009 -0800
+
+    ld: move interpreter string into first block of ELF file
+    necessary on freebsd.
+    
+    R=r, dho
+    CC=golang-dev
+    https://golang.org/cl/157069
+
+ src/cmd/6l/asm.c | 25 ++++++++++---------------
+ src/cmd/8l/asm.c | 22 ++++++++++------------
+ src/cmd/ld/elf.c | 27 +++++++++++++++++++++++++++
+ src/cmd/ld/elf.h |  5 ++++-
+ 4 files changed, 51 insertions(+), 28 deletions(-)

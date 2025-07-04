@@ -1,0 +1,12 @@
+commit 5d230418c7b0ede046531e3be19b9e4910396dc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 31 16:04:03 2010 -0700
+
+    gc: fix alignment on non-amd64
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/870041
+
+ src/cmd/gc/align.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

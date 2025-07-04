@@ -1,0 +1,16 @@
+commit 1371efcd69365d1cda87a2d9e450df0339720178
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 18:12:55 2022 +0800
+
+    net/http: remove deadstore statement
+    
+    Change-Id: Icfa3fd519df48f8d7d7aa3795535fd7e6aaa159f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435936
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/fs.go | 1 -
+ 1 file changed, 1 deletion(-)

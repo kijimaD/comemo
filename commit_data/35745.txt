@@ -1,0 +1,17 @@
+commit b7d9e6e149567bb94d6bb87a9ab09c60055ac4e8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 18 13:57:27 2018 +1000
+
+    cmd/cover: fix off-by-one in test error message
+    
+    Drive-by after previous CL.
+    
+    Change-Id: I87db65b65745a0d76500cce06ac276b0d7928404
+    Reviewed-on: https://go-review.googlesource.com/119395
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit aaf4682171f1ffabd3673b82cb71fdc3d8e5317e
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sat Apr 8 00:17:01 2017 -0400
+
+    net/http/fcgi: expose cgi env vars in request context
+    
+    The current interface can't access all environment
+    variables directly or via cgi.RequestFromMap, which
+    only reads variables on its "white list" to be set on
+    the http.Request it returns. If an fcgi variable is
+    not on the "white list" - e.g. REMOTE_USER - the old
+    code has no access to its value.
+    
+    This passes variables in the Request context that aren't
+    used to add data to the Request itself and adds a method
+    that parses those env vars from the Request's context.
+    
+    Fixes #16546
+    
+    Change-Id: Ibf933a768b677ece1bb93d7bf99a14cef36ec671
+    Reviewed-on: https://go-review.googlesource.com/40012
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go      |  2 +-
+ src/net/http/fcgi/child.go     | 56 +++++++++++++++++++++++++++++++++++
+ src/net/http/fcgi/fcgi.go      |  2 +-
+ src/net/http/fcgi/fcgi_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 124 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit e24b2445b4d3fc77034b6ad42c8258d41a4133d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 4 16:19:38 2016 -0800
+
+    os/signal: Stop restores original signal handling
+    
+    Since Stop was introduced, it would revert to the system default for the
+    signal, rather than to the default Go behavior.  Change it to revert to
+    the default Go behavior.
+    
+    Change-Id: I345467ece0e49e31b2806d6fce2f1937b17905a6
+    Reviewed-on: https://go-review.googlesource.com/18229
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/signal/signal_test.go |  3 ++-
+ src/runtime/signal1_unix.go  | 55 ++++++++++++++++++++++++++++----------------
+ 2 files changed, 37 insertions(+), 21 deletions(-)

@@ -1,0 +1,15 @@
+commit 614b02d22a66cfcd9f5c9631246b4b529484e642
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 2 18:11:49 2013 -0800
+
+    spec: clarify language about unary operator &
+    
+    A composite literal may be parenthesized when
+    used as operand for the unary operator &.
+    
+    R=rsc, iant, r, ken
+    CC=golang-dev
+    https://golang.org/cl/6996053
+
+ doc/go_spec.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 337f04bd6c2b049a68eabd9dcec4f47cd6933d94
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 20 14:12:43 2017 +1100
+
+    cmd/doc: don't print a declaration twice
+    
+    That can occur if we have -u set and there is an upper- and lower-case
+    name of the same spelling in a single declaration.
+    
+    A rare corner case but easy to fix.
+    
+    Fix by remembering what we've printed.
+    
+    Fixes #21797.
+    
+    Change-Id: Ie0b681ae8c277fa16e9635ba594c1dff272b8aeb
+    Reviewed-on: https://go-review.googlesource.com/78715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go     | 13 +++++++++++++
+ src/cmd/doc/pkg.go          |  8 +++++++-
+ src/cmd/doc/testdata/pkg.go |  5 +++++
+ 3 files changed, 25 insertions(+), 1 deletion(-)

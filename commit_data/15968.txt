@@ -1,0 +1,12 @@
+commit 584a66b785af8c99b4bba3cb31c2b5e22f689438
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 13:35:41 2013 -0700
+
+    net/http: new server-only, single-connection keep-alive benchmark
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8046043
+
+ src/pkg/net/http/serve_test.go | 97 +++++++++++++++++++++++++++++++++---------
+ 1 file changed, 77 insertions(+), 20 deletions(-)

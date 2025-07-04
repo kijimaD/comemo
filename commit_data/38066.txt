@@ -1,0 +1,18 @@
+commit 57976fe2b4cbd44d27e27af510494de0d182e703
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 15 15:00:43 2019 -0800
+
+    cmd/compile: update comment about x86 nop instruction generator
+    
+    The comment about losing the high bits is incorrect.  We now use these
+    nops in places where they really need to be a nop.  (Before inline
+    marks, we used them just before deferreturn calls, so they could
+    clobber any caller-saved values.)
+    
+    Change-Id: I433d1ec455aa37dab8fef6eb7d407f3737dbb97f
+    Reviewed-on: https://go-review.googlesource.com/c/158057
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/amd64/ggen.go | 9 ++++++---
+ src/cmd/compile/internal/x86/ggen.go   | 1 +
+ 2 files changed, 7 insertions(+), 3 deletions(-)

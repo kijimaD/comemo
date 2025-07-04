@@ -1,0 +1,17 @@
+commit 4036d876eab44f83d71e668e666acc5cd3997373
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 21 13:11:58 2013 +1100
+
+    misc/dashboard/builder: various cleanups
+    
+    * allow commit watcher to be disabled, useful for small slow builders who will never be the first to notice a commit.
+    * builders always update their local master working copy before cloning a specific revision.
+    * refactor hg repo operations into a new type, Repo.
+    
+    R=adg, shanemhansen, luitvd
+    CC=golang-dev
+    https://golang.org/cl/7326053
+
+ misc/dashboard/builder/main.go | 253 ++++++++++-------------------------------
+ misc/dashboard/builder/vcs.go  | 148 ++++++++++++++++++++++++
+ 2 files changed, 211 insertions(+), 190 deletions(-)

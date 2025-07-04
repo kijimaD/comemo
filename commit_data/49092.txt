@@ -1,0 +1,29 @@
+commit dd8d425fedd88970a7ee79e908eb47f6d1fcdcad
+Author: Ryan Leung <rleungx@gmail.com>
+Date:   Tue Nov 23 03:00:32 2021 +0000
+
+    all: fix some lint issues
+    
+    Make some code more simple.
+    
+    Change-Id: I801adf0dba5f6c515681345c732dbb907f945419
+    GitHub-Last-Rev: a505146baca00a1b3268d11d10510afa8cea6f1d
+    GitHub-Pull-Request: golang/go#49626
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364634
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/des/block.go                 | 6 +-----
+ src/database/sql/example_cli_test.go    | 6 ++----
+ src/debug/plan9obj/file.go              | 3 +--
+ src/go/build/constraint/expr.go         | 1 -
+ src/math/tan.go                         | 8 ++++----
+ src/net/http/cookiejar/jar.go           | 6 ++----
+ src/net/http/httputil/reverseproxy.go   | 1 -
+ src/runtime/metrics/description_test.go | 2 +-
+ src/testing/sub_test.go                 | 2 +-
+ 9 files changed, 12 insertions(+), 23 deletions(-)

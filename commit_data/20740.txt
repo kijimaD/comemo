@@ -1,0 +1,28 @@
+commit 9965e4022030f56fc241be8934d5e6b95ac84900
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 12:37:41 2014 -0700
+
+    encoding/gob: custom array/slice decoders
+    Use go generate to write better loops for decoding arrays,
+    just as we did for encoding. It doesn't help as much,
+    relatively speaking, but it's still noticeable.
+    
+    benchmark                          old ns/op     new ns/op     delta
+    BenchmarkDecodeComplex128Slice     202348        184529        -8.81%
+    BenchmarkDecodeFloat64Slice        135800        120979        -10.91%
+    BenchmarkDecodeInt32Slice          121200        105149        -13.24%
+    BenchmarkDecodeStringSlice         288129        278214        -3.44%
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/154420044
+
+ src/encoding/gob/dec_helpers.go | 468 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/decgen.go      | 240 +++++++++++++++++++++
+ src/encoding/gob/decode.go      |  33 +--
+ src/encoding/gob/enc_helpers.go |   4 +-
+ src/encoding/gob/encgen.go      |  10 +-
+ src/encoding/gob/encode.go      |   4 +-
+ src/encoding/gob/timing_test.go | 144 ++++++++++++-
+ 7 files changed, 874 insertions(+), 29 deletions(-)

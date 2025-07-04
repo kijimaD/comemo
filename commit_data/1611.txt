@@ -1,0 +1,18 @@
+commit c048ee21ada70be4c0085edfce01da27ac41c272
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 17:44:01 2009 -0800
+
+    - converted expr representation of ast into a new representation
+    using interfaces properly => much cleaner code
+    - converted tracing code to use 'defer' statement
+    - next steps: convert rest of ast as well
+    
+    R=r
+    OCL=24277
+    CL=24277
+
+ usr/gri/pretty/ast.go         | 338 +++++++++++---------
+ usr/gri/pretty/compilation.go |   3 +
+ usr/gri/pretty/parser.go      | 714 +++++++++++++++++++++++-------------------
+ usr/gri/pretty/printer.go     | 325 +++++++++++--------
+ 4 files changed, 786 insertions(+), 594 deletions(-)

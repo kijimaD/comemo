@@ -1,0 +1,18 @@
+commit 44275b8569085e405bd50f6373f201167c1850ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 6 14:46:45 2017 -0400
+
+    doc/go1.9: eliminate <code> spaces
+    
+    Per note at top of doc, we don't use fixed-width spaces
+    in fixed-width phrases like "go doc".
+    
+    Also ASN.1 NULL is not code so it's not <code> at all.
+    
+    Change-Id: I791e4e6030b8b8d42f4621d2f4bf32fef93cf343
+    Reviewed-on: https://go-review.googlesource.com/47693
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

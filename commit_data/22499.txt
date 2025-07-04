@@ -1,0 +1,17 @@
+commit 7e7d55f888736d8dd8881852be8056cd43739291
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 15 13:03:24 2015 +1000
+
+    image/png: reject multiple tRNS chunks.
+    
+    http://www.w3.org/TR/PNG/#5ChunkOrdering disallows them.
+    
+    Fixes #10423
+    
+    Change-Id: I3399ce53dc8b41b1b5f0b906a5912e6efd80418f
+    Reviewed-on: https://go-review.googlesource.com/8905
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go      | 18 +++++++++-----
+ src/image/png/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 6 deletions(-)

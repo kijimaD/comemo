@@ -1,0 +1,18 @@
+commit eb4138f48114de303d8844f4fa2ff872e2a7a678
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Jun 3 23:54:14 2012 +1000
+
+    net: move cgo address info flags to per-platform files
+    
+    Move address info flags to per-platform files. This is needed to
+    enable cgo on NetBSD (and later OpenBSD), as some of the currently
+    used AI_* defines do not exist on these platforms.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6250075
+
+ src/pkg/net/cgo_bsd.go   | 4 ++--
+ src/pkg/net/cgo_linux.go | 8 +++++++-
+ src/pkg/net/cgo_unix.go  | 8 +-------
+ 3 files changed, 10 insertions(+), 10 deletions(-)

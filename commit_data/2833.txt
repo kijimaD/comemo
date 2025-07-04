@@ -1,0 +1,18 @@
+commit 98607d01fc7220a768a9468b10cefc559fce5e51
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 17:24:25 2009 -0700
+
+    handle unsupported types safely.
+    
+    R=rsc
+    DELTA=154  (71 added, 6 deleted, 77 changed)
+    OCL=32483
+    CL=32492
+
+ src/pkg/gob/codec_test.go   |  33 +++++++++----
+ src/pkg/gob/encode.go       |  50 +++++++++++++-------
+ src/pkg/gob/encoder.go      |   9 +++-
+ src/pkg/gob/encoder_test.go |   6 +--
+ src/pkg/gob/type.go         | 111 ++++++++++++++++++++++++++------------------
+ src/pkg/gob/type_test.go    |   6 ++-
+ 6 files changed, 140 insertions(+), 75 deletions(-)

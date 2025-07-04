@@ -1,0 +1,19 @@
+commit d834ecec8637e3d54b67debf95ceb649cc0b4e1d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 14 14:29:31 2020 -0500
+
+    runtime/race: reject runtime fatal error in tests
+    
+    We expect those tests to fail with non-zero exit code, due to
+    intentional races, but we don't expect the runtime to crash.
+    Reject that.
+    
+    Change-Id: Ic37987dabecde5f0703c031c49ce7f884a7b06a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270398
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/race_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

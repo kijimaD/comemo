@@ -1,0 +1,37 @@
+commit e01a226fadcac721e26c12921ca54388c7244d03
+Author: Victor Michel <victor@optimyze.cloud>
+Date:   Sun Aug 30 20:43:39 2020 +0000
+
+    debug/elf: support relocations relative to sections with non-zero addresses
+    
+    commit 72ec930fa70c20ce69b21bf32a7916c04c2e9c2f added basic support for
+    relocations, but assumed that the symbol value would be 0, likely because
+    .debug_info always has address == 0 in the ELF section headers.
+    
+    CL 195679 added further support for relocations, but explicitly encoded
+    the original assumption that section addresses would be 0.
+    
+    This change removes that assumption: all relocations will now be
+    properly computed based on the target symbol value even when that symbol
+    is a section with a non-zero address.
+    
+    Typically, sections that are part of a LOAD program segment have
+    non-zero addresses. For example, .debug_ranges relocations could be
+    relative to .text, which usually has an address > 0.
+    
+    Fixes #40879
+    
+    Change-Id: Ib0a616bb8b05d6c96d179b03ca33a10946fc5d59
+    GitHub-Last-Rev: 4200de732641995f3a4958a13a5c78f65b7eae50
+    GitHub-Pull-Request: golang/go#41038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250559
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/file.go                              |  77 ++++++++------------
+ src/debug/elf/file_test.go                         |  81 ++++++++++++++++++++-
+ ...go-relocation-test-gcc930-ranges-no-rela-x86-64 | Bin 0 -> 5696 bytes
+ ...-relocation-test-gcc930-ranges-with-rela-x86-64 | Bin 0 -> 7680 bytes
+ src/debug/elf/testdata/multiple-code-sections.c    |  28 +++++++
+ 5 files changed, 135 insertions(+), 51 deletions(-)

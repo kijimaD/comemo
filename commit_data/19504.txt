@@ -1,0 +1,14 @@
+commit 761dacee6222ee20720aec0d9ef8da8aa230d36d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 10 11:19:41 2014 -0700
+
+    doc/install.html: fix erroneous HTML annotation
+    align=middle is invalid; use align=center
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/106910044
+
+ doc/install.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

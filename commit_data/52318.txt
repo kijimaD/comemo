@@ -1,0 +1,25 @@
+commit 4f5859c0467a6e252e4705cd0086aaef6904e5a4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 16 12:14:03 2023 -0700
+
+    os: don't check for TTY before calling splice
+    
+    I think I confused myself in CL 476335. The TTY check did fix the
+    problem with os.Stdout, but it was still possible to get the same
+    problem in other ways. I fixed that by making the splice call blocking,
+    but it turns out that doing that is enough to fix the TTY problem also.
+    So we can just remove the TTY check.
+    
+    Fixes #59041
+    
+    Change-Id: I4d7ca9dad8361001edb4cfa96bb29b1badb54df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477035
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/readfrom_linux.go | 13 -------------
+ 1 file changed, 13 deletions(-)

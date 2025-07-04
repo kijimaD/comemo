@@ -1,0 +1,25 @@
+commit 8f854244ad5165c4ef9aa5760316b13233514e06
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Feb 1 15:27:53 2019 -0800
+
+    cmd/compile: fix crash when memmove argument is not the right type
+    
+    Make sure the argument to memmove is of pointer type before we try to
+    get the element type.
+    
+    This has been noticed for code that uses unsafe+linkname so it can
+    call runtime.memmove. Probably not the best thing to allow, but the
+    code is out there and we'd rather not break it unnecessarily.
+    
+    Fixes #30061
+    
+    Change-Id: I334a8453f2e293959fd742044c43fbe93f0b3d31
+    Reviewed-on: https://go-review.googlesource.com/c/160826
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  8 ++++----
+ test/fixedbugs/issue30061.go                   | 20 ++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 4 deletions(-)

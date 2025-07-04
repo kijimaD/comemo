@@ -1,0 +1,14 @@
+commit b0bc18d5bcb57b5b1645899e7fc865f31f10d6f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 18 15:33:29 2020 -0700
+
+    doc/go1.15: mention vet warning for string(x)
+    
+    For #32479
+    
+    Change-Id: I974709d471021d370aa9bdc5f24b02afa8bd9b54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.15.html | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

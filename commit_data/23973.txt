@@ -1,0 +1,15 @@
+commit 7721ac053599ff0f7e5db6ab5f0caa77a7ff4bf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 10:11:59 2015 -0400
+
+    internal/testenv: add Builder, to report builder name
+    
+    This works after golang.org/cl/13120 is running on the
+    coordinator (maybe it already is).
+    
+    Change-Id: I4053d8e2f32fafd47b927203a6f66d5858e23376
+    Reviewed-on: https://go-review.googlesource.com/13165
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/testenv/testenv.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

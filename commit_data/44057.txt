@@ -1,0 +1,32 @@
+commit b0b0d9828308368e9fbd59ec5de55801f568f720
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Thu Nov 12 21:19:52 2020 -0800
+
+    runtime: linux iscgo support for not blocking nptl signals
+    
+    Under linux+cgo, OS threads are launched via pthread_create().
+    This abstraction, under linux, requires we avoid blocking
+    signals 32,33 and 34 indefinitely because they are needed to
+    reliably execute POSIX-semantics threading in glibc and/or musl.
+    
+    When blocking signals the go runtime generally re-enables them
+    quickly. However, when a thread exits (under cgo, this is
+    via a return from mstart()), we avoid a deadlock in C-code by
+    not blocking these three signals.
+    
+    Fixes #42494
+    
+    Change-Id: I02dfb2480a1f97d11679e0c4b132b51bddbe4c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269799
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/runtime/os_js.go              |  2 +-
+ src/runtime/os_linux.go           | 18 ++++++++++++++++++
+ src/runtime/os_plan9.go           |  2 +-
+ src/runtime/os_windows.go         |  2 +-
+ src/runtime/proc.go               |  8 ++++----
+ src/runtime/signal_unix.go        | 19 +++++++++++++++----
+ src/syscall/syscall_linux_test.go | 13 +++++++++++++
+ 7 files changed, 53 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit fc23def67f4c24fe295c4e389e584d244eee1530
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jul 2 13:00:18 2010 -0400
+
+    crypto/tls, http: Make HTTPS servers easier.
+    
+    R=r, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/1684051
+
+ src/pkg/crypto/tls/generate_cert.go | 79 +++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/tls.go           | 55 +++++++++++++++++++++++++-
+ src/pkg/http/server.go              | 52 ++++++++++++++++++++++++
+ 3 files changed, 185 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 8c8429fe4113b399355c11203e60e6b37bc823ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 16:59:22 2022 -0700
+
+    go/types, types2: add more tests for unsafe.Slice/SliceData/String/StringData
+    
+    Also:
+    - fine-tune the implementation for some of the new builtin functions
+    - make sure the go/types code is an exact as possible copy of the
+      types2 code
+    - fix the description and examples for errorcodes.go
+    
+    Follow-up on CL 423754.
+    
+    For #53003.
+    
+    Change-Id: I5c70b74e90c724cf6c842cedc6f8ace26fde372b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425454
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        |  9 ++--
+ src/cmd/compile/internal/types2/builtins_test.go   |  9 ++--
+ .../internal/types2/testdata/check/builtins0.go    | 54 ++++++++++++++++++++++
+ src/go/types/builtins.go                           | 17 ++++---
+ src/go/types/builtins_test.go                      |  9 ++--
+ src/go/types/errorcodes.go                         | 30 ++++++------
+ src/go/types/testdata/check/builtins0.go           | 54 ++++++++++++++++++++++
+ 7 files changed, 143 insertions(+), 39 deletions(-)

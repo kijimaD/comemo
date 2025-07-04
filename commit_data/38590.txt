@@ -1,0 +1,23 @@
+commit fa5dbd06e57475a6b788ebf0468c132ec9cd77fc
+Author: Leonardo Comelli <leonardo.comelli@gmail.com>
+Date:   Tue Mar 19 03:53:04 2019 +0000
+
+    cmd: ignore the directory named go.mod
+    
+    The existing implementation does not check in all cases whether go.mod is a regular file.
+    
+    Fixes #30788
+    
+    Change-Id: I6d140545c3cfada651612efd5bee2fbdcb747ca7
+    GitHub-Last-Rev: 4a9b251e378d9d7cc8768d395c360d3542fc9bc6
+    GitHub-Pull-Request: golang/go#30830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167393
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import.go  |  4 ++--
+ src/cmd/go/internal/modload/search.go  |  2 +-
+ src/cmd/go/internal/search/search.go   |  2 +-
+ src/cmd/go/testdata/script/mod_dir.txt | 20 ++++++++++++++++++++
+ 4 files changed, 24 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit ebb1714fe76d105d551edec6aadc44d4109bd9fc
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Mar 22 12:56:52 2013 -0400
+
+    CONTRIBUTORS: add Joseph Bonneau (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7879044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

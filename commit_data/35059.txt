@@ -1,0 +1,46 @@
+commit 25824c96dc34c0634dffb3860c3e01c666628606
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 18 23:22:26 2018 -0700
+
+    cmd/compile: make generated function code more consistent
+    
+    There are a bunch of places where we generate functions: equality and
+    hash functions; method expression and promoted method wrappers; and
+    print/delete wrappers for defer/go statements.
+    
+    This CL brings them in sync by:
+    
+    1) Always using dclfunc and funcbody. Most were already using this,
+    but makepartialcall needed some changes.
+    
+    2) Removing duplicate types.Markdcl/types.Popdcl calls. These are
+    already handled by dclfunc and funcbody.
+    
+    3) Using structargs (already used by genwrapper) to construct new
+    param/result lists from existing types.
+    
+    4) Always accessing the parameter ONAME nodes through Field.Nname
+    instead of poking into the ODCLFIELD. Also, since creating a slice of
+    the entire parameter list is common, extract this out into a
+    paramNnames helper function.
+    
+    5) Add a Type.IsVariadic method to simplify identifying variadic
+    function types.
+    
+    Passes toolstash-check -gcflags=-dwarf=false. DWARF output changes
+    because using structargs in makepartialcall changes the generated
+    parameter names.
+    
+    Change-Id: I6661d3699afdbe7852ad60db5a4ec6eeb2b696e4
+    Reviewed-on: https://go-review.googlesource.com/108216
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go     | 44 ++++++++++-----------
+ src/cmd/compile/internal/gc/closure.go | 72 ++++++++--------------------------
+ src/cmd/compile/internal/gc/dcl.go     |  6 +++
+ src/cmd/compile/internal/gc/subr.go    | 54 +++++++++++--------------
+ src/cmd/compile/internal/gc/walk.go    |  9 ++---
+ src/cmd/compile/internal/types/type.go |  6 +++
+ 6 files changed, 76 insertions(+), 115 deletions(-)

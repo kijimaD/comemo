@@ -1,0 +1,26 @@
+commit 3191a235158233bb6f6d960d7ae0cb925606f817
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 23 12:10:36 2014 -0800
+
+    go/doc: propagate types from unexported constants
+    
+    When constants were declared using unexported constants,
+    the type information was lost when those constants were filtered out.
+    This CL propagates the type information of unexported constants
+    so that it is available for display.
+    
+    This is a follow-up to CL 144110044, which fixed this problem
+    specifically for _ constants.
+    
+    Updates #5397.
+    
+    Change-Id: I3f0c767a4007d88169a5634ab2870deea4e6a740
+    Reviewed-on: https://go-review.googlesource.com/2091
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/exports.go              | 51 ++++++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/blank.0.golden | 22 +++++++++++++++-
+ src/go/doc/testdata/blank.1.golden | 25 ++++++++++++++++++-
+ src/go/doc/testdata/blank.2.golden | 22 +++++++++++++++-
+ src/go/doc/testdata/blank.go       | 24 +++++++++++++++++-
+ 5 files changed, 140 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 98c208ee1d261dd11cff752671a16ebee5613487
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 5 08:34:48 2008 -0700
+
+    bug026 and bug060 are fixed. update.
+    
+    R=rsc
+    DELTA=87  (37 added, 50 deleted, 0 changed)
+    OCL=16498
+    CL=16507
+
+ test/{bugs => fixedbugs}/bug026.go |  0
+ test/{bugs => fixedbugs}/bug060.go |  0
+ test/golden.out                    | 11 -----------
+ test/map.go                        |  2 --
+ 4 files changed, 13 deletions(-)

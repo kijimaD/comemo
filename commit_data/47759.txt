@@ -1,0 +1,27 @@
+commit ece493eb831a7797d03d60b44b817caf1c63a0ab
+Author: Jason7602 <jansonzhe@gmail.com>
+Date:   Tue Nov 9 23:46:41 2021 +0800
+
+    cmd/compile: fix type error reported on the wrong line
+    
+    The 'Does not match' type error shoud be reported where
+    the function is called, not where the function is declared.
+    
+    And fix the todo by gri of issue45985
+    
+    Fixes #45985
+    Fixes #49800
+    
+    Change-Id: I15aac44dd44f2a57c485a1c273fcd79db912c389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362634
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go                       | 10 +++++-----
+ .../compile/internal/types2/testdata/fixedbugs/issue45985.go2  |  5 ++---
+ src/go/types/infer.go                                          | 10 +++++-----
+ src/go/types/testdata/fixedbugs/issue45985.go2                 |  5 ++---
+ 4 files changed, 14 insertions(+), 16 deletions(-)

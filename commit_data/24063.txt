@@ -1,0 +1,18 @@
+commit 759210b96207ef51be401338781b2b05d84eea36
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Jul 17 17:28:42 2015 -0400
+
+    net: allow ParseMAC to parse 20-octet IPoIB link-layer address
+    
+    Fixes #11763
+    
+    Change-Id: Ie291b36a8c29694e80940836d7e6fd96d2d76494
+    Reviewed-on: https://go-review.googlesource.com/12382
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mac.go      | 11 +++++++----
+ src/net/mac_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 4 deletions(-)

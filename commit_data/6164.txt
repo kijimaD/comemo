@@ -1,0 +1,12 @@
+commit 1cb951d9943727bd1587c539e0d132a6a532aa72
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:31:39 2010 -0400
+
+    gc: appease bison version running on FreeBSD builder
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2141042
+
+ src/cmd/gc/go.y | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

@@ -1,0 +1,24 @@
+commit 959025c0ac97ec3533ef9f3f70d64453352a7b56
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 11:21:42 2017 -0500
+
+    sync: import Map from x/sync/syncmap
+    
+    This is a direct port of the version from
+    commit a60ad46e0ed33d02e09bda439efaf9c9727dbc6c
+    (https://go-review.googlesource.com/c/37342/).
+    
+    updates #17973
+    updates #18177
+    
+    Change-Id: I63fa5ef6951b1edd39f84927d1181a4df9b15385
+    Reviewed-on: https://go-review.googlesource.com/36617
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/map.go                | 367 +++++++++++++++++++++++++++++++++++++++++
+ src/sync/map_bench_test.go     | 217 ++++++++++++++++++++++++
+ src/sync/map_reference_test.go | 142 ++++++++++++++++
+ src/sync/map_test.go           | 170 +++++++++++++++++++
+ 4 files changed, 896 insertions(+)

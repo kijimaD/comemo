@@ -1,0 +1,14 @@
+commit d6b40698528c94f3d0d3e263d5713994cebfb3a6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 01:24:17 2015 +1000
+
+    cmd/internal/gc: fix race build
+    
+    Add special case for OGETG which should never be instrumented.
+    
+    Change-Id: I7d082abb8608537f82b03362b687baf2a1d809dc
+    Reviewed-on: https://go-review.googlesource.com/8551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/internal/gc/racewalk.go | 3 +++
+ 1 file changed, 3 insertions(+)

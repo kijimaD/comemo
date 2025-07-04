@@ -1,0 +1,29 @@
+commit 03876af91c50c6e0227218a856f037dd20a45729
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue May 23 23:01:08 2017 +0900
+
+    cmd/cgo: support niladic function-like macros
+    
+    Currently, cgo supports only macros which can be reduced to constants
+    or variables. The CL addresses remaining parts, macros which can be
+    represented as niladic functions.
+    
+    The basic idea is simple:
+      1. make a thin wrapper function per macros.
+      2. replace macro expansions with function calls.
+    
+    Fixes #10715
+    Fixes #18720
+    
+    Change-Id: I150b4fb48e9dc4cc34466ef6417c04ac93d4bc1a
+    Reviewed-on: https://go-review.googlesource.com/43970
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/progs/run.go            |  7 -------
+ misc/cgo/test/issue18720.go | 30 ++++++++++++++++++++++++++++--
+ src/cmd/cgo/gcc.go          | 27 +++++++++++++++++----------
+ src/cmd/cgo/main.go         |  2 +-
+ src/cmd/cgo/out.go          | 32 ++++++++++++++++++++------------
+ 5 files changed, 66 insertions(+), 32 deletions(-)

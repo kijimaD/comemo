@@ -1,0 +1,15 @@
+commit 7ac03695f861fcb46df3d06d53230b89c7811859
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Feb 6 12:45:23 2012 -0500
+
+    build: remove unnecessary pragmas
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5629055
+
+ include/plan9/libc.h | 3 ---
+ include/plan9/mach.h | 2 --
+ src/cmd/cc/cc.h      | 2 --
+ src/cmd/gc/go.h      | 2 --
+ 4 files changed, 9 deletions(-)

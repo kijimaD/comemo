@@ -1,0 +1,23 @@
+commit a73020f847b3cf8575250569ebefb02573d19224
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 27 18:27:02 2016 +0000
+
+    net/http: add more IDNA2008 tests and fix some omissions
+    
+    It wasn't lowercasing the string, folding widths, and putting strings
+    into NFC form. Do those.
+    
+    Fixes #13835
+    
+    Change-Id: Ia3de6159417cacec203b48e206e51d79f945df58
+    Reviewed-on: https://go-review.googlesource.com/29860
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/go/build/deps_test.go |  2 ++
+ src/net/http/http.go      | 10 ++++++++++
+ src/net/http/http_test.go | 10 +++++++++-
+ src/net/http/request.go   | 19 +++++++++++++++++--
+ src/net/http/transport.go |  3 +--
+ 5 files changed, 39 insertions(+), 5 deletions(-)

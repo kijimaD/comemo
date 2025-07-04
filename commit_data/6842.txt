@@ -1,0 +1,17 @@
+commit 08a47d6f6087ea2baabca741267a82643d289e92
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 7 12:02:36 2010 +1100
+
+    html: first cut at a parser.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3355041
+
+ src/pkg/html/Makefile      |   1 +
+ src/pkg/html/doc.go        |  31 +++-
+ src/pkg/html/parse.go      | 414 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/parse_test.go | 153 +++++++++++++++++
+ src/pkg/html/token.go      |  82 ++++-----
+ src/pkg/html/token_test.go |  10 +-
+ 6 files changed, 639 insertions(+), 52 deletions(-)

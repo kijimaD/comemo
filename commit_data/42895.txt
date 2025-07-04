@@ -1,0 +1,40 @@
+commit 51c0bdc6d15dcd7f753c25896039ab41ac787ebb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 18 22:47:12 2020 -0400
+
+    testing: flush test summaries to stdout atomically when streaming output
+    
+    While debugging #40771, I realized that the chatty printer should only
+    ever print to a single io.Writer (normally os.Stdout). The other
+    Writer implementations in the chain write to local buffers, but if we
+    wrote a test's output to a local buffer, then we did *not* write it to
+    stdout and we should not store it as the most recently logged test.
+    
+    Because the chatty printer should only ever print to one place, it
+    shouldn't receive an io.Writer as an argument — rather, it shouldn't
+    be used at all for destinations other than the main output stream.
+    
+    On the other hand, when we flush the output buffer to stdout in the
+    top-level flushToParent call, it is important that we not allow some
+    other test's output to intrude between the test summary header and the
+    remainder of the test's output. cmd/test2json doesn't know how to
+    parse such an intrusion, and it's confusing to humans too.
+    
+    No test because I couldn't reproduce the user-reported error without
+    modifying the testing package. (This behavior seems to be very
+    sensitive to output size and/or goroutine scheduling.)
+    
+    Fixes #40771
+    Updates #38458
+    
+    Change-Id: Ic19bf1d535672b096ba1c8583a3b74aab6d6d766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249026
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go |  18 ++++---
+ src/testing/sub_test.go  |  19 +++++--
+ src/testing/testing.go   | 138 ++++++++++++++++++++++-------------------------
+ 3 files changed, 88 insertions(+), 87 deletions(-)

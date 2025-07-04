@@ -1,0 +1,18 @@
+commit 4100d1a07c8cfb59c95234faf1b91ffdd2da6507
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 17:51:02 2011 -0700
+
+    test: match gccgo error messages for cmp6.go
+    
+    cmp6.go:28:9: error: incompatible types in binary expression
+    cmp6.go:29:9: error: incompatible types in binary expression
+    cmp6.go:40:9: error: incompatible types in binary expression
+    cmp6.go:41:9: error: incompatible types in binary expression
+    cmp6.go:48:9: error: expected integer, floating, complex, string, pointer, boolean, interface, slice, map, channel, or function type
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4281071
+
+ test/cmp6.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

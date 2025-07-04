@@ -1,0 +1,12 @@
+commit 33101926f9196bcf872ab5560543f30660d17e2d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 20:52:07 2008 -0700
+
+    channel tests with new syntax
+    
+    SVN=127436
+
+ test/chan/fifo.go  | 18 +++++++-------
+ test/chan/sieve.go | 72 +++++++++++++++++++++++++++---------------------------
+ test/sieve.go      | 40 +++++++++++++++---------------
+ 3 files changed, 65 insertions(+), 65 deletions(-)

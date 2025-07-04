@@ -1,0 +1,27 @@
+commit d57f03730265c4677ab2ec1ad74cf8cbf592f798
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 5 11:07:47 2015 -0400
+
+    runtime: don't recheck heap trigger for periodic GC
+    
+    88e945f introduced a non-speculative double check of the heap trigger
+    before actually starting a concurrent GC. This was necessary to fix a
+    race for heap-triggered GC, but broke sysmon-triggered periodic GC,
+    since the heap check will of course fail for periodically triggered
+    GC.
+    
+    Fix this by telling startGC whether or not this GC was triggered by
+    heap size or a timer and only doing the heap size double check for GCs
+    triggered by heap size.
+    
+    Fixes #12026.
+    
+    Change-Id: I7c3f6ec364545c36d619f2b4b3bf3b758e3bcbd6
+    Reviewed-on: https://go-review.googlesource.com/13168
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 11 ++++++++---
+ src/runtime/mheap.go  |  2 +-
+ src/runtime/proc.go   |  2 +-
+ 4 files changed, 11 insertions(+), 6 deletions(-)

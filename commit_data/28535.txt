@@ -1,0 +1,25 @@
+commit ac24388e5e5bdc129451c074a349a982e1d55ffa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 11:14:41 2016 -0700
+
+    runtime: merge setting new signal mask in minit
+    
+    All the variants that sets the new signal mask in minit do the same
+    thing, so merge them. This requires an OS-specific sigdelset function;
+    the function already exists for linux, and is now added for other OS's.
+    
+    Change-Id: Ie96f6f02e2cf09c43005085985a078bd9581f670
+    Reviewed-on: https://go-review.googlesource.com/29771
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os3_solaris.go  | 16 +++++-----------
+ src/runtime/os_darwin.go    | 17 +++++------------
+ src/runtime/os_dragonfly.go | 18 ++++++------------
+ src/runtime/os_freebsd.go   | 18 ++++++------------
+ src/runtime/os_linux.go     | 16 ++--------------
+ src/runtime/os_netbsd.go    | 15 +++++----------
+ src/runtime/os_openbsd.go   | 18 ++++++------------
+ src/runtime/signal_unix.go  | 25 +++++++++++++++++++++++++
+ 8 files changed, 60 insertions(+), 83 deletions(-)

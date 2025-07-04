@@ -1,0 +1,13 @@
+commit 28c6305a0e83293e53d3d4aeddc24ada1c198398
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 27 19:27:32 2010 +1000
+
+    homepage: removed animation, use custom js instead of gdynamicfeeds
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/949043
+
+ doc/root.html | 29 +++++++++++++++++++++--------
+ doc/style.css |  8 +++-----
+ 2 files changed, 24 insertions(+), 13 deletions(-)

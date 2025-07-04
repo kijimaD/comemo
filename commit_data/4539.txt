@@ -1,0 +1,12 @@
+commit 968d6a6d5ae7df7b7b079636d4cdef7836db90cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:45:30 2010 -0800
+
+    http: avoid header duplication - take struct fields out of Header map
+    
+    R=r
+    CC=golang-dev, petar-m
+    https://golang.org/cl/183132
+
+ src/pkg/http/request.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

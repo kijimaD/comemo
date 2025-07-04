@@ -1,0 +1,25 @@
+commit 7e26a2d9a80b825d019c2cdaf6437d89001506a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 17:27:04 2015 -0400
+
+    runtime: allocate map element zero values for reflect-created types on demand
+    
+    Preallocating them in reflect means that
+    (1) if you say _ = PtrTo(ArrayOf(1000000000, reflect.TypeOf(byte(0)))), you just allocated 1GB of data
+    (2) if you say it again, that's *another* GB of data.
+    
+    The only use of t.zero in the runtime is for map elements.
+    Delay the allocation until the creation of a map with that element type,
+    and share the zeros.
+    
+    The one downside of the shared zero is that it's not garbage collected,
+    but it's also never written, so the OS should be able to handle it fairly
+    efficiently.
+    
+    Change-Id: I56b098a091abf3ac0945de28ebef9a6c08e76614
+    Reviewed-on: https://go-review.googlesource.com/10111
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/type.go    |  9 ---------
+ src/runtime/hashmap.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 9 deletions(-)

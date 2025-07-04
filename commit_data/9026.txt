@@ -1,0 +1,14 @@
+commit 851ded9660d0fbf688a9db2472e82c6fea72bb2f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jul 12 17:02:55 2011 +1000
+
+    image: remove superfluous if condition.
+    
+    DrawMask already returns early if r.Empty().
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4703041
+
+ src/pkg/image/draw/draw.go | 3 ---
+ 1 file changed, 3 deletions(-)

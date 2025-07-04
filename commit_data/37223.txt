@@ -1,0 +1,21 @@
+commit bd4b6ca781e7e82580620011f8af2a7f11c5c239
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 10:55:12 2018 +0100
+
+    all: fix tests for older versions of AIX 7.2
+    
+    This commit fixes tests which fail on some versions of AIX 7.2 due
+    to internal bugs.
+    
+    getsockname isn't working properly with unix networks.
+    
+    Timezone files aren't returning a correct output.
+    
+    Change-Id: I4ff15683912be62ab86dfbeeb63b73513404d086
+    Reviewed-on: https://go-review.googlesource.com/c/146940
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/platform_test.go  | 12 ++++++++++++
+ src/time/zoneinfo_read.go |  9 +++++++++
+ 2 files changed, 21 insertions(+)

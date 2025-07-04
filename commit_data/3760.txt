@@ -1,0 +1,11 @@
+commit 524ade9a589f437627c592dca7a33aec5e64ded8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 10:58:30 2009 -0800
+
+    fix bufio test case
+    
+    R=rsc
+    http://go/go-review/1018038
+
+ src/pkg/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

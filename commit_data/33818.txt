@@ -1,0 +1,32 @@
+commit 70f441bc49afa4e9d10c27d7ed5733c4df7bddd3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Dec 5 22:38:36 2017 -0800
+
+    encoding/json: error when trying to set an embedded pointer to unexported struct types
+    
+    This CL reverts CL 76851 and takes a different approach to #21357.
+    The changes in encode.go and encode_test.go are reverts that
+    rolls back the changed behavior in CL 76851 where
+    embedded pointers to unexported struct types were
+    unilaterally ignored in both marshal and unmarshal.
+    
+    Instead, these fields are handled as before with the exception that
+    it returns an error when Unmarshal is unable to set an unexported field.
+    The behavior of Marshal is now unchanged with regards to #21357.
+    
+    This policy maintains the greatest degree of backwards compatibility
+    and avoids silently discarding data the user may have expected to be present.
+    
+    Fixes #21357
+    
+    Change-Id: I7dc753280c99f786ac51acf7e6c0246618c8b2b1
+    Reviewed-on: https://go-review.googlesource.com/82135
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go      | 13 ++++++
+ src/encoding/json/decode_test.go | 97 ++++++++++++++++++++++++++++++++--------
+ src/encoding/json/encode.go      | 13 ++----
+ src/encoding/json/encode_test.go |  7 ++-
+ 4 files changed, 97 insertions(+), 33 deletions(-)

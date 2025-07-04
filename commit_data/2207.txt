@@ -1,0 +1,14 @@
+commit 28db3e8411ed0516356f823b1f4922a2d222ce95
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 10:14:29 2009 -0700
+
+    ByteBuffer.Truncate(n int)
+    
+    R=r
+    DELTA=22  (17 added, 0 deleted, 5 changed)
+    OCL=28781
+    CL=28815
+
+ src/lib/io/bytebuffer.go      | 10 +++++++++-
+ src/lib/io/bytebuffer_test.go | 17 +++++++++++++----
+ 2 files changed, 22 insertions(+), 5 deletions(-)

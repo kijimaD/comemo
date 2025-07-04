@@ -1,0 +1,20 @@
+commit de4b06559119eac499906aaa4d42046b3beed52d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 27 13:36:48 2016 +1100
+
+    image/png: allow tRNS chunk without a PLTE chunk.
+    
+    While https://www.w3.org/TR/PNG/#5ChunkOrdering says that tRNS's
+    ordering constraint is "After PLTE; before IDAT", it is legal for a tRNS
+    chunk to occur without a PLTE chunk at all, for greyscale and truecolor
+    transparency as opposed to palette-based transparency. See
+    https://www.w3.org/TR/PNG/#11transinfo
+    
+    Fixes #17511.
+    
+    Change-Id: I047b0b01d78a1cda65e00eeac229bb972cda431d
+    Reviewed-on: https://go-review.googlesource.com/32139
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

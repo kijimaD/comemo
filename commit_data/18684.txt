@@ -1,0 +1,46 @@
+commit ea34ca768f5d2aff6ad23ec6169f5ac42db19716
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 28 10:37:21 2014 +1100
+
+    image/jpeg: fix progressive decoding when the DC components are split
+    over multiple scans. Previously, the Go code assumed that DC was
+    synonymous with interleaved and AC with non-interleaved.
+    
+    Fixes #6767.
+    
+    The test files were generated with libjpeg's cjpeg program, version 9a,
+    with the following patch, since cjpeg is hard-coded to output
+    interleaved DC.
+    
+    $ diff -u jpeg-9a*/jcparam.c
+    --- jpeg-9a-clean/jcparam.c     2013-07-01 21:13:28.000000000 +1000
+    +++ jpeg-9a/jcparam.c   2014-02-27 11:40:41.236889852 +1100
+    @@ -572,7 +572,7 @@
+     {
+       int ci;
+    
+    -  if (ncomps <= MAX_COMPS_IN_SCAN) {
+    +  if (0) {
+             /* Single interleaved DC scan */
+             scanptr->comps_in_scan = ncomps;
+             for (ci = 0; ci < ncomps; ci++)
+    @@ -610,7 +610,7 @@
+               (cinfo->jpeg_color_space == JCS_YCbCr ||
+                    cinfo->jpeg_color_space == JCS_BG_YCC)) {
+             /* Custom script for YCC color images. */
+    -    nscans = 10;
+    +    nscans = 14;
+       } else {
+             /* All-purpose script for other color spaces. */
+             if (ncomps > MAX_COMPS_IN_SCAN)
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/69000046
+
+ src/pkg/image/jpeg/reader_test.go                  |  27 ++++++++++++---------
+ src/pkg/image/jpeg/scan.go                         |  21 ++++++++++------
+ .../video-001.separate.dc.progression.jpeg         | Bin 0 -> 14288 bytes
+ ...eo-001.separate.dc.progression.progressive.jpeg | Bin 0 -> 14312 bytes
+ 4 files changed, 29 insertions(+), 19 deletions(-)

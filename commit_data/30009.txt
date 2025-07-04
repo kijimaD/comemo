@@ -1,0 +1,18 @@
+commit 5b1c6efb314f1426c22a7ba9c5983f41b28e76a7
+Author: Ibrahim AshShohail <ibra.sho@gmail.com>
+Date:   Tue Jan 24 22:20:04 2017 +0300
+
+    cmd/pprof: remove redundant URLs from error messages in fetch.FetchURL
+    
+    Errors from http.Client already includes the URL in the message.
+    
+    Fixes #18754
+    
+    Change-Id: I65fc25a8f3aa6a2d4627aac3fb47eed8d3c4151a
+    Reviewed-on: https://go-review.googlesource.com/35650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/pprof/internal/fetch/fetch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

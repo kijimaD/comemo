@@ -1,0 +1,28 @@
+commit a76cc5a4ecb004616404cac5bb756da293818469
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Dec 28 22:32:59 2024 +0100
+
+    crypto/rsa: use λ(N) instead of φ(N)
+    
+    This has no practical advantage, and requires extra variable time code,
+    but is an explicit FIPS 186-5 requirement.
+    
+    Note that the new behavior is consistent with Go+BoringCrypto, but not
+    with Go 1.23. The resulting keys are essentially interchangeable, but
+    it's not impossible for applications to notice (google/go-tpm#383).
+    
+    gcd_lcm_tests.txt is from BoringSSL.
+    
+    Change-Id: I6a6a4656fd5e92912c87bedc667456d0e8787023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639936
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips140/bigmod/nat.go          |  85 +++++--
+ src/crypto/internal/fips140/rsa/keygen.go          |  77 +++++-
+ src/crypto/internal/fips140/rsa/keygen_test.go     |  88 +++++++
+ src/crypto/internal/fips140/rsa/rsa.go             |   2 +-
+ .../fips140/rsa/testdata/gcd_lcm_tests.txt         | 279 +++++++++++++++++++++
+ 5 files changed, 506 insertions(+), 25 deletions(-)

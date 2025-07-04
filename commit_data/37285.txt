@@ -1,0 +1,17 @@
+commit 9c772522ea365be6a916d428a981969befedad7f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Nov 6 19:43:55 2018 +0100
+
+    cmd/compile: add new format to known_formats
+    
+    This change fixes a TestFormat failure in fmt_test by adding a
+    recently introduced new known format (%q for syntax.Error).
+    
+    Fixes #28621
+    
+    Change-Id: I026ec88c334549a957a692c1652a860c57e23dae
+    Reviewed-on: https://go-review.googlesource.com/c/147837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/fmt_test.go | 1 +
+ 1 file changed, 1 insertion(+)

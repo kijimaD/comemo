@@ -1,0 +1,20 @@
+commit 0e10196982e81be38c46b77572837ccf90cb3366
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 14:58:08 2013 -0700
+
+    database/sql: remove extra RemoveDep call
+    
+    This should have been removed in 45c12efb4635. Not a correctness
+    issue, but unnecessary work.
+    
+    This CL also adds paranoia checks in removeDep so this doesn't
+    happen again.
+    
+    Fixes #5502
+    
+    R=adg
+    CC=gobot, golang-dev, google
+    https://golang.org/cl/9543043
+
+ src/pkg/database/sql/sql.go | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)

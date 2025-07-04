@@ -1,0 +1,14 @@
+commit b2e91a9a29bfb0aa34f9a24cce3682c3e0923346
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 16:39:23 2009 -0700
+
+    constant conversion of int (non-ideal) constant doesn't work
+    
+    R=rsc
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=26054
+    CL=26062
+
+ test/bugs/bug138.go | 19 +++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 24 insertions(+)

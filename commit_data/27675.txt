@@ -1,0 +1,21 @@
+commit 84d8aff94cf48439047c7edc68ae2ea0aac6ddf5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 7 21:46:25 2016 -0700
+
+    runtime: collect stack trace if SIGPROF arrives on non-Go thread
+    
+    Fixes #15994.
+    
+    Change-Id: I5aca91ab53985ac7dcb07ce094ec15eb8ec341f8
+    Reviewed-on: https://go-review.googlesource.com/23891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cpuprof.go                          |  40 +++++++--
+ src/runtime/crash_cgo_test.go                   |  43 +++------
+ src/runtime/proc.go                             |  32 +++++++
+ src/runtime/signal_sigtramp.go                  |   8 ++
+ src/runtime/sys_linux_amd64.s                   |  30 ++++++-
+ src/runtime/testdata/testprogcgo/threadpprof.go | 112 ++++++++++++++++++++++++
+ 6 files changed, 224 insertions(+), 41 deletions(-)

@@ -1,0 +1,15 @@
+commit 901976cfc36959384c3088ed0e266308c8b7d599
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 31 13:43:40 2010 +0200
+
+    implement os.FileInfo.*time_ns for windows
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1145044
+
+ src/pkg/os/stat_windows.go              |  7 +++----
+ src/pkg/syscall/syscall_windows.go      | 11 +++--------
+ src/pkg/syscall/zsyscall_windows_386.go |  2 +-
+ src/pkg/syscall/ztypes_windows_386.go   | 10 ++++++++++
+ 4 files changed, 17 insertions(+), 13 deletions(-)

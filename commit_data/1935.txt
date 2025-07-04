@@ -1,0 +1,22 @@
+commit 95100344d33f7b99cd728260d8e6ee6a19ce0429
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 1 00:26:00 2009 -0700
+
+    fix runtime stack overflow bug that gri ran into:
+    160 - 75 was just barely not enough for deferproc + morestack.
+    
+    added enum names and bumped to 256 - 128.
+    added explanation.
+    
+    changed a few mal() (garbage-collected) to
+    malloc()/free() (manually collected).
+    
+    R=ken
+    OCL=26981
+    CL=26981
+
+ src/cmd/6l/pass.c   |  13 +-
+ src/cmd/8l/pass.c   |  13 +-
+ src/runtime/iface.c |   6 +-
+ src/runtime/proc.c  | 360 ++++++++++++++++++++++++++++++----------------------
+ 4 files changed, 231 insertions(+), 161 deletions(-)

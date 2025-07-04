@@ -1,0 +1,21 @@
+commit aa6345d3c91167f1e81bff9e8655e7aaac7762bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 21 15:17:56 2016 -0700
+
+    testing: document that logs are dumped to standard output
+    
+    Since at least 1.0.3, the testing package has said that logs are dumped
+    to standard error, but has in fact dumped the logs to standard output.
+    We could change to dump to standard error, but after doing it this way
+    for so long I think it's better to change the docs.
+    
+    Fixes #16138.
+    
+    Change-Id: If39c7ce91f51c7113f33ebabfb8f84fd4611b9e1
+    Reviewed-on: https://go-review.googlesource.com/24311
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

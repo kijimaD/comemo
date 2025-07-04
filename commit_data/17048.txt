@@ -1,0 +1,12 @@
+commit 429a67e30033935d45e368d32b56dedb8c010fee
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 6 14:43:36 2013 +0400
+
+    net: fix intentional build breakage introduced in 12413043
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12502044
+
+ src/pkg/net/tcp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

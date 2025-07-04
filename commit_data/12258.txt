@@ -1,0 +1,54 @@
+commit 6e2ae0a12c0f73da56d4f465e68208731b4b16be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 28 16:18:24 2012 -0500
+
+    runtime/pprof: support OS X CPU profiling
+    
+    Work around profiling kernel bug with signal masks.
+    Still broken on 64-bit Snow Leopard kernel,
+    but I think we can ignore that one and let people
+    upgrade to Lion.
+    
+    Add new trivial tools addr2line and objdump to take
+    the place of the GNU tools of the same name, since
+    those are not installed on OS X.
+    
+    Adapt pprof to invoke 'go tool addr2line' and
+    'go tool objdump' if the system tools do not exist.
+    
+    Clean up disassembly of base register on amd64.
+    
+    Fixes #2008.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5697066
+
+ misc/pprof                            |  35 ++++++++----
+ src/cmd/addr2line/main.c              |  68 +++++++++++++++++++++++
+ src/cmd/dist/build.c                  | 100 ++++++++++++++++++----------------
+ src/cmd/objdump/main.c                |  68 +++++++++++++++++++++++
+ src/libmach/8db.c                     |  23 +++++---
+ src/pkg/runtime/lock_futex.c          |  12 +++-
+ src/pkg/runtime/lock_sema.c           |  11 ++++
+ src/pkg/runtime/os_darwin.h           |   3 +
+ src/pkg/runtime/os_freebsd.h          |   1 -
+ src/pkg/runtime/os_netbsd.h           |   1 -
+ src/pkg/runtime/os_openbsd.h          |   1 -
+ src/pkg/runtime/pprof/pprof.go        |   6 +-
+ src/pkg/runtime/pprof/pprof_test.go   |  12 +++-
+ src/pkg/runtime/proc.c                |   9 ++-
+ src/pkg/runtime/runtime.h             |  10 ++++
+ src/pkg/runtime/signal_darwin_386.c   |   5 +-
+ src/pkg/runtime/signal_darwin_amd64.c |   9 +--
+ src/pkg/runtime/signal_unix.c         |   6 +-
+ src/pkg/runtime/sys_darwin_386.s      |   4 +-
+ src/pkg/runtime/sys_darwin_amd64.s    |   2 +-
+ src/pkg/runtime/thread_darwin.c       |  49 ++++++++++++++++-
+ src/pkg/runtime/thread_freebsd.c      |   6 ++
+ src/pkg/runtime/thread_linux.c        |   8 ++-
+ src/pkg/runtime/thread_netbsd.c       |   6 ++
+ src/pkg/runtime/thread_openbsd.c      |   6 ++
+ src/pkg/runtime/thread_plan9.c        |   8 ++-
+ src/pkg/runtime/thread_windows.c      |   8 ++-
+ 27 files changed, 379 insertions(+), 98 deletions(-)

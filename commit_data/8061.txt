@@ -1,0 +1,12 @@
+commit dcf32a24a000651dc60dfbc6adc35482d5cdcfec
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 13 14:49:56 2011 +1000
+
+    builder: fix documentation s/\.gobuilder/.gobuildkey/
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4312051
+
+ misc/dashboard/builder/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

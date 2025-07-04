@@ -1,0 +1,19 @@
+commit 01826280eb3dec5dfa06fae0474caf1ba3942ec7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 15 19:10:16 2012 +0400
+
+    runtime: refactor helpgc functionality in preparation for parallel GC
+    Parallel GC needs to know in advance how many helper threads will be there.
+    Hopefully it's the last patch before I can tackle parallel sweep phase.
+    The benchmarks are unaffected.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6200064
+
+ src/pkg/runtime/malloc.h  |  3 ++-
+ src/pkg/runtime/mgc0.c    | 35 +++++++++++---------------
+ src/pkg/runtime/mprof.goc |  4 +--
+ src/pkg/runtime/proc.c    | 63 +++++++++++++++++++++++++++++------------------
+ src/pkg/runtime/runtime.h |  2 +-
+ 5 files changed, 58 insertions(+), 49 deletions(-)

@@ -1,0 +1,13 @@
+commit 08fdf00906a5008428273742ef7df78552d3308d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 15 11:51:04 2013 -0400
+
+    tests: remove two misuses of nil pointers
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12858044
+
+ src/pkg/runtime/gc_test.go | 4 +++-
+ test/recover3.go           | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

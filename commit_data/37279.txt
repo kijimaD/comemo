@@ -1,0 +1,23 @@
+commit 0e4a0b93d25f56eda3b6026a98bdee4cf6fc7b8f
+Author: Raghavendra Nagaraj <jamdagni86@gmail.com>
+Date:   Tue Nov 6 09:02:03 2018 +0000
+
+    reflect: fix StructOf panics from too many methods in embedded fields
+    
+    Previously we panicked if the number of methods present for an embedded
+    field was >= 32. This change removes that limit and now StructOf
+    dynamically calls itself to create space for the number of methods.
+    
+    Fixes #25402
+    
+    Change-Id: I3b1deb119796d25f7e6eee1cdb126327b49a0b5e
+    GitHub-Last-Rev: 16da71ad6b23563f3ed26f1914adf41e3d42de69
+    GitHub-Pull-Request: golang/go#26865
+    Reviewed-on: https://go-review.googlesource.com/c/128479
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 11 +++++++
+ src/reflect/type.go     | 79 ++++++++++++-------------------------------------
+ 2 files changed, 30 insertions(+), 60 deletions(-)

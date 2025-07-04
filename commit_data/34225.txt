@@ -1,0 +1,43 @@
+commit d6e821858157b7cb4ece22fcc1a5c8604478ebaa
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 13 16:09:02 2017 -0500
+
+    runtime: make span map sparse
+    
+    This splits the span map into separate chunks for every 64MB of the
+    heap. The span map chunks now live in the same indirect structure as
+    the bitmap.
+    
+    Updates #10460.
+    
+    This causes a slight improvement in compilebench and the x/benchmarks
+    garbage benchmark. I'm not sure why it improves performance.
+    
+    name       old time/op     new time/op     delta
+    Template       185ms ± 1%      184ms ± 1%    ~            (p=0.315 n=9+10)
+    Unicode       86.9ms ± 1%     86.9ms ± 3%    ~            (p=0.356 n=9+10)
+    GoTypes        602ms ± 1%      599ms ± 0%  -0.59%         (p=0.002 n=9+10)
+    Compiler       2.89s ± 0%      2.87s ± 1%  -0.50%          (p=0.003 n=9+9)
+    SSA            7.25s ± 0%      7.29s ± 1%    ~            (p=0.400 n=9+10)
+    Flate          118ms ± 1%      118ms ± 2%    ~            (p=0.065 n=10+9)
+    GoParser       147ms ± 2%      147ms ± 1%    ~            (p=0.549 n=10+9)
+    Reflect        403ms ± 1%      401ms ± 1%  -0.47%         (p=0.035 n=9+10)
+    Tar            176ms ± 1%      175ms ± 1%  -0.59%         (p=0.013 n=10+9)
+    XML            211ms ± 1%      209ms ± 1%  -0.83%        (p=0.011 n=10+10)
+    
+    (https://perf.golang.org/search?q=upload:20171231.1)
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.24ms ± 1%  2.23ms ± 1%  -0.36%  (p=0.001 n=20+19)
+    
+    (https://perf.golang.org/search?q=upload:20171231.2)
+    
+    Change-Id: I2563f8704ab9812434947faf293c5327f9b0d07a
+    Reviewed-on: https://go-review.googlesource.com/85885
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 16 ++++------
+ src/runtime/mheap.go  | 84 ++++++++++++++++++---------------------------------
+ 2 files changed, 36 insertions(+), 64 deletions(-)

@@ -1,0 +1,23 @@
+commit 77860ad2809d88566d28783e0382073fb9836d9b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 13:09:54 2021 -0400
+
+    cmd/compile: guard partially live arg spilling with number of registers
+    
+    The code that does partially live in-register arg spilling is
+    currently guarded with GOEXPERIMENT=regabiargs. But on platforms
+    where GOEXPERIMENT=regabiargs is not enabled there are still tests
+    that use register args. Guard it with actual number of registers
+    used, so it covers both.
+    
+    Should fix the freeBSD builder.
+    
+    Change-Id: I0d3c49d7a2389096cb6b17ca35b9b4ce567bc91e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311830
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

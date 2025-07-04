@@ -1,0 +1,13 @@
+commit c77c3b019606bdfd0e4dfa1e53ccbbd80e2f5a20
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 17:11:57 2009 -0700
+
+    string range
+    
+    R=rsc
+    DELTA=22  (19 added, 0 deleted, 3 changed)
+    OCL=34463
+    CL=34463
+
+ doc/effective_go.html | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

@@ -1,0 +1,49 @@
+commit f056daf075f303918343fd79af7ee0bfdcf6738e
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Dec 5 17:35:22 2013 -0800
+
+    cmd/5g, cmd/5l, cmd/6g, cmd/6l, cmd/8g, cmd/8l, cmd/gc, runtime: generate pointer maps by liveness analysis
+    
+    This change allows the garbage collector to examine stack
+    slots that are determined as live and containing a pointer
+    value by the garbage collector.  This results in a mean
+    reduction of 65% in the number of stack slots scanned during
+    an invocation of "GOGC=1 all.bash".
+    
+    Unfortunately, this does not yet allow garbage collection to
+    be precise for the stack slots computed as live.  Pointers
+    confound the determination of what definitions reach a given
+    instruction.  In general, this problem is not solvable without
+    runtime cost but some advanced cooperation from the compiler
+    might mitigate common cases.
+    
+    R=golang-dev, rsc, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/14430048
+
+ src/cmd/5g/ggen.c          |   63 +-
+ src/cmd/5g/peep.c          |    1 +
+ src/cmd/5g/prog.c          |    1 +
+ src/cmd/5g/reg.c           |    3 +-
+ src/cmd/5l/5.out.h         |    1 +
+ src/cmd/6g/ggen.c          |   45 +-
+ src/cmd/6g/prog.c          |    1 +
+ src/cmd/6g/reg.c           |    3 +-
+ src/cmd/6l/6.out.h         |    1 +
+ src/cmd/6l/optab.c         |    3 +
+ src/cmd/8g/ggen.c          |   45 +-
+ src/cmd/8g/prog.c          |    1 +
+ src/cmd/8g/reg.c           |    3 +-
+ src/cmd/8l/8.out.h         |    1 +
+ src/cmd/8l/optab.c         |    2 +
+ src/cmd/cc/pgen.c          |  124 ++--
+ src/cmd/dist/build.c       |    6 +-
+ src/cmd/gc/array.c         |  129 ++++
+ src/cmd/gc/bv.c            |  120 +++-
+ src/cmd/gc/gen.c           |    4 +
+ src/cmd/gc/go.h            |   32 +-
+ src/cmd/gc/pgen.c          |  248 ++------
+ src/cmd/gc/plive.c         | 1489 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/funcdata.h |    6 +-
+ src/pkg/runtime/mgc0.c     |  191 +++---
+ 25 files changed, 2031 insertions(+), 492 deletions(-)

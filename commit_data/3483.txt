@@ -1,0 +1,18 @@
+commit 680ee6af630c96b39251a6ab87586ead60814550
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 8 23:03:34 2009 -0700
+
+    add & fix bug208, from ken.
+    fix bug198.
+    
+    R=ken
+    OCL=35504
+    CL=35507
+
+ src/cmd/gc/dcl.c                   |  8 ++++++++
+ src/cmd/gc/go.h                    |  1 +
+ src/cmd/gc/typecheck.c             | 15 +++++++++++----
+ test/{bugs => fixedbugs}/bug198.go |  3 ++-
+ test/fixedbugs/bug208.go           | 20 ++++++++++++++++++++
+ test/golden.out                    |  7 -------
+ 6 files changed, 42 insertions(+), 12 deletions(-)

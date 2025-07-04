@@ -1,0 +1,18 @@
+commit 84b96c21bf226e80e46d5c22c5e42815bb392af3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 24 13:33:14 2018 +1100
+
+    cmd/doc: allow -all to apply to individual items
+    
+    It really only matters for types, and the code already worked but was
+    blocked by a usage check.
+    
+    Fixes #25595
+    
+    Change-Id: I823f313b682b37616ea555aee079e2fe39f914c2
+    Reviewed-on: https://go-review.googlesource.com/c/144357
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/doc/doc_test.go | 20 ++++++++++++++++++++
+ src/cmd/doc/main.go     |  5 +----
+ 2 files changed, 21 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 8b6fa668ee1aaf6c00073115cc09957195ee30e1
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Mon Sep 23 19:10:05 2019 +0300
+
+    net: use case-insensitive host string comparison in TestLookupGmailNS
+    
+    Some nameservers alter the case of NS records they return, e.g.
+    ns2.google.COm. or ns2.google.coM. Change TestLookupGmailNS to account
+    for this possibility by comparing host names in lower case.
+    
+    Fixes #34446
+    
+    Change-Id: I6ccb5b87b42401e04c9b32cecb8b7b4267b654cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196801
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

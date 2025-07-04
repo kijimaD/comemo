@@ -1,0 +1,13 @@
+commit b9f94768f90dfc7f5d4bf7cf9ccf64b9190d0e93
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 14 09:27:02 2011 -0500
+
+    build: run test/ directory first
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4183047
+
+ doc/install.html |  3 +--
+ src/run.bash     | 31 ++++++++++++-------------------
+ 2 files changed, 13 insertions(+), 21 deletions(-)

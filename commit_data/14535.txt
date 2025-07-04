@@ -1,0 +1,21 @@
+commit e3e885bb481731370573e99ac20fd93ed652ae9a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 1 14:49:54 2012 +0900
+
+    net: allow "" as a hint wildcard to Resolve{IP,UDP,TCP}Addr
+    
+    Also fixes comments on ResolveIPAddr.
+    
+    Fixes #4476.
+    
+    R=bradfitz, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6854129
+
+ src/pkg/net/ipraw_test.go | 3 +++
+ src/pkg/net/iprawsock.go  | 6 ++++--
+ src/pkg/net/tcp_test.go   | 3 +++
+ src/pkg/net/tcpsock.go    | 2 ++
+ src/pkg/net/udp_test.go   | 3 +++
+ src/pkg/net/udpsock.go    | 2 ++
+ 6 files changed, 17 insertions(+), 2 deletions(-)

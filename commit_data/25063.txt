@@ -1,0 +1,21 @@
+commit 10cb39afc4e81d126c71153dba7b9f1878bae61a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 25 13:09:14 2015 -0800
+
+    cmd/cgo: fix C.complexfloat and C.complexdouble
+    
+    This also fixes an unintended behavior where C's "complex float" and
+    "complex double" types were interchangeable with Go's "complex64" and
+    "complex128" types.
+    
+    Fixes #13402.
+    
+    Change-Id: I73f96d9a4772088d495073783c6982e9634430e8
+    Reviewed-on: https://go-review.googlesource.com/17208
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue13402.go | 10 ++++++++++
+ misc/cgo/test/issue8694.go  |  4 ++--
+ src/cmd/cgo/doc.go          |  3 ++-
+ src/cmd/cgo/gcc.go          |  8 +++-----
+ 4 files changed, 17 insertions(+), 8 deletions(-)

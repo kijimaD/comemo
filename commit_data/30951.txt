@@ -1,0 +1,22 @@
+commit 4a1140472b3093edf9cd653666242393d7f4c2bd
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Mar 30 18:30:07 2017 -0300
+
+    math/big: Unify divWW implementation for ppc64 and ppc64le.
+    
+    Starting in go1.9, the minimum processor requirement for ppc64 is POWER8. So it
+    may now use the same divWW implementation as ppc64le.
+    
+    Updates #19074
+    
+    Change-Id: If1a85f175cda89eee06a1024ccd468da6124c844
+    Reviewed-on: https://go-review.googlesource.com/39010
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/math/big/arith_ppc64.s   | 14 -------------
+ src/math/big/arith_ppc64le.s | 50 --------------------------------------------
+ src/math/big/arith_ppc64x.s  | 39 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 64 deletions(-)

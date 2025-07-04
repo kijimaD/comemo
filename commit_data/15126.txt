@@ -1,0 +1,13 @@
+commit 94064548c66b76ae111c68e67729c3bd11ad3faf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 4 16:03:41 2013 +1100
+
+    net: use windows sysSocket everywhere
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7273046
+
+ src/pkg/net/fd_windows.go        | 7 +------
+ src/pkg/net/interface_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 7 deletions(-)

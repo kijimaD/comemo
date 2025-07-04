@@ -1,0 +1,29 @@
+commit 18d27b2d754923854e05c3b37a2b799d9c063164
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 22:19:58 2015 -0400
+
+    net: force LookupAddr results to be rooted DNS paths when using cgo
+    
+    Go 1.4 and before have always returned DNS names with a trailing dot
+    for reverse lookups, as they do for basically all other routines returning
+    DNS names. Go 1.4 and before always implemented LookupAddr using
+    pure Go (not C library calls).
+    
+    Go 1.5 added the ability to make a C library call to implement LookupAddr.
+    Unfortunately the C library call returns a DNS name without a trailing dot
+    (an unrooted name), meaning that if turn off cgo during make.bash then
+    you still get the rooted name but with cgo on you get an unrooted name.
+    The unrooted name is inconsistent with the pure Go implementation
+    and with all previous Go releases, so change it to a rooted name.
+    
+    Fixes #12189.
+    
+    Change-Id: I3d6b72277c121fe085ea6af30e5fe8019fc490ad
+    Reviewed-on: https://go-review.googlesource.com/13697
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/cgo_unix.go      |   5 +++
+ src/net/lookup_test.go   | 109 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/non_unix_test.go |  11 +++++
+ src/net/unix_test.go     |  25 +++++++++++
+ 4 files changed, 150 insertions(+)

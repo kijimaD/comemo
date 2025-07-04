@@ -1,0 +1,18 @@
+commit db018bf77cba282220d852f19203570ae5e87c37
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Mar 4 19:48:50 2013 -0800
+
+    runtime: restrict stack root scan to locals and arguments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7301062
+
+ src/pkg/runtime/mgc0.c          | 59 +++++++++++++++++++++--------------------
+ src/pkg/runtime/mprof.goc       |  2 +-
+ src/pkg/runtime/proc.c          |  2 +-
+ src/pkg/runtime/runtime.h       |  2 +-
+ src/pkg/runtime/sigqueue.goc    |  3 ++-
+ src/pkg/runtime/traceback_arm.c | 29 +++++++++++++-------
+ src/pkg/runtime/traceback_x86.c | 37 ++++++++++++++++----------
+ 7 files changed, 77 insertions(+), 57 deletions(-)

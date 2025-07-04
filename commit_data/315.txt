@@ -1,0 +1,11 @@
+commit 33069d39b650594d77e036a54e2e3d5adbf2580d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 9 10:16:33 2008 -0700
+
+    - fixed scanner and parser issues to be able to parse math lib
+    
+    SVN=126501
+
+ usr/gri/src/parser.go  | 28 +++++++++++++++++-----------
+ usr/gri/src/scanner.go | 11 ++++++++---
+ 2 files changed, 25 insertions(+), 14 deletions(-)

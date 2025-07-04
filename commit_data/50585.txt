@@ -1,0 +1,21 @@
+commit e5deb1556b230642d544c451a83cb79f641727a3
+Author: Tobias Klauser <tobias.klauser@gmail.com>
+Date:   Fri Sep 23 21:56:17 2022 +0000
+
+    Revert "net/netip: use slice-to-array conversions"
+    
+    This reverts commit 3dcf6e2c29f533865aad58488b60ae8d819a566e.
+    
+    Reason for revert: breaks the longtest builders for x/tools
+    
+    Change-Id: I6b6d5afbe46890b6a59829e3d5ab50d885661696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433478
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/netip/netip.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

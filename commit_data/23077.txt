@@ -1,0 +1,24 @@
+commit 82833b313e5e23f67d5ed1141d9a2464bf78f277
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 15:49:02 2015 -0700
+
+    cmd/internal/gc: rearrange Node fields
+    
+    Rearrange Node fields to enable better struct packing.
+    This reduces readability in favor of shrinking
+    the size of Nodes.
+    
+    This reduces the size of Node from 328 to 312.
+    This reduces the memory usage to compile the
+    rotate tests by about 4.4%.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Updates #9933.
+    
+    Change-Id: I2764c5847fb1635ddc898e2ee385d007d67f03c5
+    Reviewed-on: https://go-review.googlesource.com/10141
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/syntax.go | 90 +++++++++++++++++++++++--------------------
+ 1 file changed, 49 insertions(+), 41 deletions(-)

@@ -1,0 +1,14 @@
+commit 3119221ed83878b45b488e5b9c5dc0a883c79414
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 15:13:18 2009 -0700
+
+    bogus test: planning to allow forward declarations
+    of structs/interfaces in other files in the package.
+    
+    R=r
+    DELTA=12  (0 added, 12 deleted, 0 changed)
+    OCL=30865
+    CL=30868
+
+ test/export.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

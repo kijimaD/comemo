@@ -1,0 +1,22 @@
+commit 76cc0a271286b7facfd5233d56737a3d92dd9670
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 3 11:25:57 2014 -0800
+
+    net/http: in Client, consume small redirect bodies before making next request
+    
+    In Go 1.2, closing a request body without reading to EOF
+    causes the underlying TCP connection to not be reused. This
+    client code following redirects was never updated when that
+    happened.
+    
+    This was part of a previous CL but moved to its own CL at
+    Josh's request.  Now with test too.
+    
+    LGTM=josharian
+    R=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/70800043
+
+ src/pkg/net/http/client.go      |  7 +++++++
+ src/pkg/net/http/client_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

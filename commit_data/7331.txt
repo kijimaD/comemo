@@ -1,0 +1,19 @@
+commit bc874ec0dd0c803b5dd0ea96f9394bad39a20a74
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 15:35:54 2011 -0500
+
+    runtime: correct runtime.GOOS, runtime.GOARCH
+    
+    If the same directory was used for multiple builds,
+    it was possible for a stale version.go to contain the
+    wrong definitions for $GOOS and $GOARCH, because
+    they can change even if the hg version does not.
+    Split into multiple files to fix.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4124050
+
+ src/pkg/runtime/Makefile    | 10 ++++++++++
+ src/pkg/runtime/mkversion.c |  6 ++----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

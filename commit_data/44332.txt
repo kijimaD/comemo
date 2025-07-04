@@ -1,0 +1,18 @@
+commit 1391d4142cab5e5b83ca3362be67af80ba2f95e8
+Author: zhengjianxun <zhuimengshaonian04@gmail.com>
+Date:   Mon Feb 22 13:30:03 2021 +0000
+
+    fix typo in issue16760.go
+    
+    fix typo in issue16760.go, unconditinally ->  unconditionally
+    
+    Change-Id: I3a04fbcb23395c562821b35bc2d81cfaec0bc1ed
+    GitHub-Last-Rev: 5ce52a3deb52826bc28022776c3fe3ffa7376084
+    GitHub-Pull-Request: golang/go#44495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294969
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: zhengjianxun <zhuimengshaonian04@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/fixedbugs/issue16760.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

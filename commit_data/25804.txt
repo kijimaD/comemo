@@ -1,0 +1,13 @@
+commit 64d2a88105d503d1a0275388823b8112a870d13b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:34:54 2016 +0900
+
+    net/internal/socktest: add missing support for AcceptEx
+    
+    Change-Id: I37faedc6fa316fffac80093b01e15429995b0f5b
+    Reviewed-on: https://go-review.googlesource.com/19705
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/internal/socktest/switch.go      |  2 +-
+ src/net/internal/socktest/sys_windows.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

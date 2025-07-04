@@ -1,0 +1,21 @@
+commit 57e7d62455ae85a9d9471353286a7c640ecd0bc3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 17:09:46 2017 +0200
+
+    all: use sort.Slice in a few more places
+    
+    Do the low-hanging fruit - tiny Less functions that are used exactly
+    once. This reduces the amount of code and puts the logic in a single
+    place.
+    
+    Change-Id: I9d4544cd68de5a95e55019bdad1fca0a1dbfae9c
+    Reviewed-on: https://go-review.googlesource.com/63171
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof.go | 20 +++++++++-----------
+ src/text/template/exec.go  | 39 ++++++++++++---------------------------
+ src/time/genzabbrs.go      | 16 ++++++----------
+ src/unicode/maketables.go  | 10 +++-------
+ 4 files changed, 30 insertions(+), 55 deletions(-)

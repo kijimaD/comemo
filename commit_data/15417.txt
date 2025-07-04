@@ -1,0 +1,20 @@
+commit aa3efb28f02924a451f2c519794cc473b15b7559
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 25 16:11:34 2013 -0500
+
+    cmd/gc: can stop tracking gotype in regopt
+    
+    Now that the type information is in TYPE instructions
+    that are not rewritten by the optimization passes,
+    we don't have to try to preserve the type information
+    (no longer) attached to MOV instructions.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7402054
+
+ src/cmd/5g/reg.c | 1 -
+ src/cmd/6g/reg.c | 2 --
+ src/cmd/8g/reg.c | 2 --
+ src/cmd/gc/go.h  | 1 -
+ 4 files changed, 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 77f6f16660099e09f4707e0ace53fb26d9a024b9
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 25 07:13:14 2009 +1100
+
+    fix naked < and > as reported by Peter Williams <>
+    (i thought these were legal in <pre> blocks)
+    
+    R=rsc
+    CC=golang-dev, pwil3058
+    https://golang.org/cl/181055
+
+ doc/effective_go.html | 80 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 40 insertions(+), 40 deletions(-)

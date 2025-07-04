@@ -1,0 +1,29 @@
+commit 624e197c71b673f0b3ebc57f774536131b4f0f26
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 30 08:36:00 2018 -0500
+
+    cmd/compile: decrease inlining call cost from 60 to 57
+    
+    A Go user made a well-documented request for a slightly
+    lower threshold.  I tested against a selection of other
+    people's benchmarks, and saw a tiny benefit (possibly noise)
+    at equally tiny cost, and no unpleasant surprises observed
+    in benchmarking.
+    
+    I.e., might help, doesn't hurt, low risk, request was
+    delivered on a silver platter.
+    
+    It did, however, change the behavior of one test because
+    now bytes.Buffer.Grow is eligible for inlining.
+    
+    Updates #19348.
+    
+    Change-Id: I85e3088a4911290872b8c6bda9601b5354c48695
+    Reviewed-on: https://go-review.googlesource.com/c/151977
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go |  2 +-
+ test/fixedbugs/issue7921.go        | 30 +++++++++++++++---------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

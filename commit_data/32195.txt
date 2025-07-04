@@ -1,0 +1,14 @@
+commit 812124a56758175ecd19a3dc0ae261bb02969d9c
+Author: Mark Wolfe <mark@wolfe.id.au>
+Date:   Tue Aug 8 21:22:41 2017 +1000
+
+    encoding/binary: add example for Read multi
+    
+    Change-Id: I27ff99aa7abb070f6ae79c8f964aa9bd6a83b89d
+    Reviewed-on: https://go-review.googlesource.com/53730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/binary/example_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

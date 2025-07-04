@@ -1,0 +1,37 @@
+commit 471763f657df9bfe34c40d8483e0dd4b9c4122a6
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Jan 11 19:00:32 2014 +1100
+
+    runtime, syscall: update for openbsd system ABI break
+    
+    Update Go so that it continues to work past the OpenBSD system ABI
+    break, with 64-bit time_t:
+    
+      http://www.openbsd.org/faq/current.html#20130813
+    
+    Note: this makes OpenBSD 5.5 (currently 5.4-current) the minimum
+    supported release for Go.
+    
+    Fixes #7049.
+    
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/13368046
+
+ src/pkg/runtime/defs_openbsd_386.h        |  8 ++---
+ src/pkg/runtime/defs_openbsd_amd64.h      |  9 +++--
+ src/pkg/runtime/sys_openbsd_386.s         | 54 +++++++++++++++--------------
+ src/pkg/runtime/sys_openbsd_amd64.s       | 18 +++++-----
+ src/pkg/syscall/syscall_openbsd.go        |  6 +++-
+ src/pkg/syscall/syscall_openbsd_386.go    |  4 +--
+ src/pkg/syscall/syscall_openbsd_amd64.go  |  6 ++--
+ src/pkg/syscall/zerrors_openbsd_386.go    | 41 ++++++++++++----------
+ src/pkg/syscall/zerrors_openbsd_amd64.go  | 39 +++++++++++----------
+ src/pkg/syscall/zsyscall_openbsd_386.go   | 34 +++++++++---------
+ src/pkg/syscall/zsyscall_openbsd_amd64.go | 34 +++++++++---------
+ src/pkg/syscall/zsysctl_openbsd.go        | 28 ++-------------
+ src/pkg/syscall/zsysnum_openbsd_386.go    | 57 ++++++++++++++++---------------
+ src/pkg/syscall/zsysnum_openbsd_amd64.go  | 57 ++++++++++++++++---------------
+ src/pkg/syscall/ztypes_openbsd_386.go     | 45 ++++++++++++------------
+ src/pkg/syscall/ztypes_openbsd_amd64.go   | 46 ++++++++++++-------------
+ 16 files changed, 240 insertions(+), 246 deletions(-)

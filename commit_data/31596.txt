@@ -1,0 +1,20 @@
+commit 0927b4728defe3270f3d737d11cfb4d89493c435
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 31 11:32:51 2017 +1100
+
+    net: adjust TestInterfaceHardwareAddrWithGetmac
+    
+    Ignore adapters with "Transport Name:   N/A" line in getmac
+    command output. This allows us to skip duplicate MAC addresses.
+    
+    Fixes #19537.
+    
+    Change-Id: I6b7be9d31322f963e02023c8f1037f6e9042b479
+    Reviewed-on: https://go-review.googlesource.com/39071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 66 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 38 insertions(+), 28 deletions(-)

@@ -1,0 +1,15 @@
+commit f549af6f0a79479dddc70593291c31401b1f495a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 19 21:55:01 2018 +0000
+
+    crypto/rand: make documentation consistent between package comment and Reader
+    
+    Updates #25959
+    
+    Change-Id: I9ae64b216ab5807718db0db98b32de1dc5fa4bec
+    Reviewed-on: https://go-review.googlesource.com/119875
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/rand/rand.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

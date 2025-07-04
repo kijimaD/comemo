@@ -1,0 +1,31 @@
+commit f7156f63b52af3242e8415a209ff6fea119f5903
+Author: Michael Teichgraeber <mteichgraeber@gmx.de>
+Date:   Fri Apr 20 01:22:30 2018 +0200
+
+    encoding/asn1: support fractions of a second when unmarshaling GeneralizedTime
+    
+    A GeneralizedTime value may contain an optional fractional seconds
+    element (according to X.680 46.2, restricted by X.690 11.7.3). This
+    change adds support for this fractional part, up to nine digits, so that
+    Unmarshal won't fail when decoding a DER encoded GeneralizedTime value
+    with fractional digits.  Also, test cases related to this change have
+    been added.
+    
+    X.680 and X.690 can be found at:
+            https://www.itu.int/rec/T-REC-X.680
+            https://www.itu.int/rec/T-REC-X.690
+    
+    Fixes #15842
+    
+    Change-Id: If217c007e01b686db508a940e9e2ed3bfb901879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/108355
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/asn1/asn1.go      | 2 +-
+ src/encoding/asn1/asn1_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

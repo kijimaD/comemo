@@ -1,0 +1,14 @@
+commit 47bc1f2e4b25505102e856220ed9a6ff7c98e068
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Thu Jun 3 16:20:54 2010 -0700
+
+    Added regex-dna-parallel.go, a pretty trivial parallelization.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/972046
+
+ test/bench/regex-dna-parallel.go  | 124 ++++++++++++++++++++++++++++++++++++++
+ test/bench/regex-dna-parallel.txt |  13 ++++
+ test/bench/timing.sh              |   1 +
+ 3 files changed, 138 insertions(+)

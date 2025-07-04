@@ -1,0 +1,12 @@
+commit 16e2e95dd92bb2cf8b04be611685521adb9ea85a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 14:52:28 2016 -0800
+
+    cmd/compile/internal/ssa: chmod -x likelyadjust.go
+    
+    Change-Id: I01ec7d08884a1e0fbce94ea77281c1ee4a2cfd56
+    Reviewed-on: https://go-review.googlesource.com/20238
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/likelyadjust.go | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,15 @@
+commit 05cc78d8d32f6af6fc4373e10da0b4a12f0a1ad4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 23 12:29:29 2014 +1000
+
+    os: document that Interrupt might not work on every os
+    
+    Fixes #6720.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/92340043
+
+ src/pkg/os/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

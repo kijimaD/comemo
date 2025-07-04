@@ -1,0 +1,15 @@
+commit 5f541b11aaa345b4cf0fb37a80c32b704a6854ea
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 9 14:51:30 2018 +0100
+
+    test/codegen: port MULs merging tests to codegen
+    
+    And delete them from asm_go.
+    
+    Change-Id: I0057cbd90ca55fa51c596e32406e190f3866f93e
+    Reviewed-on: https://go-review.googlesource.com/99815
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 66 ---------------------------------
+ test/codegen/arithmetic.go              | 34 +++++++++++++++++
+ 2 files changed, 34 insertions(+), 66 deletions(-)

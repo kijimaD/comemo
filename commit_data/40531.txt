@@ -1,0 +1,17 @@
+commit d0160bc32defcb054b59b8501bfadc8ec5b64073
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 1 15:10:25 2019 +0000
+
+    make.bash: show bootstrap version
+    
+    For debugging. (The "go1.4" can be misleading since it might actually
+    be go1.4.3 or go1.11 or go1.12 or master)
+    
+    Change-Id: I27520b931a2be018de577a299592d082260aa467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204757
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/make.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

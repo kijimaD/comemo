@@ -1,0 +1,18 @@
+commit a1ae3a05363050dc4bd809c367ba764b5d11e811
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 15 17:14:03 2014 -0700
+
+    io: document that a Writer must not write to p
+    
+    Per golang-nuts question. Writing to p breaks
+    other writers (e.g. io.MultiWriter).
+    
+    Make this explicit.
+    
+    LGTM=gri, r, rsc
+    R=r, rsc, gri, joshlf13
+    CC=golang-codereviews
+    https://golang.org/cl/87780046
+
+ src/pkg/io/io.go | 1 +
+ 1 file changed, 1 insertion(+)

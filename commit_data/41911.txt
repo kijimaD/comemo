@@ -1,0 +1,23 @@
+commit fd18f3ba5031079102ca4dc4cf425c2b496408ba
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 14:07:13 2020 -0700
+
+    cmd/link: turn ASLR off for netbsd+race
+    
+    The race detector can't handle ASLR (adddress space layout randomization).
+    On some platforms it can re-exec the binary with ASLR off. But not NetBSD.
+    For NetBSD we have to introduce a special ELF header note that tells
+    the kernel not to use ASLR.
+    
+    This works fine for internal linking. For external linking it also works,
+    but "readelf -n" shows multiple notes in the resulting binary. Maybe the
+    last one wins? Not sure, but it appears to work.
+    
+    Change-Id: I5fe6dd861e42a8293f64d0dacb166631ea670fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227864
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/link/internal/ld/elf.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,0 +1,14 @@
+commit 6be622c38067a70b31a65e677944b8bb264cca06
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:32:22 2018 -0500
+
+    doc: remove interior <code> spaces in debugging, diagnostics docs
+    
+    Change-Id: I20de6207d386635025dbb603c57219218e9a9af5
+    Reviewed-on: https://go-review.googlesource.com/87019
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/debugging_with_gdb.html | 19 +++++++++++++------
+ doc/diagnostics.html        | 11 +++++++++--
+ 2 files changed, 22 insertions(+), 8 deletions(-)

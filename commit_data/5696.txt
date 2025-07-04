@@ -1,0 +1,12 @@
+commit 121a16fa95581118502e4402b40cc2fc6dfc2ec0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 18:03:25 2010 -0700
+
+    runtime: delete old types
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1715043
+
+ src/pkg/runtime/type.go | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)

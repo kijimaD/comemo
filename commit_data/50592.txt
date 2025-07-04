@@ -1,0 +1,20 @@
+commit c3728b75024667927f690373cea324dd26777414
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Aug 30 01:30:53 2022 +0800
+
+    reflect: simplify Value.Comparable
+    
+    using Type.Comparable to simplify the Value.Comparable,
+    and return true directly when exit the for loop of kind == array and elements type is interface or array or struct.
+    
+    Change-Id: Ib0b06a70642ba24c9215c69e7d619960fbeeed90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426457
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+
+ src/reflect/value.go | 29 ++---------------------------
+ 1 file changed, 2 insertions(+), 27 deletions(-)

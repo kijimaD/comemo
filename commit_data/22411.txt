@@ -1,0 +1,27 @@
+commit 53a8ee5011c2cca9f938af2ff2973ed8897aa597
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 10 12:34:31 2015 +0300
+
+    syscall: correct code for cover cmd
+    
+    Fixes #10378
+    
+    This is clumsy, but currently cover tool fails as:
+    
+    $ go test -run=none -cover syscall
+    syscall_linux_amd64.go:15: can only use //go:noescape with external func implementations
+    FAIL    syscall [build failed]
+    
+    This happens because cover tool mishandles //go: comments.
+    r and gri said that fixing cover is infeasible due to go/ast limitations.
+    
+    So at least fix the offending code so that coverage works.
+    This come up in context of coverage-guided fuzzing which works best
+    with program-wide coverage.
+    
+    Change-Id: I142e5774c9f326ed38cb202693bd4edae93879ba
+    Reviewed-on: https://go-review.googlesource.com/8723
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/syscall_linux_amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

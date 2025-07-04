@@ -1,0 +1,29 @@
+commit 66e562cc522ecbb269d2a2d9cffb1bdba2e37aee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 16 12:35:15 2019 -0700
+
+    runtime: avoid overflow in markrootBlock
+    
+    In a position independent executable the data or BSS may be located
+    close to the end of memory. If it is placed closer than
+    rootBlockBytes, then the calculations in markrootBlock would overflow,
+    and the test that ensures that n is not larger than n0 would fail.
+    This would then cause scanblock to scan data that it shouldn't,
+    using an effectively random ptrmask, leading to program crashes.
+    
+    No test because the only way to test it is to build a PIE and convince
+    the kernel to put the data section near the end of memory, and I don't
+    know how to do that. Or perhaps we could use a linker script, but that
+    is painful.
+    
+    The new code is algebraically identical to the original code, but
+    avoids the potential overflow of b+rootBlockBytes.
+    
+    Change-Id: Ieb4e5465174bb762b063d2491caeaa745017345e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195717
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 0cc58564f6dff13afdf0a50b702ddd6ef092db19
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jun 6 14:46:42 2023 -0700
+
+    go1.21: document crypto/tls additions
+    
+    For #60105
+    For #44886
+    
+    Change-Id: I8f6cfc4490535979ee8c0d8381c03b03c9c7b9a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501303
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ doc/go1.21.html | 77 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 45 insertions(+), 32 deletions(-)

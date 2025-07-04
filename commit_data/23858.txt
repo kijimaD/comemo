@@ -1,0 +1,19 @@
+commit 249894ab6c4d8439e7fd47ca55ba618d636ab239
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Jul 27 16:40:40 2015 -0400
+
+    runtime/cgo: remove TMPDIR logic for iOS
+    
+    Seems like the simplest solution for 1.5. All the parts of the test
+    suite I can run on my current device (for which my exception handler
+    fix no longer works, apparently) pass without this code. I'll move it
+    into x/mobile/app.
+    
+    Fixes #11884
+    
+    Change-Id: I2da40c8c7b48a4c6970c4d709dd7c148a22e8727
+    Reviewed-on: https://go-review.googlesource.com/12721
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/tmpdir_darwin.go | 40 ----------------------------------------
+ 1 file changed, 40 deletions(-)

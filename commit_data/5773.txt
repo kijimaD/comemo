@@ -1,0 +1,22 @@
+commit 2e00bf987782b4c514d428bb5dc5af87b8eb5dd5
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Jul 9 11:24:31 2010 -0700
+
+    big: Improvements to Rat.SetString
+    
+    * Allow an exponent part. This is necessary for exp/eval.
+    * Fix a bug for input that had no numbers after the decimal.
+    * In Int.SetString, allow a leading + sign.
+    * In Int.SetString, error if the input is "-" with no number.
+    * In nat.scan, normalize the resulting nat.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1733045
+
+ src/pkg/big/int.go      |  8 ++++---
+ src/pkg/big/int_test.go |  5 +++++
+ src/pkg/big/nat.go      |  6 ++----
+ src/pkg/big/rat.go      | 56 +++++++++++++++++++++++++++++++------------------
+ src/pkg/big/rat_test.go | 13 ++++++++++++
+ 5 files changed, 61 insertions(+), 27 deletions(-)

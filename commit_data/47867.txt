@@ -1,0 +1,16 @@
+commit 1c8f9d2c97db7390a7ed2cd4663571b544147f4d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 23 15:57:54 2021 -0800
+
+    doc/go1.18: mention new cmd/go fuzzing flags
+    
+    For #47694
+    
+    Change-Id: I00da9bd39700e938ec492daa71aba2035d911a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374354
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.18.html | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

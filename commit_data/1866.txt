@@ -1,0 +1,13 @@
+commit 482cbb1f3358bd5d106d1de25f7080080532f8a6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 22 21:53:40 2009 -0700
+
+    change file name so it can be copied without name change to a more public place.
+    
+    R=rsc
+    DELTA=1090  (545 added, 545 deleted, 0 changed)
+    OCL=26629
+    CL=26629
+
+ doc/{mem.html => go_mem.html} | 1 +
+ 1 file changed, 1 insertion(+)

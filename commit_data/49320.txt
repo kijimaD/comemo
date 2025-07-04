@@ -1,0 +1,32 @@
+commit 7ce38641564e5c0183bb09df8c523caf5e0ab8e1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 16 15:25:28 2022 -0400
+
+    cmd/go/internal/modfetch: wrap errors from HTTP response bodies
+    
+    The Read method on the Body returned from a net/http.Transport does
+    not wrap errors returned by the underlying io.Reader and returns a
+    bare io.ErrUnexpectedEOF if the body is shorter than the declared
+    Content-Length.
+    
+    Since we can't feasibly add detail on the net/http side without
+    breaking established users, we must instead add detail on the caller
+    side. Since the net/http client uses url.Error for most of its own
+    errors, we use that same error type here.
+    
+    I have not added a regression test for this change. (While it is
+    theoretically possible to set up a GOPROXY that returns incorrect
+    Content-Length headers, the change seems straightforward enough that
+    it isn't worth the complex test setup.)
+    
+    Fixes #52727.
+    
+    Change-Id: Id00b04ae4fd518148106a49188fe169aadbcce2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406675
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/proxy.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

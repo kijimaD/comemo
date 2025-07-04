@@ -1,0 +1,45 @@
+commit 6f7961da28232c609f7c51b3bed7f15db7dd33e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 23 23:57:00 2015 +0900
+
+    net, internal/syscall/unix: add SocketConn, SocketPacketConn
+    
+    FileConn and FilePacketConn APIs accept user-configured socket
+    descriptors to make them work together with runtime-integrated network
+    poller, but there's a limitation. The APIs reject protocol sockets that
+    are not supported by standard library. It's very hard for the net,
+    syscall packages to look after all platform, feature-specific sockets.
+    
+    This change allows various platform, feature-specific socket descriptors
+    to use runtime-integrated network poller by using SocketConn,
+    SocketPacketConn APIs that bridge between the net, syscall packages and
+    platforms.
+    
+    New exposed APIs:
+    pkg net, func SocketConn(*os.File, SocketAddr) (Conn, error)
+    pkg net, func SocketPacketConn(*os.File, SocketAddr) (PacketConn, error)
+    pkg net, type SocketAddr interface { Addr, Raw }
+    pkg net, type SocketAddr interface, Addr([]uint8) Addr
+    pkg net, type SocketAddr interface, Raw(Addr) []uint8
+    
+    Fixes #10565.
+    
+    Change-Id: Iec57499b3d84bb5cb0bcf3f664330c535eec11e3
+    Reviewed-on: https://go-review.googlesource.com/9275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go                     |   2 +-
+ src/internal/syscall/unix/socket.go           |  39 +++++++
+ src/internal/syscall/unix/socket_linux_386.go |  67 +++++++++++
+ src/internal/syscall/unix/socket_linux_386.s  |  11 ++
+ src/internal/syscall/unix/socket_stub.go      |  25 ++++
+ src/internal/syscall/unix/socket_unix.go      |  59 ++++++++++
+ src/net/fd_unix.go                            |  51 +++++++++
+ src/net/file.go                               |  44 ++++++++
+ src/net/file_bsd_test.go                      |  94 +++++++++++++++
+ src/net/file_linux_test.go                    |  97 ++++++++++++++++
+ src/net/file_plan9.go                         |   8 ++
+ src/net/file_stub.go                          |   8 +-
+ src/net/file_unix.go                          | 157 ++++++++++++++++++--------
+ src/net/file_windows.go                       |  10 ++
+ 14 files changed, 618 insertions(+), 54 deletions(-)

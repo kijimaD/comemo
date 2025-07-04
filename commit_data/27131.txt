@@ -1,0 +1,16 @@
+commit 19912e1d0a0739cd8a3214de994f7e9ecb656e1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 26 15:18:48 2016 -0700
+
+    cmd/dist: sort entries in zcgo.go generated file for deterministic build
+    
+    This simplifies comparison of object files across different builds
+    by ensuring that the strings in the zcgo.go always appear in the
+    same order.
+    
+    Change-Id: I3639ea4fd10e0d645b838d1bbb03cd33deca340e
+    Reviewed-on: https://go-review.googlesource.com/22478
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/dist/buildgo.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

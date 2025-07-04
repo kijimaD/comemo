@@ -1,0 +1,18 @@
+commit f1ef5a06d296fd0ba604a62ebb30531cef7ae74a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Sep 4 23:51:22 2016 -0400
+
+    cmd/compile: mark some AMD64 atomic ops as clobberFlags
+    
+    Fixes #16985.
+    
+    Change-Id: I5954db28f7b70dd3ac7768e471d5df871a5b20f9
+    Reviewed-on: https://go-review.googlesource.com/28510
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 12 ++++-----
+ src/cmd/compile/internal/ssa/opGen.go        | 38 ++++++++++++++++------------
+ test/fixedbugs/issue16985.go                 | 37 +++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 22 deletions(-)

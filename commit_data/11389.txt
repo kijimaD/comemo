@@ -1,0 +1,13 @@
+commit 9f16d7fbeecdfbec109bcf207a65d6c725930933
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 25 15:50:19 2012 -0500
+
+    A+C: Robert Figueiredo (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5574067
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

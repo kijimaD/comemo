@@ -1,0 +1,20 @@
+commit b761b07bf909d9ff7d1fdc11083104fd4e28f252
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 31 16:31:11 2017 -0800
+
+    cmd/compile: simplify noding const declarations
+    
+    By grouping all the logic into constDecl, we're able to get rid of the
+    lastconst and lasttype globals, and simplify the logic slightly. Still
+    clunky, but much easier to reason about.
+    
+    Change-Id: I446696c31084b3bfc1fd5d3651655a81ddd159ab
+    Reviewed-on: https://go-review.googlesource.com/36023
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go   | 41 -------------------
+ src/cmd/compile/internal/gc/go.go    |  4 --
+ src/cmd/compile/internal/gc/noder.go | 76 ++++++++++++++++++++++++------------
+ 3 files changed, 52 insertions(+), 69 deletions(-)

@@ -1,0 +1,17 @@
+commit 1ab15fac22484a13835e1d3dee25f68e1c7ba9e0
+Author: Andrei Vieru <euvieru@gmail.com>
+Date:   Mon Apr 12 10:20:06 2010 -0700
+
+    fmt format verb %b bug
+    
+    fmt.Printf("%b", int8(-1)) prints 64 ones instead of 8.
+    This happens only for signed integers (int8, in16 and int32). I guess it's because of the way the conversion between integer types works. From go spec: "Conversions between integer types. If the value is a signed quantity, it is sign extended to implicit infinite precision ....". And there are several conversions to int64 and uint64 in the fmt package. This pathch solves only half of the problem. On a 32 bit system, an fmt.Printf("%b", int(-1)) should still print 64 ones.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/891049
+
+ src/pkg/fmt/fmt_test.go |  1 +
+ src/pkg/fmt/format.go   | 11 ++++-------
+ src/pkg/fmt/print.go    |  8 ++++++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

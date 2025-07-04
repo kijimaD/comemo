@@ -1,0 +1,25 @@
+commit 63e1b714defc5297a363eb6746fae2f15f384da9
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu May 28 14:25:54 2009 -0700
+
+    Rebooted 5g effort from 6g. Tons of minor fixes and tweaks to
+    get the code going.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4752  (1723 added, 948 deleted, 2081 changed)
+    OCL=29403
+    CL=29530
+
+ src/cmd/5g/Makefile              |   14 +-
+ src/cmd/5g/cgen.c                | 1654 ++++++++++++-------------
+ src/cmd/5g/{align.c => galign.c} |    6 +-
+ src/cmd/5g/gen.c                 |  331 -----
+ src/cmd/5g/gg.h                  |   19 +-
+ src/cmd/5g/ggen.c                |  873 ++++++++++++++
+ src/cmd/5g/gobj.c                |  646 ++++++++++
+ src/cmd/5g/gsubr.c               | 2471 +++++++++++++++++++-------------------
+ src/cmd/5g/list.c                |  136 +--
+ src/cmd/5g/obj.c                 |  531 --------
+ src/cmd/5g/opt.h                 |  165 +++
+ 11 files changed, 3825 insertions(+), 3021 deletions(-)

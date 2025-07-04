@@ -1,0 +1,19 @@
+commit d8bbbd2537551c0f6145c27747c7675b21a58f9f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 1 18:25:36 2013 +0400
+
+    runtime: make new tests shorter in short mode
+    We see timeouts in these tests on some platforms,
+    but not on the others.  The hypothesis is that
+    the problematic platforms are slow uniprocessors.
+    Stack traces do not suggest that the process
+    is completely hang, and it is able to schedule
+    the alarm goroutine. And if it actually hangs,
+    we still will be able to detect that.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12253043
+
+ src/pkg/runtime/proc_test.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit c42b3e21c30c354a5a2fdc840a0824fb71c10368
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 1 20:51:55 2011 -0700
+
+    go/parser: package name must not be the blank identifier
+    
+    R=r, r2, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4343045
+
+ src/pkg/go/parser/parser.go | 3 +++
+ 1 file changed, 3 insertions(+)

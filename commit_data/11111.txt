@@ -1,0 +1,14 @@
+commit f2b51f564f2bf457c4dc77c88adb5d11b513d658
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 12:44:31 2012 -0800
+
+    cmd/go: change deadline to 10 minutes
+    
+    1 minute is not enough for the slower builders.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5533068
+
+ src/cmd/go/test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

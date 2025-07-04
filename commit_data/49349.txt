@@ -1,0 +1,24 @@
+commit 70d499cd897ce7827f8ca3f7ba284bf97216c8d8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 27 18:14:58 2022 +0000
+
+    test/heapsampling.go: slow down allocation rate and reduce iterations
+    
+    As far as I can tell, this test suffers from #52433. For some reason,
+    this seems to become more of a problem on the windows/386 than anywhere
+    else. This CL is an attempt at a mitigation by slowing down the
+    allocation rate by inserting runtime.Gosched call in the inner loop. It
+    also cuts the iteration count which should help too (as less memory is
+    allocated in total), but the main motivation is to make sure the test
+    doesn't take too long to run.
+    
+    Fixes #49564.
+    
+    Change-Id: I8cc622b06a69cdfa66f680a30e1ccf334eea2164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408825
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/heapsampling.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

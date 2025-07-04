@@ -1,0 +1,19 @@
+commit 2a5d4ea97e0dd6f1e192aac081430b848084521b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 13:52:50 2021 -0700
+
+    runtime: make funcspdelta inlineable
+    
+    funcspdelta should be inlined: It is a tiny wrapper around another func.
+    The sanity check prevents that. Condition the sanity check on debugPcln.
+    While we're here, make the sanity check throw when it fails.
+    
+    Change-Id: Iec022b8463b13a8e5a6d8479e7ddcb68909d6fe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354133
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

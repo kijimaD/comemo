@@ -1,0 +1,17 @@
+commit 0f3becf62f3935846490e60e5005e1e4a55bec67
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 12:23:53 2021 -0800
+
+    doc/go1.18: list new net/netip and net functions and methods
+    
+    For #46518
+    For #47694
+    
+    Change-Id: I4848556674baf85ceec350645d9eddcd83f1b2e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373834
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.18.html | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 62bf7a4809d37ff09ad256a3eaca977bae9284e7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 9 20:02:24 2023 +0000
+
+    runtime: hide trace.shutdown behind traceShuttingDown
+    
+    Change-Id: I0b123e65f40570caeee611679d80dc27034d5a52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494183
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go  | 4 ++--
+ src/runtime/trace.go | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

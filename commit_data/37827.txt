@@ -1,0 +1,23 @@
+commit 9a7278ae47fd2ef9675e4303409e726e429d64e3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 3 18:33:36 2019 -0500
+
+    cmd/go: fix failure in TestScript/build_runtime_gcflags
+    
+    This test case failed on the longtest builder. It relied on
+    runtime/internal/atomic not being compiled with the -l flag in the
+    cache. The test case now creates its own GOCACHE, similar to
+    build_cache_compile and a few others.
+    
+    Also, mention the correct issue the test case verifies.
+    
+    Fixes #29395
+    
+    Change-Id: Id50e9dfc50db03fb11582d3dd6b69c3e1ed750eb
+    Reviewed-on: https://go-review.googlesource.com/c/156237
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/build_runtime_gcflags.txt | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

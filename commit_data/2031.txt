@@ -1,0 +1,13 @@
+commit b340879ce363738e629339e5a2053ab10545ffcc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 20:51:17 2009 -0700
+
+    tweak grammar and associated prose to permit things like x.y in range clauses.
+    
+    R=rsc
+    DELTA=5  (3 added, 0 deleted, 2 changed)
+    OCL=27536
+    CL=27540
+
+ doc/go_spec.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

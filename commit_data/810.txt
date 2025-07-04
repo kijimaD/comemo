@@ -1,0 +1,13 @@
+commit f464beb61d63195f0ec6feb46bbadfa4cdb20831
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 4 22:11:26 2008 -0700
+
+    fix method use bug in powser1.
+    
+    R=r
+    DELTA=7  (2 added, 2 deleted, 3 changed)
+    OCL=16495
+    CL=16499
+
+ test/chan/powser1.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

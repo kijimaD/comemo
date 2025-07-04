@@ -1,0 +1,19 @@
+commit a1b85ee754f84899b1bd7460c0a51630541dc3da
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 13 17:42:22 2018 +0000
+
+    Revert "cmd/link: separate virtual address layout from file layout"
+    
+    This reverts commit bd83774593bca66cc899d5180c77680bc907fab8.
+    
+    Reason for revert: This broke ELF layout on arm, arm64, mips*, mips64*, ppc64*, and s390x.
+    
+    Change-Id: I56a27b76e6f4b22ce39a99790af9116f8687eee9
+    Reviewed-on: https://go-review.googlesource.com/118675
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 68 +++++++++++++++++-----------------------
+ src/cmd/link/internal/ld/main.go |  3 +-
+ 2 files changed, 29 insertions(+), 42 deletions(-)

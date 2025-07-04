@@ -1,0 +1,19 @@
+commit d72dce87837c96f875d5fa2e26159ef211bce3a0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 26 17:07:26 2019 -0500
+
+    cmd/go: test that 'go list -e -mod=readonly' reports errors correctly
+    
+    This issue was fixed by earlier improvements to error handling when
+    loading modules.
+    
+    Fixes #34829
+    
+    Change-Id: I4cf4e182a7381f8b5c359179d90bd02491ea7911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209037
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_list_e_readonly.txt | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

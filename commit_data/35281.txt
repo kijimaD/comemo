@@ -1,0 +1,29 @@
+commit 73e38303f3e24ea651778705606b390d088070f0
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Fri May 4 13:05:15 2018 -0400
+
+    net/http: write status code in Redirect when Content-Type header set
+    
+    This is a followup to CL 110296. That change added a new behavior
+    to Redirect, where the short HTML body is not written if the
+    Content-Type header is already set. It was implemented by doing
+    an early return. That unintentionally prevented the correct status
+    code from being written, so it would always default to 200.
+    Existing tests didn't catch this because they don't check status code.
+    
+    This change fixes that issue by removing the early return and
+    moving the code to write a short HTML body behind an if statement.
+    It adds written status code checks to Redirect tests.
+    
+    It also tries to improve the documentation wording and code style
+    in TestRedirect_contentTypeAndBody.
+    
+    Updates #25166.
+    
+    Change-Id: Idce004baa88e278d098661c03c9523426c5eb898
+    Reviewed-on: https://go-review.googlesource.com/111517
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 41 +++++++++++++++++++++++++----------------
+ src/net/http/server.go     | 30 ++++++++++++++++--------------
+ 2 files changed, 41 insertions(+), 30 deletions(-)

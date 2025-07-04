@@ -1,0 +1,36 @@
+commit 807a51b391c8a8d949d6fa00c26953ba0f8ae267
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 10 15:35:17 2025 -0800
+
+    os: add Root.Chown
+    
+    For #67002
+    
+    Change-Id: I546537618cbe32217fa72264d49db2b1a1d3b6db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/67002.txt                               |  1 +
+ doc/next/6-stdlib/99-minor/os/67002.md           |  1 +
+ src/internal/syscall/unix/asm_darwin.s           |  1 +
+ src/internal/syscall/unix/asm_openbsd.s          |  2 +
+ src/internal/syscall/unix/at.go                  | 18 +++++
+ src/internal/syscall/unix/at_aix.go              |  1 +
+ src/internal/syscall/unix/at_darwin.go           | 22 ++++++
+ src/internal/syscall/unix/at_libc.go             | 22 +++++-
+ src/internal/syscall/unix/at_openbsd.go          | 22 ++++++
+ src/internal/syscall/unix/at_solaris.go          |  1 +
+ src/internal/syscall/unix/at_sysnum_dragonfly.go |  1 +
+ src/internal/syscall/unix/at_sysnum_freebsd.go   |  1 +
+ src/internal/syscall/unix/at_sysnum_linux.go     |  1 +
+ src/internal/syscall/unix/at_sysnum_netbsd.go    |  1 +
+ src/internal/syscall/unix/at_wasip1.go           |  5 ++
+ src/os/root.go                                   |  6 ++
+ src/os/root_noopenat.go                          | 10 +++
+ src/os/root_openat.go                            | 10 +++
+ src/os/root_unix.go                              |  8 +++
+ src/os/root_unix_test.go                         | 87 ++++++++++++++++++++++++
+ src/os/root_windows.go                           |  4 ++
+ 21 files changed, 224 insertions(+), 1 deletion(-)

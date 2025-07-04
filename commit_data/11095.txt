@@ -1,0 +1,12 @@
+commit 2b6288113e0582ac323b1d7b28f4298f93dc7480
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 10 18:31:27 2012 -0800
+
+    go/scanner: fix documentation
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5528070
+
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

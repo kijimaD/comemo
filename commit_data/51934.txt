@@ -1,0 +1,23 @@
+commit f02cdba16398cee70a69262a55eb357dac6f81df
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Feb 6 14:48:19 2023 -0800
+
+    encoding/hex: fix Decode output check regression
+    
+    CL 461958 fixed a potential panic,
+    but also introduced an observable regression where
+    invalid input could be detected before the panic occurs.
+    Adjust the check to preserve prior behavior,
+    while also preventing the panic.
+    
+    Change-Id: I52819f88a6a64883fbc9fd512697c38c29ca0ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465855
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/hex/hex.go      | 6 +++---
+ src/encoding/hex/hex_test.go | 7 +++++--
+ 2 files changed, 8 insertions(+), 5 deletions(-)

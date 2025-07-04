@@ -1,0 +1,25 @@
+commit ce6aa2ebdab0c6616ef17acc9282b0e168f5f21a
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Oct 16 23:11:55 2016 -0700
+
+    database/sql: add context helper methods and transaction types
+    
+    Prior to this change, it was implied that transaction properties
+    would be carried in the context value. However, no such properties
+    were defined, not even common ones. Define two common properties:
+    isolation level and read-only. Drivers may choose to support
+    additional transaction properties. It is not expected any
+    further transaction properties will be added in the future.
+    
+    Change-Id: I2f680115a14a1333c65ba6f943d9a1149d412918
+    Reviewed-on: https://go-review.googlesource.com/31258
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/ctxutil.go        | 12 ++++++++++-
+ src/database/sql/driver/driver.go  | 35 +++++++++++++++++++++++++++---
+ src/database/sql/internal/types.go | 11 ++++++++++
+ src/database/sql/sql.go            | 44 ++++++++++++++++++++++++++++++++++----
+ src/go/build/deps_test.go          |  4 ++--
+ 5 files changed, 96 insertions(+), 10 deletions(-)

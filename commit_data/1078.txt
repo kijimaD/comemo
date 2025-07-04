@@ -1,0 +1,19 @@
+commit 0eda21a2fdf66dad7947969c0e706a725cb0a53c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 14:50:58 2008 -0800
+
+    change minimum sethi/ullman number to 1
+    to distinguish not computed (0) vs trivial (1).
+    
+    add missing ullmancalc on function args.
+    
+    R=ken
+    OCL=18711
+    CL=18711
+
+ src/cmd/6g/gen.c   | 6 +++---
+ src/cmd/6g/gsubr.c | 2 +-
+ src/cmd/gc/dcl.c   | 4 ++--
+ src/cmd/gc/subr.c  | 6 +++---
+ src/cmd/gc/walk.c  | 3 +++
+ 5 files changed, 12 insertions(+), 9 deletions(-)

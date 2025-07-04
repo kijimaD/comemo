@@ -1,0 +1,24 @@
+commit 8fbaa4f70bf1bd2c2beb1bfdcce78863aaf08e0e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 14:16:31 2017 -0400
+
+    runtime: rename _MSpanStack -> _MSpanManual
+    
+    We're about to generalize _MSpanStack to be used for other forms of
+    in-heap manual memory management in the runtime. This is an automated
+    rename of _MSpanStack to _MSpanManual plus some comment fix-ups.
+    
+    For #19325.
+    
+    Change-Id: I1e20a57bb3b87a0d324382f92a3e294ffc767395
+    Reviewed-on: https://go-review.googlesource.com/38574
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/cgocheck.go |  2 +-
+ src/runtime/mbitmap.go  |  2 +-
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/mheap.go    | 34 ++++++++++++++++++----------------
+ src/runtime/stack.go    |  4 ++--
+ 5 files changed, 23 insertions(+), 21 deletions(-)

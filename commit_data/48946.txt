@@ -1,0 +1,24 @@
+commit 0ebe224628bdf336b68b3d1c255ff58df2b070b0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 29 16:56:12 2022 -0400
+
+    os/signal: scale back the solaris-amd64-oraclerel settle time
+    
+    The settleTime is arbitrary. Ideally we should refactor the test to
+    avoid it (using subprocesses instead of sleeps to isolate tests from
+    each others' delayed signals), but as a shorter-term workaround let's
+    try scaling it back to match linux/ppc64 (the other builder that
+    empirically requires a longer settleTime).
+    
+    For #51054.
+    Updates #33174.
+    
+    Change-Id: I574fffaadd74c52c13d63974e87f20b6d3cf3c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403199
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

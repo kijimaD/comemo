@@ -1,0 +1,32 @@
+commit c1b32acefb3b1438981ba9dc4f5259999e9fc2ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 16 14:11:01 2016 -0700
+
+    runtime: yield after raising signal that should kill process
+    
+    Issue #15613 points out that the darwin builders have been getting
+    regular failures in which a process that should exit with a SIGPIPE
+    signal is instead exiting with exit status 2. The code calls
+    runtime.raise. On most systems runtime.raise is the equivalent of
+    pthread_kill(gettid(), sig); that is, it kills the thread with the
+    signal, which should ensure that the program does not keep going. On
+    darwin, however, runtime.raise is actually kill(getpid(), sig); that is,
+    it sends a signal to the entire process. If the process decides to
+    deliver the signal to a different thread, then it is possible that in
+    some cases the thread that calls raise is able to execute the next
+    system call before the signal is actually delivered. That would cause
+    the observed error.
+    
+    I have not been able to recreate the problem myself, so I don't know
+    whether this actually fixes it. But, optimistically:
+    
+    Fixed #15613.
+    
+    Change-Id: I60c0a9912aae2f46143ca1388fd85e9c3fa9df1f
+    Reviewed-on: https://go-review.googlesource.com/23152
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal1_unix.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit c1037aad4d10078b536625683364dcceed6c4e21
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 23 18:58:05 2015 -0400
+
+    runtime: added mips64{,le} build tags and GOARCH cases
+    
+    Change-Id: I381c03d957a0dccae5f655f02e92760e5c0e9629
+    Reviewed-on: https://go-review.googlesource.com/14929
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cputicks.go         | 2 ++
+ src/runtime/gcinfo_test.go      | 2 +-
+ src/runtime/hash64.go           | 2 +-
+ src/runtime/noasm.go            | 2 +-
+ src/runtime/runtime-gdb_test.go | 2 +-
+ src/runtime/unaligned2.go       | 2 +-
+ 6 files changed, 7 insertions(+), 5 deletions(-)

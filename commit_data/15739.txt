@@ -1,0 +1,12 @@
+commit ba6ea4a95c6975735d18ba4f9d233d312038b425
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 12 16:46:38 2013 -0700
+
+    test/bench/go1: add http test
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7529048
+
+ test/bench/go1/http_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

@@ -1,0 +1,36 @@
+commit 612c00bf4d440160e87e983bd8300ad7b08a6ada
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 08:37:08 2023 -0500
+
+    cmd/dist: default to GOARM=7 on all non-arm systems
+    
+    If you run make.bash on an arm system without GOARM set,
+    we sniff the local system to find the maximum default GOARM
+    that will actually work on that system. That's fine, and we can
+    keep doing that.
+    
+    But the story for cross-compiling is weirder.
+    If we build a windows/amd64 toolchain and then use it to
+    cross-compile linux/arm binaries, we get GOARM=7 binaries.
+    Do the same on a linux/amd64 system and you get GOARM=5 binaries.
+    This clearly makes no sense, and worse it makes the builds
+    non-reproducible in a subtle way.
+    
+    This CL simplifies the logic and improves reproducibility by
+    defaulting to GOARM=7 any time we wouldn't sniff the local system.
+    
+    On go.dev/dl we serve a linux-armv6l distribution with a default GOARM=6.
+    That is built by setting GOARM=6 during make.bash, so it is unaffected
+    by this CL and will continue to be GOARM=6.
+    
+    For #24904.
+    
+    Change-Id: I4331709876d5948fd33ec6e4a7b18b3cef12f240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470695
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/util.go | 53 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 27 insertions(+), 26 deletions(-)

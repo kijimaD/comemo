@@ -1,0 +1,37 @@
+commit edfc9797252d5b49ed453b2ee5434dc8f521fc2d
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 13 18:27:24 2015 -0400
+
+    runtime: run safe-point function before entering _Psyscall
+    
+    Currently, we run a P's safe-point function immediately after entering
+    _Psyscall state. This is unsafe, since as soon as we put the P in
+    _Psyscall, we no longer control the P and another M may claim it.
+    We'll still run the safe-point function only once (because doing so
+    races on an atomic), but the P may no longer be at a safe-point when
+    we do so.
+    
+    In particular, this means that the use of forEachP to dispose all P's
+    gcw caches is unsafe. A P may enter a syscall, run the safe-point
+    function, and dispose the P's gcw cache concurrently with another M
+    claiming the P and attempting to use its gcw cache. If this happens,
+    we may empty the gcw's workbuf after putting it on
+    work.{full,partial}, or add pointers to it after putting it in
+    work.empty. This will cause an assertion failure when we later pop the
+    workbuf from the list and its object count is inconsistent with the
+    list we got it from.
+    
+    Fix this by running the safe-point function just before putting the P
+    in _Psyscall.
+    
+    Related to #11640. This probably fixes this issue, but while I'm able
+    to show that we can enter a bad safe-point state as a result of this,
+    I can't reproduce that specific failure.
+    
+    Change-Id: I6989c8ca7ef2a4a941ae1931e9a0748cbbb59434
+    Reviewed-on: https://go-review.googlesource.com/12124
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc1.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

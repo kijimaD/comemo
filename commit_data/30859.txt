@@ -1,0 +1,21 @@
+commit 166160b44664e75ffc6e51cd795956fd586196e4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 26 07:46:30 2017 -0700
+
+    cmd/internal/obj/x86: make ctxt.Cursym local
+    
+    Thread it through as an argument instead of using a global.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ia8c6ce09b43dbb2e6c7d889ded8dbaeb5366048d
+    Reviewed-on: https://go-review.googlesource.com/38667
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 195 ++++++++++++++++++---------------------
+ src/cmd/internal/obj/x86/obj6.go |  28 +++---
+ 2 files changed, 101 insertions(+), 122 deletions(-)

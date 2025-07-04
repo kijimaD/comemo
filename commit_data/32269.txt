@@ -1,0 +1,49 @@
+commit 8a6e51aede746d1f7ffec5982c153bf3cdabce4f
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 13 20:03:02 2017 +0200
+
+    cmd/compile: generate makechan calls with int arguments
+    
+    Where possible generate calls to runtime makechan with int arguments
+    during compile time instead of makechan with int64 arguments.
+    
+    This eliminates converting arguments for calls to makechan with
+    int64 arguments for platforms where int64 values do not fit into
+    arguments of type int.
+    
+    A similar optimization for makeslice was introduced in CL
+    golang.org/cl/27851.
+    
+    386:
+    name                old time/op  new time/op  delta
+    MakeChan/Byte       52.4ns ± 6%  45.0ns ± 1%  -14.14%  (p=0.000 n=10+10)
+    MakeChan/Int        54.5ns ± 1%  49.1ns ± 1%   -9.87%  (p=0.000 n=10+10)
+    MakeChan/Ptr         150ns ± 1%   143ns ± 0%   -4.38%  (p=0.000 n=9+7)
+    MakeChan/Struct/0   49.2ns ± 2%  43.2ns ± 2%  -12.27%  (p=0.000 n=10+10)
+    MakeChan/Struct/32  81.7ns ± 2%  76.2ns ± 1%   -6.71%  (p=0.000 n=10+10)
+    MakeChan/Struct/40  88.4ns ± 2%  82.5ns ± 2%   -6.60%  (p=0.000 n=10+10)
+    
+    AMD64:
+    name                old time/op  new time/op  delta
+    MakeChan/Byte       83.4ns ± 8%  80.8ns ± 3%    ~     (p=0.171 n=10+10)
+    MakeChan/Int         101ns ± 3%   101ns ± 2%    ~     (p=0.412 n=10+10)
+    MakeChan/Ptr         128ns ± 1%   128ns ± 1%    ~     (p=0.191 n=10+10)
+    MakeChan/Struct/0   67.6ns ± 3%  68.7ns ± 4%    ~     (p=0.224 n=10+10)
+    MakeChan/Struct/32   138ns ± 1%   139ns ± 1%    ~     (p=0.185 n=10+9)
+    MakeChan/Struct/40   154ns ± 1%   154ns ± 1%  -0.55%  (p=0.027 n=10+9)
+    
+    Change-Id: Ie854cb066007232c5e9f71ea7d6fe27e81a9c050
+    Reviewed-on: https://go-review.googlesource.com/55140
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 174 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
+ src/cmd/compile/internal/gc/walk.go            |  16 ++-
+ src/reflect/value.go                           |   4 +-
+ src/runtime/chan.go                            |  14 +-
+ src/runtime/chan_test.go                       |  53 ++++++++
+ test/chancap.go                                |  43 +++++-
+ test/makechan.go                               |  34 +++++
+ 8 files changed, 246 insertions(+), 95 deletions(-)

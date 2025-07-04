@@ -1,0 +1,14 @@
+commit 89fc2c8f4ff3c0b59f1a5744e6c436c6b378d770
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 23:34:14 2011 -0400
+
+    gopack: fix prefix bug
+    
+    When prefix doesn't match, was deleting entire .6 file.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4427041
+
+ src/cmd/gopack/ar.c | 4 ++++
+ 1 file changed, 4 insertions(+)

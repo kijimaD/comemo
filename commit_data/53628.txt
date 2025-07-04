@@ -1,0 +1,23 @@
+commit 8008c0840ff09c492434e67de443ee478957fb8f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 23 12:44:15 2023 +0200
+
+    syscall: clarify which handles are affected by SysProcAttr.NoInheritHandles
+    
+    SysProcAttr.NoInheritHandles doc comment is not clear about which
+    handles are affected by it. This CL clarifies that it not only affects
+    the ones passed in AdditionalInheritedHandles, but also the ones
+    passed in ProcAttr.Files, which are required to be stderr, stdin and
+    stdout when calling syscall.StartProcess.
+    
+    Updates #60942
+    
+    Change-Id: I5bc5b3604b6db04b83f6764d5c5ffbdafeeb22fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505515
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/exec_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

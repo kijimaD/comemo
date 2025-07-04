@@ -1,0 +1,14 @@
+commit 73aadff8ebc44dbaa8e6c1635f725f4da95a4c09
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 13:27:39 2009 -0700
+
+    add strconv.Unquote
+    
+    R=r
+    DELTA=229  (227 added, 0 deleted, 2 changed)
+    OCL=27200
+    CL=27366
+
+ src/lib/strconv/quote.go      | 147 +++++++++++++++++++++++++++++++++++++++++-
+ src/lib/strconv/quote_test.go |  84 +++++++++++++++++++++++-
+ 2 files changed, 229 insertions(+), 2 deletions(-)

@@ -1,0 +1,58 @@
+commit 6a44a3aa9f250cbe0b329b60eeb555c7dde83f10
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 16 15:56:16 2022 -0400
+
+    test/bench/go1: eliminate start-up time
+    
+    The go1 benchmark suite does a lot of work at package init time, which
+    makes it take quite a while to run even if you're not running any of
+    the benchmarks, or if you're only running a subset of them. This leads
+    to an awkward workaround in dist test to compile but not run the
+    package, unlike roughly all other packages. It also reduces isolation
+    between benchmarks by affecting the starting heap size of all
+    benchmarks.
+    
+    Fix this by initializing all data required by a benchmark when that
+    benchmark runs, and keeping it local so it gets freed by the GC and
+    doesn't leak between benchmarks. Now, none of the benchmarks depend on
+    global state.
+    
+    Re-initializing the data on each benchmark run does add overhead to an
+    actual benchmark run, as each benchmark function is called several
+    times with different values of b.N. A full run of all benchmarks at
+    the default -benchtime=1s now takes ~10% longer; higher -benchtimes
+    would be less. It would be quite difficult to cache this data between
+    invocations of the same benchmark function without leaking between
+    different benchmarks and affecting GC overheads, as the testing
+    package doesn't provide any mechanism for this.
+    
+    This reduces the time to run the binary with no benchmarks from 1.5
+    seconds to 10 ms, and also reduces the memory required to do this from
+    342 MiB to 17 MiB.
+    
+    To make sure data was not leaking between different benchmarks, I ran
+    the benchmarks with -shuffle=on. The variance remained low: mostly
+    under 3%. A few benchmarks had higher variance, but in all cases it
+    was similar to the variance between this change.
+    
+    This CL naturally changes the measured performance of several of the
+    benchmarks because it dramatically changes the heap size and hence GC
+    overheads. However, going forward the benchmarks should be much better
+    isolated.
+    
+    For #37486.
+    
+    Change-Id: I252ebea703a9560706cc1990dc5ad22d1927c7a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443336
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go            |  5 ++---
+ test/bench/go1/fasta_test.go    |  2 --
+ test/bench/go1/gob_test.go      | 46 +++++++++++++++++++++--------------------
+ test/bench/go1/gzip_test.go     | 26 ++++++++++++++---------
+ test/bench/go1/json_test.go     | 26 +++++++++++------------
+ test/bench/go1/revcomp_test.go  |  6 ++++--
+ test/bench/go1/template_test.go | 15 +++++++++-----
+ 7 files changed, 69 insertions(+), 57 deletions(-)

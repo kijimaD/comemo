@@ -1,0 +1,15 @@
+commit 67edf9cb87847c88224c43206d7eccf65ac18acd
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Jul 12 11:12:06 2011 -0700
+
+    gc: make size of struct{} and [0]byte 0 bytes
+    
+    Fixes #1949.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/4634124
+
+ src/cmd/gc/align.c | 27 ++++++++-------------------
+ src/cmd/gc/pgen.c  |  2 +-
+ 2 files changed, 9 insertions(+), 20 deletions(-)

@@ -1,0 +1,23 @@
+commit 71ad46cd2a4eb34befbb21c0a37b5a8092c2b7f5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 10 14:25:41 2023 -0500
+
+    internal/testenv: allow 'go build' on android when supported
+    
+    As of CL 472096, it should work on android/arm64 always (because
+    internal linking is supported on that platform), and on other android
+    platforms when a C toolchain is present in the test environment.
+    
+    Updates #58775.
+    
+    Change-Id: Ifa38dc69b258b38dcc341979dcbf8cd61265c787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475456
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+
+ src/internal/testenv/testenv.go | 63 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 58 insertions(+), 5 deletions(-)

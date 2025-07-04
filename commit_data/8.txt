@@ -1,0 +1,11 @@
+commit 73823d236a063e9e1fd326c07797be3a08b79edb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 22:18:16 2008 -0800
+
+    - added new, revised spec
+    - updated todo
+    
+    SVN=111357
+
+ doc/go_lang.txt | 1347 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1347 insertions(+)

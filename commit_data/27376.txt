@@ -1,0 +1,19 @@
+commit 376e6415402b4e62f96fb7f8f7a99d352aa9c1b3
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:13:22 2016 +0300
+
+    cmd: fixed certain vet warnings
+    
+    Updates #11041
+    
+    Change-Id: I7f2583d08f344d6622027c5e8a5de1f5d2f2881c
+    Reviewed-on: https://go-review.googlesource.com/23082
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover.go                  | 2 +-
+ src/cmd/dist/test.go                    | 2 +-
+ src/cmd/internal/pprof/report/report.go | 4 +++-
+ src/cmd/link/internal/ld/objfile.go     | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

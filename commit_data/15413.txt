@@ -1,0 +1,18 @@
+commit f5afc7d44f5ef20316c9d1d7ec28b45117f3add3
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Feb 25 10:43:04 2013 -0800
+
+    cmd/go: fix vet
+    
+    Now that vet does typechecking, it should use only pkg.gofiles, instead
+    of pkg.allgofiles. Ignored files should not be checked by vet, because
+    they wouldn't typecheck.
+    
+    Fixes #4906.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/7401051
+
+ src/cmd/go/vet.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

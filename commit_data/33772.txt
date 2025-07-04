@@ -1,0 +1,24 @@
+commit 232b2e3352b0e3913421dc43cb29003eac1c5130
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 13:19:39 2017 -0500
+
+    cmd/go: fix reuse of cached objects during cover
+    
+    The cover variable indices could vary from build to build,
+    but they were not included in the build ID hash, so that
+    reusing the previously built package was not safe.
+    Make the indices no longer vary from build to build,
+    so that caching is safe.
+    
+    Fixes #22652.
+    
+    Change-Id: Ie26d73c648aadd285f97e0bf39619cabc3da54f2
+    Reviewed-on: https://go-review.googlesource.com/81515
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go               | 16 ++++++++++++++++
+ src/cmd/go/internal/test/test.go    |  3 +--
+ src/cmd/go/internal/work/buildid.go |  5 ++++-
+ 3 files changed, 21 insertions(+), 3 deletions(-)

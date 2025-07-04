@@ -1,0 +1,15 @@
+commit 1a3230f281e2ad7a35f7f81a5e6bae291b8e6245
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 9 22:41:30 2017 +0200
+
+    internal/cpu: add support for x86 FMA cpu feature detection
+    
+    Change-Id: I88ea39de01b07e6afa1c187c0df6a258da4aa8e4
+    Reviewed-on: https://go-review.googlesource.com/62650
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu.go     | 1 +
+ src/internal/cpu/cpu_x86.go | 1 +
+ 2 files changed, 2 insertions(+)

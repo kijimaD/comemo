@@ -1,0 +1,19 @@
+commit 5a412045046586d35488c34fd3ce21ef0960ce44
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 20 17:15:51 2024 +0000
+
+    net: mention the cgo thread limit in package docs
+    
+    Updates #63978
+    
+    Change-Id: I39a5c812b4f604baf4ca5ffcff52b8dc17d4990d
+    GitHub-Last-Rev: 4ab6e262f4fd37ff32d6b3eb756fea187e5d6e53
+    GitHub-Pull-Request: golang/go#63990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539361
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/net/net.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

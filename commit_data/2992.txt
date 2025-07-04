@@ -1,0 +1,32 @@
+commit e5874223efef1928009fc34fd3b91c06713984c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 15 11:43:54 2009 -0700
+
+    snapshot:
+    - renamed Z -> Int
+    - made Int ops methods on *Int
+    - "install" assembly routines dynamically
+    - replace mulVW functions with mulAddVWW
+      of equivalent performance but symmetric functionality
+      to divWVW
+    - implemented scanN
+    
+    status:
+    - need mulNN (trivial)
+    - need division/modulo after which the set of
+      elementary operations is complete
+    - to/from string conversion working
+    
+    R=rsc
+    DELTA=320  (124 added, 50 deleted, 146 changed)
+    OCL=33308
+    CL=33341
+
+ src/pkg/big/arith.go      | 131 +++++++++++++++++++++++++---------------------
+ src/pkg/big/arith_amd64.s |  54 ++++++++-----------
+ src/pkg/big/arith_test.go |  86 ++++++++++++++++++++++--------
+ src/pkg/big/bigN.go       |  38 ++++++++++----
+ src/pkg/big/bigN_test.go  |  11 ++++
+ src/pkg/big/bigZ.go       |  72 ++++++++++++-------------
+ src/pkg/big/bigZ_test.go  |  26 ++++-----
+ 7 files changed, 246 insertions(+), 172 deletions(-)

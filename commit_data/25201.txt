@@ -1,0 +1,14 @@
+commit 10d1d5b6736e8806899ac6b80e56b340e17dd17d
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 02:01:03 2015 -0700
+
+    net/http: testStreamingGet now in http2 mode
+    
+    Change-Id: I9a1fe057f5bf008fa16577a7d71064050aea47e9
+    Reviewed-on: https://go-review.googlesource.com/17525
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

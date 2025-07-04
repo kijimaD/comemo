@@ -1,0 +1,22 @@
+commit 78e99761fc4bf1f5370f912b8a4594789c2f09f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 23 14:26:07 2022 -0800
+
+    go/types, types2: don't crash if comp. literal element type has no core type
+    
+    Instead, report a suitable error.
+    
+    Fixes #51335.
+    
+    Change-Id: Ifce90cb7487b1e99c6b4221c0d43bacc0c39dca8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387676
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                  |  4 ++++
+ .../internal/types2/testdata/fixedbugs/issue51335.go2    | 16 ++++++++++++++++
+ src/go/types/expr.go                                     |  4 ++++
+ src/go/types/testdata/fixedbugs/issue51335.go2           | 16 ++++++++++++++++
+ 4 files changed, 40 insertions(+)

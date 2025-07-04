@@ -1,0 +1,21 @@
+commit 4f579cc65bfedca93ad00f9c5eb138c4a785a4ad
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 28 14:09:28 2017 -0500
+
+    math: speed up Log on amd64
+    
+    After https://golang.org/cl/31490 we break false
+    output dependency for CVTS.. in compiler generated code.
+    I've looked through asm code, which uses CVTS..
+    and added XOR to the only case where it affected performance.
+    
+    Log-6                  21.6ns ± 0%  19.9ns ± 0%  -7.87%  (p=0.000 n=10+10)
+    
+    Change-Id: I25d9b405e3041a3839b40f9f9a52e708034bb347
+    Reviewed-on: https://go-review.googlesource.com/38771
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/log_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

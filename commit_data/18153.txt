@@ -1,0 +1,17 @@
+commit 8778760a7edb8bb1b756b6d3dbf20edb1308159e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 3 10:41:56 2014 +1100
+
+    runtime: increase attempt count for map iteration order test.
+    
+    Some builders broke on this test; I'm guessing that was because
+    this test didn't try hard enough to find a different iteration order.
+    
+    Update #6719
+    
+    R=dave
+    CC=golang-codereviews
+    https://golang.org/cl/47300043
+
+ src/pkg/runtime/map_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

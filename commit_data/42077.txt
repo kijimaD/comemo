@@ -1,0 +1,21 @@
+commit e354309e1ea2d0965e1a4df441b813635d63ed5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 22 21:35:31 2020 -0700
+
+    cmd/compile: add ssa.Block.truncateValues
+    
+    It is a common operation.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Icc34600b0f79d0ecb19f257e3c7f23b6f01a26ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229599
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/block.go    | 11 +++++++++++
+ src/cmd/compile/internal/ssa/deadcode.go |  7 +------
+ src/cmd/compile/internal/ssa/nilcheck.go | 10 ++--------
+ src/cmd/compile/internal/ssa/rewrite.go  |  8 +-------
+ 4 files changed, 15 insertions(+), 21 deletions(-)

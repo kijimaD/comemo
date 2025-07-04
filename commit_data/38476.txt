@@ -1,0 +1,32 @@
+commit 80b6812d7b33cbc16232a3b1b631aaa26be17a71
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 10 08:34:59 2019 -0700
+
+    cmd/compile: move flagalloc op splitting to rewrite rules
+    
+    Flagalloc has the unenviable task of splitting
+    flag-generating ops that have been merged with loads
+    when the flags need to "spilled" (i.e. regenerated).
+    Since there weren't very many of them, there was a hard-coded list
+    of ops and bespoke code written to split them.
+    
+    This change migrates load splitting into rewrite rules,
+    to make them easier to maintain.
+    
+    Change-Id: I7750eafb888a802206c410f9c341b3133e7748b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166978
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go             |   4 +
+ src/cmd/compile/internal/ssa/flagalloc.go          |  83 +------
+ .../compile/internal/ssa/gen/386splitload.rules    |   9 +
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  16 ++
+ src/cmd/compile/internal/ssa/gen/main.go           |   1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |  28 ++-
+ src/cmd/compile/internal/ssa/op.go                 |  12 +
+ .../compile/internal/ssa/rewrite386splitload.go    | 198 ++++++++++++++++
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 253 +++++++++++++++++++++
+ src/cmd/dist/buildtool.go                          |   1 +
+ 10 files changed, 513 insertions(+), 92 deletions(-)

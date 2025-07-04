@@ -1,0 +1,18 @@
+commit 92eb1e1600c3770d2ec669a8d6b7947cac551305
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 17 13:25:46 2014 -0700
+
+    runtime: free stacks of Gdead goroutines at GC time
+    
+    We could probably free the G structures as well, but
+    for the allg list.  Leaving that for another day.
+    
+    Fixes #8287
+    
+    LGTM=rsc
+    R=golang-codereviews, dvyukov, khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145010043
+
+ src/runtime/stack.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

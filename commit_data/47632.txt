@@ -1,0 +1,18 @@
+commit 68da368a4ed0f6f47e841d75aaed0faf1dcf425c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 20:24:40 2021 -0800
+
+    spec: rules for index expressions, len, cap, with type parameter types
+    
+    We want to support some special cases for index expressions, len, and
+    cap on operands of type parameters (such as indexing a value constrained
+    by byte slices and strings), hence the extra rules.
+    
+    Change-Id: I4a07dc7e64bb47361b021d606c52eae1784d5430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366814
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ doc/go_spec.html | 33 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)

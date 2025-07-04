@@ -1,0 +1,19 @@
+commit 864278ad90383182456feb79df3cd62fe4f9cf4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 18:51:01 2013 -0700
+
+    net/http: bit more docs on Client vs Transport
+    
+    This isn't as bad as it used to be, but add a bit
+    more detail to close the issue.
+    
+    Fixes #3359
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7606044
+
+ src/pkg/net/http/client.go    | 12 ++++++++----
+ src/pkg/net/http/response.go  |  3 +++
+ src/pkg/net/http/transport.go | 23 ++++++++++++++++++-----
+ 3 files changed, 29 insertions(+), 9 deletions(-)

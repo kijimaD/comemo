@@ -1,0 +1,20 @@
+commit 8589f46fe07998bd3b27a0cebce2f428e68014e0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Aug 2 22:39:00 2018 +0200
+
+    cmd/link/internal/wasm: add Go version as a custom wasm section
+    
+    The interface between the wasm binary and wasm_exec.js is experimental
+    and likely to change in the future. Still, there are some early adopters
+    who experiment with non-web wasm runtimes. They can't use wasm_exec.js
+    and have to provide their own equivalent. Adding the Go version as a
+    custom wasm sections allows for them to support a stable Go version and
+    the latest devel at the same time.
+    
+    Change-Id: I6d377bb0a0c33cb80e86dd15a34ddc9a70680227
+    Reviewed-on: https://go-review.googlesource.com/127597
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/wasm/asm.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,15 @@
+commit f29fb251dc4298adfb438a2841f7f150fbfad2bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 8 17:46:04 2010 -0700
+
+    go/printer: deleted dead code
+    
+    (remains of the semicolon conversion)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1623041
+
+ src/pkg/go/printer/nodes.go   | 33 ++++++++++++---------------------
+ src/pkg/go/printer/printer.go |  4 ++--
+ 2 files changed, 14 insertions(+), 23 deletions(-)

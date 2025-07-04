@@ -1,0 +1,23 @@
+commit fdf5aaf5555692a9e03a65df1aba06aa4a09052b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Mar 5 07:48:28 2018 +0000
+
+    cmd/asm: fix ARM64 vector register arrangement encoding bug
+    
+    The current code assigns vector register arrangement a wrong value
+    when the arrangement specifier is S2, which causes the incorrect
+    assembly.
+    
+    The patch fixes the issue and adds the test cases.
+    
+    Fixes #24249
+    
+    Change-Id: I9736df1279494003d0b178da1af9cee9cd85ce21
+    Reviewed-on: https://go-review.googlesource.com/98555
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go        | 2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

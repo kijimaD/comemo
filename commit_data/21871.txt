@@ -1,0 +1,29 @@
+commit 4492811c05f0f57d0bf9e11b9ef4ee7d71d126fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 20:34:22 2015 -0500
+
+    cmd/internal/gc: manual goto removal + grind to move var decls
+    
+    Also change gc.Naddr to return the Addr instead of filling it in.
+    
+    Change-Id: I98a86705d23bee49626a12a042a4d51cabe290ea
+    Reviewed-on: https://go-review.googlesource.com/6601
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/5g/ggen.go               |    2 +-
+ src/cmd/5g/gsubr.go              |   24 +-
+ src/cmd/6g/cgen.go               |    3 +-
+ src/cmd/6g/ggen.go               |    2 +-
+ src/cmd/6g/gsubr.go              |   27 +-
+ src/cmd/6g/peep.go               |    3 +-
+ src/cmd/8g/gsubr.go              |   16 +-
+ src/cmd/9g/ggen.go               |    2 +-
+ src/cmd/9g/gsubr.go              |   16 +-
+ src/cmd/internal/gc/closure.go   |    2 +-
+ src/cmd/internal/gc/dcl.go       |    2 +-
+ src/cmd/internal/gc/gsubr.go     |   24 +-
+ src/cmd/internal/gc/plive.go     |   10 +-
+ src/cmd/internal/gc/range.go     |    5 +-
+ src/cmd/internal/gc/typecheck.go | 1244 +++++++++++++++++++++-----------------
+ src/cmd/internal/gc/walk.go      |   58 +-
+ 16 files changed, 779 insertions(+), 661 deletions(-)

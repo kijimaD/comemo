@@ -1,0 +1,18 @@
+commit d4c66a35baba191b5857960d75fe66d766f6d573
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 3 10:10:54 2014 +1100
+
+    runtime: add a test for randomised map iteration order.
+    
+    Technically the spec does not guarantee that the iteration order is random,
+    but it is a property that we have consciously pursued, and so it seems
+    right to verify that our implementation does indeed randomise.
+    
+    Update #6719.
+    
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/47010043
+
+ src/pkg/runtime/map_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

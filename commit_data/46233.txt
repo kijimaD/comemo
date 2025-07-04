@@ -1,0 +1,20 @@
+commit 46121306d3ceb97a8bb2acb328d68426ad3aa805
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Tue Aug 31 19:41:33 2021 +0200
+
+    cmd/compile: remove folding of 32 bit pointer offsets on amd64
+    
+    These rules were likely only used in the removed amd64p32 port.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie626d1021bade7f7571d1bd5271fbe8676bb295e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346509
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  48 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 567 ---------------------------
+ 2 files changed, 615 deletions(-)

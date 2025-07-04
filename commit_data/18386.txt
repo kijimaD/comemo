@@ -1,0 +1,13 @@
+commit 99a1e76291068d80d027aaba8f1b451f962f1da9
+Author: Nathan John Youngman <nj@nathany.com>
+Date:   Fri Jan 31 17:43:46 2014 +1100
+
+    syscall: add ERROR_MORE_DATA to Windows for os/fsnotify
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=dave, golang-codereviews
+    https://golang.org/cl/58900044
+
+ src/pkg/syscall/ztypes_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

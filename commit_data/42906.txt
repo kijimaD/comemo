@@ -1,0 +1,24 @@
+commit 612b1194475a23760ec502b48a93fea7237f3ae6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 2 21:04:12 2020 -0400
+
+    cmd/link: pass darwin/amd64-specific flags only on AMD64
+    
+    The linker assumed macOS is AMD64 (and 386 in the past). It
+    passes darwin/amd64-specific flags to the external linker when
+    building for macOS. They don't work for ARM64-based macOS. So
+    only pass them on AMD64.
+    
+    Disable DWARF combining for macOS ARM64 for now. The generated
+    binary doesn't run. (TODO: fix.)
+    
+    For macOS ARM64 port. External linking now works.
+    
+    Change-Id: Iab53bc48f4fadd9b91de8898b4b450ea442667a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253019
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

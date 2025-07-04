@@ -1,0 +1,16 @@
+commit 6e55f7a87b8400073119612c0a3bd3f443b69f14
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 12 09:15:58 2014 +1000
+
+    doc: link directly to https://golang.org/dl/
+    
+    Fixes #8705.
+    
+    LGTM=adg
+    R=golang-codereviews, bradfitz, adg
+    CC=golang-codereviews
+    https://golang.org/cl/142890044
+
+ doc/go1.html     |  2 +-
+ doc/install.html | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit 2937d88af591920d72d1ddd480df4c2c31532d2d
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Dec 9 13:25:45 2014 -0500
+
+    runtime: fix some comment formatting
+    
+    Change-Id: Ife7d6ce1131ff26444f09e8fda4f61344e669e21
+    Reviewed-on: https://go-review.googlesource.com/1260
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

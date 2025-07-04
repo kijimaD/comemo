@@ -1,0 +1,12 @@
+commit e015f6c4a5861d44d7a3d5c8e3cf0c62782e087e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 24 15:45:08 2011 +1000
+
+    godoc: display advert for the package dashboard on package list page
+    
+    R=golang-dev, bradfitz, ality
+    CC=golang-dev
+    https://golang.org/cl/4526070
+
+ lib/godoc/package.html | 5 +++++
+ 1 file changed, 5 insertions(+)

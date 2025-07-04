@@ -1,0 +1,21 @@
+commit ed3ea520812e314b2948ae39267105fa517bd9fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri May 12 08:54:24 2023 -0400
+
+    cmd/go: diff .so files quietly in TestScript/build_plugin_reproducible
+    
+    This avoids printing verbose binary data and making bell sounds when the
+    test fails. The binary data can be inspected via other means if needed.
+    
+    For #58557.
+    
+    Change-Id: Ia1c4f2c6b9ff2cf6f97611cf335b978fc7bb201f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494577
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/build_plugin_reproducible.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit da54dfb6a1f3bef827b9ec3780c98fde77a97d11
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Sun Nov 29 08:18:12 2020 +0000
+
+    doc/go1.16: document new behavior of asn1.Unmarshal on invalid argument
+    
+    For #41509
+    
+    Change-Id: Ie761c428710d15848cb80ffd2d85de747113f2d4
+    GitHub-Last-Rev: 05541624593d945d82b6f4cfae1461654eabea7b
+    GitHub-Pull-Request: golang/go#42315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267057
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

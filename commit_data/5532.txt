@@ -1,0 +1,12 @@
+commit 1d6eb7469791f1b112a0e36721ef1a59878d82cb
+Author: Peter Williams <pwil3058@gmail.com>
+Date:   Mon May 24 14:37:00 2010 -0700
+
+    codereview: work better with mq
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1140043
+
+ lib/codereview/codereview.py | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

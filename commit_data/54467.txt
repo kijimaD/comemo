@@ -1,0 +1,19 @@
+commit a03f1aeb557e0e4547c7dfdc1bd64d1f6f3a56ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 14 03:03:52 2023 -0700
+
+    cmd/compile/internal/ir: remove Func.ReflectMethod
+    
+    This flag doesn't serve any purpose anymore. The only place that it's
+    currently set happens after it's checked.
+    
+    Change-Id: Idb6455416f68e502e0b0b1d80e2d6bb5956ee45b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528435
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/abi.go    |  3 ---
+ src/cmd/compile/internal/ir/func.go   | 11 ++++-------
+ src/cmd/compile/internal/walk/expr.go |  2 --
+ 3 files changed, 4 insertions(+), 12 deletions(-)

@@ -1,0 +1,13 @@
+commit a0d6420d8be2ae7164797051ec74fa2a2df466a1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 11 13:00:11 2018 -0700
+
+    cmd/compile/internal/gc: remove OCMPIFACE/OCMPSTR placeholders
+    
+    Change-Id: If05f6146a1fd97f61fc71629c5c29df43220d0c8
+    Reviewed-on: https://go-review.googlesource.com/c/141638
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/op_string.go | 4 ++--
+ src/cmd/compile/internal/gc/syntax.go    | 2 --
+ 2 files changed, 2 insertions(+), 4 deletions(-)

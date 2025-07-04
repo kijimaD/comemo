@@ -1,0 +1,29 @@
+commit d6597ade89b03a5bd5b6732506c23de741cccd53
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 2 12:35:32 2018 -0700
+
+    go/scanner: continue adding directory to file name
+    
+    Before CL 97795, when go/scanner saw a //line comment, it would clean
+    the path and, if the path was relative, prepend the directory from the
+    file name. This was not the best API because it meant that the
+    behavior changed based on whether the code was running on Windows or
+    not, and it meant that information from the //line directive was lost.
+    So in CL 97795, among other changes, go/scanner was changed to simply
+    return the filename given in the //line comment.
+    
+    Unfortunately existing tools such as unparam and unconvert expected
+    the old behavior. In order to avoid breaking those tools, revert that
+    part of the change.
+    
+    Fixes #26671
+    
+    Change-Id: Ifa06542bd19cda9d682ac33766ab9080444ba050
+    Reviewed-on: https://go-review.googlesource.com/127658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/scanner/scanner.go      |  8 ++++++++
+ src/go/scanner/scanner_test.go | 34 ++++++++++++++++++++++++++++++----
+ 2 files changed, 38 insertions(+), 4 deletions(-)

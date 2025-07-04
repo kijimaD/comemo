@@ -1,0 +1,22 @@
+commit 992afd9d54e011355c18f4e0d3c14040a8d65053
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 12 15:26:21 2023 -0400
+
+    cmd/go/internal/modload: address comment and test issues from CL 496635
+    
+    Michael noticed some minor issues in backports of CL 496635.
+    Those issues have been addressed in the backport CLs; this change
+    applies them to the main branch as well.
+    
+    Updates #60313.
+    
+    Change-Id: If68696711a10a9270193df66ed551395c14cae00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502695
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go           |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_issue60313.txt | 10 +++-------
+ 2 files changed, 4 insertions(+), 8 deletions(-)

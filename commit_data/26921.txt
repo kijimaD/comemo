@@ -1,0 +1,14 @@
+commit 285e78609f4fd85948d056f581d3443d5f9b230a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 14 14:53:12 2016 +0900
+
+    net: fix TestDialAddrError
+    
+    Fixes #15291.
+    
+    Change-Id: I563140c2acd37d4989a940488b217414cf73f6c2
+    Reviewed-on: https://go-review.googlesource.com/22077
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/error_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

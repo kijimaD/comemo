@@ -1,0 +1,30 @@
+commit 5b68cb65d3385edbd42fd19484a9e9be7fadbec7
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Feb 13 08:49:52 2019 +0530
+
+    go/ast: fix SortImports to handle block comments
+    
+    The current algorithm only assumed line comments which always
+    appear at the end of an import spec. This caused block comments
+    which can appear before a spec to be attached to the previous spec.
+    
+    So while mapping a comment to an import spec, we maintain additional
+    information on whether the comment is supposed to appear on the left
+    or right of the spec.
+    
+    And we also take into account the possibility of "//line" comments
+    in the source. So we use unadjusted line numbers.
+    
+    While at it, added some more testcases from tools/go/ast/astutil/imports_test.go
+    
+    Fixes #18929
+    
+    Change-Id: If920426641702a8a93904b2ec1d3455749169f69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162337
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/testdata/import.golden | 60 ++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/import.input  | 62 +++++++++++++++++++++++++++
+ src/go/ast/import.go                 | 81 ++++++++++++++++++++++++++----------
+ 3 files changed, 180 insertions(+), 23 deletions(-)

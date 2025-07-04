@@ -1,0 +1,16 @@
+commit e41987c821815127cd9a97a529c9c7524ff5a6d1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 12 00:03:01 2010 -0700
+
+    net: make IPv6 String method standards compliant
+    
+    draft-ietf-6man-text-addr-representation-07 will introduce
+    a canonical textual representation format for IPv6 address.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1856047
+
+ src/pkg/net/ip.go      |  5 +++++
+ src/pkg/net/ip_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

@@ -1,0 +1,29 @@
+commit 9aa28f9231bf8239027d8d2eda230f090eddaf83
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 3 14:16:22 2009 -0800
+
+    bufio:
+            * avoid large copies
+            * NewBufRead, NewBufWrite never fail
+            * add BufReadWrite
+    
+    io:
+            * add io.Close
+    
+    http, google/net/rpc:
+            * add, use http.Conn.Hijack
+    
+    R=r
+    DELTA=416  (202 added, 123 deleted, 91 changed)
+    OCL=24153
+    CL=24238
+
+ src/lib/bufio.go           |  72 ++++++++++++++-
+ src/lib/bufio_test.go      |   4 +-
+ src/lib/http/server.go     | 226 +++++++++++++++------------------------------
+ src/lib/http/status.go     | 102 ++++++++++++++++++++
+ src/lib/io/io.go           |   4 +
+ src/lib/log_test.go        |   5 +-
+ src/lib/net/parse_test.go  |   5 +-
+ src/lib/strconv/fp_test.go |   5 +-
+ 8 files changed, 251 insertions(+), 172 deletions(-)

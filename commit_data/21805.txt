@@ -1,0 +1,16 @@
+commit 79341998770e2a9ede011a3d0e0291ec281bbc86
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:50:01 2015 -0500
+
+    cmd/dist: record default GO_EXTLINK_ENABLED in Go
+    
+    Today it's only recorded for C, but the Go version of the linker will need it.
+    
+    Change-Id: I0de56d98e8f3f1b7feb830458c0934af367fd29a
+    Reviewed-on: https://go-review.googlesource.com/6333
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/dist/buildruntime.go | 4 +++-
+ src/cmd/internal/obj/util.go | 4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

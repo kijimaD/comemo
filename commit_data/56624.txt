@@ -1,0 +1,20 @@
+commit 1110c4095e3ce91eabd830161b6b0836eba4263c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 21 02:20:55 2024 +0000
+
+    internal/trace: fix up debug commands
+    
+    They were still referencing the old internal/trace/v2 packages, and
+    gotraceeventstats had an extra layer of cmd directory (not sure why,
+    maybe it was always like that).
+    
+    Change-Id: Ieba48074ff36ea86c467168568751177d80db31d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586998
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/testdata/cmd/{cmd => }/gotraceeventstats/main.go | 4 ++--
+ src/internal/trace/testdata/cmd/gotraceraw/main.go                  | 4 ++--
+ src/internal/trace/testdata/cmd/gotracevalidate/main.go             | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

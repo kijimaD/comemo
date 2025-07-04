@@ -1,0 +1,15 @@
+commit 51e9858a70e8783a3abb5f0736fa495f14590b26
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 8 23:48:03 2013 -0400
+
+    cmd/go: install godoc into correct directory
+    
+    Fixes #6043.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12693043
+
+ src/cmd/go/pkg.go    |  20 ++++---
+ src/cmd/go/test.bash | 153 +++++++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 149 insertions(+), 24 deletions(-)

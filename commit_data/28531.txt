@@ -1,0 +1,21 @@
+commit 1906d93bfda1c7b4af51457bc0a137b8418500b7
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 26 08:32:49 2016 -0700
+
+    cmd/compile: On PPC, nilcheck load should be MOVBZ
+    
+    There's no load-signed-byte on PPC, so MOVB
+    causes the assembler to macro-expand in a
+    useless sign extension.
+    
+    Fixes #17211.
+    
+    Change-Id: Ibcd73aea4c94ba6df0a998b0091e45508113be2a
+    Reviewed-on: https://go-review.googlesource.com/29762
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

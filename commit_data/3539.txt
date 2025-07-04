@@ -1,0 +1,17 @@
+commit 71abc4deab5eafc06d9bf8821f2aa6a53a80ce53
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 18:08:10 2009 -0700
+
+    delete one cgo playpen
+    
+    R=r
+    DELTA=111  (0 added, 111 deleted, 0 changed)
+    OCL=35739
+    CL=35744
+
+ usr/rsc/fib/6c.c     | 20 --------------------
+ usr/rsc/fib/Makefile | 36 ------------------------------------
+ usr/rsc/fib/gcc.c    | 34 ----------------------------------
+ usr/rsc/fib/go.go    |  8 --------
+ usr/rsc/fib/main.go  | 13 -------------
+ 5 files changed, 111 deletions(-)

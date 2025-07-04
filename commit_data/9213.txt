@@ -1,0 +1,12 @@
+commit 7e1101d470a21b2023e4363cc277836b50d3763f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 26 14:44:51 2011 -0700
+
+    rpc: convert /debug/rpc handler to exp/template
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4819048
+
+ src/pkg/rpc/debug.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

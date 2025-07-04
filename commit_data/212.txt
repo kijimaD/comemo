@@ -1,0 +1,12 @@
+commit d4c2da409b8a5491b6f5e69bcff93e2c01577b7a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 23 20:12:39 2008 -0700
+
+    safety checks, waiting for gri's real tracking of PC and SP
+    extant code is too fragile
+    
+    SVN=124223
+
+ src/runtime/rt0_amd64_darwin.s |  2 +-
+ src/runtime/rt1_amd64_darwin.c | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)

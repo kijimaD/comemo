@@ -1,0 +1,18 @@
+commit 729685c1d1bbd108f442cbecca6b998689266f60
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 5 09:04:05 2017 -0700
+
+    database/sql: ensure Rows is closed when Tx closes
+    
+    Close any Rows queried within a Tx when the Tx is closed. This prevents
+    the Tx from blocking on rollback if a Rows query has not been closed yet.
+    
+    Fixes #20575
+    
+    Change-Id: I4efe9c4150e951d8a0f1c40d9d5e325964fdd608
+    Reviewed-on: https://go-review.googlesource.com/44812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 43 ++++++++++++++++++++++++++++++-------------
+ src/database/sql/sql_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 13 deletions(-)

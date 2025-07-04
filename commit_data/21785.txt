@@ -1,0 +1,18 @@
+commit da4874cba431d502a9c0764b8a68685af7bc7c35
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 27 12:41:20 2015 -0500
+
+    runtime: trivial clean ups to greyobject
+    
+    Previously, the typeDead check in greyobject was under a separate
+    !useCheckmark conditional.  Put it with the rest of the !useCheckmark
+    code.  Also move a comment about atomic update of the marked bit to
+    where we actually do that update now.
+    
+    Change-Id: Ief5f16401a25739ad57d959607b8d81ffe0bc211
+    Reviewed-on: https://go-review.googlesource.com/6271
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go |  4 ++++
+ src/runtime/mgcmark.go | 12 +++++-------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

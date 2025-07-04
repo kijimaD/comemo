@@ -1,0 +1,30 @@
+commit 6ea4cfb347fc3f1001c4a9e732e248144cf8061b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:44:28 2017 +0200
+
+    cmd/dist: remove trivial variables + functions
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (5).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I0efd1271b6a70bb9248d82f8a4d869556f4a557e
+    Reviewed-on: https://go-review.googlesource.com/61011
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 24 ++++++++++--------------
+ src/cmd/dist/util.go  | 19 -------------------
+ 2 files changed, 10 insertions(+), 33 deletions(-)

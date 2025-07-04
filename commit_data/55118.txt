@@ -1,0 +1,21 @@
+commit 28f873444d4e7fdfef9c07108002cd6347a8da0f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 19:29:42 2023 +0000
+
+    cmd/trace/v2: add support for the goroutine-oriented task view
+    
+    This change adds support for a goroutine-oriented task view via the
+    /trace?taskid=<taskid> endpoint. This works but it's missing regions.
+    That will be implemented in a follow-up CL.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I086694143e5c71596ac22fc551416868f0b80923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543937
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/v2/jsontrace.go | 108 +++++++++++++++++++++++++++++++-----------
+ 1 file changed, 80 insertions(+), 28 deletions(-)

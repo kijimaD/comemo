@@ -1,0 +1,16 @@
+commit 35244d8fd160f6aa7614f4daa7bfccda1a518510
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 13:27:55 2018 -0500
+
+    cmd/go: vet: provide package ID to the vet tool
+    
+    This field, which matches the IDs used by go list, will enable all vet
+    drivers to produce JSON output in a consistent format (a map from
+    package ID to analysis name to result).
+    
+    Change-Id: Icac703b944de55df42c996dc2f672005014ad57a
+    Reviewed-on: https://go-review.googlesource.com/c/149960
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

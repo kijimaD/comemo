@@ -1,0 +1,15 @@
+commit eaa25ac16ba4949f970fd1d20cec34c317cb92b9
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 28 09:58:31 2009 -0700
+
+    Fix bug where typeArrayMap was using the address of the
+    pointer to the Type instead of the address of the Type.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=32265
+    CL=32279
+
+ usr/austin/eval/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit b2cbf49343a89cc76a17a0b8361f9e977699aa5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 15:39:48 2014 -0400
+
+    runtime: fix fault during arm software floating point
+    
+    The software floating point runs with m->locks++
+    to avoid being preempted; recognize this case in panic
+    and undo it so that m->locks is maintained correctly
+    when panicking.
+    
+    Fixes #7553.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/84030043
+
+ src/pkg/runtime/panic.c    | 16 +++++++++++++++-
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/vlop_arm.s |  4 ++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

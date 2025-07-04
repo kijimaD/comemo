@@ -1,0 +1,13 @@
+commit 4a3ce5f19e2571bf84a523da32978db1a7a073f3
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 29 13:40:00 2008 -0700
+
+    sigt_int
+    
+    R=r
+    OCL=18030
+    CL=18030
+
+ src/cmd/6g/obj.c  | 2 --
+ src/cmd/gc/subr.c | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

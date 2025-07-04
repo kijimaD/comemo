@@ -1,0 +1,14 @@
+commit 276870d6e0ff5d22b73feee56e0bad9096f01b22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 6 13:32:50 2018 -0800
+
+    math: document sign bit correspondence for floating-point/bits conversions
+    
+    Fixes #27736.
+    
+    Change-Id: Ibda7da7ec6e731626fc43abf3e8c1190117f7885
+    Reviewed-on: https://go-review.googlesource.com/c/153057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/unsafe.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

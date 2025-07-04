@@ -1,0 +1,19 @@
+commit 25e46693a1085f604a9c92ee26afed2b4d45a9dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 22 11:56:55 2023 -0400
+
+    cmd/go: impersonate 'go tool dist list' if 'go tool dist' is not present
+    
+    Fixes #60939.
+    
+    Change-Id: I6a15db558a8e80e242818cccd642899aba47e596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505176
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/base/tool.go                 | 23 +++++--
+ src/cmd/go/internal/tool/tool.go                 | 85 ++++++++++++++++++++++--
+ src/cmd/go/testdata/script/dist_list_missing.txt | 57 ++++++++++++++++
+ 3 files changed, 155 insertions(+), 10 deletions(-)

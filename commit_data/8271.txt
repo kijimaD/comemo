@@ -1,0 +1,15 @@
+commit f5fa215d8abf53bce2babb423504504cc38debee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 29 10:42:44 2011 -0700
+
+    image: png & jpeg encoding benchmarks
+    
+    No code changes in this CL.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4445074
+
+ src/pkg/image/jpeg/writer_test.go | 28 +++++++++++++++++++++++++++
+ src/pkg/image/png/writer_test.go  | 40 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 64 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit 97df9c0b051b6c06bff7ec7e61522e7bbef40c91
+Author: Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp>
+Date:   Fri Apr 7 01:19:21 2023 +0000
+
+    net/http: expose "http: server gave HTTP response to HTTPS client" error
+    
+    Expose "http: server gave HTTP response to HTTPS client" error as `ErrSchemeMismatch`, so that it can be compared with `errors.Is` .
+    
+    Fixes #44855
+    
+    Change-Id: If96e0d000fdef641fea407310faf9e1c4f7ad0f0
+    GitHub-Last-Rev: 22879fc88367d77817d7d96c9164f22e55f3a192
+    GitHub-Pull-Request: golang/go#50939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382117
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ api/next/44855.txt     | 1 +
+ src/net/http/client.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

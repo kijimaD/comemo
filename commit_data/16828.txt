@@ -1,0 +1,20 @@
+commit c485b5891273c62af8e2342c72edf717966d97b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 19 19:36:15 2013 -0400
+
+    cmd/dist, cmd/go: enable more warnings, make clang errors legible
+    
+    This does not change the default compiler on OS X to clang.
+    It appears that for now we can keep using gcc as long as we
+    enable a few more warning settings that are on-by-default
+    elsewhere.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/11610044
+
+ src/cmd/dist/build.c | 6 ++++++
+ src/cmd/dist/unix.c  | 2 ++
+ src/cmd/go/build.go  | 4 +++-
+ src/cmd/go/env.go    | 3 +++
+ 4 files changed, 14 insertions(+), 1 deletion(-)

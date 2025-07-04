@@ -1,0 +1,27 @@
+commit ed6eb5b57736af09d75e224e36d22b1a50053136
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 21:46:20 2009 -0800
+
+    a nagging inconsistency: capitalization of
+    HTML vs Html, URL vs Url, HTTP vs Http,
+    current source is 6:1 in favor of the former,
+    so change instances of the latter.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1024026
+
+ src/cmd/godoc/godoc.go        | 84 +++++++++++++++++++++----------------------
+ src/cmd/godoc/main.go         |  8 ++---
+ src/cmd/godoc/snippet.go      |  6 ++--
+ src/pkg/go/printer/printer.go | 22 ++++++------
+ src/pkg/http/client.go        | 12 +++----
+ src/pkg/http/fs.go            |  6 ++--
+ src/pkg/http/request.go       | 22 ++++++------
+ src/pkg/http/request_test.go  |  2 +-
+ src/pkg/http/server.go        |  6 ++--
+ src/pkg/http/triv.go          |  4 +--
+ src/pkg/template/format.go    | 10 +++---
+ src/pkg/template/template.go  |  2 +-
+ src/pkg/unicode/maketables.go | 10 +++---
+ 13 files changed, 97 insertions(+), 97 deletions(-)

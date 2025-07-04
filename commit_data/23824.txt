@@ -1,0 +1,21 @@
+commit da87cf5dcf342a31c82ff7980bdc076558ff6674
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 24 16:27:07 2015 -0700
+
+    net/http: fix a data race when Request.Cancel is used
+    
+    The "add a Request.Cancel channel" change (https://golang.org/cl/11601)
+    added support for "race free" cancellation, but introduced a data race. :)
+    
+    Noticed while running "go test -race net/http". The test is skipped in
+    short mode, so we never saw it on the dashboard.
+    
+    Change-Id: Ica14579d8723f8f9d1691e8d56c30b585b332c64
+    Reviewed-on: https://go-review.googlesource.com/12663
+    Reviewed-by: Aaron Jacobs <jacobsa@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

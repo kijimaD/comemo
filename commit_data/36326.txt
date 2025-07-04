@@ -1,0 +1,22 @@
+commit 1ba74448f25fa9e69c4f9ed155dd43eb496cfa70
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Mon Aug 20 23:45:34 2018 +0700
+
+    runtime: document all possible values for GOOS and GOARCH
+    
+    The updated list is taken from "src/go/build/syslist.go".
+    
+    Reason: one should not do web search to know the possible values of GOOS
+    and GOARCH.  The search result point to stackoverflow page which
+    reference the above source and documentation on installation page [1].
+    It should available offline (as in local godoc), as part of package
+    documentation.
+    
+    [1] https://golang.org/doc/install/source#environment
+    
+    Change-Id: I736804b8ef4dc11e0260fa862999212ab3f7b3fd
+    Reviewed-on: https://go-review.googlesource.com/129935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/extern.go | 1 +
+ 1 file changed, 1 insertion(+)

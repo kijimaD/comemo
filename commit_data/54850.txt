@@ -1,0 +1,33 @@
+commit 54452b963c16834935b0589897b9ced9c4066a0d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 1 23:43:15 2023 +1100
+
+    syscall: call getfsstat via libc on openbsd
+    
+    On openbsd, call getfsstat directly via libc, instead of calling it
+    via syscall.Syscall.
+    
+    Updates #63900
+    
+    Change-Id: Ib4c581160b170e6cc6017c42e959e647d97ac993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/syscall/syscall_openbsd.go          | 12 ++++--------
+ src/syscall/zsyscall_openbsd_386.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_386.s      |  2 ++
+ src/syscall/zsyscall_openbsd_amd64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.s    |  2 ++
+ src/syscall/zsyscall_openbsd_arm.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.s      |  2 ++
+ src/syscall/zsyscall_openbsd_arm64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_arm64.s    |  2 ++
+ src/syscall/zsyscall_openbsd_ppc64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_ppc64.s    |  3 +++
+ src/syscall/zsyscall_openbsd_riscv64.go | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_riscv64.s  |  2 ++
+ 13 files changed, 107 insertions(+), 8 deletions(-)

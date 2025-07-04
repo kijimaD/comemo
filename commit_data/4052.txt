@@ -1,0 +1,15 @@
+commit 139a053733f2b7ec00c1a515524e308d57a2492b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 14 23:25:55 2009 -0800
+
+    cc: eliminate two fixed-size buffers
+    
+    Fixes bug 168.
+    Alternative to https://golang.org/cl/152143.
+    
+    R=ken2
+    https://golang.org/cl/155042
+
+ src/cmd/cc/dpchk.c | 34 +++++++++++++++++++---------------
+ src/cmd/cc/lex.c   | 16 ++++++----------
+ 2 files changed, 25 insertions(+), 25 deletions(-)

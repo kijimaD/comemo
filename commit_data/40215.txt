@@ -1,0 +1,15 @@
+commit b421b858417abae1defa75cc2d008cfae2a18174
+Author: davidsbond <davidsbond93@gmail.com>
+Date:   Fri Oct 11 14:12:55 2019 +0100
+
+    errors: fix typo in TODO comment
+    
+    Fixes #34846
+    Change-Id: I24b3e65fc96ec85b2821480e9396c9d1663611c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200678
+    Run-TryBot: Johan Brandhorst <johan.brandhorst@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

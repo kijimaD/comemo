@@ -1,0 +1,12 @@
+commit d1ac21849ef249e6793ed3079db3df7c4edfac50
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 22:03:35 2009 -0800
+
+    delete bogus vestige
+    
+    R=rsc
+    OCL=25730
+    CL=25730
+
+ src/lib/regexp/regexp.go | 3 ---
+ 1 file changed, 3 deletions(-)

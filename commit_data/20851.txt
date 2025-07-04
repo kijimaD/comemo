@@ -1,0 +1,18 @@
+commit bb4a358af3469a1dee0cb5bcae245865233aa9ea
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 5 15:14:47 2014 -0500
+
+    5g: don't generate reg variables for direct-called functions
+    
+    The test intended to skip direct calls when creating
+    registerization variables was testing p->to.type instead of
+    p->to.name, so it always failed, causing regopt to create
+    unnecessary variables for these names.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169110043
+
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

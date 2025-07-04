@@ -1,0 +1,17 @@
+commit 29d11ef43611312311af6ecf551d83a37175f1bf
+Author: Manish Goregaokar <manishsmail@gmail.com>
+Date:   Fri Aug 25 23:10:50 2017 -0700
+
+    cmd/vet: add test that copylock catches copying a sync.Map
+    
+    fixes #21635
+    
+    Change-Id: I78716d47b6a930074e5394f7171d5f545dfba0bc
+    Reviewed-on: https://go-review.googlesource.com/59690
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/testdata/copylock_func.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

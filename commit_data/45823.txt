@@ -1,0 +1,26 @@
+commit 785a8f677fbba9432ee67b14d41004ba7fd35ddb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 15 21:40:49 2021 +0700
+
+    cmd/compile: better error message for invalid untyped operation
+    
+    For typed vs un-typed operation, the compiler do the conversion
+    un-conditionally, so if the operation is invalid, the error report is
+    pointed to the conversion, instead of the invalid operation itself.
+    
+    To fix this, only do the conversion when the operations are valid
+    for both types.
+    
+    Fixes #46749
+    
+    Change-Id: Ib71c7bcd3ed5454e6df55b6a8db4e0f189259ba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328050
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/const.go | 20 +++++++++-------
+ test/fixedbugs/issue46749.go                | 37 +++++++++++++++++++++++++++++
+ test/run.go                                 |  1 +
+ 3 files changed, 50 insertions(+), 8 deletions(-)

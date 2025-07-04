@@ -1,0 +1,13 @@
+commit ddc85f419fe85be64ddaee5c9ad556a4b6e2d59d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 22 09:38:35 2011 +1100
+
+    dashboard: deprecation notice for the old dashboard
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5505056
+
+ misc/dashboard/godashboard/main.html        |  3 +++
+ misc/dashboard/godashboard/static/style.css | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

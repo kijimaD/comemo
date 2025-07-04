@@ -1,0 +1,17 @@
+commit 4408659e81a23684d6cb0a6e2b0cf3b48d3d0ca7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 22 18:51:14 2010 -0700
+
+    gc: various map-related bug fixes
+    
+    Fixes #687.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/680042
+
+ src/cmd/gc/go.h        |  2 --
+ src/cmd/gc/typecheck.c | 10 +++---
+ src/cmd/gc/walk.c      | 95 ++++++++++++++++++++++++--------------------------
+ test/golden.out        |  2 +-
+ 4 files changed, 51 insertions(+), 58 deletions(-)

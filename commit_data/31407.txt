@@ -1,0 +1,14 @@
+commit 3a342af977ccf8604f49fc776d17c5f3f3e6d293
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 27 18:58:37 2017 +0900
+
+    net: simplify probeWindowsIPStack
+    
+    Change-Id: Ia45f05c63611ade4fe605b389c404953a7afbd1d
+    Reviewed-on: https://go-review.googlesource.com/41837
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface_windows.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

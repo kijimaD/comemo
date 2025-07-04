@@ -1,0 +1,17 @@
+commit 3b7841b3aff9204f054ffabbe4dd39d3e3dd3e91
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 29 10:14:24 2015 +1000
+
+    cmd/go: reset read-only flag during TestIssue10952
+    
+    git sets read-only flag on all its repo files on Windows.
+    os.Remove cannot delete these files.
+    
+    Fixes windows build
+    
+    Change-Id: Icaf72470456b88a1c26295caecd4e0d3dc22a1b6
+    Reviewed-on: https://go-review.googlesource.com/11602
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

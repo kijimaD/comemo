@@ -1,0 +1,14 @@
+commit 6c9f198c9a7ea0597c1181b46f794380a7be5cfe
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 17 18:47:40 2014 -0800
+
+    runtime: print stack trace when "panic during panic"
+    
+    Fixes bug 7145
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/53970043
+
+ src/pkg/runtime/panic.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

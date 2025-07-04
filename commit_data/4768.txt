@@ -1,0 +1,18 @@
+commit 44898c7b76cf64df61428431706102b47e8829b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 23:58:49 2010 -0800
+
+    gc: bug250, bug251 - recursive interface types
+    
+    Fixes #287.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/199057
+
+ src/cmd/gc/dcl.c         |   5 ++-
+ src/cmd/gc/walk.c        | 100 +++++++++++++++++++++++++++++++----------------
+ test/fixedbugs/bug195.go |   4 +-
+ test/fixedbugs/bug250.go |  19 +++++++++
+ test/fixedbugs/bug251.go |  21 ++++++++++
+ 5 files changed, 112 insertions(+), 37 deletions(-)

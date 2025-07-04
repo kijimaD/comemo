@@ -1,0 +1,12 @@
+commit b0838ca292f0c62ac9d45a92b520160ed052cb26
+Author: Justyn Temme <justyntemme@gmail.com>
+Date:   Sun Jun 19 20:39:58 2016 +0000
+
+    strconv: clarify doc for Atoi return type
+    
+    Change-Id: I47bd98509663d75b0d4dedbdb778e803d90053cf
+    Reviewed-on: https://go-review.googlesource.com/24216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/atoi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

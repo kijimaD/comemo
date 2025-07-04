@@ -1,0 +1,18 @@
+commit 6f6ff951830a8246ce83b09b480685c0333e8f6b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 19 11:43:34 2013 -0800
+
+    go/build: mention 'tag' as an alias for 'build constraint'
+    The code is all about tags, and the cmd/go documentation
+    said to look in the go/build documentation for information
+    about tags, but the documentation said nothing about tags,
+    only build constraints. Make things clearer.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/44100043
+
+ src/cmd/go/build.go     | 4 ++--
+ src/cmd/go/doc.go       | 4 ++--
+ src/pkg/go/build/doc.go | 8 ++++++--
+ 3 files changed, 10 insertions(+), 6 deletions(-)

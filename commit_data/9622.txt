@@ -1,0 +1,32 @@
+commit 49bcc88f793050d128f0f0df447ff2e2783cc145
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 7 15:19:53 2011 -0700
+
+    undo CL 4964067 / 661cb84cc6f0
+    
+    API change. Needs further reflection.
+    
+    ««« original CL description
+    path/filepath: Simplify Walk interface
+    
+    The last argument of filepath.Walk was removed, and the Visitor
+    interface now contains an Error method that is called on errors.
+    
+    Fixes #2237.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4964067
+    
+    »»»
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4974065
+
+ src/cmd/gofix/main.go              |  6 +-----
+ src/cmd/gofmt/gofmt.go             |  6 +-----
+ src/cmd/govet/govet.go             | 18 +++++++-----------
+ src/pkg/path/filepath/path.go      | 24 +++++++++++++++---------
+ src/pkg/path/filepath/path_test.go | 31 ++++++++++++++++---------------
+ 5 files changed, 40 insertions(+), 45 deletions(-)

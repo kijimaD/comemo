@@ -1,0 +1,18 @@
+commit 7a9968f96fdfa0979e7f086d37592c5df9b9a27c
+Author: WhisperRain <2516435583@qq.com>
+Date:   Tue Feb 26 23:01:53 2019 +0000
+
+    container/heap: avoid memory leak in example
+    
+    Set element in slice to nil avoiding memory leak.
+    
+    Change-Id: I9dbef9a0466407011e326725d3a0b681cd815389
+    GitHub-Last-Rev: 1bae5d375876a7f146eb04c2a5ba88d079264eb3
+    GitHub-Pull-Request: golang/go#30386
+    Reviewed-on: https://go-review.googlesource.com/c/163601
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/container/heap/example_pq_test.go | 1 +
+ 1 file changed, 1 insertion(+)

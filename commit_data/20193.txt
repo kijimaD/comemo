@@ -1,0 +1,15 @@
+commit 6a76bca33ffc83254edb9878679f11f4ba8e1b37
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 28 21:35:59 2014 -0700
+
+    runtime: convert closechan/chanlen/chancap to Go
+    
+    LGTM=bradfitz, rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/135150043
+
+ src/pkg/runtime/chan.go  | 75 +++++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/chan.goc | 75 ------------------------------------------------
+ src/pkg/runtime/thunk.s  |  9 ++++++
+ 3 files changed, 77 insertions(+), 82 deletions(-)

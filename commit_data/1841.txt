@@ -1,0 +1,12 @@
+commit 1e0c17e2942c1c75dc96fafdb07af5784781e73a
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 17 19:10:32 2009 -0700
+
+    switch on false error
+    
+    R=r
+    OCL=26434
+    CL=26434
+
+ src/cmd/gc/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

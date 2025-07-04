@@ -1,0 +1,13 @@
+commit ee3db0f5cf3d71f82064ea6b87690a0c3bc4b783
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 14:02:24 2010 -0400
+
+    A+C: Florian Ukermann (individual CLA)
+    
+    R=r, r2
+    CC=florian, golang-dev
+    https://golang.org/cl/2554042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

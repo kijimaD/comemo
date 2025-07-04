@@ -1,0 +1,14 @@
+commit a3ef804891ab8185f604d4ae1a2fbb2449e61b2c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Apr 5 22:21:11 2020 +0800
+
+    cmd/internal/obj/ppc64: leverage AND operation to calculate remainder
+    
+    Change-Id: I03e2a573eb778591071db4f783585a5d71a14c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227005
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

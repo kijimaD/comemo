@@ -1,0 +1,42 @@
+commit d5ae7a64876630ab40f7bd04fdb5ad6a3733dae7
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat May 7 15:50:05 2022 -0400
+
+    go/types, types2: remove redundant calls to Named.resolve
+    
+    The resolved status of a Named type should be owned by its API, and
+    callers should access resolved data via methods. Remove several
+    instances where Named.resolve is explicitly invoked, only to be followed
+    by a method that also resolves.
+    
+    Also make two minor cleanups:
+    - Remove the tparams parameter to Checker.newNamed, as it was unused.
+    - Include position information when assertions fail, so that one doesn't
+      need to go digging in the panicking stack to find the assertion
+      location.
+    
+    Updates #52728
+    
+    Change-Id: Icbe8c89e9cfe02d60af7d9ba907eaebe1f00193e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404874
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go        | 3 +--
+ src/cmd/compile/internal/types2/errors.go      | 9 ++++++++-
+ src/cmd/compile/internal/types2/instantiate.go | 2 +-
+ src/cmd/compile/internal/types2/lookup.go      | 1 -
+ src/cmd/compile/internal/types2/named.go       | 6 +++---
+ src/cmd/compile/internal/types2/signature.go   | 1 -
+ src/cmd/compile/internal/types2/subst.go       | 1 -
+ src/cmd/compile/internal/types2/typexpr.go     | 2 +-
+ src/go/types/decl.go                           | 3 +--
+ src/go/types/errors.go                         | 9 ++++++++-
+ src/go/types/instantiate.go                    | 2 +-
+ src/go/types/lookup.go                         | 1 -
+ src/go/types/named.go                          | 6 +++---
+ src/go/types/signature.go                      | 1 -
+ src/go/types/subst.go                          | 1 -
+ src/go/types/typexpr.go                        | 2 +-
+ 16 files changed, 28 insertions(+), 22 deletions(-)

@@ -1,0 +1,14 @@
+commit b3dd32776b194e2b24bc47768624360452c04bd8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 6 15:21:56 2011 -0700
+
+    template: fix comments with different delimiters.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5208042
+
+ src/pkg/template/exec_test.go      | 17 ++++++++++++-----
+ src/pkg/template/parse/lex.go      | 10 +++++-----
+ src/pkg/template/parse/lex_test.go |  2 +-
+ 3 files changed, 18 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit b2fcdfa5fd7d0bba1933c1c6f6c478549bb4cd82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 6 07:18:06 2013 -0700
+
+    net: detect bad F_DUPFD_CLOEXEC on OS X 10.6
+    
+    On 10.6, OS X's fcntl returns EBADF instead of EINVAL.
+    
+    R=golang-dev, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/12493043
+
+ src/pkg/net/fd_unix.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

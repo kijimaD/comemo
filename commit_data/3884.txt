@@ -1,0 +1,13 @@
+commit 72a59cecb9a8ddb55b69aedc98a2a2fb732e6dfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 17:30:40 2009 -0800
+
+    require Mercurial 1.3 again (how did that get dropped?)
+    
+    avoid deprecation warning about os.popen3
+    
+    R=r
+    http://go/go-review/1026018
+
+ lib/codereview/codereview.py | 57 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 40 insertions(+), 17 deletions(-)

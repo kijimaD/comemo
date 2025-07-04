@@ -1,0 +1,45 @@
+commit 33738ddd0a99991459d3bf215004e4327c2f8af2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 9 16:23:39 2022 -0400
+
+    cmd/compile: eagerly create LSym for closures
+    
+    The linker needs FuncInfo metadata for all inlined functions. This is
+    typically handled by gc.enqueueFunc calling ir.InitLSym for all function
+    declarations in typecheck.Target.Decls (ir.UseClosure adds all closures
+    to Decls).
+    
+    However, non-trivial closures in Decls are ignored, and are insteaded
+    enqueued when walk of the calling function discovers them.
+    
+    This presents a problem for direct calls to closures. Inlining will
+    replace the entire closure definition with its body, which hides the
+    closure from walk and thus suppresses symbol creation.
+    
+    Explicitly create a symbol early in this edge case to ensure we keep
+    this metadata.
+    
+    InitLSym needs to move out of ssagen to avoid a circular dependency (it
+    doesn't have anything to do with ssa anyway). There isn't a great place
+    for it, so I placed it in ir, which seemed least objectionable.
+    
+    The added test triggers one of these inlined direct non-trivial closure
+    calls, though the test needs CL 429637 to fail, which adds a FuncInfo
+    assertion to the linker. Note that the test must use "run" instead of
+    "compile" since the assertion is in the linker, and "compiler" doesn't
+    run the linker.
+    
+    Fixes #54959.
+    
+    Change-Id: I0bd1db4f3539a78da260934cd968372b7aa92546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436240
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/compile.go |  4 +-
+ src/cmd/compile/internal/inline/inl.go | 42 ++++++++++++++++++
+ src/cmd/compile/internal/ir/abi.go     | 78 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/abi.go | 68 -----------------------------
+ test/fixedbugs/issue54959.go           | 16 +++++++
+ 5 files changed, 138 insertions(+), 70 deletions(-)

@@ -1,0 +1,19 @@
+commit 0c83e01e0c1df712002af8bded845fbca9677ffa
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 18 09:03:44 2021 +0200
+
+    cmd/go/testdata/script: fix test script added by CL 334873
+    
+    CL 334873 added the net/http import to the wrong section in
+    test_vet.txt. Correct this to fix the longtest builders.
+    
+    Change-Id: If28409ad1c2ed3bd3a2922fc20d5e534c30fa249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343169
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/test_vet.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

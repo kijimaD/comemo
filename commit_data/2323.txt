@@ -1,0 +1,14 @@
+commit fec0c01e7fc8a8be821a68e6795d229a5a77fc72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 27 09:57:44 2009 -0700
+
+    floating point bug
+    
+    R=rsc
+    DELTA=35  (35 added, 0 deleted, 0 changed)
+    OCL=29442
+    CL=29444
+
+ test/bugs/bug154.go | 32 ++++++++++++++++++++++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 39 insertions(+)

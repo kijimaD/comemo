@@ -1,0 +1,24 @@
+commit 0a2f72b8891d7203850cd7d2f52251edeb4dd747
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:55:33 2019 -0400
+
+    cmd/link: use standard-syntax struct tags in large-tag test
+    
+    These ridiculous tags are testing what happens with very long tags.
+    There is no need for them to be malformed as well.
+    Fix them to make vet happier.
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    For #31916.
+    
+    Change-Id: I100aed5230fcde41676c79c7074c69c16ea4b96d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176111
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/link_test.go         | 18 ++++--------------
+ src/cmd/vet/all/whitelist/all.txt | 11 -----------
+ 2 files changed, 4 insertions(+), 25 deletions(-)

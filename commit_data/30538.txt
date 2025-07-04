@@ -1,0 +1,16 @@
+commit 9600c32cc516b66f5337bebc61e249af4638c106
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:45:10 2017 +0100
+
+    go/printer: remove unused comment parameter
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: I5b0c7cfdc1ab4fe0d79ef4c5a31612bbcf2ff3ad
+    Reviewed-on: https://go-review.googlesource.com/37833
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/printer/printer.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

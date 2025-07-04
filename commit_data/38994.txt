@@ -1,0 +1,22 @@
+commit ab5cee538ae30cab8cc7ecc97f51a051d767dcb0
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 1 10:40:30 2019 -0400
+
+    go/internal/gccgoimporter: skip new test with aliases with old gccgo
+    
+    Add the issue31540 test to the list of tests that needs to be skipped
+    with old copies of gccgo. Along the way, add an explicit field to the
+    importer test struct that can be used to tag the test (as opposed to
+    having special cases by name in the test routine), so as to make it
+    easier to remember to tag testcases correctly.
+    
+    Fixes #31764.
+    
+    Change-Id: Ib9d98fea2df8ce0b51e5a886fb2c4acd6db490ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174738
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/gccgoimporter/importer_test.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

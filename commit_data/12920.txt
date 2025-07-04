@@ -1,0 +1,21 @@
+commit eea5a432cb629670522dc2903d3c464b58652fee
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Apr 20 15:48:13 2012 +1000
+
+    exp/html: start making inBodyIM match the spec
+    
+    Reorder some start tags.
+    
+    Improve handling of </body>.
+    Handle </html>.
+    
+    Pass 2 additional tests (by handling </html>).
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6082043
+
+ src/pkg/exp/html/parse.go                  | 56 +++++++++++++++++-------------
+ src/pkg/exp/html/testlogs/tests15.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
+ 3 files changed, 33 insertions(+), 27 deletions(-)

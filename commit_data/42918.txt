@@ -1,0 +1,14 @@
+commit f98f3b0c306634e850975c5972ceb8519404edae
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 7 20:39:48 2020 +0200
+
+    runtime: remove outdated comment in mkduff.go about usage of STOSQ
+    
+    Change-Id: I71966cc5def4615d64876165872e5e7f2956b270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253397
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mkduff.go | 1 -
+ 1 file changed, 1 deletion(-)

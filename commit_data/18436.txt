@@ -1,0 +1,13 @@
+commit fa3a2a84cc2f4aa10ddb2a205e9fb0656d46ff83
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 10 13:52:58 2014 +0400
+
+    misc/pprof: support web profiles on windows
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/61260044
+
+ misc/pprof | 7 +++++++
+ 1 file changed, 7 insertions(+)

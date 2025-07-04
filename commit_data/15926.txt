@@ -1,0 +1,12 @@
+commit fc4c5b14ef6906f981bf199a78c08942388fc03c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 10:31:19 2013 -0700
+
+    doc: add DialOpt and friends to go1.1.html
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7725048
+
+ doc/go1.1.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

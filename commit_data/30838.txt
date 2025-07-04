@@ -1,0 +1,22 @@
+commit f1e880386b668a26dd6b7afdea43c9041a917fa5
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Wed Mar 15 21:55:04 2017 +0000
+
+    net/http: strip port from host in mux Handler
+    
+    This change strips the port in mux.Handler before attempting to
+    match handlers and adds a test for a request with port.
+    
+    CONNECT requests continue to use the original path and port.
+    
+    Fixes #10463
+    
+    Change-Id: Iff3a2ca2b7f1d884eca05a7262ad6b7dffbcc30f
+    Reviewed-on: https://go-review.googlesource.com/38194
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go |  1 +
+ src/net/http/server.go     | 42 +++++++++++++++++++++++++++++++++---------
+ 2 files changed, 34 insertions(+), 9 deletions(-)

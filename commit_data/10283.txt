@@ -1,0 +1,15 @@
+commit cabe0e6ad38b1498098c7d9aba70dc218b0a23a7
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Nov 8 09:06:02 2011 -0500
+
+    os, syscall: fix Plan 9 build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5330067
+
+ src/pkg/os/env_plan9.go          | 2 +-
+ src/pkg/os/error_plan9.go        | 2 +-
+ src/pkg/os/exec_plan9.go         | 3 ++-
+ src/pkg/syscall/syscall_plan9.go | 4 ++--
+ 4 files changed, 6 insertions(+), 5 deletions(-)

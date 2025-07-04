@@ -1,0 +1,17 @@
+commit 258ee61c7240b7b147a672fdff9552981a182447
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 6 12:18:01 2014 +1000
+
+    syscall: use unsafe.Pointer instead of uintptr on windows when possible
+    
+    Fixes #7171
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84330043
+
+ src/pkg/syscall/syscall_windows.go        | 24 ++++++++++++------------
+ src/pkg/syscall/zsyscall_windows_386.go   |  4 ++--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

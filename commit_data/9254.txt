@@ -1,0 +1,21 @@
+commit 91f0f18100564478f77c6fc8e16ea56f9528951c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 29 13:47:24 2011 -0400
+
+    runtime: fix data race in findfunc()
+    The data race can lead to reads of partially
+    initialized concurrently mutated symbol data.
+    The change also adds a simple sanity test
+    for Caller() and FuncForPC().
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4817058
+
+ src/pkg/runtime/386/asm.s      |  6 ++++++
+ src/pkg/runtime/amd64/asm.s    |  6 ++++++
+ src/pkg/runtime/arm/atomic.c   | 13 ++++++++++++
+ src/pkg/runtime/runtime.h      |  1 +
+ src/pkg/runtime/symtab.c       |  7 +++++--
+ src/pkg/runtime/symtab_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 78 insertions(+), 2 deletions(-)

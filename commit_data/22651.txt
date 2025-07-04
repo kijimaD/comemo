@@ -1,0 +1,22 @@
+commit 723f86537c362f2f86c82ae827f689c23b866f00
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Apr 20 23:02:07 2015 +0100
+
+    net/http: fix race between dialing and canceling
+    
+    In the brief window between getConn and persistConn.roundTrip,
+    a cancel could end up going missing.
+    
+    Fix by making it possible to inspect if a cancel function was cleared
+    and checking if we were canceled before entering roundTrip.
+    
+    Fixes #10511
+    
+    Change-Id: If6513e63fbc2edb703e36d6356ccc95a1dc33144
+    Reviewed-on: https://go-review.googlesource.com/9181
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go    |  4 ++++
+ src/net/http/transport.go      | 37 +++++++++++++++++++++++++++++++++++--
+ src/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 2 deletions(-)

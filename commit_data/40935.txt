@@ -1,0 +1,14 @@
+commit 50535e6b422ac6b0195f9d3a83607326401cee0b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Dec 5 17:34:57 2019 +0800
+
+    cmd/go: delete TestGetFileURL temporary file
+    
+    Change-Id: I191ac2a2b469c6179d22d66c15f2d96ecb3d0902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/web/file_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

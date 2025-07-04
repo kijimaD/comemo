@@ -1,0 +1,12 @@
+commit 186b07afff967e79aa408155a02ac4e0b822c053
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 16 16:07:04 2011 +1100
+
+    syscall: fix inverse checking of result code on windows.
+    
+    R=golang-dev, brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/4179049
+
+ src/pkg/syscall/exec_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

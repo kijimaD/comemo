@@ -1,0 +1,14 @@
+commit 990cda59f8bba7f67fa37f9b5be0e384adf20b41
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 19:49:41 2016 +0100
+
+    misc/cgo/test: skip test18146 on mips{,64}
+    
+    Change-Id: I724f4443fc10a6ee0d027a9533f07aba39455cfa
+    Reviewed-on: https://go-review.googlesource.com/34312
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue18146.go | 4 ++++
+ 1 file changed, 4 insertions(+)

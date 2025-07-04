@@ -1,0 +1,13 @@
+commit 9b73ecc32719a2a6e3c733d87aefd9ef5a0bf804
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 4 17:42:39 2015 +1100
+
+    image/jpeg: check for component uniqueness and total sampling factors.
+    
+    Change-Id: I83de9d83708edc8d196bbcfdc7d2ba7ffaff50d2
+    Reviewed-on: https://go-review.googlesource.com/6586
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/jpeg/reader.go |  9 +++++++++
+ src/image/jpeg/scan.go   | 18 ++++++++++++++++++
+ 2 files changed, 27 insertions(+)

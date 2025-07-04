@@ -1,0 +1,19 @@
+commit b386b628521780c048af14a148f373c84e687b26
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Apr 28 19:35:38 2025 +0800
+
+    cmd/internal/obj/loong64: fix the error parameters when calling UnspillRegisterArgs
+    
+    This bug was introduced in CL 648518.
+    
+    Fixes #73518.
+    
+    Change-Id: I4988dd0b636c6a6a48d2aa2e2ae868e43f69995a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/internal/obj/loong64/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 88aa208024f04845381a86f2d5679d2e520b1ff6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 25 09:20:14 2018 +0200
+
+    syscall: use private copy of ustat_t on Linux
+    
+    Port CL 120295 from golang.org/x/sys/unix to the syscall package.
+    
+    The ustat syscall has been deprecated on Linux for a long time and the
+    upcoming glibc 2.28 will remove ustat.h and it can no longer be used to
+    to generate the Ustat_t wrapper type. Since Linux still provides the
+    syscall, let's not break this functionality and add a private copy of
+    struct ustat so Ustat_t can still be generated.
+    
+    Fixes golang/go#25990
+    
+    Change-Id: I0dab2ba1cc76fbd21553b499f9256fd9d59ca409
+    Reviewed-on: https://go-review.googlesource.com/120563
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/types_linux.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

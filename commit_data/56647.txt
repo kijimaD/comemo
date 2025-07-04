@@ -1,0 +1,112 @@
+commit b0b1d42db32a992150dd26681d3bda222e108303
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 22 13:38:40 2024 -0700
+
+    all: change from sort functions to slices functions where feasible
+    
+    Doing this because the slices functions are slightly faster and
+    slightly easier to use. It also removes one dependency layer.
+    
+    This CL does not change packages that are used during bootstrap,
+    as the bootstrap compiler does not have the required slices functions.
+    It does not change the go/scanner package because the ErrorList
+    Len, Swap, and Less methods are part of the Go 1 API.
+    
+    Change-Id: If52899be791c829198e11d2408727720b91ebe8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/archive/tar/writer.go                      |  4 +-
+ src/archive/tar/writer_test.go                 |  4 +-
+ src/archive/zip/reader.go                      | 42 ++++++++++++++------
+ src/archive/zip/zip_test.go                    |  8 ++--
+ src/bytes/example_test.go                      |  9 ++---
+ src/cmd/go/go_test.go                          | 20 +++++-----
+ src/crypto/tls/tls_test.go                     | 51 ++++++++++++++----------
+ src/crypto/x509/verify_test.go                 |  4 +-
+ src/encoding/asn1/marshal.go                   | 18 ++++-----
+ src/encoding/gob/encoder_test.go               | 13 +++---
+ src/encoding/pem/pem.go                        |  4 +-
+ src/fmt/errors.go                              |  4 +-
+ src/go/ast/commentmap.go                       | 36 ++++++++++-------
+ src/go/ast/filter.go                           |  4 +-
+ src/go/ast/import.go                           | 29 ++++++++------
+ src/go/build/build.go                          | 12 +++---
+ src/go/build/deps_test.go                      | 33 ++++++++++------
+ src/go/constant/example_test.go                | 13 ++++--
+ src/go/doc/comment/std_test.go                 |  4 +-
+ src/go/doc/example.go                          | 23 ++++++-----
+ src/go/doc/reader.go                           | 55 ++++++++------------------
+ src/go/internal/gcimporter/gcimporter.go       |  6 ---
+ src/go/internal/gcimporter/iimport.go          |  8 ++--
+ src/go/internal/gcimporter/ureader.go          |  7 +++-
+ src/go/printer/gobuild.go                      |  4 +-
+ src/go/token/position.go                       | 23 +++++++++--
+ src/go/types/api_test.go                       |  6 +--
+ src/go/types/example_test.go                   |  8 ++--
+ src/go/types/issues_test.go                    |  4 +-
+ src/go/types/resolver_test.go                  |  4 +-
+ src/index/suffixarray/suffixarray.go           |  5 ++-
+ src/index/suffixarray/suffixarray_test.go      |  3 +-
+ src/internal/coverage/cformat/format.go        | 36 ++++++++---------
+ src/internal/coverage/encodecounter/encode.go  |  4 +-
+ src/internal/coverage/pods/pods.go             | 16 ++++----
+ src/internal/dag/parse.go                      |  7 +++-
+ src/internal/fmtsort/sort_test.go              |  7 ++--
+ src/internal/godebug/godebug_test.go           |  6 +--
+ src/internal/trace/internal/oldtrace/order.go  | 14 -------
+ src/internal/trace/internal/oldtrace/parser.go |  6 ++-
+ src/internal/trace/mud.go                      |  7 ++--
+ src/internal/trace/summary.go                  | 18 +++++----
+ src/io/fs/readdir.go                           |  7 +++-
+ src/io/ioutil/ioutil.go                        |  7 +++-
+ src/io/pipe_test.go                            |  4 +-
+ src/math/big/bits_test.go                      |  4 +-
+ src/mime/mediatype.go                          |  4 +-
+ src/mime/multipart/writer.go                   |  4 +-
+ src/mime/quotedprintable/reader_test.go        |  4 +-
+ src/mime/type.go                               |  4 +-
+ src/net/dnsclient.go                           | 26 ++++++------
+ src/net/http/cgi/cgi_main.go                   |  6 +--
+ src/net/http/clientserver_test.go              |  4 +-
+ src/net/http/cookiejar/jar.go                  | 16 ++++----
+ src/net/http/cookiejar/jar_test.go             |  4 +-
+ src/net/http/httputil/reverseproxy_test.go     |  6 +--
+ src/net/lookup_test.go                         |  4 +-
+ src/net/lookup_windows_test.go                 | 49 ++++++++++-------------
+ src/net/main_test.go                           |  4 +-
+ src/net/net_windows_test.go                    | 10 ++---
+ src/net/netip/netip_test.go                    |  7 ++--
+ src/net/resolverdialfunc_test.go               |  4 +-
+ src/net/rpc/debug.go                           | 15 ++++---
+ src/net/url/url.go                             |  4 +-
+ src/os/dir.go                                  |  7 +++-
+ src/os/os_test.go                              |  4 +-
+ src/os/os_windows_test.go                      |  5 +--
+ src/os/user/listgroups_unix_test.go            |  6 +--
+ src/path/filepath/match.go                     |  4 +-
+ src/path/filepath/path.go                      |  4 +-
+ src/reflect/all_test.go                        |  6 +--
+ src/runtime/debug/garbage.go                   |  4 +-
+ src/runtime/gc_test.go                         |  6 +--
+ src/runtime/map_test.go                        |  6 +--
+ src/runtime/pprof/label.go                     |  4 +-
+ src/runtime/pprof/pprof.go                     | 24 +++++------
+ src/runtime/runtime_test.go                    |  6 +--
+ src/sync/pool_test.go                          |  4 +-
+ src/syscall/dirent_test.go                     |  8 ++--
+ src/syscall/getdirentries_test.go              |  6 +--
+ src/syscall/syscall_linux_test.go              |  4 +-
+ src/testing/benchmark.go                       |  4 +-
+ src/testing/benchmark_test.go                  | 11 +++---
+ src/testing/example.go                         |  4 +-
+ src/testing/fstest/mapfs.go                    |  6 +--
+ src/testing/fstest/testfs.go                   | 16 ++++----
+ src/testing/fstest/testfs_test.go              |  7 ++--
+ src/testing/testing.go                         |  4 +-
+ src/time/genzabbrs.go                          |  7 ++--
+ 89 files changed, 499 insertions(+), 454 deletions(-)

@@ -1,0 +1,15 @@
+commit d3e8a3614c4aad86a48100a196a7ff4a6e2164ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 15:21:39 2015 -0700
+
+    go/types: don't export gcCompatibilityMode flag
+    
+    This flag is not needed in the std repo because we don't have
+    tests requiring it. Remove it before it's frozen into the API.
+    
+    Change-Id: I18b861eea146ad67e7a3c26ee8be681d8065ef12
+    Reviewed-on: https://go-review.googlesource.com/11150
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/typestring.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

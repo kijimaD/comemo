@@ -1,0 +1,17 @@
+commit dfded57819dd9111afffc25360cd3e147859d354
+Author: Cheng-Lung Sung <clsung@gmail.com>
+Date:   Wed Apr 6 23:05:20 2016 +0800
+
+    cmd/go: revise importPath when ImportPath is 'command-line-arguments'
+    
+    Fixes #14613
+    
+    Change-Id: I40d9696db3879549e78373ef17f6c92bd4b3470b
+    Reviewed-on: https://go-review.googlesource.com/21596
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/pkg.go         | 10 ++++++++--
+ src/cmd/go/vendor_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

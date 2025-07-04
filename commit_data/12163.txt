@@ -1,0 +1,12 @@
+commit cbaf7ca032f0fb937cb4e49c94c7b681f0403d8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 23:38:18 2012 -0800
+
+    godoc: remove dead code
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5698044
+
+ src/cmd/godoc/dirtrees.go | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)

@@ -1,0 +1,19 @@
+commit 4216203bcf8b46ee874d4f5a637891c34ae9d7ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 21:39:45 2013 -0400
+
+    runtime: remove syscall.NewCallbackCDecl on Windows
+    
+    It is not possible to use (there is no declaration in package syscall),
+    and no one seems to care.
+    
+    Alex Brainman may bring this back properly for Go 1.3.
+    
+    Fixes #6338.
+    
+    R=golang-dev, r, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/14287043
+
+ src/pkg/runtime/syscall_windows.goc | 5 +++++
+ 1 file changed, 5 insertions(+)

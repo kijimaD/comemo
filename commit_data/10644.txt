@@ -1,0 +1,18 @@
+commit 69191553e7a67f63c21d79caf1881ee7487cb6bc
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Wed Dec 7 14:47:25 2011 -0500
+
+    time: fix daysIn for December
+    
+    daysBefore[12+1]: index out of range
+    time.December and Windows SYSTEMTIME.wMonth
+    are 12 for December.
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5448130
+
+ src/pkg/time/internal_test.go |  1 +
+ src/pkg/time/time.go          |  2 +-
+ src/pkg/time/time_test.go     | 23 +++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 1 deletion(-)

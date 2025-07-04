@@ -1,0 +1,17 @@
+commit 0dcc7d6ea868551e70323e2ca0b63a79ad2217fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 18:00:13 2020 -0800
+
+    go/types: use correct error position
+    
+    Follow-up on https://golang.org/cl/271706 .
+    
+    Change-Id: I90339987aed88b0de3ee7ebe7d413282055c260c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271789
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

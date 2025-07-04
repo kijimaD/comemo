@@ -1,0 +1,18 @@
+commit 9f8c2c8bbfacf6eb320361ba93aef2f70c7b1f4f
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 14 14:22:34 2012 -0500
+
+    os: rename SyscallError.Errno to SyscallError.Err
+    
+    This lets us get rid of the OS-dependent implementations
+    of SyscallError.  The name "Err" was chosen to match the
+    PathError type.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5651084
+
+ src/pkg/os/error.go       | 18 ++++++++++++++++++
+ src/pkg/os/error_plan9.go | 18 ------------------
+ src/pkg/os/error_posix.go | 20 +-------------------
+ 3 files changed, 19 insertions(+), 37 deletions(-)

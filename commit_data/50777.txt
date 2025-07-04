@@ -1,0 +1,18 @@
+commit 12daabb9156adb73fda453cae939ab4e3cb8e52f
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Mon Oct 3 15:11:37 2022 +0800
+
+    go/build: replace +build with go:build in documentation
+    
+    Fixes #54181.
+    
+    Change-Id: I47f5102ff2095a794b6fc6bcf75617ba5f85c24d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437995
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/build.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

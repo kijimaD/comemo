@@ -1,0 +1,15 @@
+commit 8e996304f36dca1399266b06b460b773e3b6d530
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 17:00:38 2010 -0800
+
+    gc: multiple return value at top-level invoked multiple times
+    
+    Fixes #402.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/186214
+
+ src/cmd/gc/sinit.c       |  6 ++++++
+ test/fixedbugs/bug244.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

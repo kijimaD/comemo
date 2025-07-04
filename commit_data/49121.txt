@@ -1,0 +1,21 @@
+commit 8d074f61b709047fcc365a4556838f7ad7d80fec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 29 22:02:45 2021 -0800
+
+    archive/zip: error if using io/fs on zip with duplicate entries
+    
+    Fixes #50390
+    
+    Change-Id: I92787cdb3fa198ff88dcaadeccfcb49a3a6a88cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374954
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/archive/zip/reader.go           |  60 ++++++++++++++++++++------
+ src/archive/zip/reader_test.go      |  84 ++++++++++++++++++++++++++++++++++++
+ src/archive/zip/testdata/dupdir.zip | Bin 0 -> 458 bytes
+ 3 files changed, 131 insertions(+), 13 deletions(-)

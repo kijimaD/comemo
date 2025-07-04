@@ -1,0 +1,19 @@
+commit 1bc116b73ced8ec1ddc46f59acc75c89e5642607
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 21 21:44:54 2020 -0800
+
+    cmd/compile: extract function for splitting up x:(Foo) in rewrite rule fragments
+    
+    We had three implementations.
+    
+    Refactor, and document the shared implementation.
+    
+    While we're here, improve the docs for func unbalanced.
+    
+    Change-Id: I612cce79de15a864247afe377d3739d04a56b9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216219
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 54 ++++++++++++++++++-----------
+ 1 file changed, 33 insertions(+), 21 deletions(-)

@@ -1,0 +1,15 @@
+commit c49edc6137e6daf08b6692a8645127ad02967434
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 10:21:12 2012 +1100
+
+    net/textproto: add Conn to doc comment
+    
+    This revolutionary transfiguration undergirding the code base
+    Fixes #2945.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5676072
+
+ src/pkg/net/textproto/textproto.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,41 @@
+commit 3498027329a32c77315754054d1591e06349db59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 15:01:29 2021 -0700
+
+    math: increase precision of math.SmallestNonzeroFloat64
+    
+    The original value was rounded too early, which lead to the
+    surprising behavior that float64(math.SmallestNonzeroFloat64 / 2)
+    wasn't 0. That is, the exact compile-time computation of
+    math.SmallestNonzeroFloat64 / 2 resulted in a value that was
+    rounded up when converting to float64. To address this, added 3
+    more digits to the mantissa, ending in a 0.
+    
+    While at it, also slightly increased the precision of MaxFloat64
+    to end in a 0.
+    
+    Computed exact values via https://play.golang.org/p/yt4KTpIx_wP.
+    
+    Added a test to verify expected behavior.
+    
+    In contrast to the other (irrational) constants, expanding these
+    extreme values to more digits is unlikely to be important as they
+    are not going to appear in numeric computations except for tests
+    verifying their correctness (as is the case here).
+    
+    Re-enabled a disabled test in go/types and types2.
+    
+    Updates #44057.
+    Fixes #44058.
+    
+    Change-Id: I8f363155e02331354e929beabe993c8d8de75646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315170
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt                                            |  2 ++
+ src/cmd/compile/internal/types2/testdata/check/const1.src | 10 +++++-----
+ src/go/types/testdata/check/const1.src                    | 10 +++++-----
+ src/math/all_test.go                                      |  9 +++++++++
+ src/math/const.go                                         |  4 ++--
+ 5 files changed, 23 insertions(+), 12 deletions(-)

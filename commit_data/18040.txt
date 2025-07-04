@@ -1,0 +1,12 @@
+commit 9f2b2dfa8644a1c110579b00e91c72848ddfc478
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 18 17:25:23 2013 +1100
+
+    log: fix example (fix build)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/43780043
+
+ src/pkg/log/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

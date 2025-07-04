@@ -1,0 +1,27 @@
+commit a566deace1d96cd517e79227937e3036baca7ee2
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri Mar 8 00:54:44 2013 +0100
+
+    syscall: Plan 9: use lightweight errstr in entersyscall mode
+    
+    Change 231af8ac63aa (CL 7314062) made runtime.enteryscall()
+    set m->mcache = nil, which means that we can no longer use
+    syscall.errstr in syscall.Syscall and syscall.Syscall6, since it
+    requires a new buffer to be allocated for holding the error string.
+    Instead, we use pre-allocated per-M storage to hold error strings
+    from syscalls made while in entersyscall mode, and call
+    runtime.findnull to calculate the lengths.
+    
+    Fixes #4994.
+    
+    R=rsc, rminnich, ality, dvyukov, rminnich, r
+    CC=golang-dev
+    https://golang.org/cl/7567043
+
+ src/pkg/runtime/runtime.h         |  1 +
+ src/pkg/runtime/sys_plan9_386.s   | 20 ++++++++++++++++++++
+ src/pkg/runtime/sys_plan9_amd64.s | 21 +++++++++++++++++++++
+ src/pkg/runtime/thread_plan9.c    |  4 ++++
+ src/pkg/syscall/asm_plan9_386.s   |  4 ++--
+ src/pkg/syscall/asm_plan9_amd64.s |  4 ++--
+ 6 files changed, 50 insertions(+), 4 deletions(-)

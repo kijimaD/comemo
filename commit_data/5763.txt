@@ -1,0 +1,12 @@
+commit f4429181df814edefb122f7c2a4a4e093d52ff71
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 17:49:47 2010 -0700
+
+    spec: restrict when len(x) is constant
+    
+    R=gri, iant, ken2, r
+    CC=golang-dev
+    https://golang.org/cl/1687047
+
+ doc/go_spec.html | 30 ++++++++++++++++++++++--------
+ 1 file changed, 22 insertions(+), 8 deletions(-)

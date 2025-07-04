@@ -1,0 +1,15 @@
+commit 6a5db20d144c22c356492c2ba8d8a325402d4439
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 17 18:00:34 2012 -0800
+
+    test: match gccgo error messages for bug345
+    
+    bug345.dir/main.go:25:18: error: argument 1 has incompatible type (need explicit conversion; missing method ‘Write’)
+    bug345.dir/main.go:27:8: error: argument 1 has incompatible type
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5556043
+
+ test/fixedbugs/bug345.dir/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

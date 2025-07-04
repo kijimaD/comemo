@@ -1,0 +1,20 @@
+commit ef0b09c526d78de23186522d50ff93ad657014c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 13:44:45 2022 -0800
+
+    go/types, types2: clean up the set up of error, comparable
+    
+    Follow-up on CL 380754.
+    
+    For #50791.
+    
+    Change-Id: Ia2f8f9785c2f02647525e7ee4168991fd4066dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381094
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/universe.go | 24 +++++++++++++++++-------
+ src/go/types/universe.go                    | 24 +++++++++++++++++-------
+ 2 files changed, 34 insertions(+), 14 deletions(-)

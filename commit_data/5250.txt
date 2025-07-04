@@ -1,0 +1,46 @@
+commit 5963dbac08bdb9721631d716db348eca85dc6705
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 8 18:15:30 2010 -0700
+
+    runtime: turn divide by zero, nil dereference into panics
+    
+    tested on linux/amd64, linux/386, linux/arm, darwin/amd64, darwin/386.
+    freebsd untested; will finish in a separate CL.
+    
+    for now all the panics are errorStrings.
+    richer structures can be added as necessary
+    once the mechanism is shaked out.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/906041
+
+ src/pkg/runtime/darwin/386/defs.h      | 46 +++++++++++++++++++-
+ src/pkg/runtime/darwin/386/signal.c    | 38 ++++++++++++++---
+ src/pkg/runtime/darwin/amd64/defs.h    | 44 +++++++++++++++++++
+ src/pkg/runtime/darwin/amd64/signal.c  | 39 ++++++++++++++---
+ src/pkg/runtime/darwin/defs.c          | 48 +++++++++++++++++++++
+ src/pkg/runtime/darwin/os.h            |  1 +
+ src/pkg/runtime/darwin/signals.h       | 10 +++--
+ src/pkg/runtime/darwin/thread.c        | 25 +++++++++++
+ src/pkg/runtime/freebsd/386/signal.c   | 31 ++++++++++----
+ src/pkg/runtime/freebsd/amd64/signal.c | 31 ++++++++++----
+ src/pkg/runtime/freebsd/defs.c         | 48 +++++++++++++++++++++
+ src/pkg/runtime/freebsd/signals.h      | 10 +++--
+ src/pkg/runtime/freebsd/thread.c       | 26 ++++++++++++
+ src/pkg/runtime/linux/386/defs.h       | 45 +++++++++++++++++++-
+ src/pkg/runtime/linux/386/signal.c     | 33 ++++++++++----
+ src/pkg/runtime/linux/amd64/defs.h     | 49 +++++++++++++++++++++
+ src/pkg/runtime/linux/amd64/signal.c   | 37 +++++++++++-----
+ src/pkg/runtime/linux/arm/defs.h       | 43 +++++++++++++++++++
+ src/pkg/runtime/linux/arm/signal.c     | 32 ++++++++++----
+ src/pkg/runtime/linux/defs.c           | 47 ++++++++++++++++++++
+ src/pkg/runtime/linux/defs1.c          |  1 -
+ src/pkg/runtime/linux/defs2.c          | 54 ++++++++++++++++++++++-
+ src/pkg/runtime/linux/defs_arm.c       | 49 ++++++++++++++++++++-
+ src/pkg/runtime/linux/os.h             |  1 +
+ src/pkg/runtime/linux/signals.h        | 10 +++--
+ src/pkg/runtime/linux/thread.c         | 27 +++++++++++-
+ src/pkg/runtime/runtime.h              |  4 ++
+ test/recover3.go                       | 78 ++++++++++++++++++++++++++++++++++
+ 28 files changed, 837 insertions(+), 70 deletions(-)

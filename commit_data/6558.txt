@@ -1,0 +1,14 @@
+commit 54aba2e6dd51e3a5d5f1c8f164332703c451ae4e
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Oct 19 18:09:18 2010 +0200
+
+    [68]l: expose genasmsym.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2512042
+
+ src/cmd/6l/l.h      |  1 +
+ src/cmd/8l/l.h      |  1 +
+ src/cmd/8l/symtab.c | 40 ++++++++++++++++++++++++----------------
+ 3 files changed, 26 insertions(+), 16 deletions(-)

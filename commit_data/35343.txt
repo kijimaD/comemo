@@ -1,0 +1,19 @@
+commit c4650640675629f52f985217050fd68fa9043b23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 15:29:09 2018 -0700
+
+    cmd/go: for gccgo, don't edit cgo header when using -o
+    
+    This change was made to the gccgo sources as part of CL 47037.
+    It is required to make the testcarchive and testcshared tests work.
+    Otherwise using `go build -mode=c-archive -o libgo.a` will cause the
+    header file to be named go.h rather than libgo.h.
+    
+    Change-Id: I2db1d7b0f575368b31273cc01097447a0471efd6
+    Reviewed-on: https://go-review.googlesource.com/111615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

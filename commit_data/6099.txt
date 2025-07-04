@@ -1,0 +1,16 @@
+commit 6752ce9331498352c26c65334dda6282c531ba66
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Aug 26 13:32:16 2010 -0400
+
+    http: obscure passwords in return value of URL.String
+    
+    Fixes #974.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1742057
+
+ src/pkg/http/client.go   |  2 ++
+ src/pkg/http/url.go      |  7 ++++++-
+ src/pkg/http/url_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 1 deletion(-)

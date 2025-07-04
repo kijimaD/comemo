@@ -1,0 +1,19 @@
+commit a9ad410801a762282eddad132c5346462881a2cb
+Author: limeidan <limeidan@loongson.cn>
+Date:   Fri Jan 12 10:46:57 2024 +0800
+
+    cmd/internal/obj/loong64: adjust the order of class names
+    
+    Change-Id: I0ff9a4f7b4758f44eaedfd821ad80a86b58e55a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565625
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/obj/loong64/a.out.go  | 4 ++--
+ src/cmd/internal/obj/loong64/cnames.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

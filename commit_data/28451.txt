@@ -1,0 +1,15 @@
+commit 2679282da4e437ee086ec791ab73181c39ae3463
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 12:08:05 2016 -0700
+
+    cmd/compile: fold ADDconsts together for PPC
+    
+    Change-Id: I571f03af6f791e78e7e18addcc310eb25747cdcf
+    Reviewed-on: https://go-review.googlesource.com/29351
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 34 ++++++++++++++++++++++++----
+ 2 files changed, 33 insertions(+), 6 deletions(-)

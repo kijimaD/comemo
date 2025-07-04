@@ -1,0 +1,26 @@
+commit a1ee6804dd9282fa00bcbc9692a221d67ddbdafe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 22:53:54 2008 -0700
+
+    - fixed bug which prevented parser.go from compiling
+      (typo in ptr decl lead to an unresolved forward declaration)
+    - fixed parser bugs
+    - fixed Makefile
+    - now successfully parses most code
+    
+    Issues:
+    - composite literals (cannot be identified easily from syntax alone)
+    - new(T, ...) (cannot be identified easily from syntax alone since
+      new is not a keyword and thus could be a different function then
+      the allocation function at which point "new((x + y))" is legal,
+      but the inner "(x" looks like the beginning of a function type)
+    
+    R=r
+    OCL=15515
+    CL=15515
+
+ usr/gri/pretty/Makefile   |  6 ++---
+ usr/gri/pretty/parser.go  | 59 ++++++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/pretty.go  |  1 +
+ usr/gri/pretty/scanner.go |  2 +-
+ 4 files changed, 42 insertions(+), 26 deletions(-)

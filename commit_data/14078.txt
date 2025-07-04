@@ -1,0 +1,21 @@
+commit 328f0e7f2efd9ad96b4c09119a18e622e74b3802
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 7 18:00:56 2012 -0700
+
+    exp/types/staging: test drivers
+    
+    This code has been reviewed before. The most significant
+    change is to check_test which now can handle more than
+    one error at the same error position (due to spurious
+    errors - should not happen in praxis once error handling
+    has been fine-tuned). This change makes check_test easier
+    to use during development.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6584057
+
+ src/pkg/exp/types/staging/check_test.go    | 257 +++++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/resolver_test.go | 130 +++++++++++++++
+ src/pkg/exp/types/staging/types_test.go    | 178 ++++++++++++++++++++
+ 3 files changed, 565 insertions(+)

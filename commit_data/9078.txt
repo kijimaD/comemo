@@ -1,0 +1,14 @@
+commit 58e19aa4cb8656cdb757172647dfcb028029185e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 14 17:15:52 2011 -0400
+
+    go: require { } around else block
+    
+    R=gri, ken, r
+    CC=golang-dev
+    https://golang.org/cl/4721044
+
+ doc/go_spec.html |  2 +-
+ src/cmd/gc/go.y  |  3 +++
+ test/if.go       | 14 +++++++++-----
+ 3 files changed, 13 insertions(+), 6 deletions(-)

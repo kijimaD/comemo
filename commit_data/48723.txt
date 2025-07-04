@@ -1,0 +1,18 @@
+commit a10f158d6fdac7c6130b816a00ff14cc22619d2e
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Apr 10 21:57:39 2022 +0800
+
+    runtime: update description of GODEBUG=gctrace=1
+    
+    For #44167.
+    
+    Change-Id: I2dcd13cbe74e88de00e9fc51f9bd86e604a167df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399300
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/extern.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

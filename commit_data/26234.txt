@@ -1,0 +1,19 @@
+commit 1220ac27ceb6462a7489b10b3974ae8f742f3f3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 11 13:04:07 2016 -0800
+
+    cmd/compile: don't copy all type nodes for builtin functions
+    
+    Only copy the ones that actually change.  Also combine deep and substAny
+    functions into one.  The Type.Copyany field is now unused, so remove it.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Id28a9bf144ecf3e522aad00496f8a21ae2b74680
+    Reviewed-on: https://go-review.googlesource.com/20600
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 148 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/type.go |   3 +-
+ 2 files changed, 73 insertions(+), 78 deletions(-)

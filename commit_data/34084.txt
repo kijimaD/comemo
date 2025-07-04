@@ -1,0 +1,19 @@
+commit 670494827c42d4ac64a52dfa909cf6048308e133
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 17:00:51 2018 -0800
+
+    cmd/compile/internal/syntax: better error recovery after missing type
+    
+    R=go1.11.
+    
+    This is just a copy of the fix for #23434:
+    https://go-review.googlesource.com/c/go/+/87898.
+    
+    Test pending test harness for the syntax package.
+    
+    Change-Id: I52409aebe13ec784ddd7e41190a81c7e126bdd0c
+    Reviewed-on: https://go-review.googlesource.com/87901
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

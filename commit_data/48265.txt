@@ -1,0 +1,20 @@
+commit eeb9f095dc13a6beed41db0e734b6ae1e97f15d1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 2 16:36:27 2022 -0500
+
+    testing: include ERROR_SHARING_VIOLATION in Windows cleanup retries
+    
+    Fixes #51442
+    Updates #50051
+    
+    Change-Id: I1bfbc08c907077467fd50febbec6299a9b73af41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388916
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go         |  2 +-
+ src/testing/testing_other.go   |  6 +++---
+ src/testing/testing_windows.go | 22 ++++++++++++++++++----
+ 3 files changed, 22 insertions(+), 8 deletions(-)

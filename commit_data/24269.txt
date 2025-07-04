@@ -1,0 +1,19 @@
+commit af261a5c853914d60bcad2232c9377e63c467644
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 7 11:15:54 2015 +1000
+
+    cmd/go: skip external tests on linux/arm
+    
+    CL 13166 skipped external tests on freebsd/arm with the rationale
+    that the cmd/go tests are not architecture dependent.
+    
+    This CL does the same for linux/arm to help linux/arm users who are
+    building Go on platforms like the Raspberry Pi where ./all.bash
+    frequently times out due to a lack of resources.
+    
+    Change-Id: Iae1a25b63b74200da3f1b5637da0fa5c2dceeb83
+    Reviewed-on: https://go-review.googlesource.com/13342
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)

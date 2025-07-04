@@ -1,0 +1,46 @@
+commit 1f51d27922b2d7dda356da12cabb540e78858b4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 11 09:41:49 2013 -0400
+
+    cmd/gc: move genembedtramp into portable code
+    
+    Requires adding new linker instruction
+            RET     f(SB)
+    meaning return but then immediately call f.
+    This is what you'd use to implement a tail call after
+    fiddling with the arguments, but the compiler only
+    uses it in genwrapper.
+    
+    This CL eliminates the copy-and-paste genembedtramp
+    functions from 5g/8g/6g and makes the code run on ARM
+    for the first time. It removes a small special case for function
+    generation, which should help Carl a bit, but at the same time
+    it does not bother to implement general tail call optimization,
+    which we do not want anyway.
+    
+    Fixes #5627.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/10057044
+
+ src/cmd/5g/ggen.c      |  14 +++++--
+ src/cmd/5g/gobj.c      |  82 -------------------------------------
+ src/cmd/5l/noop.c      |  24 +++++++++--
+ src/cmd/6g/ggen.c      |  13 ++++--
+ src/cmd/6g/gobj.c      | 109 -------------------------------------------------
+ src/cmd/6l/pass.c      |   4 +-
+ src/cmd/8g/ggen.c      |  13 ++++--
+ src/cmd/8g/gobj.c      | 106 -----------------------------------------------
+ src/cmd/8l/pass.c      |   4 +-
+ src/cmd/gc/fmt.c       |   4 ++
+ src/cmd/gc/gen.c       |   1 +
+ src/cmd/gc/go.h        |   2 +-
+ src/cmd/gc/inl.c       |   1 +
+ src/cmd/gc/order.c     |   3 +-
+ src/cmd/gc/racewalk.c  |   1 +
+ src/cmd/gc/reflect.c   |  16 +-------
+ src/cmd/gc/subr.c      |  45 +++++++++++++-------
+ src/cmd/gc/typecheck.c |   5 +++
+ src/cmd/gc/walk.c      |   3 ++
+ 19 files changed, 108 insertions(+), 342 deletions(-)

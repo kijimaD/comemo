@@ -1,0 +1,22 @@
+commit e8729a7e58d3a0212ecc65b3bf5a0b27ba4abf9f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 14:15:11 2019 -0500
+
+    cmd/go: convert TestGoGenerateBadImports to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Id1afafad2063d917fd55e08f0725ce3e93201c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212878
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                               | 14 --------------
+ src/cmd/go/testdata/script/generate_bad_imports.txt | 11 +++++++++++
+ src/cmd/go/testdata/src/gencycle/gencycle.go        |  5 -----
+ 3 files changed, 11 insertions(+), 19 deletions(-)

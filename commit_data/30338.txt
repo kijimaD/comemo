@@ -1,0 +1,19 @@
+commit a355639c6046edae6b3a5190bc78260c2fe3b063
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 18 18:37:38 2017 -0500
+
+    cmd/compile: fix storeOrder
+    
+    storeOrder visits values in DFS order. It should "break" after
+    pushing one argument to stack, instead of "continue".
+    
+    Fixes #19179.
+    
+    Change-Id: I561afb44213df40ebf8bf7d28e0fd00f22a81ac0
+    Reviewed-on: https://go-review.googlesource.com/37250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/schedule.go      |  2 +-
+ src/cmd/compile/internal/ssa/schedule_test.go | 41 +++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

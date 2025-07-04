@@ -1,0 +1,21 @@
+commit 1d538f198dd3da072d00e3dca70c28c40bbde87e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 11:09:10 2023 +0200
+
+    runtime: support nil libcall.args when calling stdcall on Windows
+    
+    Having to pass a dummy pointer to the libcall.args field is a bit
+    annoying. This change allows nil to be passed instead.
+    
+    windows/arm and windows/arm64 already support nil libcall.args.
+    
+    Change-Id: I07a2bdb7d1f76b13d125397ff5177337c43536a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526016
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/os_windows.go       |  2 +-
+ src/runtime/sys_windows_386.s   | 10 ++++++++--
+ src/runtime/sys_windows_amd64.s |  6 ++++++
+ 3 files changed, 15 insertions(+), 3 deletions(-)

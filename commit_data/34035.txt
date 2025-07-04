@@ -1,0 +1,30 @@
+commit 9b49ac0366d3e3948adf5a30bfcff52049e1799a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 22 16:20:01 2018 -0800
+
+    spec: consistently use "defined type" and "type name" (cleanup)
+    
+    When we introduced the notion of alias type declarations, we renamed
+    "named type" to "defined type" to avoid confusion with types denoted
+    by aliases and thus are also types with names, or "named types".
+    
+    Some of the old uses of "named types" remained; this change removes
+    them.
+    
+    Now the spec consistently uses the terms:
+    
+    - "defined type"  for a type declared via a type definition
+    - "type name"     for any name denoting an (alias or defined) type
+    - "alias"         for a type name declared in an alias declaration
+    
+    New prose is encouraged to avoid the term "named type" to counter-
+    act further confusion.
+    
+    Fixes #23474.
+    
+    Change-Id: I5fb59f1208baf958da79cf51ed3eb1411cd18e03
+    Reviewed-on: https://go-review.googlesource.com/89115
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

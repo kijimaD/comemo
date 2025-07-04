@@ -1,0 +1,45 @@
+commit 13b18ec947c9589b47f058d7e7b95e60fcdb3fc9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 18 23:59:12 2022 +0000
+
+    runtime: move scheduling decisions by schedule into findrunnable
+    
+    This change moves several scheduling decisions made by schedule into
+    findrunnable. The main motivation behind this change is the fact that
+    stopped Ms can't become dedicated or fractional GC workers. The main
+    reason for this is that when a stopped M wakes up, it stays in
+    findrunnable until it finds work, which means it will never consider GC
+    work. On that note, it'll also never consider becoming the trace reader,
+    either.
+    
+    Another way of looking at it is that this change tries to make
+    findrunnable aware of more sources of work than it was before. With this
+    change, any M in findrunnable should be capable of becoming a GC worker,
+    resolving #44313. While we're here, let's also make more sources of
+    work, such as the trace reader, visible to handoffp, which should really
+    be checking all sources of work. With that, we also now correctly handle
+    the case where StopTrace is called from the last live M that is also
+    locked (#39004). stoplockedm calls handoffp to start a new M and handle
+    the work it cannot, and once we include the trace reader in that, we
+    ensure that the trace reader gets scheduled.
+    
+    This change attempts to preserve the exact same ordering of work
+    checking to reduce its impact.
+    
+    One consequence of this change is that upon entering schedule, some
+    sources of work won't be checked twice (i.e. the local and global
+    runqs, and timers) as they do now, which in some sense gives them a
+    lower priority than they had before.
+    
+    Fixes #39004.
+    Fixes #44313.
+    
+    Change-Id: I5d8b7f63839db8d9a3e47cdda604baac1fe615ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393880
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go  | 114 ++++++++++++++++++++++++---------------------------
+ src/runtime/trace.go |  12 +++++-
+ 2 files changed, 64 insertions(+), 62 deletions(-)

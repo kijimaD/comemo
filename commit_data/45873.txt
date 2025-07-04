@@ -1,0 +1,13 @@
+commit 361159c05507b7f6c28e29575c02a6b7b6656f84
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sun Jun 27 11:50:17 2021 +0900
+
+    cmd/cgo: fix 'see gmp.go' to 'see doc.go'
+    
+    Change-Id: I303edc9dfbf4185b5b461b121ab504f6ed9f8630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330839
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/cgo/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit e6ed3e8a46c7a066c8ead6429274fa65ba1f42ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 15 17:26:28 2016 -0700
+
+    cmd/internal/obj/x86: clean up asm buffer
+    
+    c2go translated writing and advancing a pointer using slices.
+    Switch to something more idiomatic.
+    It is also more efficient, but not enough to matter.
+    
+    Change-Id: I67709632ac53253615a35365824ae97bbe5458d5
+    Reviewed-on: https://go-review.googlesource.com/20767
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go     |  96 +++++-
+ src/cmd/internal/obj/x86/asm6.go | 694 +++++++++++----------------------------
+ 2 files changed, 294 insertions(+), 496 deletions(-)

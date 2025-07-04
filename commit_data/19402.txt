@@ -1,0 +1,16 @@
+commit 88d07b2cbcf0ad5e2e9936bcaec4fd25e38bec10
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 20 01:32:31 2014 -0400
+
+    cmd/cgo: document CC_FOR_TARGET and CXX_FOR_TARGET
+    
+    Update #4714
+    
+    LGTM=iant, minux.ma, rsc
+    R=rsc, iant, r, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/100390043
+
+ doc/go1.3.html     |  7 +++++++
+ src/cmd/cgo/doc.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+)

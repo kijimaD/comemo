@@ -1,0 +1,14 @@
+commit 4335e69af64b96cd69fa876c5157d6caebde23a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 21 14:00:03 2013 -0800
+
+    archive/tar: make test pass on setgid dirs
+    
+    Fixes #4867
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7382045
+
+ src/pkg/archive/tar/tar_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 4f9ae7739b6bcf1a8549128f468fa41d455ac2da
+Author: Yann Hodique <yhodique@google.com>
+Date:   Mon Jul 23 23:23:50 2018 -0700
+
+    cmd/go: fix Go structs in -json documentation
+    
+    "string" should really be "struct" in the structures describing the module.
+    
+    Change-Id: I4e9cb12434bd33aa243622380c78e5e297d01d0b
+    Reviewed-on: https://go-review.googlesource.com/125638
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/modcmd/mod.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

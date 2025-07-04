@@ -1,0 +1,13 @@
+commit 5069452d6d23c9d1725305746ca948602f7a597c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 14 03:26:31 2015 -0400
+
+    syscall: fix F_SETLK{,W} on linux/ppc64
+    
+    Change-Id: Ia81675b0f01ceafada32bdd2bc59088016a7421e
+    Reviewed-on: https://go-review.googlesource.com/10043
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/zerrors_linux_ppc64.go | 4 ++--
+ src/syscall/ztypes_linux_ppc64.go  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

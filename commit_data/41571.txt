@@ -1,0 +1,49 @@
+commit 4de606b55f58d0b0e4121516cb4b514507b614da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 21:31:00 2020 -0800
+
+    cmd/compile/internal/syntax: faster and simpler source reader
+    
+    This is one of several changes that were part of a larger rewrite
+    which I made in early 2019 after switching to the new number literal
+    syntax implementation. The purpose of the rewrite was to simplify
+    reading of source code (Unicode character by character) and speed up
+    the scanner but was never submitted for review due to other priorities.
+    
+    Part 3 of 3:
+    
+    This change contains a complete rewrite of source.go, the file that
+    implements reading individual Unicode characters from the source.
+    The new implementation is easier to use and has simpler literal
+    buffer management, resulting in faster scanner and thus parser
+    performance.
+    
+    Thew new source.go (internal) API is centered around nextch() which
+    advances the scanner by one character. The scanner has been adjusted
+    around nextch() and now consistently does one character look-ahead
+    (there's no need for complicated ungetr-ing anymore). Only in one
+    case backtrack is needed (when finding '..' rather than '...') and
+    that case is now more cleanly solved with the new reset() function.
+    
+    Measuring line/s parsing peformance by running
+    
+    go test -run StdLib -fast -skip "syntax/(scanner|source)\.go"
+    
+    (best of 5 runs on "quiet" MacBook Pro, 3.3GHz Dual-Core i7, 16GB RAM,
+    OS X 10.15.3) before and after shows consistently 3-5% improvement of
+    line parsing speed:
+    
+    old: parsed 1788155 lines (3969 files) in 1.255520307s (1424234 lines/s)
+    new: parsed 1788155 lines (3969 files) in 1.213197037s (1473919 lines/s)
+    
+    (scanner.go and parser.go are skipped because this CL changed those files.)
+    
+    Change-Id: Ida947f4b538d42eb2d2349062c69edb6c9e5ca66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221603
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go       |   2 +-
+ src/cmd/compile/internal/syntax/scanner.go      | 440 ++++++++++++------------
+ src/cmd/compile/internal/syntax/scanner_test.go |   4 +-
+ src/cmd/compile/internal/syntax/source.go       | 287 ++++++++--------
+ 4 files changed, 367 insertions(+), 366 deletions(-)

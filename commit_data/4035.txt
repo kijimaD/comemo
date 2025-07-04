@@ -1,0 +1,11 @@
+commit 8f4789013542fbeed05a571fcc354fe0b4607456
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 13 16:00:55 2009 -0800
+
+    fix typo
+    
+    R=rsc
+    https://golang.org/cl/152128
+
+ doc/go_tutorial.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit d19a53338fa6272b4fe9c39d66812a79e1464cd2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 29 16:53:44 2021 +1000
+
+    image: add Uniform.RGBA64At and Rectangle.RGBA64At
+    
+    These types already implemented the Image interface. They should also
+    implement the RGBA64Image interface (new in Go 1.17)
+    
+    Updates #44808
+    
+    Change-Id: I9a2b13e305997088ae874efb95ad9e1648f94812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331570
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/go1.17.txt          |  2 ++
+ doc/go1.17.html         |  4 ++--
+ src/image/geom.go       |  8 ++++++++
+ src/image/image_test.go | 12 ++++++++++++
+ src/image/names.go      |  5 +++++
+ 5 files changed, 29 insertions(+), 2 deletions(-)

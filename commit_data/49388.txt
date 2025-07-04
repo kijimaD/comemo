@@ -1,0 +1,43 @@
+commit 02e69cfa9695f17902ff1806205c26a0d02a684f
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat May 7 19:26:35 2022 -0400
+
+    go/types, types2: store Named instance information separately
+    
+    Separate instance information into an instance struct, to reduce memory
+    footprint for non-instance Named types. This may induce a sense of
+    deja-vu: we had a similar construct in the past that was removed as
+    unnecessary. With additional new fields being added that only apply to
+    instances, having a separate struct makes sense again.
+    
+    Updates #52728
+    
+    Change-Id: I0bb5982d71c27e6b574bfb4f7b886a6aeb9c5390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404884
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go        |   4 +-
+ src/cmd/compile/internal/types2/infer.go       |   2 +-
+ src/cmd/compile/internal/types2/instantiate.go |   5 +-
+ src/cmd/compile/internal/types2/named.go       | 131 ++++++++++++++++---------
+ src/cmd/compile/internal/types2/predicates.go  |   4 +-
+ src/cmd/compile/internal/types2/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/types2/subst.go       |  25 ++---
+ src/cmd/compile/internal/types2/typestring.go  |   4 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   6 +-
+ src/cmd/compile/internal/types2/unify.go       |   4 +-
+ src/cmd/compile/internal/types2/validtype.go   |   2 +-
+ src/go/types/decl.go                           |   4 +-
+ src/go/types/infer.go                          |   2 +-
+ src/go/types/instantiate.go                    |   5 +-
+ src/go/types/named.go                          | 129 +++++++++++++++---------
+ src/go/types/predicates.go                     |   4 +-
+ src/go/types/sizeof_test.go                    |   2 +-
+ src/go/types/subst.go                          |  25 ++---
+ src/go/types/typestring.go                     |   4 +-
+ src/go/types/typexpr.go                        |   6 +-
+ src/go/types/unify.go                          |   4 +-
+ src/go/types/validtype.go                      |   2 +-
+ 22 files changed, 222 insertions(+), 154 deletions(-)

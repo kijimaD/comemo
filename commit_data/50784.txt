@@ -1,0 +1,47 @@
+commit 8bd803fd4ea3a549a9124f5a4e18af9596ef35df
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 4 09:00:31 2022 -0400
+
+    cmd/internal/sys: migrate support.go functions to new internal pkg
+    
+    Separate out the functions from cmd/internal/sys/support.go and
+    migrate them to a new package internal/platform, so that functions such as
+    "RaceDetectorSupported" can be called from tests in std as well as in
+    cmd. This isn't a complete move of everything in cmd/internal/sys;
+    there are still many functions left.
+    
+    The original version of this CL (patch set 1) called the new package
+    "internal/sys", but for packages that needed both "internal/sys" and
+    "cmd/internal/sys" the import of the former had to be done with a
+    different name, which was confusing and also required a hack in
+    cmd/dist.
+    
+    Updates #56006.
+    
+    Change-Id: I866d62e75adbf3a640a06e2c7386a6e9e2a18d91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/base/flag.go                  |  7 ++++---
+ src/cmd/dist/buildtool.go                              |  1 +
+ src/cmd/dist/test.go                                   |  2 +-
+ src/cmd/go/go_test.go                                  | 11 ++++++-----
+ src/cmd/go/internal/load/pkg.go                        |  4 ++--
+ src/cmd/go/internal/test/test.go                       |  4 ++--
+ src/cmd/go/internal/work/gc.go                         |  4 ++--
+ src/cmd/go/internal/work/init.go                       | 14 +++++++-------
+ src/cmd/go/script_test.go                              |  4 ++--
+ src/cmd/internal/sys/supported_test.go                 | 18 ------------------
+ src/cmd/link/elf_test.go                               |  5 ++---
+ src/cmd/link/internal/ld/config.go                     |  3 ++-
+ src/cmd/link/link_test.go                              |  5 ++---
+ src/cmd/objdump/objdump_test.go                        |  4 ++--
+ src/go/build/deps_test.go                              |  4 ++--
+ src/internal/fuzz/counters_unsupported.go              |  2 +-
+ src/internal/fuzz/sys_unimplemented.go                 |  2 +-
+ .../internal/sys => internal/platform}/supported.go    |  3 +--
+ src/internal/testenv/testenv.go                        | 14 ++------------
+ 19 files changed, 42 insertions(+), 69 deletions(-)

@@ -1,0 +1,24 @@
+commit a8ba163695f605c72156c90de97a06b3e40566ff
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Apr 24 09:36:22 2024 +0200
+
+    runtime: fix mcall unwinding on Windows
+    
+    The Windows native stack unwinder incorrectly classifies the next
+    instruction after the mcall callback call as being part of the function
+    epilogue, producing a wrong call stack.
+    
+    Add a NOP after the callback call to work around this issue.
+    
+    Fixes #67007.
+    
+    Change-Id: I6017635da895b272b1852391db9a255ca69e335d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/asm_amd64.s | 4 ++++
+ 1 file changed, 4 insertions(+)

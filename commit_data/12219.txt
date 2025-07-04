@@ -1,0 +1,12 @@
+commit 4762e9d98c6f9970f22f5ae897079b281445283f
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Mon Feb 27 11:31:38 2012 +1100
+
+    html/template: use correct method signature, in introduction example.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5695067
+
+ src/pkg/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

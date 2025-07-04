@@ -1,0 +1,26 @@
+commit b279c048e3b07f4cfc7e0605894350d72a10f8a6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 26 15:42:18 2010 -0700
+
+    netchan: Fix race condition in test.
+    
+    Two tests start a goroutine which runs exportSend, and then
+    the tests run importReceive.  exportSend creates an export
+    channel.  importReceive asks to receive values on that
+    channel.  Because exportSend runs in a separate goroutine,
+    it's possible for the export client to receive the request for
+    values on the channel, from importReceive, before the
+    goroutine actually creates the export channel.  That causes an
+    error: "export: no such channel: exportedSend".  This patch
+    avoids the race by creating the export channel before starting
+    the goroutine.
+    
+    There does not seem to be a similar race condition in the
+    tests which send data in the other direction.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2026045
+
+ src/pkg/netchan/netchan_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,19 @@
+commit dd3b4714be643321babc859b807399aa288a4475
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 25 12:00:58 2018 +0100
+
+    build: small cleanup in error message in make.bat
+    
+    Contrary to bash, double quotes cannot be used to group
+    arguments in Windows shell, so they were being printed as
+    literals by the echo command.
+    
+    Since a literal '>' is present in the string, it is sufficient
+    to escape it correctly through '^'.
+    
+    Change-Id: Icc8c92b3dc8d813825adadbe3d921a38d44a1a94
+    Reviewed-on: https://go-review.googlesource.com/97056
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

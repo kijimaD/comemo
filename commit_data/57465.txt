@@ -1,0 +1,18 @@
+commit 9bd34ebb7e820922458929c9a1146fb0a5b0ca4d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 14 06:37:33 2024 +0700
+
+    unicode/utf8: add test that RuneCount does zero allocations
+    
+    See disccusion in CL 612955.
+    
+    Change-Id: I2de582321648f1798929ffb80d2f087e41146ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613315
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/unicode/utf8/utf8_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,12 @@
+commit f08baa38f81052a300ff9fcbcae3d735b3759c4b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Nov 29 19:25:33 2010 +0100
+
+    [68]l: correct dwarf location for globals and ranges for arrays.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3306042
+
+ src/cmd/ld/dwarf.c | 112 +++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 96 insertions(+), 16 deletions(-)

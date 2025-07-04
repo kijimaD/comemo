@@ -1,0 +1,15 @@
+commit e5babeff8a2096a5404aed68a1e26b9cba317ae3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 16 16:30:39 2013 -0700
+
+    database/sql: fix some test fmt verbs
+    
+    Found by vet.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14762044
+
+ src/pkg/database/sql/convert_test.go      | 4 ++--
+ src/pkg/database/sql/driver/types_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

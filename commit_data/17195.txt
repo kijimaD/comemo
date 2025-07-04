@@ -1,0 +1,12 @@
+commit 7eb6a6f46d8e9443f8c827c0ae456689b97de629
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 22:07:21 2013 +0400
+
+    sync/atomic: fix ARM nomenclature in comments
+    
+    R=cshapiro
+    CC=golang-dev
+    https://golang.org/cl/12877043
+
+ src/pkg/sync/atomic/asm_arm.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

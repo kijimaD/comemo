@@ -1,0 +1,20 @@
+commit e568a0180a8d7c296e254d84dc5cf485695cf570
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 18:45:34 2015 +0000
+
+    net/http: add Transport tests for using Request.Cancel mid-body
+    
+    This CL also updates the bundled http2 package with the h2 fix from
+    https://golang.org/cl/17757
+    
+    Fixes #13159
+    
+    Change-Id: If0e3b4bd04d0dceed67d1b416ed838c9f1961576
+    Reviewed-on: https://go-review.googlesource.com/17758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 40 ++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 48 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 84 insertions(+), 4 deletions(-)

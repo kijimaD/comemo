@@ -1,0 +1,21 @@
+commit 0b5f2f0d1149bcff3c6b08458d7ffdd96970235c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 15 15:30:53 2016 -0700
+
+    net/http: if context is canceled, return its error
+    
+    This permits the error message to distinguish between a context that was
+    canceled and a context that timed out.
+    
+    Updates #16381.
+    
+    Change-Id: I3994b98e32952abcd7ddb5fee08fa1535999be6d
+    Reviewed-on: https://go-review.googlesource.com/24978
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go    |  4 +--
+ src/net/http/transport.go      | 73 +++++++++++++++++++++++++-----------------
+ src/net/http/transport_test.go | 13 ++++++--
+ 3 files changed, 57 insertions(+), 33 deletions(-)

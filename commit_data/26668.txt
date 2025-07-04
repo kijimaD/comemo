@@ -1,0 +1,27 @@
+commit 0d40dfa745b176a83d91cf0981bdbd3a92e2e547
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Apr 1 18:11:26 2016 -0700
+
+    compress/gzip: cleanup gzip package
+    
+    Changes made:
+    * Reader.flg is not used anywhere else other than readHeader and
+    does not need to be stored.
+    * Store Reader.digest and Writer.digest as uint32s rather than as
+    a hash.Hash32 and use the crc32.Update function instead. This simplifies
+    initialization logic since the zero value of uint32 is the initial
+    CRC-32 value. There are no performance detriments to doing this since
+    the hash.Hash32 returned by crc32 simply calls crc32.Update as well.
+    * s/[0:/[:/            Consistently use shorter notation for slicing.
+    * s/RFC1952/RFC 1952/  Consistently use RFC notation.
+    
+    Change-Id: I55416a19f4836cbed943adaa3f672538ea5d166d
+    Reviewed-on: https://go-review.googlesource.com/21429
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/gzip/gunzip.go      | 54 ++++++++++++++++------------------------
+ src/compress/gzip/gunzip_test.go |  2 +-
+ src/compress/gzip/gzip.go        | 26 +++++++------------
+ 3 files changed, 32 insertions(+), 50 deletions(-)

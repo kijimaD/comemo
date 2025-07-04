@@ -1,0 +1,28 @@
+commit 941ac9ce706aabc970aa220504a4213fe3abc8a9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 21 16:26:09 2019 -0500
+
+    cmd/go: do not panic when computing Shlib for a package with no Target
+    
+    In module mode, a non-main package lacks an install target.
+    
+    The location of the .shlib corresponding to a given target is stored
+    in a .shlibname file alongside its install target, so in module mode
+    a non-main package also lacks a .shlibname file.
+    
+    This also implies that such a package cannot be installed with
+    'go install -buildmode=linkshared', but that is a problem
+    for another day.
+    
+    Fixes #35759
+    Updates #34347
+    
+    Change-Id: Id3e0e068266d5fb9b061a59e70f9a65985d4973b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208233
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go                |  5 ++++-
+ src/cmd/go/testdata/script/list_linkshared.txt | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

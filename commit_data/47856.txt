@@ -1,0 +1,20 @@
+commit af3b8cf5026a9d74a53ac5d3fec2bba35a96ad91
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 23 13:09:02 2021 -0500
+
+    cmd/go: remove MallocNanoZone environment variable workaround
+    
+    We added a workaround in runtime/race. This should not be
+    necessary now.
+    
+    Updates #49138.
+    
+    Change-Id: Ia2010e4acc95c4ddf5f463ab2919401d893c0bac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374314
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/script_test.go | 1 -
+ 1 file changed, 1 deletion(-)

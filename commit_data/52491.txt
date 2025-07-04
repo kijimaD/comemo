@@ -1,0 +1,19 @@
+commit 75317dee399b66eaf09b8e4f6c4f8c45ecdce1f3
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 30 10:45:21 2023 +0200
+
+    cmd/objdump: unskip TestDisasmExtld on Windows
+    
+    Windows has supported external linking for a while, there is no
+    need to skip this test.
+    
+    Change-Id: Ic3d0cc3441ee670767dae085db5e62fce205ff04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480417
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

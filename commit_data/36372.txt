@@ -1,0 +1,23 @@
+commit 187a41dbf730117bd52f871009466a9679d6b718
+Author: Marcus Willock <crazcalm@gmail.com>
+Date:   Fri Aug 3 15:13:14 2018 +0000
+
+    net/http: add an example of creating a custom FileSystem
+    
+    The existing documentation of http.Dir is clear in that, if you want to hide
+    your files and directories that start with a period, you must create
+    a custom FileSystem. However, there are currently no example on how
+    to create a custom FileSystem. This commit provides an example.
+    
+    Fixes #20759
+    
+    Change-Id: I5a350675536f81412af384d1a316fd6cd6241563
+    GitHub-Last-Rev: 8b0b644cd02c59fe2461908304c44d64e8be431e
+    GitHub-Pull-Request: golang/go#26768
+    Reviewed-on: https://go-review.googlesource.com/127576
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/example_filesystem_test.go | 71 +++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

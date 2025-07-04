@@ -1,0 +1,23 @@
+commit 4793400bd1a58895075504e5f5fc87654a2c702c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 15:34:04 2009 -0700
+
+    new reflect library data structures and code declarations
+      * use structs instead of interfaces
+      * compiler lays out data structures ahead of time,
+        so no more parsing of strings.
+      * unified reflect data structures with interface
+        runtime data structures.
+      * richer data structures should enable reflection
+        on chans and maps, but not implemented here.
+    
+    R=r,iant
+    DELTA=1179  (1179 added, 0 deleted, 0 changed)
+    OCL=31107
+    CL=31213
+
+ src/pkg/reflect/ntype.go  | 385 +++++++++++++++++++++++++++++++++
+ src/pkg/reflect/nvalue.go | 541 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/type.go   | 192 ++++++++++++++++
+ src/pkg/runtime/type.h    |  65 ++++++
+ 4 files changed, 1183 insertions(+)

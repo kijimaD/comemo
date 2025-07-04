@@ -1,0 +1,14 @@
+commit e0a4046662e79c6dd5398d069864a281ba7ffc1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:46:09 2010 -0800
+
+    add release log as doc/devel/release.html
+    
+    won't appear online until next release
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183126
+
+ doc/devel/release.html | 149 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 149 insertions(+)

@@ -1,0 +1,22 @@
+commit 1cfc87e6db5896e84472ca356e6344bc7d61a580
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun Mar 26 08:35:12 2023 +0000
+
+    net: support forceCgoDNS and forceGoDns on windows
+    
+    Windows is able to use the go resolver now, so let the forceCgoDNS and forceGoDns work.
+    
+    Change-Id: Ice3d9fda9530ec88a2a22077c9a729dd940aba6d
+    GitHub-Last-Rev: e0b6e39870b147e6a1b4db920fd39920fe9c2bfc
+    GitHub-Pull-Request: golang/go#59250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479455
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/main_conf_test.go   | 2 +-
+ src/net/main_noconf_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 023bb034e93363492ef444fefcb1d38cdc61ede1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 09:56:53 2016 -0700
+
+    spec: slightly more realistic example for type assertions
+    
+    For #17428.
+    
+    Change-Id: Ia902b50cf0c40e3c2167fb573a39d328331c38c7
+    Reviewed-on: https://go-review.googlesource.com/31449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

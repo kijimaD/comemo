@@ -1,0 +1,13 @@
+commit 06c2c8945223b70111544103191c91ac0ecbf9e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 26 09:46:12 2009 -0700
+
+    added Newton-Raphson Division as an additional bignum testcase
+    
+    R=rsc
+    DELTA=192  (192 added, 0 deleted, 0 changed)
+    OCL=33853
+    CL=33864
+
+ src/pkg/bignum/nrdiv_test.go | 192 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 192 insertions(+)

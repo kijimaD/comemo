@@ -1,0 +1,12 @@
+commit 4949dcb211010040c343fdfee6ac67cafdedbb51
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jul 16 17:41:31 2013 +1000
+
+    cmd/gc: complex types don't contain pointers
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11334043
+
+ src/cmd/gc/reflect.c | 2 ++
+ 1 file changed, 2 insertions(+)

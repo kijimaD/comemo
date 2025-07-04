@@ -1,0 +1,19 @@
+commit a513088396d28794c2b2e1bb5e5f2a827e922b4a
+Author: Matthew Brennan <matty.brennan@gmail.com>
+Date:   Fri Apr 3 20:09:53 2015 -0400
+
+    regexp: skip backtracker for long programs
+    
+    This update makes maxBacktrackLen return 0 if
+    len(prog.Inst) > maxBacktrackProg. This prevents an attempt to
+    backtrack against a nil bitstate.
+    
+    Fixes #10319
+    
+    Change-Id: Icdbeb2392782ccf66f9d0a70ea57af22fb93f01b
+    Reviewed-on: https://go-review.googlesource.com/8473
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/backtrack.go | 11 ++++++++++-
+ src/regexp/exec_test.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

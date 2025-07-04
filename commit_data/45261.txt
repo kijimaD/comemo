@@ -1,0 +1,29 @@
+commit 381252f312a513a969d9aa1d84cec2c9c1becf4d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 11:59:15 2021 -0400
+
+    cmd/go/internal/modload: use updateRequirements instead of editRequirements to add modules for missing packages
+    
+    editRequirements does a lot of work in order to respect the upper
+    bounds of mustSelect, and as a result it doesn't provide many promises
+    about conserving other things (like root dependencies).
+    
+    When we add modules for missing packages, we aren't dealing with upper
+    bounds at all, so we would rather avoid the upper-bound overhead and
+    preserve the root-dependency invariants instead.
+    (*loader).updateRequirements does exactly that; it just needs to be
+    told about the additional dependencies to add.
+    
+    For #36460
+    
+    Change-Id: Ie0f2bc0dde18026bbd23e51357bb1d725d201680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310791
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/buildlist.go | 16 ++++++++++++----
+ src/cmd/go/internal/modload/init.go      |  2 +-
+ src/cmd/go/internal/modload/load.go      | 24 +++++++++++++-----------
+ 3 files changed, 26 insertions(+), 16 deletions(-)

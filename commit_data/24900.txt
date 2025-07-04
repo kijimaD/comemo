@@ -1,0 +1,16 @@
+commit 3a96bf0d80304462fda5c68281feb625a2f525ce
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Nov 14 00:06:46 2015 -0500
+
+    cmd/dist: disable shootout/spectralnorm on linux/mips64 builder
+    
+    It is too slow with kernel FPU emulator.
+    
+    Updates #12688.
+    
+    Change-Id: Ib3a5adfeb46e894550231b14eb0f4fb20aecee11
+    Reviewed-on: https://go-review.googlesource.com/16922
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit ac771a8a471a690b599757982b4427a5c092795b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 24 14:08:28 2010 -0700
+
+    go spec: ... changes
+    
+    Also: Fixed a bug in the BuiltinCall production.
+    
+    R=iant, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2278041
+
+ doc/go_spec.html | 49 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)

@@ -1,0 +1,21 @@
+commit 7377d0c7e972397969382315df915579e32db025
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 16:32:33 2017 +0200
+
+    go/*: use sort.Slice to simplify some code
+    
+    Skip the ones that have multiple uses for now. Also had to rename the
+    importComment variable as it shadowed the top-level func by the same
+    name.
+    
+    Change-Id: I796285aa7b4fdf2c39e652666390427d37b063ee
+    Reviewed-on: https://go-review.googlesource.com/63150
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/ast/import.go      | 48 +++++++++++++++++++----------------------------
+ src/go/doc/example.go     | 11 ++++-------
+ src/go/types/methodset.go | 12 ++++--------
+ 3 files changed, 27 insertions(+), 44 deletions(-)

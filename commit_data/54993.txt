@@ -1,0 +1,18 @@
+commit 2380862c7c05666f9bfe799fb1222cb4e5631541
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 9 11:43:13 2023 -0500
+
+    cmd/compile: small inlining tweak for range-func panics
+    
+    treat the panic, like a panic.  It helps with inlining,
+    and thus reduced closure allocation and performance, for
+    many examples of function range iterators.
+    
+    Change-Id: Ib1a656cdfa56eb2dee400089c4c94ac14f1d2104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541235
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 2 ++
+ 1 file changed, 2 insertions(+)

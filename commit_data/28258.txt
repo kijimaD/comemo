@@ -1,0 +1,15 @@
+commit a0d2010208199d2cfca0581348efde4e04d0ab06
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 14:12:35 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for *Sym formats %s, %v
+    
+    Change-Id: I0c362edba66c763e84990e3c5508013021f3e6fe
+    Reviewed-on: https://go-review.googlesource.com/28334
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 90 ++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/typecheck.go |  4 +-
+ 4 files changed, 54 insertions(+), 44 deletions(-)

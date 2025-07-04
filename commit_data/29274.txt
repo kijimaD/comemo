@@ -1,0 +1,14 @@
+commit 2d4d22af7e8482054a6f802ec798f4af4d37596f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 31 16:42:30 2016 -0700
+
+    cmd/compile: move parser.go remnants into noder.go
+    
+    Change-Id: I54f8788a4703283b9aa3904e2e610097ac3e3586
+    Reviewed-on: https://go-review.googlesource.com/32471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go  | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/parser.go | 28 ----------------------------
+ 2 files changed, 15 insertions(+), 28 deletions(-)

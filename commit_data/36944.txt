@@ -1,0 +1,20 @@
+commit 7fb60eb1a2aaed7a801ab15bd7aaeaabdbb5e5db
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Fri Oct 5 10:07:29 2018 +0100
+
+    cmd/vet: detect non-pointer arguments for unmarshal and decode
+    
+    Checks usage of Unmarshal and Decode functions in json, gob and
+    xml packages to detect attempts to decode into non-pointer types.
+    
+    Fixes #27564
+    
+    Change-Id: I07bbd5be82d61834ffde9af9937329d7fb1f05d0
+    Reviewed-on: https://go-review.googlesource.com/c/139997
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/testdata/unmarshal.go | 60 ++++++++++++++++++++++++++++++++
+ src/cmd/vet/unmarshal.go          | 72 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 132 insertions(+)

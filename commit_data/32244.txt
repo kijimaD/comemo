@@ -1,0 +1,25 @@
+commit 77a9cb9b4c8f13e7b08ae855699146cbddbdd752
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 10 07:16:27 2017 -0700
+
+    runtime: refactor evacuate x/y handling
+    
+    This change unifies the x and y cases.
+    
+    It shrinks evacuate's machine code by ~25% and its stack size by ~15%.
+    
+    It also eliminates a critical branch.
+    Whether an entry should go to x or y is designed to be unpredictable.
+    As a result, half of the branch predictions for useX were wrong.
+    Mispredicting that branch can easily incur an expensive cache miss.
+    Switching to an xy array allows elimination of that branch,
+    which in turn reduces cache misses.
+    
+    Change-Id: Ie9cef53744b96c724c377ac0985b487fc50b49b1
+    Reviewed-on: https://go-review.googlesource.com/54653
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 115 +++++++++++++++++++++++--------------------------
+ 1 file changed, 54 insertions(+), 61 deletions(-)

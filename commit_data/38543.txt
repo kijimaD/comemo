@@ -1,0 +1,47 @@
+commit db16de920370892b0241d3fa0617dddff2417a4d
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 25 12:34:27 2019 -0700
+
+    runtime: remove kindNoPointers
+    
+    We already have the ptrdata field in a type, which encodes exactly
+    the same information that kindNoPointers does.
+    
+    My problem with kindNoPointers is that it often leads to
+    double-negative code like:
+    
+       t.kind & kindNoPointers != 0
+    
+    Much clearer is:
+    
+       t.ptrdata == 0
+    
+    Update #27167
+    
+    Change-Id: I92307d7f018a6bbe3daca4a4abb4225e359349b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169157
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  3 ---
+ src/cmd/internal/objabi/typekind.go    |  1 -
+ src/internal/reflectlite/type.go       |  1 -
+ src/reflect/export_test.go             |  2 +-
+ src/reflect/swapper.go                 |  2 +-
+ src/reflect/type.go                    | 35 +++++++---------------------------
+ src/runtime/cgocall.go                 |  4 ++--
+ src/runtime/cgocheck.go                |  6 +++---
+ src/runtime/chan.go                    |  2 +-
+ src/runtime/heapdump.go                |  2 +-
+ src/runtime/malloc.go                  |  2 +-
+ src/runtime/map.go                     | 12 ++++++------
+ src/runtime/map_fast32.go              |  8 ++++----
+ src/runtime/map_fast64.go              |  8 ++++----
+ src/runtime/map_faststr.go             |  4 ++--
+ src/runtime/mbarrier.go                | 16 ++++++++--------
+ src/runtime/mbitmap.go                 |  2 +-
+ src/runtime/mfinal.go                  |  2 +-
+ src/runtime/slice.go                   |  2 +-
+ src/runtime/typekind.go                |  1 -
+ 20 files changed, 44 insertions(+), 71 deletions(-)

@@ -1,0 +1,13 @@
+commit b390608636231c2f443b55000db27580ae386727
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 23 11:17:44 2008 -0700
+
+    - added gccgo makefile
+    
+    R=r
+    OCL=15693
+    CL=15695
+
+ usr/gri/pretty/Makefile.iant | 56 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/ast.go        |  2 +-
+ 2 files changed, 57 insertions(+), 1 deletion(-)

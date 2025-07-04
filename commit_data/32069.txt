@@ -1,0 +1,19 @@
+commit 9e859d5e9c7c093937c79f87c4b3328383320843
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 18 13:15:05 2017 -0700
+
+    cmd/go, cmd/link: if -no-pie doesn't work, try -nopie
+    
+    GCC says -no-pie, clang says -nopie.
+    
+    Fixes #21042
+    
+    Change-Id: Iadc83ea7a48ea0debc5064c1ee8da4ebff752044
+    Reviewed-on: https://go-review.googlesource.com/49710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build.go | 25 ++++++++++++++++---------
+ src/cmd/link/internal/ld/lib.go   | 21 ++++++++++++++-------
+ 2 files changed, 30 insertions(+), 16 deletions(-)

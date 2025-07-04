@@ -1,0 +1,58 @@
+commit 5c87cf76082188ab1f86cbf4576500f347b803be
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 11:53:33 2015 -0500
+
+    cmd/gc: minor adjustments for C to Go translation
+    
+    - remove a few uses of ? :
+    - rename variables named len
+    - rewrite a few gotos as nested switches
+    - move goto targets to scope allowed by Go
+    - use consistent return type of anyregalloc
+      (was int or int32 in different places)
+    - remove unused nr variable in agen
+    - include proper headers in generated builtin1.c
+    - avoid strange sized %E formats (%-6E, %2E)
+    - change gengcmask argument from uint8[16] to uint8*
+      (diagnosed by c2go; not an array in any real sense).
+    - replace #ifdef XXX with comment block in 5g/peep.c
+    - expand and remove FAIL macro from 5g
+    - expand and remove noimpl macro from 9g
+    - print regalloc errors to stdout in 8g
+      (only use of fprint(2, ...) in all compilers)
+    
+    Still producing bit-for-bit identical output.
+    
+    Change-Id: Id46efcd2a89241082b234f63f375b66f2754d695
+    Reviewed-on: https://go-review.googlesource.com/4646
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/5g/cgen.c      |  33 ++--
+ src/cmd/5g/gsubr.c     |  33 ++--
+ src/cmd/5g/peep.c      |  93 +++++++---
+ src/cmd/6g/cgen.c      |  61 +++----
+ src/cmd/6g/gsubr.c     |   2 +-
+ src/cmd/6g/peep.c      |   4 +-
+ src/cmd/8g/cgen.c      |  58 +++---
+ src/cmd/8g/gsubr.c     |  43 ++---
+ src/cmd/9g/cgen.c      |  37 ++--
+ src/cmd/9g/gg.h        |   3 -
+ src/cmd/9g/gsubr.c     |   5 +-
+ src/cmd/9g/peep.c      |   2 +-
+ src/cmd/gc/builtin.c   |   3 +
+ src/cmd/gc/closure.c   |  13 +-
+ src/cmd/gc/const.c     |  58 +++---
+ src/cmd/gc/fmt.c       |   4 +-
+ src/cmd/gc/go.h        |   8 +
+ src/cmd/gc/lex.c       |  33 ++--
+ src/cmd/gc/mkbuiltin   |   4 +
+ src/cmd/gc/pgen.c      |   6 +-
+ src/cmd/gc/plive.c     |   6 +-
+ src/cmd/gc/popt.c      |   7 +-
+ src/cmd/gc/popt.h      |  21 +--
+ src/cmd/gc/range.c     |   8 +-
+ src/cmd/gc/reflect.c   |   2 +-
+ src/cmd/gc/select.c    |  18 +-
+ src/cmd/gc/swt.c       |  27 +--
+ src/cmd/gc/typecheck.c | 475 +++++++++++++++++++++++++------------------------
+ 28 files changed, 549 insertions(+), 518 deletions(-)

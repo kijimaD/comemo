@@ -1,0 +1,12 @@
+commit 03769efe414863be778b80eac7425d5f382d87cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 11:46:13 2012 -0500
+
+    cmd/dist: recognize CC="ccache clang" as clang
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5711052
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

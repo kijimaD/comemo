@@ -1,0 +1,12 @@
+commit 6e928e411bc976c247f850056a5eef7c23543901
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 17:11:25 2011 -0400
+
+    net: fix windows build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4425059
+
+ src/pkg/net/resolv_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

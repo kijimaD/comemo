@@ -1,0 +1,21 @@
+commit a739306ca7d9ea3a98acca59b853fe889f04c28c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 10:53:10 2020 -0400
+
+    runtime: enable more address bits on macOS/ARM64
+    
+    Apparently macOS/ARM64 has 47-bit addresses, instead of 33-bit as
+    on ios/ARM64. Enable more address bits.
+    
+    Updates #38485.
+    
+    Change-Id: I8aa64ba22a3933e3d9c4fffd17d902b5f31c30e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256918
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go           | 8 ++++----
+ src/runtime/mpagealloc_32bit.go | 4 ++--
+ src/runtime/mpagealloc_64bit.go | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

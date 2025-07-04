@@ -1,0 +1,20 @@
+commit de5c573baabf925ee7cb868285ed4f14de5f7fe9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 8 05:52:07 2017 +0900
+
+    syscall: add Conn and RawConn interfaces
+    
+    This change adds Conn and RawConn interfaces which can be used to
+    manipulate raw network connection end points typically represented as
+    socket descriptors.
+    
+    Fixes #19435.
+    
+    Change-Id: Ide2d28eeab91bfd27473ab47a87bec69950b64c9
+    Reviewed-on: https://go-review.googlesource.com/37913
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/net.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

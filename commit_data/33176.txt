@@ -1,0 +1,16 @@
+commit 2f40dc79e5febf2c27303285ef853a5dd064f777
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Oct 19 17:47:07 2017 -0400
+
+    cmd/trace: fix a javascript bug in handling import error
+    
+    When traceviewer encounters a failure of json trace import
+    due to data error, onImportFail tried to access an error variable
+    which was not yet defined.
+    
+    Change-Id: I431be03f179aafacaf1fd3c62a6337e8b5bd18fb
+    Reviewed-on: https://go-review.googlesource.com/71970
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/trace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

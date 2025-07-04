@@ -1,0 +1,23 @@
+commit 00f9b7680a8481e988b20414699fb25b0030079b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 16 10:19:56 2011 -0500
+
+    exp/ssh: fix unmarshal test
+    
+    Ensure that empty NameLists always return
+    a zero length []string, not nil.
+    
+    In practice NameLists are only used in a few
+    message types and always consumed by a for
+    range function so the difference between nil
+    and []string{} is not significant.
+    
+    Also, add exp/ssh to pkg/Makefile as suggested
+    by rsc.
+    
+    R=rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/5400042
+
+ src/pkg/exp/ssh/messages.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

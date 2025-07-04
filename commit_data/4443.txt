@@ -1,0 +1,18 @@
+commit a8fbf5dc2cd5b58167402df47bb06217c5e8fd22
+Author: Moriyoshi Koizumi <mozo@mozo.jp>
+Date:   Tue Dec 15 21:24:17 2009 -0800
+
+    This patch enables cgo utility to correctly convert enums in the C source
+    into consts in the resulting Go source.  Previously known as issue 161047,
+    which I deleted accidentally.  Fixes issue 207.
+    
+    R=rsc
+    https://golang.org/cl/166059
+
+ AUTHORS             |  1 +
+ CONTRIBUTORS        |  1 +
+ src/cmd/cgo/ast.go  | 10 ++++---
+ src/cmd/cgo/gcc.go  | 80 ++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/cgo/main.go |  9 ++++++
+ src/cmd/cgo/out.go  |  5 ++++
+ 6 files changed, 77 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit eb039a80456105d7a3df99589982215f1200152a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 7 14:37:57 2012 +1100
+
+    misc/osx: update for dist tool, drop image.bash, update readme
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5639043
+
+ misc/osx/README       | 10 ++--------
+ misc/osx/ReadMe.txt   |  4 ----
+ misc/osx/image.bash   | 38 -------------------------------------
+ misc/osx/package.bash | 52 +++++++++++++++++++++++++++++++++++----------------
+ misc/osx/utils.bash   | 31 ------------------------------
+ 5 files changed, 38 insertions(+), 97 deletions(-)

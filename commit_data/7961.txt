@@ -1,0 +1,14 @@
+commit 0f46aaf8b3e43ea5add91c73aec5773f0d028b35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 4 10:06:09 2011 +1000
+
+    version.bash: strip changeset hash from 'hg tags' output
+    
+    Fixes #1651.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4300054
+
+ src/version.bash | 1 +
+ 1 file changed, 1 insertion(+)

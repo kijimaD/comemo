@@ -1,0 +1,23 @@
+commit 519c0a2323700934cbec97b75df92917108548be
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 2 12:50:05 2021 -0700
+
+    cmd/compile/internal/types2: port nomono check from go/types
+    
+    Same logic as CL 357449 (including CL 360815), just ported to types2.
+    
+    Updates #48098.
+    
+    Change-Id: I4578f7329bb4ffc42410025bb6cb97e24697ebfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360857
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/call.go            |   2 +
+ src/cmd/compile/internal/types2/check.go           |   6 +
+ src/cmd/compile/internal/types2/mono.go            | 337 +++++++++++++++++++++
+ src/cmd/compile/internal/types2/mono_test.go       |  89 ++++++
+ src/cmd/compile/internal/types2/signature.go       |   1 +
+ .../types2/testdata/fixedbugs/issue48974.go2       |   2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +
+ 7 files changed, 438 insertions(+), 1 deletion(-)

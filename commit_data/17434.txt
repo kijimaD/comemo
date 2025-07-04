@@ -1,0 +1,19 @@
+commit ccfe1bfd92461e2743d1004da0365ac2b33f2a6a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 16:42:13 2013 -0700
+
+    misc/pprof: work with either LWP::UserAgent or curl
+    
+    Use either LWP::UserAgent or curl to make HTTP requests so it
+    works on Windows (most Perl distros include LWP::UserAgent),
+    and also on OS X (whose Perl at least sometimes doesn't
+    include LWP::UserAgent).
+    
+    Fixes #6273
+    
+    R=golang-dev, alex.brainman, cldorian
+    CC=golang-dev
+    https://golang.org/cl/13330044
+
+ misc/pprof | 99 +++++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 62 insertions(+), 37 deletions(-)

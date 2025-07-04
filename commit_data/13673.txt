@@ -1,0 +1,17 @@
+commit e80f6a4de1a35cab03e7e4d29e26015895ffe04f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 23 14:35:26 2012 +0800
+
+    cmd/6g: fix float32/64->uint64 conversion
+        CVTSS2SQ's rounding mode is controlled by the RC field of MXCSR;
+    as we specifically need truncate semantic, we should use CVTTSS2SQ.
+    
+        Fixes #3804.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6352079
+
+ src/cmd/6g/gsubr.c       |   4 +-
+ test/fixedbugs/bug447.go | 105 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+), 2 deletions(-)

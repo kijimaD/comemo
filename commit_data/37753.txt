@@ -1,0 +1,28 @@
+commit 9ed9df6ca27850704133de1ceb94407c635beb82
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 18 20:04:53 2018 +0000
+
+    runtime: avoid write barrier in startpanic_m
+    
+    startpanic_m could be called correctly in a context where there's a
+    valid G, a valid M, but no P, for example in a signal handler which
+    panics. Currently, startpanic_m has write barriers enabled because
+    write barriers are permitted if a G's M is dying. However, all the
+    current write barrier implementations assume the current G has a P.
+    
+    Therefore, in this change we disable write barriers in startpanic_m,
+    remove the only pointer write which clears g.writebuf, and fix up gwrite
+    to ignore the writebuf if the current G's M is dying, rather than
+    relying on it being nil in the dying case.
+    
+    Fixes #26575.
+    
+    Change-Id: I9b29e6b9edf00d8e99ffc71770c287142ebae086
+    Reviewed-on: https://go-review.googlesource.com/c/154837
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/panic.go | 11 +++++++----
+ src/runtime/print.go |  7 ++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)

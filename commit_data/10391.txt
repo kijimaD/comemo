@@ -1,0 +1,12 @@
+commit 4bd15ae1b72c5488a06ea1365d0090d76699770c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 13:12:08 2011 -0800
+
+    cgi: make test code more readable
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5375089
+
+ src/pkg/net/http/cgi/host_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,22 @@
+commit e85d61953040b5e44abbb974d8bfa8802c2e891a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 27 11:02:31 2019 +1000
+
+    cmd/go/internal/renameio: use ERROR_ACCESS_DENIED to check for errors
+    
+    CL 172418 added code to check for "Access is denied" error.
+    But "Access is denied" error will be spelled differently on
+    non-English version of Windows.
+    
+    Check if error is ERROR_ACCESS_DENIED instead.
+    
+    Updates #31247
+    
+    Change-Id: I7b1633013d563f7c06c1f12a9be75122106834f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174123
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/go/internal/renameio/error.go         | 12 ++++++++++++
+ src/cmd/go/internal/renameio/error_windows.go | 23 +++++++++++++++++++++++
+ src/cmd/go/internal/renameio/renameio.go      |  4 +---
+ 3 files changed, 36 insertions(+), 3 deletions(-)

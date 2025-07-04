@@ -1,0 +1,21 @@
+commit 5ec14065dcc4c066ca7e434be7239c942f0c2e5b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Jun 6 19:17:01 2019 +0800
+
+    syscall: fix skip condition in skipUnprivilegedUserClone
+    
+    This is a follow up CL of CL 180877:
+    It will skip test create user namespaces under 3 conditions:
+    
+    1. sysctl file is missing
+    2. file reads nothing
+    3. user don't have permission to create namespaces
+    
+    Change-Id: I25f00a6b67213bf98d654972388637789978e1fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180937
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

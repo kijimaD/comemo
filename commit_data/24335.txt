@@ -1,0 +1,32 @@
+commit ebd96933c11d67997d1609c06b0cf076067a4f50
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 21 11:06:43 2015 -0700
+
+    cmd/vet: build the binary only once in the test
+    
+    Recent changes caused vet to build the binary for each Test function.
+    This is wasteful and will become only more so as more tests are added.
+    Use testing.Main to build only once.
+    
+    Verified that compilation errors still appear if the binary cannot be
+    built.
+    
+    Before:
+            real    0m11.169s
+            user    0m18.328s
+            sys     0m2.152s
+    
+    After:
+            real    0m5.132s
+            user    0m9.404s
+            sys     0m1.168s
+    
+    Of course if the compiler were fast we might not notice, but vet is
+    a big program and growing bigger all the time, as are the tests.
+    
+    Change-Id: I209a8fdcace94bc5cec946f5dd365d7191f44c02
+    Reviewed-on: https://go-review.googlesource.com/14822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/vet_test.go | 62 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 36 insertions(+), 26 deletions(-)

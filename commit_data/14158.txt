@@ -1,0 +1,17 @@
+commit ec1ef16cea9b9e9dd671fa30ff2d4546ec6c1dac
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 17 16:00:09 2012 +1100
+
+    path/filepath: better documentation for WalkFunc
+    Define the properties of the arguments better. In particular,
+    explain that the path is (sort of) relative to the argument to
+    Walk.
+    
+    Fixes #4119.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6721048
+
+ src/pkg/path/filepath/path.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

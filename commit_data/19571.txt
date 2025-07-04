@@ -1,0 +1,26 @@
+commit 4ecf0b103a3c0a21af9f397420c317a2f742103c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 19 11:39:03 2014 +1000
+
+    image/jpeg: use a look-up table to speed up Huffman decoding. This
+    requires a decoder to do its own byte buffering instead of using
+    bufio.Reader, due to byte stuffing.
+    
+    benchmark                      old MB/s     new MB/s     speedup
+    BenchmarkDecodeBaseline        33.40        50.65        1.52x
+    BenchmarkDecodeProgressive     24.34        31.92        1.31x
+    
+    On 6g, unsafe.Sizeof(huffman{}) falls from 4872 to 964 bytes, and
+    the decoder struct contains 8 of those.
+    
+    LGTM=r
+    R=r, nightlyone
+    CC=bradfitz, couchmoney, golang-codereviews, raph
+    https://golang.org/cl/109050045
+
+ src/pkg/image/jpeg/huffman.go     | 257 +++++++++++++++++++++-----------------
+ src/pkg/image/jpeg/reader.go      | 207 +++++++++++++++++++++++++-----
+ src/pkg/image/jpeg/reader_test.go |   1 -
+ src/pkg/image/jpeg/scan.go        |  18 ++-
+ src/pkg/image/jpeg/writer.go      |   2 +-
+ 5 files changed, 327 insertions(+), 158 deletions(-)

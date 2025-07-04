@@ -1,0 +1,12 @@
+commit fbe2845cdda98e5327ab6dc3ba29b3650414464d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 13:09:22 2015 -0800
+
+    doc: document math/big performance improvements
+    
+    Change-Id: I2b40cd544dda550ac6ac6da19ba3867ec30b2774
+    Reviewed-on: https://go-review.googlesource.com/2563
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.5.txt | 2 ++
+ 1 file changed, 2 insertions(+)

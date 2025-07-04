@@ -1,0 +1,30 @@
+commit 89a3bb69cec781177d3967b557e0ce14b2b854f9
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 30 10:44:45 2023 -0400
+
+    cmd/{cover,go}: revise fix for pkg init order change with -cover
+    
+    This patch contains a revised fix for issue #56293, switching to a
+    scheme in which coverage counter variables and meta-data variables are
+    written to a separate output file as opposed to being tacked onto the
+    end of an existing rewritten source file.
+    
+    The advantage of writing counter vars to a separate file is that the
+    Go command can then present that file as the first source file to the
+    compiler when the package is built; this will ensure that counter
+    variable are treated as lexically "before" any other variable that
+    might call an instrumented function as part of its initializer.
+    
+    Updates #56293.
+    
+    Change-Id: Iccb8a6532b976d36ccbd5a2a339882d1f5d19477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499215
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cover/cfg_test.go        |  4 +++-
+ src/cmd/cover/cover.go           | 39 ++++++++++++++++++++++++++-------------
+ src/cmd/go/internal/work/exec.go | 28 +++++++++++++++++++++-------
+ 3 files changed, 50 insertions(+), 21 deletions(-)

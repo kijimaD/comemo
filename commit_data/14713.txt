@@ -1,0 +1,15 @@
+commit 407d0c5ab732c8a5ac003c41c294590d824b1eff
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 10:01:15 2012 -0500
+
+    cmd/gc: fix error line in switch expr eval
+    
+    Fixes #4562.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7008044
+
+ src/cmd/gc/swt.c            |  6 +++---
+ test/fixedbugs/issue4562.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 3 deletions(-)

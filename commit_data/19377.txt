@@ -1,0 +1,18 @@
+commit 23e8c0d28135f9d22af1c3ad0ab7fcef7632a22f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri May 16 16:51:27 2014 +0200
+
+    cmd/addr2line, cmd/objdump: handle Plan 9 a.out object files
+    
+    Update #7947.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/91500044
+
+ src/cmd/addr2line/addr2line_test.go |  3 --
+ src/cmd/addr2line/main.go           | 54 +++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/main.go             | 57 +++++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/objdump_test.go     |  3 --
+ 4 files changed, 111 insertions(+), 6 deletions(-)

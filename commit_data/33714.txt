@@ -1,0 +1,20 @@
+commit be67e269b4a4161f4276e2619c5019a26e94541c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 11:10:47 2017 -0500
+
+    archive/zip: replace Writer.Comment field with SetComment method
+    
+    A method is more in keeping with the rest of the Writer API and
+    incidentally allows the comment error to be reported earlier.
+    
+    Fixes #22737.
+    
+    Change-Id: I1eee2103a0720c76d0c394ccd6541e6219996dc0
+    Reviewed-on: https://go-review.googlesource.com/79415
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/writer.go      | 22 +++++++++++++---------
+ src/archive/zip/writer_test.go | 11 ++++++++++-
+ 2 files changed, 23 insertions(+), 10 deletions(-)

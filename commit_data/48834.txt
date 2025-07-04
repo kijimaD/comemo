@@ -1,0 +1,22 @@
+commit 6de00888e4720b7fa23ef2ce294bc3e81b866b0f
+Author: Phil Kulin <schors@gmail.com>
+Date:   Wed Apr 20 14:13:29 2022 +0000
+
+    reflect: remove unused overflowPad variable
+    
+    overflowPad variable in bucketOf function is a holdover from a NaCl port
+    and never used now.
+    
+    Change-Id: Ib68fdb054e1b6a655ffbfd34521a3f8773a22694
+    GitHub-Last-Rev: f281be9c115a87605fd28b39c0b09eed54cc774a
+    GitHub-Pull-Request: golang/go#52449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401274
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/type.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

@@ -1,0 +1,57 @@
+commit 8b6534b78af791b80f371857a15d76bbc10fd012
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 08:06:38 2013 -0800
+
+    cmd/go: many bug fixes
+    
+    * Reject import paths of the form cmd/x/y.
+    * Reject 'go install' of command outside GOPATH
+    * Clearer error rejecting 'go install' of package outside GOPATH.
+    * Name temporary binary for first file in 'go run' list or for test.
+    * Provide a way to pass -ldflags arguments with spaces.
+    * Pass all Go files (even +build ignored ones) to go fix, go fmt, go vet.
+    * Reject 'go run foo_test.go'.
+    * Silence 'exit 1' prints from 'go tool' invocations.
+    * Make go test -xxxprofile leave binary behind for analysis.
+    * Reject ~ in GOPATH except on Windows.
+    * Get a little less confused by symlinks.
+    * Document that go test x y z runs three test binaries.
+    * Fix go test -timeout=0.
+    * Add -tags flag to 'go list'.
+    * Use pkg/gccgo_$GOOS_$GOARCH for gccgo output.
+    
+    Fixes #3389.
+    Fixes #3500.
+    Fixes #3503.
+    Fixes #3760.
+    Fixes #3941.
+    Fixes #4007.
+    Fixes #4032.
+    Fixes #4074.
+    Fixes #4127.
+    Fixes #4140.
+    Fixes #4311.
+    Fixes #4568.
+    Fixes #4576.
+    Fixes #4702.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7225074
+
+ src/cmd/go/build.go       | 75 ++++++++++++++++++++++++++++++++++++++----
+ src/cmd/go/doc.go         | 33 ++++++++++++-------
+ src/cmd/go/fix.go         |  2 +-
+ src/cmd/go/fmt.go         |  2 +-
+ src/cmd/go/get.go         |  2 +-
+ src/cmd/go/list.go        | 23 ++++++++-----
+ src/cmd/go/main.go        |  4 +++
+ src/cmd/go/pkg.go         | 48 ++++++++++++++++++++-------
+ src/cmd/go/run.go         | 14 ++++++++
+ src/cmd/go/test.bash      | 84 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/test.go        | 30 +++++++++++++----
+ src/cmd/go/testflag.go    | 18 ++++++++--
+ src/cmd/go/tool.go        |  9 ++++-
+ src/cmd/go/vet.go         |  2 +-
+ src/pkg/go/build/build.go | 70 ++++++++++++++++++++++++++++++---------
+ 15 files changed, 346 insertions(+), 70 deletions(-)

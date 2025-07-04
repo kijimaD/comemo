@@ -1,0 +1,18 @@
+commit cd133abc5b5cd37f4ac796d86f9e9dbb913903d8
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Dec 1 09:26:18 2022 +0000
+
+    net: acquire thread in resSearch
+    
+    Change-Id: I042906d8eee8defafbd98f671fd30c2a68281705
+    GitHub-Last-Rev: 0660c9a989600eeb8652d1228777488d28397731
+    GitHub-Pull-Request: golang/go#57021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454396
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

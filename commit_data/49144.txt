@@ -1,0 +1,23 @@
+commit de9805c702bcc19bcf3c783d1c2e43fdf4e1d30e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 11 05:45:42 2022 +0000
+
+    Revert "testing: document -race goroutine limits"
+    
+    This reverts commit 4907c62f99fbfc8608a79a17c20d89f50956d9fc.
+    
+    Reason for revert: Race detector v3, which we just upgraded to, no longer has a goroutine limit.
+    
+    (small caveat: openbsd/amd64 can't be updated, windows/amd64 isn't updated yet but should be by release time.)
+    
+    Change-Id: I90017834501e81d3990d888f1b2baf3432452846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/testing/testing.go | 3 ---
+ 1 file changed, 3 deletions(-)

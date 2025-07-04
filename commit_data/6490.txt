@@ -1,0 +1,41 @@
+commit 570f59c1090b8c2f67f1f0426fd8decd650bd2f6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 11 12:40:13 2010 -0700
+
+    new command gotry.
+    An exercise in reflection and an unusual tool.
+    
+    From the usage message:
+    
+    usage: gotry [packagedirectory] expression ...
+    Given one expression, gotry attempts to evaluate that expression.
+    Given multiple expressions, gotry treats them as a list of arguments
+    and result values and attempts to find a function in the package
+    that, given the first few expressions as arguments, evaluates to
+    the remaining expressions as results.  If the first expression has
+    methods, it will also search for applicable methods.
+    
+    If there are multiple expressions, a package directory must be
+    specified. If there is a package argument, the expressions are
+    evaluated in an environment that includes
+            import . "packagedirectory"
+    
+    Examples:
+            gotry 3+4
+                    # evaluates to 7
+            gotry strings '"abc"' '"c"' 7-5
+                    # finds strings.Index etc.
+            gotry regexp 'MustCompile("^[0-9]+")' '"12345"' true
+                    # finds Regexp.MatchString
+    
+    R=rsc, PeterGo, r2
+    CC=golang-dev
+    https://golang.org/cl/2352043
+
+ src/cmd/gotest/Makefile |  14 ++--
+ src/cmd/gotest/gotry    | 167 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/Makefile        |   2 +
+ src/pkg/try/Makefile    |  11 +++
+ src/pkg/try/try.go      | 174 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/try/try_test.go |  60 +++++++++++++++++
+ 6 files changed, 422 insertions(+), 6 deletions(-)

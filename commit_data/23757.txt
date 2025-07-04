@@ -1,0 +1,14 @@
+commit 3051ab2ce78a9bbea5152020dc81a4a18a63542a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 20 14:49:14 2015 -0700
+
+    go/types: remove non-existing mention of MethodSetCache from comment
+    
+    Fixes #11800.
+    
+    Change-Id: I5eb178331f4ae80821f188e19c0c6fadeb330278
+    Reviewed-on: https://go-review.googlesource.com/12433
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/methodset.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

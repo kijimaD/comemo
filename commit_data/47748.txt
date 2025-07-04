@@ -1,0 +1,15 @@
+commit 7b7efd7a7c952f8b372c861c94acd159ee371acb
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 7 13:32:36 2021 -0800
+
+    doc: add in release note about compiler being roughly 15% slower
+    
+    Updates #49569
+    
+    Change-Id: Ifba769993c50bb547cb355f56934fb572ec17a1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370154
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ doc/go1.18.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

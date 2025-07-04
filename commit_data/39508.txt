@@ -1,0 +1,17 @@
+commit 7942671a5856233ce63a265e1a1441b7a0ea82f5
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Wed Jul 10 10:33:12 2019 -0500
+
+    doc/go1.13: document removal of NaCl targets in Go 1.14
+    
+    Go 1.14 will no longer run on Native Client (NaCl). Updating the 1.13
+    release notes to indicate this. See #30439.
+    
+    Fixes #32948
+    
+    Change-Id: Ia147bb053adc098bd696dbdb01553c23222f8134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185537
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 4 ++++
+ 1 file changed, 4 insertions(+)

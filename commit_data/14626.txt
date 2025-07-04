@@ -1,0 +1,15 @@
+commit be5ce4e0277f4514a21217095bd388a1706e4665
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 11:36:44 2012 -0800
+
+    net/http: remove a stale cookie TODO comment, add a test
+    
+    Fixes #4528
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6922054
+
+ src/pkg/net/http/client.go      |  2 --
+ src/pkg/net/http/client_test.go | 63 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 61 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit d06a79e31b2bafc04ff170e254119e702a9525bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 12 16:15:52 2009 -0700
+
+    no need for compiler to hard-code definition of runtime.
+    use the actual go source instead.
+    
+    R=r
+    DELTA=90  (66 added, 18 deleted, 6 changed)
+    OCL=28708
+    CL=28719
+
+ src/cmd/gc/Makefile        |  2 +-
+ src/cmd/gc/builtin.c.boot  |  8 ------
+ src/cmd/gc/go.h            |  1 -
+ src/cmd/gc/lex.c           |  4 ---
+ src/cmd/gc/mkbuiltin       |  2 +-
+ src/cmd/gc/runtime.go      |  9 ------
+ src/lib/Makefile           |  8 +++---
+ src/lib/runtime/Makefile   | 68 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/runtime/runtime.go |  2 ++
+ 9 files changed, 76 insertions(+), 28 deletions(-)

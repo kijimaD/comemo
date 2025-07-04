@@ -1,0 +1,14 @@
+commit ae1b5c7bd9c907a4f8d097b88a3e882fdfd5a349
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jun 4 19:53:37 2014 -0400
+
+    doc/install-source.html: document that GO386 will be auto-detected when building on both 386 and amd64.
+    Fixes #8152.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/102150046
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

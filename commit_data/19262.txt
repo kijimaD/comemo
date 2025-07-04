@@ -1,0 +1,16 @@
+commit e9977dad45aa85afe8864a565f4825d8ea70706d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 1 09:37:55 2014 -0400
+
+    runtime: correctly type interface data.
+    
+    The backing memory for >1 word interfaces was being scanned
+    conservatively.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/94000043
+
+ src/pkg/runtime/iface.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

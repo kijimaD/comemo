@@ -1,0 +1,20 @@
+commit 4b28f5ded3c3af3d881384e278595426c478e24b
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Jun 29 19:22:34 2020 -0400
+
+    net: fix TestDialerLocalAddr on Plan 9
+    
+    We cannot use "0.0.0.0" (IPv4) or "::" (IPv6) for local address, so
+    don't use those addresses in the control message. Alternatively, we
+    could've used "*" instead.
+    
+    Fixes #39931
+    
+    Change-Id: Ib2dcbb1a0c648296c3ecaddbe938053a569b1f1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240464
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/net/ipsock_plan9.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

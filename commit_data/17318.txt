@@ -1,0 +1,16 @@
+commit f316a7ea87c192c62868331540db3ecc2fb2c08b
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Aug 19 11:53:34 2013 +1000
+
+    cmd/gc: don't attempt to generate wrappers for blank interface methods
+    
+    Fixes #5691.
+    
+    R=golang-dev, bradfitz, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/10255047
+
+ src/cmd/gc/reflect.c       |  4 ++--
+ test/interface/explicit.go | 19 +++++++++++++++++++
+ test/interface/fail.go     | 19 +++++++++++++++++--
+ 3 files changed, 38 insertions(+), 4 deletions(-)

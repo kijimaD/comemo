@@ -1,0 +1,15 @@
+commit 548206e86930b07795420ca62eafd60b2cf8f53d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 2 09:28:11 2012 +1100
+
+    go/printer: remove package comment from testdata/parser.go
+    
+    This prevents an incorrect summary line from appearing in the godoc
+    package list.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5607059
+
+ src/pkg/go/printer/testdata/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

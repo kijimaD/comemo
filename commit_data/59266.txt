@@ -1,0 +1,29 @@
+commit 4820816b0d5061568578d0767e4caf603a39baa6
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Apr 3 12:01:16 2025 -0400
+
+    cmd/go/internal/modcmd: remove documentation for auto-converting legacy formats
+    
+    CL 518776 dropped the ability of 'go mod init' to convert
+    legacy pre-module dependency configuration files, such as automatically
+    transforming a Gopkg.lock to a go.mod file with similar requirements,
+    but some of the documentation remained.
+    
+    In this CL, we remove it from the cmd/go documentation.
+    (CL 662675 is a companion change that removes it from the Modules
+    Reference page).
+    
+    Updates #71537
+    
+    Change-Id: Ieccc64c811c4c25a657c00e42f7362a32b5fd661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662695
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+
+ src/cmd/go/alldocs.go                | 3 +--
+ src/cmd/go/internal/modcmd/init.go   | 3 +--
+ src/cmd/go/internal/modfetch/repo.go | 4 +---
+ 3 files changed, 3 insertions(+), 7 deletions(-)

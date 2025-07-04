@@ -1,0 +1,29 @@
+commit 04e6ae6bc3ac9739568b0f1225ee5e2d53cba919
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 8 16:59:17 2018 +0100
+
+    runtime: use Android O friendly syscalls on 64-bit machines
+    
+    Android O disallows open on 64-bit, so let's use openat with AT_FDCWD to
+    achieve the same behavior.
+    
+    Android O disallows epoll_wait on 64-bit, so let's use epoll_pwait with
+    the last argument as NULL to achieve the same behavior.
+    
+    See here:
+    https://android.googlesource.com/platform/bionic/+/master/libc/seccomp/arm64_app_policy.cpp
+    https://android.googlesource.com/platform/bionic/+/master/libc/seccomp/mips64_app_policy.cpp
+    https://android.googlesource.com/platform/bionic/+/master/libc/seccomp/x86_64_app_policy.cpp
+    
+    Fixes #23750
+    
+    Change-Id: If8d5a663357471e5d2c1f516151344a9d05b188a
+    Reviewed-on: https://go-review.googlesource.com/92895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_amd64.s   | 18 +++++++++++-------
+ src/runtime/sys_linux_mips64x.s | 18 +++++++++++-------
+ 2 files changed, 22 insertions(+), 14 deletions(-)

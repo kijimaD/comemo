@@ -1,0 +1,15 @@
+commit 78c4d50d250215cd99f8e56525a8c9cc0c092f63
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 8 11:41:01 2013 +1000
+
+    doc: document go1.1 build tag
+    
+    Fixes #5235.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8426048
+
+ doc/go1.1.html          | 25 +++++++++++++++++++++++++
+ src/pkg/go/build/doc.go |  3 ++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

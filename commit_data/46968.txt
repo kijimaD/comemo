@@ -1,0 +1,18 @@
+commit 3ec8d4b5ed5db74f84f8d493e4160e97481e436d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 24 16:01:03 2021 +0000
+
+    runtime/internal/atomic: add atomic types for all functions
+    
+    Change-Id: I74f365316484feb819c31c77fbffd78fadfe32a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356169
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/internal/atomic/doc.go         |  18 ++
+ src/runtime/internal/atomic/types.go       | 395 +++++++++++++++++++++++++++++
+ src/runtime/internal/atomic/types_64bit.go |  30 +++
+ 3 files changed, 443 insertions(+)

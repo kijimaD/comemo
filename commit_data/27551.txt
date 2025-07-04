@@ -1,0 +1,20 @@
+commit 36a80c5941ec36d9c44d6f3c068d13201e023b5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 00:56:19 2016 -0400
+
+    cmd/compile: clean up, document Node closure fields
+    
+    Requested during CL 23431.
+    
+    Change-Id: I513ae42166b3a9fcfe51231ff55c163ab672e7d2
+    Reviewed-on: https://go-review.googlesource.com/23485
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/closure.go   | 49 ++++++++++++++----
+ src/cmd/compile/internal/gc/dcl.go       | 23 +++++----
+ src/cmd/compile/internal/gc/esc.go       |  8 +--
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 89 ++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++---
+ 7 files changed, 144 insertions(+), 45 deletions(-)

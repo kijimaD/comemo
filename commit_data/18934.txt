@@ -1,0 +1,19 @@
+commit 50ca1a52ca39bdd76bb5f999a67450f5984ebba2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 25 13:32:18 2014 +1100
+
+    database/sql: add "defer rows.Close()" to the example code.
+    
+    Strictly speaking, it's not necessary in example_test.go, as the
+    Rows.Close docs say that "If Next returns false, the Rows are closed
+    automatically". However, if the for loop breaks or returns early, it's
+    not obvious that you'll leak unless you explicitly call Rows.Close.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/79330043
+
+ src/pkg/database/sql/example_test.go | 1 +
+ src/pkg/database/sql/sql.go          | 1 +
+ 2 files changed, 2 insertions(+)

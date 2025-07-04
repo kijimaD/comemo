@@ -1,0 +1,21 @@
+commit f6d0054e718817df636a1281a2f8de04ac663ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 16:36:41 2015 -0500
+
+    runtime: avoid race checking for preemption
+    
+    Moving the "don't really preempt" check up earlier in the function
+    introduced a race where gp.stackguard0 might change between
+    the early check and the later one. Since the later one is missing the
+    "don't really preempt" logic, it could decide to preempt incorrectly.
+    Pull the result of the check into a local variable and use an atomic
+    to access stackguard0, to eliminate the race.
+    
+    I believe this will fix the broken OS X and Solaris builders.
+    
+    Change-Id: I238350dd76560282b0c15a3306549cbcf390dbff
+    Reviewed-on: https://go-review.googlesource.com/2823
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/stack1.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

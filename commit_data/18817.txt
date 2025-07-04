@@ -1,0 +1,13 @@
+commit 1306279cd14e1e1e5c7645de6697bd3ab09c59aa
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 10 16:02:46 2014 -0700
+
+    runtime: remove unused declarations.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/73720044
+
+ src/pkg/runtime/mgc0.c | 2 --
+ 1 file changed, 2 deletions(-)

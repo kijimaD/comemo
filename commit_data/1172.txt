@@ -1,0 +1,20 @@
+commit 2dd16a32083c716b80204c66d6bf1f2c8fadeccc
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 18 19:24:37 2008 -0800
+
+    first cut at optimizing
+    
+    R=r
+    OCL=19564
+    CL=19564
+
+ src/cmd/6g/Makefile |    4 +
+ src/cmd/6g/bits.c   |  158 ++++++
+ src/cmd/6g/gen.c    |    7 +-
+ src/cmd/6g/gg.h     |    2 +-
+ src/cmd/6g/gsubr.c  |   74 +--
+ src/cmd/6g/obj.c    |   14 +
+ src/cmd/6g/opt.h    |  192 +++++++
+ src/cmd/6g/peep.c   |  877 ++++++++++++++++++++++++++++++++
+ src/cmd/6g/reg.c    | 1400 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 2652 insertions(+), 76 deletions(-)

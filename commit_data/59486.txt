@@ -1,0 +1,19 @@
+commit 4aeb9ba0deac4eced472a8fc7869a14fb9340d04
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 11 21:55:57 2025 +0100
+
+    runtime/pprof: return errors from writing profiles
+    
+    Fixes #73107
+    
+    Change-Id: I41f3e1bd1fdaca2f0e94151b2320bd569e258a51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671576
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/pprof.go      |  6 ++----
+ src/runtime/pprof/proto.go      |  9 ++++++---
+ src/runtime/pprof/proto_test.go | 18 +++++++++++++++++-
+ src/runtime/pprof/protomem.go   |  3 +--
+ 4 files changed, 26 insertions(+), 10 deletions(-)

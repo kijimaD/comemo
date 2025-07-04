@@ -1,0 +1,24 @@
+commit b614ed4ca4531011b3913d904cb37a855f38bf8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 17 15:10:59 2017 -0400
+
+    cmd/go: clean up x.exe properly in TestImportMain
+    
+    More generally I'm concerned about these tests using
+    $GOROOT/src/cmd/go as scratch space, especially
+    combined wtih tg.parallel() - it's easy to believe some other
+    test might inadvertently also try to write x.exe about the
+    same time. This CL only solves the "didn't clean up x.exe"
+    problem and leaves for another day the "probably shouldn't
+    write to cmd/go at all" problem.
+    
+    Fixes #22266.
+    
+    Change-Id: I651534d70e2d360138e0373fb4a316081872550b
+    Reviewed-on: https://go-review.googlesource.com/71410
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

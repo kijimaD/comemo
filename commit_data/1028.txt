@@ -1,0 +1,15 @@
+commit 178e37e766a9c096895340a5cd734b7c313f1d8c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 2 12:32:14 2008 -0800
+
+    add creator for missing types, to avoid crashes when
+    signature is absent from object file.
+    
+    R=rsc
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=18315
+    CL=18323
+
+ src/lib/reflect/test.go  |  2 ++
+ src/lib/reflect/value.go | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+)

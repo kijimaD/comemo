@@ -1,0 +1,11 @@
+commit bd80b5a8358e2b12986076fa152908c96a85ccbc
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 24 15:42:46 2009 -0800
+
+    test case for large angles in trig functions
+    
+    R=rsc
+    https://golang.org/cl/157160
+
+ src/pkg/math/all_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

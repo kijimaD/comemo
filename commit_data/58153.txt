@@ -1,0 +1,19 @@
+commit a332689620b9582248b9450c32574ba7cfdd97ce
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 18 14:28:19 2024 +0100
+
+    crypto/internal/hpke: replace x/crypto/hkdf with crypto/internal/fips/hkdf
+    
+    Change-Id: Id69e8e3a7dd61ca33489140eb76771b176a9ea4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629057
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Commit-Queue: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/hpke/hpke.go            |  9 +--
+ src/go/build/deps_test.go                   |  1 -
+ src/vendor/golang.org/x/crypto/hkdf/hkdf.go | 95 -----------------------------
+ src/vendor/modules.txt                      |  1 -
+ 4 files changed, 2 insertions(+), 104 deletions(-)

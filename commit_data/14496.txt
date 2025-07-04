@@ -1,0 +1,30 @@
+commit 4cc9de914764679defbffd77b30e80a325e4ebd0
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 23:45:22 2012 +0100
+
+    cmd/gc: add division rewrite to walk pass.
+    
+    This allows 5g and 8g to benefit from the rewrite as shifts
+    or magic multiplies. The 64-bit arithmetic is not handled there,
+    and left in 6g.
+    
+    Update #2230.
+    
+    R=golang-dev, dave, mtj, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6819123
+
+ src/cmd/5g/cgen.c  |   4 +
+ src/cmd/5g/gg.h    |   1 +
+ src/cmd/5g/ggen.c  |  56 ++++++++++
+ src/cmd/5g/peep.c  |   1 +
+ src/cmd/6g/cgen.c  |   6 +-
+ src/cmd/6g/gg.h    |   2 +
+ src/cmd/6g/ggen.c  | 225 +++++++++++-----------------------------
+ src/cmd/6g/peep.c  |   6 +-
+ src/cmd/8g/cgen.c  |   4 +
+ src/cmd/8g/gg.h    |   1 +
+ src/cmd/8g/ggen.c  |  36 +++++++
+ src/cmd/8g/gsubr.c |  16 +++
+ src/cmd/gc/walk.c  | 296 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 13 files changed, 466 insertions(+), 188 deletions(-)

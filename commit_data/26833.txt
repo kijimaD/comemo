@@ -1,0 +1,16 @@
+commit b0eeb8b0aaaf4997c25e3048bfc40e53d556a8eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 12:52:12 2016 -0400
+
+    net/http/pprof: accept fractional seconds in trace handler
+    
+    For heavily loaded servers, even 1 second of trace is too large
+    to process with the trace viewer; using a float64 here allows
+    fetching /debug/pprof/trace?seconds=0.1.
+    
+    Change-Id: I286c07abf04f9c1fe594b0e26799bf37f5c734db
+    Reviewed-on: https://go-review.googlesource.com/21455
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/net/http/pprof/pprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

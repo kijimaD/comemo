@@ -1,0 +1,37 @@
+commit a8ae93fd26063c62645d9d75b78ebf0f7dc8f391
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 23 11:35:21 2015 -0400
+
+    runtime: fix heap bitmap repeating with large scalar tails
+    
+    When heapBitsSetType repeats a source bitmap with a scalar tail
+    (typ.ptrdata < typ.size), it lays out the tail upon reaching the end
+    of the source bitmap by simply increasing the number of bits claimed
+    to be in the incoming bit buffer. This causes later iterations to read
+    the appropriate number of zeros out of the bit buffer before starting
+    on the next repeat of the source bitmap.
+    
+    Currently, however, later iterations of the loop continue to read bits
+    from the source bitmap *regardless of the number of bits currently in
+    the bit buffer*. The bit buffer can only hold 32 or 64 bits, so if the
+    scalar tail is large and the padding bits exceed the size of the bit
+    buffer, the read from the source bitmap on the next iteration will
+    shift the incoming bits into oblivion when it attempts to put them in
+    the bit buffer. When the buffer does eventually shift down to where
+    these bits were supposed to be, it will contain zeros. As a result,
+    words that should be marked as pointers on later repetitions are
+    marked as scalars, so the garbage collector does not trace them. If
+    this is the only reference to an object, it will be incorrectly freed.
+    
+    Fix this by adding logic to drain the bit buffer down if it is large
+    instead of reading more bits from the source bitmap.
+    
+    Fixes #11286.
+    
+    Change-Id: I964432c4b9f1cec334fc8c3da0ff16460203feb6
+    Reviewed-on: https://go-review.googlesource.com/11360
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbitmap.go       | 12 ++++++++++--
+ test/fixedbugs/issue11286.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

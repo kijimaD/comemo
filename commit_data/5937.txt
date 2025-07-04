@@ -1,0 +1,15 @@
+commit 585eae3bcea334eeda9c72fb90fca4c0828cc7d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 01:07:40 2010 -0700
+
+    gc: bug301
+    
+    Fixes #990.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1742055
+
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug301.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

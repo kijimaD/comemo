@@ -1,0 +1,20 @@
+commit d4df6f487481fb7a0987faa3cf8c03a684e8f17d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 15 00:52:58 2015 +0000
+
+    net/http: updated bundled http2 copy, enable some tests
+    
+    Updates bundled copy of x/net/http2 to include
+    https://golang.org/cl/17823 (catching panics in Handlers)
+    
+    Fixes #13555
+    
+    Change-Id: I08e4e38e736a8d93f5ec200e8041c143fc6eafce
+    Reviewed-on: https://go-review.googlesource.com/17824
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go  | 51 +++++++++++++++++++++++++++++++++++++++-------
+ src/net/http/serve_test.go |  6 +-----
+ 2 files changed, 45 insertions(+), 12 deletions(-)

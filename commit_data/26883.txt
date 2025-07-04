@@ -1,0 +1,15 @@
+commit 1650ced98f4f6c5f0783f78cb9d0ffd3a6d1768f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 12 22:27:33 2016 +0000
+
+    net: skip failing or flaky TestInterfaces on freebsd-arm
+    
+    Updates #15262
+    
+    Change-Id: I3eb1f6f71d6285d039f11ba6a34b8a599a33bf49
+    Reviewed-on: https://go-review.googlesource.com/21909
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/net/interface_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

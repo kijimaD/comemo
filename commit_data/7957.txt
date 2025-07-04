@@ -1,0 +1,27 @@
+commit c256f0a4b3f47610ea79eddf5caaa418adf5160d
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Apr 2 14:28:58 2011 -0700
+
+    os: Plan 9 support.
+    
+    R=rsc, ality, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4149046
+
+ src/pkg/os/Makefile       |  19 +++
+ src/pkg/os/dir_plan9.go   | 300 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/env_plan9.go   |  91 ++++++++++++++
+ src/pkg/os/error.go       |  81 -------------
+ src/pkg/os/error_plan9.go |  53 ++++++++
+ src/pkg/os/error_posix.go |  90 ++++++++++++++
+ src/pkg/os/exec.go        | 120 -------------------
+ src/pkg/os/exec_plan9.go  | 114 ++++++++++++++++++
+ src/pkg/os/exec_posix.go  | 127 ++++++++++++++++++++
+ src/pkg/os/file.go        | 256 +++------------------------------------
+ src/pkg/os/file_plan9.go  | 231 +++++++++++++++++++++++++++++++++++
+ src/pkg/os/file_posix.go  | 246 +++++++++++++++++++++++++++++++++++++
+ src/pkg/os/proc.go        |   4 +-
+ src/pkg/os/stat_plan9.go  |  84 +++++++++++++
+ src/pkg/os/sys_plan9.go   |  27 +++++
+ src/pkg/os/time.go        |   4 +-
+ 16 files changed, 1400 insertions(+), 447 deletions(-)

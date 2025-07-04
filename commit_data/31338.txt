@@ -1,0 +1,29 @@
+commit 516e6f6d5d83dc3dcee6403fab25d5954bbf3f62
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 25 10:58:12 2017 +0100
+
+    all: remove some unused parameters in test code
+    
+    Mostly unnecessary *testing.T arguments.
+    
+    Found with github.com/mvdan/unparam.
+    
+    Change-Id: Ifb955cb88f2ce8784ee4172f4f94d860fa36ae9a
+    Reviewed-on: https://go-review.googlesource.com/41691
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/gob/codec_test.go      | 38 ++++++++++++++++++-------------------
+ src/go/parser/error_test.go         |  4 ++--
+ src/go/types/typestring_test.go     |  4 ++--
+ src/image/image_test.go             | 12 ++++++------
+ src/net/http/cgi/host_test.go       |  2 +-
+ src/net/http/cgi/plan9_test.go      |  2 +-
+ src/net/http/cgi/posix_test.go      |  3 +--
+ src/path/filepath/path_test.go      |  4 ++--
+ src/runtime/proc_test.go            |  6 +++---
+ src/sync/waitgroup_test.go          |  4 ++--
+ src/text/template/parse/lex_test.go |  4 ++--
+ src/time/sleep_test.go              |  4 ++--
+ 12 files changed, 43 insertions(+), 44 deletions(-)

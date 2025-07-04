@@ -1,0 +1,18 @@
+commit cf630586ca5901f4aa7817a536209f2366f9c944
+Author: andig <cpuidle@gmx.de>
+Date:   Mon Sep 9 18:47:43 2019 +0000
+
+    encoding/json: don't reset before returning buffer to pool
+    
+    Reset is already performed when retrieving from pool
+    
+    Change-Id: Ia810dd18d3e55a1565a5ad435a00d1e46724576c
+    GitHub-Last-Rev: d9df74a4aeb86e5d292c9fc33568a3c9a64a967d
+    GitHub-Pull-Request: golang/go#34195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194338
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/encode.go | 1 -
+ 1 file changed, 1 deletion(-)

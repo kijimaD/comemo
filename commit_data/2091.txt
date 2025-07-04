@@ -1,0 +1,16 @@
+commit af8036aa6b4b568b556264e6997f74d91e02fbed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 25 16:48:00 2009 -0700
+
+    - renamed docprinter.go -> doc.go
+    - adjusted dependent files
+      (no changes in doc.go)
+    
+    TBR=rsc
+    OCL=27860
+    CL=27860
+
+ usr/gri/pretty/Makefile                  | 2 +-
+ usr/gri/pretty/{docprinter.go => doc.go} | 0
+ usr/gri/pretty/godoc.go                  | 2 +-
+ 3 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 2ac375b2df85ccf6d2712272bba4d1487e275810
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jun 10 00:02:34 2011 +0200
+
+    gc: compact stackframe
+    
+    After allocparams and walk, remove unused auto variables
+    and re-layout the remaining in reverse alignment order.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4568068
+
+ src/cmd/5g/gg.h    |   1 +
+ src/cmd/5g/gsubr.c |   3 ++
+ src/cmd/5g/reg.c   |   4 +-
+ src/cmd/6g/gg.h    |   1 +
+ src/cmd/6g/gsubr.c |   4 +-
+ src/cmd/6g/reg.c   |   2 +
+ src/cmd/8g/gg.h    |   1 +
+ src/cmd/8g/gsubr.c |   3 ++
+ src/cmd/8g/reg.c   |   2 +
+ src/cmd/gc/gen.c   |  17 ++++++--
+ src/cmd/gc/go.h    |   5 ++-
+ src/cmd/gc/pgen.c  | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/subr.c  |  88 ++++++++++++++++++++++++++++++++++++++---
+ 13 files changed, 231 insertions(+), 14 deletions(-)

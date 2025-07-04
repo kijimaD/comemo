@@ -1,0 +1,14 @@
+commit 3cdf6100f1cac9b3ff30c790d145240d6f5a2f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 12:16:42 2017 -0400
+
+    cmd/go: drop PackageInternal.Pkgdir (unused)
+    
+    Change-Id: Iab8f0d201780bd571541a6806f071e883a553d35
+    Reviewed-on: https://go-review.googlesource.com/56286
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/internal/load/pkg.go | 1 -
+ 1 file changed, 1 deletion(-)

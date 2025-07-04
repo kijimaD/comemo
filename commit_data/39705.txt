@@ -1,0 +1,26 @@
+commit 25ebf015f62c7e3ec8d1eaa56ba7c73c510fc040
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat May 25 01:27:40 2019 +0700
+
+    cmd/compile: ensure interface-to-concrete comparison panics when it should
+    
+    In interface-to-concrete comparisons, we are short circuiting on the interface
+    value's dynamic type before evaluating the concrete expression for side effects,
+    causing concrete expression won't panic at runtime, while it should.
+    
+    To fix it, evaluating the RHS of comparison before we do the short-circuit.
+    
+    We also want to prioritize panics in the LHS over the RHS, so evaluating
+    the LHS too.
+    
+    Fixes #32187
+    
+    Change-Id: I15b58a523491b7fd1856b8fdb9ba0cba5d11ebb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178817
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 22 +++++++-------
+ test/fixedbugs/issue32187.go        | 60 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 12 deletions(-)

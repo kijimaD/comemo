@@ -1,0 +1,17 @@
+commit 869c3f4cd0e9a7cccb83a25cbf263080c27ffe12
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 12:44:22 2008 -0800
+
+    update golden.out.
+    fix bug in run that was missing output.
+    make run warn about tests in bugs/ that succeed with no output
+            (should be moved to fixedbugs/).
+    
+    R=r
+    DELTA=21  (18 added, 0 deleted, 3 changed)
+    OCL=19381
+    CL=19381
+
+ test/golden.out | 15 +++++++++++++++
+ test/run        |  5 ++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

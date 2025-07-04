@@ -1,0 +1,14 @@
+commit cbc3268d1dda9e2f6a6c5458ba2c859e454057f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 31 20:59:06 2012 +0900
+
+    misc/cgo/test: fix darwin build
+    
+    uuid_t is defined in unistd.h on OS X, unfortunately.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6455057
+
+ misc/cgo/test/basic.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

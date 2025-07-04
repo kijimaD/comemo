@@ -1,0 +1,23 @@
+commit 123e27170aac5b26c38e6bf9866e16a38aed1696
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 25 17:21:58 2022 -0400
+
+    runtime: clean up escaping in tests
+    
+    There are several tests in the runtime that need to force various
+    things to escape to the heap. This CL centralizes this functionality
+    into runtime.Escape, defined in export_test.
+    
+    Change-Id: I2de2519661603ad46c372877a9c93efef8e7a857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402178
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 18 +++++++++---------
+ src/runtime/gc_test.go     | 10 ++++------
+ src/runtime/gcinfo_test.go | 25 +++++++++----------------
+ src/runtime/malloc_test.go | 21 +++++----------------
+ src/runtime/map_test.go    | 14 ++++----------
+ 5 files changed, 31 insertions(+), 57 deletions(-)

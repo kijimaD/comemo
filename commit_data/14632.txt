@@ -1,0 +1,16 @@
+commit ae12e963505f71bfd5ddb427ba0f0c546c422c30
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 13 16:26:20 2012 +1100
+
+    log/syslog: fix flakey test on slow hosts
+    
+    Fixes #4467.
+    
+    The syslog tests can fail if the timeout fires before the data arrives at the mock server. Moving the timeout onto the goroutine that is calling ReadFrom() and always processing the data returned before handling the error should improve the reliability of the test.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6920047
+
+ src/pkg/log/syslog/syslog_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

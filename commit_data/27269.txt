@@ -1,0 +1,14 @@
+commit 04a30025dbc8ff7757a763562d7d4a2b5ff68583
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:58 2016 -0400
+
+    test: enable fixedbugs/issue10607.go test on linux/mips64x
+    
+    external linking is now supported.
+    
+    Change-Id: I13e90c39dad86e60781adecdbe8e6bc9e522f740
+    Reviewed-on: https://go-review.googlesource.com/19811
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

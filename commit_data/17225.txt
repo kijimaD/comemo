@@ -1,0 +1,119 @@
+commit 45233734e28776a6679dd8aa9f66a1d545ca8ec6
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 14 15:38:54 2013 +0000
+
+    runtime.cmd/ld: Add ARM external linking and implement -shared in terms of external linking
+    
+    This CL is an aggregate of 10271047, 10499043, 9733044. Descriptions of each follow:
+    
+    10499043
+    runtime,cmd/ld: Merge TLS symbols and teach 5l about ARM TLS
+    
+    This CL prepares for external linking support to ARM.
+    
+    The pseudo-symbols runtime.g and runtime.m are merged into a single
+    runtime.tlsgm symbol. When external linking, the offset of a thread local
+    variable is stored at a memory location instead of being embedded into a offset
+    of a ldr instruction. With a single runtime.tlsgm symbol for both g and m, only
+    one such offset is needed.
+    
+    The larger part of this CL moves TLS code from gcc compiled to internally
+    compiled. The TLS code now uses the modern MRC instruction, and 5l is taught
+    about TLS fallbacks in case the instruction is not available or appropriate.
+    
+    10271047
+    This CL adds support for -linkmode external to 5l.
+    
+    For 5l itself, use addrel to allow for D_CALL relocations to be handled by the
+    host linker. Of the cases listed in rsc's comment in issue 4069, only case 5 and
+    63 needed an update. One of the TODO: addrel cases was since replaced, and the
+    rest of the cases are either covered by indirection through addpool (cases with
+    LTO or LFROM flags) or stubs (case 74). The addpool cases are covered because
+    addpool emits AWORD instructions, which in turn are handled by case 11.
+    
+    In the runtime, change the argv argument in the rt0* functions slightly to be a
+    pointer to the argv list, instead of relying on a particular location of argv.
+    
+    9733044
+    The -shared flag to 6l outputs a shared library, implemented in Go
+    and callable from non-Go programs such as C.
+    
+    The main part of this CL change the thread local storage model.
+    Go uses the fastest and least general mode, local exec. TLS data in shared
+    libraries normally requires at least the local dynamic mode, however, this CL
+    instead opts for using the initial exec mode. Initial exec mode is faster than
+    local dynamic mode and can be used in linux since the linker has reserved a
+    limited amount of TLS space for performance sensitive TLS code.
+    
+    Initial exec mode requires an extra load from the GOT table to determine the
+    TLS offset. This penalty will not be paid if ld is not in -shared mode, since
+    TLS accesses will be reduced to local exec.
+    
+    The elf sections .init_array and .rela.init_array are added to register the Go
+    runtime entry with cgo at library load time.
+    
+    The "hidden" attribute is added to Cgo functions called from Go, since Go
+    does not generate call through the GOT table, and adding non-GOT relocations for
+    a global function is not supported by gcc. Cgo symbols don't need to be global
+    and avoiding the GOT table is also faster.
+    
+    The changes to 8l are only removes code relevant to the old -shared mode where
+    internal linking was used.
+    
+    This CL only address the low level linker work. It can be submitted by itself,
+    but to be useful, the runtime changes in CL 9738047 is also needed.
+    
+    Design discussion at
+    https://groups.google.com/forum/?fromgroups#!topic/golang-nuts/zmjXkGrEx6Q
+    
+    Fixes #5590.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12871044
+
+ src/cmd/5l/5.out.h                    |   2 +-
+ src/cmd/5l/asm.c                      |  95 ++++++++--
+ src/cmd/5l/l.h                        |   4 +-
+ src/cmd/5l/noop.c                     |  83 +++++++-
+ src/cmd/5l/obj.c                      |  33 ++--
+ src/cmd/5l/optab.c                    |   2 +-
+ src/cmd/5l/pass.c                     |   7 +
+ src/cmd/5l/span.c                     |  12 +-
+ src/cmd/6a/a.y                        |   9 +
+ src/cmd/6a/y.tab.c                    | 343 ++++++++++++++++++----------------
+ src/cmd/6l/asm.c                      |  15 +-
+ src/cmd/6l/l.h                        |   2 -
+ src/cmd/6l/obj.c                      |   8 +-
+ src/cmd/6l/pass.c                     |  82 +++++++-
+ src/cmd/6l/span.c                     |  40 ++--
+ src/cmd/8l/asm.c                      |   8 +-
+ src/cmd/8l/l.h                        |   2 -
+ src/cmd/8l/obj.c                      |   1 -
+ src/cmd/8l/span.c                     |  13 +-
+ src/cmd/cgo/out.go                    |   2 +-
+ src/cmd/dist/buildruntime.c           |  10 +-
+ src/cmd/ld/data.c                     |  51 ++---
+ src/cmd/ld/elf.c                      |  21 +--
+ src/cmd/ld/elf.h                      |   4 +-
+ src/cmd/ld/go.c                       |   5 +-
+ src/cmd/ld/lib.c                      |  41 ++--
+ src/cmd/ld/lib.h                      |   3 +-
+ src/cmd/ld/symtab.c                   |  17 +-
+ src/pkg/runtime/asm_arm.s             |  55 ++++--
+ src/pkg/runtime/cgo/asm_arm.s         |   5 +-
+ src/pkg/runtime/cgo/cgo_arm.c         |  12 --
+ src/pkg/runtime/cgo/gcc_arm.S         |  14 +-
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c |  64 +------
+ src/pkg/runtime/cgo/gcc_linux_arm.c   |  55 +-----
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c  |  59 +-----
+ src/pkg/runtime/cgocall.c             |   5 -
+ src/pkg/runtime/os_linux_arm.c        |   5 +-
+ src/pkg/runtime/rt0_freebsd_arm.s     |   3 +
+ src/pkg/runtime/rt0_linux_arm.s       |  12 ++
+ src/pkg/runtime/rt0_netbsd_arm.s      |   3 +
+ src/pkg/runtime/sys_freebsd_arm.s     |   4 +
+ src/pkg/runtime/sys_linux_arm.s       |  11 +-
+ src/pkg/runtime/sys_netbsd_arm.s      |   6 +
+ src/run.bash                          |   2 +-
+ 44 files changed, 686 insertions(+), 544 deletions(-)

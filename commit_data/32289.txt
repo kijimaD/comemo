@@ -1,0 +1,22 @@
+commit 32b94f13cf35e619a0dae6e1e381adc7e182d283
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Aug 2 19:01:17 2017 +0100
+
+    runtime: move selectdone into g
+    
+    Writing to selectdone on the stack of another goroutine meant a
+    pretty subtle dance between the select code and the stack copying
+    code. Instead move the selectdone variable into the g struct.
+    
+    Change-Id: Id246aaf18077c625adef7ca2d62794afef1bdd1b
+    Reviewed-on: https://go-review.googlesource.com/53390
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan.go     | 18 +++++++++-----
+ src/runtime/proc.go     |  4 ++--
+ src/runtime/runtime2.go | 14 +++++++----
+ src/runtime/select.go   | 64 ++++---------------------------------------------
+ src/runtime/stack.go    |  5 ----
+ 5 files changed, 27 insertions(+), 78 deletions(-)

@@ -1,0 +1,17 @@
+commit bf1d400d1c75985354f52f7969ba15fb228aacb2
+Author: Guillaume J. Charmes <guillaume@charmes.net>
+Date:   Wed May 14 17:11:00 2014 -0700
+
+    net: detect changes to /etc/resolv.conf.
+    
+    Implement the changes as suggested by rsc.
+    Fixes #6670.
+    
+    LGTM=josharian, iant
+    R=golang-codereviews, iant, josharian, mikioh.mikioh, alex, gobot
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/83690045
+
+ src/pkg/net/dnsclient_unix.go      | 100 ++++++++++++++++++++--------
+ src/pkg/net/dnsclient_unix_test.go | 132 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 203 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit 1b12a2ca21776ced3e9d34e14bb442254e250c14
+Author: Caleb Martinez <accounts@calebmartinez.com>
+Date:   Fri Jun 29 19:56:56 2018 +0000
+
+    net/url: correct the documentation for PathUnescape
+    
+    Fixes issue #26139
+    
+    Change-Id: Id9a3e5c443ee175ad9add6296ed45bdf328b15a0
+    GitHub-Last-Rev: b3f8a8f165d15cfffd4948151eae34f95330748c
+    GitHub-Pull-Request: golang/go#26146
+    Reviewed-on: https://go-review.googlesource.com/121696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

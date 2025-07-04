@@ -1,0 +1,21 @@
+commit a3c0ca54b01284af40e684422a739d41b4cb9cfe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 7 12:45:01 2014 -0700
+
+    go/parser: don't do method receiver checks at parse-time
+    
+    The ast and printer don't care, and go/types can provide
+    a better error message.
+    
+    This change requires an update to the tests for go/types
+    (go.tools repo). CL forthcoming.
+    
+    Fixes #8493.
+    
+    LGTM=adonovan
+    R=rsc, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/123010044
+
+ src/pkg/go/parser/parser.go | 32 +-------------------------------
+ 1 file changed, 1 insertion(+), 31 deletions(-)

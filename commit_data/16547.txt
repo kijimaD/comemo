@@ -1,0 +1,12 @@
+commit e49bda659f8aade2e76f429deab33ca7f3f8ee63
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 12 14:05:13 2013 +1000
+
+    C: add Josh Hoak (Google CLA).
+    
+    R=golang-dev, rsc
+    CC=golang-dev, jhoak
+    https://golang.org/cl/10217043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

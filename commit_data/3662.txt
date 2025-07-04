@@ -1,0 +1,21 @@
+commit e3fd2e1ec6a540ce73d7fd8ebf06a2468d2fa584
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 16:08:12 2009 -0700
+
+    godoc search bug fixes:
+    - sort by package name (instead of package path) for results with snippets
+    - sort line numbers in results without snippets
+    - properly characterize package clauses
+    - experiment with a leaner look: no underlines for top-level godoc links in the left side bar
+    
+    Still using colors to distinguish results. Next step.
+    
+    R=rsc
+    http://go/go-review/1015016
+
+ doc/style.css          |  5 ++++
+ lib/godoc/godoc.html   | 22 ++++++++--------
+ lib/godoc/search.html  |  2 +-
+ src/cmd/godoc/godoc.go |  1 +
+ src/cmd/godoc/index.go | 68 +++++++++++++++++++++++++++++++++++++++++---------
+ 5 files changed, 74 insertions(+), 24 deletions(-)

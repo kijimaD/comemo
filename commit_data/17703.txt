@@ -1,0 +1,28 @@
+commit f752484c7493bd55e19174418f5cd5abcb46e0e4
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Sep 26 17:09:56 2013 -0400
+
+    crypto/tls: don't select TLS 1.2 cipher suites in prior versions.
+    
+    AES-GCM cipher suites are only defined for TLS 1.2, although there's
+    nothing really version specific about them. However, development
+    versions of NSS (meaning Firefox and Chrome) have an issue where
+    they'll advertise TLS 1.2-only cipher suites in a TLS 1.1 ClientHello
+    but then balk when the server selects one.
+    
+    This change causes Go clients not to advertise TLS 1.2 cipher suites
+    unless TLS 1.2 is being used, and prevents servers from selecting them
+    unless TLS 1.2 has been negotiated.
+    
+    https://code.google.com/p/chromium/issues/detail?id=297151
+    https://bugzilla.mozilla.org/show_bug.cgi?id=919677
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13573047
+
+ src/pkg/crypto/tls/cipher_suites.go         |  7 +++--
+ src/pkg/crypto/tls/handshake_client.go      | 20 +++++++++++-
+ src/pkg/crypto/tls/handshake_server.go      |  9 ++++--
+ src/pkg/crypto/tls/handshake_server_test.go | 47 +++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 6 deletions(-)

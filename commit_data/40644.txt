@@ -1,0 +1,25 @@
+commit b3a361337c5ea48fb4de832b9883f19e172e1bb5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 12 19:08:39 2019 +0000
+
+    runtime: add pallocbits and tests
+    
+    This change adds a per-chunk bitmap for page allocation called
+    pallocBits with algorithms for allocating and freeing pages out of the
+    bitmap. This change also adds tests for pallocBits, but does not yet
+    integrate it into the runtime.
+    
+    Updates #35112.
+    
+    Change-Id: I479006ed9f1609c80eedfff0580d5426b064b0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190620
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/go/build/deps_test.go       |   4 +-
+ src/runtime/export_test.go      |  63 +++++++++
+ src/runtime/mpallocbits.go      | 260 +++++++++++++++++++++++++++++++++++
+ src/runtime/mpallocbits_test.go | 290 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 615 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit c9d39dca8d9f4ad2bb644e095f5cea5486c1cd92
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 5 11:22:28 2010 -0700
+
+    gob: don't add "." if package path is empty when registering a type.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2939041
+
+ src/pkg/gob/type.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

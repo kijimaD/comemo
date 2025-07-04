@@ -1,0 +1,19 @@
+commit 597b9c0d19a7ce569574e67a455cdffca8894688
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Nov 8 15:23:12 2013 -0500
+
+    misc/emacs: various cleanups
+    
+    - Use #' for function symbols
+    - Remove unused variables
+    - Use declare-function to shut up byte compiler
+    
+    This is identical to CL 19010044 with one exception: Making sure
+    it doesn't break on Emacs 22.1
+    
+    R=adonovan, bradfitz, shendaras
+    CC=golang-dev
+    https://golang.org/cl/20100043
+
+ misc/emacs/go-mode.el | 51 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)

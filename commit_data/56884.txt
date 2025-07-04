@@ -1,0 +1,24 @@
+commit a71bb570d064f6d0c1cf59cef4b7a044be7a39d3
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Jul 4 14:10:55 2024 +0800
+
+    all: make struct comments match struct names
+    
+    Change-Id: I011f66854a9af5f3baa20abebd4b315c15db571f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/gstate.go                | 2 +-
+ src/internal/coverage/defs.go          | 2 +-
+ src/log/slog/internal/buffer/buffer.go | 5 ++++-
+ src/runtime/arena.go                   | 2 +-
+ src/sync/export_test.go                | 2 +-
+ 5 files changed, 8 insertions(+), 5 deletions(-)

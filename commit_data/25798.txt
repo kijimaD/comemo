@@ -1,0 +1,17 @@
+commit 5efbdd9d10908206d4e0351cb4724c5fefdfa2be
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 22 13:31:57 2016 -0800
+
+    net: fix race in (*resolverConfig).tryUpdate
+    
+    Fixes #14072.
+    
+    Change-Id: Ie31caa06690ac621906fc5acd34da2efa4e2049f
+    Reviewed-on: https://go-review.googlesource.com/18860
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/dnsclient_unix.go      | 22 ++++++----------------
+ src/net/dnsconfig_unix.go      | 28 +++++++++++++++++++---------
+ src/net/dnsconfig_unix_test.go |  2 ++
+ 3 files changed, 27 insertions(+), 25 deletions(-)

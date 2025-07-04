@@ -1,0 +1,30 @@
+commit 33ff1559702388c57c45f9e6cd032f06e8c3c163
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jul 26 16:33:44 2021 -0400
+
+    go/types: preserve untyped constants on the RHS of a shift expression
+    
+    CL 291316 fixed go/types to verify that untyped shift counts are
+    representable by uint, but as a side effect also converted their types
+    to uint.
+    
+    Rearrange the logic to keep the check for representability, but not
+    actually convert untyped integer constants. Untyped non-integer
+    constants are still converted, to preserve the behavior of 1.16. This
+    behavior for non-integer types is a bug, filed as #47410.
+    
+    Updates #47410
+    Fixes #47243
+    
+    Change-Id: I5eab4aab35b97f932fccdee2d4a18623ee2ccad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337529
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go   | 12 ++++++++++++
+ src/go/types/check_test.go |  7 +++++++
+ src/go/types/expr.go       | 34 +++++++++++++++++++++++++---------
+ 3 files changed, 44 insertions(+), 9 deletions(-)

@@ -1,0 +1,64 @@
+commit 151668c694a15029db236976f06f18482859db61
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 20 17:02:35 2022 -0400
+
+    cmd/go: extract the TestScript engine into a standalone package
+    
+    This change decouples the script engine from both cmd/go and the
+    testing package; I intend to reuse it in the replacement for the
+    vcs-test.golang.org server.
+    
+    This change also adds a few new script commands:
+    
+            - 'echo' echoes its arguments, useful for verifying argument expansion.
+    
+            - 'cat' prints the contents of files, useful for debugging failing script tests.
+    
+            - 'help' displays information about script commands and conditions,
+              reducing the toil of maintaining lists in the README file.
+    
+    The 'cmp' and 'cmpenv' commands now use internal/diff instead of their
+    own separate diff implementation.
+    
+    The 'env' command now writes to the script log instead of the stdout
+    buffer. (This makes it more consistent with the behavior of other
+    synchronous builtins.)
+    
+    The 'stale' command no longer logs output when a target is
+    unexpectedly non-stale. (However, the ouput of the 'stale' command is
+    not usually very useful anyway.)
+    
+    The 'grep', 'stdout', and 'stderr' commands now display matching lines
+    (like Unix 'grep'), making their negation behavior more consistent
+    with running real commands on a command-line.
+    
+    Likewise, the 'cmp' command now always displays differences. That
+    makes it useful with the '?' prefix to produce diffs for informational
+    purposes while debugging.
+    
+    For #27494.
+    
+    Change-Id: If49fd81d9b922d07c20618a8e2cef908191f9ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419875
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                              |   12 +-
+ src/cmd/go/internal/script/cmds.go                 | 1125 +++++++++++++
+ src/cmd/go/internal/script/conds.go                |  179 +++
+ src/cmd/go/internal/script/engine.go               |  785 ++++++++++
+ src/cmd/go/internal/script/errors.go               |   64 +
+ .../go/internal/script/scripttest/scripttest.go    |  143 ++
+ src/cmd/go/internal/script/state.go                |  239 +++
+ src/cmd/go/script_test.go                          | 1652 ++------------------
+ src/cmd/go/scriptcmds_test.go                      |  131 ++
+ src/cmd/go/scriptconds_test.go                     |  165 ++
+ src/cmd/go/scriptreadme_test.go                    |  272 ++++
+ src/cmd/go/testdata/script/README                  |  472 ++++--
+ src/cmd/go/testdata/script/build_dash_x.txt        |    3 +-
+ src/cmd/go/testdata/script/build_issue48319.txt    |    2 +-
+ src/cmd/go/testdata/script/script_help.txt         |    7 +
+ src/cmd/go/testdata/script/script_wait.txt         |    7 +-
+ 16 files changed, 3560 insertions(+), 1698 deletions(-)

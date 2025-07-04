@@ -1,0 +1,17 @@
+commit 967fa427fde2f7a22adc04399d0de3090d34f883
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 06:58:33 2016 -0700
+
+    database/sql: don't hang if the driver Exec method panics
+    
+    Fixes #13677.
+    Fixes #15901.
+    
+    Change-Id: Idffb82cdcba4985954d061bdb021217f47ff4984
+    Reviewed-on: https://go-review.googlesource.com/23576
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 116 ++++++++++++++++++++++++-------------------
+ src/database/sql/sql_test.go |  47 ++++++++++++++++++
+ 2 files changed, 112 insertions(+), 51 deletions(-)

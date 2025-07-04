@@ -1,0 +1,19 @@
+commit 483e4fc409a83d27ad7ab5c2616e3da77bf43f4e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 28 12:59:39 2009 -0700
+
+    - clean up code creating keys for type maps
+    - derive int, uint, float, uintptr decoders based on their size
+    - add overflow checks in decode
+    
+    R=rsc
+    DELTA=407  (281 added, 44 deleted, 82 changed)
+    OCL=32286
+    CL=32290
+
+ src/pkg/gob/codec_test.go | 222 ++++++++++++++++++++++++++++++++++++++++------
+ src/pkg/gob/decode.go     | 207 +++++++++++++++++++++++++-----------------
+ src/pkg/gob/encode.go     |  32 +++----
+ src/pkg/gob/encoder.go    |   2 +-
+ src/pkg/gob/type.go       |  24 +++++
+ 5 files changed, 362 insertions(+), 125 deletions(-)

@@ -1,0 +1,12 @@
+commit 79518b977f5ea08c6896c45c4eba84bcf17d1a96
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 23 12:00:38 2010 -0800
+
+    add Mark Zavislak (Google) to CONTRIBUTORS
+    
+    R=adg
+    CC=golang-dev, zavislak
+    https://golang.org/cl/218072
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,31 @@
+commit bfd74fd4228009bb9243c1836f9886ba1ad56e15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 3 14:08:43 2021 -0700
+
+    net: remove the alloc from WriteMsgUDPAddrPort
+    
+    name                       old time/op    new time/op    delta
+    ReadWriteMsgUDPAddrPort-8    5.12µs ± 8%    4.59µs ± 3%  -10.19%  (p=0.000 n=10+9)
+    
+    name                       old alloc/op   new alloc/op   delta
+    ReadWriteMsgUDPAddrPort-8     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    name                       old allocs/op  new allocs/op  delta
+    ReadWriteMsgUDPAddrPort-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Idf540b2f9f8035660305a0ab1cfc3e162569db63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361257
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_unix.go        | 52 +++++++++++++++++++++++
+ src/internal/poll/fd_windows.go     | 84 ++++++++++++++++++++++++++++++-------
+ src/internal/syscall/unix/net.go    |  8 ++++
+ src/internal/syscall/unix/net_js.go |  8 ++++
+ src/net/fd_posix.go                 | 12 ++++++
+ src/net/net_fake.go                 |  8 ++++
+ src/net/udpsock_posix.go            |  6 +--
+ src/syscall/syscall_unix.go         | 16 +++++++
+ 8 files changed, 175 insertions(+), 19 deletions(-)

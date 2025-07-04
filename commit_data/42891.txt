@@ -1,0 +1,24 @@
+commit 786120b55db5c3567d8c353fc399e9339c7406dd
+Author: KJ Tsanaktsidis <ktsanaktsidis@zendesk.com>
+Date:   Tue Sep 1 10:00:23 2020 +1000
+
+    cmd/cgo: document #include <> search path behaviour
+    
+    cgo effectively prepends -I${SRCDIR} to the header include path of all
+    preambles it processes, so when an #include <> matches a header file
+    both in the source directory and also another include directory, the
+    local copy will be used in preference.
+    
+    This behaviour is surprising but unfortunately also longstanding and
+    relied upon by packages in the wild, so the best we can do is to
+    document it.
+    
+    Fixes #41059
+    
+    Change-Id: If6d2818294b2bd94ea0fe5fd6ce77e54b3e167a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/test.go | 1 +
+ src/cmd/cgo/doc.go    | 7 +++++++
+ 2 files changed, 8 insertions(+)

@@ -1,0 +1,19 @@
+commit 89f7bd578189423e8699e64e58bfb992de9dce6d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 25 11:47:02 2020 -0400
+
+    cmd/internal/obj/arm64: write test output to temp dir
+    
+    Write the test output to the temporary directory, not the current
+    directory.
+    
+    May fix linux-mips64le-mengzhuo builder.
+    
+    Change-Id: Ibfeb3d2879c11d498abc31df4efe776fc09a6ad6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225440
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/internal/obj/arm64/asm_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

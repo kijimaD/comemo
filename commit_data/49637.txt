@@ -1,0 +1,27 @@
+commit 558785a0a9df5fbb7e9617c05059cf2892884620
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 13:20:36 2022 -0700
+
+    cmd/compile: remove -installsuffix flag
+    
+    Obsoleted by -importcfg.
+    
+    cmd/link has a similar flag, but it seems to still be needed at least
+    for misc/cgo/testshared.TestGopathShlib. I can't immediately tell why
+    (has something to do with finding .so files), but it doesn't appear to
+    possibly affect cmd/compile.
+    
+    Updates #51225.
+    
+    Change-Id: I80c6aef860bd162c010ad4a1a4f532b400cf901c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415236
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/doc.go                   | 3 ---
+ src/cmd/compile/internal/base/flag.go    | 1 -
+ src/cmd/compile/internal/noder/import.go | 4 +---
+ src/cmd/go/internal/work/gc.go           | 3 ---
+ 4 files changed, 1 insertion(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 33fd319cbcf9f4809c6bc9a9d21a05b516824f0a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 14:20:52 2017 -0700
+
+    cmd/compile: call fieldtrack after flushing Progs
+    
+    Fixes #20014
+    
+    Change-Id: Ie58d3e989f2d7388b3d8849fbcfbceed3c6aa084
+    Reviewed-on: https://go-review.googlesource.com/41132
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

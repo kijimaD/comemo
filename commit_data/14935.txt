@@ -1,0 +1,15 @@
+commit 254caaf90bdd3d20739c445a77b2a5e6cfc05371
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 19 20:23:25 2013 +1100
+
+    cmd/8l, cmd/6l: avoid zeroing zeroed fields
+    
+    mal() returns zeroed memory, so zeroing these fields is redundant.
+    
+    R=golang-dev, bradfitz, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7096049
+
+ src/cmd/6l/obj.c | 2 --
+ src/cmd/8l/obj.c | 2 --
+ 2 files changed, 4 deletions(-)

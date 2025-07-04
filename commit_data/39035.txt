@@ -1,0 +1,21 @@
+commit ba9bc8e5fefcc62216f7bf2f85923d226e8906e2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 4 11:36:13 2019 +0200
+
+    syscall: support generating netbsd/arm64 files in mkall.sh
+    
+    CL 155739 added the generated files but didn't update mkall.sh. Do so
+    now.
+    
+    Updates #30824
+    
+    Change-Id: I642bbff6afbc976091a0dc291fa2beff5e245246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175237
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/mkall.sh | 6 ++++++
+ 1 file changed, 6 insertions(+)

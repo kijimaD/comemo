@@ -1,0 +1,18 @@
+commit dc9879e8fde3af804ac310ee54cf67efdae26aab
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 12 17:11:25 2020 -0700
+
+    cmd/compile: convert more AMD64.rules lines to typed aux mode
+    
+    Change-Id: Idded860128b1a23680520d8c2b9f6d8620dcfcc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228077
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 302 +++++++++---------
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  21 +-
+ src/cmd/compile/internal/ssa/op.go           |   4 +
+ src/cmd/compile/internal/ssa/rewrite.go      |  18 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 448 +++++++++++++--------------
+ 5 files changed, 413 insertions(+), 380 deletions(-)

@@ -1,0 +1,45 @@
+commit 7db6d8a29d1f9bc4265ff4eb77547c7aa5f8c87e
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu May 11 11:54:28 2023 +0000
+
+    net: clear /etc/hosts cache on fs.ErrNotExist and fs.ErrPermission errors
+    
+    This was also the cause of my issues in CL 455275
+    
+    Before:
+    root@arch:~/aa# $(time sleep 5 && mv /etc/hosts /tmp/hosts) &
+    [1] 2214
+    root@arch:~/aa# go run main.go
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    (....)
+    
+    After:
+    root@arch:~/aa# $(time sleep 5 && mv /etc/hosts /tmp/hosts) &
+    [1] 2284
+    root@arch:~/aa# go run main.go
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [] lookup sth on 127.0.0.53:53: server misbehaving
+    [] lookup sth on 127.0.0.53:53: server misbehaving
+    
+    Change-Id: I3090fd8f3105db8c2d7c3bf5afe7b18ebca61cda
+    GitHub-Last-Rev: cb0dac6448bbc337cd015ad4b4b3d1da3f14a561
+    GitHub-Pull-Request: golang/go#59963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/hosts.go | 79 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 36 deletions(-)

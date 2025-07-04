@@ -1,0 +1,22 @@
+commit 7ef6a9f38b39bd442ad07f5faf895486a5f58750
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 11 12:46:01 2015 +0900
+
+    net: clean up builtin DNS stub resolver, fix tests
+    
+    This change does clean up as preparation for fixing #11081.
+    
+    - renames cfg to resolvConf for clarification
+    - adds a new type resolverConfig and its methods: init, update,
+      tryAcquireSema, releaseSema for mutual exclusion of resolv.conf data
+    - deflakes, simplifies tests for resolv.conf data; previously the tests
+      sometimes left some garbage in the data
+    
+    Change-Id: I277ced853fddc3791dde40ab54dbd5c78114b78c
+    Reviewed-on: https://go-review.googlesource.com/10931
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 138 +++++++++++++++--------------
+ src/net/dnsclient_unix_test.go | 195 +++++++++++++++++++++++------------------
+ 2 files changed, 181 insertions(+), 152 deletions(-)

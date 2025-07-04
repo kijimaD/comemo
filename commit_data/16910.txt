@@ -1,0 +1,13 @@
+commit c7d5c438a2bd6bad779cc535d11466bb93cc08e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 29 16:42:07 2013 -0400
+
+    runtime: adjust timediv to avoid _vasop; mark _subv okay
+    
+    R=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12028046
+
+ src/pkg/runtime/runtime.c  |  2 +-
+ src/pkg/runtime/vlrt_arm.c | 25 +++++++++----------------
+ 2 files changed, 10 insertions(+), 17 deletions(-)

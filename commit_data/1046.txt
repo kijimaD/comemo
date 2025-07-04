@@ -1,0 +1,15 @@
+commit d289e6344f6ed40d5e2e6646e32fc8a685f38c75
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 4 09:45:27 2008 -0800
+
+    move invalid method uses to new test
+    
+    R=iant
+    DELTA=24  (13 added, 10 deleted, 1 changed)
+    OCL=18424
+    CL=18439
+
+ test/golden.out |  5 ++++-
+ test/method.go  | 10 ----------
+ test/method2.go | 14 ++++++++++++++
+ 3 files changed, 18 insertions(+), 11 deletions(-)

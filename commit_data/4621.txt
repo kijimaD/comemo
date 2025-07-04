@@ -1,0 +1,15 @@
+commit c332ff42fe7ac24833292915a7984e01465e75da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 15 13:51:57 2010 -0800
+
+    Don't check array bounds if we have been told not to.
+    
+    Fixes range.go test for 6g.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189093
+
+ src/cmd/5g/cgen.c | 2 +-
+ src/cmd/6g/cgen.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

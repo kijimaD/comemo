@@ -1,0 +1,35 @@
+commit ea4b785ae03a067f4a26adac78213ff6caac5128
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 12 12:13:11 2016 +0100
+
+    runtime: preserve darwin/arm{,64} callee-save registers
+    
+    CL 14603 attempted to preserve the callee-save registers for
+    the darwin/arm runtime initialization routine, but I believe it
+    wasn't sufficient and resulted in the crash reported in issue
+    
+    Saving and restoring the registers on the stack the same way
+    linux/arm does seems more obvious and fixes #14778, so do that.
+    
+    Even though #14778 is not reproducible on darwin/arm64, I applied
+    a similar change there, and to linux/arm64 which obeys the same
+    calling convention.
+    
+    Finally, this CL is a candidate for a 1.6 minor release for the same
+    reason CL 14603 was in a 1.5 minor release (as CL 16968). It is
+    small and only touches the iOS platforms and gomobile on darwin/arm
+    is currently useless without it.
+    
+    Fixes #14778
+    Fixes #12590 (again)
+    
+    Change-Id: I7401daf0bbd7c579a7e84761384a7b763651752a
+    Reviewed-on: https://go-review.googlesource.com/20621
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/rt0_darwin_arm.s   | 28 +++++++++++++++++++---------
+ src/runtime/rt0_darwin_arm64.s | 28 +++++++++++++++++++++-------
+ src/runtime/rt0_linux_arm64.s  | 27 +++++++++++++++++++++------
+ 3 files changed, 61 insertions(+), 22 deletions(-)

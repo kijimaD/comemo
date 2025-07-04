@@ -1,0 +1,18 @@
+commit 85e014a27ef0a640a33f58bc412b3fa5bcc4a800
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 16:04:25 2009 -0700
+
+    fix build:
+            install runtime lib in correct location.
+            fix one bad type definition in defs.h.
+            clear out $GOROOT/lib in clean.bash.
+    
+    TBR=r
+    OCL=26691
+    CL=26691
+
+ src/clean.bash                  | 1 +
+ src/runtime/Makefile            | 3 ++-
+ src/runtime/darwin/amd64/defs.h | 6 +++---
+ src/runtime/darwin/signal.c     | 2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)

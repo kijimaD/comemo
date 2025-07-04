@@ -1,0 +1,14 @@
+commit 88ae4ccefb60ce7e83b25c3bf0f55a4d8704e123
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 15:24:30 2020 -0500
+
+    math/big: reintroduce pre-Go 1.14 mention in GCD docs
+    
+    It was removed in CL 217302 but was intentionally added in CL 217104.
+    
+    Change-Id: I1a478d80ad1ec4f0a0184bfebf8f1a5e352cfe8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217941
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

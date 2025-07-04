@@ -1,0 +1,20 @@
+commit abd592b3d7c3e05eaa9dd6a69749e497b1973002
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 15 15:34:07 2022 -0400
+
+    misc/cgo/testsigfwd: delete unused code
+    
+    This code was introduced in CL 17903 but has never executed. It's also
+    fundamentally non-deterministic. Delete it.
+    
+    Simplification for #37486.
+    
+    Change-Id: I049564123fb4fba401154e2ea0fc429e552d4749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431258
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/testsigfwd/main.go | 52 ---------------------------------------------
+ 1 file changed, 52 deletions(-)

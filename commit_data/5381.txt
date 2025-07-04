@@ -1,0 +1,35 @@
+commit b2183701c08328c533c022f3609a0bff19061998
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 19:16:08 2010 -0700
+
+    big: implemented Karatsuba multiplication
+    
+    Plus:
+    - calibration "test" - include in tests with gotest -calibrate
+    - basic Mul benchmark
+    - extra multiplication tests
+    - various cleanups
+    
+    This change improves multiplication speed of numbers >= 30 words
+    in length (current threshold; found empirically with calibrate):
+    
+    The multiplication benchmark (multiplication of a variety of long numbers)
+    improves by ~35%, individual multiplies can be significantly faster.
+    
+    gotest -benchmarks=Mul
+    big.BenchmarkMul             500           6829290 ns/op (w/ Karatsuba)
+    big.BenchmarkMul             100          10600760 ns/op
+    
+    There's no impact on pidigits for -n=10000 or -n=20000
+    because the operands are are too small.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1004042
+
+ src/pkg/big/calibrate_test.go |  91 +++++++++++
+ src/pkg/big/int.go            |   6 +-
+ src/pkg/big/int_test.go       |  77 +++++----
+ src/pkg/big/nat.go            | 351 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/big/nat_test.go       |  58 +++++++
+ 5 files changed, 491 insertions(+), 92 deletions(-)

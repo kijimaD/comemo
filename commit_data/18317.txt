@@ -1,0 +1,16 @@
+commit 062ae4571168608ca2bcd6fa1a9d122a20a5d677
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Jan 21 22:44:54 2014 -0500
+
+    cmd/gc: do not typecheck nil types in multiple assignment
+    
+    Fixes #6572.
+    
+    LGTM=rsc, daniel.morsing, rsc
+    R=golang-codereviews, bradfitz, minux.ma, iant, rsc, gobot, daniel.morsing
+    CC=golang-codereviews
+    https://golang.org/cl/14516055
+
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue6572.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

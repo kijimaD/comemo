@@ -1,0 +1,30 @@
+commit ad26bb5e3098cbfd7c0ad9a1dc9d38c92e50f06e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 03:01:09 2016 +0000
+
+    all: use sort.Slice where applicable
+    
+    I avoided anywhere in the compiler or things which might be used by
+    the compiler in the future, since they need to build with Go 1.4.
+    
+    I also avoided anywhere where there was no benefit to changing it.
+    
+    I probably missed some.
+    
+    Updates #16721
+    
+    Change-Id: Ib3c895ff475c6dec2d4322393faaf8cb6a6d4956
+    Reviewed-on: https://go-review.googlesource.com/30250
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/test.go            |  8 +------
+ src/cmd/nm/nm.go              | 24 +++------------------
+ src/encoding/json/encode.go   | 50 +++++++++++++++----------------------------
+ src/io/ioutil/ioutil.go       |  9 +-------
+ src/net/http/cookiejar/jar.go | 31 +++++++++++----------------
+ src/net/http/fs.go            |  8 +------
+ src/runtime/debug/garbage.go  |  8 +------
+ src/runtime/pprof/pprof.go    | 24 +++------------------
+ 8 files changed, 39 insertions(+), 123 deletions(-)

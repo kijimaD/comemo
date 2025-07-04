@@ -1,0 +1,14 @@
+commit a88bbbb771141598e492d123e15e1e9752c134ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 7 13:42:25 2013 +1100
+
+    go/doc: trim only first space or newline from example output comment
+    
+    Fixes #4487.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7057048
+
+ src/pkg/go/doc/example.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

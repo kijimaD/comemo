@@ -1,0 +1,20 @@
+commit 53c91f9205e2b61d972ab1eaf5c9716aabe10306
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 10 14:21:01 2023 -0500
+
+    os: skip TestExecutableDeleted earlier when 'go build' is not supported
+    
+    The test unconditionally calls testenv.GoToolPath, which will skip the
+    test anyway. Moving the skip earlier gets this test out of goroutine
+    dumps if the test process fails or times out, making it easier to
+    diagnose failures in the remaining tests.
+    
+    Change-Id: Ibd39546708a83b6f15616b2c4ae7af420e2401f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/executable_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

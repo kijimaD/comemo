@@ -1,0 +1,15 @@
+commit f7277dac57c77fd596ef077beb1ab92ae8b20dce
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Tue May 22 12:44:24 2012 -0400
+
+    net/url: better parsing of urls with @ symbol in authority
+    
+    Fixes #3439
+    
+    R=r, rsc, dsymonds, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/6206090
+
+ src/pkg/net/url/url.go      |  5 +++--
+ src/pkg/net/url/url_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

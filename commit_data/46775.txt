@@ -1,0 +1,30 @@
+commit f05c67f18259800e4847e44c9ca34de2bf5ed198
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 5 14:03:47 2021 -0700
+
+    cmd/compile/internal/syntax, types2: remove ability to handle type lists
+    
+    The type set notation has been accepted a while ago.
+    We're not going back to supporting the original
+    type list notation. Remove support for it in the
+    parser and type checker.
+    
+    Change-Id: I860651f80b89fa43a3a5a2a02cf823ec0dae583c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354131
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/error_test.go      |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go           |  4 +--
+ src/cmd/compile/internal/syntax/parser.go          | 33 ++------------------
+ src/cmd/compile/internal/syntax/parser_test.go     |  2 +-
+ src/cmd/compile/internal/syntax/printer.go         | 35 ++++------------------
+ src/cmd/compile/internal/syntax/printer_test.go    | 18 +++++------
+ src/cmd/compile/internal/syntax/syntax.go          |  3 +-
+ .../internal/syntax/testdata/go2/typeinst2.go2     | 34 ++++-----------------
+ .../compile/internal/syntax/testdata/interface.go2 |  6 ----
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/interface.go       | 35 ----------------------
+ .../internal/types2/testdata/check/typeinst2.go2   |  5 +---
+ .../types2/testdata/examples/constraints.go2       | 12 --------
+ 13 files changed, 29 insertions(+), 162 deletions(-)

@@ -1,0 +1,25 @@
+commit 833fb4198d2f4ff3add2e8a14bfe6c91413f7601
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Oct 27 10:26:11 2011 +1100
+
+    html: parse <style> elements inside <head> element.
+    
+    Also correctly handle EOF inside a <style> element.
+    
+    Pass tests1.dat, test 49:
+    <!DOCTYPE html><style> EOF
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |     <style>
+    |       " EOF"
+    |   <body>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5321057
+
+ src/pkg/html/parse.go      | 4 +++-
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

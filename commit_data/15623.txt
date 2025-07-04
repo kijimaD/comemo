@@ -1,0 +1,12 @@
+commit 3fc244f37065f3eb0bc8cd54e6aff0ced2889969
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 7 19:15:00 2013 +0900
+
+    net: fix plan9 build
+    
+    R=golang-dev, akumar
+    CC=golang-dev
+    https://golang.org/cl/7564043
+
+ src/pkg/net/ipraw_test.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 0027dc91b05286d4fc3fc50a4802131881efd6e2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 12:36:10 2011 +1000
+
+    exp/template: simpler parse of char constants.
+    We can avoid the check against empty constants (''),
+    which UnquoteChar doesn't handle well, by leaving on
+    the trailing quote and seeing that's all we have left at the end.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4657090
+
+ src/pkg/exp/template/parse.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit f8ff12d480dcfe0db17648939644d0eeec0ed0fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 08:47:08 2020 -0700
+
+    cmd/compile: use dereference boundedness hint in ssa.addr
+    
+    Follow-up to (and similar to) CL 228885.
+    Triggers a handful of times in std+cmd.
+    
+    Change-Id: Ie04057ca3974ef9eef669335e326a5ed4b7472cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228999
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

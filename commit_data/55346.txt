@@ -1,0 +1,25 @@
+commit 8db131082d08e497fd8e9383d0ff7715e1bef478
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Dec 29 19:09:16 2023 +0000
+
+    github: switch seen/expected order in issue forms
+    
+    Also fixup wording across other templates.
+    
+    Fixes #64890
+    
+    Change-Id: I6f9ade440b6702ddfafc21ccb7fbc6cabc2b856e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553155
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ .github/ISSUE_TEMPLATE/00-bug.yml             | 15 ++++++++-------
+ .github/ISSUE_TEMPLATE/01-pkgsite.yml         |  8 ++++----
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml | 19 ++++++++++++++++---
+ .github/ISSUE_TEMPLATE/03-gopls.yml           | 10 +++++-----
+ .github/ISSUE_TEMPLATE/04-vuln.yml            | 14 +++++++-------
+ 5 files changed, 40 insertions(+), 26 deletions(-)

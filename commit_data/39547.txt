@@ -1,0 +1,21 @@
+commit fbb819ebc443518e9caea3c1b0d0f9e0efec2262
+Author: Andrew Todd <andrew.todd@wework.com>
+Date:   Sat Jul 27 16:20:49 2019 -0700
+
+    strings: clarify usage of Title and ToTitle
+    
+    This is intended to help clear up confusion around the usage of the
+    Title and ToTitle functions. It includes a link to define title case
+    to distinguish it from upper case. It also includes an additional
+    example for the ToTitle function to showcase the difference in behavior
+    between it and the Title function.
+    
+    Fixes #33302
+    
+    Change-Id: I44e62962fb04d0d22966a39eda3a2d16de7a2291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187825
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strings/example_test.go | 11 ++++++++++-
+ src/strings/strings.go      |  7 ++++---
+ 2 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,0 +1,27 @@
+commit 1083715b7f2cb89e90a9ef04012a427aabe4e648
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 00:15:07 2014 -0500
+
+    liblink, cmd/ld, cmd/5l: darwin/arm support
+    
+    liblink:
+     - set dummy value for ctxt->tlsoffset.
+    cmd/ld:
+     - always do external linking when using cgo on darwin/arm,
+       as our linker might not generate codesign-compatible binary.
+    cmd/5l:
+     - support generate ARM Mach-O binaries
+     - add machoreloc1() that translate our internal relocation to
+       macho relocations used by external linking.
+    
+    Change-Id: Ic5454aeb87009aaf8f1453ec7fe33e6da55d5f06
+    Reviewed-on: https://go-review.googlesource.com/3273
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/5l/asm.c   | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/5l/obj.c   | 13 ++++++++
+ src/cmd/ld/lib.c   |  8 +++++
+ src/cmd/ld/macho.c | 10 ++++++
+ src/cmd/ld/macho.h |  6 ++++
+ src/liblink/sym.c  |  9 ++++--
+ 6 files changed, 132 insertions(+), 8 deletions(-)

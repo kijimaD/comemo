@@ -1,0 +1,26 @@
+commit 7e63ce61e640a9e2b14ff545c28bf5d7a6f730f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:15:54 2017 +0900
+
+    net: update documentation on Dial and its variants
+    
+    This change clarifies the documentation on Dial and its variants to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
+    
+    Also replaces "name" or "hostname" with "host name" when the term
+    implies the use of DNS.
+    
+    Updates #17613.
+    Fixes #17614.
+    Fixes #17738.
+    Fixes #17956.
+    Updates #18806.
+    
+    Change-Id: I6adb3f2ae04a3bf83b96016ed73d8e59926f3e8a
+    Reviewed-on: https://go-review.googlesource.com/34875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go   | 62 +++++++++++++++++++++++++++++++++++++------------------
+ src/net/lookup.go | 14 +++++++------
+ 2 files changed, 50 insertions(+), 26 deletions(-)

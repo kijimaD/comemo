@@ -1,0 +1,14 @@
+commit 093146b920123e32d503680d7a688f63a03fc40e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 11:25:37 2010 -0800
+
+    math: fix pow10 comment, test portable Sqrt
+    
+    R=r
+    CC= golang-dev, Charlie Dorian, golang-dev
+    https://golang.org/cl/184058
+
+ src/pkg/math/all_test.go  | 11 +++++++----
+ src/pkg/math/pow10.go     |  2 +-
+ src/pkg/math/sqrt_test.go |  9 +++++++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

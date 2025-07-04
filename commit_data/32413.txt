@@ -1,0 +1,32 @@
+commit cbc4e5d9c4f2444c5d40ae6333b4e1f4c9cfbd41
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Aug 14 10:16:21 2017 +0200
+
+    cmd/compile: generate makemap calls with int arguments
+    
+    Where possible generate calls to runtime makemap with int hint argument
+    during compile time instead of makemap with int64 hint argument.
+    
+    This eliminates converting the hint argument for calls to makemap with
+    int64 hint argument for platforms where int64 values do not fit into
+    an argument of type int.
+    
+    A similar optimization for makeslice was introduced in CL
+    golang.org/cl/27851.
+    
+    386:
+    name         old time/op    new time/op    delta
+    NewEmptyMap    53.5ns ± 5%    41.9ns ± 5%  -21.56%  (p=0.000 n=10+10)
+    NewSmallMap     182ns ± 1%     165ns ± 1%   -8.92%  (p=0.000 n=10+10)
+    
+    Change-Id: Ibd2b4c57b36f171b173bf7a0602b3a59771e6e44
+    Reviewed-on: https://go-review.googlesource.com/55142
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 242 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
+ src/cmd/compile/internal/gc/walk.go            |  19 +-
+ src/runtime/hashmap.go                         |  19 +-
+ src/runtime/hashmap_fast.go                    |   6 +-
+ test/makemap.go                                |  34 ++++
+ 6 files changed, 191 insertions(+), 132 deletions(-)

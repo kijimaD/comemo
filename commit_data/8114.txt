@@ -1,0 +1,12 @@
+commit 6ca71fb8975294122501f722c5409a675a943ff2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 00:01:29 2011 -0400
+
+    os: turn EPIPE exit into panic
+    
+    R=iant, r2
+    CC=golang-dev
+    https://golang.org/cl/4427042
+
+ src/pkg/os/file_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

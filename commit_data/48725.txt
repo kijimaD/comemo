@@ -1,0 +1,20 @@
+commit a6f6932b3ee87d9607ce246228e23f9a08dacc31
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 10 09:12:43 2022 -0700
+
+    cmd/asm: fix MOVK when constant has high bit set
+    
+    Fixes #52261
+    
+    Change-Id: I1dc4c19c95a91f9e1e99d1e74afeb69f5bf8a979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399455
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/internal/obj/arm64/asm7.go           |  2 +-
+ src/cmd/internal/obj/arm64/asm_arm64_test.go | 11 +++++++++++
+ src/cmd/internal/obj/arm64/asm_arm64_test.s  |  7 +++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f49a5c6c578963d21c95b5d65805fb9f0edaae0f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 18:37:13 2018 +0000
+
+    doc: move the go1.11 "all" section elsewhere, add os/signal.Ignored, GOMIPS64
+    
+    Change-Id: Ice8f82a6288eeadfb8efd7628444166a447831da
+    Reviewed-on: https://go-review.googlesource.com/124096
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

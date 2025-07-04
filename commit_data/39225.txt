@@ -1,0 +1,23 @@
+commit 42bb47689310ebe2fedd165db98402a7874dc6be
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 22 11:10:06 2019 -0400
+
+    crypto/x509: include roots with empty or multiple policies on macOS
+    
+    To a fifth reading of the relevant docs, it looks like
+    
+    1) a constraint dictionary with no policy applies to all of them;
+    2) multiple applying constraint dictionaries should have their results OR'd;
+    3) untrusted certificates in the keychain should be used for chain building.
+    
+    This fixes 1), approximates 2) and punts on 3).
+    
+    Fixes #30672
+    Fixes #30471
+    
+    Change-Id: Ibbaabf0b77d267377c0b5de07abca3445c2c2302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178539
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 29 ++++++++++++++++++++---------
+ 1 file changed, 20 insertions(+), 9 deletions(-)

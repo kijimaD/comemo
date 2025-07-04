@@ -1,0 +1,22 @@
+commit 1284cc24955487192fb7fb5aea934cb13fd1ae73
+Author: David Chase <drchase@google.com>
+Date:   Tue May 10 12:52:52 2022 -0400
+
+    cmd/compile: be sure to export types mentioned in f.i.g. method signature
+    
+    When a fully instantiated generic method is exported, be sure to also
+    export the types in its signature.
+    
+    Fixes #52279.
+    
+    Change-Id: Icc6bca05b01f914cf67faaf1bf184eaa5484f521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405118
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/crawler.go |  4 +++-
+ test/fixedbugs/issue52279.dir/lib.go          | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue52279.dir/main.go         |  5 +++++
+ test/fixedbugs/issue52279.go                  |  7 +++++++
+ 4 files changed, 38 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 1999f256e4d478251290dfa007c62364810b7bf7
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 28 14:13:59 2022 -0400
+
+    cmd/compile/internal/test: clean up TestPGOIntendedInlining
+    
+    The most important change here is to log output from the child, making
+    it easier to diagnose problems when the child 'go test' fails.
+    
+    We can also eliminate the cmd.Wait goroutine by using an os.Pipe, whose
+    reader will return io.EOF when the child exits.
+    
+    For #55022.
+    
+    Change-Id: I1573ea444407d545bdca8525c9ff7b0a2baebf5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446300
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/test/pgo_inl_test.go | 94 ++++++++++++---------------
+ 1 file changed, 42 insertions(+), 52 deletions(-)

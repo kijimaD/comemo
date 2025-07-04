@@ -1,0 +1,23 @@
+commit 3b186db7b4a5cc510e71f90682732eba3df72fd3
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 6 10:48:01 2017 -0700
+
+    encoding/asn1: don't encode strings with '*' as PrintableString.
+    
+    The '*' character is not allowed in ASN.1 PrintableString. However, due
+    to wide-spread use, we permit it so that we can parse many certificates
+    with wildcards. However, that also meant that generic strings with
+    asterisks in would be encoded as PrintableString.
+    
+    This change makes the default for such strings to be UTF8String. Thus,
+    while the code PrintableStrings containing '*', it will not generate
+    them unless the string type was specified in the struct field tag.
+    
+    Change-Id: I2d458da36649427352eeaa50a1b6020108b2ccbd
+    Reviewed-on: https://go-review.googlesource.com/68990
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/encoding/asn1/asn1.go         | 15 ++++++++++++---
+ src/encoding/asn1/marshal.go      |  7 +++++--
+ src/encoding/asn1/marshal_test.go |  6 ++++++
+ 3 files changed, 23 insertions(+), 5 deletions(-)

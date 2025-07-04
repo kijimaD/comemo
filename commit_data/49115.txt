@@ -1,0 +1,21 @@
+commit 8fdd277fe6ee1770b12650a4bc2bc257e49c8065
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 10 15:09:12 2022 +0000
+
+    runtime: profile finalizer G more carefully in goroutine profile
+    
+    If SetFinalizer is never called, we might readgstatus on a nil fing
+    variable, resulting in a crash. This change guards code that accesses
+    fing by a nil check.
+    
+    Fixes #52821.
+    
+    Change-Id: I3e8e7004f97f073dc622e801a1d37003ea153a29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405475
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+
+ src/runtime/mprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

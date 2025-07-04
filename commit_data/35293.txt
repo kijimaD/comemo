@@ -1,0 +1,43 @@
+commit c9c73978e2768b2823eec9b56bd214d9c52f1f25
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 26 21:23:24 2018 -0700
+
+    cmd/compile: use slice extension idiom in LSym.Grow
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         35.0MB ± 0%       35.0MB ± 0%  -0.05%  (p=0.008 n=5+5)
+    Unicode          29.3MB ± 0%       29.3MB ± 0%    ~     (p=0.310 n=5+5)
+    GoTypes           115MB ± 0%        115MB ± 0%  -0.08%  (p=0.008 n=5+5)
+    Compiler          519MB ± 0%        519MB ± 0%  -0.08%  (p=0.008 n=5+5)
+    SSA              1.59GB ± 0%       1.59GB ± 0%  -0.05%  (p=0.008 n=5+5)
+    Flate            24.2MB ± 0%       24.2MB ± 0%  -0.06%  (p=0.008 n=5+5)
+    GoParser         28.2MB ± 0%       28.1MB ± 0%  -0.04%  (p=0.016 n=5+5)
+    Reflect          78.8MB ± 0%       78.7MB ± 0%  -0.10%  (p=0.008 n=5+5)
+    Tar              34.5MB ± 0%       34.4MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    XML              43.3MB ± 0%       43.2MB ± 0%  -0.09%  (p=0.008 n=5+5)
+    [Geo mean]       77.5MB            77.4MB       -0.06%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           330k ± 0%         329k ± 0%  -0.32%  (p=0.008 n=5+5)
+    Unicode            337k ± 0%         336k ± 0%  -0.10%  (p=0.008 n=5+5)
+    GoTypes           1.15M ± 0%        1.14M ± 0%  -0.34%  (p=0.008 n=5+5)
+    Compiler          4.78M ± 0%        4.77M ± 0%  -0.25%  (p=0.008 n=5+5)
+    SSA               12.9M ± 0%        12.9M ± 0%  -0.12%  (p=0.008 n=5+5)
+    Flate              221k ± 0%         220k ± 0%  -0.32%  (p=0.008 n=5+5)
+    GoParser           275k ± 0%         274k ± 0%  -0.34%  (p=0.008 n=5+5)
+    Reflect            944k ± 0%         940k ± 0%  -0.42%  (p=0.008 n=5+5)
+    Tar                323k ± 0%         322k ± 0%  -0.31%  (p=0.008 n=5+5)
+    XML                384k ± 0%         383k ± 0%  -0.26%  (p=0.008 n=5+5)
+    [Geo mean]         749k              747k       -0.28%
+    
+    
+    Updates #21266
+    
+    Change-Id: I926ee3ba009c068239db70cdee8fdf85b5ee6bb4
+    Reviewed-on: https://go-review.googlesource.com/109816
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/data.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

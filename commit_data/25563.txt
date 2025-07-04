@@ -1,0 +1,17 @@
+commit 4206e9d343e07f3b2f6c0fe7d5d93c30024eaa96
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 17:53:57 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev c93a9b4f2a for https://golang.org/cl/18474
+    
+    Forgot to submit this four days ago.
+    
+    Change-Id: Id96ab164ec765911c31874cca39b44aa55e80153
+    Reviewed-on: https://go-review.googlesource.com/18574
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

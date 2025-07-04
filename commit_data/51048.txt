@@ -1,0 +1,20 @@
+commit c81c0279827545b20f81797bb263ae696d9c235f
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 25 23:01:44 2022 -0400
+
+    cmd/compile: add ability to indicate 'concurrentOk' for debug flags
+    
+    Also removes no-longer-needed "Any" field from compiler's DebugFlags.
+    Test/use case for this is the fmahash CL.
+    
+    Change-Id: I214f02c91f30fc2ce53caf75fa5e2b905dd33429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/debug.go |  2 +-
+ src/cmd/compile/internal/base/flag.go  |  3 ++-
+ src/cmd/internal/objabi/flag.go        | 36 +++++++++++++++++++++-------------
+ 3 files changed, 25 insertions(+), 16 deletions(-)

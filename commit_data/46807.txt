@@ -1,0 +1,44 @@
+commit 6b4cf2be9385ea25fed011f7c862d9e023b71df6
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Sep 30 15:45:29 2021 -0700
+
+    cmd/compile: improving printing of type names in func/meth instantiations
+    
+    Change to using types.(*Type).LinkString() for printing names of types
+    in function/method instantiations. (e.g. f[int] or Value[p.Myint].Set())
+    
+    LinkString already generates a unique string description for t, using
+    package paths, except that it uses "" for the local package path. The ""
+    will be expanded in the linker, so the names in the executable will have
+    full package paths everywhere and de-duplication of function/method
+    instantiations will work properly. We do need to add an explicit
+    substitution of "" in ReadImports() for function/method names. We
+    previously were using NameString(), which doesn't use full package
+    paths, so is not fully unique.
+    
+    We had also discussed that we would prefer to minimize spaces in
+    function/method instantiation names. So, I changed LinkString() to
+    eliminate all unneeded spaces. In the one case where we need a
+    separator, which is between field names and types, we use a "#" instead
+    of a space.
+    
+    This change has the advantage of eliminating spaces in some existing
+    non-generic function name - mainly .type.eq functions for anonymous
+    types (e.g. "type..eq.struct { runtime.gList; runtime.n int32 }") shows
+    up in a hello-world executable (as Cherry pointed out).
+    
+    We do not need an analogous function for types2 right now, since we
+    create all instantiations using types1 types. In the one case where we
+    need to create an instantiation during types2-to-types1 translation, we
+    convert the types to types1 first (see (*irgen).instTypeName2).
+    
+    Change-Id: Iac4748fa0d0d6f89af59bd51076266986daee945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353609
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-
+ src/cmd/compile/internal/typecheck/subr.go    | 14 ++++----
+ src/cmd/compile/internal/types/fmt.go         | 47 +++++++++++++++++++++------
+ 3 files changed, 53 insertions(+), 19 deletions(-)

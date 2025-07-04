@@ -1,0 +1,22 @@
+commit 71c9454f99791d1347996b61797d9d497a0b2942
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 16 22:11:43 2017 +0100
+
+    cmd/compile: remove some redundant types in decls
+    
+    As per golint's suggestions.
+    
+    Change-Id: Ie0c6ad9aa5dc69966a279562a341c7b095c47ede
+    Reviewed-on: https://go-review.googlesource.com/64192
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go         |  2 +-
+ src/cmd/compile/internal/gc/ssa.go           | 16 ++++++++--------
+ src/cmd/compile/internal/gc/typecheck.go     |  2 +-
+ src/cmd/compile/internal/gc/walk.go          |  8 ++++----
+ src/cmd/compile/internal/ssa/likelyadjust.go |  2 +-
+ src/cmd/compile/internal/ssa/redblack32.go   |  4 ++--
+ src/cmd/compile/internal/types/type.go       | 10 +++++-----
+ 7 files changed, 22 insertions(+), 22 deletions(-)

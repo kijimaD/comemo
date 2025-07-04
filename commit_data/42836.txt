@@ -1,0 +1,24 @@
+commit 0bbd386e8bbdf419077d708d3671245fc0f50f0c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 14:17:08 2020 -0400
+
+    cmd/go: add -retract and -dropretract flags to 'go mod edit'
+    
+    'go mod edit' can now add and remove 'retract' directives from go.mod
+    files.
+    
+    Also, retractions are now included in the 'go mod edit -json' output.
+    
+    For #24031
+    
+    Change-Id: Ife7915e259fa508626d6ec5f786b5c860b489599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228381
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                   |  18 ++++-
+ src/cmd/go/internal/modcmd/edit.go      | 101 +++++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_edit.txt | 114 ++++++++++++++++++++++++++++----
+ 3 files changed, 208 insertions(+), 25 deletions(-)

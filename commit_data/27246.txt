@@ -1,0 +1,19 @@
+commit 6b019e216b4521c2375572a4edf2e08c1d9bc754
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon May 2 17:32:14 2016 -0400
+
+    cmd/link: bump object file version number
+    
+    The format has been tweaked several times in the latest cycle, so
+    replace go13ld with go17ld.
+    
+    Change-Id: I343c49b02b7516fd781bc96ad46640579da68c59
+    Reviewed-on: https://go-review.googlesource.com/22708
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/goobj/read.go      | 4 ++--
+ src/cmd/internal/obj/objfile.go     | 8 ++++----
+ src/cmd/link/internal/ld/objfile.go | 8 ++++----
+ 3 files changed, 10 insertions(+), 10 deletions(-)

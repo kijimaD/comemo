@@ -1,0 +1,27 @@
+commit d55a099e220ae2d1d9cee861e9750b9f92fcb4fe
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Mar 3 19:45:24 2016 +0100
+
+    cmd/compile: don't use duffcopy and duffzero on Plan 9
+    
+    The ssa compiler uses the duffcopy and duffzero functions,
+    which rely on the MOVUPS instructions.
+    
+    However, this doesn't work on Plan 9, since floating point
+    operations are not allowed in the note handler.
+    
+    This change disables the use of duffcopy and duffzero
+    on Plan 9 in the ssa compiler.
+    
+    Updates #14605.
+    
+    Change-Id: I017f8ff83de00eabaf7e146b4344a863db1dfddc
+    Reviewed-on: https://go-review.googlesource.com/20171
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go       | 27 +++++++++++++++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++----------
+ 3 files changed, 32 insertions(+), 25 deletions(-)

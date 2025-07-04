@@ -1,0 +1,18 @@
+commit 0312e31ed197b3bf1434e8dbb283f0d2374d7457
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 1 20:34:45 2025 -0800
+
+    net: fix parsing of interfaces on plan9 without associated devices
+    
+    Fixes #72060
+    Updates #39908
+    
+    Change-Id: I7d5bda1654753acebc8aa9937d010b41c5722b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654055
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_plan9.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

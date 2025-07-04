@@ -1,0 +1,25 @@
+commit c63db157bd669845a23255ab268596669a5ea5df
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 25 00:31:45 2016 +0200
+
+    net: handle "dns failure" as errNoSuchHost on Plan 9
+    
+    CL 31468 added TestLookupNonLDH, which was failing on Plan 9,
+    because LookupHost was expecting to return errNoSuchHost
+    on DNS resolution failure, while Plan 9 returned the
+    "dns failure" string.
+    
+    In the Plan 9 implementation of lookupHost, we now return
+    errNoSuchHost instead of the "dns failure" string, so
+    the behavior is more consistant with other operating systems.
+    
+    Fixes #17568.
+    
+    Change-Id: If64f580dc0626a4a4f19e5511ba2ca5daff5f789
+    Reviewed-on: https://go-review.googlesource.com/31873
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

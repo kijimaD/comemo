@@ -1,0 +1,20 @@
+commit 37b15baa3b884d5de8563f91be2afa3659e8258f
+Author: Tim Wright <tenortim@gmail.com>
+Date:   Sat Nov 4 19:35:23 2017 -0700
+
+    syscall: fix NaCl Link syscall error handling
+    
+    The existing NaCl filesystem Link system call erroneously allowed
+    a caller to call Link on an existing target which violates the POSIX
+    standard and effectively corrupted the internal filesystem
+    representation.
+    
+    Fixes #22383
+    
+    Change-Id: I77b16c37af9bf00a1799fa84277f066180edac47
+    Reviewed-on: https://go-review.googlesource.com/76110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go      | 21 +++++++++++++++++++++
+ src/syscall/fs_nacl.go |  4 ++++
+ 2 files changed, 25 insertions(+)

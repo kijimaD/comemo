@@ -1,0 +1,16 @@
+commit 0be59730fd9339f9c79601ce19a5323828e634c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 22 08:41:32 2014 -0700
+
+    runtime: add Go symtab implementation
+    
+    LGTM=khr
+    R=khr, dvyukov, dave
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/124300044
+
+ src/pkg/runtime/extern.go                |  31 -------
+ src/pkg/runtime/runtime.h                |   2 +-
+ src/pkg/runtime/{symtab.goc => symtab.c} |  53 +++++------
+ src/pkg/runtime/symtab.go                | 153 +++++++++++++++++++++++++++++++
+ 4 files changed, 176 insertions(+), 63 deletions(-)

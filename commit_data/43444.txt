@@ -1,0 +1,26 @@
+commit ad36f871512ea54a9044e256b2743b8346b725dd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 22 23:43:11 2020 +1100
+
+    strconv: increase the Eisel-Lemire exp10 range
+    
+    This grows the exp10 range for which the Eisel-Lemire algorithm applies
+    from [-307, +288] to [-348, +347], roughly equivalent to the existing
+    powersOfTen table in extfloat.go (which uses a different algorithm).
+    
+    name                  old time/op  new time/op  delta
+    Atof64Decimal-4       48.4ns ± 1%  48.7ns ± 3%   ~     (p=0.698 n=5+5)
+    Atof64Float-4         57.9ns ± 1%  58.1ns ± 2%   ~     (p=0.873 n=5+5)
+    Atof64FloatExp-4      71.8ns ± 2%  72.2ns ± 2%   ~     (p=0.730 n=5+5)
+    Atof64Big-4            165ns ± 1%   164ns ± 1%   ~     (p=0.635 n=5+5)
+    Atof64RandomBits-4     165ns ± 1%   165ns ± 6%   ~     (p=0.143 n=5+5)
+    Atof64RandomFloats-4   147ns ± 2%   147ns ± 1%   ~     (p=0.857 n=5+5)
+    
+    Change-Id: Idf7dc5297db6db2bd9e0bd4cb0e55e021916fa43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264139
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
+
+ src/strconv/eisel_lemire.go | 124 ++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 119 insertions(+), 5 deletions(-)

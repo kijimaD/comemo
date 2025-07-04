@@ -1,0 +1,13 @@
+commit c8b9970e163764047665b60f3ef690d9833ff187
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 4 02:54:19 2008 -0700
+
+    change *a1++; to plain a1++
+    
+    R=ken
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=16489
+    CL=16489
+
+ src/cmd/gc/mparith2.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

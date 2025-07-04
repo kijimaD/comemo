@@ -1,0 +1,14 @@
+commit 3a6744d890c9a9f13ebe4b053969380383024cef
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 14:54:00 2011 -0500
+
+    os: fix comment per CL 5370091
+    
+    Made the edit in the wrong client before submitting.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5374091
+
+ src/pkg/os/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

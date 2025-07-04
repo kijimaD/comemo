@@ -1,0 +1,13 @@
+commit 583b29cb18e5dd93d71b79622e23d44833ab1715
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 4 09:29:29 2014 +1100
+
+    spec: add comment marker for consistency.
+    
+    LGTM=r
+    R=gri, r
+    CC=golang-codereviews
+    https://golang.org/cl/185830043
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 3cf9acccae4686ebb1dbaece4056eca58b8392b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 13 10:01:34 2014 -0700
+
+    reflect: generated unrolled GC bitmask directly
+    
+    The code for a generated type is already generating an
+    unrolled GC bitmask.  Rather than unrolling the the source
+    type bitmasks and copying them, just generate the required
+    bitmask directly.  Don't mark it as an unrolled GC program,
+    since there is no need to do so.
+    
+    Fixes #8917.
+    
+    LGTM=rsc
+    R=dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/156930044
+
+ src/reflect/all_test.go |  6 ++++++
+ src/reflect/type.go     | 56 ++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 43 insertions(+), 19 deletions(-)

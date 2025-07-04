@@ -1,0 +1,19 @@
+commit 598c78967f26a0275a1f295ce3a96769f9be91bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 5 15:04:05 2013 -0700
+
+    strings: use runtime assembly for IndexByte
+    
+    Fixes #3751
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/12483043
+
+ src/pkg/runtime/asm_386.s       | 16 +++++++++++++++-
+ src/pkg/runtime/asm_amd64.s     | 27 +++++++++++++++++++++++----
+ src/pkg/runtime/asm_arm.s       | 24 ++++++++++++++++++++++++
+ src/pkg/strings/strings.go      | 10 ----------
+ src/pkg/strings/strings.s       |  5 +++++
+ src/pkg/strings/strings_decl.go |  8 ++++++++
+ 6 files changed, 75 insertions(+), 15 deletions(-)

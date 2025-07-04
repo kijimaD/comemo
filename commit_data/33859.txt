@@ -1,0 +1,15 @@
+commit 05deefee5227947b2239a4e1772cf738a320b09e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Dec 11 16:42:25 2017 -0500
+
+    doc: fix misuse of “substantive” in 1.10 release notes
+    
+    Use “substantial”, which is believed to be the correct word.
+    Additionally, this change strips trailing whitespace from the file.
+    
+    Change-Id: I5b6b718fc09e4b8b911b95e8be0733abd58e165d
+    Reviewed-on: https://go-review.googlesource.com/83356
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.10.html | 42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

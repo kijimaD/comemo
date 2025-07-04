@@ -1,0 +1,39 @@
+commit 256a605faa10bc5507597c4669cc5bc400bf487a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 09:54:10 2017 -0800
+
+    cmd/compile: don't use nilcheck information until the next block
+    
+    When nilcheck runs, the values in a block are not in any particular
+    order.  So any facts derived from examining the blocks shouldn't be
+    used until we reach the next block.
+    
+    This is suboptimal as it won't eliminate nil checks within a block.
+    But it's probably a better fix for now as it is a much smaller change
+    than other strategies for fixing this bug.
+    
+    nilptr3.go changes are mostly because for this pattern:
+      _ = *p
+      _ = *p
+    either nil check is fine to keep, and this CL changes which one
+    the compiler tends to keep.
+    There are a few regressions from code like this:
+      _ = *p
+      f()
+      _ = *p
+    For this pattern, after this CL we issue 2 nil checks instead of one.
+    (For the curious, this happens because intra-block nil check
+     elimination now falls to CSE, not nilcheck proper.  The former
+     pattern has two nil checks with the same store argument.  The latter
+     pattern has two nil checks with different store arguments.)
+    
+    Fixes #18725
+    
+    Change-Id: I3721b494c8bc9ba1142dc5c4361ea55c66920ac8
+    Reviewed-on: https://go-review.googlesource.com/35485
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 22 ++++++++++++++-----
+ test/fixedbugs/issue18725.go             | 24 +++++++++++++++++++++
+ test/nilptr3.go                          | 36 ++++++++++++++++----------------
+ 3 files changed, 59 insertions(+), 23 deletions(-)

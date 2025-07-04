@@ -1,0 +1,17 @@
+commit d64617fc0a537d9783f03ef5c97eaee7d0e7de17
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 13:17:57 2015 -0700
+
+    encoding/gob: more checks for corrupted data
+    
+    Also unify the tests where possible to make it easy to add more.
+    
+    Fixes #10273.
+    
+    Change-Id: Idfa4f4a5dcaa05974066bafe17bed6cdd2ebedb7
+    Reviewed-on: https://go-review.googlesource.com/8662
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/decode.go       | 22 +++++++++---
+ src/encoding/gob/encoder_test.go | 76 ++++++++++++++++++----------------------
+ 2 files changed, 51 insertions(+), 47 deletions(-)

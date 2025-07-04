@@ -1,0 +1,17 @@
+commit c54cb4cb4dc87726060ea8f7b677d918a3676231
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 28 16:19:09 2009 -0700
+
+    - added missing formatters in templates
+    - replaced deprecated use of </font> with </span> tag
+    - added html escaping to godoc formatters where missing
+    - enabled text format for package documentation
+    
+    R=rsc
+    http://go/go-review/1017001
+
+ lib/godoc/package.html    |  4 ++--
+ lib/godoc/parseerror.html |  2 +-
+ lib/godoc/search.html     |  2 +-
+ src/cmd/godoc/godoc.go    | 22 ++++++++++++++++------
+ 4 files changed, 20 insertions(+), 10 deletions(-)

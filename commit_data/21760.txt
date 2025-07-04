@@ -1,0 +1,26 @@
+commit 433c1ad1400047b17b9cd7107afa7afe55a04e12
+Author: Joe Shaw <joe@joeshaw.org>
+Date:   Thu Feb 12 17:21:01 2015 -0500
+
+    archive/zip: fix size value in ZIP64 end central directory record
+    
+    Section 4.3.14.1 of the ZIP file format
+    spec (https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) says,
+    
+        The value stored into the "size of zip64 end of central directory
+        record" should be the size of the remaining record and should not
+        include the leading 12 bytes.
+    
+    We were previously writing the full size, including the 12 bytes.
+    
+    Fixes #9857
+    
+    Change-Id: I7cf1fc8457c5f306717cbcf61e02304ab549781f
+    Reviewed-on: https://go-review.googlesource.com/4760
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/writer.go   | 18 +++++++++---------
+ src/archive/zip/zip_test.go | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 43 insertions(+), 11 deletions(-)

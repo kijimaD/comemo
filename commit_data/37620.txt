@@ -1,0 +1,12 @@
+commit 444887dde8393c3bbf94122c17ab7f005a7257c4
+Author: Julie Qiu <julie@golang.org>
+Date:   Thu Dec 6 14:13:28 2018 -0500
+
+    doc/go1.12: release notes for math/bits
+    
+    Change-Id: I930942c7e057a36332ac06762f6aadf07574a7d5
+    Reviewed-on: https://go-review.googlesource.com/c/152977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

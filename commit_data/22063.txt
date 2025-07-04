@@ -1,0 +1,21 @@
+commit e5be6432a8c7b4295281635b9bcb30e21946d22d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 16 19:03:09 2015 -0400
+
+    cmd/internal/gc: mv builtins builtin
+    
+    This directory is processed by mkbuiltin.go and generates builtin.go.
+    It should be named builtin too, not builtins, both for consistency
+    and because file and directory names in general are singular unless
+    forced otherwise.
+    
+    Commented on CL 6233 too.
+    
+    Change-Id: Ic5d3671443ae9292b69fda118f61a11c88d823fa
+    Reviewed-on: https://go-review.googlesource.com/7660
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/{builtins => builtin}/runtime.go | 0
+ src/cmd/internal/gc/{builtins => builtin}/unsafe.go  | 0
+ src/cmd/internal/gc/mkbuiltin.go                     | 2 +-
+ 3 files changed, 1 insertion(+), 1 deletion(-)

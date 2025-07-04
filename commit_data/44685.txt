@@ -1,0 +1,18 @@
+commit 0089f8b2f5a4e3db944cf4b61314bdef45fa1b81
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 5 11:30:23 2021 -0500
+
+    cmd/go: test that 'go mod tidy' retains upgraded indirect dependencies
+    
+    For #36460
+    
+    Change-Id: I63596e1c95d0c702073cdb016579598d79cc95ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300158
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_tidy_indirect.txt | 67 ++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

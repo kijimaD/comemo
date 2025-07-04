@@ -1,0 +1,17 @@
+commit 777a96a5b09f00bf531a75d9d65251e1771f05ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 2 12:32:14 2010 -0800
+
+    go_spec: fixed a couple omissions/type errors
+    
+    - use math.Sqrt instead of Math.sqrt
+    - use float64 for Point fields to match math.Sqrt
+    - distinguish between Point and Point3D for clarity
+    - add alignment sizes for complex types
+    
+    R=r, rsc, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/3420041
+
+ doc/go_spec.html | 39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)

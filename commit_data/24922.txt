@@ -1,0 +1,23 @@
+commit 45d1c8ab59cd08ef4a7976f44c8c19ed53b118f8
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 20 00:23:11 2015 -0700
+
+    crypto/tls: return a typed error on invalid record headers
+    
+    The user can inspect the record data to detect that the other side is
+    not using the TLS protocol.
+    
+    This will be used by the net/http client (in a follow-on CL) to detect
+    when an HTTPS client is speaking to an HTTP server.
+    
+    Updates #11111.
+    
+    Change-Id: I872f78717aa8e8e98cebd8075436209a52039a73
+    Reviewed-on: https://go-review.googlesource.com/16078
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/conn.go | 27 +++++++++++++++++++++++----
+ 1 file changed, 23 insertions(+), 4 deletions(-)

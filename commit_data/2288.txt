@@ -1,0 +1,15 @@
+commit 76f2a9fa48b060db146260431c38ae33201b126b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 15:44:29 2009 -0700
+
+    md5 Reset fix; preliminary hmac
+    
+    TBR=r
+    OCL=29279
+    CL=29279
+
+ src/lib/crypto/hmac/Makefile     | 68 ++++++++++++++++++++++++++++++++++
+ src/lib/crypto/hmac/hmac.go      | 80 ++++++++++++++++++++++++++++++++++++++++
+ src/lib/crypto/hmac/hmac_test.go | 27 ++++++++++++++
+ src/lib/crypto/md5/md5.go        |  2 +
+ 4 files changed, 177 insertions(+)

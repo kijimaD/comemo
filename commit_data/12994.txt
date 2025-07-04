@@ -1,0 +1,12 @@
+commit 5d331964e7dc9a4862ce080e6f494bcd7931fa22
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 30 22:47:06 2012 +1000
+
+    misc/dashboard/codereview: add handy logout URL.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6135052
+
+ misc/dashboard/codereview/dashboard/front.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

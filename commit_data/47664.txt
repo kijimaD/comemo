@@ -1,0 +1,18 @@
+commit 36be0beb05043e8ef3b8d108e9f8977b5eac0c87
+Author: Changkun Ou <hi@changkun.de>
+Date:   Thu Dec 2 16:01:09 2021 +0100
+
+    misc/ios: bump min version
+    
+    For #48076
+    
+    Change-Id: I5edaa43af82c3478555c309a001a3d1b16de3d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368615
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/ios/clangwrap.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

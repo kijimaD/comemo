@@ -1,0 +1,19 @@
+commit f1c400a06393aad55cd4758fc78ccd7aec379ec0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 15 10:14:15 2020 -0400
+
+    cmd/go: fix broken mod_outside test
+    
+    Since CL 254369, 'go mod graph' now reports an error when invoked
+    outside a module. This broke the mod_outside test, which expected
+    'go mod graph' to succeed with no output.
+    
+    Change-Id: Ic30ee68f1f4c4d33795bdf7df70a7631fb9395e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255017
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_outside.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

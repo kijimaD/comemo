@@ -1,0 +1,18 @@
+commit 20e9b7f1b53d49fd66e0344b1d0d42d3cf5e47b6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 3 01:24:06 2023 +1100
+
+    debug/dwarf: return ErrUnknownPC rather than nil on unknown PC
+    
+    Currently, on e == nil or e.Tag == 0, SeekPC returns with a nil error.
+    Instead, indicate that the PC is unknown.
+    
+    Change-Id: I9594296034e2df872e399bd800b00cb565c413c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473695
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/entry.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

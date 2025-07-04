@@ -1,0 +1,12 @@
+commit 2f655c4bb7e2002da4329c9deec9513601172a26
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 25 10:58:58 2011 +1000
+
+    spec: delete spurious tag.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4536082
+
+ doc/go_spec.html | 1 -
+ 1 file changed, 1 deletion(-)

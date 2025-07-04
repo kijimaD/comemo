@@ -1,0 +1,16 @@
+commit 90812292e25796f8411f625c062cfc2e2b4bdf5e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Nov 29 18:41:03 2018 -0500
+
+    net: skip flaky TestLookupDotsWithRemoteSource on darwin
+    
+    Updates golang/go#27992
+    
+    Change-Id: Ic327df7cc5002a3d537f9117559c25f30e1eab9c
+    Reviewed-on: https://go-review.googlesource.com/c/151799
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

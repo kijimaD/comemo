@@ -1,0 +1,24 @@
+commit b2a1fb74f4a15f97ab5a94861e1e78226077e477
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 7 11:04:01 2015 -0700
+
+    cmd/api: update api checker to use go/types from std repo
+    
+    The old code checked out a specific version of go/types from the
+    x/tools repo. With go/types being part of the std repo, this is
+    not necessary anymore.
+    
+    Also, for the same reason, the api tool is now built like any
+    other regular command. There's no need to build it for each run.
+    Removed the respective +build tags.
+    
+    Change-Id: I5088e4867223d676957084c24651ec05452ac495
+    Reviewed-on: https://go-review.googlesource.com/8564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/api/goapi.go      |  31 +++++----
+ src/cmd/api/goapi_test.go |  13 +++-
+ src/cmd/api/run.go        | 166 +---------------------------------------------
+ 3 files changed, 28 insertions(+), 182 deletions(-)

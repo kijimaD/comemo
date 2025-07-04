@@ -1,0 +1,48 @@
+commit 99a10eff16b79cfb8ccf36e586532a40b17a203c
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Oct 18 12:32:55 2010 -0400
+
+    8l, runtime: initial support for Plan 9
+    
+    No multiple processes/locks, managed to compile
+    and run a hello.go (with print not fmt).  Also test/sieve.go
+    seems to run until 439 and stops with a
+    'throw: all goroutines are asleep - deadlock!'
+    - just like runtime/tiny.
+    
+    based on Russ's suggestions at:
+    http://groups.google.com/group/comp.os.plan9/browse_thread/thread/cfda8b82535d2d68/243777a597ec1612
+    
+    Build instructions:
+    cd src/pkg/runtime
+    make clean && GOOS=plan9 make install
+    this will build and install the runtime.
+    
+    When linking with 8l, you should pass -s to suppress symbol
+    generation in the a.out, otherwise the generated executable will not run.
+    
+    This is runtime only, the porting of the toolchain has already
+    been done: http://code.google.com/p/go-plan9/source/browse
+    in the plan9-quanstro branch.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2273041
+
+ src/Make.inc                       |   3 +-
+ src/cmd/8l/asm.c                   |   1 +
+ src/cmd/8l/obj.c                   |   3 +
+ src/cmd/8l/pass.c                  |  17 ++++-
+ src/pkg/runtime/386/asm.s          |   4 +-
+ src/pkg/runtime/mkasmh.sh          |   5 ++
+ src/pkg/runtime/plan9/386/defs.h   |   1 +
+ src/pkg/runtime/plan9/386/rt0.s    |  32 +++++++++
+ src/pkg/runtime/plan9/386/signal.c |  10 +++
+ src/pkg/runtime/plan9/386/sys.s    |  76 +++++++++++++++++++++
+ src/pkg/runtime/plan9/mem.c        |  49 ++++++++++++++
+ src/pkg/runtime/plan9/os.h         |  27 ++++++++
+ src/pkg/runtime/plan9/signals.h    |   1 +
+ src/pkg/runtime/plan9/thread.c     | 135 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.c          |  11 ++-
+ src/pkg/runtime/runtime.h          |   2 +-
+ 16 files changed, 370 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 12a3435869b17de633d50857764b9c6a055032c1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 30 17:29:53 2008 -0700
+
+    reflection support for tag strings
+    
+    R=rsc
+    DELTA=86  (77 added, 0 deleted, 9 changed)
+    OCL=18201
+    CL=18203
+
+ src/lib/reflect/test.go     |  2 ++
+ src/lib/reflect/tostring.go | 30 ++++++++++++++++++++--
+ src/lib/reflect/type.go     | 61 ++++++++++++++++++++++++++++++++++++++++-----
+ src/lib/reflect/value.go    |  2 +-
+ 4 files changed, 86 insertions(+), 9 deletions(-)

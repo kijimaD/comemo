@@ -1,0 +1,30 @@
+commit 88daac7862531c606345787f2adff6cf845808d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 16:14:31 2008 -0800
+
+    gotestify & gostylify math.
+    
+    R=r
+    DELTA=682  (275 added, 301 deleted, 106 changed)
+    OCL=19638
+    CL=19642
+
+ src/lib/math/asin.go  |  18 ++--
+ src/lib/math/atan.go  |  31 ++----
+ src/lib/math/atan2.go |  10 +-
+ src/lib/math/exp.go   |  21 ++--
+ src/lib/math/fabs.go  |   6 +-
+ src/lib/math/floor.go |  19 ++--
+ src/lib/math/fmod.go  |  17 +---
+ src/lib/math/hypot.go |  16 +--
+ src/lib/math/log.go   |  26 ++---
+ src/lib/math/pow.go   |  29 +++---
+ src/lib/math/pow10.go |  12 +--
+ src/lib/math/sin.go   |  35 +++----
+ src/lib/math/sinh.go  |  26 ++---
+ src/lib/math/sqrt.go  |  13 +--
+ src/lib/math/tan.go   |  23 ++---
+ src/lib/math/tanh.go  |  10 +-
+ src/lib/math/test.go  | 273 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/mathtest.go      | 211 --------------------------------------
+ 18 files changed, 385 insertions(+), 411 deletions(-)

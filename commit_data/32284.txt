@@ -1,0 +1,14 @@
+commit 34920b8713fa93ee50ee8963949728c1569e6017
+Author: Martins Sipenko <martins.sipenko@gmail.com>
+Date:   Fri May 26 14:35:29 2017 +0300
+
+    crypto/x509: add PublicKeyAlgorithm.String()
+    
+    Change-Id: I77d9c77875519d77bac49cc8870c2e0c4563fe55
+    Reviewed-on: https://go-review.googlesource.com/44313
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

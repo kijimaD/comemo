@@ -1,0 +1,21 @@
+commit cde230b8b354200678a79b0d5fe8263f34f46d45
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 3 17:03:42 2020 -0500
+
+    cmd/go: remove tests using testdata/flag_test.go
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I6573185cf14f298c51f76265f18a75e4960ce791
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213220
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                                    | 16 ----------------
+ .../go/testdata/{flag_test.go => script/test_flag.txt}   |  6 ++++++
+ src/cmd/go/testdata/script/test_minus_n.txt              | 14 ++++++++++++++
+ 3 files changed, 20 insertions(+), 16 deletions(-)

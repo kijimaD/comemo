@@ -1,0 +1,11 @@
+commit 75829b3c515482ebfcafebf22ab630f7b39102f6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Nov 13 17:40:20 2009 -0800
+
+    Remove unnecessary int(h) casts in image.go.
+    
+    R=rsc
+    https://golang.org/cl/154125
+
+ src/pkg/image/image.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

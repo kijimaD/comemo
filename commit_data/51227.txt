@@ -1,0 +1,19 @@
+commit 73f987c88b348772ca2efa8d5b3d0ac61cbdb563
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 11 13:02:44 2022 +0700
+
+    test: add regression test for issue 53439
+    
+    Fixes #53439
+    
+    Change-Id: I425af0f78153511034e4a4648f32ef8c9378a325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449756
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ test/fixedbugs/issue53439.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,0 +1,15 @@
+commit 57d89fb6598046a41b1690dec1222257a3c21bf6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 15:39:47 2013 +0200
+
+    cmd/fix: check type assertion in netipv6zone rule.
+    
+    Fixes #5461.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9947043
+
+ src/cmd/fix/netipv6zone.go      | 2 +-
+ src/cmd/fix/netipv6zone_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit ff99a61e5e892dedb88f9f80bce9cc102d2f50b2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 1 09:50:36 2018 +0200
+
+    runtime: port assembly files for aix/ppc64
+    
+    This commit adds the change on asm_ppc64.s and tls_ppc64.s files for AIX
+    operating system.
+    
+    R2 does not need to be set for aix/ppc64 since it should remain valid
+    througout Go execution, except after a call to a C function.
+    Moreover, g must always be saved on the tls as syscalls are made with
+    C functions.
+    
+    Some modifications on asm_ppc64.s are due to AIX stack layout.
+    
+    It also removes a useless part in asmcgocall which was done twice.
+    
+    Change-Id: Ie037ab73da00562bb978f2d0f17fcdabd4a40aa2
+    Reviewed-on: https://go-review.googlesource.com/c/138735
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_ppc64x.s | 52 +++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/tls_ppc64x.s |  2 ++
+ 2 files changed, 47 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit ef1c5357277f66d71e127e954991d4342da8c5c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 00:13:19 2011 -0500
+
+    spec: examples of untyped boolean, string constants
+    
+    This is a spec correction, not a language change.
+    The implementations have behaved like this for years
+    (and there are tests to that effect), and elsewhere in
+    the spec true and false are defined to be untyped
+    boolean constants.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5477047
+
+ doc/go_spec.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

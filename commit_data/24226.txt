@@ -1,0 +1,25 @@
+commit da7e9e4fa7a482a2c93ee40b601077ed85606263
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 9 08:33:34 2015 -0700
+
+    A+C: automated updates
+    
+    The previous automated updates only added missing entries for commits
+    since Go 1.4, with the assumption that we were caught up on things
+    prior to that. (Initially motivated by the existence of junk email
+    address jokes in the early git history, which I initially didn't want
+    to whitelist)
+    
+    But it turns out we were missing lots of stuff, at least for subrepos
+    prior to N months ago.
+    
+    This is an update with all subrepos updated, with no date
+    restrictions.
+    
+    Change-Id: I2b5580ae4f89ae9ba7eaa336cc54ce6d606c5379
+    Reviewed-on: https://go-review.googlesource.com/14409
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 61 ++++++++++++++++++++++++++++++++++++++++++-
+ CONTRIBUTORS | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 142 insertions(+), 3 deletions(-)

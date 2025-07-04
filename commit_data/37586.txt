@@ -1,0 +1,19 @@
+commit 5e1727892bf36076ee45c417b56bba32801ffbd7
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Dec 5 08:01:07 2018 +0900
+
+    cmd/cgo: reject names that are likely to be mangled C name
+    
+    Fixes #28721
+    
+    Change-Id: I00356f3a9b0c2fb21dc9c2237dd5296fcb3b319b
+    Reviewed-on: https://go-review.googlesource.com/c/152657
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/errors_test.go    |  1 +
+ misc/cgo/errors/src/issue28721.go | 29 +++++++++++++++++++++++++++++
+ src/cmd/cgo/ast.go                |  9 +++++++++
+ src/cmd/cgo/gcc.go                | 13 +++++++++++++
+ src/cmd/cgo/main.go               |  4 +++-
+ 5 files changed, 55 insertions(+), 1 deletion(-)

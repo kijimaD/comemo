@@ -1,0 +1,19 @@
+commit e0388c92d048fc31b39e133441bd4f6d85959ec4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:35:41 2022 -0700
+
+    internal/poll: rely on utf8.AppendRune
+    
+    This is both simpler and more performant.
+    
+    Change-Id: I398de29230e578fb7caf1765df7b8fe84d4e8876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412336
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_windows.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

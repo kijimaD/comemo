@@ -1,0 +1,17 @@
+commit 9ed0715bb66dbbd0f597f93d0bc70a3d769b1b10
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Tue Sep 20 22:56:57 2016 +0100
+
+    math/big: support negative numbers in ModInverse
+    
+    Fixes #16984
+    
+    Change-Id: I3a330e82941a068ca6097985af4ab221275fd336
+    Reviewed-on: https://go-review.googlesource.com/29299
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/math/big/int.go      | 5 +++++
+ src/math/big/int_test.go | 1 +
+ 2 files changed, 6 insertions(+)

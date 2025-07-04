@@ -1,0 +1,27 @@
+commit fdded79e6e3256118af182b42714d4d56f2000b0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 9 18:24:51 2021 -0800
+
+    cmd/compile: fix handling of partially inferred type arguments
+    
+    In the case of partially inferred type arguments, we need to use the
+    IndexExpr as the key in g.info.Inferred[] rather than the CallExpr.
+    
+    Added an extra fromStrings1 call in the settable.go test that tests
+    partially inferred type arguments. This new call uses a new concrete
+    type SettableString as well.
+    
+    I also added another implementation fromStrings3 (derived from a go2go
+    tests) that typechecks but intentionally causes a panic.
+    
+    Change-Id: I74d35c5a741f72f37160a96fbec939451157f392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300309
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go | 12 +++++++-
+ test/typeparam/settable.go             | 55 ++++++++++++++++++++++++++++++----
+ 2 files changed, 61 insertions(+), 6 deletions(-)

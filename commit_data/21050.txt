@@ -1,0 +1,20 @@
+commit 401b20234cc56ac771a0daeec53c200f752500a7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Dec 11 10:25:32 2014 -0500
+
+    syscall: check recorded version of ppid instead of 1
+    
+    Handles the case where the parent is pid 1 (common in docker
+    containers).
+    
+    Attempted and failed to write a test for this.
+    
+    Fixes #9263.
+    
+    Change-Id: I5c6036446c99e66259a4fab1660b6a594f875020
+    Reviewed-on: https://go-review.googlesource.com/1372
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/exec_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

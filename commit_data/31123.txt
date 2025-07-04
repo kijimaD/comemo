@@ -1,0 +1,19 @@
+commit 4e4e51c5c5a1cedf4d2e8fef59b61eeaddb10647
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 05:57:59 2017 -0700
+
+    cmd/internal/obj: generate function DWARF symbols early
+    
+    This removes a concurrent access of ctxt.Data.
+    
+    Updates #15756
+    
+    Change-Id: Id017e90e47e093cd8825907f3853bb3d3bf8280d
+    Reviewed-on: https://go-review.googlesource.com/40507
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/objfile.go | 21 +++++++++++++--------
+ src/cmd/internal/obj/plist.go   |  8 +++++++-
+ 2 files changed, 20 insertions(+), 9 deletions(-)

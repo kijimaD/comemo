@@ -1,0 +1,14 @@
+commit 5d580336821b05684c00ebaf9fb4a8318a40788e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 18 12:44:24 2014 +0400
+
+    go/printer: simplify test
+    Pre Go1?
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/115870043
+
+ src/pkg/go/printer/printer_test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

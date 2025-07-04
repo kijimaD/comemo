@@ -1,0 +1,18 @@
+commit 7231ceb714aa8c5df479dc772590e1495d3f3df4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 15:01:04 2008 -0700
+
+    Proposal for new function type syntax as suggested by ken:
+    - removed "func" from function type
+    - make it work by changing composite literal syntax to use {} instead of ()
+    
+    FunctionType is now more in line with the rest of the declarations, as the
+    keyword "func" is now really part of the declaration and not part of the type.
+    
+    R=r,ken
+    DELTA=49  (14 added, 12 deleted, 23 changed)
+    OCL=14864
+    CL=14955
+
+ doc/go_spec.txt | 68 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 35 insertions(+), 33 deletions(-)

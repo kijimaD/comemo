@@ -1,0 +1,25 @@
+commit 664d2707276b3523895d98f1233c3ad7b7297220
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue Apr 21 11:00:53 2020 +0100
+
+    os: correct bad PathError message from FileOpen with O_CREATE on Plan 9
+    
+    On Plan 9, FileOpen with flag O_CREATE & ~O_TRUNC is done in two
+    steps.  First, syscall.Open is attempted, to avoid truncation when opening
+    an existing file.  If that fails because the file doesn't exist,
+    syscall.Create is used to create a new file.  If the Create fails,
+    for example because we are racing with another process to create a
+    ModeExclusive file, the PathError returned from FileOpen should reflect
+    the result of the Create, not the "does not exist" error from the initial
+    Open attempt.
+    
+    Fixes #38540
+    
+    Change-Id: I90c95a301de417ecdf79cd52748591edb1dbf528
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229099
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/os/file_plan9.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

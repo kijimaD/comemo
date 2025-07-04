@@ -1,0 +1,16 @@
+commit 94146819729000c50caa89015e458abed7405b77
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 15 10:15:34 2009 -0800
+
+    Test that interfaces are correctly handled by pointer and by
+    value for large and small objects.  Currently one case fails
+    with 6g.
+    
+    R=rsc
+    DELTA=150  (150 added, 0 deleted, 0 changed)
+    OCL=22823
+    CL=22827
+
+ test/golden.out    |   4 ++
+ test/interface6.go | 150 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 154 insertions(+)

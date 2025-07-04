@@ -1,0 +1,21 @@
+commit 626d478d828ea4c41e09830215fd6f21df9b1ccc
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed May 17 17:45:37 2023 -0400
+
+    internal/types/errors: generate Markdown files for compiler errors
+    
+    This change adds a generator which creates a Markdown file for each
+    compiler error code which includes its associated documentation. The
+    Markdown files will be added to the x/website repository and used
+    to generate short error links on the Go website.
+    
+    Change-Id: Ibabc3388d6ecc7f19151f3931554f72561e30b22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495858
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/types/errors/generrordocs.go | 117 ++++++++++++++++++++++++++++++
+ 1 file changed, 117 insertions(+)

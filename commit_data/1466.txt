@@ -1,0 +1,15 @@
+commit 8fb60768c39ce4ad77068fb507a8beab306a1fd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 13 13:46:09 2009 -0800
+
+    in 6g -r (the rsc flag),
+    rewrite heap pointer moves as xchg.
+    
+    R=ken
+    OCL=22665
+    CL=22665
+
+ src/cmd/6g/cgen.c  |  1 +
+ src/cmd/6g/gsubr.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/6g/reg.c   | 18 ++++++++++++++++++
+ 3 files changed, 71 insertions(+), 2 deletions(-)

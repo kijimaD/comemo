@@ -1,0 +1,15 @@
+commit d73452b30f777152895002792cfd5751df642ea4
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 14 15:49:58 2013 -0700
+
+    cmd/vet: fix for changes to go/types package
+    Need to use (or stub) exact.Value.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/9126043
+
+ src/cmd/vet/main.go     |  2 +-
+ src/cmd/vet/types.go    | 22 ++++++++++++++--------
+ src/cmd/vet/typestub.go |  7 ++++++-
+ 3 files changed, 21 insertions(+), 10 deletions(-)

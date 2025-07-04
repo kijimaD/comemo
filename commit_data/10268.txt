@@ -1,0 +1,12 @@
+commit a4ae4ce8ba70f1f7258bf29f80a0c560b14f1a75
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 11:18:38 2011 -0500
+
+    CONTRIBUTORS: add David Crawshaw's codereview account
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5339047
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

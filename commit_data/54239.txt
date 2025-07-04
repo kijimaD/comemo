@@ -1,0 +1,22 @@
+commit 7b166602fbab7120089b077716c2a6294ced5d32
+Author: haruyama480 <haruyama480@gmail.com>
+Date:   Fri Aug 25 15:14:35 2023 +0900
+
+    net/http: revert "support streaming POST content in wasm"
+    
+    CL 458395 added support for streaming POST content in Wasm.
+    Unfortunately, this breaks requests to servers that only support HTTP/1.1.
+    Revert the change until a suitable fallback or opt-in strategy can be decided.
+    
+    Fixes #61889
+    
+    Change-Id: If53a77e1890132063b39abde867d34515d4ac2af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522955
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/net/http/roundtrip_js.go | 108 ++++++++-----------------------------------
+ 1 file changed, 18 insertions(+), 90 deletions(-)

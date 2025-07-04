@@ -1,0 +1,23 @@
+commit c1d449c42c6ea3c61f4636d1e9412b660be6f6bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 16:18:45 2016 +0000
+
+    net/http: deflake TestServerTimeouts maybe
+    
+    I haven't been able to reproduce this one, but change a few suspect
+    things in this test. Notably, using the global "Get" function and thus
+    using the DefaultTransport was buggy in a parallel test. Then add some error
+    checks and close a TCP connection.
+    
+    Hopefully the failure wasn't timing-related.
+    
+    Fixes #18036 (I hope)
+    
+    Change-Id: I4904e42e40b26d488cf82111424a1d4d46f42dae
+    Reviewed-on: https://go-review.googlesource.com/34490
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

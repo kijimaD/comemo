@@ -1,0 +1,29 @@
+commit e6ad56c711f00ee15d2c42ff64849542e19eca8a
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Sat Jun 20 06:29:18 2015 +0200
+
+    testing/quick: improve function signature error.
+    
+    This commit fixes a cosmetic defect whereby quick.Check reports that
+    the provided function returns too many values when it may, in fact,
+    return too few:
+    
+      func f() {}
+    
+      func TestFoo(t *testing.T) {
+        if err := quick.Check(f, nil); err != nil {
+          t.Fatal(err)
+        }
+      }
+      // yields
+      // $ go test -v foo_test.go
+      // === RUN TestFoo
+      // --- FAIL: TestFoo (0.00s)
+      //    foo_test.go:76: function returns more than one value.
+    
+    Change-Id: Ia209ff5b57375b30f8db425454e80798908e8ff4
+    Reviewed-on: https://go-review.googlesource.com/11281
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/quick/quick.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

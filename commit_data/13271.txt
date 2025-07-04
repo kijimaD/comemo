@@ -1,0 +1,18 @@
+commit b945b741e15b09f98ae6298d9698bd50a806267a
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jun 5 01:38:55 2012 +1000
+
+    misc/cgo/stdio: split stdout/stderr into a separate file
+    
+    Split stdout/stderr into a separate file so that can be handled
+    differently on some platforms. Both NetBSD and OpenBSD have defines
+    for stdout/stderr that require some coercion in order for cgo to
+    handle them correctly.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6247062
+
+ misc/cgo/stdio/file.go  |  3 ---
+ misc/cgo/stdio/stdio.go | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 104cd57c6d8f63eae00564eeca6de80d09e27a17
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 16:00:04 2010 -0700
+
+    doc: add Google I/O talk and programs
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1614041
+
+ doc/talks/io2010/balance.go | 164 ++++++++++++++++++++++++++++
+ doc/talks/io2010/decrypt.go |  40 +++++++
+ doc/talks/io2010/encrypt.go |  28 +++++
+ doc/talks/io2010/eval1.go   | 229 ++++++++++++++++++++++++++++++++++++++
+ doc/talks/io2010/eval2.go   | 261 ++++++++++++++++++++++++++++++++++++++++++++
+ doc/talks/io2010/talk.pdf   | Bin 0 -> 1094941 bytes
+ 6 files changed, 722 insertions(+)

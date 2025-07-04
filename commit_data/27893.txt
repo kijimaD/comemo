@@ -1,0 +1,18 @@
+commit 17eee31020b982c10a2bf21f446743137968240b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 15:56:29 2016 -0700
+
+    go/types: enable disabled test for comma-ok expressions
+    
+    This was fixed long ago but the test was not enabled.
+    
+    For #8189.
+    
+    Change-Id: Ia44ef752b6bf076f3e243d2d0db326a392a20193
+    Reviewed-on: https://go-review.googlesource.com/27310
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/api_test.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

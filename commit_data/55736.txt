@@ -1,0 +1,20 @@
+commit 629a6f5ae0b3a7b69608bd469ea7bf425768f748
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 15:08:21 2024 -0800
+
+    go/types: generate initorder.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 320 LOC.
+    
+    Change-Id: Ib797e86dd4abd3a9fe614787103f0e5cebd5e4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565838
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/initorder.go | 4 ++--
+ src/go/types/generate_test.go                | 1 +
+ src/go/types/initorder.go                    | 2 ++
+ 3 files changed, 5 insertions(+), 2 deletions(-)

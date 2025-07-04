@@ -1,0 +1,16 @@
+commit f6774bc91b3037d8bcdec96c855320eb4932b4c2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 6 15:02:41 2019 -0500
+
+    cmd/go: clarify -dropreplace help text in 'go help mod edit'
+    
+    Fixes #34930
+    
+    Change-Id: Ie0ddd8de6e40f5a192c4d2267399126e449fe5f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210340
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go              | 17 +++++++++++------
+ src/cmd/go/internal/modcmd/edit.go | 17 +++++++++++------
+ 2 files changed, 22 insertions(+), 12 deletions(-)

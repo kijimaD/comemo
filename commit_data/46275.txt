@@ -1,0 +1,23 @@
+commit d13d62c49adca86f2101bc0b7d5a394197ece81b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 14:57:18 2021 +0200
+
+    os, syscall: remove fallback to pipe syscall on Linux
+    
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
+    fallback to use the pipe syscall in os.Pipe and syscall.forkExecPipe on
+    Linux can be removed.
+    
+    For #45964
+    
+    Change-Id: I033a534f2b39e9bafc9980c9ce980e92f1e3a136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346789
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/pipe_linux.go      | 15 +--------------
+ src/syscall/exec_linux.go | 14 +-------------
+ 2 files changed, 2 insertions(+), 27 deletions(-)

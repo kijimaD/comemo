@@ -1,0 +1,20 @@
+commit 507afa68c5a3ce37a824288d19d8b8b0918a1530
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 10 14:11:39 2014 -0700
+
+    cmd/ld: fix PC deltas in DWARF line number table
+    
+    The putpclcdelta function set the DWARF line number PC to
+    s->value + pcline->pc, which is correct, but the code then set
+    the local variable pc to epc, which can be a different value.
+    This caused the next delta in the DWARF table to be wrong.
+    
+    Fixes #8098.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/104950045
+
+ src/cmd/ld/dwarf.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

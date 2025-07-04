@@ -1,0 +1,20 @@
+commit 73f5010dc68e55abbda56b42a36208d6f2556f76
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 29 12:44:07 2014 +0400
+
+    runtime: allow to call stdcall from Go on windows
+    I've started with just one function with 8 arguments,
+    but stdcall is called from nosplit functions
+    and 8 args overflow nosplit area.
+    
+    LGTM=aram, alex.brainman
+    R=golang-codereviews, aram, alex.brainman, dave
+    CC=golang-codereviews, iant, khr, rsc
+    https://golang.org/cl/135090043
+
+ src/pkg/runtime/mem_windows.c     |  16 ++--
+ src/pkg/runtime/netpoll_windows.c |  10 +--
+ src/pkg/runtime/os_windows.c      | 160 ++++++++++++++++++++++++++++----------
+ src/pkg/runtime/os_windows.go     |  11 +++
+ src/pkg/runtime/os_windows.h      |  12 ++-
+ 5 files changed, 149 insertions(+), 60 deletions(-)

@@ -1,0 +1,12 @@
+commit 08396f7825ee1f4349abfd389ff26a451d88f164
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 06:42:10 2016 -0800
+
+    doc: mention signal changes for c-archive/c-shared
+    
+    Change-Id: Ibba7fccba9617612e026bd0a208eb12918de465a
+    Reviewed-on: https://go-review.googlesource.com/18985
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

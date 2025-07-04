@@ -1,0 +1,17 @@
+commit 6edc57983a39b3cb911ea88b75a7ad39664383ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 16:21:33 2021 -0700
+
+    internal/poll: report open fds when TestSplicePipePool fails
+    
+    For #48066
+    
+    Change-Id: I1152a1c15756df35b71b27d3e7025d97da9e70b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348579
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/internal/poll/splice_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

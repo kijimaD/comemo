@@ -1,0 +1,18 @@
+commit 8627b4c9b50138c75cc7730af7f8db692d33451e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 5 13:12:01 2020 -0400
+
+    cmd/compile: use ReadFull to read fingerprint
+    
+    Don't fail on partial read.
+    
+    May fix #38849.
+    
+    Change-Id: Icf075d454e1bfe9299b07eea47bbc4d448c3bd5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232317
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/iimport.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 7305b55e98a6ff747491f39e72bfd1195f1161da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 30 14:18:09 2015 -0800
+
+    spec: clarify examples for struct field tags
+    
+    Fixes #13420.
+    
+    Change-Id: Id64ebd0527881450fdaffbb66d8b1831a6b7c43c
+    Reviewed-on: https://go-review.googlesource.com/17263
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

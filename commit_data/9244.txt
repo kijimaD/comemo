@@ -1,0 +1,24 @@
+commit 28a23675cdf370b27d97b28c0029e1175032e03e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 18:22:12 2011 -0400
+
+    5g, 6g, 8g: shift, opt fixes
+    
+    Fixes #1808.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4813052
+
+ src/cmd/5g/cgen64.c      |  6 +++---
+ src/cmd/5g/ggen.c        | 52 +++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/5g/gsubr.c       |  7 ++++++-
+ src/cmd/5g/peep.c        |  5 ++++-
+ src/cmd/5g/reg.c         | 17 ++++++----------
+ src/cmd/6g/gsubr.c       |  2 +-
+ src/cmd/8g/gg.h          |  2 +-
+ src/cmd/8g/ggen.c        | 30 ++++++++++++++++++++++------
+ src/cmd/8g/reg.c         |  6 ++----
+ src/cmd/gc/bits.c        |  5 ++++-
+ test/fixedbugs/bug356.go | 41 ++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 132 insertions(+), 41 deletions(-)

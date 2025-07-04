@@ -1,0 +1,20 @@
+commit 6988e6d57939a9e1c499beab5e9811d6d21274d1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 13:05:54 2020 -0500
+
+    cmd: update golang.org/x/mod to v0.2.0 (latest)
+    
+    This pulls in two new commits: a fix for a test broken on plan9 and a
+    correction to a comment.
+    
+    Change-Id: I31cf046a5073872714c758894732b2fcc800ab6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214289
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go.mod                                     | 2 +-
+ src/cmd/go.sum                                     | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go | 3 ---
+ src/cmd/vendor/modules.txt                         | 2 +-
+ 4 files changed, 4 insertions(+), 7 deletions(-)

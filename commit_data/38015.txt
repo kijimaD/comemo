@@ -1,0 +1,34 @@
+commit a00611f58d5322899c45c63758e43d2a2c5a2a11
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 16:18:28 2019 -0500
+
+    misc/cgo/testcshared: fix tests in module mode
+    
+    Updates #30228
+    
+    Change-Id: Ie9dca7c64be8dff729be98cb6190236287afd23e
+    Reviewed-on: https://go-review.googlesource.com/c/163213
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ misc/cgo/testcshared/cshared_test.go               | 144 +++++++++++----------
+ misc/cgo/testcshared/overlaydir_test.go            |  81 ++++++++++++
+ .../{src => testdata}/go2c2go/go/shlib.go          |   0
+ .../testcshared/{src => testdata}/go2c2go/m1/c.c   |   0
+ .../{src => testdata}/go2c2go/m1/main.go           |   0
+ .../{src => testdata}/go2c2go/m2/main.go           |   0
+ .../testcshared/{src => testdata}/libgo/libgo.go   |   2 +-
+ .../testcshared/{src => testdata}/libgo2/dup2.go   |   0
+ .../testcshared/{src => testdata}/libgo2/dup3.go   |   0
+ .../testcshared/{src => testdata}/libgo2/libgo2.go |   0
+ .../testcshared/{src => testdata}/libgo4/libgo4.go |   0
+ .../testcshared/{src => testdata}/libgo5/libgo5.go |   0
+ misc/cgo/testcshared/{ => testdata}/main0.c        |   0
+ misc/cgo/testcshared/{ => testdata}/main1.c        |   0
+ misc/cgo/testcshared/{ => testdata}/main2.c        |   0
+ misc/cgo/testcshared/{ => testdata}/main3.c        |   0
+ misc/cgo/testcshared/{ => testdata}/main4.c        |   0
+ misc/cgo/testcshared/{ => testdata}/main5.c        |   0
+ misc/cgo/testcshared/{src => testdata}/p/p.go      |   0
+ src/cmd/dist/test.go                               |   2 +-
+ 20 files changed, 160 insertions(+), 69 deletions(-)

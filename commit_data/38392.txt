@@ -1,0 +1,20 @@
+commit 3aa7bbdbcb432f78462fa816ba7c63cb7f3991fe
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Jun 13 14:20:19 2018 -0500
+
+    runtime: simplify readUnaligned
+    
+    We already have a pure go code sequence that is compiled into single load.
+    Just use it everywhere, instead of pointer hackery.
+    Passes toolstash-check.
+    
+    Change-Id: I0c42b5532fa9a5665da3385913609c6d42aaff27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/118568
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/alg.go        | 18 ++++++++++++++++++
+ src/runtime/unaligned1.go | 17 -----------------
+ src/runtime/unaligned2.go | 20 --------------------
+ 3 files changed, 18 insertions(+), 37 deletions(-)

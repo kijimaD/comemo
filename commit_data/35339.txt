@@ -1,0 +1,28 @@
+commit 2486ebfb6381146d3c50c8495000da2193c42785
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 9 11:11:49 2018 +0700
+
+    cmd/vet: assume that no builtin funcs are pure
+    
+    That was the intention with the existing code, but it was buggy; builtin
+    functions aren't treated as values by types.TypeAndVal. Thus, we should
+    use the IsBuiltin method instead of IsValue.
+    
+    Teaching vet what builtin funcs are pure is already being tracked as a
+    separate issue, #22851.
+    
+    While at it, also add a test with methods, just to be sure that the
+    current logic doesn't break with that edge case either.
+    
+    Fixes #25303.
+    
+    Change-Id: Ic18402b22cceeabf76641c02f575b194b9a536cc
+    Reviewed-on: https://go-review.googlesource.com/112177
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/bool.go          | 16 +++++++++++-----
+ src/cmd/vet/testdata/bool.go |  9 ++++++++-
+ 2 files changed, 19 insertions(+), 6 deletions(-)

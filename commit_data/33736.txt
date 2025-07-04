@@ -1,0 +1,18 @@
+commit 2708da0dc1537ad223e060a3aca78e984c79bc01
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Mon May 22 18:28:06 2017 +0200
+
+    runtime/cgo, math: don't use FP instructions for soft-float mips{,le}
+    
+    Updates #18162
+    
+    Change-Id: I591fcf71a02678a99a56a6487da9689d3c9b1bb6
+    Reviewed-on: https://go-review.googlesource.com/37955
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/sqrt_mipsx.s       |  4 ++++
+ src/runtime/cgo/asm_mipsx.s | 13 ++++++++++---
+ src/runtime/cgo/gcc_mipsx.S | 17 ++++++++++++-----
+ 3 files changed, 26 insertions(+), 8 deletions(-)

@@ -1,0 +1,10 @@
+commit f7e2bb55ae4638be8027d5b80b0e50795782c52d
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 13 16:22:50 2008 -0700
+
+    chan
+    
+    SVN=126960
+
+ src/cmd/gc/walk.c | 4 ----
+ 1 file changed, 4 deletions(-)

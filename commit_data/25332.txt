@@ -1,0 +1,15 @@
+commit 3ad3d5931be1aa1fd1b59874eebb40e4b22e2206
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:50:03 2015 +0000
+
+    net: fix race in test
+    
+    Fixes race builders, broken in https://golang.org/cl/16953
+    
+    Change-Id: Id61171672b69d0ca412de4b44bf2c598fe557906
+    Reviewed-on: https://go-review.googlesource.com/17936
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dnsclient_unix_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

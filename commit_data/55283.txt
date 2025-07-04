@@ -1,0 +1,33 @@
+commit 58c28ba286dd0e98fe4cca80f5d64bbcb824a685
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 12 15:40:16 2023 -0800
+
+    go/types, types2: avoid confusing error message "have m(T), want m(T)"
+    
+    This is a partial fix for situations where a method lookup leads to
+    an error due to non-matching signatures, but where the signatures
+    print exactly the same. This can happen if both signatures contain
+    type parameters (after instantiation) and the type parameters have
+    the same name (such as "T").
+    
+    For now, rather than printing a confusing error message in this
+    case, leave away the confusing part of the error message (at the
+    cost of providing slightly less information).
+    
+    In the long run, we need to find a better solution for this problem;
+    but this seems better than what we had before.
+    
+    For #61685.
+    
+    Change-Id: I259183f08b9db400ffc8e1cf447967c640a0f444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549296
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go           | 14 ++++++++++++--
+ src/go/types/lookup.go                              | 14 ++++++++++++--
+ src/internal/types/testdata/fixedbugs/issue61685.go | 15 +++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

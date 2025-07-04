@@ -1,0 +1,17 @@
+commit b1abcc195df2b21397e4d55dc5d355aabe70cbee
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 27 13:09:15 2008 -0700
+
+    random bug fixes
+    
+    R=r
+    DELTA=18  (6 added, 1 deleted, 11 changed)
+    OCL=13504
+    CL=13504
+
+ src/cmd/6g/gen.c    |  1 -
+ src/cmd/gc/const.c  |  3 +++
+ src/cmd/gc/export.c | 22 +++++++++++-----------
+ src/cmd/gc/go.y     |  2 +-
+ src/cmd/gc/lex.c    |  3 +++
+ 5 files changed, 18 insertions(+), 13 deletions(-)

@@ -1,0 +1,22 @@
+commit 2c58cb36f971aed484e880769eb2b0a21654459a
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Sat Aug 20 15:46:06 2016 -0700
+
+    encoding/xml: do not ignore error return from copyValue
+    
+    The error return from copyValue was ignored causing some XML attribute
+    parsing to swallow an error.
+    
+    Additionally, type MyMarshalerAttrTest had no UnmarshalXMLAttr method
+    causing marshalTests not to be symmetrical and the test suite to fail
+    for test case 101.
+    
+    Fixes #16158
+    
+    Change-Id: Icebc505295a2c656ca4b42ba37bb0957dd7260c6
+    Reviewed-on: https://go-review.googlesource.com/27455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/marshal_test.go | 17 ++++++++++++++++-
+ src/encoding/xml/read.go         |  5 +----
+ 2 files changed, 17 insertions(+), 5 deletions(-)

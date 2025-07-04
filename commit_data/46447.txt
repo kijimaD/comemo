@@ -1,0 +1,18 @@
+commit 738cebb1747335c182af64614041ceb2b2303f74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 13:23:37 2021 -0700
+
+    cmd/compile/internal/types2: implement Identical for *Union types
+    
+    This is a clean port of CL 349413 from go/types to types2.
+    
+    Change-Id: I18bad5e29b1e719b30a73fb2aa32fe252538496e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349992
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go   | 42 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go |  7 +++++
+ 2 files changed, 49 insertions(+)

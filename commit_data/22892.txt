@@ -1,0 +1,12 @@
+commit 2b90c3e8edf36c0a76545fa13c195bca68a29420
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:15:51 2015 +0200
+
+    go/build: enable cgo by default on solaris/amd64
+    
+    Change-Id: I0110b01fe4c64851ac2cfb5a92c31ce156831bc8
+    Reviewed-on: https://go-review.googlesource.com/8265
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

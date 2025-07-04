@@ -1,0 +1,14 @@
+commit 70b92ddad3e9759fe44afe78c1723c874ffc0642
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 26 11:41:38 2010 -0800
+
+    Bug in go/parser when coverting identifier lists.
+    Fixes #567.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/195041
+
+ src/pkg/go/parser/parser.go      | 2 +-
+ src/pkg/go/parser/parser_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

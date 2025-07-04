@@ -1,0 +1,14 @@
+commit b1d1564f1a9786f3ec30f59d8496fffdcaed6709
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 16:49:43 2015 -0400
+
+    cmd/internal/ld: clean up hostlink I/O
+    
+    Change-Id: I6c3a62403941d357ffd9d0025289c2180139b0bd
+    Reviewed-on: https://go-review.googlesource.com/8664
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/ld/lib.go  | 60 +++++++++++++++------------------------------
+ src/cmd/internal/ld/util.go | 12 ---------
+ 2 files changed, 20 insertions(+), 52 deletions(-)

@@ -1,0 +1,23 @@
+commit c76befe0f40dfbb38a54c16d1845b97e4580797c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 26 10:40:38 2020 +1000
+
+    cmd/go: use -buildmode=pie as default on window
+    
+    This change adjusts go command to pass -buildmode=pie to cmd/link,
+    if -buildmode is not explicitly provided.
+    
+    Fixes #35192
+    
+    Change-Id: Iec020131e676eb3e9a2df9eea1929b2af2b6df04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230217
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html                        |  6 ++++++
+ src/cmd/go/go_test.go                  | 32 ++++++++++++++++++++++++++++----
+ src/cmd/go/internal/work/init.go       |  2 ++
+ src/cmd/link/internal/ld/dwarf_test.go |  9 +++++++--
+ src/cmd/nm/nm_test.go                  |  2 +-
+ 5 files changed, 44 insertions(+), 7 deletions(-)

@@ -1,0 +1,25 @@
+commit 9a5b055b95c6719083f32c1f8089725a0a890425
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 14:18:09 2014 -0400
+
+    runtime: update docs, code for SetFinalizer
+    
+    At last minute before 1.3 we relaxed SetFinalizer to avoid
+    crashes when you pass the result of a global alloc to it.
+    This avoids the crash but makes SetFinalizer a bit too relaxed.
+    
+    Document that the finalizer of a global allocation may not run.
+    
+    Tighten the SetFinalizer check to ignore a global allocation but
+    not ignore everything else.
+    
+    Fixes #7656.
+    
+    LGTM=r, iant
+    R=golang-codereviews, iant, r
+    CC=dvyukov, golang-codereviews, khr, rlh
+    https://golang.org/cl/145930043
+
+ src/runtime/malloc.go      | 37 +++++++++++++++++++++++--------------
+ src/runtime/mfinal_test.go | 13 ++++++++++---
+ 2 files changed, 33 insertions(+), 17 deletions(-)

@@ -1,0 +1,35 @@
+commit 7f3313133ee3e40515aa99d3618b8e5eafed42d6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 7 12:45:56 2018 +0100
+
+    cmd/compile: don't panic on invalid map key declarations
+    
+    In golang.org/cl/75310, the compiler's typechecker was changed so that
+    map key types were validated at a later stage, to make sure that all the
+    necessary type information was present.
+    
+    This still worked for map type declarations, but caused a regression for
+    top-level map variable declarations. These now caused a fatal panic
+    instead of a typechecking error.
+    
+    The cause was that checkMapKeys was run too early, before all
+    typechecking was done. In particular, top-level map variable
+    declarations are typechecked as external declarations, much later than
+    where checkMapKeys was run.
+    
+    Add a test case for both exported and unexported top-level map
+    declarations, and add a second call to checkMapKeys at the actual end of
+    typechecking. Simply moving the one call isn't a good solution either;
+    the comments expand on that.
+    
+    Fixes #28058.
+    
+    Change-Id: Ia5febb01a1d877447cf66ba44fb49a7e0f4f18a5
+    Reviewed-on: https://go-review.googlesource.com/c/140417
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go |  7 ++++++-
+ test/fixedbugs/issue28058.go        | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

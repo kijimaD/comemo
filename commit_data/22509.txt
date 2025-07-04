@@ -1,0 +1,30 @@
+commit ab4df700b841fcd9a5d249b77c547bad9574d948
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 11 10:01:54 2015 +1200
+
+    runtime: merge slice and sliceStruct
+    
+    By removing type slice, renaming type sliceStruct to type slice and
+    whacking until it compiles.
+    
+    Has a pleasing net reduction of conversions.
+    
+    Fixes #10188
+    
+    Change-Id: I77202b8df637185b632fd7875a1fdd8d52c7a83c
+    Reviewed-on: https://go-review.googlesource.com/8770
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/alg.go         |  4 ++--
+ src/runtime/cpuprof.go     |  4 ++--
+ src/runtime/export_test.go |  6 ++++--
+ src/runtime/mbarrier.go    |  6 +++---
+ src/runtime/mheap.go       | 12 ++++++------
+ src/runtime/print1.go      |  6 +++---
+ src/runtime/runtime2.go    |  6 ------
+ src/runtime/select.go      | 10 +++++-----
+ src/runtime/slice.go       | 14 +++++++-------
+ src/runtime/string.go      | 14 ++++----------
+ 10 files changed, 36 insertions(+), 46 deletions(-)

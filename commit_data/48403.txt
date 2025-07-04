@@ -1,0 +1,27 @@
+commit 81d3c25c6cf39a76b17ab4eda97e8ad7b92a21e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 23:07:41 2022 -0700
+
+    cmd/compile: remove unused code from typecheckdef
+    
+    typecheckdef used to be used to handle references to package-level
+    declarations that hadn't yet been typechecked yet. It's no longer
+    needed, as the current IR frontends construct package-level
+    declarations with proper types upfront.
+    
+    Exception: this code is still used for compiler-generated function
+    declarations, so that code needs to be kept. Eventually that code can
+    be moved elsewhere, but for now this CL makes it obvious that the rest
+    of the code paths really are unused.
+    
+    Updates #51691.
+    
+    Change-Id: I5322edb686aaf5dc4627288f3d9ba910a017b41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393256
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 156 +-----------------------
+ 1 file changed, 6 insertions(+), 150 deletions(-)

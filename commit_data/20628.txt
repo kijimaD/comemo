@@ -1,0 +1,16 @@
+commit 46302185383a079957a0e72c785ef0c507ab1d46
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 3 16:42:18 2014 -0400
+
+    misc/cgo/test: fail issue 7978 with clearer error when GOTRACEBACK != 2
+    
+    The test doesn't work with GOTRACEBACK != 2.
+    Diagnose that failure mode.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/152970043
+
+ misc/cgo/test/issue7978.go | 4 ++++
+ 1 file changed, 4 insertions(+)

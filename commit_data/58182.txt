@@ -1,0 +1,29 @@
+commit 88cfad0c89014f364e3309e7ee6c4e0d3d382685
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 20 19:12:58 2024 +0000
+
+    runtime: explicitly keep handle alive during getOrAddWeakHandle
+    
+    getOrAddWeakHandle is very careful about keeping its input alive across
+    the operation, but not very careful about keeping the heap-allocated
+    handle it creates alive. In fact, there's a window in this function
+    where it is *only* visible via the special. Specifically, the window of
+    time between when the handle is stored in the special and when the
+    special actually becomes visible to the GC.
+    
+    (If we fail to add the special because it already exists, that case is
+    fine. We don't even use the same handle value, but the one we obtain
+    from the attached GC-visible special, *and* we return that value, so it
+    remains live.)
+    
+    Fixes #70455.
+    
+    Change-Id: Iadaff0cfb93bcaf61ba2b05be7fa0519c481de82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/mheap.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

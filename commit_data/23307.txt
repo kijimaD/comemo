@@ -1,0 +1,12 @@
+commit 2a5463e3a0b8055f09c3c76e24af5c48cc9771dd
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jun 9 11:47:45 2015 -0700
+
+    doc/go1.5.txt: mention that 1.5 supports non-standard GCM lengths.
+    
+    Change-Id: I7cad3f7af2452e29b3dae3da87cbd24013f6dae6
+    Reviewed-on: https://go-review.googlesource.com/10850
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

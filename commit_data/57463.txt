@@ -1,0 +1,20 @@
+commit 8343980c703fbc959f04ddd80ebdc55804545695
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 13 10:56:48 2024 +0700
+
+    all: add test for issue 20027
+    
+    Fixes #20027
+    
+    Change-Id: Ia616d43c0affa7b927ddfb53755072c94ba27917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612618
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go |  1 +
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue20027.go                   | 13 +++++++++++++
+ 3 files changed, 15 insertions(+)

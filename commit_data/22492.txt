@@ -1,0 +1,14 @@
+commit 21e37daa49d233e2ba298cb154f409de1f3f748d
+Author: Marius Nuennerich <mnu@google.com>
+Date:   Tue Apr 14 11:30:54 2015 +0100
+
+    io/ioutil: fix locking of the tempfile random state
+    
+    Fixes #10451
+    
+    Change-Id: I15ed777e9a4a4e1ba1178d07fcbe0ab4bf0d9e50
+    Reviewed-on: https://go-review.googlesource.com/8936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/ioutil/tempfile.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,15 @@
+commit ef544b64d7417aa58d41b50ec7f9b1134ca1d638
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 5 13:24:45 2017 -0800
+
+    flag: clarify comment to avoid shell syntax confusion
+    
+    Updates #22961
+    
+    Change-Id: Ib2f41aefb4f6470598d8637611da5491156ea840
+    Reviewed-on: https://go-review.googlesource.com/82015
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/flag/flag.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

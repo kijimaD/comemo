@@ -1,0 +1,22 @@
+commit 73becbf9e242fdde41393c39094f7ec132c09e45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 24 14:38:18 2018 -0700
+
+    go/types: use correct (file) scopes when computing interface method sets
+    
+    This was already partially fixed by commit 99843e22e81
+    (https://go-review.googlesource.com/c/go/+/96376); but
+    we missed a couple of places where we also need to
+    propagate the scope.
+    
+    Fixes #25008.
+    
+    Change-Id: I041fa74d1f6d3b5a8edb922efa126ff1dacd7900
+    Reviewed-on: https://go-review.googlesource.com/109139
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check_test.go            |  1 +
+ src/go/types/interfaces.go            | 14 +++++++-------
+ src/go/types/testdata/issue25008a.src | 15 +++++++++++++++
+ src/go/types/testdata/issue25008b.src |  9 +++++++++
+ 4 files changed, 32 insertions(+), 7 deletions(-)

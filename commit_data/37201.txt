@@ -1,0 +1,19 @@
+commit efc185029bf770894defe63cec2c72a4c84b2ee9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 1 16:29:42 2018 +0000
+
+    net: enable RFC 6555 Fast Fallback by default
+    
+    The Dialer.DualStack field is now meaningless and documented as
+    deprecated.
+    
+    To disable fallback, set FallbackDelay to a negative value.
+    
+    Fixes #22225
+    
+    Change-Id: Icc212fe07bb69d7651ab81e539b8b3e3d3372fa9
+    Reviewed-on: https://go-review.googlesource.com/c/146659
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

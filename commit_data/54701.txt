@@ -1,0 +1,20 @@
+commit 6dd7462a04e2ce0a3e91cdb8fd85e98ac62ba0aa
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 11:49:26 2023 +0800
+
+    bytes,strings: add available godoc link
+    
+    Change-Id: Id9706a783d3321e3706eeee102286522e7968efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/buffer.go    | 52 +++++++++++++++++++++++++-------------------------
+ src/bytes/reader.go    | 26 ++++++++++++-------------
+ src/strings/builder.go |  4 ++--
+ src/strings/reader.go  | 28 +++++++++++++--------------
+ src/strings/replace.go |  2 +-
+ src/strings/strings.go | 10 +++++-----
+ 6 files changed, 61 insertions(+), 61 deletions(-)

@@ -1,0 +1,29 @@
+commit 12d0a2884a9e1a12050807393fe0266d1b0b40fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 23:17:45 2018 -0400
+
+    cmd/go: do not try to understand git fetch --depth=1 errors
+    
+    We used to try a git fetch --depth=1 of a specific hash and
+    distinguish between an error meaning
+    "that's not a hash I can give you directly"
+    (in which case we fall through and pull the whole repo)
+    and some other error like connection failure, bad ssh key
+    (in which case we give up).
+    
+    We've had repeated problems trying to understand the
+    error meanings so just stop doing that, and fall back to
+    trying a full fetch on any error at all. If the error really
+    was some kind of network or auth or i/o problem, then
+    it will happen the second time and we can report it then.
+    
+    Fixes #26894.
+    
+    Change-Id: If1eaaddb87e8bfeff7a3894cce4ecef39802198c
+    Reviewed-on: https://go-review.googlesource.com/128904
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

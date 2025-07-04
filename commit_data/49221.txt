@@ -1,0 +1,23 @@
+commit 6ec46f470797ad816c3a5b20eece0995f13d2bc4
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon May 16 09:47:08 2022 -0700
+
+    runtime/pprof: slow new goroutine launches in test
+    
+    The goroutine profiler tests include one that launches a steady stream
+    of goroutines. That creates a scheduler busy loop that can prevent
+    forward progress in the rest of the program. Slow down the launches a
+    bit so other goroutines have a chance to run.
+    
+    Fixes #52916
+    For #52934
+    
+    Change-Id: I748557201b94918b1fa4960544a51a48d9cacc6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406654
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

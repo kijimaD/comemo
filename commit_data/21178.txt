@@ -1,0 +1,18 @@
+commit 5f179c7cef24c74627632ca1b9df8d5ea3912ace
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Jan 6 20:40:16 2015 -0500
+
+    runtime: fix build for race detector
+    
+    This CL only fixes the build, there are two failing tests:
+    RaceMapBigValAccess1 and RaceMapBigValAccess2
+    in runtime/race tests. I haven't investigated why yet.
+    
+    Updates #9516.
+    
+    Change-Id: If5bd2f0bee1ee45b1977990ab71e2917aada505f
+    Reviewed-on: https://go-review.googlesource.com/2401
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race_amd64.s | 3 +++
+ 1 file changed, 3 insertions(+)

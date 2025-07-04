@@ -1,0 +1,13 @@
+commit a2ea790b1bd0ab36fbc1a5c8521489f223c13f43
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 13:17:07 2009 -0700
+
+    bug152: literal []slice{ } as range expression
+    
+    R=ken
+    OCL=28918
+    CL=28918
+
+ test/bugs/bug152.go | 17 +++++++++++++++++
+ test/golden.out     |  5 ++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

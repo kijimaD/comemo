@@ -1,0 +1,14 @@
+commit f011bd378f9ee595ffe177017077124519b2b926
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 00:04:24 2011 -0400
+
+    build: use awk instead of giant egrep regexp
+    
+    Avoids buggy version of egrep on some Macs.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4603056
+
+ src/pkg/deps.bash | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

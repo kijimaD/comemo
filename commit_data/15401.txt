@@ -1,0 +1,19 @@
+commit 89ec3a610d2a1c9887fe9ee0bd622f3ab14c6750
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 24 22:45:53 2013 +0800
+
+    cmd/dist: avoid using %ebx on i386.
+    Or gcc (-fPIC) will complain:
+    cmd/dist/unix.c: In function ‘cansse2’
+    cmd/dist/unix.c:774: error: can't find a register in class ‘BREG’ while reloading ‘asm’
+    cmd/dist/unix.c:774: error: ‘asm’ operand has impossible constraints
+    
+    This affects bootstrapping on native Darwin/386 where all code is
+    compiled with -fPIC.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7394047
+
+ src/cmd/dist/unix.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 482da5180375404439d58cf4f865ed8bc37c6a63
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri May 12 09:04:55 2017 +0900
+
+    cmd/go: fix TestCgoContainsSpace
+    
+    TestCgoContainsSpace builds a small program which mimics $CC.
+    Usually, $CC attempts to compile a trivial code to detect its own
+    supported flags (i.e. "-no-pie", which must be passed on some systems),
+    however the mimic didn't consider these cases.
+    
+    This CL solve the issue.
+    
+    Also, use the same name as $CC, it may solve other potential problems.
+    
+    Fixes #20324
+    
+    Change-Id: I7a00ac016a5fd0667540f2a715371f8152edc395
+    Reviewed-on: https://go-review.googlesource.com/43330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

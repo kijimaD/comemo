@@ -1,0 +1,12 @@
+commit 5d05c7800e0dccf0f05b49c13ce5120e0d070e53
+Author: Jingcheng Zhang <diogin@gmail.com>
+Date:   Sun Oct 21 20:32:43 2012 -0400
+
+    runtime: sizeclass in MSpan should be int32.
+    
+    R=golang-dev, minux.ma, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6643046
+
+ src/pkg/runtime/malloc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

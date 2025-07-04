@@ -1,0 +1,21 @@
+commit 23dc3633ca38b8167a50250eeec948e4cd619056
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 20:46:20 2017 -0400
+
+    cmd/link: disable mach-o dwarf munging with -w (in addition to -s)
+    
+    Might as well provide a way around the mach-o munging
+    that doesn't require stripping all symbols.
+    After all, -w does mean no DWARF.
+    
+    For #11887, #19734, and anyone else that needs to disable
+    this code path without losing the symbol table.
+    
+    Change-Id: I254b7539f97fb9211fa90f446264b383e7f3980f
+    Reviewed-on: https://go-review.googlesource.com/38853
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

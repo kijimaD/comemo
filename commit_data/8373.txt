@@ -1,0 +1,12 @@
+commit a005617c5a5ac53aa68d302653f0bf1e65a08a5a
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu May 12 22:00:14 2011 -0700
+
+    gotest: document unit of time for elapsed()
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4543044
+
+ src/cmd/gotest/gotest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 976ca1a47d91a6d07fcae2abcbb59e8300c3adea
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 22 10:09:52 2012 +0200
+
+    cmd/gc: track parameter flow, step 0: synthesize name nodes for anonymous PPARAMOUTs without breaking anything.
+    
+    further work on parameter flow tracking for escape analysis depends on this.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6600044
+
+ src/cmd/gc/closure.c |  7 +++++--
+ src/cmd/gc/dcl.c     | 45 +++++++++++++++++++++++++++++----------------
+ src/cmd/gc/fmt.c     | 10 ++++++++--
+ 3 files changed, 42 insertions(+), 20 deletions(-)

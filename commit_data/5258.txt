@@ -1,0 +1,16 @@
+commit f833a8d39269e4df1e843842fd855e8c019927a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 13:31:26 2010 -0700
+
+    A test case for cgo //export.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/881043
+
+ misc/cgo/life/Makefile | 31 +++++++++++++++++++++++++++++
+ misc/cgo/life/c-life.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/life/life.go  | 39 ++++++++++++++++++++++++++++++++++++
+ misc/cgo/life/life.h   |  6 ++++++
+ misc/cgo/life/main.go  | 44 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 174 insertions(+)

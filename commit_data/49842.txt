@@ -1,0 +1,26 @@
+commit 141f15303d528620a8855fd73d19fe51dd2479f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 28 17:46:38 2022 -0700
+
+    internal/saferio: new package to avoid OOM
+    
+    Broken out of debug/pe. Update debug/pe to use it.
+    
+    For #47653
+    
+    Change-Id: Ib3037ee04073e005c4b435d0128b8437a075b00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408678
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/buildtool.go       |  1 +
+ src/debug/pe/string.go          | 24 ++-----------------
+ src/go/build/deps_test.go       |  5 +++-
+ src/internal/saferio/io.go      | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/saferio/io_test.go | 39 +++++++++++++++++++++++++++++++
+ 5 files changed, 98 insertions(+), 23 deletions(-)

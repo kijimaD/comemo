@@ -1,0 +1,27 @@
+commit b171b281386670713acf3d5a696b1f520b60798e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 16:19:18 2018 +0200
+
+    cmd/link: add new loading package for XCOFF files
+    
+    This commit adds the new package cmd/link/internal/loadxcoff.
+    
+    It also adds a new symbol kind in cmd/link/internal/sym package, which
+    aims to represent TOC entries for XCOFF files.
+    
+    cmd/dist is updated to add this new package and cmd/internal/xcoff during
+    the bootstrap.
+    
+    Updates: #25893
+    
+    Change-Id: I42b6578cf0ba4cc28ad4aa98122a91ab1d1bbf6e
+    Reviewed-on: https://go-review.googlesource.com/c/138728
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go                   |   1 +
+ src/cmd/link/internal/loadxcoff/ldxcoff.go  | 225 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/sym/symkind.go        |   1 +
+ src/cmd/link/internal/sym/symkind_string.go |   4 +-
+ 4 files changed, 229 insertions(+), 2 deletions(-)

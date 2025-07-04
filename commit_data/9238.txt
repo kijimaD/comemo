@@ -1,0 +1,15 @@
+commit 438919266995560920fa109e199cf9cbf2660e41
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 13:03:30 2011 -0400
+
+    gc: shift type bug
+    
+    Fixes #1664.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4798056
+
+ src/cmd/gc/const.c       | 20 ++++++++++++++++++--
+ test/fixedbugs/bug363.go | 21 +++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

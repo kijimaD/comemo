@@ -1,0 +1,21 @@
+commit c2d625168fd636a390e1e69b10c7f3c98569ded8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Mar 18 03:32:32 2021 +1100
+
+    cmd/compile,cmd/internal/obj/riscv: load >32-bit constants from memory for riscv64
+    
+    Follow what MIPS does and load >32-bit constants from memory using two instructions,
+    rather than generating a four to six instruction sequence. This removes more than 2,500
+    instructions from the Go binary. This also makes it possible to load >32-bit constants
+    via a single assembly instruction, if required.
+    
+    Change-Id: Ie679a0754071e6d8c52fe0d027f00eb241b3a758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302609
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s    | 25 ++++++++------
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 -----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 47 --------------------------
+ src/cmd/internal/obj/riscv/obj.go              |  9 +++++
+ 4 files changed, 23 insertions(+), 67 deletions(-)

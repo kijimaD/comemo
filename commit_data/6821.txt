@@ -1,0 +1,13 @@
+commit bddc699b778a12e7d909ff5b4aa74e326e120a72
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 3 11:47:33 2010 +1100
+
+    doc: add gofrontend paper to talks/ and docs.html
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/3434041
+
+ doc/docs.html                            |   6 ++++++
+ doc/talks/gofrontend-gcc-summit-2010.pdf | Bin 0 -> 125185 bytes
+ 2 files changed, 6 insertions(+)

@@ -1,0 +1,13 @@
+commit 7054890715cea2433a7c9935bbb7fc6ca61f3e32
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 20 23:19:32 2013 -0800
+
+    bytes, strings: improve Title test coverage by adding cases with underscore and unicode line separator
+    
+    R=golang-codereviews, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/42310045
+
+ src/pkg/bytes/bytes_test.go     | 2 ++
+ src/pkg/strings/strings_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

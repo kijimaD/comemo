@@ -1,0 +1,15 @@
+commit 9f7b1a8259fb5be07e41b5f74445f16a6a23e963
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 24 10:23:43 2018 -0700
+
+    go/types: untyped shifted constants must fit their expected int type
+    
+    Fixes #22969.
+    
+    Change-Id: Ie9d1748c36864a81a633f0016594912ac7dfc005
+    Reviewed-on: https://go-review.googlesource.com/c/144385
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go             |  6 +++++-
+ src/go/types/testdata/shifts.src | 12 ++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

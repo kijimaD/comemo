@@ -1,0 +1,15 @@
+commit af8297da86a19d68ee442db8ec325be952e72ae2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 20 17:04:18 2015 -0700
+
+    go/internal/gccgoimporter: fix handling of "byte" and "rune" alias types
+    
+    Fixes #11762.
+    
+    Change-Id: I0c7797a2dfdbbcf137bb287f854037a4a697c6e4
+    Reviewed-on: https://go-review.googlesource.com/12443
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gccgoimporter/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 86b0ea6447c40be506cd71c2fdeb98255f08b23d
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Thu Feb 18 15:37:16 2010 -0800
+
+    sync: allow to work on armv5
+    
+    asm_arm.s was using ldrex which does not work
+    on armv5. Tested on Sheevaplug.
+    
+    R=rsc, kaib
+    CC=golang-dev
+    https://golang.org/cl/214049
+
+ src/pkg/sync/Makefile                  | 16 +++++++++++++-
+ src/pkg/sync/asm_arm5.s                | 40 ++++++++++++++++++++++++++++++++++
+ src/pkg/sync/{asm_arm.s => asm_arm6.s} |  0
+ 3 files changed, 55 insertions(+), 1 deletion(-)

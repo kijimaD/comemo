@@ -1,0 +1,15 @@
+commit 4b872d61fe49ecd2ccca4dd8b285e4777d660932
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 15 16:33:45 2012 +1100
+
+    os: return some invented data from Stat(DevNull) on windows
+    
+    Fixes #3321.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5831043
+
+ src/pkg/os/os_test.go      | 19 +++++++++++++++++++
+ src/pkg/os/stat_windows.go | 22 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

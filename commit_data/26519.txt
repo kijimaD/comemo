@@ -1,0 +1,16 @@
+commit edb19aa1cdc5a712d85c77a76b90f69bd9a2b673
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Mar 24 22:46:10 2016 +0530
+
+    cmd/go: stat the archive file only when executing the commands
+    
+    Fixes #14944
+    
+    Change-Id: I73e0997cb6ebaeced1045b0ddadac893319bd78f
+    Reviewed-on: https://go-review.googlesource.com/21065
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go   |  6 ++++--
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 9b66cf60f1821868f0bf081e75da98c46b83f956
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 29 16:10:23 2015 -0700
+
+    src: build cmd in buildall.bash
+    
+    This exercises the linker as well as the compiler.
+    
+    Credit to Matthew Dempsky; see #10418.
+    
+    Change-Id: I793947c0c617a34e23df766bff5238ff3ac3c0af
+    Reviewed-on: https://go-review.googlesource.com/9530
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

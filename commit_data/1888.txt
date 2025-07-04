@@ -1,0 +1,13 @@
+commit 62fd90ab7673f060634df6ce032d2b360334ac57
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 25 13:58:44 2009 -0700
+
+    use FunctionType in FunctionLit production
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=26738
+    CL=26753
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

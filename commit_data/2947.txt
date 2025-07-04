@@ -1,0 +1,26 @@
+commit 5b62b19d436de41f77278c7511896a4921f6d040
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:18:54 2009 -0700
+
+    convert non-pkg go files to whole-package compilation.
+    mostly removing forward declarations.
+    
+    R=r
+    DELTA=138  (2 added, 127 deleted, 9 changed)
+    OCL=33068
+    CL=33099
+
+ test/chan/powser1.go                   |  6 +--
+ test/chan/powser2.go                   |  6 +--
+ test/fixedbugs/bug043.go               | 23 ------------
+ test/fixedbugs/bug044.go               | 29 ---------------
+ test/fixedbugs/bug085.go               |  4 +-
+ test/hashmap.go                        |  3 --
+ test/interface/recursive.go            |  1 -
+ test/ken/mfunc.go                      |  2 -
+ test/ken/ptrfun.go                     |  2 -
+ test/ken/rob2.go                       |  5 ---
+ test/ken/simpfun.go                    |  2 -
+ usr/dsymonds/iterable/Makefile         | 67 +++-------------------------------
+ usr/dsymonds/iterable/iterable_test.go |  1 -
+ 13 files changed, 11 insertions(+), 140 deletions(-)

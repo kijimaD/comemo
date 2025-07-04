@@ -1,0 +1,22 @@
+commit 6fa6bde92408a526021d690003f19368f5d57b20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 22 15:50:14 2018 -0800
+
+    cmd/compile/internal/syntax: implement //line :line:col handling
+    
+    For line directives which have a line and a column number,
+    an omitted filename means that the filename has not changed
+    (per the issue below).
+    
+    For line directives w/o a column number, an omitted filename
+    means the empty filename (to preserve the existing behavior).
+    
+    For #22662.
+    
+    Change-Id: I32cd9037550485da5445a34bb104706eccce1df1
+    Reviewed-on: https://go-review.googlesource.com/96476
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go      |  13 +++-
+ src/cmd/compile/internal/syntax/parser_test.go | 102 ++++++++++++++-----------
+ 2 files changed, 68 insertions(+), 47 deletions(-)

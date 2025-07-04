@@ -1,0 +1,21 @@
+commit c013ed5b527924a0632babe1296849a63940fad5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 21:04:14 2023 -0700
+
+    go/types, types2: refactor multiExpr and exprList
+    
+    Preparation for simpler exprList use.
+    
+    Change-Id: I2d62bbaba006aa3a378ec743564d46c5edcb8b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478016
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go | 27 +-------------------------
+ src/cmd/compile/internal/types2/expr.go | 34 +++++++++++++++++++++++++++++----
+ src/go/types/call.go                    | 27 +-------------------------
+ src/go/types/expr.go                    | 34 +++++++++++++++++++++++++++++----
+ 4 files changed, 62 insertions(+), 60 deletions(-)

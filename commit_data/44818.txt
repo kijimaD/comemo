@@ -1,0 +1,32 @@
+commit ffa9983b998cd9667dec0cc5eeb102b14696e28b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:44:17 2021 -0700
+
+    cmd/compile/internal/types2: review of api_test.go
+    
+    The changes between (equivalent, and reviewed) go/types/api_test.go
+    and api_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, the addition of the
+    TestConvertibleTo and TestAssignableTo tests, and adjustments to test
+    prefixes (genericPkg, brokenPkg to be in line with go/types).
+    
+    There are several differences to go/types/api_test.go:
+    - use of syntax rather than go/ast package
+    - use of the parseSrc helper function
+    - TestTypesInfo test entries reflect different handling of untyped nil
+    - TestInferredInfo is (for go1.17) in another file controlled by a build
+      constraint in go/types
+    - TestSelection test is currently skipped (types2 position information
+      is not accurate enough)
+    - TestScopeLookupParent doesn't have access to a scanner and instead
+      relies on syntax.CommentsDo.
+    - Broken packages are assumed to contain generic code for the tests.
+    
+    Change-Id: Ic14e6fb9d6bef5416df39e465b5994de76f84097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304131
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 150 ++++++++++++++-------
+ src/cmd/compile/internal/types2/typestring_test.go |   4 +-
+ 2 files changed, 103 insertions(+), 51 deletions(-)

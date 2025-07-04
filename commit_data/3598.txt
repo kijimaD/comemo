@@ -1,0 +1,20 @@
+commit dde4090372480ae377a2b0cc36801b7948546f04
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 19 22:47:25 2009 -0700
+
+    removed tempalloc/tempfree and replaced with tempname
+    
+    go/test: passes 88% (304/345)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=67  (3 added, 54 deleted, 10 changed)
+    OCL=35910
+    CL=35910
+
+ src/cmd/5g/cgen.c   | 26 ++++++++------------------
+ src/cmd/5g/cgen64.c |  8 ++------
+ src/cmd/5g/gg.h     |  2 --
+ src/cmd/5g/gsubr.c  | 36 ------------------------------------
+ test/arm-pass.txt   |  5 +++--
+ 5 files changed, 13 insertions(+), 64 deletions(-)

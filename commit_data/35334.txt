@@ -1,0 +1,16 @@
+commit cd1976dbef0a4a474cccb9e7fcb1e9cf2310df66
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 9 05:51:30 2018 +1000
+
+    doc/faq: tidy up a couple of nits
+    
+    The phrase "couple X" is considered colloquial, so make that "a couple of X".
+    Also move the start of a sentence to a new line in a couple of places
+    for easier editing, in one place thereby removing two spaces after a period.
+    
+    Change-Id: If5ef05eb496afc235f8f0134c4e7346375a65181
+    Reviewed-on: https://go-review.googlesource.com/112176
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

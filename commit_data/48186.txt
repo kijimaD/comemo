@@ -1,0 +1,16 @@
+commit 61b5c866a9507524d0a3d7a7e0c892c975ca081b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 18 14:51:58 2022 -0500
+
+    doc/go1.18: document Go 1.17 bootstrap and //go:build fix
+    
+    For #44505 and #41184.
+    
+    Change-Id: I9503292dace1aa60de167ca5807bf131554465b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386774
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 45 insertions(+), 5 deletions(-)

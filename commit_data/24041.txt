@@ -1,0 +1,12 @@
+commit ae4dc8facb0e22508c4fbd27fe380e1ad86100e7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 20 11:46:05 2015 +1000
+
+    doc: fix typo in release notes
+    
+    Change-Id: I5310cef72e714b22bcf2ae9e6fd85dbb7e8a15a2
+    Reviewed-on: https://go-review.googlesource.com/13787
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit ab067cde34b515172cf51b4c562b2b4ef3cbe587
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 6 17:52:26 2017 -0500
+
+    cmd/link: use external linking for PIE by default
+    
+    Now `go test -buildmode=pie std -short` passes on linux/amd64.
+    
+    Updates #18968
+    
+    Change-Id: Ide21877713e00edc64c1700c950016d6bff8de0e
+    Reviewed-on: https://go-review.googlesource.com/36417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 2 ++
+ 1 file changed, 2 insertions(+)

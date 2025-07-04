@@ -1,0 +1,15 @@
+commit a6c59ce2744182a1b6badd78c4269d1b424dd080
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 8 11:01:52 2009 -0800
+
+    gc funarg return fix.
+    change type (to satisfy OAS) after nodarg:
+    nodarg uses offset from type too,
+    and must use correct offset.
+    
+    R=ken
+    OCL=24656
+    CL=24656
+
+ src/cmd/gc/walk.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

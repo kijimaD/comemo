@@ -1,0 +1,18 @@
+commit f6a74c656837fcb0ea04e7b605ccdce7d10c45db
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 26 09:25:22 2021 -0500
+
+    cmd/compile/internal/ir: fix up stale comment
+    
+    Fix a small stale comment in FinishCaptureNames (refers to old code
+    structure before the big refactoring).
+    
+    Change-Id: I2dfb84ce238f919f6e17061439a8bd9b09459dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296829
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/name.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

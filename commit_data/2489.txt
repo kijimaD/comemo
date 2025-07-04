@@ -1,0 +1,17 @@
+commit 022ee0c26fc96942a970a03b208224e93b3b4af9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 19 18:02:15 2009 -0700
+
+    Add form body parsing to http.Request.
+    better error handling throughout.
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=254  (201 added, 3 deleted, 50 changed)
+    OCL=30515
+    CL=30545
+
+ src/pkg/Make.deps            |  2 +-
+ src/pkg/http/request.go      | 48 ++++++++++++++++++++++++++++++++++
+ src/pkg/http/request_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 111 insertions(+), 1 deletion(-)

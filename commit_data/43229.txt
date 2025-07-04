@@ -1,0 +1,24 @@
+commit 9e0837f2e9967b883bebf4b8928108d9199ae677
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 7 11:15:01 2020 -0700
+
+    syscall: restore EscapeArg behavior for empty string
+    
+    Accidentally broken by CL 259978.
+    
+    For #41825
+    
+    Change-Id: Id663514e6eefa325faccdb66493d0bb2b3281046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260397
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_windows.go      |  3 +++
+ src/syscall/exec_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

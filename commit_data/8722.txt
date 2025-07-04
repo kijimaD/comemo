@@ -1,0 +1,18 @@
+commit c4dfc55be9dd40904c6e77ae4ef932a30c40ab23
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 14 13:32:52 2011 -0400
+
+    net: export all fields in Interface
+    
+    Fixes #1942.
+    
+    R=fullung, rsc
+    CC=golang-dev
+    https://golang.org/cl/4602044
+
+ src/pkg/net/interface.go       | 36 ++++++++++++++++++++++-
+ src/pkg/net/interface_bsd.go   | 65 +++++++++++++---------------------------
+ src/pkg/net/interface_linux.go | 67 ++++++++++++++----------------------------
+ src/pkg/net/interface_stub.go  | 28 ------------------
+ src/pkg/net/interface_test.go  | 32 +++-----------------
+ 5 files changed, 82 insertions(+), 146 deletions(-)

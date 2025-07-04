@@ -1,0 +1,17 @@
+commit 58c4142e74c421b6689550c61eb2adbc41de3cbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 22:10:40 2009 -0700
+
+    new reflect Value implementations.
+    
+    for now, canSet stays.
+    i will look into getting rid of it in
+    a future CL.
+    
+    R=r
+    DELTA=420  (419 added, 0 deleted, 1 changed)
+    OCL=31231
+    CL=31235
+
+ src/pkg/reflect/nvalue.go | 419 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 419 insertions(+)

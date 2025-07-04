@@ -1,0 +1,18 @@
+commit 2b9787c2f3861736e82aa715343b67157911917f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 13:12:28 2013 -0500
+
+    encoding/binary: make type error more specific
+    
+    Right now it says 'invalid type S' for a struct type S.
+    Instead, say which type inside the struct is the problem.
+    
+    Fixes #4825.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7301102
+
+ src/pkg/encoding/binary/binary.go      | 57 ++++++++++++++++++----------------
+ src/pkg/encoding/binary/binary_test.go |  9 +++++-
+ 2 files changed, 39 insertions(+), 27 deletions(-)

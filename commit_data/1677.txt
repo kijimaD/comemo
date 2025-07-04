@@ -1,0 +1,14 @@
+commit 78a6d68c860b0cef0a089abe93fc43214dfdf2f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 13:41:48 2009 -0800
+
+    build nits
+    
+    R=r
+    DELTA=8  (0 added, 6 deleted, 2 changed)
+    OCL=25045
+    CL=25045
+
+ src/run.bash         | 6 ------
+ src/runtime/malloc.c | 4 ++--
+ 2 files changed, 2 insertions(+), 8 deletions(-)

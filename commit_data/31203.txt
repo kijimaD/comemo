@@ -1,0 +1,16 @@
+commit 475f02cbec3da0a192a20ade170fb7e71542a552
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 19 11:35:13 2017 +1000
+
+    cmd/compile/internal/ppc64: remove unused condOps map
+    
+    The last use of condOps was removed in c644a76.
+    
+    Change-Id: I5383d0e7a9078fc17ca12ed032ecf8e7f4aa95d7
+    Reviewed-on: https://go-review.googlesource.com/41030
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 14 --------------
+ 1 file changed, 14 deletions(-)

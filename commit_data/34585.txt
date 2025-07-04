@@ -1,0 +1,16 @@
+commit 09d4455f458478a9bc1f69fd29f1c5c70fefe23e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 13 12:59:41 2018 -0700
+
+    cmd/compile: enable inlining variadic functions
+    
+    As a side effect of working on mid-stack inlining, we've fixed support
+    for inlining variadic functions. Might as well enable it.
+    
+    Change-Id: I7f555f8b941969791db7eb598c0b49f6dc0820aa
+    Reviewed-on: https://go-review.googlesource.com/100456
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 16 +---------------
+ test/inline_variadic.go            |  4 ++--
+ 2 files changed, 3 insertions(+), 17 deletions(-)

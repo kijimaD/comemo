@@ -1,0 +1,12 @@
+commit 13b1d5b1bb1e3fd411560639cbc5f62ff9c8a14e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 16:06:34 2009 -0700
+
+    fix build - missing from 35404
+    
+    TBR=gri
+    OCL=35411
+    CL=35411
+
+ src/pkg/go/doc/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

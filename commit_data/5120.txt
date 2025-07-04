@@ -1,0 +1,14 @@
+commit 6b6c3993d55ed71d3e5ca41b9f4cd8dc77c5876c
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Mar 24 09:25:49 2010 -0700
+
+    math: add J0 and Y0 (Bessel functions)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/661044
+
+ src/pkg/math/Makefile    |   1 +
+ src/pkg/math/all_test.go |  90 ++++++++++
+ src/pkg/math/j0.go       | 437 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 528 insertions(+)

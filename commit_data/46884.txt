@@ -1,0 +1,18 @@
+commit 24e798e2876f05d628f1e9a32ce8c7f4a3ed3268
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 13 16:30:16 2021 +0200
+
+    syscall: use fcntl with F_DUP2FD_CLOEXEC in forkAndExecInChild on FreeBSD
+    
+    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    
+    FreeBSD implements dup3 like this in libc.
+    
+    Change-Id: I36e37bc61c2e31561adb49001f287764125a74de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355571
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_freebsd.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

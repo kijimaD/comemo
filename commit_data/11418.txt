@@ -1,0 +1,14 @@
+commit 32d7a7364f10b652c36e1515623586d0db82ef20
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Jan 26 16:50:56 2012 +0000
+
+    net/http: make ParseForm ignore unknown content types.
+    Also fix a shadowed error variable bug.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5573072
+
+ src/pkg/net/http/request.go      |  4 +---
+ src/pkg/net/http/request_test.go | 19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 11 deletions(-)

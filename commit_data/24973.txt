@@ -1,0 +1,21 @@
+commit 0e2c635788c58457ed8ac7b19e57a163c9e461c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 21:25:44 2015 -0800
+
+    cmd/cgo, runtime: exported Go functions can't return a Go pointer
+    
+    Update #12416.
+    
+    Change-Id: Iccbcb12709d1ca9bea87274f44f93cfcebadb070
+    Reviewed-on: https://go-review.googlesource.com/17048
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/errors/ptr.go           |  18 +++++++
+ misc/cgo/test/callback.go        |   5 +-
+ misc/cgo/testsanitizers/msan3.go |  11 +++--
+ src/cmd/cgo/gcc.go               |   7 ++-
+ src/cmd/cgo/out.go               | 103 ++++++++++++++++++++++++++-------------
+ src/runtime/cgocall.go           |  52 ++++++++++++--------
+ 6 files changed, 134 insertions(+), 62 deletions(-)

@@ -1,0 +1,15 @@
+commit ae4123f56b36ca6f0b8da236b4f6be76db3e69dc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 10 11:46:05 2008 -0700
+
+    - stub for tutorial
+    - tools to make it easy to embed programs
+    
+    R=gri
+    DELTA=103  (97 added, 2 deleted, 4 changed)
+    OCL=15085
+    CL=15085
+
+ doc/go_tutorial.txt | 21 ++++++++++++++++++
+ doc/prog.sh         | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)

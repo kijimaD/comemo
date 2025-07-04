@@ -1,0 +1,33 @@
+commit 1ac2cfc72042ffbe17155b9407907d6686dc4664
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jun 16 11:25:58 2009 -0700
+
+    grab bag of changes aimed at getting stack splitting to work:
+    - morestack support for 5l and arm runtime
+    - argsize support in 5c, 5l, ar and nm. assembly code from 5a
+      will break in interesting ways unless NOSPLIT is specified
+    - explicit cond execution constants
+    - fix 5l output to use %d instead of %ld so that negative
+      values show.
+    - added a lot of code to arm/asm.s. runtime entry code almost
+      working currently aborts at gogo not implemented
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=305  (125 added, 29 deleted, 151 changed)
+    OCL=30246
+    CL=30347
+
+ src/cmd/5c/gc.h           |  11 ++-
+ src/cmd/5c/list.c         |  14 ++-
+ src/cmd/5c/sgen.c         |  30 +++++-
+ src/cmd/5c/swt.c          |   9 +-
+ src/cmd/5l/5.out.h        |  25 ++++-
+ src/cmd/5l/l.h            |   1 +
+ src/cmd/5l/list.c         |  40 ++++----
+ src/cmd/5l/noop.c         | 106 ++++++++++++---------
+ src/cmd/5l/obj.c          |   2 +
+ src/cmd/5l/span.c         |  17 ++--
+ src/libmach_amd64/5obj.c  |   5 +
+ src/pkg/runtime/arm/asm.s | 229 ++++++++++++++++++++++++----------------------
+ 12 files changed, 293 insertions(+), 196 deletions(-)

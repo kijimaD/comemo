@@ -1,0 +1,15 @@
+commit 1038e7c853502d29e6bafd5003bec6ba26e00da5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 25 22:41:50 2011 -0700
+
+    http: make Client redirect policy configurable
+    
+    Work on issue 155
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4435071
+
+ src/pkg/http/client.go      | 59 +++++++++++++++++++++++++++++++++------------
+ src/pkg/http/client_test.go | 49 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 15 deletions(-)

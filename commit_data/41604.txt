@@ -1,0 +1,22 @@
+commit c6fef1fb52e9660ce2226a19508fdaacf71e46a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 7 13:36:36 2020 -0800
+
+    cmd/compile: improve CFG size in ssa.html
+    
+    This change forces CFGs to take the full width of their column
+    and allows them to be as tall as necessary.
+    
+    In my (recent) experience, this makes them far less likely to
+    be cropped, which makes them much more useful.
+    
+    On rare occasions, this can lead to gigantic CFGs,
+    but if you've bothered to explicitly request a CFG,
+    this is still better than an irrevocably truncated CFG.
+    
+    Change-Id: I9a649ea57fa3c2792998bb71331a2580e429b36a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222618
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/html.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

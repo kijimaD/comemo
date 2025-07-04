@@ -1,0 +1,21 @@
+commit 3ec8fe45cf4190a55f692f7c6e42936f9d912d36
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 20 15:48:42 2014 -0700
+
+    runtime: fix flaky TestBlockProfile test
+    
+    It has been failing periodically on Solaris/x64.
+    Change blockevent so it always records an event if we called
+    SetBlockProfileRate(1), even if the time delta is negative or zero.
+    
+    Hopefully this will fix the test on Solaris.
+    Caveat: I don't actually know what the Solaris problem is, this
+    is just an educated guess.
+    
+    LGTM=dave
+    R=dvyukov, dave
+    CC=golang-codereviews
+    https://golang.org/cl/159150043
+
+ src/runtime/mprof.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

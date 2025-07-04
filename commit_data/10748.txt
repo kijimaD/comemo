@@ -1,0 +1,15 @@
+commit 969b71d906f4ee6b438bc051dc7fff98f4fa503c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 14:20:38 2011 -0500
+
+    build: disable cgo on Windows/amd64
+    
+    Apparently it is broken.  Disable so that dashboard
+    will let us see other breakages on Windows.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5477081
+
+ src/Make.inc | 3 +++
+ 1 file changed, 3 insertions(+)

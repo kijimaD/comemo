@@ -1,0 +1,14 @@
+commit 94430937ac9330a4c7e8ed23659bc4475f520739
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 17 11:05:58 2012 -0500
+
+    test: add "duplicate" struct map key test
+    
+    Update #4555.
+    
+    R=gri, iant
+    CC=golang-dev
+    https://golang.org/cl/6944059
+
+ test/initializerr.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

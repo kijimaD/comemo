@@ -1,0 +1,24 @@
+commit 4e9874f86e24381fa4305f939d78ed857fe416ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 14:34:38 2017 -0500
+
+    net/rpc: fix aliasing in TestAcceptExitAfterListenerClose
+    
+    TestRPC writes to newServer and newServerAddr guarded with a
+    sync.Once.
+    TestAcceptExitAfterListenerClose was overwriting those variables,
+    which caused the second invocation of TestRPC within a single process
+    to fail.
+    
+    A second invocation can occur as a result of running the test with
+    multiple values for the -cpu flag.
+    
+    fixes #19001.
+    
+    Change-Id: I291bacf44aefb49c2264ca0290a28248c026f80e
+    Reviewed-on: https://go-review.googlesource.com/36624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

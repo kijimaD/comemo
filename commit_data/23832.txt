@@ -1,0 +1,12 @@
+commit a60c5366f91934a36793bde74556f4b637954665
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Jul 24 15:35:45 2015 +1200
+
+    test: do not run external linking test on ppc64le
+    
+    Change-Id: I9b8a6ac1ff6bef3b7f1e033bfd029f2a59e30297
+    Reviewed-on: https://go-review.googlesource.com/12623
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fixedbugs/issue10607.go | 1 +
+ 1 file changed, 1 insertion(+)

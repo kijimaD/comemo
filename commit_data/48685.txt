@@ -1,0 +1,20 @@
+commit eec47d06c1bb7ae6156c3910bfec8a0b5244d157
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 4 22:49:34 2022 -0400
+
+    api: add x509.CertPool.Equal to next/46057.txt
+    
+    CL 388915 added an exported API but was authored (and tested)
+    before the API check became stricter.
+    
+    Updates #46057.
+    
+    Change-Id: Iee6e4969ade77fb0539fa97fcef0047389fb2cf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398237
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/next/46057.txt | 1 +
+ 1 file changed, 1 insertion(+)

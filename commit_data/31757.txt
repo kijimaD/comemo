@@ -1,0 +1,28 @@
+commit 0b77d3eb009335aaa72205c6642409a5e4a408d6
+Author: Niklas Schnelle <niklas.schnelle@gmail.com>
+Date:   Mon Mar 13 07:43:16 2017 +0530
+
+    net/http: add Server.ServeTLS method
+    
+    Server.ServeTLS wraps Server.Serve with added TLS support. This is
+    particularly useful for serving on manually initialized listeners.
+    Example use-case includes ability to serve with TLS on listener
+    provided by systemd's socket activation.
+    
+    A matching test heavily based on TestAutomaticHTTP2_ListenAndServe
+    is also included.
+    
+    Original code by Gurpartap Singh as
+    https://go-review.googlesource.com/c/38114/
+    
+    Fixes #13228
+    
+    Change-Id: I73bb703f501574a84d261c2d7b9243a89fa52d62
+    Reviewed-on: https://go-review.googlesource.com/44074
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 63 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 92 ++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 127 insertions(+), 28 deletions(-)

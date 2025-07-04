@@ -1,0 +1,20 @@
+commit 4e63ae46e097062b72424b2ac1da6e7dac33064b
+Author: khr@golang.org <khr@golang.org>
+Date:   Fri Nov 29 19:13:36 2024 -0800
+
+    internal/runtime/maps: make clear also erase tombstones
+    
+    This will make future uses of the map faster because the probe
+    sequences will likely be shorter.
+    
+    Change-Id: If10f3af49a5feaff7d1b82337bbbfb93bcd9dcb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633076
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  2 ++
+ src/internal/runtime/maps/map.go                  | 15 +++++++---
+ src/internal/runtime/maps/table.go                | 34 ++++++++++++++---------
+ 3 files changed, 34 insertions(+), 17 deletions(-)

@@ -1,0 +1,14 @@
+commit 08176b28a3330c9f5c7b310dd400ffe3898ca739
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 1 14:02:53 2017 +0100
+
+    os: drop unused return value in TestLookupEnv
+    
+    Change-Id: Ibf227dcfefa179b1c3378476bcd17100b1b1c01e
+    Reviewed-on: https://go-review.googlesource.com/81375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

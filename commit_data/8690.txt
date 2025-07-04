@@ -1,0 +1,14 @@
+commit 18333f2de55880a413046f3d8dd667e0cb14ee0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 10 12:31:10 2011 -0700
+
+    Go memory model: minor clarification
+    
+    Fixes #1941.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4576053
+
+ doc/go_mem.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

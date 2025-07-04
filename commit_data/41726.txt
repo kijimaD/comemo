@@ -1,0 +1,18 @@
+commit f0e8b81aa34120e21642c569912bde00ccd33393
+Author: Aurélio A. Heckert <aurium@gmail.com>
+Date:   Sun Mar 22 20:38:42 2020 -0300
+
+    syscall/js: allow copyBytesTo(Go|JS) to use Uint8ClampedArray
+    
+    closes #38011
+    
+    Change-Id: Ic50f2f27456dccdc3fca1bda076871af1eb81705
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224638
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js |  4 ++--
+ src/syscall/js/js.go   | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

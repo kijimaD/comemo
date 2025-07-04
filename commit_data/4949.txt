@@ -1,0 +1,24 @@
+commit dbe0b5701205da0c5d9b1cc4270de9448bdd6035
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 25 13:47:16 2010 -0800
+
+    go/printer, gofmt: correct indentation after certain /*-style comments
+    - applied gofmt to src and misc
+    
+    Note: This fix improved formatting of src/pkg/math/all_test.go but leads
+    to a degradation in src/pkg/exp/4s/xs.go. The latter happened to "work"
+    before accidentally. Fixing the alignment in that case in general will
+    be a separate CL.
+    
+    Fixes #628.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223054
+
+ src/pkg/exp/4s/xs.go                        | 14 +++----
+ src/pkg/go/printer/printer.go               | 59 ++++++++++++++++-------------
+ src/pkg/go/printer/testdata/comments.golden |  7 +++-
+ src/pkg/go/printer/testdata/comments.input  |  7 +++-
+ src/pkg/math/all_test.go                    |  2 +-
+ 5 files changed, 53 insertions(+), 36 deletions(-)

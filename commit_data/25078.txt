@@ -1,0 +1,19 @@
+commit de531fc255e4b8ec6c38fa839546cddcac1e074b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 27 16:11:05 2015 -0800
+
+    cmd/compile: remove gratuituous type conversions
+    
+    Follow-up cleanup for https://go-review.googlesource.com/17248:
+    Use properly typed local variable op now that that variable use
+    is not overloaded anymore.
+    
+    Also: Remove unnecessary if stmt from common lexical path.
+    
+    Change-Id: I984b0b346f3fdccd5aedc937330c0a5f99acf324
+    Reviewed-on: https://go-review.googlesource.com/17249
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 37 +++++++++++++++++------------------
+ src/cmd/compile/internal/gc/parser.go |  2 +-
+ 2 files changed, 19 insertions(+), 20 deletions(-)

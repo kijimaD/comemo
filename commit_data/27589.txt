@@ -1,0 +1,18 @@
+commit 8003e791549f011edcc2a9d1eacbd5674826d38c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 31 15:01:05 2016 -0700
+
+    test: add more switch error handling tests
+    
+    Some of these errors are reported in the wrong places.
+    That’s issue #15911 and #15912.
+    
+    Change-Id: Ia09d7f89be4d15f05217a542a61b6ac08090dd87
+    Reviewed-on: https://go-review.googlesource.com/23588
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/switch5.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/switch6.go | 32 +++++++++++++++++++++++
+ 2 files changed, 113 insertions(+)

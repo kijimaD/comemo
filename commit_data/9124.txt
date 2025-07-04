@@ -1,0 +1,13 @@
+commit 98f5fc5e866886a8d4db81581345071b2a8dea9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 18 20:30:44 2011 -0700
+
+    archive/zip: support functions to get modified time in ns from MS-DOS time
+    
+    R=rsc, r, bradfitz, r, adg
+    CC=golang-dev
+    https://golang.org/cl/4748056
+
+ src/pkg/archive/zip/reader_test.go | 38 ++++++++++++++++++++++++++++++++++----
+ src/pkg/archive/zip/struct.go      | 29 +++++++++++++++++++++++++++--
+ 2 files changed, 61 insertions(+), 6 deletions(-)

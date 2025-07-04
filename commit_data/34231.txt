@@ -1,0 +1,17 @@
+commit c26fac88d4bf96efc9ddb7c4553ae8fab3a7277f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 15:39:36 2017 -0700
+
+    cmd/compile/internal/gc: use functype instead of OTFUNC
+    
+    Slightly simpler.
+    
+    Change-Id: Ic3a96675c56cc8c2e336b932536c2247f8cbb96d
+    Reviewed-on: https://go-review.googlesource.com/39996
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go  | 12 ++++++------
+ src/cmd/compile/internal/gc/subr.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/walk.go | 12 ++++++------
+ 3 files changed, 19 insertions(+), 19 deletions(-)

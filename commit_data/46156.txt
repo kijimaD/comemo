@@ -1,0 +1,19 @@
+commit 08d4cc20cad0e95b4e368c2f38268199f9c68548
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Aug 23 00:48:10 2021 +0800
+
+    cmd/compile: fix stencil call expression.
+    
+    Fixes: #47878
+    
+    Change-Id: I369350813726fd518b4eab2b98f43bf031a6dee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344210
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |  7 +++++
+ test/typeparam/issue47878.go              | 46 +++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

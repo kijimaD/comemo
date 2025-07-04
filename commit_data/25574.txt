@@ -1,0 +1,18 @@
+commit 8c9ef9dd0a4667611a3afb710a319ba088a754ec
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 13 13:09:46 2016 -0800
+
+    runtime: don't use CMOV for 386
+    
+    CMOVs were not introduced until P6.  We need 386 to run on
+    Pentium MMX.
+    
+    Fixes #13923
+    
+    Change-Id: Iee9572cd83e64c3a1336bc1e6b300b048fbcc996
+    Reviewed-on: https://go-review.googlesource.com/18621
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_386.s | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

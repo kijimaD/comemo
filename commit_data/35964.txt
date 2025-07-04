@@ -1,0 +1,17 @@
+commit 33c7f88eafde1a15b8c60e208d526b436cc6d02e
+Author: Keith Rarick <kr@xph.us>
+Date:   Wed Jul 11 23:08:21 2018 -0700
+
+    time: fix typo in Truncate example
+    
+    The existing example code uses variable name d, but
+    prints t in its output. It's needlessly confusing.
+    
+    Change-Id: I67bef3c732e84d2d89819f96b4b62663630fd69e
+    Reviewed-on: https://go-review.googlesource.com/123516
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

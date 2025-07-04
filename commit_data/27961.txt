@@ -1,0 +1,41 @@
+commit 4af1148079f00b461c9ae79df22aa647aa7ff5ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 17:10:57 2016 -0700
+
+    cmd/vet: improve asmdecl parameter handling
+    
+    The asmdecl check had hand-rolled code that
+    calculated the size and offset of parameters
+    based only on the AST.
+    It included a list of known named types.
+    
+    This CL changes asmdecl to use go/types instead.
+    This allows us to easily handle named types.
+    It also adds support for structs, arrays,
+    and complex parameters.
+    
+    It improves the default names given to unnamed
+    parameters. Previously, all anonymous arguments were
+    called "unnamed", and the first anonymous return
+    argument was called "ret".
+    Anonymous arguments are now called arg, arg1, arg2,
+    etc., depending on the index in the argument list.
+    Return arguments are ret, ret1, ret2.
+    
+    This CL also fixes a bug in the printing of
+    composite data type sizes.
+    
+    Updates #11041
+    
+    Change-Id: I1085116a26fe6199480b680eff659eb9ab31769b
+    Reviewed-on: https://go-review.googlesource.com/27150
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/asmdecl.go       | 386 +++++++++++++++++++++----------------------
+ src/cmd/vet/testdata/asm.go  |   9 +
+ src/cmd/vet/testdata/asm1.s  |  43 +++++
+ src/runtime/sys_darwin_arm.s |   2 +-
+ src/runtime/sys_plan9_arm.s  |   2 +-
+ 5 files changed, 243 insertions(+), 199 deletions(-)

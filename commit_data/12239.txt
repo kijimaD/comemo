@@ -1,0 +1,13 @@
+commit 4fae9f794331eecc6106269f27b063aa060a5bfa
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Tue Feb 28 09:22:55 2012 +1100
+
+    doc/go1: fix broken link
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5695072
+
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

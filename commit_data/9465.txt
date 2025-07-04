@@ -1,0 +1,18 @@
+commit 74fc7d8f1252ce30ef2f6cf600afab1621997237
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 23 22:39:39 2011 -0400
+
+    gobuilder: increase log limit
+    
+    It's a balance between fetching too much
+    and falling far enough behind that you can't
+    catch up.  We missed 20 commits in a row
+    when the builders were down for a few days.
+    This gives us a little more leeway.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4936047
+
+ misc/dashboard/builder/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

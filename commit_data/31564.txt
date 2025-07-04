@@ -1,0 +1,22 @@
+commit 66b5a2f3f0b1d94f69763114a85a977f5bc0277a
+Author: Lars Jeppesen <jeppesen.lars@gmail.com>
+Date:   Sat Apr 29 23:25:34 2017 +0200
+
+    archive/tar: remove file type bits from mode field
+    
+    When writing tar files by using the FileInfoHeader
+    the type bits was set in the mode field of the header
+    This is not correct according to the standard (GNU/Posix) and
+    other implementations.
+    
+    Fixed #20150
+    
+    Change-Id: I3be7d946a1923ad5827cf45c696546a5e287ebba
+    Reviewed-on: https://go-review.googlesource.com/42093
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/common.go   | 20 +++++++++-----------
+ src/archive/tar/tar_test.go | 26 +++++++++++++-------------
+ 2 files changed, 22 insertions(+), 24 deletions(-)

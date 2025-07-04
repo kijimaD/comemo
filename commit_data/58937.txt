@@ -1,0 +1,16 @@
+commit a1889554fc3e0c15b4a9870b49bf3a0252f80688
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 4 15:39:42 2025 -0800
+
+    context: skip allocs test with -asan
+    
+    Allocates more with -asan after CL 653795.
+    
+    Change-Id: Ib8cc1de1d649623713b6fc123c1c59a47528857b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654876
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/context/x_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

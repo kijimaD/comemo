@@ -1,0 +1,12 @@
+commit 832ed355fefc3c80bf75fdf0aaa39a1574a95854
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 7 19:16:59 2010 +1000
+
+    image: change a ColorImage's minimum point from (0, 0) to (-1e9, -1e9).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2138045
+
+ src/pkg/image/names.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 42aab4b0af5e50071fa8901a038bdc6f1f42b2ed
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 14 15:49:27 2019 -0400
+
+    runtime: M-targeted signals for libc-based OSes
+    
+    For #10958, #24543.
+    
+    Change-Id: I82bee63b49e15bd5a53228eb85179814c80437ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201403
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/os2_aix.go         | 19 ++++++++++++++++++-
+ src/runtime/os3_solaris.go     | 16 ++++++++++++++++
+ src/runtime/os_aix.go          |  1 +
+ src/runtime/os_darwin.go       |  5 +++++
+ src/runtime/sys_darwin.go      | 10 ++++++++++
+ src/runtime/sys_darwin_386.s   | 25 +++++++++++++++++++++++++
+ src/runtime/sys_darwin_amd64.s | 18 ++++++++++++++++++
+ src/runtime/sys_darwin_arm.s   | 12 ++++++++++++
+ src/runtime/sys_darwin_arm64.s | 12 ++++++++++++
+ 9 files changed, 117 insertions(+), 1 deletion(-)

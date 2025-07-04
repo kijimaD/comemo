@@ -1,0 +1,22 @@
+commit fe2bc11e1fac672cc23e9ffd01673257a1330707
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 29 13:32:14 2014 -0700
+
+    cmd/yacc: fix handling of tokens that don't start with letters
+    
+    CL 149110043 changed yacc to no longer keep a leading space
+    for quoted tokens.  That is OK by itself but unfortunately
+    yacc was relying on that leading space to notice which tokens
+    it should not output as const declarations.
+    
+    Add a few such tokens to expr.y, although it won't make any
+    immediate difference as we seem to have no tests for yacc.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/152720043
+
+ src/cmd/yacc/testdata/expr/expr.y |  2 ++
+ src/cmd/yacc/yacc.go              | 14 +++++++++-----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

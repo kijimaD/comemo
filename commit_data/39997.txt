@@ -1,0 +1,20 @@
+commit eb4e5defb41459703c82b50d456280870ee00cb2
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Sep 21 09:39:50 2019 -0400
+
+    net/http: remove http2 connections when no longer cached
+    
+    When the http2 transport returns a NoCachedConnError, the connection
+    must be removed from the idle list as well as the connections per host.
+    
+    Fixes #34387
+    
+    Change-Id: I7875c9c95e694a37a339bb04385243b49f9b20d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196665
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

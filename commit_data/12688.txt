@@ -1,0 +1,13 @@
+commit c58163c572bec64b5a7a658a2b658e6de412cd0c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 20 13:35:31 2012 +1100
+
+    misc/dashboard: remove remnants of package dashboard
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5847070
+
+ misc/dashboard/godashboard/project.html | 1 +
+ misc/dashboard/godashboard/project.py   | 6 ------
+ 2 files changed, 1 insertion(+), 6 deletions(-)

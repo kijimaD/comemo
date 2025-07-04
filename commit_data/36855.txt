@@ -1,0 +1,33 @@
+commit d6ab653c78df74d49d882774228bda459de6c584
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 3 14:40:09 2018 -0700
+
+    go/types: determine hasPtrRecv property from source rather than type
+    
+    LookupFieldOrMethod needs to know if a method receiver is a pointer
+    type. Until now this was computed from the the method signature's
+    receiver, which required the method signature to be type-checked.
+    Furthermore, it required the receiver to be set before the method
+    signature was fully type-checked in some cases (see issue #6638).
+    
+    This CL remembers this property during object resolution, when we
+    know it from the source.
+    
+    With this CL, method signatures don't need to be type-checked before
+    they can be looked up; this is a first step towards separating
+    type checking of types and type-checking of associated methods.
+    
+    Updates #23203.
+    Updates #26854.
+    
+    Change-Id: Ie3eb7976e8fe8176ea1b284fa7471a4b7000f80b
+    Reviewed-on: https://go-review.googlesource.com/c/139422
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/methodset.go | 15 ++++++++++++---
+ src/go/types/object.go    |  3 ++-
+ src/go/types/resolver.go  |  2 ++
+ src/go/types/typexpr.go   | 10 +++++++---
+ 4 files changed, 23 insertions(+), 7 deletions(-)

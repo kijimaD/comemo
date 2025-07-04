@@ -1,0 +1,12 @@
+commit df644489322609ef3555eda8d6e8a1f4ccd95672
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 3 10:33:10 2012 -0700
+
+    test: add bug436, valid code that crashed gccgo
+    
+    R=golang-dev, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/6158046
+
+ test/fixedbugs/bug436.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

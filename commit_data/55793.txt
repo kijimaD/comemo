@@ -1,0 +1,20 @@
+commit 4b43913f4062f811c1c29a8b871b91877b46be52
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 29 20:17:09 2024 +0700
+
+    cmd/internal/testdir: support -godebug
+    
+    Similar with what we are doing for -goexperiment.
+    
+    For #65778
+    
+    Change-Id: I7dda69512a3ffb491e3de31941ae1c3d34fececf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568156
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/testdir/testdir_test.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

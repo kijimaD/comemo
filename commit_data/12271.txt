@@ -1,0 +1,12 @@
+commit fc79058199f4038a96c3c7ad31843c71894e9668
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Feb 29 08:45:57 2012 -0800
+
+    gob: trivial print fix
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5707062
+
+ src/pkg/encoding/gob/encoder_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 07cc05864c958fcacf9b880263072c66c4040415
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 11:49:41 2012 -0500
+
+    fmt: fix %v of complex slice
+    
+    Fixes #4525.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6929049
+
+ src/pkg/fmt/fmt_test.go | 5 +++++
+ src/pkg/fmt/format.go   | 4 ++++
+ 2 files changed, 9 insertions(+)

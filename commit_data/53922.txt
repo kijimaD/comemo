@@ -1,0 +1,21 @@
+commit 9869699c44bb9d1d5f94c1ee32092451a418b95c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 3 20:29:47 2023 -0700
+
+    runtime: avoid relying on the unwinder in deferreturn
+    
+    This CL changes deferreturn so that it never needs to invoke the
+    unwinder. Instead, in the unusual case that we recover into a frame
+    with pending open-coded defers, we now save the extra state needed to
+    find them in g.param.
+    
+    Change-Id: Ied35f6c1063fee5b6044cc37b2bccd3f90682fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515856
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/panic.go    | 74 ++++++++++++++++++++++++++++++++++---------------
+ src/runtime/runtime2.go | 13 ++++++++-
+ 2 files changed, 64 insertions(+), 23 deletions(-)

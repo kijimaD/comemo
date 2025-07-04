@@ -1,0 +1,34 @@
+commit f32348669c24ee601870e13f12119a149f206a1e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 8 09:11:00 2018 -0700
+
+    cmd/compile: rename memory-using operations
+    
+    Some *mem ops are loads, some are stores, some are modifications.
+    Replace mem->load for the loads.
+    Replace mem->store for the stores.
+    Replace mem->modify for the load-modify-stores.
+    
+    The only semantic change in this CL is to mark
+    ADD(Q|L)constmodify (which used to be ADD(Q|L)constmem) as
+    both a read and a write, instead of just a write. This is arguably
+    a bug fix, but the bug isn't triggerable at the moment, see CL 112157.
+    
+    Change-Id: Iccb45aea817b606adb2d712ff99b10ee28e4616a
+    Reviewed-on: https://go-review.googlesource.com/112159
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |   26 +-
+ src/cmd/compile/internal/ssa/flagalloc.go    |   16 +-
+ src/cmd/compile/internal/ssa/gen/386.rules   |   32 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |   22 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  322 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   80 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  192 ++--
+ src/cmd/compile/internal/ssa/rewrite.go      |    4 +-
+ src/cmd/compile/internal/ssa/rewrite386.go   |  290 +++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1260 +++++++++++++-------------
+ src/cmd/compile/internal/x86/ssa.go          |    4 +-
+ 11 files changed, 1124 insertions(+), 1124 deletions(-)

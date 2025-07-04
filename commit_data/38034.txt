@@ -1,0 +1,27 @@
+commit f601d412ceae1338999b203c50168af34285c634
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 23:06:06 2019 -0500
+
+    fmt: scan new number syntax
+    
+    This CL updates fmt's scanner to accept the new number syntaxes:
+    
+     - Hexadecimal floating-point values.
+     - Digit-separating underscores.
+     - Leading 0b and 0o prefixes.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #12711.
+    For #19308.
+    For #28493.
+    For #29008.
+    
+    Change-Id: I5582af5c94059c781e6cf4e862441d3df3006adf
+    Reviewed-on: https://go-review.googlesource.com/c/160247
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/fmt/doc.go       | 15 ++++++++-------
+ src/fmt/scan.go      | 50 +++++++++++++++++++++++++++++++++++++-------------
+ src/fmt/scan_test.go | 38 ++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 81 insertions(+), 22 deletions(-)

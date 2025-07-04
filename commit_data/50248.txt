@@ -1,0 +1,20 @@
+commit b2110bcdde636b77412778a8c1eab6e50163ca1c
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Sep 1 21:40:08 2022 +0800
+
+    types2: use strings.Builder in errors.go
+    
+    Permissible now because go1.17 is used for bootstrapping.
+    
+    Change-Id: Ia6f314f9314eda1cc42002dcbdfa551196df76f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427554
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/errors.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

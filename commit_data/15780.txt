@@ -1,0 +1,25 @@
+commit 392d5feb8b359dce5120e4b9ee3743433c1cca6b
+Author: Jonathan Nieder <jrn@google.com>
+Date:   Thu Mar 14 23:59:49 2013 -0400
+
+    go/build: allow ~ in middle of path, just not at beginning
+    
+    CL 7799045 relaxed the restriction in cmd/go on ~ in GOPATH
+    to allow paths with ~ in the middle while continuing to
+    protect against the common mistake of using GOPATH='~/home'
+    instead of GOPATH=~/home.  Unfortunately go/build still
+    filters these paths out:
+    
+            $ GOPATH=/tmp/test~ing go build
+            test.go:22:2: cannot find package "test" in any of:
+                    /usr/lib/go/test (from $GOROOT)
+                    ($GOPATH not set)
+    
+    So relax the requirement in go/build, too.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7826043
+
+ src/pkg/go/build/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

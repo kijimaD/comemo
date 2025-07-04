@@ -1,0 +1,19 @@
+commit 502958ffa65440dd79a31f831114d51a610242ef
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 31 00:30:56 2014 +0100
+
+    cmd/gc: do not consider length zero arrays as comparable.
+    
+    Array values are comparable if values of the array element type
+    are comparable.
+    
+    Fixes #6526.
+    
+    LGTM=khr
+    R=rsc, bradfitz, khr
+    CC=golang-codereviews
+    https://golang.org/cl/58580043
+
+ src/cmd/gc/subr.c |  2 --
+ test/cmp6.go      | 13 ++++++++++++-
+ 2 files changed, 12 insertions(+), 3 deletions(-)

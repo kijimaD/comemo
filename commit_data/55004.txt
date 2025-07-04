@@ -1,0 +1,19 @@
+commit d573a8a8e86157d1d9ea43e6bcb03ce5b9baa9fb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 16 01:00:22 2023 -0500
+
+    internal/reflectlite: allow Value be stack allocated
+    
+    Port CL 408826 and CL 413474 from reflect to internal/reflectlite.
+    It is a bit simpler as reflectlite has fewer methods.
+    
+    Change-Id: I479199c8984afd35f42c3d8e764340184c17948f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/reflectlite/all_test.go    | 18 +++++-----
+ src/internal/reflectlite/export_test.go |  2 +-
+ src/internal/reflectlite/type.go        |  8 ++++-
+ src/internal/reflectlite/value.go       | 59 +++++++++++++++++++++------------
+ 4 files changed, 54 insertions(+), 33 deletions(-)

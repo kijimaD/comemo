@@ -1,0 +1,19 @@
+commit 3fefec96adae7e0ea66e2b624d4bef54a3a8b7df
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Mar 26 07:13:57 2024 +0800
+
+    runtime: fix the failures from longtest builders
+    
+    Follow up CL 560155
+    
+    Change-Id: Id9230d79c296452f3741123c75b45c3d3b1be4f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574295
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/build_runtime_gcflags.txt    | 4 ++--
+ src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 4 ++--
+ src/cmd/internal/objabi/pkgspecial.go                   | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

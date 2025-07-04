@@ -1,0 +1,15 @@
+commit 25d0ffe603885a9c42400b35cb39e93a56a7aa95
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 30 10:49:12 2020 -0800
+
+    doc: document new hash/maphash package
+    
+    Update #36878
+    Update #28322
+    
+    Change-Id: I793c7c4dbdd23fdecd715500e90b7cc0cbe4cea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217099
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

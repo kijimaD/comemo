@@ -1,0 +1,18 @@
+commit a20fbe8e18034ea519add1716c681d56ddddd27e
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Sep 8 20:29:10 2015 +0200
+
+    cmd/compile/internal/gc: convert fields of Symlink to bool
+    
+    Convert two fields of struct Symlink in subr.go from uint8 to bool.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I913006f41605b17b0d82fe358ee773f6ecaa681c
+    Reviewed-on: https://go-review.googlesource.com/14378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

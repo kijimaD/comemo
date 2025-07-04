@@ -1,0 +1,20 @@
+commit e25a5ce120673835a7e6c92bf0d88f44a61e9079
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 25 14:31:32 2022 -0500
+
+    test: rename live_syscall.go to live_uintptrkeepalive.go
+    
+    CL 388095 will change this file significantly. Move it preemptively to
+    ensure git tracks the move properly.
+    
+    For #51087
+    
+    Change-Id: I1408aecf8675723041b64e54cf44cdec38cc655c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388094
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/{live_syscall.go => live_uintptrkeepalive.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

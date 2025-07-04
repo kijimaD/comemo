@@ -1,0 +1,15 @@
+commit 548e58781bd5d1201d3095351ec819bc447c0c47
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 8 17:23:46 2013 +1100
+
+    net/http/cgi: make it work without REQUEST_URI environment variable
+    
+    Fixes #4367.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7062052
+
+ src/pkg/net/http/cgi/child.go      | 12 ++++++++++--
+ src/pkg/net/http/cgi/child_test.go | 24 +++++++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 3 deletions(-)

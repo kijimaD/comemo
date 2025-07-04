@@ -1,0 +1,17 @@
+commit 656a40254566bb1fae3bfa30448d103d911e04c4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 21:01:33 2014 -0500
+
+    cmd/gc: rephrase the invalid indexing operation error message
+    Old:
+    prog.go:9: invalid operation: this[i] (index of type int)
+    New:
+    prog.go:9: invalid operation: this[i] (type int does not support indexing)
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/52540043
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

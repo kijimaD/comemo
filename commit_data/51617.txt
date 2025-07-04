@@ -1,0 +1,33 @@
+commit 66689c7d46fb32eca064c9a1e0b2c9de6d377524
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 17 09:21:43 2023 -0500
+
+    doc/go1.20: remove mention of arena goexperiment
+    
+    The arena goexperiment contains code used inside Google in very
+    limited use cases that we will maintain, but the discussion on #51317
+    identified serious problems with the very idea of adding arenas to the
+    standard library. In particular the concept tends to infect many other
+    APIs in the name of efficiency, a bit like sync.Pool except more
+    publicly visible.
+    
+    It is unclear when, if ever, we will pick up the idea and try to push
+    it forward into a public API, but it's not going to happen any time
+    soon, and we don't want users to start depending on it: it's a true
+    experiment and may be changed or deleted without warning.
+    
+    The arena text in the release notes makes them seem more official
+    and supported than they really are, and we've already seen a couple
+    blog posts based on that erroneous belief. Delete the text to try to
+    set expectations better.
+    
+    Change-Id: I4f6e328ac470a9cd410f5f722d0769ef62d5e5ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.20.html | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

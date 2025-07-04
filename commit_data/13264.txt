@@ -1,0 +1,14 @@
+commit 6b31508e3d59d0ea470006c5905236fec4fc8baf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 4 07:06:05 2012 -0700
+
+    net/http: simplify ParseHTTPVersion
+    
+    Removes code. No need for atoi helper.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6285045
+
+ src/pkg/net/http/request.go | 40 +++++++++++++++++-----------------------
+ 1 file changed, 17 insertions(+), 23 deletions(-)

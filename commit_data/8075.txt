@@ -1,0 +1,14 @@
+commit 5666ec87353178e0124b6263ed3c87d799557fcb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 13 14:24:38 2011 -0700
+
+    fix build: disable gofmt test script, enable gotest testing instead
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4403045
+
+ src/cmd/gofmt/Makefile | 4 ++--
+ src/pkg/Makefile       | 1 -
+ src/run.bash           | 9 ---------
+ 3 files changed, 2 insertions(+), 12 deletions(-)

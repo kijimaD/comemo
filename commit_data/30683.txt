@@ -1,0 +1,61 @@
+commit c8f38b339875e020f50bedbdb8cfd8a7a1ef12b1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 13 21:51:08 2017 -0400
+
+    cmd/compile: use type information in Aux for Store size
+    
+    Remove size AuxInt in Store, and alignment in Move/Zero. We still
+    pass size AuxInt to Move/Zero, as it is used for partial Move/Zero
+    lowering (e.g. cmd/compile/internal/ssa/gen/386.rules:288).
+    SizeAndAlign is gone.
+    
+    Passes "toolstash -cmp" on std.
+    
+    Change-Id: I1ca34652b65dd30de886940e789fcf41d521475d
+    Reviewed-on: https://go-review.googlesource.com/38150
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/fmt_test.go                       |   1 -
+ src/cmd/compile/internal/gc/ssa.go                |  88 ++---
+ src/cmd/compile/internal/ssa/check.go             |   6 +-
+ src/cmd/compile/internal/ssa/cse_test.go          |   4 +-
+ src/cmd/compile/internal/ssa/deadstore.go         |   4 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go    |  20 +-
+ src/cmd/compile/internal/ssa/func.go              |  15 +
+ src/cmd/compile/internal/ssa/gen/386.rules        |  82 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      | 102 +++---
+ src/cmd/compile/internal/ssa/gen/ARM.rules        |  74 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules      |  94 ++---
+ src/cmd/compile/internal/ssa/gen/MIPS.rules       |  77 ++--
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules     |  96 ++---
+ src/cmd/compile/internal/ssa/gen/PPC64.rules      |  82 ++---
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |  80 ++--
+ src/cmd/compile/internal/ssa/gen/dec.rules        |  32 +-
+ src/cmd/compile/internal/ssa/gen/dec64.rules      |  12 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  32 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |  14 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |   4 +-
+ src/cmd/compile/internal/ssa/loop_test.go         |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/op.go                |  58 +--
+ src/cmd/compile/internal/ssa/opGen.go             |  54 ++-
+ src/cmd/compile/internal/ssa/passbm_test.go       |  10 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        | 323 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 386 +++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteARM.go        | 272 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go      | 380 +++++++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       | 366 ++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 425 ++++++++++++----------
+ src/cmd/compile/internal/ssa/rewritePPC64.go      | 369 ++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go      | 340 ++++++++---------
+ src/cmd/compile/internal/ssa/rewritedec.go        |  58 +--
+ src/cmd/compile/internal/ssa/rewritedec64.go      |  28 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |  58 ++-
+ src/cmd/compile/internal/ssa/schedule_test.go     |  16 +-
+ src/cmd/compile/internal/ssa/shift_test.go        |   4 +-
+ src/cmd/compile/internal/ssa/value.go             |  12 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  27 +-
+ src/cmd/compile/internal/ssa/writebarrier_test.go |   6 +-
+ 41 files changed, 2007 insertions(+), 2108 deletions(-)

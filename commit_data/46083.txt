@@ -1,0 +1,22 @@
+commit 3bdc1799d6ce441d7a972faf1452e34b6dce0826
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Aug 11 12:14:41 2021 +0100
+
+    io: unexport internal methods
+    
+    The methods on the pipe type don't need to be exported. Doing so sets
+    a bad precedent that it's OK to export methods to indicate an internal
+    public API.  That's not a good idea in general, because exported methods
+    increase cognitive load when reading code: the reader needs to consider
+    whether the exported method might be used via some external interface
+    or reflection.
+    
+    Change-Id: Ib13f1b3f9fe0ff251628f31b776182a0953268ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341409
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/io/pipe.go | 50 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 24 deletions(-)

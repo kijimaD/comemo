@@ -1,0 +1,23 @@
+commit 6b1ac8290f189709273c9d4b402e14421f21eda0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 5 02:25:42 2019 +0000
+
+    cmd/dist: allow builders to control granularity of test/ directory sharding
+    
+    Even with 10 shards on builders, it still takes about ~2.5 minutes per
+    shard (and getting slower all the time as the test/ directory grows).
+    I'm currently experimenting with massively sharding out testing on
+    Cloud Run (each dist test & normal TestFoo func all running in
+    parallel), and in such a setup, 2.5 minutes is an eternity. I'd like
+    to increase that dist test's sharding from 10 to more like 1,000.
+    
+    Updates golang/go#31834
+    
+    Change-Id: I8b02989727793b5b5b2013d67e1eb01ef4786e28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175297
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go |  5 ++++-
+ src/run.bash         | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

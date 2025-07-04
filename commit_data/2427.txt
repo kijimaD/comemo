@@ -1,0 +1,13 @@
+commit 925183cf1acff05cae0d3cb93c354eba15dca3db
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 14:09:04 2009 -0700
+
+    Add comment.
+    
+    R=gri
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=30058
+    CL=30060
+
+ src/lib/runtime/darwin/thread.c | 2 ++
+ 1 file changed, 2 insertions(+)

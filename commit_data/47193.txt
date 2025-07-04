@@ -1,0 +1,34 @@
+commit b29182b54ac343bbc58a30357d9df908f1c3b727
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 15:27:13 2021 -0400
+
+    go/types: clean up asT converters (step 1 of 2)
+    
+    This is a port of CL 358597 to go/types. A comment was missing in the
+    base of applyTypeFunc, which had been there since the initial check-in
+    of types2; somehow it was not in go/types.
+    
+    Change-Id: If08efd92d782dd3099b26254ae6e311c6cea8c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360477
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/assignments.go            |  2 +-
+ src/go/types/builtins.go               | 24 ++++++----
+ src/go/types/call.go                   |  8 ++--
+ src/go/types/conversions.go            | 24 ++++++----
+ src/go/types/expr.go                   |  8 ++--
+ src/go/types/index.go                  |  6 +--
+ src/go/types/infer.go                  |  4 +-
+ src/go/types/lookup.go                 |  8 ++--
+ src/go/types/predicates.go             | 10 ++--
+ src/go/types/sizeof_test.go            |  1 -
+ src/go/types/sizes.go                  |  2 +-
+ src/go/types/subst.go                  |  2 +-
+ src/go/types/testdata/check/issues.go2 |  7 +++
+ src/go/types/type.go                   | 83 ++++++++--------------------------
+ src/go/types/typestring.go             |  5 +-
+ src/go/types/typexpr.go                |  4 +-
+ 16 files changed, 82 insertions(+), 116 deletions(-)

@@ -1,0 +1,16 @@
+commit 9eda2b997719c7c7fcb88d0d44cc92d5003887a2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 6 08:02:39 2012 +0100
+
+    net: do not use reflect for DNS messages.
+    
+    Fixes #3201.
+    
+    R=bradfitz, bradfitz, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5753045
+
+ src/pkg/go/build/deps_test.go |   4 +-
+ src/pkg/net/dnsmsg.go         | 350 +++++++++++++++++++++++++++---------------
+ src/pkg/net/dnsmsg_test.go    |  11 ++
+ 3 files changed, 242 insertions(+), 123 deletions(-)

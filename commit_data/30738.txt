@@ -1,0 +1,17 @@
+commit a955ece6cdfb7490e184271398f0b51a0aa2ae8f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 19 22:31:02 2017 -0700
+
+    cmd/internal/obj: reduce variable scope
+    
+    Minor cleanup, to make it clearer
+    that the two p's are unrelated.
+    
+    Change-Id: Icb6386c626681f60e5e631b33aa3a0fc84f40e4a
+    Reviewed-on: https://go-review.googlesource.com/38381
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/plist.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

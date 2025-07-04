@@ -1,0 +1,16 @@
+commit 252161cadcfef4c42c133ba55c74672f520ab80e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri May 31 12:18:43 2013 -0700
+
+    misc/dashboard/builder: add environment variables for Plan 9
+    
+    We require $objtype in make.rc and rc needs $path for finding commands.
+    
+    Also include $cputype which we may use in the future.
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/9905043
+
+ misc/dashboard/builder/main.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

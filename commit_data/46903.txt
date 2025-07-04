@@ -1,0 +1,18 @@
+commit 1cbec685124b7a40fe899286db697a85da7be28a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 14 23:01:34 2021 -0700
+
+    reflect: fix SetIter test
+    
+    Missed one review comment in CL 356049
+    
+    Change-Id: I05be585d15e77afc1aa57b737cdc8ba7204bab98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356051
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/all_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

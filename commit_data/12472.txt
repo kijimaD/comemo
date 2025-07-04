@@ -1,0 +1,14 @@
+commit f4b40d92c812fa71d67a967ef8a813a7dcdf4dd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 11:44:47 2012 -0500
+
+    cmd/cgo: document CGO_LDFLAGS and CGO_CFLAGS
+    
+    Fixes #3203.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5769043
+
+ src/cmd/cgo/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

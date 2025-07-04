@@ -1,0 +1,16 @@
+commit 4dc3d74a361dfa069b09747fa716000d57264ca1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 12:04:00 2009 -0800
+
+    - fixed a bug with building right-recursive trees iteratively
+    - moving scope handling into parser (simpler)
+    - snapshot of work today so far
+    
+    R=r
+    OCL=22301
+    CL=22301
+
+ usr/gri/pretty/parser.go      | 153 +++++++++++++++++++++++++++++++++++++-----
+ usr/gri/pretty/selftest2.go   |  11 +++
+ usr/gri/pretty/typechecker.go | 112 +------------------------------
+ 3 files changed, 149 insertions(+), 127 deletions(-)

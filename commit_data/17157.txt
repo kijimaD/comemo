@@ -1,0 +1,78 @@
+commit 1f7966346e4de8bda27699900e190d7925c1650c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 12 10:25:18 2013 -0700
+
+    math: convert textflags from numbers to symbols
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12773044
+
+ src/pkg/math/abs_386.s         | 4 +++-
+ src/pkg/math/abs_amd64.s       | 4 +++-
+ src/pkg/math/abs_arm.s         | 4 +++-
+ src/pkg/math/asin_386.s        | 6 ++++--
+ src/pkg/math/asin_amd64.s      | 6 ++++--
+ src/pkg/math/asin_arm.s        | 6 ++++--
+ src/pkg/math/atan2_386.s       | 4 +++-
+ src/pkg/math/atan2_amd64.s     | 4 +++-
+ src/pkg/math/atan2_arm.s       | 4 +++-
+ src/pkg/math/atan_386.s        | 4 +++-
+ src/pkg/math/atan_amd64.s      | 4 +++-
+ src/pkg/math/atan_arm.s        | 4 +++-
+ src/pkg/math/dim_386.s         | 8 +++++---
+ src/pkg/math/dim_amd64.s       | 8 +++++---
+ src/pkg/math/dim_arm.s         | 8 +++++---
+ src/pkg/math/exp2_386.s        | 4 +++-
+ src/pkg/math/exp2_amd64.s      | 4 +++-
+ src/pkg/math/exp2_arm.s        | 4 +++-
+ src/pkg/math/exp_386.s         | 4 +++-
+ src/pkg/math/exp_amd64.s       | 4 +++-
+ src/pkg/math/exp_arm.s         | 4 +++-
+ src/pkg/math/expm1_386.s       | 4 +++-
+ src/pkg/math/expm1_amd64.s     | 4 +++-
+ src/pkg/math/expm1_arm.s       | 4 +++-
+ src/pkg/math/floor_386.s       | 8 +++++---
+ src/pkg/math/floor_amd64.s     | 8 +++++---
+ src/pkg/math/floor_arm.s       | 8 +++++---
+ src/pkg/math/fltasm_amd64.s    | 6 ++++--
+ src/pkg/math/frexp_386.s       | 4 +++-
+ src/pkg/math/frexp_amd64.s     | 4 +++-
+ src/pkg/math/frexp_arm.s       | 4 +++-
+ src/pkg/math/hypot_386.s       | 4 +++-
+ src/pkg/math/hypot_amd64.s     | 4 +++-
+ src/pkg/math/hypot_arm.s       | 4 +++-
+ src/pkg/math/ldexp_386.s       | 4 +++-
+ src/pkg/math/ldexp_amd64.s     | 4 +++-
+ src/pkg/math/ldexp_arm.s       | 4 +++-
+ src/pkg/math/log10_386.s       | 6 ++++--
+ src/pkg/math/log10_amd64.s     | 6 ++++--
+ src/pkg/math/log10_arm.s       | 6 ++++--
+ src/pkg/math/log1p_386.s       | 4 +++-
+ src/pkg/math/log1p_amd64.s     | 4 +++-
+ src/pkg/math/log1p_arm.s       | 4 +++-
+ src/pkg/math/log_386.s         | 4 +++-
+ src/pkg/math/log_amd64.s       | 4 +++-
+ src/pkg/math/log_arm.s         | 4 +++-
+ src/pkg/math/mod_386.s         | 4 +++-
+ src/pkg/math/mod_amd64.s       | 4 +++-
+ src/pkg/math/mod_arm.s         | 4 +++-
+ src/pkg/math/modf_386.s        | 4 +++-
+ src/pkg/math/modf_amd64.s      | 4 +++-
+ src/pkg/math/modf_arm.s        | 4 +++-
+ src/pkg/math/remainder_386.s   | 4 +++-
+ src/pkg/math/remainder_amd64.s | 4 +++-
+ src/pkg/math/remainder_arm.s   | 4 +++-
+ src/pkg/math/sin_386.s         | 6 ++++--
+ src/pkg/math/sin_amd64.s       | 6 ++++--
+ src/pkg/math/sin_arm.s         | 6 ++++--
+ src/pkg/math/sincos_386.s      | 4 +++-
+ src/pkg/math/sincos_amd64.s    | 4 +++-
+ src/pkg/math/sincos_arm.s      | 4 +++-
+ src/pkg/math/sqrt_386.s        | 4 +++-
+ src/pkg/math/sqrt_amd64.s      | 4 +++-
+ src/pkg/math/sqrt_arm.s        | 4 +++-
+ src/pkg/math/tan_386.s         | 4 +++-
+ src/pkg/math/tan_amd64.s       | 4 +++-
+ src/pkg/math/tan_arm.s         | 4 +++-
+ 67 files changed, 223 insertions(+), 89 deletions(-)

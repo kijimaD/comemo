@@ -1,0 +1,18 @@
+commit 5b071bfa88e3366dec768b9e3304f131b258835b
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Mar 1 09:26:38 2018 -0500
+
+    cmd/compile: convert type during finishcompare
+    
+    When recursively calling walkexpr, r.Type is still the untyped value.
+    It then sometimes recursively calls finishcompare, which complains that
+    you can't compare the resulting expression to that untyped value.
+    
+    Updates #23834.
+    
+    Change-Id: I6b7acd3970ceaff8da9216bfa0ae24aca5dee828
+    Reviewed-on: https://go-review.googlesource.com/97856
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

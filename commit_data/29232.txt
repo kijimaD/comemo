@@ -1,0 +1,24 @@
+commit 03d641b990bf83b0553d723a2b8764af48de4e11
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 17:14:47 2016 -0400
+
+    net: break up >1GB reads and writes on stream connections
+    
+    Also fix behavior of Buffers.WriteTo when writev returns an error.
+    
+    Fixes #16266.
+    
+    Change-Id: Idc9503408ce2cb460663768fab86035cbab11aef
+    Reviewed-on: https://go-review.googlesource.com/31584
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_plan9.go     |  1 +
+ src/net/fd_unix.go      | 12 +++++++++--
+ src/net/fd_windows.go   |  3 ++-
+ src/net/tcpsock_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/writev_test.go  | 41 ++++++++++++++++++++++++++++++++++++
+ src/net/writev_unix.go  |  6 +++++-
+ 6 files changed, 115 insertions(+), 4 deletions(-)

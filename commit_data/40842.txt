@@ -1,0 +1,18 @@
+commit 104f07c902f758b2347e3b4e5383dd06e935d401
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 11:49:37 2019 -0500
+
+    cmd/go: convert TestTestCacheInputs to a script test
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I48c6dd8619ea9602e9617ce11dfa05f1c70a485d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207958
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 116 -----------
+ src/cmd/go/testdata/script/cache_vet.txt           |   2 +-
+ src/cmd/go/testdata/script/test_cache_inputs.txt   | 230 +++++++++++++++++++++
+ .../go/testdata/src/testcache/testcache_test.go    |  91 --------
+ 4 files changed, 231 insertions(+), 208 deletions(-)

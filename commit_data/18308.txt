@@ -1,0 +1,12 @@
+commit bec1a3e258e193cb093c815fac99660466f6b3a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 21 11:54:21 2014 -0800
+
+    cmd/gc: document -pack flag
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/55140044
+
+ src/cmd/gc/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

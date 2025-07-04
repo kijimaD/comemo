@@ -1,0 +1,15 @@
+commit 254d63baa78741fe415e58361ddc3e10a311458c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 17:14:23 2016 -0400
+
+    cmd/go: add s390x support
+    
+    Minimum architecture of z196 required so that GCC can assemble
+    gcc_s390x.S in runtime/cgo.
+    
+    Change-Id: I603ed2edd39f826fb8193740ece5bd11d18c3dc5
+    Reviewed-on: https://go-review.googlesource.com/20876
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

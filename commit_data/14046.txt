@@ -1,0 +1,45 @@
+commit 51e8fe5b1b6ae86976fb8e6d6333f14299b36b17
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Sun Oct 7 14:11:59 2012 +0800
+
+    cmd/gc: don't dereference a nil Type pointer in widstruct
+    
+    The nil dereference in the next few lines doesn't seem
+    to cause a segmentation fault on Unix, but does seem
+    to halt the Go compiler.
+    
+    The following is a test case:
+    
+    >>>
+    package main
+    
+    func mine(int b) int {
+            return b + 2
+    }
+    
+    func main() {
+            mine()
+    
+            c = mine()
+    }
+    <<<
+    
+    Without this change only the following is caught:
+    
+    typecheck.go:3: undefined: b
+    typecheck.go:4: undefined: b
+    
+    with it, we catch all the errors:
+    
+    typecheck.go:3: undefined: b
+    typecheck.go:4: undefined: b
+    typecheck.go:10: undefined: c
+    typecheck.go:10: cannot assign to c .
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6542060
+
+ src/cmd/gc/align.c |  2 ++
+ test/typecheck.go  | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)

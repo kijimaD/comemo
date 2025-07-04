@@ -1,0 +1,24 @@
+commit 99a08262af725e542327f09d4a1cedf2a8caefe2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 21:12:48 2014 -0400
+
+    runtime: mark sysAlloc nosplit
+    
+    sysAlloc is the only mem function called from Go.
+    
+    LGTM=iant, khr
+    R=golang-codereviews, khr, 0intro, iant
+    CC=dvyukov, golang-codereviews, r
+    https://golang.org/cl/139210043
+
+ src/pkg/runtime/mem_darwin.c    |  2 ++
+ src/pkg/runtime/mem_dragonfly.c |  2 ++
+ src/pkg/runtime/mem_freebsd.c   |  2 ++
+ src/pkg/runtime/mem_linux.c     |  2 ++
+ src/pkg/runtime/mem_nacl.c      |  2 ++
+ src/pkg/runtime/mem_netbsd.c    |  2 ++
+ src/pkg/runtime/mem_openbsd.c   |  2 ++
+ src/pkg/runtime/mem_plan9.c     | 32 ++++++++++++++++++++++++++++----
+ src/pkg/runtime/mem_solaris.c   |  2 ++
+ src/pkg/runtime/mem_windows.c   |  2 ++
+ 10 files changed, 46 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit fdfbb406d12a36b09425ecdc76f32345c1af8ffd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 24 13:14:48 2014 -0800
+
+    net: add Dialer.KeepAlive option
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/68380043
+
+ src/pkg/net/dial.go      | 18 +++++++++++++++++-
+ src/pkg/net/dial_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

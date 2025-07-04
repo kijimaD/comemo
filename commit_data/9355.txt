@@ -1,0 +1,12 @@
+commit 6e66b16abeebfe620cb3cb2303638ab60d7d51a7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Aug 14 10:52:20 2011 +1000
+
+    goinstall: report all newly-installed public packages
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4875048
+
+ src/cmd/goinstall/main.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

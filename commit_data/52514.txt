@@ -1,0 +1,29 @@
+commit 110e4fb1c2e3a21631704bbfaf672230b9ba2492
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 22 09:33:22 2023 -0700
+
+    go/scanner: reject large line and column numbers in //line directives
+    
+    Setting a large line or column number using a //line directive can cause
+    integer overflow even in small source files.
+    
+    Limit line and column numbers in //line directives to 2^30-1, which
+    is small enough to avoid int32 overflow on all reasonbly-sized files.
+    
+    For #59180
+    Fixes CVE-2023-24537
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802456
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I149bf34deca532af7994203fa1e6aca3c890ea14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482078
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/go/parser/parser_test.go | 16 ++++++++++++++++
+ src/go/scanner/scanner.go    |  7 +++++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

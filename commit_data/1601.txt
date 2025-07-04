@@ -1,0 +1,12 @@
+commit 6e395cfecf580523d3c46b9db35b95a495474397
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 31 16:44:52 2009 -0800
+
+    slightly better code for the frog fix
+    
+    R=ken
+    OCL=24025
+    CL=24025
+
+ src/cmd/gc/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 127368d220b77f2bfafa7a95cec9b1374f43aa97
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 16 16:38:49 2009 -0700
+
+    make String work on Position values, to enable
+    
+            fmt.Printf("%s: %s\n", expr.Pos(), message);
+    
+    R=gri
+    DELTA=15  (1 added, 3 deleted, 11 changed)
+    OCL=34706
+    CL=34708
+
+ src/pkg/go/token/token.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

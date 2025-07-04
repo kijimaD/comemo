@@ -1,0 +1,31 @@
+commit 8bb9e616ed0b489bda977d32e1ab2aac90169dff
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 14 11:15:32 2010 -0800
+
+    regexp: speed up by about 30%.
+    The code used interfaces in a pretty, pedagogical way but not efficiently.
+    Remove unnecessary interface code for significant speedups.
+    Before:
+    
+            regexp.BenchmarkLiteral  1000000              2629 ns/op
+            regexp.BenchmarkNotLiteral        100000             18131 ns/op
+            regexp.BenchmarkMatchClass        100000             26647 ns/op
+            regexp.BenchmarkMatchClass_InRange        100000             27092 ns/op
+            regexp.BenchmarkReplaceAll        100000             27014 ns/op
+    
+    After:
+    
+            regexp.BenchmarkLiteral  1000000              2077 ns/op
+            regexp.BenchmarkNotLiteral        100000             13738 ns/op
+            regexp.BenchmarkMatchClass        100000             20418 ns/op
+            regexp.BenchmarkMatchClass_InRange        100000             20999 ns/op
+            regexp.BenchmarkReplaceAll        100000             21825 ns/op
+    
+    There's likely more to do without major surgery, but this is a simple, significant step.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3572042
+
+ src/pkg/regexp/regexp.go | 411 +++++++++++++++++++----------------------------
+ 1 file changed, 163 insertions(+), 248 deletions(-)

@@ -1,0 +1,14 @@
+commit 1934a77f5a1680397481d5bc6ed85b017d1e8b38
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 3 19:32:31 2016 +1200
+
+    cmd/link: define a variable for the target platform's elf relocation type
+    
+    Rather than having half a dozen switch statements. Also remove some c2go dregs.
+    
+    Change-Id: I19af5b64f73369126020e15421c34cad5bbcfbf8
+    Reviewed-on: https://go-review.googlesource.com/21442
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 136 ++++++++++++++--------------------------
+ 1 file changed, 47 insertions(+), 89 deletions(-)

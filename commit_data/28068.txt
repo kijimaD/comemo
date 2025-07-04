@@ -1,0 +1,19 @@
+commit d2dd0dfda813deb27415962656e7a6496170cef3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 11:28:41 2016 -0400
+
+    cmd/internal/obj/s390x: add FIDBR and FIEBR instructions
+    
+    FIDBR and FIEBR can be used for floating-point to integer rounding.
+    The relevant functions (Ceil, Floor and Trunc) will be updated
+    in a future CL.
+    
+    Change-Id: I5952d67ab29d5ef8923ff1143e17a8d30169d692
+    Reviewed-on: https://go-review.googlesource.com/27826
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  2 ++
+ src/cmd/internal/obj/s390x/a.out.go       |  2 ++
+ src/cmd/internal/obj/s390x/anames.go      |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
+ 4 files changed, 23 insertions(+)

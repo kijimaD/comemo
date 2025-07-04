@@ -1,0 +1,14 @@
+commit 120f3b7b9d08f05950fd57f25a48adbde877c099
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Thu Nov 10 14:41:24 2011 -0500
+
+    math/big: Correcting typo in SetBit() documentation
+    
+    z is set to x+bit change, not z+bit change
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5374056
+
+ src/pkg/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

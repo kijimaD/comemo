@@ -1,0 +1,18 @@
+commit 2a627afe139b9e7b079da14b30beeb0bb8f5d09e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:20:20 2022 +0800
+
+    bytes: simplify code using unsafe.SliceData
+    
+    Updates #54854
+    
+    Change-Id: I9c14f9fa595f73eae44eb714abc5d486915893c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428155
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/bytes_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

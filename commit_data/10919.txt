@@ -1,0 +1,13 @@
+commit 9f0e39b992bb714a8361790eee70412e64443ba6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 11:08:47 2011 +1100
+
+    dashboard: more descriptive logging, ui tweaks, show better auth error
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5505050
+
+ misc/dashboard/app/build/build.go | 104 ++++++++++++++++++++++++--------------
+ misc/dashboard/app/build/ui.html  |   8 +--
+ 2 files changed, 70 insertions(+), 42 deletions(-)

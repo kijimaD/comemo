@@ -1,0 +1,16 @@
+commit 6e37e3a80b903a33f2b1c2b230d4fabee4398312
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 29 13:25:15 2019 -0700
+
+    runtime: use raceprocctx in race_arm64
+    
+    In CL 169960 I didn't realize that we also have race detector support for arm64.
+    
+    Change-Id: If77bfb0f700a04c04416dad61ef11e27b1c98e07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170105
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/race_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

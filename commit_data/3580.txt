@@ -1,0 +1,13 @@
+commit 9f60b036108d0c1901a49e8a7d9857adbf451218
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 19 10:34:00 2009 -0700
+
+    address leftover post-submit comments about embedding
+    
+    R=rsc
+    DELTA=11  (9 added, 0 deleted, 2 changed)
+    OCL=35872
+    CL=35872
+
+ doc/effective_go.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

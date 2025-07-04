@@ -1,0 +1,15 @@
+commit 477614e4a12899c72aeaa0e5cee2f3283929542f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 27 13:10:43 2015 -0700
+
+    doc: move pre-go1 release notes to separate file
+    
+    Fixes #10924
+    
+    Change-Id: I0caf5f8f82682ee48e95270d43328550bfd8b6e1
+    Reviewed-on: https://go-review.googlesource.com/10440
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/devel/pre_go1.html | 455 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/devel/release.html | 445 +----------------------------------------------
+ 2 files changed, 458 insertions(+), 442 deletions(-)

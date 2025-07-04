@@ -1,0 +1,20 @@
+commit 0f5dfbcfd789c2217f40dc59d1882149a8502960
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 22 11:21:56 2018 -0400
+
+    cmd/go, cmd/dist: plumb symabis from assembler to compiler
+    
+    For #27539.
+    
+    Change-Id: I0e27f142224e820205fb0e65ad03be7eba93da14
+    Reviewed-on: https://go-review.googlesource.com/c/146999
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go             | 79 ++++++++++++++++++++++++---------------
+ src/cmd/go/internal/work/exec.go  | 23 ++++++++++--
+ src/cmd/go/internal/work/gc.go    | 41 ++++++++++++++++++--
+ src/cmd/go/internal/work/gccgo.go |  6 ++-
+ test/run.go                       | 15 +++++++-
+ 5 files changed, 124 insertions(+), 40 deletions(-)

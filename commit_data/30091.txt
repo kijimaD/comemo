@@ -1,0 +1,34 @@
+commit c7a7c5a9b425259e17976b978b60651b636b8979
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 13 18:02:07 2017 +1100
+
+    cmd/link: do not prefix external symbols with underscore on windows/386/cgo
+    
+    CL 18057 added underscore to most external pe symbols
+    on windows/386/cgo. The CL changed runtime.epclntab and
+    runtime.pclntab pe symbols into _runtime.pclntab and
+    _runtime.epclntab, and now cmd/nm cannot find them.
+    Revert correspondent CL 18057 changes, because most pe
+    symbols do not need underscore prefix.
+    
+    This CL also removes code that added obj.SHOSTOBJ symbols
+    explicitly, because each of those was also added via
+    genasmsym call. These created duplicate pe symbols (like
+    _GetProcAddress@8 and __GetProcAddress@8), and external
+    linker would complain.
+    
+    This CL adds new test in cmd/nm to verify go programs
+    built with cgo.
+    
+    Fixes #18416
+    
+    Change-Id: I68b1be8fb631d95ec69bd485c77c79604fb23f26
+    Reviewed-on: https://go-review.googlesource.com/35076
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pe.go |  16 ++--
+ src/cmd/nm/nm_cgo_test.go      |  19 +++++
+ src/cmd/nm/nm_test.go          | 171 ++++++++++++++++++++++++++++++-----------
+ 3 files changed, 151 insertions(+), 55 deletions(-)

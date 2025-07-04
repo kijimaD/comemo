@@ -1,0 +1,18 @@
+commit dddc8b193fdd548061bb9f77b9395e6417a97cb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 1 10:40:27 2014 -0700
+
+    cmd/gofmt: fix gofmt -s for 3-index slices
+    
+    3-index slices of the form s[:len(s):len(s)]
+    cannot be simplified to s[::len(s)].
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/108330043
+
+ src/cmd/gofmt/simplify.go             | 7 ++++---
+ src/cmd/gofmt/testdata/slices1.golden | 6 ++++++
+ src/cmd/gofmt/testdata/slices1.input  | 6 ++++++
+ 3 files changed, 16 insertions(+), 3 deletions(-)

@@ -1,0 +1,28 @@
+commit 736903c170a78582a67ff92dc73a19a880831380
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 3 15:00:09 2009 -0800
+
+    libmach:
+            * heuristic to go farther during stack traces.
+            * significantly improved Linux thread handing.
+    
+    acid:
+            * update to new libmach interface.
+    
+    prof:
+            * use new libmach interface.
+            * multiple thread support (derived from Rob's copy).
+            * first steps toward pprof-like graphs:
+              keep counters indexed by pc,callerpc pairs.
+    
+    R=r
+    DELTA=909  (576 added, 123 deleted, 210 changed)
+    OCL=24240
+    CL=24259
+
+ include/mach_amd64.h       |   2 +-
+ src/cmd/prof/main.c        | 364 +++++++++++++++++----------
+ src/libmach_amd64/8db.c    |  19 +-
+ src/libmach_amd64/darwin.c |  19 +-
+ src/libmach_amd64/linux.c  | 604 +++++++++++++++++++++++++++++++++++----------
+ 5 files changed, 729 insertions(+), 279 deletions(-)

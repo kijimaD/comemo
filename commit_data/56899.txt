@@ -1,0 +1,20 @@
+commit 451a284d801275a83ab017c8e00b1e0119fd1c0c
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jul 10 18:46:37 2024 -0700
+
+    strings,bytes,regexp: use lists in Split* docstrings
+    
+    This looks better than the default of using a code block.
+    While at it, fix punctuation.
+    
+    Change-Id: I86abca4da1e9999b7e9043e615ad0988d35a5a46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597656
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes.go     | 14 ++++++--------
+ src/regexp/regexp.go   |  7 +++----
+ src/strings/strings.go | 14 ++++++--------
+ 3 files changed, 15 insertions(+), 20 deletions(-)

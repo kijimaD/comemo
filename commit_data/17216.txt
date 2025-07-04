@@ -1,0 +1,22 @@
+commit 85f3acd788484d9b34aa48c113d4c8f0c4b4ea2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:17:42 2013 -0400
+
+    encoding/xml: add, support Marshaler interface
+    
+    See golang.org/s/go12xml for design.
+    
+    Fixes #2771.
+    Fixes #4169.
+    Fixes #5975.
+    Fixes #6125.
+    
+    R=golang-dev, iant, dan.kortschak
+    CC=golang-dev
+    https://golang.org/cl/12603044
+
+ api/go1.1.txt                        |   1 -
+ api/go1.txt                          |   7 -
+ src/pkg/encoding/xml/marshal.go      | 459 ++++++++++++++++++++++++++++-------
+ src/pkg/encoding/xml/marshal_test.go |  34 +++
+ 4 files changed, 404 insertions(+), 97 deletions(-)

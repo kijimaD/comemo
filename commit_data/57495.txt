@@ -1,0 +1,20 @@
+commit 097b7162adeab8aad0095303aff8a045bbbfa6e0
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Fri Sep 20 00:12:48 2024 -0600
+
+    cmd/mod/edit: disallow relative tool paths
+    
+    Allowing relative paths in `go.mod` introduced an inconsistency as we do
+    not allow relative package paths anywhere else.
+    
+    For golang/go#48429
+    
+    Change-Id: I5ef88aec4fe35f7e94a0cf6288e94099f3ca7a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614555
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modcmd/edit.go      | 23 ++---------------------
+ src/cmd/go/testdata/script/mod_edit.txt | 13 -------------
+ 2 files changed, 2 insertions(+), 34 deletions(-)

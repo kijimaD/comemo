@@ -1,0 +1,12 @@
+commit bcc30aa9e1f18e6046ec52351984f2607103e234
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Apr 4 11:42:01 2013 -0700
+
+    cmd/gc: fix a typo
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8379043
+
+ src/cmd/gc/go.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

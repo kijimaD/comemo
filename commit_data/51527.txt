@@ -1,0 +1,28 @@
+commit 7ed50cfd09ba3d51c673fc782c6ad2b715a46bc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 09:18:11 2022 -0500
+
+    os/user: fix buffer retry loop on macOS
+    
+    getpwnam_r and friends return the errno as the result,
+    not in the global errno. The code changes in CL 449316
+    inadvertently started using the global errno.
+    So if a lookup didn't fit in the first buffer size,
+    it was treated as not found instead of growing the buffer.
+    
+    Fixes #56942.
+    
+    Change-Id: Ic5904fbeb31161bccd858e5adb987e919fb3e9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455815
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/internal/syscall/unix/user_darwin.go | 20 ++++++++++++--------
+ src/os/user/cgo_lookup_unix.go           |  2 +-
+ src/os/user/lookup_plan9.go              |  7 +++++++
+ src/os/user/lookup_stubs.go              |  7 +++++++
+ src/os/user/lookup_windows.go            |  7 +++++++
+ src/os/user/user_test.go                 | 10 ++++++++++
+ 6 files changed, 44 insertions(+), 9 deletions(-)

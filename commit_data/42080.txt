@@ -1,0 +1,17 @@
+commit 917aa72c1438c64e593d68a779892b97012b4779
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 23 11:02:15 2020 +0700
+
+    cmd/compile: rewrite dec rules to use typed aux field
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ia73233c2269017a5802df821ea2ca138c16a94ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229519
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/dec.rules | 38 ++++++++++----------
+ src/cmd/compile/internal/ssa/rewritedec.go | 58 +++++++++++++++---------------
+ 2 files changed, 48 insertions(+), 48 deletions(-)

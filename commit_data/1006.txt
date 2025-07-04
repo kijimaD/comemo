@@ -1,0 +1,15 @@
+commit f27aaf4819495aaa1b664c27e6e7dfd47059bffb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 15:13:09 2008 -0700
+
+    structure field annotation strings
+    
+    R=ken
+    OCL=18176
+    CL=18176
+
+ src/cmd/gc/dcl.c  | 14 ++++++++++++++
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/go.y   | 10 +++++++++-
+ src/cmd/gc/subr.c |  9 ++++++---
+ 4 files changed, 30 insertions(+), 4 deletions(-)

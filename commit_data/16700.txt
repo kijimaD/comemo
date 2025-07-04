@@ -1,0 +1,12 @@
+commit f3aa009a124c3ae67c9b23c20191a2ca7d435d13
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 3 11:46:09 2013 +1000
+
+    doc/go1.2.txt: stable sort
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/10761048
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

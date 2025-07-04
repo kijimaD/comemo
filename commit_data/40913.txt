@@ -1,0 +1,36 @@
+commit 8054b13536fc71d6f8867f90d7614de4064191ba
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue Nov 19 13:15:28 2019 +0000
+
+    runtime: on plan9 don't return substitute address for sysReserve
+    
+    Plan 9 doesn't have a way to reserve virtual memory, so the
+    implementation of sysReserve allocates memory space (which won't
+    be backed with real pages until the virtual pages are referenced).
+    If the space is then freed with sysFree, it's not returned to
+    the OS (because Plan 9 doesn't allow shrinking a shared address
+    space), but it must be cleared to zeroes in case it's reallocated
+    subsequently.
+    
+    This interacts badly with the way mallocinit on 64-bit machines
+    sets up the heap, calling sysReserve repeatedly for a very large
+    (64MB?) arena with a non-nil address hint, and then freeing the space
+    again because it doesn't have the expected alignment.  The
+    repeated clearing of multiple megabytes adds significant startup
+    time to every go program.
+    
+    We correct this by restricting sysReserve to allocate memory only
+    when the caller doesn't provide an address hint.  If a hint is
+    provided, sysReserve will now return nil instead of allocating memory
+    at a different address.
+    
+    Fixes #27744
+    
+    Change-Id: Iae5a950adefe4274c4bc64dd9c740d19afe4ed1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207917
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/mem_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

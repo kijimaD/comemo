@@ -1,0 +1,17 @@
+commit f1e4ee3f49fd19d72fa3bbcbce4aab5c2fbef2ed
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jan 4 17:07:21 2013 +0100
+
+    cmd/5g, cmd/6g, cmd/8g: flush return parameters in case of panic.
+    
+    Fixes #4066.
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7040044
+
+ src/cmd/5g/reg.c            |  6 +++++-
+ src/cmd/6g/reg.c            |  6 +++++-
+ src/cmd/8g/reg.c            |  6 +++++-
+ test/fixedbugs/issue4066.go | 37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+), 3 deletions(-)

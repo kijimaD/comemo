@@ -1,0 +1,16 @@
+commit ac7f2152eb21cf605e291c3b06199751a0f1d5d2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 20:28:06 2009 -0700
+
+    the first time a structure type appears when printing, identify it by name:
+            type Foo struct { a int; next *Foo }
+    produces
+            "Foo = struct { a int; next Foo }"
+    
+    R=rsc
+    OCL=30797
+    CL=30820
+
+ src/pkg/gob/type.go      | 15 ++++++++++++---
+ src/pkg/gob/type_test.go |  5 +++--
+ 2 files changed, 15 insertions(+), 5 deletions(-)

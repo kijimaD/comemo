@@ -1,0 +1,14 @@
+commit 7e93610b0794f2b7c5d6d47ee35f8634bb9c5c9c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Feb 25 17:30:40 2015 -0500
+
+    runtime/cgo: fix darwin/arm build
+    
+    Macro definition ordering.
+    
+    Change-Id: I0def4702d19a21a68ffa52ea5b7c22578830c578
+    Reviewed-on: https://go-review.googlesource.com/6030
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/cgo/gcc_darwin_arm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

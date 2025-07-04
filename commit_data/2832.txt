@@ -1,0 +1,27 @@
+commit 312bd7a1fcf7c0cae8c6ce239f0c9e7045417ddb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 29 17:01:09 2009 -0700
+
+    parser:
+    - Changed filter function for parser.ParsePackage to
+      take an *os.Dir instead of a filename for more
+      powerful filters
+    
+    - Removed TODO in ast.PackageInterface: Now collect
+      package comments from all package files
+    
+    - Cleanups in godoc: Use the new ParsePackage and
+      PackageInterface functions; as a result computing
+      package information is much simpler now.
+    
+    R=rsc
+    DELTA=285  (80 added, 110 deleted, 95 changed)
+    OCL=32473
+    CL=32486
+
+ src/cmd/godoc/godoc.go           | 205 +++++++++++++--------------------------
+ src/cmd/gofmt/gofmt.go           |   8 +-
+ src/pkg/go/ast/filter.go         |  79 ++++++++++-----
+ src/pkg/go/parser/interface.go   |  19 ++--
+ src/pkg/go/parser/parser_test.go |  11 ++-
+ 5 files changed, 146 insertions(+), 176 deletions(-)

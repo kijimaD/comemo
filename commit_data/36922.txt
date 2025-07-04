@@ -1,0 +1,22 @@
+commit 29907b13db0455eded50263b4e37445045c82e6e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:42:19 2018 +0200
+
+    crypto: add AIX operating system
+    
+    This commit adds AIX operating system to crypto package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I20047ff2fef0051b8b235ec15b064c4a95c2b9c3
+    Reviewed-on: https://go-review.googlesource.com/c/138722
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/rand/eagain.go    |  2 +-
+ src/crypto/rand/rand_unix.go |  2 +-
+ src/crypto/x509/root_aix.go  | 10 ++++++++++
+ src/crypto/x509/root_unix.go |  3 ++-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

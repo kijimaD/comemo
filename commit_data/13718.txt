@@ -1,0 +1,12 @@
+commit 6d0e3242eb296922995c6335de4d5c8bcd88728a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 15:43:27 2012 -0400
+
+    test: restore nigel's bug451 as bug452.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6497066
+
+ test/fixedbugs/bug452.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

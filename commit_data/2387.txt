@@ -1,0 +1,29 @@
+commit 9a9ffb2b0e03c3a53661b1aa56fc70b0cb910708
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 15:24:01 2009 -0700
+
+    more 8g progress.
+    likely to go back to registers for most temporaries.
+    
+    most tests in lib pass.  these fail:
+    
+            datafmt
+            fmt
+            go/scanner
+            log
+            reflect
+            strconv
+            template
+    
+    R=ken
+    OCL=29896
+    CL=29898
+
+ src/cmd/8g/cgen.c  |  83 ++++++++++-----
+ src/cmd/8g/gg.h    |   6 ++
+ src/cmd/8g/ggen.c  | 292 +++++++++++++++++++++++++++++++++++++++++++++++------
+ src/cmd/8g/gobj.c  |  11 +-
+ src/cmd/8g/gsubr.c |  10 +-
+ src/cmd/gc/obj.c   |   2 +-
+ src/cmd/gc/subr.c  |   7 +-
+ 7 files changed, 339 insertions(+), 72 deletions(-)

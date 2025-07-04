@@ -1,0 +1,12 @@
+commit 4438f502936b23078e904e0f5cdbb32c2daf10e8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 15:09:08 2011 -0800
+
+    buffer.go: minor optimization, expanded comment
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4169043
+
+ src/pkg/bytes/buffer.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

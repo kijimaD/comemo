@@ -1,0 +1,21 @@
+commit 45d42fdceaa60a51c0057222df5dace810ed13de
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun May 7 19:42:11 2017 +0200
+
+    cmd/link/internal/ld: don't link with -no_pie on darwin/arm64
+    
+    Ever since CL 33301 linking darwin/arm64 excutables has resulted in
+    warnings like:
+    
+    ld: warning: -no_pie ignored for arm64
+    
+    Remove -no_pie on darwin/arm64.
+    
+    Change-Id: I9f7685351fa8cce29795283e1a24fc7a6753d698
+    Reviewed-on: https://go-review.googlesource.com/42815
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

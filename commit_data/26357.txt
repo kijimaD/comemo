@@ -1,0 +1,25 @@
+commit 517b6131b2f62d7a57851aca44e590da51e7e849
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 00:44:07 2016 -0700
+
+    cmd/compile: add and use new Fields type
+    
+    Analogous to the Nodes type used as a more space efficient []*Node
+    representation.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8341e45304777d6e4200bd36dadc935b07ccf3ff
+    Reviewed-on: https://go-review.googlesource.com/20793
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       |   8 +-
+ src/cmd/compile/internal/gc/fmt.go       |  49 ++++++------
+ src/cmd/compile/internal/gc/reflect.go   |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |  57 ++++++--------
+ src/cmd/compile/internal/gc/type.go      | 131 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/typecheck.go |  18 ++---
+ 6 files changed, 132 insertions(+), 133 deletions(-)

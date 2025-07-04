@@ -1,0 +1,12 @@
+commit 59bac0be9050fbbb05c4d8876ab8ea546819a33c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Oct 26 11:21:21 2015 +0100
+
+    doc: updated go1.6 with reflect change for unexported embedded structs
+    
+    Change-Id: I53c196925fb86784b31dea799c27e79574d35fcc
+    Reviewed-on: https://go-review.googlesource.com/16304
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ doc/go1.6.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

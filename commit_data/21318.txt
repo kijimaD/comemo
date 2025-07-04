@@ -1,0 +1,14 @@
+commit 746dec575c3e86dc8d70d887d3180052bea49b2d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 21 13:33:37 2015 +1100
+
+    html/template: fix example code
+    
+    Fixes #9651
+    
+    Change-Id: I987833b6263482a402e58fcd9eeb0e42401599b5
+    Reviewed-on: https://go-review.googlesource.com/3073
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

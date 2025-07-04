@@ -1,0 +1,21 @@
+commit 39493be2948231462eec6a0d045fb2b5adafa3c4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Sep 30 13:13:39 2011 -0700
+
+    io: rename Copyn to CopyN.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5157045
+
+ src/cmd/gofix/Makefile              |  1 +
+ src/cmd/gofix/iocopyn.go            | 40 +++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/iocopyn_test.go       | 37 ++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/reader.go       |  2 +-
+ src/pkg/http/fs.go                  |  2 +-
+ src/pkg/http/transport_test.go      |  2 +-
+ src/pkg/io/io.go                    |  6 +++---
+ src/pkg/io/io_test.go               | 40 ++++++++++++++++++-------------------
+ src/pkg/mime/multipart/formdata.go  |  4 ++--
+ src/pkg/mime/multipart/multipart.go |  2 +-
+ 10 files changed, 107 insertions(+), 29 deletions(-)

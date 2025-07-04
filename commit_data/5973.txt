@@ -1,0 +1,21 @@
+commit df88fc610975b0be07a1cd49199eb9917a7748e3
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Aug 6 16:57:49 2010 -0700
+
+    arm: bugfixes and syscall
+    
+    - integer divide by zero raises panic
+    - float comparisons involving NaNs work
+    - syscall interface actually handles return
+      values and errno correctly.
+    
+    R=rsc, bradfitzpatrick
+    CC=golang-dev
+    https://golang.org/cl/1847047
+
+ src/cmd/5g/cgen.c               |  11 +-
+ src/pkg/runtime/arm/vlop.s      |   2 +-
+ src/pkg/runtime/arm/vlrt.c      | 817 ++++++++++++++++++++--------------------
+ src/pkg/syscall/asm_linux_arm.s |  47 ++-
+ test/arm-pass.txt               |   4 +-
+ 5 files changed, 467 insertions(+), 414 deletions(-)

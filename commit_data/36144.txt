@@ -1,0 +1,20 @@
+commit f6a5fada277c7fe8f8ffca9109392c66436a15fc
+Author: John Gibb <johngibb@gmail.com>
+Date:   Sun Jul 29 15:19:17 2018 +0000
+
+    path: present the correct error message in TestMatch
+    
+    The message was hardcoded to indicate that the test wanted a nil error, even
+    though in some cases a specific error was wanted. This patch fixes the
+    message to print the wanted error.
+    
+    Change-Id: Id86ea89d6f41f25bfa164acc50142ae8ff0ec410
+    GitHub-Last-Rev: c220374845667942c608c02afadff95443e2ec20
+    GitHub-Pull-Request: golang/go#26674
+    Reviewed-on: https://go-review.googlesource.com/126619
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/match_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

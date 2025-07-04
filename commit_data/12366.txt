@@ -1,0 +1,12 @@
+commit 06e18ca5a3ecca411e4b31d3bdc9f36356ed99c2
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Mar 5 22:19:51 2012 +1100
+
+    strings: Rename example to match function name.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5729065
+
+ src/pkg/strings/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

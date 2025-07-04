@@ -1,0 +1,13 @@
+commit c0b378ff5ca708702de41b2dea5b173ffe4200fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 2 10:36:19 2010 -0700
+
+    bug284: additional conversion test case
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/1433042
+
+ test/bugs/bug284.go |  5 +++++
+ test/golden.out     | 12 ++++++++----
+ 2 files changed, 13 insertions(+), 4 deletions(-)

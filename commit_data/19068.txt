@@ -1,0 +1,21 @@
+commit b3a33a654d2f640f3b6c7856ea742c23f6c49d1c
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Apr 8 22:35:29 2014 -0400
+
+    cmd/go: allow use of Context in 'go list -f'
+    
+    Add a $Context variable to the template so that the build.Context values
+    such as BuildTags can be accessed.
+    
+    Fixes #6666.
+    
+    LGTM=adg, rsc
+    R=golang-codereviews, gobot, adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72770043
+
+ src/cmd/go/context.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/doc.go     | 23 +++++++++++++++++++++--
+ src/cmd/go/list.go    | 36 +++++++++++++++++++++++++++++++++---
+ src/cmd/go/test.bash  |  6 ++++++
+ 4 files changed, 96 insertions(+), 5 deletions(-)

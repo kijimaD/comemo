@@ -1,0 +1,27 @@
+commit cd7cb86d8e56d28bfe9bd522baa44c95127028d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 8 17:26:23 2018 -0700
+
+    runtime: don't use linkname to refer to internal/cpu
+    
+    The runtime package already imports the internal/cpu package, so there
+    is no reason for it to use go:linkname comments to refer to
+    internal/cpu functions and variables. Since internal/cpu is internal,
+    we can just export those names. Removing the obscurity of go:linkname
+    outweighs the minor additional complexity added to the internal/cpu API.
+    
+    Change-Id: Id89951b7f3fc67cd9bce67ac6d01d44a647a10ad
+    Reviewed-on: https://go-review.googlesource.com/128755
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/cpu/cpu.go         | 11 ++++----
+ src/internal/cpu/cpu_arm64.go   | 56 ++++++++++++++++++++---------------------
+ src/internal/cpu/cpu_ppc64x.go  | 30 +++++++++++-----------
+ src/internal/cpu/export_test.go |  3 +--
+ src/runtime/os_linux_arm64.go   | 19 +++++---------
+ src/runtime/os_linux_ppc64x.go  | 19 +++++---------
+ src/runtime/proc.go             | 12 +++------
+ 7 files changed, 65 insertions(+), 85 deletions(-)

@@ -1,0 +1,14 @@
+commit dc8d9031550e4adc5c83dadd48d9e1e8d0f7ea6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 3 09:18:47 2013 -0400
+
+    doc/faq: add a FAQ about versioning
+    
+    Fixes #5633.
+    
+    R=golang-dev, r, tommi.virtanen, adg, nj
+    CC=golang-dev
+    https://golang.org/cl/14283044
+
+ doc/go_faq.html | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

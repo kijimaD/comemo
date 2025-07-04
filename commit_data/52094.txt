@@ -1,0 +1,17 @@
+commit bcf17f4ab7150de00d1c5177bdbd46288d000334
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 25 17:24:42 2023 +0000
+
+    cmd/go: simplify code thanks to reflect.Value.SetZero
+    
+    Change-Id: Ie9c05210390dae43faf566907839bce953925735
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471258
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/internal/list/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

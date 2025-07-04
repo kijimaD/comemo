@@ -1,0 +1,17 @@
+commit 01e9a227cc8f8e0d0ffea239f6c601259a6db908
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 19:42:32 2011 -0700
+
+    crypto/tls: add Error method to alert
+    
+    alerts get used as both values and errors.
+    Rather than introduce an alertError wrapper,
+    this CL just adds an Error method, which will
+    satisfy the error interface when the time comes.
+    
+    R=agl, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5294073
+
+ src/pkg/crypto/tls/alert.go | 4 ++++
+ 1 file changed, 4 insertions(+)

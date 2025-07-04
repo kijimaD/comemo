@@ -1,0 +1,18 @@
+commit 613f8cad90a4359e423f5accbbafeb7dacbd53a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 21:14:34 2017 +0000
+
+    runtime: make RawSyscall panic on Solaris
+    
+    It's unused and doesn't work.
+    
+    Fixes #20833
+    
+    Change-Id: I09335e84c60f88dd1771f7353b0097f36a5e7660
+    Reviewed-on: https://go-review.googlesource.com/82636
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/syscall_solaris.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

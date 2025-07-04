@@ -1,0 +1,15 @@
+commit 73dd4a37f9a6c6486ca80bf3f84cba7300cab5eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 13:57:31 2009 -0800
+
+    fix export bug Rob tripped over.
+    
+    the lexer is already hiding names,
+    so this clumsy hack is no longer necessary.
+    
+    R=ken
+    OCL=24783
+    CL=24783
+
+ src/cmd/gc/export.c | 8 --------
+ 1 file changed, 8 deletions(-)

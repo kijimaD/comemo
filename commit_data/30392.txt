@@ -1,0 +1,12 @@
+commit 67fcd9c5d9f84e4f66df1e357ca9f76523ecff4e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Feb 24 12:07:25 2017 -0800
+
+    cmd/internal/browser: fix typo
+    
+    Change-Id: I3c31f10c1082c7bc57aac18856014c55f79e0fed
+    Reviewed-on: https://go-review.googlesource.com/37409
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/browser/browser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

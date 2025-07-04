@@ -1,0 +1,23 @@
+commit 807c6c58fc7de3cdabe41d71c9e18ddaa1870cab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 18:14:52 2015 +0000
+
+    net: fix the build even harder
+    
+    Should fix nacl.
+    
+    Follow-up to
+    https://golang.org/cl/17936 (fix race) and
+    https://golang.org/cl/17914 (fix build) for
+    https://golang.org/cl/16953 (broke the build)
+    
+    Third time's a charm.
+    
+    Change-Id: I23930d5cff4235209546952ce2231f165ab5bf8a
+    Reviewed-on: https://go-review.googlesource.com/17939
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient_unix.go | 2 ++
+ src/net/hook_unix.go      | 6 +-----
+ 2 files changed, 3 insertions(+), 5 deletions(-)

@@ -1,0 +1,23 @@
+commit fb05264fe1626c9d0b6d00d51e6c4d8d213d6dc7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 30 23:14:34 2019 -0400
+
+    runtime: setg after sigFetchG
+    
+    In the normal case, sigFetchG just returns the G register. But in
+    the case that sigFetchG fetches the G from somewhere else, the G
+    register still holding an invalid value. Setg here to make sure
+    they match.
+    
+    This is particularly useful because setGsignalStack, called by
+    adjustSignalStack from sigtrampgo before setg to gsignal,
+    accesses the G register.
+    
+    Should fix #35249.
+    
+    Change-Id: I64c85143cb05cdb2ecca7f9936dbd8bfec186c2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204441
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

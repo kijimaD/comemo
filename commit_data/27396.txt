@@ -1,0 +1,55 @@
+commit aba7b3e91cea1c95a1803357bcf219b0591d3c12
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 23 22:36:41 2016 +0900
+
+    vendor: import golang.org/x/net/route
+    
+    golang.org/x/net/route becomes vendor/golang.org/x/net/route.
+    
+    At git rev 30be488 (golang.org/cl/22446)
+    
+    Updates #14724.
+    
+    Change-Id: I41cfb5443aeecac4c71e843c09eb8c1d4b7413ea
+    Reviewed-on: https://go-review.googlesource.com/22450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang.org/x/net/route/address.go       | 269 ++++++++++++++
+ .../golang.org/x/net/route/address_darwin_test.go  |  63 ++++
+ src/vendor/golang.org/x/net/route/address_test.go  | 103 ++++++
+ src/vendor/golang.org/x/net/route/binary.go        |  90 +++++
+ src/vendor/golang.org/x/net/route/defs_darwin.go   | 106 ++++++
+ .../golang.org/x/net/route/defs_dragonfly.go       | 105 ++++++
+ src/vendor/golang.org/x/net/route/defs_freebsd.go  | 329 ++++++++++++++++++
+ src/vendor/golang.org/x/net/route/defs_netbsd.go   | 104 ++++++
+ src/vendor/golang.org/x/net/route/defs_openbsd.go  |  93 +++++
+ src/vendor/golang.org/x/net/route/interface.go     |  64 ++++
+ .../golang.org/x/net/route/interface_announce.go   |  32 ++
+ .../golang.org/x/net/route/interface_classic.go    |  66 ++++
+ .../golang.org/x/net/route/interface_freebsd.go    |  78 +++++
+ .../golang.org/x/net/route/interface_multicast.go  |  30 ++
+ .../golang.org/x/net/route/interface_openbsd.go    |  83 +++++
+ src/vendor/golang.org/x/net/route/message.go       |  70 ++++
+ .../golang.org/x/net/route/message_darwin_test.go  |  27 ++
+ .../golang.org/x/net/route/message_freebsd_test.go | 106 ++++++
+ src/vendor/golang.org/x/net/route/message_test.go  |  95 +++++
+ src/vendor/golang.org/x/net/route/route.go         |  74 ++++
+ src/vendor/golang.org/x/net/route/route_classic.go |  31 ++
+ src/vendor/golang.org/x/net/route/route_openbsd.go |  28 ++
+ src/vendor/golang.org/x/net/route/route_test.go    | 385 +++++++++++++++++++++
+ src/vendor/golang.org/x/net/route/sys.go           |  40 +++
+ src/vendor/golang.org/x/net/route/sys_darwin.go    |  80 +++++
+ src/vendor/golang.org/x/net/route/sys_dragonfly.go |  71 ++++
+ src/vendor/golang.org/x/net/route/sys_freebsd.go   | 150 ++++++++
+ src/vendor/golang.org/x/net/route/sys_netbsd.go    |  67 ++++
+ src/vendor/golang.org/x/net/route/sys_openbsd.go   |  72 ++++
+ src/vendor/golang.org/x/net/route/syscall.go       |  33 ++
+ src/vendor/golang.org/x/net/route/syscall.s        |   8 +
+ src/vendor/golang.org/x/net/route/zsys_darwin.go   |  93 +++++
+ .../golang.org/x/net/route/zsys_dragonfly.go       |  92 +++++
+ .../golang.org/x/net/route/zsys_freebsd_386.go     | 120 +++++++
+ .../golang.org/x/net/route/zsys_freebsd_amd64.go   | 117 +++++++
+ .../golang.org/x/net/route/zsys_freebsd_arm.go     | 117 +++++++
+ src/vendor/golang.org/x/net/route/zsys_netbsd.go   |  91 +++++
+ src/vendor/golang.org/x/net/route/zsys_openbsd.go  |  80 +++++
+ 38 files changed, 3662 insertions(+)

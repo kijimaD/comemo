@@ -1,0 +1,15 @@
+commit 9d65578b83f0d52f0d2f526212dd3b4ee1a5f031
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 30 10:51:54 2021 +0800
+
+    cmd/compile: fix typos in document
+    
+    Correct "a2Spill" to "a3Spill"
+    
+    Change-Id: I6ac4c45973dfaeb16d3a90d835589b6af1aefe1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331850
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/abi-internal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

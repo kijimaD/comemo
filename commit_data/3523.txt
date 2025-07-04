@@ -1,0 +1,18 @@
+commit c071da4a26eb727a4510c4eb1eb3f7f7178cdae4
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 13 14:37:48 2009 -0700
+
+    Add ASN.1 parser.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1459  (1459 added, 0 deleted, 0 changed)
+    OCL=35389
+    CL=35681
+
+ src/pkg/Make.deps         |   1 +
+ src/pkg/Makefile          |   1 +
+ src/pkg/asn1/Makefile     |  11 +
+ src/pkg/asn1/asn1.go      | 884 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/asn1/asn1_test.go | 562 +++++++++++++++++++++++++++++
+ 5 files changed, 1459 insertions(+)

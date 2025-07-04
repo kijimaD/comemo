@@ -1,0 +1,15 @@
+commit 029c39f45aac070aad31d721f4b784c1981d3daa
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 15 12:09:59 2009 -0800
+
+    fix some typos in the documentation
+    
+    Fixes #196.
+    
+    R=rsc
+    https://golang.org/cl/154152
+
+ doc/effective_go.html | 4 ++--
+ doc/go_tutorial.html  | 4 ++--
+ doc/go_tutorial.txt   | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 35f5517ce9f43abb4bbe5601bb2697b15a440783
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 15 17:28:00 2016 -0700
+
+    doc: add 1.7 to golang.org/project
+    
+    Change-Id: Ib17f6643efd49e2bca188c4faa505f79832d18b1
+    Reviewed-on: https://go-review.googlesource.com/27110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

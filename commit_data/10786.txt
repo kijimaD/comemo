@@ -1,0 +1,25 @@
+commit 25e94154b719506511b16e0936dcea60846fa790
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 14 10:44:34 2011 -0800
+
+    undo CL 5477092 / c3c6e72d7cc5
+    
+    The obvious fix is breaking the build in non-obvious ways.
+    Reverting while waiting for the correct fix, if any is needed.
+    
+    ««« original CL description
+    net/http: fix bug in error checking
+    
+    Thanks to josef86@gmail.com for pointing this out.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5477092
+    »»»
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5488085
+
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

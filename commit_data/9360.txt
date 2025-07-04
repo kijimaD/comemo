@@ -1,0 +1,15 @@
+commit 175849295ce632c2ddeca7024f7c783327b5e571
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 03:51:51 2011 -0300
+
+    runtime: fix pseudo-randomness on some selects
+    
+    Fixes #2152.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4888044
+
+ src/pkg/runtime/chan.c       |  3 ++-
+ src/pkg/runtime/chan_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

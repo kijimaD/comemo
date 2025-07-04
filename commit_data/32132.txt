@@ -1,0 +1,16 @@
+commit 6b53dd4f2b3a30b010f3c0cc5dabc8a7ad896c15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 29 07:25:39 2017 -0700
+
+    math/rand: use t.Helper in tests
+    
+    Change-Id: Iece39e6412c0f6c63f563eed1621b8cca02de835
+    Reviewed-on: https://go-review.googlesource.com/51890
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rand_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit 0432a34383625a35f8f68c72d3a77e042566a08a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 12:32:31 2008 -0800
+
+    make bignum_test a test
+    
+    R=gri
+    DELTA=967  (468 added, 499 deleted, 0 changed)
+    OCL=19906
+    CL=19912
+
+ {test => src/lib}/bignum_test.go | 267 +++++++++++++++++----------------------
+ 1 file changed, 118 insertions(+), 149 deletions(-)

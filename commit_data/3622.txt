@@ -1,0 +1,18 @@
+commit 3040f067c396f56592c6935fdd1773f612834d60
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Oct 22 08:59:18 2009 -0700
+
+    Interface types, values, and type compiler.  This does not yet
+    implement any type checking or semantics for interfaces.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=305  (289 added, 10 deleted, 6 changed)
+    OCL=35889
+    CL=35995
+
+ src/pkg/exp/eval/stmt_test.go |   6 ++
+ src/pkg/exp/eval/type.go      | 204 +++++++++++++++++++++++++++++++++++++++---
+ src/pkg/exp/eval/typec.go     |  57 +++++++++++-
+ src/pkg/exp/eval/value.go     |  38 ++++++++
+ 4 files changed, 292 insertions(+), 13 deletions(-)

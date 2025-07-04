@@ -1,0 +1,19 @@
+commit 6fc329bb7fbb78315e2f53895a9fc6cbed63c1d7
+Author: Marco <gazerro@open2b.com>
+Date:   Sun May 24 14:58:51 2020 +0200
+
+    net/http/cgi: don't pass nil Body to the child handler
+    
+    For server requests, the http.Request Body should not be nil.
+    
+    Fixes #39190
+    
+    Change-Id: I32de7b6c0f6ca55008fea9fd86089cda0a2dea62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235137
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cgi/child.go            |  3 +++
+ src/net/http/cgi/integration_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

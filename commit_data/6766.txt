@@ -1,0 +1,18 @@
+commit e38b7f49531e8b6aa05fa6a15c7e8527cb668ea6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 17 11:03:33 2010 -0800
+
+    godoc: bug fix in relativePath
+    
+    This fixes a problem with relativePath, where
+    a prefix was not recognized because it ended
+    in "//" as opposed to just "/".
+    
+    Also: Minor unrelated cleanup of a declaration.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3146041
+
+ src/cmd/godoc/godoc.go | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

@@ -1,0 +1,20 @@
+commit 499e334a28c63c15e0b1add8172fd48b3c19e1ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 15:46:59 2022 -0700
+
+    cmd/compile/internal/staticdata: remove use of `""` in embed linker symbols
+    
+    Not strictly necessary for CL 393715, but this is necessary if we want
+    to remove the logic from cmd/internal/obj for substituting `""` in
+    linker symbol names.
+    
+    Updates #51734.
+    
+    Change-Id: Ib13cb12fa3973389ca0c1c9a9209e00c30dc9431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406058
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/staticdata/embed.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

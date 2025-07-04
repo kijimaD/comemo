@@ -1,0 +1,22 @@
+commit ecab408c4223be3f49d9df52f2900a35bc68f444
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 4 17:02:04 2013 -0500
+
+    cmd/gc: implement new return requirements
+    
+    Fixes #65.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7441049
+
+ src/cmd/gc/go.h             |    2 +
+ src/cmd/gc/go.y             |    5 +-
+ src/cmd/gc/lex.c            |    1 +
+ src/cmd/gc/typecheck.c      |  145 +++++
+ src/cmd/gc/walk.c           |   37 --
+ src/cmd/gc/y.tab.c          |  505 +++++++--------
+ test/fixedbugs/bug086.go    |    4 +-
+ test/fixedbugs/issue4663.go |    1 +
+ test/return.go              | 1453 +++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 1862 insertions(+), 291 deletions(-)

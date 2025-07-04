@@ -1,0 +1,12 @@
+commit 5d51b0ae53e92a315c1713430be9a914960fb7e4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 5 12:45:56 2011 -0700
+
+    doc: link to Czech translation of The Laws of Reflection
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5190045
+
+ doc/docs.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

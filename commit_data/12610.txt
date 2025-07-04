@@ -1,0 +1,15 @@
+commit 4ca59a010e42978d168a6c92335557a088284b99
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 13:48:07 2012 +0800
+
+    os: remove document duplication in error predicate functions
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5783092
+
+ src/pkg/os/error.go         | 18 ++++++++++++++++++
+ src/pkg/os/error_plan9.go   |  9 +++------
+ src/pkg/os/error_posix.go   | 12 +++---------
+ src/pkg/os/error_windows.go | 12 +++---------
+ 4 files changed, 27 insertions(+), 24 deletions(-)

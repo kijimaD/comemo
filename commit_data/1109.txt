@@ -1,0 +1,13 @@
+commit 2727abe4fc0e169c5414e5cb0c1cc7d5d33bf69d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 12 11:00:11 2008 -0800
+
+    - lowercased package name (Bignum -> bignum)
+    - implemented some missing functionality (and, or, xor of positive ints)
+    
+    R=r
+    OCL=19087
+    CL=19087
+
+ src/lib/bignum.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

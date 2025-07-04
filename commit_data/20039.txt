@@ -1,0 +1,20 @@
+commit 30ef2c7debeeb9f5bcab8cd2c60a8587f35bc0ae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:46:05 2014 +0400
+
+    runtime: fix memstats
+    Newly allocated memory is subtracted from inuse, while it was never added to inuse.
+    Span leftovers are subtracted from both inuse and idle,
+    while they were never added.
+    Fixes #8544.
+    Fixes #8430.
+    
+    LGTM=khr, cookieo9
+    R=golang-codereviews, khr, cookieo9
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/130200044
+
+ src/pkg/runtime/malloc.h       |  1 +
+ src/pkg/runtime/malloc_test.go | 22 +++++++++++++++++++---
+ src/pkg/runtime/mheap.c        | 24 ++++++++++++++----------
+ 3 files changed, 34 insertions(+), 13 deletions(-)

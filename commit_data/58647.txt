@@ -1,0 +1,16 @@
+commit cb47156e90cac6b1030d747f1ccd433c00494dfc
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jan 30 10:55:36 2025 -0800
+
+    testing/synctest: add an example of testing networked code
+    
+    For #67434
+    
+    Change-Id: If7dcd3bf7bb69e1730856405d55cffc72ce0e132
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645675
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/testing/synctest/http_example_test.go | 101 ++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

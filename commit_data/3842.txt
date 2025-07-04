@@ -1,0 +1,11 @@
+commit 7151d2337b5f3efd5f65a2ba2323c4a662c0475d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 18:27:30 2009 -0800
+
+    missing piece gofmt'ed in reflect
+    
+    R=r, rsc
+    http://go/go-review/1025001
+
+ src/pkg/reflect/all_test.go | 144 +++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 108 insertions(+), 36 deletions(-)

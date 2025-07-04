@@ -1,0 +1,23 @@
+commit 42e8b9c3a430ccc4a03b2994f7dcbde630410e1e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 29 17:46:14 2018 -0500
+
+    cmd/go/internal/modfetch: make directories read-only after renaming, not before
+    
+    The call to os.Rename was failing on the darwin builders, despite having passed in the TryBots.
+    (I tested this change by running 'go test cmd/go' manually on a darwin gomote.)
+    
+    This fixes the builder failures after CL 146382.
+    
+    Updates #26794
+    Fixes #29030
+    
+    Change-Id: I3644773421789f65e56f183d077b4e4fd17b8325
+    Reviewed-on: https://go-review.googlesource.com/c/151798
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go |  9 ++++++++-
+ src/cmd/go/internal/modfetch/unzip.go | 38 +++++++++++++++++++----------------
+ 2 files changed, 29 insertions(+), 18 deletions(-)

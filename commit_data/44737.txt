@@ -1,0 +1,34 @@
+commit 0c93b16d015663a60ac77900ca0dcfab92310790
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 16 17:06:25 2021 -0400
+
+    cmd: move experiment flags into objabi.Experiment
+    
+    This moves all remaining GOEXPERIMENT flags into the objabi.Experiment
+    struct, drops the "_enabled" from their name, and makes them all bool
+    typed.
+    
+    We also drop DebugFlags.Fieldtrack because the previous CL shifted the
+    one test that used it to use GOEXPERIMENT instead.
+    
+    Change-Id: I3406fe62b1c300bb4caeaffa6ca5ce56a70497fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302389
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/base/debug.go     |  9 +--------
+ src/cmd/compile/internal/base/flag.go      |  2 +-
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  2 +-
+ src/cmd/compile/internal/noder/lex.go      |  2 +-
+ src/cmd/compile/internal/ssa/compile.go    |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go   |  2 +-
+ src/cmd/compile/internal/ssagen/pgen.go    |  4 ++--
+ src/cmd/compile/internal/walk/expr.go      |  2 +-
+ src/cmd/go/internal/work/gc.go             |  2 +-
+ src/cmd/internal/objabi/util.go            | 28 +++++++++++++++-------------
+ src/cmd/link/internal/ld/deadcode.go       |  4 ++--
+ src/cmd/link/internal/ld/main.go           |  2 +-
+ src/runtime/runtime2.go                    |  2 +-
+ 13 files changed, 29 insertions(+), 34 deletions(-)

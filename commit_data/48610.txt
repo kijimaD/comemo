@@ -1,0 +1,15 @@
+commit 40504892c1720a3a36d82c492fd2302b7ccb870a
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 27 15:12:39 2022 +0800
+
+    cmd/compile: clean up arm64 32bit pointer in Reverse
+    
+    Change-Id: I0751270c0f656a501b389f2e2bb0e959d6f5a0e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396054
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

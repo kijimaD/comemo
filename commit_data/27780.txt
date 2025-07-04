@@ -1,0 +1,13 @@
+commit a91416e7abf2236909f99aea85accfe98a9ba1fd
+Author: Chris Broadfoot <cbro@google.com>
+Date:   Thu Jul 7 19:32:35 2016 -0700
+
+    [release-branch.go1.7] go1.7rc1
+    
+    Change-Id: Ifbf1c13ce740428add68d68133c7f10876bad404
+    Reviewed-on: https://go-review.googlesource.com/24816
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ VERSION | 1 +
+ 1 file changed, 1 insertion(+)

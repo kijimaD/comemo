@@ -1,0 +1,46 @@
+commit b8ed752d6f2bd4d7edb48c8614a133182e7646ee
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Apr 9 10:10:16 2025 +0800
+
+    internal/chacha8rand: implement func block in assembly
+    
+    Benchmark result on Loongson-3A6000:
+    goos: linux
+    goarch: loong64
+    pkg: math/rand/v2 + internal/chacha8rand
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                             |  bench.old   |              bench.new              |
+                             |    sec/op    |   sec/op     vs base                |
+    ChaCha8MarshalBinary        67.39n ± 0%   65.96n ± 0%   -2.12% (p=0.000 n=10)
+    ChaCha8MarshalBinaryRead    80.93n ± 0%   78.31n ± 0%   -3.23% (p=0.000 n=10)
+    ChaCha8                    10.610n ± 0%   5.129n ± 0%  -51.66% (p=0.000 n=10)
+    ChaCha8Read                 51.30n ± 0%   28.05n ± 0%  -45.31% (p=0.000 n=10)
+    Block                      218.50n ± 0%   45.48n ± 0%  -79.19% (p=0.000 n=10)
+    geomean                     57.86n        32.05n       -44.62%
+    
+    Benchmark result on Loongson-3A5000:
+    goos: linux
+    goarch: loong64
+    pkg: math/rand/v2 + internal/chacha8rand
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                             |  bench.old   |              bench.new              |
+                             |    sec/op    |   sec/op     vs base                |
+    ChaCha8MarshalBinary        116.3n ± 0%   116.6n ± 0%   +0.26% (p=0.015 n=10)
+    ChaCha8MarshalBinaryRead    142.6n ± 0%   142.0n ± 0%   -0.39% (p=0.000 n=10)
+    ChaCha8                    16.270n ± 0%   6.848n ± 0%  -57.91% (p=0.000 n=10)
+    ChaCha8Read                 78.65n ± 0%   47.39n ± 1%  -39.74% (p=0.000 n=10)
+    Block                      301.50n ± 0%   91.85n ± 0%  -69.53% (p=0.000 n=10)
+    geomean                     91.45n        54.79n       -40.09%
+    
+    Change-Id: I64d80c81d2df288fecff80ae23ef89f0fb54cdfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664035
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go                  |   2 +-
+ src/internal/chacha8rand/chacha8.go        |  11 ++-
+ src/internal/chacha8rand/chacha8_loong64.s | 145 +++++++++++++++++++++++++++++
+ src/internal/chacha8rand/chacha8_stub.s    |   2 +-
+ 4 files changed, 157 insertions(+), 3 deletions(-)

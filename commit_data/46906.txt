@@ -1,0 +1,29 @@
+commit 8c99421f01aca303240a8f809bc65fa0c56db861
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 18:50:06 2021 -0700
+
+    cmd/compile/internal/types2: add debugging support for delayed actions
+    
+    Add a simple mechanism to provide formatted descriptions for
+    delayed actions. The comment strings are printed when tracing
+    is enabled and the delayed action is executed. This results
+    in more easily decipherable tracing output.
+    
+    Requires debug mode in order to minimize the overhead during normal
+    execution. Use the mechanism in a few places to show typical use.
+    
+    Also cleaned up a few unrelated comments.
+    
+    Change-Id: Ic273c380c3963341500396ec62b694d143c25de2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355871
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go       | 40 +++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go |  3 +-
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/struct.go      |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 --
+ 6 files changed, 40 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 2d2662f8d0b50d123da2f6674308cf5e0c21e062
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Aug 2 16:38:12 2023 +0800
+
+    cmd/fix: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: Id19435e864bcfd2adbb1492db3f8cdf2ee3c915e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515175
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/fix/cftype.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit cb418dd0d16ef0db58fef1dbc1f97afbaf480cd5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 26 17:25:04 2019 +0000
+
+    test: make -all_codegen default to true on linux-amd64 builder
+    
+    Fixes #34297
+    
+    Change-Id: I4584a97d4562d7af0412d683ba1c206e3c1d9edb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197539
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/run.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

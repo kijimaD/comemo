@@ -1,0 +1,20 @@
+commit 770d8d8207dbbbabf12d644e70b74d89f5bf595f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 24 16:11:44 2017 -0700
+
+    cmd/compile: free value earlier in nilcheck
+    
+    When we remove a nil check, add it back to the free Value pool immediately.
+    
+    Fixes #18732
+    
+    Change-Id: I8d644faabbfb52157d3f2d071150ff0342ac28dc
+    Reviewed-on: https://go-review.googlesource.com/58810
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/func.go     | 5 ++++-
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

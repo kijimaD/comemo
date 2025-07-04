@@ -1,0 +1,12 @@
+commit 1d729b7f59f4fdd7292c1aeecdfb2b2c951b631a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 8 00:09:35 2013 -0700
+
+    test: fix mapnan.go build tag
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/8491044
+
+ test/mapnan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

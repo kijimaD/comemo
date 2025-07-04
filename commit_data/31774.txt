@@ -1,0 +1,14 @@
+commit f749f856f4867b59cadc66c8eed30e0f9de1bcb3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 8 10:59:31 2017 +0200
+
+    doc: list image changes in 1.9 release notes
+    
+    Updates #20587
+    
+    Change-Id: I551a21c0226bc66fd7bca737c30cba679b958c37
+    Reviewed-on: https://go-review.googlesource.com/45091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

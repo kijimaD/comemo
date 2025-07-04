@@ -1,0 +1,16 @@
+commit e02d3e8ed17ab3d285c9c24c49312dad4cff2ed4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 3 03:25:34 2009 -0700
+
+    Define os.PageSize and syscall.PageSize.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=13  (13 added, 0 deleted, 0 changed)
+    OCL=29429
+    CL=29819
+
+ src/lib/os/types.go                     | 5 +++++
+ src/lib/syscall/syscall_darwin_amd64.go | 4 ++++
+ src/lib/syscall/syscall_linux_amd64.go  | 4 ++++
+ 3 files changed, 13 insertions(+)

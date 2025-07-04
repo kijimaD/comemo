@@ -1,0 +1,18 @@
+commit a570fcf74bdf652f453ed5dc0d8a41b15f1af8de
+Author: empijei <robclap8@gmail.com>
+Date:   Wed Oct 16 06:56:10 2019 +0200
+
+    net/http: clarify Header.WriteSubset behavior
+    
+    The current implementation performs a plain map lookup,
+    but other header methods canonicalize header keys before
+    using them.
+    
+    Fixes #34918
+    
+    Change-Id: Id4120488b8b39ecee97fa7a6ad8a34158687ffcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/header.go | 1 +
+ 1 file changed, 1 insertion(+)

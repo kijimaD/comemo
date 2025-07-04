@@ -1,0 +1,27 @@
+commit b5a68a9e414dc1d412d623f80c54aafe3ada0f14
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 25 22:09:46 2019 -0500
+
+    misc/cgo: skip cgotest.TestCrossPackageTests on iOS and set PWD
+    
+    I hope that this will fix the tests on iOS, but 'gomote create' isn't
+    giving me an instance I can test with. (Please patch and test before
+    approving.)
+    
+    Updates #15919
+    Updates #30228
+    
+    Change-Id: I1b7cd30d5b127a1ad3243b329fa005d229f69a24
+    Reviewed-on: https://go-review.googlesource.com/c/163726
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ misc/cgo/life/life_test.go             | 1 +
+ misc/cgo/stdio/stdio_test.go           | 1 +
+ misc/cgo/test/pkg_test.go              | 8 ++++++++
+ misc/cgo/testcarchive/carchive_test.go | 1 +
+ misc/cgo/testcshared/cshared_test.go   | 1 +
+ misc/cgo/testplugin/plugin_test.go     | 2 ++
+ misc/cgo/testshared/shared_test.go     | 1 +
+ 7 files changed, 15 insertions(+)

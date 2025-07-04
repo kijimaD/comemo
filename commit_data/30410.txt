@@ -1,0 +1,16 @@
+commit 31e633464481a0748fb95eda2a2d3d604755d286
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 11:14:45 2017 -0800
+
+    go/build: move math/bits into L1 set of dependencies
+    
+    Per suggestion from rsc.
+    
+    Change-Id: I4b61ec6f35ffaaa792b75e011fbba1bdfbabc1f6
+    Reviewed-on: https://go-review.googlesource.com/37501
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

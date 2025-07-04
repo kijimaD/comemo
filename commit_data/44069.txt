@@ -1,0 +1,15 @@
+commit f83e0f6616b58e7c77684c1f1dc6575439fdf79b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 28 14:33:14 2020 -0500
+
+    misc/ios: add to README how to build ios executables
+    
+    Updates #43371, #43343.
+    
+    Change-Id: I19386269245f2c20345c6cac7560089b8223e9f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280153
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/ios/README | 7 +++++++
+ 1 file changed, 7 insertions(+)

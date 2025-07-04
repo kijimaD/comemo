@@ -1,0 +1,37 @@
+commit a33e9cf7ead3d7853546a71796a6c404d02cb474
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 21 13:29:07 2016 -0700
+
+    cmd/doc: group constructors with type in package presentation
+    
+    Fixes #14004.
+    
+    $ go doc encoding.gob
+    Before:
+    func Register(value interface{})
+    func RegisterName(name string, value interface{})
+    func NewDecoder(r io.Reader) *Decoder
+    func NewEncoder(w io.Writer) *Encoder
+    type CommonType struct { ... }
+    type Decoder struct { ... }
+    type Encoder struct { ... }
+    type GobDecoder interface { ... }
+    type GobEncoder interface { ... }
+    
+    After:
+    func Register(value interface{})
+    func RegisterName(name string, value interface{})
+    type CommonType struct { ... }
+    type Decoder struct { ... }
+        func NewDecoder(r io.Reader) *Decoder
+    type Encoder struct { ... }
+        func NewEncoder(w io.Writer) *Encoder
+    type GobDecoder interface { ... }
+    type GobEncoder interface { ... }
+    
+    Change-Id: I021db25bce4a16b3dfa22ab323ca1f4e68d50111
+    Reviewed-on: https://go-review.googlesource.com/22354
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/doc/pkg.go | 34 +++++++++++++++++++++++++++-------
+ 1 file changed, 27 insertions(+), 7 deletions(-)

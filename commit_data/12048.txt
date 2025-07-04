@@ -1,0 +1,21 @@
+commit 89b075cc90f260edaa4973bd25258ee653a37a2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 00:26:33 2012 -0500
+
+    runtime: fix tiny memory leak
+    
+    The m->cret word holds the C return value when returning
+    across a stack split boundary.  It was not being cleared after
+    use, which means that the return value (if a C function)
+    or else the value of AX/R0 at the time of the last stack unsplit
+    was being kept alive longer than necessary.  Clear it.
+    
+    I think the effect here should be very small, but worth fixing
+    anyway.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5677092
+
+ src/pkg/runtime/proc.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

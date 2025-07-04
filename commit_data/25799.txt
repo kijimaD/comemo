@@ -1,0 +1,19 @@
+commit 3a11c8d3190210c510c152471ddb85eb36a15e76
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 00:00:53 2016 -0800
+
+    cmd/compile: simplify if statement parsing
+    
+    Somewhat notably, this means long if statement chains are now parsed
+    recursively, rather than iteratively.  This shouldn't be a concern
+    though, as several other functions (e.g., gen, typecheck, walk)
+    already use recursion to process the parsed if statement Node trees.
+    
+    Change-Id: Ic8c12ace9021c870d60c06f5db86a48c4ec57084
+    Reviewed-on: https://go-review.googlesource.com/19756
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 61 ++++-------------------------------
+ 1 file changed, 6 insertions(+), 55 deletions(-)

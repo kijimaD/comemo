@@ -1,0 +1,16 @@
+commit f71c03af90d29c6e2e8d5cc13ac9c590c6e7e2b9
+Author: Vadim Vygonets <unixdj@gmail.com>
+Date:   Mon Dec 26 09:34:27 2011 +0900
+
+    log/syslog: add Alert method
+    
+    Alert logs a message using the LOG_ALERT priority.
+    
+    Fixes #2325.
+    
+    R=mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504058
+
+ src/pkg/log/syslog/syslog.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

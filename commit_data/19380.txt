@@ -1,0 +1,14 @@
+commit 4cf79eb80c37dcc6aa2a22ebd242a9db0d28d2c3
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 16 09:30:28 2014 -0700
+
+    syscall: fix linux amd64 build
+    TBR=rsc
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/100500047
+
+ src/pkg/syscall/syscall_linux_amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

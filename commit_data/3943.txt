@@ -1,0 +1,27 @@
+commit da776791c4f45331b5cd14385e4b0afb28827191
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 23:11:36 2009 -0800
+
+    drop output from nilptr tests;
+    too hard to make it the same everywhere.
+    still checking for non-zero exit status though.
+    
+    disable core files while running tests
+    
+    R=r
+    http://go/go-review/1026037
+
+ src/run.bash                   |  3 +++
+ test/golden.out                | 60 ------------------------------------------
+ test/nilptr/arrayindex.go      |  3 ++-
+ test/nilptr/arrayindex1.go     |  3 ++-
+ test/nilptr/arraytoslice.go    |  3 ++-
+ test/nilptr/arraytoslice1.go   |  3 ++-
+ test/nilptr/arraytoslice2.go   |  3 ++-
+ test/nilptr/slicearray.go      |  3 ++-
+ test/nilptr/structfield.go     |  3 ++-
+ test/nilptr/structfield1.go    |  3 ++-
+ test/nilptr/structfield2.go    |  3 ++-
+ test/nilptr/structfieldaddr.go |  3 ++-
+ test/run                       |  3 +++
+ 13 files changed, 26 insertions(+), 70 deletions(-)

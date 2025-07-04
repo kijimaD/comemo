@@ -1,0 +1,33 @@
+commit fe5b4a65037a52eb588e2ca60359ddd40fa16f32
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 01:50:58 2016 -0800
+
+    cmd/compile: more use of IterXXX functions
+    
+    This CL was mostly produced by a one-off automated rewrite tool
+    looking for statements like "for X := T.Type; X != nil; X = X.Down"
+    and a few minor variations.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ib22705e37d078ef97841ee2e08f60bdbcabb94ad
+    Reviewed-on: https://go-review.googlesource.com/20520
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  2 +-
+ src/cmd/compile/internal/gc/align.go     |  4 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  8 ++++----
+ src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/export.go    |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  8 ++++----
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      | 27 +++++++++++++--------------
+ src/cmd/compile/internal/gc/type.go      | 24 +++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ 14 files changed, 67 insertions(+), 46 deletions(-)

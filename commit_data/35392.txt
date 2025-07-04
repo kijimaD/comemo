@@ -1,0 +1,46 @@
+commit 3027932ac3d8d943a404e0b6f9d9ea390c8e6840
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 14 20:02:22 2018 +0200
+
+    net: skip socket hungry test on iOS
+    
+    The iOS builder recently gained access to the GO_BUILDER_NAME
+    environment variable, which in turn enabled some net tests that
+    were previously guarded by testenv.Builder() == "". Some such tests
+    have been disabled because they don't work; others have increased
+    the pressure on open file descriptors, pushing the low iOS limit of
+    250.
+    
+    Since many net tests run with t.Parallel(), the "too many open files"
+    error hit many different tests, so instead of playing whack-a-mole,
+    lower the file descriptor demand by skipping the most file
+    descriptor hungry test, TestTCPSpuriousConnSetupCompletionWithCancel.
+    
+    Before:
+    
+    $ GO_BUILDER_NAME=darwin-arm64 GOARCH=arm64 go test -short -v net
+    ...
+    Socket statistical information:
+    ...
+    (inet4, stream, default): opened=5245 connected=193 listened=75 accepted=177 closed=5399 openfailed=0 connectfailed=5161 listenfailed=0 acceptfailed=143 closefailed=0
+    ...
+    
+    After:
+    
+    $ GO_BUILDER_NAME=darwin-arm64 GOARCH=arm64 go test -short -v net
+    ...
+    Socket statistical information:
+    ...
+    (inet4, stream, default): opened=381 connected=194 listened=75 accepted=169 closed=547 openfailed=0 connectfailed=297 listenfailed=0 acceptfailed=134 closefailed=0
+    ...
+    
+    Fixes #25365 (Hopefully).
+    
+    Change-Id: I8343de1b687ffb79001a846b1211df7aadd0535b
+    Reviewed-on: https://go-review.googlesource.com/113095
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/net/tcpsock_unix_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

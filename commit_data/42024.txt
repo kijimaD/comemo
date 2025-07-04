@@ -1,0 +1,33 @@
+commit 1cca496c5e6b49de4fef26bb118b3a65e4cec72c
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Mon Apr 20 18:15:50 2020 -0400
+
+    Revert "Revert "cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields""
+    
+    This reverts commit 98c32670fd454939794504225dca1d4ec55045d5.
+    
+    Rolling-forward with trivial format-string fix
+    
+    cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields
+    
+    Also add a typed version of mergeSym to rewrite.go to assist with a few
+    rules that used mergeSym in the untyped-form.
+    
+    Remove a few extra int32 overflow checks that no longer make sense, as
+    adding two int8s or int16s should never overflow an int32.
+    
+    Passes toolstash-check -all.
+    
+    Original review: https://go-review.googlesource.com/c/go/+/228882
+    
+    Change-Id: Ib63db4ee1687446f0f3d9f11575a40dd85cbce55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229126
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/fmtmap_test.go                 |    1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite.go        |    9 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
+ 4 files changed, 1066 insertions(+), 1031 deletions(-)

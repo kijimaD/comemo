@@ -1,0 +1,19 @@
+commit e73acc1b35f3490f3d800b4bf49da79630e808fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 2 18:01:32 2009 -0800
+
+    flesh out http server.
+    
+    convert to uppercase names.
+    
+    R=r
+    DELTA=613  (460 added, 61 deleted, 92 changed)
+    OCL=24139
+    CL=24145
+
+ src/lib/http/conn.go    |  53 ------
+ src/lib/http/request.go | 123 +++++++++-----
+ src/lib/http/server.go  | 424 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/lib/http/triv.go    |  50 ++++--
+ src/lib/http/url.go     |  42 ++---
+ 5 files changed, 545 insertions(+), 147 deletions(-)

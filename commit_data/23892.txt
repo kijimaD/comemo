@@ -1,0 +1,25 @@
+commit 767e065809937229767bb3496fdce61b74b815e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:07:35 2015 -0400
+
+    cmd/link: fix nosplit stack overflow checks
+    
+    The nosplit stack overflow checks were confused about morestack.
+    The comment about not having correct SP information at the call
+    to morestack was true, but that was a real bug, not something to
+    work around. I fixed that problem in CL 12144. With that fixed,
+    no need to special-case morestack in the way done here.
+    
+    This cleanup and simplification of the code was the first step
+    to fixing a bug that happened when I started working on the
+    arm64 frame size adjustments, but the cleanup was sufficient
+    to make the bug go away.
+    
+    For #9880.
+    
+    Change-Id: I16b69a5c16b6b8cb4090295d3029c42d606e3b9b
+    Reviewed-on: https://go-review.googlesource.com/12846
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 47 +++++++++++------------------------------
+ 1 file changed, 12 insertions(+), 35 deletions(-)

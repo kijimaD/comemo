@@ -1,0 +1,16 @@
+commit 272ae659db4a1665d8c60c2aada080421d7637fd
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 9 17:29:26 2008 -0700
+
+    mp fixed arith
+    
+    R=r
+    DELTA=149  (80 added, 62 deleted, 7 changed)
+    OCL=14029
+    CL=14029
+
+ src/cmd/gc/Makefile |  4 +++-
+ src/cmd/gc/const.c  | 36 ++++++++++++++++++++------------
+ src/cmd/gc/go.h     | 60 +++++++++++++++++++++++++++++------------------------
+ src/cmd/gc/lex.c    |  4 ++--
+ 4 files changed, 61 insertions(+), 43 deletions(-)

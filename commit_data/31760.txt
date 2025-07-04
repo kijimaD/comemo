@@ -1,0 +1,19 @@
+commit 84890c72fc2668074549b4e47b9f21e6fb955cff
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 8 13:48:41 2017 -0400
+
+    runtime: more diagnostics for TestStackGrowth
+    
+    This adds diagnostics so we can tell if the finalizer has started, in
+    addition to whether or not it has finished.
+    
+    Updates #19381.
+    
+    Change-Id: Icb7b1b0380c9ad1128b17074828945511a6cca5d
+    Reviewed-on: https://go-review.googlesource.com/45138
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/stack_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

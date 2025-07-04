@@ -1,0 +1,15 @@
+commit 1ed57c1b720d6ffa8bc8d074aa9a5751a2c81b87
+Author: Brad Erickson <bderickson@gmail.com>
+Date:   Sat May 30 03:10:57 2020 +0000
+
+    database/sql/driver: use correct method name "Connect" in DriverContext docs
+    
+    Change-Id: I755fedebb1f8f4d3f27b2b3f8626bca03bd36c88
+    GitHub-Last-Rev: 4a123572d55ad3b0104d3e6501eef5b2f37af4cd
+    GitHub-Pull-Request: golang/go#39305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235518
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

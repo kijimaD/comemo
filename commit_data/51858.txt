@@ -1,0 +1,24 @@
+commit bb4ea80befa5f91aa50ccb170e0abdcbc0d01627
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 14:10:59 2022 -0500
+
+    os: allow $HOME to not exist in TestUserHomeDir
+    
+    This seems like a cleaner fix for the situation Debian has patched
+    around with
+    https://sources.debian.org/patches/golang-1.19/1.19.3-1/0001-Disable-test-for-UserHomeDir.patch/
+    
+    Tested with 'GOCACHE=$(go env GOCACHE) HOME=/home/nobody go test os'.
+    
+    Change-Id: I9fd00da38b86df2edfcd8cb87629e2875573903e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456126
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/file.go    |  3 +++
+ src/os/os_test.go | 12 +++++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

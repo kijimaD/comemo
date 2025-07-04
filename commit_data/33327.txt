@@ -1,0 +1,19 @@
+commit 54d04c2fcb7e1e0bebbedeeca6328fd0362254ce
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Mon Oct 16 07:25:14 2017 +0100
+
+    crypto/tls: remove bookkeeping code from pHash function
+    
+    Since copy function can figure out how many bytes of data to copy when
+    two slices have different length, it is not necessary to check how many
+    bytes need to copy each time before copying the data.
+    
+    Change-Id: I5151ddfe46af5575566fe9c9a2648e111575ec3d
+    Reviewed-on: https://go-review.googlesource.com/71090
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/prf.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

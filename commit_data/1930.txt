@@ -1,0 +1,20 @@
+commit 07513c259906359e9e5d6e2b3d05fd75f7e6f129
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 31 16:53:37 2009 -0700
+
+    1) Move parser.go into src/lib/go
+       - minor adjustments as suggested by rsc
+    2) Added parser_test fragment
+    3) Renamed some types in AST.go per rsc request
+    
+    R=rsc
+    DELTA=2053  (2027 added, 0 deleted, 26 changed)
+    OCL=26963
+    CL=26971
+
+ src/lib/Makefile          |    2 +-
+ src/lib/go/Makefile       |   21 +-
+ src/lib/go/ast.go         |   40 +-
+ src/lib/go/parser.go      | 1969 +++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/go/parser_test.go |   47 ++
+ 5 files changed, 2054 insertions(+), 25 deletions(-)

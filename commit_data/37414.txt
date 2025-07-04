@@ -1,0 +1,14 @@
+commit 48e4d36fed94f0549f17ca082c0106bada094d5d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 16 11:26:16 2018 +0100
+
+    misc/cgo/testsanitizers: gofmt
+    
+    Change-Id: I4e7328bb89f504dbca3948b8565d22c44d41db3d
+    Reviewed-on: https://go-review.googlesource.com/c/149917
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/tsan_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

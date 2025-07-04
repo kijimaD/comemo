@@ -1,0 +1,12 @@
+commit 7a3095121e2e6b17f39e40ef6d9b3ffd4244e419
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Aug 26 12:36:46 2011 +1000
+
+    syscall: SOMAXCONN should be 0x7fffffff at winsock2.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4955042
+
+ src/pkg/syscall/ztypes_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

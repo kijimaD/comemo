@@ -1,0 +1,20 @@
+commit c49c7a675a2c8ee7591a2d6243255813856b65ce
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 1 00:45:41 2021 -0800
+
+    runtime: save R15 before checking AVX state
+    
+    When in dynlink mode, reading a global can clobber R15.
+    Just to be safe, save R15 before checking the AVX state to see
+    if we need to VZEROUPPER or not.
+    
+    This could cause a problem in buildmodes that aren't supported yet.
+    
+    Change-Id: I8fda62d3fbe808584774fa5e8d9810a4612a84e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288452
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mkpreempt.go    | 19 +++++++++++++------
+ src/runtime/preempt_amd64.s | 10 +++++-----
+ 2 files changed, 18 insertions(+), 11 deletions(-)

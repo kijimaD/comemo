@@ -1,0 +1,16 @@
+commit dacf1f1e10a6b1ed02b6b935e502ddf8585b3748
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Oct 10 15:34:42 2023 -0400
+
+    go/types: clarify the documentation for Func.Pkg
+    
+    Change-Id: Ia695960ba652143f4a48c1ca3495a043097acbb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534298
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/cmd/compile/internal/types2/object.go | 6 ++++++
+ src/go/types/object.go                    | 6 ++++++
+ 2 files changed, 12 insertions(+)

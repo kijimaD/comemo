@@ -1,0 +1,12 @@
+commit 76eb911a3ccb386bc94f13f491ec78caa42a2bf7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 17 13:20:11 2012 +0400
+
+    sync: say that Cond.Wait can not return spuriously
+    
+    R=golang-dev, r, rsc, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/5674086
+
+ src/pkg/sync/cond.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

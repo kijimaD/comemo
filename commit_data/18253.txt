@@ -1,0 +1,13 @@
+commit 227fe5f64e22d98e62e4e5165bffc3d6f8ec80b9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 14 15:16:01 2014 -0800
+
+    spec: tighten the wording around . imports
+    Make it clear that if you do a . import, you cannot use a qualified identifier.
+    
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/52390043
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

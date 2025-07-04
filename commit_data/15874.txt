@@ -1,0 +1,13 @@
+commit 178d8d4f7ad1907cd9c0245b2ee4eacd5ae907df
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 21 13:51:49 2013 -0700
+
+    doc/go1.1.html: more TODOs done
+    Only the net stuff remains as significant work in the "minor changes" section.
+    
+    R=golang-dev, dave, elias.naur, rsc
+    CC=golang-dev
+    https://golang.org/cl/7933044
+
+ doc/go1.1.html | 115 ++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 90 insertions(+), 25 deletions(-)

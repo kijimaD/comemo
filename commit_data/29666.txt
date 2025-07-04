@@ -1,0 +1,17 @@
+commit 62e51c536b1ad117a8c8a3819bd8bb984e481f24
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 14:17:35 2016 -0800
+
+    doc: add notes about cgo to go1.8.html
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I0215a7873977be81f2f84374f0b628abaf0e57c1
+    Reviewed-on: https://go-review.googlesource.com/33667
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 31 ++++++++++++++++++++++++++++++-
+ doc/go1.8.txt  |  7 -------
+ 2 files changed, 30 insertions(+), 8 deletions(-)

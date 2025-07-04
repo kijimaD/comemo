@@ -1,0 +1,18 @@
+commit 497fd2c09ca4ed1d9f9d397aed71fce741e3588a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 17:30:42 2018 -0700
+
+    go/types: remove a TODO, enable a test
+    
+    1) Scopes do have a comment field for documentation (debugging output).
+       No need to do anything extra.
+    
+    2) The testcase in expr3.src has ok error messages. Enabled.
+    
+    Change-Id: Ic1a03bfec0a6a70d876aa6cfb936973abe58fe6c
+    Reviewed-on: https://go-review.googlesource.com/c/139902
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/scope.go           | 3 ---
+ src/go/types/testdata/expr3.src | 2 +-
+ 2 files changed, 1 insertion(+), 4 deletions(-)

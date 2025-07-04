@@ -1,0 +1,18 @@
+commit c63ad970f6dc497b2cd529357201dd46bc3ee9b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 8 12:45:12 2017 -0800
+
+    cmd/compile: rename Func.constVal arg for clarity
+    
+    Values have an Aux and an AuxInt.
+    We're setting AuxInt, not Aux.
+    Say so.
+    
+    Change-Id: I41aa783273bb7e1ba47c941aa4233f818e37dadd
+    Reviewed-on: https://go-review.googlesource.com/37997
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

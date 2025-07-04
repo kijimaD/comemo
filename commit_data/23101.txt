@@ -1,0 +1,14 @@
+commit 91191e7b7bc8c0e1a6d49c7a9b3adeb1ab39a423
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 19 00:19:04 2015 -0400
+
+    encoding/gob: fix docs
+    
+    Fixes #10908.
+    
+    Change-Id: I5ac4bd90204bc230610dcced47ce5b2253e5a004
+    Reviewed-on: https://go-review.googlesource.com/10250
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/doc.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

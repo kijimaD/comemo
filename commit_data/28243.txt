@@ -1,0 +1,17 @@
+commit fd975c6aa535f2aa066653235be992731d691cfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 8 04:51:21 2016 +0000
+
+    io/ioutil: return better error when TempDir called with non-extant dir
+    
+    Fixes #14196
+    
+    Change-Id: Ife7950289ac6adbcfc4d0f2fce31f20bc2657858
+    Reviewed-on: https://go-review.googlesource.com/28772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/tempfile.go      |  5 +++++
+ src/io/ioutil/tempfile_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+)

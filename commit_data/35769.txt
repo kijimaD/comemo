@@ -1,0 +1,27 @@
+commit feeff23556bc82778aab0ed80b576b953f064024
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 20 18:25:54 2018 +0000
+
+    mime: change *.js mime type to application/javascript, not x-javascript
+    
+    We delayed doing this for 4 years for fear that it might break something,
+    but it was standardized (RFC 4329) 12 years ago, and the default in Debian
+    and other places is correct:
+    
+       $ cat /etc/mime.types  | grep js$
+       application/javascript                          js
+    
+    Time for us to change too.
+    
+    I doubt there will be problems, but we'll see during the Go 1.11 beta.
+    
+    Fixes #7498
+    
+    Change-Id: Iba0bf8a6e707a64dd63317e1c0d6dd9a18634527
+    Reviewed-on: https://go-review.googlesource.com/120058
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

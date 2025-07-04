@@ -1,0 +1,30 @@
+commit f718036217df2d3386fb6eb72cc6bdcf156f6fc8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 15 10:36:46 2013 +1000
+
+    cmd/go: fix bad error message in coverage for package without non-test files
+    Was checking for nil map; must check for empty map instead.
+    
+    Fixes #6065
+    
+    Before:
+    
+    go test -cover
+    # testmain
+    /var/folders/00/013l0000h01000cxqpysvccm0004fc/T/go-build233480051/_/Users/r/issue/_test/_testmain.go:11: imported and not used: "_/Users/r/issue"
+    FAIL    _/Users/r/issue [build failed]
+    
+    Now:
+    
+    go test -cover
+    testing: warning: no tests to run
+    PASS
+    coverage: 0.0% of statements
+    ok      _/Users/r/issue 0.021s
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12916043
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

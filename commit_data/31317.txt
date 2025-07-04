@@ -1,0 +1,20 @@
+commit 22f1b56dab29d397d2bdbdd603d85e60fb678089
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 24 14:31:22 2017 -0700
+
+    cmd/compile: add -c flag
+    
+    This will be used in the future to control backend concurrency.
+    See CL 40693.
+    
+    In the meantime, make it a no-op.
+    This should fix the linux-amd64-racecompile builders.
+    
+    Change-Id: Ibf3b2a7fff6f8f8c94f5fafb26e0500a51c8a4a6
+    Reviewed-on: https://go-review.googlesource.com/41614
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

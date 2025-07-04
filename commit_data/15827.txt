@@ -1,0 +1,14 @@
+commit 3560f3b9b8b6dc8fc02112a8b4e9a7e080cd20c5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 20 01:07:18 2013 +0900
+
+    net: make use of reflect.DeepEqual in IP manipulation tests
+    
+    Also applies camel style to test case holders.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7884043
+
+ src/pkg/net/ip_test.go | 105 ++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 58 deletions(-)

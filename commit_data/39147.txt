@@ -1,0 +1,17 @@
+commit 46e03c4b92231a38e089b34f6a09707676216b48
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Apr 27 18:55:49 2019 +0700
+
+    cmd/go: fix import current directory error message
+    
+    Fixes #14683
+    
+    Change-Id: I62c429e4fcc2f20a94d3db8c1f0ca587252c07a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174130
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go           | 6 +++---
+ src/cmd/go/internal/load/pkg.go | 6 +++++-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit a05a25cb19d1ea222e37e7172fe489d972c0ec67
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Oct 31 18:34:07 2023 +0000
+
+    bytes,internal/bytealg: add func bytealg.LastIndexRabinKarp
+    
+    Also rename 'substr' to 'sep' in IndexRabinKarp for consistency.
+    
+    Change-Id: Icc2ad1116aecaf002c8264daa2fa608306c9a88a
+    GitHub-Last-Rev: 1784b93f53d569991f86585f9011120ea26f193f
+    GitHub-Pull-Request: golang/go#63854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538716
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes.go              | 20 +-------------------
+ src/internal/bytealg/bytealg.go | 37 +++++++++++++++++++++++++++++++------
+ 2 files changed, 32 insertions(+), 25 deletions(-)

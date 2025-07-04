@@ -1,0 +1,33 @@
+commit b78b427be5e4c8a51a2b01b39c1ce6c4f39a93dc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 2 12:19:13 2020 -0500
+
+    runtime, time: strictly enforce when, period constraints
+    
+    timer.when must always be positive. addtimer and modtimer already check
+    that it is non-negative; we expand it to include zero. Also upgrade from
+    pinning bad values to throwing, as these values shouldn't be possible to
+    pass (except as below).
+    
+    timeSleep may overflow timer.nextwhen. This would previously have been
+    pinned by resetForSleep, now we fix it manually.
+    
+    runOneTimer may overflow timer.when when adding timer.period. Detect
+    this and pin to maxWhen.
+    
+    addtimer is now too strict to allow TestOverflowRuntimeTimer to test an
+    overflowed timer. Such a timer should not be possible; to help guard
+    against accidental inclusion siftup / siftdown will check timers as it
+    goes. This has been replaced with tests for period and sleep overflows.
+    
+    Change-Id: I17f9739e27ebcb20d87945c635050316fb8e9226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274853
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/time.go       | 31 +++++++++++++++++++++++++------
+ src/time/internal_test.go | 42 +++++++++++++++++-------------------------
+ src/time/sleep.go         |  2 ++
+ src/time/sleep_test.go    | 23 ++++++++++++++++-------
+ 4 files changed, 60 insertions(+), 38 deletions(-)

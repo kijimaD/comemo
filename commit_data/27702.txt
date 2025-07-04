@@ -1,0 +1,16 @@
+commit 659b9a19aa509df35f984276e177c68ff7f6f632
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 20 09:16:17 2016 -0700
+
+    runtime: set PPROF_TMPDIR before running pprof
+    
+    Fixes #16121.
+    
+    Change-Id: I7b838fb6fb9f098e6c348d67379fdc81fb0d69a4
+    Reviewed-on: https://go-review.googlesource.com/24270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/runtime/crash_cgo_test.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

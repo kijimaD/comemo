@@ -1,0 +1,14 @@
+commit 8132bb1c7458431a5324364d63a7e46ec01fa499
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 14 15:04:52 2010 -0800
+
+    gob: Register should use the original type, not the indirected one.
+    Fixes a bug reported on golang-nuts.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3641042
+
+ src/pkg/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/gob/type.go         |  4 +++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

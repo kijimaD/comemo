@@ -1,0 +1,21 @@
+commit d983be9cb54de1cde85ba7946bf30c8013cdf5f3
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jul 11 15:54:48 2023 -0400
+
+    go/types, types2: remove unnecessary assert on pointer size
+    
+    As described in #61249, uncommon pointer sizes do exist. Remove an
+    unnecessary assertion.
+    
+    Fixes #61249
+    
+    Change-Id: Ib15857bd6bcd42ec530817a132bb8db036236c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508821
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/const.go | 1 -
+ src/go/types/const.go                    | 1 -
+ 2 files changed, 2 deletions(-)

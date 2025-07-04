@@ -1,0 +1,29 @@
+commit e7e99a8e022a5fe185341090a9fbb0383f3fe6b1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 12 02:15:43 2023 +1100
+
+    syscall: add support for openbsd/ppc64
+    
+    Add syscall support for the openbsd/ppc64 port.
+    
+    Updates #56001
+    
+    Change-Id: I695c5c296e90645515de0c8f89f1bc57e976679d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475636
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/asm_openbsd_ppc64.s       |   32 +
+ src/syscall/mkall.sh                  |   12 +
+ src/syscall/mkasm.go                  |    7 +-
+ src/syscall/syscall_openbsd_ppc64.go  |   38 +
+ src/syscall/zerrors_openbsd_ppc64.go  | 1694 ++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_ppc64.go | 1943 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_ppc64.s  |  354 ++++++
+ src/syscall/zsysctl_openbsd.go        |   64 +-
+ src/syscall/zsysnum_openbsd_ppc64.go  |  230 ++++
+ src/syscall/ztypes_openbsd_ppc64.go   |  446 ++++++++
+ 10 files changed, 4784 insertions(+), 36 deletions(-)

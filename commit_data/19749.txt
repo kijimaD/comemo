@@ -1,0 +1,26 @@
+commit 8d504c4e97a0ff560208aa58b5d01e225412d821
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 16 19:27:10 2014 -0400
+
+    cmd/gc: implement 'for range x {'
+    
+    Fixes #6102.
+    
+    LGTM=gri
+    R=ken, r, gri
+    CC=golang-codereviews
+    https://golang.org/cl/113120043
+
+ src/cmd/gc/esc.c                      |    2 +-
+ src/cmd/gc/fmt.c                      |    6 +-
+ src/cmd/gc/go.y                       |    5 +
+ src/cmd/gc/range.c                    |   48 +-
+ src/cmd/gc/y.tab.c                    | 2524 ++++++++++++++++-----------------
+ src/cmd/gc/yerr.h                     |   22 +-
+ test/bench/shootout/chameneosredux.go |    2 +-
+ test/chan/perm.go                     |    3 +
+ test/fixedbugs/bug173.go              |    2 +
+ test/fixedbugs/bug406.go              |    2 +
+ test/range.go                         |   92 ++
+ test/stress/maps.go                   |    2 +
+ 12 files changed, 1416 insertions(+), 1294 deletions(-)

@@ -1,0 +1,18 @@
+commit a6701d81a04bc84b5851e104b27783395a348832
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 28 22:57:18 2020 +0000
+
+    cmd/dist: remove riscv64 from set of incomplete ports
+    
+    Fixes #27532
+    Fixes #36853
+    Updates #28944
+    
+    Change-Id: I4d0f212deb361c941ce7e5999e237a951c89a296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216758
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/dist/build.go | 1 -
+ 1 file changed, 1 deletion(-)

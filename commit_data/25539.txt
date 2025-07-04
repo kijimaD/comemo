@@ -1,0 +1,12 @@
+commit e13a082284bcc92aa4f585d4a9fe07aa2c3c7c11
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 11 09:34:38 2016 -0800
+
+    runtime: return full error for first test to be built
+    
+    Change-Id: I5a0206e8074f3a2790954c45a217922b7b3fe851
+    Reviewed-on: https://go-review.googlesource.com/18487
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

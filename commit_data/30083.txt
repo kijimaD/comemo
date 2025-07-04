@@ -1,0 +1,35 @@
+commit 178307c3a72a9da3d731fecf354630761d6b246c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 13:29:06 2017 -0500
+
+    cmd/go: address review comments
+    
+    Address review comments from earlier CLs.
+    These are changes I was too scared to try to push
+    down into the original CLs (thanks, Git).
+    
+    Change-Id: I0e428fad73d71bd2a7d08178cf2e856de3cef19f
+    Reviewed-on: https://go-review.googlesource.com/36257
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go                       | 12 ++++++------
+ src/cmd/go/internal/base/base.go           |  5 +++--
+ src/cmd/go/internal/base/flag.go           |  8 +++++---
+ src/cmd/go/internal/base/path.go           | 10 +++++++++-
+ src/cmd/go/internal/cfg/cfg.go             | 23 +++++++++++------------
+ src/cmd/go/internal/clean/clean.go         |  1 +
+ src/cmd/go/internal/doc/doc.go             |  1 +
+ src/cmd/go/internal/{env => envcmd}/env.go |  5 +++--
+ src/cmd/go/internal/fix/fix.go             |  1 +
+ src/cmd/go/internal/{fmt => fmtcmd}/fmt.go |  5 +++--
+ src/cmd/go/internal/generate/generate.go   |  1 +
+ src/cmd/go/internal/help/help.go           |  4 ++--
+ src/cmd/go/internal/list/list.go           | 10 ++++++----
+ src/cmd/go/internal/load/pkg.go            |  6 +++---
+ src/cmd/go/internal/run/run.go             |  3 ++-
+ src/cmd/go/internal/tool/tool.go           |  1 +
+ src/cmd/go/internal/version/version.go     |  4 +++-
+ src/cmd/go/internal/vet/vet.go             |  1 +
+ src/cmd/go/internal/work/build.go          |  8 +++++---
+ src/cmd/go/main.go                         | 10 +++++-----
+ 20 files changed, 72 insertions(+), 47 deletions(-)

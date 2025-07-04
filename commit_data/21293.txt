@@ -1,0 +1,12 @@
+commit dca54d7cdda3b88f5136c0ceee3eff99594e0643
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 16 22:08:22 2015 -0500
+
+    cmd/dist: do not leave go-tool-dist-* temporary directories behind
+    
+    Change-Id: I3f6ba5591130b2c4762d33bd4553220765ad9fc5
+    Reviewed-on: https://go-review.googlesource.com/2996
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/dist/util.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,17 @@
+commit e4d4787581f0e00af743ae2eb41daf0e28003d23
+Author: Thiago Fransosi Farina <thiago.farina@gmail.com>
+Date:   Tue Aug 12 07:49:10 2014 -0700
+
+    dist: Make vaddn private to buf.c
+    
+    This function does not have a declaration/prototype in a.h, and it is used only
+    in buf.c, so it is local to it and thus can be marked as private by adding
+    'static' to it.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122300043
+
+ src/cmd/dist/buf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

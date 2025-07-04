@@ -1,0 +1,12 @@
+commit 73653841af0ec9da0037e412d07ecff24d014494
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 15:56:13 2008 -0800
+
+    reject struct to interface conversion for now
+    
+    R=ken
+    OCL=21007
+    CL=21007
+
+ src/cmd/gc/walk.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

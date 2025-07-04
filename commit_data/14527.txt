@@ -1,0 +1,16 @@
+commit c3c107f67c86e9e0bf03f831be4f9417c75463a4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 30 10:27:43 2012 +0400
+
+    cmd/gc: racewalk: collect stack traces in sync and sync/atomic
+    W/o this change stack traces do not show from where sync.Once()
+    or atomic.XXX was called.
+    This change add funcenter/exit instrumentation to sync/sync.atomic
+    packages.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6854112
+
+ src/cmd/gc/racewalk.c | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

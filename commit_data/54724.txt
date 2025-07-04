@@ -1,0 +1,34 @@
+commit ce25ad60bb6b77552393de8e197e08ff06dcba6e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 12 10:54:40 2023 -0400
+
+    cmd/go: move fmtcmd's side effect to Showcmd
+    
+    Currently, fmtcmd may have the side effect of updating
+    Builder.scriptDir, the logical working directory of the printed
+    script. If it does so, it also returns a two line command consisting
+    of both a "cd" into the new scriptDir and the original command.
+    
+    When fmtcmd is used as part of Showcmd, that's fine, but fmtcmd is
+    also used in a handful of places to construct command descriptions
+    that are ultimately passed to Builder.reportCmd. In these cases, it's
+    surprising that fmtcmd has any side effects, but the bigger problem is
+    that reportCmd isn't expecting a two-line description and will print
+    it wrong in the output.
+    
+    One option is to fix printing multi-line descriptions in reportCmd,
+    but we can fix the surprise side effect too by instead moving the
+    working directory update to Showcmd. With this CL, fmtcmd merely
+    consults the working directory to shorten it in the output and does
+    not update it.
+    
+    For #62067.
+    
+    Change-Id: I7808b279a430551f4ba51545417adf0bb132f931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534857
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/cmd/go/internal/work/exec.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

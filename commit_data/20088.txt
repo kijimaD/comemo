@@ -1,0 +1,30 @@
+commit 5b70b7121968233cd953eba4d77b768400086d9c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 23 21:52:17 2014 -0400
+
+    undo CL 130240043 / b09f70c301a5
+    
+    This change broke divmod.go on all arm platforms.
+    
+    ««« original CL description
+    cmd/gc: change interface representation: only pointers in data word
+    
+    Note that there are various cleanups that can be made if we keep
+    this change, but I do not want to start making changes that
+    depend on this one until the 1.4 cycle closes.
+    
+    Fixes #8405.
+    
+    LGTM=r
+    R=golang-codereviews, adg, r, bradfitz
+    CC=golang-codereviews, iant
+    https://golang.org/cl/130240043
+    »»»
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/133810043
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

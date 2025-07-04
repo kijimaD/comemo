@@ -1,0 +1,20 @@
+commit 7c3fc4b8e48f061e242e8d04803c7bb249ba6995
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Aug 26 12:15:00 2016 +1200
+
+    cmd/link: hide funcsym symbols
+    
+    As far as I can tell, this check has been
+    non-functional since it was introduced.
+    
+    This cuts 57k off cmd/go and 70k off cmd/compile.
+    
+    Based on golang.org/cl/24710 by Josh Bleecher Snyder.
+    
+    Change-Id: I1162a066971df1a067b50afa1cfa0819a6913574
+    Reviewed-on: https://go-review.googlesource.com/27830
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/data.go   |  4 ++--
+ src/cmd/link/internal/ld/symtab.go | 24 ++++++++++++++++++++----
+ 2 files changed, 22 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit dfe0853255228efb4d7dfa22a4219860435feb76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 19:15:13 2009 -0800
+
+    document utf8
+    
+    R=rsc
+    DELTA=18  (12 added, 0 deleted, 6 changed)
+    OCL=25807
+    CL=25811
+
+ src/lib/utf8.go | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit bbd0bc22ea4bc447a4d009db7d5137688820896d
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Jan 10 07:31:57 2024 +0100
+
+    cmd/compile: improve integer comparisons with numeric bounds
+    
+    This do:
+    - Fold always false or always true comparisons for ints and uint.
+    - Reduce < and <= where the true set is only one value to == with such value.
+    
+    Change-Id: Ie9e3f70efd1845bef62db56543f051a50ad2532e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555135
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  46 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 716 +++++++++++++++++++++++-
+ test/fuse.go                                    |  10 +-
+ test/prove.go                                   |  21 +-
+ 4 files changed, 773 insertions(+), 20 deletions(-)

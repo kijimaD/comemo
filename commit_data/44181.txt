@@ -1,0 +1,27 @@
+commit 54b251f542c97cf58a2ae800d3ed86cf14d0feed
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jan 25 12:31:54 2021 +0100
+
+    lib/time, time/tzdata: update tzdata to 2021a
+    
+    Changelog:
+    
+      South Sudan changes from +03 to +02 on 2021-02-01 at 00:00.
+    
+    Release announcement:
+    
+      http://mm.icann.org/pipermail/tz-announce/2021-January/000065.html
+    
+    Updates #22487
+    
+    Change-Id: Ia0a1a7a8f5d47adac9782bc2a445f69e02440f77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285719
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 424205 -> 424214 bytes
+ src/time/tzdata/zipdata.go | 13744 +++++++++++++++++++++----------------------
+ 3 files changed, 6874 insertions(+), 6874 deletions(-)

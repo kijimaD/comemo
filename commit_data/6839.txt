@@ -1,0 +1,12 @@
+commit 92bfd850e0b1d7740042d4983ea787592877082d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 14:07:36 2010 -0800
+
+    net: fix TestDialGoogle
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/3417042
+
+ src/pkg/net/dialgoogle_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

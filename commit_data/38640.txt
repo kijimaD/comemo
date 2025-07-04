@@ -1,0 +1,16 @@
+commit ce17481b7a83fb6eee2c00a6ce70ef024ae03aef
+Author: Kenichi Tsunokawa <kenichi.tsunokawa@gmail.com>
+Date:   Wed Apr 3 17:56:44 2019 +0000
+
+    mime: add .jpeg for builtin
+    
+    Change-Id: I32b0c02039d8baca1358dac2cc0afd14fa6cd173
+    GitHub-Last-Rev: d3be7aa039fbe94450c54f2c1dc5a510cf183378
+    GitHub-Pull-Request: golang/go#31232
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,25 @@
+commit 032d150bd4a812eee9c3ea017f0d3acc8c484325
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 31 17:34:42 2016 -0700
+
+    encoding/json: marshal with null when RawMessage is nil
+    
+    This CL expands upon a change made in (http://golang.org/cl/21811)
+    to ensure that a nil RawMessage gets serialized as "null" instead of
+    being a nil slice.
+    
+    The added check only triggers when the RawMessage is nil. We do not
+    handle the case when the RawMessage is non-nil, but empty.
+    
+    Fixes #17704
+    Updates #14493
+    
+    Change-Id: I0fbebcdd81f7466c5b78c94953afc897f162ceb4
+    Reviewed-on: https://go-review.googlesource.com/32472
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode_test.go | 130 +++++++++++++++++++++++++++++----------
+ src/encoding/json/stream.go      |   3 +
+ 2 files changed, 100 insertions(+), 33 deletions(-)

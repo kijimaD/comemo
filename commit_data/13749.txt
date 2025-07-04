@@ -1,0 +1,13 @@
+commit 96f740c8c48d334759090d9f134d3ccb47a63cb1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 5 14:52:12 2012 +1000
+
+    A+C: Oling Cat (individual CLA)
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6503070
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

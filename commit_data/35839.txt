@@ -1,0 +1,28 @@
+commit 1d1e25fba88b5c61cd25889d005875848a993ea3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jun 28 17:18:01 2018 +0100
+
+    cmd/vet: don't run buildtag check when in vetxonly mode
+    
+    The check was running in the loop that read source files in, much before
+    any of the other checks ran. Vetxonly makes vet exit early, but after
+    all the source files have been read.
+    
+    To fix this, simply run the buildtag check along with all the other
+    checks that get run on specific syntax tree nodes.
+    
+    Add a cmd/go test with go test -a, to ensure that the issue as reported
+    is fixed.
+    
+    Fixes #26102.
+    
+    Change-Id: If6e3b9418ffa8166c0f982668b0d10872283776a
+    Reviewed-on: https://go-review.googlesource.com/121395
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                    | 5 +++++
+ src/cmd/go/testdata/src/vetfail/p1/p1.go | 2 ++
+ src/cmd/vet/main.go                      | 2 +-
+ 3 files changed, 8 insertions(+), 1 deletion(-)

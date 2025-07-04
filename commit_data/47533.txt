@@ -1,0 +1,25 @@
+commit b95bff0318150e0b2869079bf2c0068fb4bcb17c
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:14:58 2021 -0500
+
+    go/types: remove tparamIsIface flag and corresponding dead code
+    
+    This is a port of CL 363654 from types2 to go/types.
+    
+    Change-Id: I64041615ccc7f11f2e4ae395b063ec5141ccf2cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364896
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go   | 27 ++------------
+ src/go/types/decl.go       |  4 +++
+ src/go/types/expr.go       | 19 ++--------
+ src/go/types/index.go      | 89 ++--------------------------------------------
+ src/go/types/predicates.go | 18 ++--------
+ src/go/types/sizes.go      |  7 +++-
+ src/go/types/struct.go     | 11 +++---
+ src/go/types/type.go       |  4 +--
+ src/go/types/typeparam.go  | 17 ++-------
+ 9 files changed, 27 insertions(+), 169 deletions(-)

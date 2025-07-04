@@ -1,0 +1,26 @@
+commit f4dcc9b29b052b99b97d0e445cda589f08bfc798
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 17:29:37 2016 -0400
+
+    runtime: make _MSpanDead be the zero state
+    
+    Currently the zero value of an mspan is in the "in use" state. This
+    seems like a bad idea in general. But it's going to wreak havoc when
+    we make fixalloc zero allocations: even "freed" mspan objects are
+    still on the allspans list and still get looked at by the garbage
+    collector. Hence, if we leave the mspan states the way they are,
+    allocating a span that reuses old memory will temporarily pass that
+    span (which is visible to GC!) through the "in use" state, which can
+    cause "unswept span" panics.
+    
+    Fix all of this by making the zero state "dead".
+    
+    Updates #17503.
+    
+    Change-Id: I77c7ac06e297af4b9e6258bc091c37abe102acc3
+    Reviewed-on: https://go-review.googlesource.com/31367
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

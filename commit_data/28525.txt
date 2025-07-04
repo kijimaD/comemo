@@ -1,0 +1,14 @@
+commit 5df7f5220f42cb283147ab271cd965720e233759
+Author: Sam Whited <sam@samwhited.com>
+Date:   Thu Sep 1 09:19:32 2016 -0500
+
+    net/rpc: Add documentation for client.Close
+    
+    Fixes #16678
+    
+    Change-Id: I48c2825d4fef55a75d2f99640a7079c56fce39db
+    Reviewed-on: https://go-review.googlesource.com/28370
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/client.go | 2 ++
+ 1 file changed, 2 insertions(+)

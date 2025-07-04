@@ -1,0 +1,13 @@
+commit ffb0a2d42a2649e53495c4b139293bc6c3716dde
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 27 17:03:43 2011 -0400
+
+    A+C: Alexey Borzenkov (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4316042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

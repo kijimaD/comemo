@@ -1,0 +1,14 @@
+commit b55c4a0c540f164687bcceeb50d07397b5e098be
+Author: Vincent Vanackere <vincent.vanackere@gmail.com>
+Date:   Wed Aug 26 15:55:27 2015 +0200
+
+    cmd/go: properly ignore import comments for vendored packages rooted at GOPATH
+    
+    Fixes #12232.
+    
+    Change-Id: Ide3fb7f5fc5ae377ae8683fbb94fd0dc01480549
+    Reviewed-on: https://go-review.googlesource.com/13924
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/pkg.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

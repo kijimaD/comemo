@@ -1,0 +1,14 @@
+commit fdbae7d77ed1d365f1fd6735d234f7c277102f12
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Feb 6 13:43:11 2017 -0500
+
+    net/http/httputil: don't log read error when it's context.Canceled
+    
+    Fixes #18838
+    
+    Change-Id: I44976cadb0dc3c23eacb8cdd58429a572cd8d28a
+    Reviewed-on: https://go-review.googlesource.com/36358
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

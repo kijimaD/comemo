@@ -1,0 +1,16 @@
+commit 08dd4ad7e30313d089793f19baff1855bbaa004e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 2 17:14:25 2020 -0700
+
+    runtime: only check for pointers up to ptrdata, not size
+    
+    Change-Id: I166cf253b7f2483d652c98d2fba36c380e2f3347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbarrier.go | 24 ++++++++++++++++++++----
+ src/runtime/slice.go    |  2 +-
+ 2 files changed, 21 insertions(+), 5 deletions(-)

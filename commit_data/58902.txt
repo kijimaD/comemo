@@ -1,0 +1,20 @@
+commit 74ba2164a04bcc6600782d0d200103ecaa621ef3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Feb 28 00:52:53 2025 +0000
+
+    reflect: add more tests for Type.{CanSeq,CanSeq2}
+    
+    For #71874.
+    
+    Change-Id: I3850edfb3104305f3bf4847a73cdd826cc99837f
+    GitHub-Last-Rev: 574c1edb7a6152c71891fab011ac0aaeca955fc8
+    GitHub-Pull-Request: golang/go#71890
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651775
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/iter_test.go | 10 ++++++++--
+ src/reflect/type_test.go |  4 ++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

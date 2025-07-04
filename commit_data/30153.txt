@@ -1,0 +1,25 @@
+commit ee7fdc26477a0eaf5382542a7822b45966a9f844
+Author: haya14busa <hayabusa1419@gmail.com>
+Date:   Sat Feb 4 22:22:14 2017 +0900
+
+    cmd/gofmt: use actual filename in gofmt -d output
+    
+    By using actual filename, diff output of "gofmt -d" can be used with
+    other commands like "diffstat" and "patch".
+    
+    Example:
+      $ gofmt -d path/to/file.go | diffstat
+      $ gofmt -d path/to/file.go > gofmt.patch
+      $ patch -u -p0 < gofmt.patch
+    
+    Fixes #18932
+    
+    Change-Id: I21ce15eb77870d72f2c14bfd5e7c21e2c77dc9ab
+    Reviewed-on: https://go-review.googlesource.com/36374
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/gofmt.go      | 36 ++++++++++++++++++++++---
+ src/cmd/gofmt/gofmt_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 97 insertions(+), 4 deletions(-)

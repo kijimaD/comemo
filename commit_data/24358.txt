@@ -1,0 +1,12 @@
+commit c0486b129390e044e771d414d1405ba674d9f2d1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 23 14:23:01 2015 -0700
+
+    doc: go1.6.txt: go test flag changes
+    
+    Change-Id: Icb52589909776fbe195ef2502ec7c0a4b590f350
+    Reviewed-on: https://go-review.googlesource.com/14859
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

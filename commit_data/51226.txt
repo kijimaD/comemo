@@ -1,0 +1,37 @@
+commit 185766de0ff2810ee018501addb1f58be2226856
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 22:42:25 2022 -0500
+
+    os/user: use libc (not cgo) on macOS
+    
+    With net converted to libc, os/user is the last remaining
+    cgo code in the standard libary on macOS.
+    Convert it to libc too.
+    
+    Now only plugin remains as a cgo-using package on macOS.
+    
+    Change-Id: Ibb518b5c62ef9ec1e6ab6191f4b576f7c5a4501c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449316
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/syscall/unix/asm_darwin.s   |  53 +++++--------
+ src/internal/syscall/unix/net_darwin.go  |   6 ++
+ src/internal/syscall/unix/user_darwin.go | 117 ++++++++++++++++++++++++++++
+ src/os/user/cgo_listgroups_unix.go       |  31 +++++---
+ src/os/user/cgo_lookup_cgo.go            | 106 +++++++++++++++++++++++++
+ src/os/user/cgo_lookup_syscall.go        |  65 ++++++++++++++++
+ src/os/user/cgo_lookup_unix.go           | 130 ++++++++++---------------------
+ src/os/user/getgrouplist_darwin.go       |  54 -------------
+ src/os/user/getgrouplist_syscall.go      |  19 +++++
+ src/os/user/getgrouplist_unix.go         |  23 +-----
+ src/os/user/listgroups_unix.go           |   6 +-
+ src/os/user/listgroups_unix_test.go      |   4 +-
+ src/os/user/lookup.go                    |   7 ++
+ src/os/user/lookup_plan9.go              |   5 +-
+ src/os/user/lookup_stubs.go              |   2 +-
+ src/os/user/lookup_unix.go               |   4 +-
+ src/os/user/lookup_unix_test.go          |   2 +-
+ 17 files changed, 407 insertions(+), 227 deletions(-)

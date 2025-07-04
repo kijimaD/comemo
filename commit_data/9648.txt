@@ -1,0 +1,16 @@
+commit a5d0b7ee3e39f83b6077b4c9d5fe20234bb02775
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Sep 10 09:51:13 2011 +1000
+
+    image/png: don't use a goroutine to decode. This was preventing
+    decoding during an init function.
+    
+    Fixes #2224.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4964070
+
+ src/pkg/image/png/reader.go | 270 ++++++++++++++++++++------------------------
+ src/pkg/image/png/writer.go |   4 -
+ 2 files changed, 125 insertions(+), 149 deletions(-)

@@ -1,0 +1,17 @@
+commit 571d3f50d398e50ca4dbe8f21cb9c19cffc76c0b
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Thu Sep 8 17:27:41 2011 +1000
+
+    os: os.RemoveAll has to check for 2 error codes on Windows. ENOENT is not enough.
+    os.Lstat can return ENOTDIR as well.
+    
+    R=golang-dev, r, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/4984051
+
+ src/pkg/os/file_posix.go            | 2 +-
+ src/pkg/os/file_windows.go          | 9 ---------
+ src/pkg/os/path.go                  | 2 +-
+ src/pkg/syscall/mkerrors_windows.sh | 2 +-
+ src/pkg/syscall/zerrors_windows.go  | 2 +-
+ 5 files changed, 4 insertions(+), 13 deletions(-)

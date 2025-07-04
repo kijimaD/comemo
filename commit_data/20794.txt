@@ -1,0 +1,18 @@
+commit 2eb1b658305bfd32774fd1e6a32cd6463564cf89
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 17:08:50 2014 -0700
+
+    doc/go_mem.html: don't be clever
+    
+    Add a short introductory section saying what most Go
+    programmers really need to know, which is that you
+    shouldn't have to read this document to understand
+    the behavior of your program.
+    
+    LGTM=bradfitz, adg, tracey.brendan, iant, rsc, dsymonds
+    R=golang-codereviews, bradfitz, tracey.brendan, adg, iant, rsc, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/158500043
+
+ doc/go_mem.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

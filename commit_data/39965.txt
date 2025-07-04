@@ -1,0 +1,25 @@
+commit d6c2f1e90ed2eb25ca5b00fef9a4d13b01a4a1c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 18 16:35:00 2019 -0400
+
+    cmd/go/internal/modload: use a structured error for 'ambiguous import'
+    
+    This consolidates the construction of 'ambiguous import' errors to a
+    single location, ensuring consistency, and lays the groundwork for
+    automatic resolution in the future.
+    
+    While we're at it, change "found" to "found package" to try to make
+    the cause of the error clearer.
+    
+    Updates #32128
+    Updates #27899
+    
+    Change-Id: I14a93593320e5c60d20b0eb686d0d5355763c30c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196298
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go              | 49 ++++++++++++++++------
+ .../go/testdata/script/mod_ambiguous_import.txt    | 49 ++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 12 deletions(-)

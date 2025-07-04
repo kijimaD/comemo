@@ -1,0 +1,15 @@
+commit f82ce7fb230c0c0934be8975bd8b56c953c29422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 17 14:15:28 2021 -0700
+
+    cmd/link: improve nonexistent package error message
+    
+    Change-Id: I207541efa6a34bc21e7a00584376622b59e2bf6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302749
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

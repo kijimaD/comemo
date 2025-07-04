@@ -1,0 +1,13 @@
+commit 6431b984db2cf902e344285173cad793512923da
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 6 16:46:52 2010 -0700
+
+    flags: better tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/864044
+
+ src/pkg/flag/flag.go      |  56 +++++++++++++++++++++-----
+ src/pkg/flag/flag_test.go | 100 ++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 138 insertions(+), 18 deletions(-)

@@ -1,0 +1,15 @@
+commit 910959084d01bddc07f1f976d7ba9ad138a64077
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 17:36:02 2012 -0400
+
+    A+C: Jonathan Gold (individual CLA)
+    
+    This is my last one for today, I hope!
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6339052
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

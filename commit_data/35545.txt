@@ -1,0 +1,18 @@
+commit fb0d6e4bd18da45fdb2b88640d368e919d3b6c7c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 16:55:26 2018 +0200
+
+    cmd/dist: remove external linking check for macOS 10.6
+    
+    This was missed in CL 115236.
+    
+    Updates #23122
+    
+    Change-Id: I5a64bd02d356c21c0e5d02dafafb3721f8dd8e06
+    Reviewed-on: https://go-review.googlesource.com/115276
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 13f0b8f421bb37f5c9307eefe2b0c9fdb81c9ed1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 13 13:58:45 2023 -0700
+
+    go/types, types2: (slightly) refactor tpWalker.isParameterized (cleanup)
+    
+    Match the structure of cycleFinder. Removes a TODO.
+    
+    Change-Id: Iec0abfc809cd522f64db8900a1f8a70cbba504ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 54 +++++++++++++++-----------------
+ src/go/types/infer.go                    | 54 +++++++++++++++-----------------
+ 2 files changed, 50 insertions(+), 58 deletions(-)

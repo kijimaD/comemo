@@ -1,0 +1,16 @@
+commit af18e4b9b083d67655cfa5679b1ad966e37f1afd
+Author: Paul Borman <borman@google.com>
+Date:   Tue Aug 23 22:38:43 2011 -0400
+
+    net: add ParseMAC function
+    
+    ParseMAC parses a string representing MAC-48, EUI-48, or EUI-64 into
+    a HardwareAddr.
+    
+    R=rsc, fshahriar
+    CC=golang-dev
+    https://golang.org/cl/4922048
+
+ src/pkg/net/interface.go      | 69 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_test.go | 46 +++++++++++++++++++++++++++++
+ 2 files changed, 115 insertions(+)

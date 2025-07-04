@@ -1,0 +1,13 @@
+commit f9c4c16dce621f1834943f3ccda0d0a079f7b1a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 30 10:24:37 2014 +1100
+
+    runtime: make TestCgoExternalThreadPanic run on windows
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/163540043
+
+ src/runtime/crash_cgo_test.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

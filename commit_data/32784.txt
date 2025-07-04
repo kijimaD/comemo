@@ -1,0 +1,18 @@
+commit 0d73f1e333bc9d0b0c07345efc498ebecaebf786
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 20 12:58:16 2017 -0700
+
+    cmd/compile: change liveness-related functions into methods
+    
+    No functional change; just making the code slightly more idiomatic.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I66d14a8410bbecf260d0ea5683564aa413ce5747
+    Reviewed-on: https://go-review.googlesource.com/65070
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 40 ++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

@@ -1,0 +1,26 @@
+commit 2e71489ed1a30f95d0e11685536f5d61d9e858b3
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jan 31 09:00:22 2023 +0000
+
+    net: use net/netip for address parsing
+    
+    Fixes #58098
+    
+    Change-Id: I6ef963ba2c110215b8eda763cbfb258a25c8199a
+    GitHub-Last-Rev: 3d22f076b725337fa97eedcf92a1520a72bf0c17
+    GitHub-Pull-Request: golang/go#58143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463987
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go       |  11 +-
+ src/net/dnsconfig_unix.go |   5 +-
+ src/net/hosts.go          |  15 +--
+ src/net/ip.go             | 267 ++++------------------------------------------
+ src/net/ip_test.go        |  16 +++
+ src/net/lookup.go         |   8 +-
+ 6 files changed, 51 insertions(+), 271 deletions(-)

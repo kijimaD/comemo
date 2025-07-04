@@ -1,0 +1,15 @@
+commit f85ba7d50a7df5a978a259a3e06bc30af1bbd5df
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 16 16:54:10 2013 -0500
+
+    cmd/gc: fix comparison order of parameters in mpcmpfltc(a, b)
+    It should compare a - b to 0, not b - a to 0.
+    Fixes #6964.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/39020044
+
+ src/cmd/gc/mparith1.c       |  2 +-
+ test/fixedbugs/issue6964.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

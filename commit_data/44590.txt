@@ -1,0 +1,28 @@
+commit cd3b4ca9f20fd14187ed4cdfdee1a02ea87e5cd8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Mar 2 10:00:53 2021 -0800
+
+    archive/zip: fix panic in Reader.Open
+    
+    When operating on a Zip file that contains a file prefixed with "../",
+    Open(...) would cause a panic in toValidName when attempting to strip
+    the prefixed path components.
+    
+    Fixes CVE-2021-27919
+    Fixes #44916
+    
+    Change-Id: Ic755d8126cb0897e2cbbdacf572439c38dde7b35
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1004761
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Katie Hockman <katiehockman@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300489
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/archive/zip/reader.go      |  2 +-
+ src/archive/zip/reader_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

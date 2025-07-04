@@ -1,0 +1,20 @@
+commit 2887ef499a0e01a3b6fe92bf874843f9f2d05167
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 26 08:24:00 2021 -0500
+
+    cmd/compile/internal/test: update abi tests for recent spec changes
+    
+    The internal ABI spec was recently updated to include specific
+    language covering "past-the-end" pointers and structs containing
+    trailing zero-sized fields. Add a unit test that makes sure we do the
+    right thing in this case. Fix a couple comments in other unit tests.
+    
+    Change-Id: I18d373d11e122aec74b316837843887272676c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303809
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/test/abiutils_test.go | 76 ++++++++++++++++++++++++--
+ 1 file changed, 71 insertions(+), 5 deletions(-)

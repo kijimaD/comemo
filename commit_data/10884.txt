@@ -1,0 +1,12 @@
+commit 448d89d67afdb8c448843efe9e687a944bacda59
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 20 11:51:31 2011 +1100
+
+    old/template: close file in TestAll before deleting it
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5491073
+
+ src/pkg/old/template/template_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

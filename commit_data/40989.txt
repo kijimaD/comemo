@@ -1,0 +1,19 @@
+commit 1475b9709013db2c1bb25583729529db1e549312
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 12 16:41:24 2019 -0500
+
+    runtime: fix off-by-1 error on address ranges
+    
+    When growing the address ranges, the new length is the old length + 1.
+    
+    Fixes #36113.
+    
+    Change-Id: I1b425f78e473cfa3cbdfe6113e166663f41fc9f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211157
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mpagealloc_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mranges.go         |  2 +-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

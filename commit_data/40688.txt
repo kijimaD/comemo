@@ -1,0 +1,29 @@
+commit 4517c02f284cc19262304ba22c1c98b2bbdb0208
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:57:36 2019 +0000
+
+    runtime: add per-p mspan cache
+    
+    This change adds a per-p mspan object cache similar to the sudog cache.
+    Unfortunately this cache can't quite operate like the sudog cache, since
+    it is used in contexts where write barriers are disallowed (i.e.
+    allocation codepaths), so rather than managing an array and a slice,
+    it's just an array and a length. A little bit more unsafe, but avoids
+    any write barriers.
+    
+    The purpose of this change is to reduce the number of operations which
+    require the heap lock in allocation, paving the way for a lockless fast
+    path.
+    
+    Updates #35112.
+    
+    Change-Id: I32cfdcd8528fb7be985640e4f3a13cb98ffb7865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196642
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go    | 91 ++++++++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/proc.go     |  7 ++++
+ src/runtime/runtime2.go | 13 ++++++-
+ 3 files changed, 106 insertions(+), 5 deletions(-)

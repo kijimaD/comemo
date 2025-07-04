@@ -1,0 +1,11 @@
+commit 50c9d6345915dfacf6d09bf40d21161e77be987a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 15:10:54 2014 -0400
+
+    doc/go1.4.txt: document that C sources in non-cgo packages are no longer allowed
+    
+    CC=golang-codereviews
+    https://golang.org/cl/145890046
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

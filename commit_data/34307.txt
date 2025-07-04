@@ -1,0 +1,18 @@
+commit 3e1ac1b01746cca385281cdaef8a4c3c35a2efac
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Jan 26 10:28:10 2018 -0500
+
+    cmd/trace: include P info in goroutine slices
+    
+    The task-oriented trace view presents the execution trace organized
+    based on goroutines. Often, which P a goroutine was running on is
+    useful, so this CL includes the P ids in the goroutine execution slices.
+    
+    R=go1.11
+    
+    Change-Id: I96539bf8215e5c1cd8cc997a90204f57347c48c8
+    Reviewed-on: https://go-review.googlesource.com/90221
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/trace.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

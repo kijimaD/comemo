@@ -1,0 +1,16 @@
+commit c0e5d445066a4c6417aa9e54fde4a3cb9d9c2c05
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Mon Jun 27 09:43:14 2016 -0700
+
+    runtime/pprof: update comments to point to new pprof
+    
+    In the comments for this file there is a reference to gperftools
+    for more info on pprof. pprof now live on its own repo on github,
+    and the version in gperftools is deprecated.
+    
+    Change-Id: I8a188f129534f73edd132ef4e5a2d566e69df7e9
+    Reviewed-on: https://go-review.googlesource.com/24502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

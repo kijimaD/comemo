@@ -1,0 +1,24 @@
+commit db37e1600fb2fc698b14e745005c4cf44251d2a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 17 23:56:11 2018 -0400
+
+    go/parser: make sure we have a valid AST when 'if' condition is missing
+    
+    This prevents a crash in go/types due to a nil condition in an 'if'
+    statement. There's more we can do to make go/types more robust but
+    this will address the immediate cause and also makes sure that the
+    parser returns a valid AST in this case.
+    
+    Fixes #25438.
+    
+    Change-Id: Ie55dc2c722352a5ecb17af6a16983741e8a8b515
+    Reviewed-on: https://go-review.googlesource.com/113735
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/parser/parser.go          | 6 ++++++
+ src/go/types/testdata/issues.src | 8 ++++++++
+ 2 files changed, 14 insertions(+)

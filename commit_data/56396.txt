@@ -1,0 +1,14 @@
+commit c3bd543cc304b405b00263e2d4e683f9b65214ec
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 26 19:53:22 2024 +0000
+
+    internal/trace/v2: add gotraceeventstats utility
+    
+    Change-Id: Ibf83d74a76edf2fe2896fa1e7f93ab1296fc5d75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583378
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ .../v2/testdata/cmd/gotraceeventstats/main.go      | 136 +++++++++++++++++++++
+ 1 file changed, 136 insertions(+)

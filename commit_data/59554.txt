@@ -1,0 +1,27 @@
+commit 3baf53aec6c2209562495d4ac1dc035c2881f6eb
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 24 18:37:49 2025 -0700
+
+    cmd/compile: derive bounds on signed %N for N a power of 2
+    
+    -N+1 <= x % N <= N-1
+    
+    This is useful for cases like:
+    
+    func setBit(b []byte, i int) {
+        b[i/8] |= 1<<(i%8)
+    }
+    
+    The shift does not need protection against larger-than-7 cases.
+    (It does still need protection against <0 cases.)
+    
+    Change-Id: Idf83101386af538548bfeb6e2928cea855610ce2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672995
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 120 +++++++++++++++++++++++++++++++++-
+ test/codegen/shift.go                 |   9 +++
+ 2 files changed, 128 insertions(+), 1 deletion(-)

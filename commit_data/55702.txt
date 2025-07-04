@@ -1,0 +1,19 @@
+commit aa9d2de559c2fff735000e4733b0405652434ff4
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Nov 6 12:01:13 2023 +0700
+
+    cmd/go: print the package containing the unmatched embed patterns
+    
+    Fixes #49534
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ia95868ecc1c3dc9715c0fdc7ab1f30348fffaef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540017
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modcmd/vendor.go            | 47 ++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_vendor_embed.txt |  8 +++--
+ 2 files changed, 36 insertions(+), 19 deletions(-)

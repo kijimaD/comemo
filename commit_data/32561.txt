@@ -1,0 +1,14 @@
+commit 2548d36c86bf78f4a535c8ffac6de2e2421e76df
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 21:32:41 2017 +0200
+
+    cmd/compile: simplify check for pointers in map bucket
+    
+    Change-Id: Ie5e977c54f50274421962a7ca268ae71a6f19cef
+    Reviewed-on: https://go-review.googlesource.com/60050
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

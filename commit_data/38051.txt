@@ -1,0 +1,17 @@
+commit 8ca559eed5a5b87cb4a1ebe29c95b47aa723151e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Feb 26 19:01:47 2019 +0100
+
+    cmd/dist: skip Fortran tests on Android
+    
+    They don't work on Android but will be run if the host has gfortran
+    installed.
+    
+    Change-Id: I983c5695a9e963def90e4f8264fb00077a0c5e53
+    Reviewed-on: https://go-review.googlesource.com/c/163838
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

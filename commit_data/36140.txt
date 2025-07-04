@@ -1,0 +1,18 @@
+commit 9cde8048ad88587d90274ecbe9083326d56b6758
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 20:02:26 2018 -0400
+
+    cmd/go: document in 'go help mod' that people should use 'go get'
+    
+    We're starting to see tutorials that assume
+    'go mod' is the only module-related command.
+    
+    Fixes #26597.
+    
+    Change-Id: I44701f29f89fc67086f96307afbdb4659bb63873
+    Reviewed-on: https://go-review.googlesource.com/125935
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 5 +++++
+ src/cmd/go/internal/modcmd/mod.go | 5 +++++
+ 2 files changed, 10 insertions(+)

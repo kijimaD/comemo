@@ -1,0 +1,12 @@
+commit 20cacd64f11acfbabc381a435f9414316c523868
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 1 12:45:41 2009 -0800
+
+    A/C: add Charles L. Dorian
+    
+    R=r
+    https://golang.org/cl/164060
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

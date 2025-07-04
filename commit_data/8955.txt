@@ -1,0 +1,13 @@
+commit 33705ddea11cd430b1aadc630f190f005126ea04
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 6 16:51:49 2011 +1000
+
+    exp/template: add a JavaScript escaper.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4671048
+
+ src/pkg/exp/template/exec_test.go |  20 +++++++
+ src/pkg/exp/template/funcs.go     | 118 +++++++++++++++++++++++++++++++++-----
+ 2 files changed, 125 insertions(+), 13 deletions(-)

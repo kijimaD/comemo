@@ -1,0 +1,25 @@
+commit 557ba72e69863ba7d839d86b78edace0c6e20886
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Nov 27 14:41:08 2011 +1100
+
+    html: ignore <head> tags in <head> element
+    
+    Pass tests3.dat, test 12:
+    <!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |     <meta>
+    |   <body>
+    
+    Also pass tests through test 19:
+    <!DOCTYPE html><html><head></head><body><ul><li><div><p><li></ul></body></html>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5436069
+
+ src/pkg/html/parse.go      | 3 +++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

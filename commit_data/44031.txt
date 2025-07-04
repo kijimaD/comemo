@@ -1,0 +1,37 @@
+commit 5abda2618b6cda692ae9b04a9a9fc706888a0e71
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 14 18:52:13 2020 -0500
+
+    cmd/link: handle large relocation addend on darwin/arm64
+    
+    Mach-O relocation addend is signed 24-bit. When external linking,
+    if the addend is larger, we cannot put it directly into a Mach-O
+    relocation. This CL handles large addend by creating "label"
+    symbols at sym+0x800000, sym+(0x800000*2), etc., and emitting
+    Mach-O relocations that target the label symbols with a smaller
+    addend. The label symbols are generated late (similar to what
+    we do for RISC-V64).
+    
+    One complexity comes from handling of carrier symbols, which does
+    not track its size or its inner symbols. But relocations can
+    target them. We track them in a side table (similar to what we
+    do for XCOFF, xcoffUpdateOuterSize).
+    
+    Fixes #42738.
+    
+    Change-Id: I8c53ab2397f8b88870d26f00e9026285e5ff5584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278332
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 94 ++++++++++++++++++++++++++++++++++----
+ src/cmd/link/internal/arm64/obj.go |  1 +
+ src/cmd/link/internal/ld/data.go   |  3 ++
+ src/cmd/link/internal/ld/macho.go  |  9 ++++
+ src/cmd/link/internal/ld/pcln.go   |  1 +
+ src/cmd/link/internal/ld/symtab.go | 23 ++++++++++
+ src/cmd/link/internal/ld/xcoff.go  |  1 +
+ src/cmd/link/link_test.go          | 54 ++++++++++++++++++++++
+ 8 files changed, 176 insertions(+), 10 deletions(-)

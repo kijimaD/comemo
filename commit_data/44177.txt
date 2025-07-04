@@ -1,0 +1,13 @@
+commit 9897655c615584c5a70b7a2d89028c014fc5f29b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 22 20:21:22 2021 -0800
+
+    doc/go1.16: reword ambiguously parsable sentence
+    
+    Change-Id: Idc54967e962352a598c9d4c563d1d9f51ec5c889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285680
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.16.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

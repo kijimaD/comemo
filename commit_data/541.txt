@@ -1,0 +1,13 @@
+commit c2c49bec7745489d3458f60678a0477d55264c6c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 21 11:00:26 2008 -0700
+
+    added scope rules, removed TODO
+    
+    R=r
+    DELTA=26  (19 added, 0 deleted, 7 changed)
+    OCL=14358
+    CL=14386
+
+ doc/go_lang.txt | 32 ++++++++++++++++++++++++++------
+ 1 file changed, 26 insertions(+), 6 deletions(-)

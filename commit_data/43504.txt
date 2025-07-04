@@ -1,0 +1,32 @@
+commit e63716bc76d3264f669843434bc365a78f2141d2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 21:10:29 2020 +0000
+
+    runtime: make nlargealloc and largealloc mcache fields
+    
+    This change makes nlargealloc and largealloc into mcache fields just
+    like nlargefree and largefree. These local fields become the new
+    source-of-truth. This change also moves the accounting for these fields
+    out of allocSpan (which is an inappropriate place for it -- this
+    accounting generally happens much closer to the point of allocation) and
+    into largeAlloc. This move is partially possible now that we can call
+    gcController.revise at that point.
+    
+    Furthermore, this change moves largeAlloc into mcache.go and makes it a
+    method of mcache. While there's a little bit of a mismatch here because
+    largeAlloc barely interacts with the mcache, it helps solidify the
+    mcache as the first allocation layer and provides a clear place to
+    aggregate and manage statistics.
+    
+    Change-Id: I37b5e648710733bb4c04430b71e96700e438587a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246965
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go | 33 +------------------------------
+ src/runtime/mcache.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mheap.go  | 18 +----------------
+ src/runtime/mstats.go |  4 ++--
+ 4 files changed, 55 insertions(+), 54 deletions(-)

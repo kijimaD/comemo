@@ -1,0 +1,12 @@
+commit 98431dbfff820340f188ad11b8c7dc19c29abd3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 3 13:05:56 2008 -0800
+
+    golden.out drift
+    
+    TBR=r
+    OCL=20352
+    CL=20355
+
+ test/golden.out | 1 -
+ 1 file changed, 1 deletion(-)

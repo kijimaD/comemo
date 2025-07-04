@@ -1,0 +1,19 @@
+commit cfe36fd1224706389392e44bdddbc754f70b95bf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 1 01:34:33 2023 +1100
+
+    runtime: add crash stack support for riscv64
+    
+    Change-Id: Ib89a71e20f9c6b86c97814c75cb427e9bd7075e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538735
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/runtime/asm.s          |  2 ++
+ src/runtime/asm_riscv64.s  | 38 +++++++++++++++++++++++++++++++-------
+ src/runtime/crash_test.go  |  2 +-
+ src/runtime/export_test.go |  2 ++
+ src/runtime/proc.go        |  2 +-
+ 5 files changed, 37 insertions(+), 9 deletions(-)

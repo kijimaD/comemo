@@ -1,0 +1,34 @@
+commit 80316510d3b97c6dc7b6a380e18e9f41467b3c10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 27 10:24:16 2024 -0700
+
+    go/types, types2: remove non-test uses of Scope.LookupParent
+    
+    This moves the implementation of Scope.LookupParent into
+    environment.lookupScope where it encapsulates the use of
+    the current environment's position. At least in types2,
+    that position can be removed, because it is never set.
+    
+    With this, the type checker doesn't rely on position
+    information anymore for looking up objects during type
+    checking.
+    
+    LookupParent is still called from tests and some go/types
+    code.
+    
+    Updates #69673.
+    
+    Change-Id: I7159ba95b71cf33cc3b16058aa19327e166224b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616337
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check.go   | 21 +++++++++++++++++++--
+ src/cmd/compile/internal/types2/scope.go   |  7 ++++++-
+ src/cmd/compile/internal/types2/typexpr.go |  4 +---
+ src/go/types/check.go                      | 21 +++++++++++++++++++--
+ src/go/types/scope.go                      |  7 ++++++-
+ src/go/types/typexpr.go                    |  4 +---
+ 6 files changed, 52 insertions(+), 12 deletions(-)

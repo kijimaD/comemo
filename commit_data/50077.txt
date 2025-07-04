@@ -1,0 +1,44 @@
+commit 332a5981d0ae3f21f668f94755f43ecd8ee9a9eb
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 22 10:26:50 2022 -0700
+
+    cmd/compile: handle partially overlapping assignments
+    
+    Normally, when moving Go values of type T from one location to another,
+    we don't need to worry about partial overlaps. The two Ts must either be
+    in disjoint (nonoverlapping) memory or in exactly the same location.
+    There are 2 cases where this isn't true:
+     1) Using unsafe you can arrange partial overlaps.
+     2) Since Go 1.17, you can use a cast from a slice to a ptr-to-array.
+        https://go.dev/ref/spec#Conversions_from_slice_to_array_pointer
+        This feature can be used to construct partial overlaps of array types.
+          var a [3]int
+          p := (*[2]int)(a[:])
+          q := (*[2]int)(a[1:])
+          *p = *q
+    We don't care about solving 1. Or at least, we haven't historically
+    and no one has complained.
+    For 2, we need to ensure that if there might be partial overlap,
+    then we can't use OpMove; we must use memmove instead.
+    (memmove handles partial overlap by copying in the correct
+    direction. OpMove does not.)
+    
+    Note that we have to be careful here not to introduce a call when
+    we're marshaling arguments to a call or unmarshaling results from a call.
+    
+    Fixes #54467
+    
+    Change-Id: I1ca6aba8041576849c1d85f1fa33ae61b80a373d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425076
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/symtab.go          |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
+ src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++-
+ src/cmd/compile/internal/ssagen/ssa.go         | 79 +++++++++++++++++++++++++-
+ test/fixedbugs/issue54467.go                   | 26 +++++++++
+ test/nilptr5.go                                |  8 +--
+ 6 files changed, 124 insertions(+), 8 deletions(-)

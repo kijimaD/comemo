@@ -1,0 +1,26 @@
+commit 64cfe9fe22113cd6bc05a2c5d0cbe872b1b57860
+Author: Stefan Baebler <sbaebler@outbrain.com>
+Date:   Wed Aug 28 12:10:16 2019 +0000
+
+    net/url: improve url parsing error messages by quoting
+    
+    Current implementation doesn't always make it obvious what the exact
+    problem with the URL is, so this makes it clearer by consistently quoting
+    the invalid URL, as is the norm in other parsing implementations, eg.:
+    strconv.Atoi(" 123") returns an error: parsing " 123": invalid syntax
+    
+    Updates #29261
+    
+    Change-Id: Icc6bff8b4a4584677c0f769992823e6e1e0d397d
+    GitHub-Last-Rev: 648b9d93fe149ec90f3aeca73019158a344de03e
+    GitHub-Pull-Request: golang/go#29384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185117
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go      | 16 ++++++++--------
+ src/net/http/readrequest_test.go |  4 ++--
+ src/net/url/url.go               |  2 +-
+ src/net/url/url_test.go          |  6 ++++++
+ 4 files changed, 17 insertions(+), 11 deletions(-)

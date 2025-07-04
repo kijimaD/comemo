@@ -1,0 +1,17 @@
+commit f8f95590d946bb4619599f909b6facf14f9bed03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 6 15:08:31 2014 -0700
+
+    go/build: update docs for GOOS.go change
+    
+    Forgotten in https://golang.org/cl/147690043/
+    
+    Update #8838
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/152220045
+
+ src/go/build/doc.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

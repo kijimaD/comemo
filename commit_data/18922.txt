@@ -1,0 +1,16 @@
+commit 446d90d727b1820f8f4ef2f4e22d6ce1cd88df4d
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sun Mar 23 15:44:29 2014 -0700
+
+    unicode/utf8: minor code simplification
+    
+    It's a little bit waste to check if r is not a surrogate
+    code point because RuneError is not a surrogate code point.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/79230043
+
+ src/pkg/unicode/utf8/utf8.go | 32 ++++++++++++--------------------
+ 1 file changed, 12 insertions(+), 20 deletions(-)

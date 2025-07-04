@@ -1,0 +1,25 @@
+commit 1bbe78bb6da26f43fb0d06194f659ae7b6314e86
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 14:38:53 2021 -0400
+
+    cmd: update x/mod to pull in CL 316113
+    
+    Even though x/mod is now lazy, this has no immediate effect on the
+    size of cmd/go.sum: all of the existing dependencies are still pulled
+    in via the dependency on x/tools, which is itself not yet lazy (that's
+    CL 315570).
+    
+    For #36460
+    Updates #36905
+    
+    Change-Id: I7bce5fe2596a2d71e4df08f5d5f4cb8dcdb8512c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316489
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/go.mod             | 2 +-
+ src/cmd/go.sum             | 4 ++--
+ src/cmd/vendor/modules.txt | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

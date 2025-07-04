@@ -1,0 +1,17 @@
+commit 65f34786336201d99291e45d1631339b20c09e06
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 17:27:09 2021 -0700
+
+    encoding: simplify some code
+    
+    Change-Id: I63aac663da4ce7bdd198d385f87929c74f6a5cf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360601
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/ascii85/ascii85.go | 4 +---
+ src/encoding/base32/base32.go   | 4 +---
+ src/encoding/base64/base64.go   | 4 +---
+ 3 files changed, 3 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit 8efc020d7ca00e402ff9fb2b7eaf3e441d0979d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 10:45:16 2012 -0800
+
+    go/printer: factor some frequently used code
+    
+    Added a cache to compensate for extra call overhead.
+    go test -bench=Print marginally faster (in the noise).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5574061
+
+ src/pkg/go/printer/nodes.go   | 54 +++++++++++++++++++++----------------------
+ src/pkg/go/printer/printer.go | 30 +++++++++++++++++++-----
+ 2 files changed, 51 insertions(+), 33 deletions(-)

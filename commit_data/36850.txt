@@ -1,0 +1,17 @@
+commit c6483b61a9096e3076439079c88eab84c9e6d859
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Oct 3 20:42:05 2018 -0400
+
+    expvar: add Map.Delete
+    
+    Fixes #13491
+    
+    Change-Id: Ic0525d8ee90f47d0d23c1485919aee13d2400494
+    Reviewed-on: https://go-review.googlesource.com/c/139537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/expvar/expvar.go      | 13 ++++++++++++-
+ src/expvar/expvar_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

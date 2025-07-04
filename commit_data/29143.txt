@@ -1,0 +1,26 @@
+commit eac59508199f77f55d986ab1a7439c7488a20650
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 14:32:43 2016 -0400
+
+    mime: preserve unnecessary backslash escapes as literals
+    
+    When MSIE sends a full file path (in "intranet mode"), it does not
+    escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
+    
+    No known MIME generators emit unnecessary backslash escapes
+    for simple token characters like numbers and letters.
+    
+    If we see an unnecessary backslash escape, assume it is from MSIE
+    and intended as a literal backslash. This makes Go servers deal better
+    with MSIE without affecting the way they handle conforming MIME
+    generators.
+    
+    Fixes #15664.
+    
+    Change-Id: Ia3b03b978317d968dc11b2f6de1df913c6bcbfcc
+    Reviewed-on: https://go-review.googlesource.com/32175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/mediatype.go      | 37 +++++++++++++++++++++++--------------
+ src/mime/mediatype_test.go | 14 +++++++++-----
+ 2 files changed, 32 insertions(+), 19 deletions(-)

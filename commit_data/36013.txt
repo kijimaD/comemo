@@ -1,0 +1,20 @@
+commit 0c319ee4fe655e3c8e7bf72bce572c989f565a53
+Author: Zev Goldstein <Zev.Goldstein@gmail.com>
+Date:   Sun Jul 8 22:31:28 2018 -0400
+
+    cmd/go/internal/cache: squelch cache init warnings when $HOME is /
+    
+    Docker sets $HOME to / when running with a UID that doesn't exist within
+    the container.  This not  uncommon on CI servers.
+    
+    Fixes #26280
+    
+    Change-Id: Ic7ff62b41403fe6e7c0cef12814667ef73f6c954
+    Reviewed-on: https://go-review.googlesource.com/122487
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/cache/default.go           | 37 ++++++++++----
+ src/cmd/go/internal/cache/default_unix_test.go | 67 ++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 9 deletions(-)

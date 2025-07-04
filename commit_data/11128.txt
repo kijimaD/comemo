@@ -1,0 +1,16 @@
+commit eb9432706803566bcf6e42fef75902fe1d80b862
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 12 10:42:39 2012 -0800
+
+    dashboard: use build.golang.org as the domain
+    The domain returned by appengine.DefaultVersionHostname
+    isn't the one we want.
+    This change has been uploaded to build.golang.org
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5539043
+
+ misc/dashboard/app/build/notify.go | 3 ++-
+ misc/dashboard/app/build/test.go   | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

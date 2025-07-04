@@ -1,0 +1,15 @@
+commit 76dcb9b346ad4acba0a88e254fefccf75a13a36d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Feb 10 21:47:52 2014 +0100
+
+    runtime: handle "sys: trap: divide error" note on Plan 9
+    
+    Fixes #7286.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/61410044
+
+ src/pkg/runtime/signals_plan9.h | 1 +
+ 1 file changed, 1 insertion(+)

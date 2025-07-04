@@ -1,0 +1,12 @@
+commit 01a0d39a7fb23cc45773fadce09603c41f3e82da
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 19 20:17:46 2012 -0200
+
+    os/exec: trivial allocation removal in LookPath
+    
+    R=golang-dev, bsiegert, r
+    CC=golang-dev
+    https://golang.org/cl/5549043
+
+ src/pkg/os/exec/lp_unix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit ce0b9143123abe8005a059c92dbd763f7ab46214
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 24 14:26:39 2023 -0400
+
+    cmd/dist: actually only compile tests with -compile-only
+    
+    Currently, "dist test -compile-only" still runs the test binaries,
+    just with -run=^$ so no tests are run. It does this because, until
+    recently, "go test -c" would fail if passed multiple test packages.
+    But this has some unexpected consequences: init code still runs,
+    TestMain still runs, and we generally can't test cross-compiling of
+    tests.
+    
+    Now that #15513 is fixed, we can pass multiple packages to "go test
+    -c". Hence, this CL make dist just use "go test -c" as one would
+    expect.
+    
+    Found in the course of working on #37486, though it doesn't really
+    affect that.
+    
+    Change-Id: If7d3c72c9e0f74d4ea0dd422411e5ee93b314be4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go   | 4 +---
+ src/testing/testing.go | 1 -
+ 2 files changed, 1 insertion(+), 4 deletions(-)

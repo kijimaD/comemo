@@ -1,0 +1,15 @@
+commit f70d1e76cc0ed2550d83fbc04356f7d2308044c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 12 20:25:07 2018 +0000
+
+    net/http: ensure that Listener.Close is called only once in Server.Serve
+    
+    Fixes #24803
+    
+    Change-Id: I8b1e7c5a74018a0c333f8c38a7ec5f5827ab1606
+    Reviewed-on: https://go-review.googlesource.com/106715
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/serve_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 22 ++++++++++++++++++++--
+ 2 files changed, 58 insertions(+), 2 deletions(-)

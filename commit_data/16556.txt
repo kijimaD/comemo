@@ -1,0 +1,14 @@
+commit 0627248a1f13daf5df197560308f5497cf9fd8a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 12 15:05:10 2013 -0700
+
+    runtime: update runtime·gogo comment in asm files
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/10244043
+
+ src/pkg/runtime/asm_386.s   | 2 +-
+ src/pkg/runtime/asm_amd64.s | 2 +-
+ src/pkg/runtime/asm_arm.s   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

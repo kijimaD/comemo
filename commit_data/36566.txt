@@ -1,0 +1,20 @@
+commit dd5e9b32ff60f99f993953a74e39d505914c6a56
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 23:52:12 2018 +0200
+
+    cmd/compile: add testcase for #24876
+    
+    This is still not fixed, the testcase reflects that there are still
+    a few boundchecks. Let's fix the good alternative with an explicit
+    test though.
+    
+    Updates #24876
+    
+    Change-Id: I4da35eb353e19052bd7b69ea6190a69ced8b9b3d
+    Reviewed-on: https://go-review.googlesource.com/107355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/checkbce.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

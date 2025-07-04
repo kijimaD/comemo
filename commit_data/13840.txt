@@ -1,0 +1,15 @@
+commit 916ccbf165d3322139381ccd4e0df923354785cd
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Sep 17 13:44:55 2012 -0700
+
+    cmd/go: reject relative values for GOPATH
+    
+    Fixes #4062.
+    
+    R=rsc, dave, r
+    CC=golang-dev, nicksaika
+    https://golang.org/cl/6488129
+
+ src/cmd/go/main.go   |  7 +++++++
+ src/cmd/go/test.bash | 11 +++++++++++
+ 2 files changed, 18 insertions(+)

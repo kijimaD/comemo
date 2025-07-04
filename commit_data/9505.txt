@@ -1,0 +1,15 @@
+commit 4541fa96b3fbe8e94dd0b8adda11b16ea001b470
+Author: Ross Light <rlight2@gmail.com>
+Date:   Fri Aug 26 12:29:52 2011 -0300
+
+    xml: marshal "parent>child" tags correctly
+    
+    Fixes #2119
+    
+    R=m.n.summerfield, adg, kevlar, rsc, gustavo, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/4941042
+
+ src/pkg/xml/marshal.go      |  93 ++++++++++++++++++++++++++++++---
+ src/pkg/xml/marshal_test.go | 123 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 208 insertions(+), 8 deletions(-)

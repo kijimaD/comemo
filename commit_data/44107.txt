@@ -1,0 +1,24 @@
+commit fefad1dc856d66c024a94d3421fc52ff326fe970
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 11:22:42 2021 -0500
+
+    test: fix timeout code for invoking compiler
+    
+    When running go tool compile,
+    go tool is running compile as a subprocess.
+    Killing go tool with Process.Kill leaves the subprocess behind.
+    Send an interrupt signal first, which it can forward on
+    to the compile subprocess.
+    
+    Also report the timeout in errorcheck -t.
+    
+    Change-Id: I7ae0029bbe543ed7e60e0fea790dd0739d10bcaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282313
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/run.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

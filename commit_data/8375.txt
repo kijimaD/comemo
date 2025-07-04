@@ -1,0 +1,15 @@
+commit 34ac4ec30ca8bca47fb3552bae0116ef140b11cb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 13 16:05:47 2011 +1000
+
+    6l, 8l: emit windows dwarf sections similar to other platforms
+    
+    R=golang-dev, rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4517056
+
+ src/cmd/6l/asm.c   | 70 +++++++++++++++++++++++++++++++-----------------------
+ src/cmd/8l/asm.c   | 36 ++++++++++++++++++----------
+ src/cmd/ld/dwarf.c |  1 -
+ src/cmd/ld/pe.c    |  6 ++---
+ 4 files changed, 66 insertions(+), 47 deletions(-)

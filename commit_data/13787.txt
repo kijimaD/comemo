@@ -1,0 +1,22 @@
+commit d5a8c58170410071462f5af01c4979757b3b63d4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 11 08:56:28 2012 +0900
+
+    net: delete unused IP-level socket option helpers
+    
+    R=rsc, dave
+    CC=bradfitz, gobot, golang-dev
+    https://golang.org/cl/6497044
+
+ src/pkg/net/multicast_posix_test.go |  65 ---------------
+ src/pkg/net/sockoptip_bsd.go        |  36 ++-------
+ src/pkg/net/sockoptip_darwin.go     |  90 ---------------------
+ src/pkg/net/sockoptip_freebsd.go    |  92 ---------------------
+ src/pkg/net/sockoptip_linux.go      | 101 -----------------------
+ src/pkg/net/sockoptip_netbsd.go     |  90 ---------------------
+ src/pkg/net/sockoptip_openbsd.go    |  90 ---------------------
+ src/pkg/net/sockoptip_posix.go      | 156 ++----------------------------------
+ src/pkg/net/sockoptip_windows.go    |  61 ++------------
+ src/pkg/net/udpsock_posix.go        |  16 ----
+ src/pkg/net/unicast_posix_test.go   |  52 ------------
+ 11 files changed, 19 insertions(+), 830 deletions(-)

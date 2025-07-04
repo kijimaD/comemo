@@ -1,0 +1,21 @@
+commit 376898ca8bd875a22ed7be15b9a9c1f05a272fc5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 9 11:50:14 2008 -0700
+
+    go threads for OS X
+    
+    R=r
+    OCL=14944
+    CL=15013
+
+ src/runtime/amd64_darwin.h     |  21 ++
+ src/runtime/amd64_linux.h      |   2 +-
+ src/runtime/chan.c             |  52 +++--
+ src/runtime/proc.c             |   4 +-
+ src/runtime/rt0_amd64.s        |   1 +
+ src/runtime/rt1_amd64_darwin.c | 474 +++++++++++++++++++++++++++++++++++++++--
+ src/runtime/rt1_amd64_linux.c  |   4 +
+ src/runtime/runtime.h          |  17 +-
+ src/runtime/sys_amd64_darwin.s | 135 +++++++++++-
+ src/runtime/sys_amd64_linux.s  |  24 +--
+ 10 files changed, 666 insertions(+), 68 deletions(-)

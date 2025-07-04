@@ -1,0 +1,12 @@
+commit e8605b12794500ed3f108b47463942af9d008470
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 15:23:20 2010 -0800
+
+    runtime: omit runtime· prefix from static functions (in ARM code).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3026041
+
+ src/pkg/runtime/arm/softfloat.c | 42 ++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

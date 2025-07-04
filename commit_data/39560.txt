@@ -1,0 +1,14 @@
+commit d6f6a46c0722e2e4565c5b146ab3012d9327efd1
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Jul 31 19:18:32 2019 -0700
+
+    doc/go1.13: add more release notes for net/http
+    
+    Fixes #33396
+    
+    Change-Id: Id975a23b8d6555a3f19ef283fccbbe122f10acfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188477
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

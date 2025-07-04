@@ -1,0 +1,29 @@
+commit 1ee9bc9b0ff630c24436f12a0158724e1eafd100
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 18 15:49:25 2019 -0400
+
+    cmd/link: enhance linker's dwarf test
+    
+    Couple of changes to the linker's dwarf test, including:
+    
+     - add some code to the DWARF tests inlining coverage to verify the
+       call_file attribute attached to inlined routine DIEs. If function
+       main.F is inlined into function main.G, we want to see that the
+       call_file attribute in the inlined routine DIE for main.F is the
+       same file as that reported for main.G.
+    
+     - fix a glitch with the way the DW_AT_decl_file attribute was
+       being checked. The previous code relied on hard-coded indices
+       into the line table files table, which is very brittle (since
+       there is no requirement that files be ordered in any specific
+       way). Instead, add machinery to look up the actual file string
+       via the line table reader.
+    
+    Change-Id: I44e71c69b6e676238cf4b805e7170de17b50939f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196517
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 78 +++++++++++++++++++++++++++++++---
+ 1 file changed, 71 insertions(+), 7 deletions(-)

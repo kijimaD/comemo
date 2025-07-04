@@ -1,0 +1,17 @@
+commit 97c8b24d01e6d60938fc499fc544ff3da9e9f726
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 8 22:37:18 2014 +0400
+
+    runtime: fix spurious "[string too long]" error
+    Maxstring is not updated in the new string routines,
+    this makes runtime think that long strings are bogus.
+    Fixes #8339.
+    
+    LGTM=crawshaw, iant
+    R=golang-codereviews, crawshaw, iant
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/110930043
+
+ src/pkg/runtime/string_test.go | 23 +++++++++++++++++++++++
+ src/pkg/runtime/stubs.goc      |  6 ++++++
+ 2 files changed, 29 insertions(+)

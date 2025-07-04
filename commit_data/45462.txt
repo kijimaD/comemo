@@ -1,0 +1,18 @@
+commit ee4f9656ac419bb92408f65f082c735a6b82d1fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 9 22:00:14 2021 -0400
+
+    cmd/go/internal/modload: avoid loading the full module graph to determine which checksums to add to go.sum
+    
+    For #36460
+    
+    Change-Id: I606314054bd9064f7c4053f56049fabbaec54143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309189
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 58 +++++++++++++++++++++++--------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

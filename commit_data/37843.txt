@@ -1,0 +1,19 @@
+commit 857b339993146f2eab5fd9b9bef8357de8db144a
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Fri Jan 4 01:30:15 2019 +0000
+
+    crypto/sha1: fix casting of d.nx in UnmarshalBinary
+    
+    Fixes #29543
+    
+    Change-Id: Ib7f3c32cc1e57c583ee52c486673a5b9568c2df8
+    GitHub-Last-Rev: 0cb3dc536245bb4f414cf09bb353fbafd5ca7537
+    GitHub-Pull-Request: golang/go#29544
+    Reviewed-on: https://go-review.googlesource.com/c/156279
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1.go      |  2 +-
+ src/crypto/sha1/sha1_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

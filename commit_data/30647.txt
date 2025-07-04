@@ -1,0 +1,14 @@
+commit 0fd6df352205e2781ab34349527cf677b6c1283f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 7 10:28:46 2016 -0800
+
+    cmd/compile: simplify printing of constant bools
+    
+    Change-Id: I9339e83e39075826bf5819e55804a94208fe84ae
+    Reviewed-on: https://go-review.googlesource.com/38140
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 5716ae6c9610f31e2cdefd07eea78174414c3dca
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Jun 2 15:52:51 2020 -0400
+
+    doc/go1.15: add release notes for crypto/tls
+    
+    Updates #37419
+    
+    Change-Id: Ie81c0b03716799c132e90dc231ab816e6ae43469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236166
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

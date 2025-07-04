@@ -1,0 +1,34 @@
+commit d11e1f92fc578c5d2e604acfe9ea60d7afb84a0c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 27 15:52:32 2020 -0500
+
+    cmd/go/internal/search: consolidate package-pattern predicates into Match methods
+    
+    This change consolidates predicates currently scattered throughout
+    various parts of the package and module loader into methods on the
+    search.Match type.
+    
+    That not only makes them more concise, but also encourages
+    consistency, both in the code and in reasoning about the kinds of
+    patterns that need to be handled. (For example, the IsLocal predicate
+    was previously two different calls, either of which could be easily
+    forgotten at a given call site.)
+    
+    Factored out from CL 185344 and CL 185345.
+    
+    Updates #32917
+    
+    Change-Id: Ifa450ffaf6101f673e0ed69ced001a487d6f9335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/get.go       |  13 ++--
+ src/cmd/go/internal/load/pkg.go      |   8 +--
+ src/cmd/go/internal/modget/get.go    |   2 +-
+ src/cmd/go/internal/modload/load.go  |  42 +++++------
+ src/cmd/go/internal/modload/query.go |   3 +-
+ src/cmd/go/internal/search/search.go | 131 ++++++++++++++++++++---------------
+ 6 files changed, 109 insertions(+), 90 deletions(-)

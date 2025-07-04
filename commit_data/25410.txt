@@ -1,0 +1,12 @@
+commit 7f4443d5fa9248c1d0e9d07b2c502a46ca252db2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 12:10:01 2015 -0500
+
+    testing: add clear panic for duplicate call to t.Parallel
+    
+    Change-Id: I155633b58e1823344a26c3edf11f5626fae080ee
+    Reviewed-on: https://go-review.googlesource.com/18204
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

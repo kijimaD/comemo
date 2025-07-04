@@ -1,0 +1,26 @@
+commit 61a3ebed5506a89c3f5ba7323a796384f1774f49
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Thu Sep 17 11:47:16 2015 +0200
+
+    cmd/asm/internal/asm: add aliases for ARM64 condition codes
+    
+    Add CS as an alias for HS, and CC as an alias for LO, otherwise
+    
+            CSINV   CS, R1, R2, R3
+    
+    was interpreted as
+    
+            CSINV   0, R1, R2, R3
+    
+    Also fix the corresponding faulty test.
+    
+    Fixes #12632
+    Updates #12470
+    
+    Change-Id: I974cfc7e5ced682d4754ba09b0b102cb08a46567
+    Reviewed-on: https://go-review.googlesource.com/14680
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go           | 2 ++
+ src/cmd/asm/internal/asm/testdata/arm64.out | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

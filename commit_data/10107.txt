@@ -1,0 +1,13 @@
+commit 659f1f208af02a3dd5cc13da0d4f8756a3cc5369
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 14:47:38 2011 +0900
+
+    weekly.2011-10-26 (new rune type)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5297062
+
+ .hgtags               |  1 -
+ doc/devel/weekly.html | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

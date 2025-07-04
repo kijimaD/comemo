@@ -1,0 +1,12 @@
+commit cfe007e1b67f869ed6d9ef8f188c2627b2ca4e25
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 13:36:38 2012 +1100
+
+    doc: link to sub-repositories from reference page
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5752049
+
+ doc/reference.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

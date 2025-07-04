@@ -1,0 +1,14 @@
+commit 16de91d35135aeb77af774a224ec8e9ad49d581c
+Author: Jonathan Chen <dijonkitchen@users.noreply.github.com>
+Date:   Thu May 24 14:49:29 2018 +0000
+
+    doc: clarify sentence
+    
+    Change-Id: I6eb182968a8e00fe359d812f1eefc9bda896395b
+    GitHub-Last-Rev: a354b4d2168ed4f1f1744c99c36ece276a24e046
+    GitHub-Pull-Request: golang/go#25540
+    Reviewed-on: https://go-review.googlesource.com/114318
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

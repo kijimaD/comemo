@@ -1,0 +1,23 @@
+commit a11a885cb567b3797e33733e883c2ba3bdc0e898
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Feb 4 09:24:23 2022 -0800
+
+    crypto/x509: reject duplicate extensions
+    
+    When parsing certificates and CSRs, reject duplicate extensions (and
+    additionally duplicate requested extensions in CSRs.)
+    
+    Fixes #50988
+    
+    Change-Id: I531e932cfcdde78f64c106e747a68270bd4f1d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383215
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/parser.go    |  6 ++++++
+ src/crypto/x509/x509.go      | 14 ++++++++++++++
+ src/crypto/x509/x509_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+)

@@ -1,0 +1,35 @@
+commit f2cdc6d1672fb335ac56f9c7b824071f1e5ba545
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 13:10:34 2022 -0800
+
+    go/types, types2: improved tracing output throughout (debugging support)
+    
+    This change fine-tunes tracing output and adds additional
+    descriptions for delayed actions that were missing tracing.
+    
+    Change-Id: Ib5e70e8f40ef564194cdb0e8d12c38e15388b987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387919
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go        |  4 ++--
+ src/cmd/compile/internal/types2/check.go       | 12 +++++++++---
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/expr.go        |  4 ++--
+ src/cmd/compile/internal/types2/instantiate.go |  3 ++-
+ src/cmd/compile/internal/types2/named.go       | 12 ++++++++++--
+ src/cmd/compile/internal/types2/stmt.go        |  5 +----
+ src/cmd/compile/internal/types2/typeset.go     |  4 ++--
+ src/cmd/compile/internal/types2/typexpr.go     |  8 ++++----
+ src/cmd/compile/internal/types2/union.go       |  2 +-
+ src/go/types/call.go                           |  4 ++--
+ src/go/types/check.go                          | 12 +++++++++---
+ src/go/types/decl.go                           |  2 +-
+ src/go/types/expr.go                           |  4 ++--
+ src/go/types/instantiate.go                    |  3 ++-
+ src/go/types/named.go                          | 12 ++++++++++--
+ src/go/types/stmt.go                           |  5 +----
+ src/go/types/typeset.go                        |  4 ++--
+ src/go/types/typexpr.go                        |  8 ++++----
+ src/go/types/union.go                          |  2 +-
+ 20 files changed, 68 insertions(+), 44 deletions(-)

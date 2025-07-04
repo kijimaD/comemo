@@ -1,0 +1,29 @@
+commit 36e1c7ab73591388ba1a7246ada21e0baefd2ce1
+Author: Albert Nigmatzianov <albertnigma@gmail.com>
+Date:   Wed Sep 20 19:23:11 2017 +0500
+
+    io: Add benchmarks for CopyN
+    
+    Copied from CL 60630
+    
+    Current results:
+    name          time/op
+    CopyNSmall-4  2.20µs ±90%
+    CopyNLarge-4   136µs ±56%
+    
+    name          alloc/op
+    CopyNSmall-4  1.84kB ±21%
+    CopyNLarge-4   128kB ±10%
+    
+    name          allocs/op
+    CopyNSmall-4    1.00 ± 0%
+    CopyNLarge-4    1.00 ± 0%
+    
+    Change-Id: If08c0132a773e936c9f61bff96e0aabf58006d31
+    Reviewed-on: https://go-review.googlesource.com/64932
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/io_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

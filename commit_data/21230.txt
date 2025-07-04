@@ -1,0 +1,17 @@
+commit 301ad790a2eef1962a97f9ccef5de8eff84c12fb
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jan 10 17:53:13 2015 +0000
+
+    cmd/gc: fix racewalk after writebarrierfat was renamed to typedmemmove
+    
+    Renaming the function broke the race detector since it looked for the
+    name, didn't find it anymore and didn't insert the necessary
+    instrumentation.
+    
+    Change-Id: I11fed6e807cc35be5724d26af12ceff33ebf4f7b
+    Reviewed-on: https://go-review.googlesource.com/2661
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/gc/racewalk.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

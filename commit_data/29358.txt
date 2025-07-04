@@ -1,0 +1,16 @@
+commit 322436b78c2b0a8dd346f460df6fc00f49adba8e
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Nov 3 22:25:42 2016 +0530
+
+    cmd/compile: don't panic if syntax.ReadFile returns an error
+    
+    Fixes #17772
+    
+    Change-Id: I0f2094400c454828aa57a8d172dadeac4ddb6d35
+    Reviewed-on: https://go-review.googlesource.com/32691
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

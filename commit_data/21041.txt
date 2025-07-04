@@ -1,0 +1,36 @@
+commit 2e0a1a7573bd69c18c3a3932422a9507031e5321
+Author: Bryan Ford <brynosaurus@gmail.com>
+Date:   Sat Dec 13 13:54:39 2014 -0500
+
+    encoding/base64: add unpadded encodings, and test all encodings.
+    
+    Some applications use unpadded base64 format, omitting the trailing
+    '=' padding characters from the standard base64 format, either to
+    minimize size or (more justifiably) to avoid use of the '=' character.
+    Unpadded flavors are standard and documented in section 3.2 of RFC 4648.
+    
+    To support these unpadded flavors, this change adds two predefined
+    encoding variables, RawStdEncoding and RawURLEncoding, for unpadded
+    encodings using the standard and URL character set, respectively.
+    The change also adds a function WithPadding() to customize the padding
+    character or disable padding in a custom Encoding.
+    
+    Finally, I noticed that the existing base64 test-suite was only
+    exercising the StdEncoding, and not referencing URLEncoding at all.
+    This change adds test-suite functionality to exercise all four encodings
+    (the two existing ones and the two new unpadded flavors),
+    although it still doesn't run *every* test on all four encodings.
+    
+    Naming: I used the "Raw" prefix because it's more concise than "Unpadded"
+    and seemed just as expressive, but I have no strong preferences here.
+    Another short alternative prefix would be "Min" ("minimal" encoding).
+    
+    Change-Id: Ic0423e02589b39a6b2bb7d0763bd073fd244f469
+    Reviewed-on: https://go-review.googlesource.com/1511
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base64/base64.go      | 102 +++++++++++++++++++++++++++----------
+ src/encoding/base64/base64_test.go |  74 ++++++++++++++++++++++-----
+ 2 files changed, 135 insertions(+), 41 deletions(-)

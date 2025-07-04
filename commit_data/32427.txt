@@ -1,0 +1,20 @@
+commit 645ecf5d4806bfef470da2ac1fad8df40c73beb8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 17:43:33 2017 -0700
+
+    cmd/dist: rearrange a couple of tests
+    
+    Run "cmd/go terminal test" after standard library tests.
+    Run "testing race detector" before cgo tests, not in the middle of them.
+    
+    Fixes #21524
+    
+    Change-Id: I32964ec6377dd070242138ec452bd8ab1821dcc5
+    Reviewed-on: https://go-review.googlesource.com/57230
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+
+ src/cmd/dist/test.go | 58 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

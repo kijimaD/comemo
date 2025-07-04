@@ -1,0 +1,12 @@
+commit 757fe32fe7ef66f662a07f081a4b307db9bfa802
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 10 13:43:15 2009 -0700
+
+    fix bug206 output on different platforms
+    
+    TBR=r
+    OCL=34524
+    CL=34524
+
+ test/golden.out | 4 ----
+ 1 file changed, 4 deletions(-)

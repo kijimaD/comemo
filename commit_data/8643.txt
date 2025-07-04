@@ -1,0 +1,12 @@
+commit 35b74d69033b0fb51b464547aaedce234c0e6661
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 10:07:50 2011 -0700
+
+    C+A: added Michael T. Jones (Google)
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4528126
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,26 @@
+commit 84485361f94e2ea9eff9697105d71c9f53e44852
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Fri May 31 11:33:36 2013 -0700
+
+    cmd/go: Add support for including C++ files in packages
+    
+    * Add a CXXFiles field to Package, which includes .cc, .cpp and .cxx  files.
+    * CXXFiles are compiled using g++, which can be overridden using the CXX environment variable.
+    * Include .hh, .hpp and .hxx files in HFiles.
+    * Add support for CPPFLAGS (used for both C and C++) and CXXFLAGS (used only for C++) in cgo directive.
+    * Changed pkg-config cgo directive to modify CPPFLAGS rather than CFLAGS, so both C and C++ files get any flag returned by pkg-config --cflags.
+    
+    Fixes #1476.
+    
+    R=iant, r
+    CC=bradfitz, gobot, golang-dev, iant, minux.ma, remyoudompheng, seb.binet
+    https://golang.org/cl/8248043
+
+ src/cmd/cgo/doc.go        |   6 +--
+ src/cmd/go/build.go       | 122 +++++++++++++++++++++++++++++++++++-----------
+ src/cmd/go/doc.go         |   5 +-
+ src/cmd/go/list.go        |   5 +-
+ src/cmd/go/pkg.go         |  16 +++++-
+ src/cmd/godoc/index.go    |   6 +++
+ src/pkg/go/build/build.go |  22 ++++++---
+ 7 files changed, 141 insertions(+), 41 deletions(-)

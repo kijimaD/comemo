@@ -1,0 +1,16 @@
+commit ac048ce7f4ef90aff4c5d0d7553778499e485f7e
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jul 15 21:07:59 2008 -0700
+
+    new chan syntax
+    
+    SVN=127437
+
+ src/cmd/gc/go.y        |  33 +++++++-------
+ src/cmd/gc/lex.c       |   8 ++++
+ src/cmd/gc/sys.go      |   8 +++-
+ src/cmd/gc/sysimport.c | 114 +++++++++++++++++++++++++++----------------------
+ src/cmd/gc/walk.c      | 101 ++++++++++++++++++++++++++++++-------------
+ src/runtime/chan.c     |  47 +++++++++++++++++++-
+ test/chan/sieve.go     |   4 +-
+ 7 files changed, 214 insertions(+), 101 deletions(-)

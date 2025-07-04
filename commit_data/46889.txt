@@ -1,0 +1,39 @@
+commit 434cdd0337b9e6c7e0c369c9293cc14fd38dc80d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 30 10:25:49 2021 -0700
+
+    debug/buildinfo: new package with Read and ReadFile
+    
+    These functions provide access to module information stamped into Go
+    binaries. In the future, they'll provide access to other information
+    (like VCS info).
+    
+    These functions are added in a new package instead of runtime/debug
+    since they use binary parsing packages like debug/elf, which would
+    make runtime/debug an unacceptably heavy dependency. The types in
+    runtime/debug are still used; debug/buildinfo uses them via type
+    aliases.
+    
+    This information is already available for the running binary through
+    debug.ReadBuildInfo and for other binaries with 'go version -m', but
+    until now, there hasn't been a way to get it for other binaries
+    without installing cmd/go.
+    
+    This change copies most of the code in cmd/go/internal/version. A
+    later CL will migrate 'go version -m' to use this package.
+    
+    For #37475
+    Fixes #39301
+    
+    Change-Id: I0fbe0896e04f12ef81c6d79fb61b20daede86159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353887
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ api/next.txt                          |   4 +
+ src/debug/buildinfo/buildinfo.go      | 374 ++++++++++++++++++++++++++++++++++
+ src/debug/buildinfo/buildinfo_test.go | 206 +++++++++++++++++++
+ src/go/build/deps_test.go             |   5 +-
+ src/runtime/debug/mod.go              | 104 +++++-----
+ 5 files changed, 645 insertions(+), 48 deletions(-)

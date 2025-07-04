@@ -1,0 +1,17 @@
+commit ccf581f126e03590993454b62d2676b759120adf
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Wed Sep 16 13:55:38 2020 +0200
+
+    go/internal/gccgoimporter: recognize aixbigafMagic archives
+    
+    Change-Id: I61a13f7d6410e4931efaa20307bdf1cc0037afc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255200
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/importer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

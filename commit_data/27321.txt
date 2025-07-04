@@ -1,0 +1,14 @@
+commit 4eccc77f196edfa7646b0e92a11ef8d96ef85b57
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 6 18:21:22 2016 +0000
+
+    net/http: wait longer for subprocess to startup in test
+    
+    Might deflake the occasional linux-amd64-race failures.
+    
+    Change-Id: I273b0e32bb92236168eb99887b166e079799c1f1
+    Reviewed-on: https://go-review.googlesource.com/22858
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

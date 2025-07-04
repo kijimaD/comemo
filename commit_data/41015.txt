@@ -1,0 +1,15 @@
+commit 4d5bb9c60905b162da8b767a8a133f6b4edcaa65
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 18 15:24:42 2019 -0500
+
+    doc/go1.14: more runtime/compiler release notes
+    
+    This is based on reading through every commit message to runtime and
+    cmd/{compile,link,internal,asm} since Go 1.13.
+    
+    Change-Id: I253b1a70ed265f15180fa20c191ceeafa6612ac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211977
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.14.html | 57 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 46 insertions(+), 11 deletions(-)

@@ -1,0 +1,28 @@
+commit b95ea201d54953055e7d5d29cf68bb5f19f21f93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 20 15:56:11 2022 -0700
+
+    cmd/compile: add support for alternative comparable semantics
+    
+    Add the experimental compiler flag -altcomparable. If set, the
+    compiler uses alternative comparable semantics: any ordinary
+    (non-type parameter) interface implements the comparable
+    constraint.
+    
+    This permits experimenting with this alternative semantics
+    akin to what is proposed in #52509.
+    
+    For #52509.
+    
+    Change-Id: I64192eee6f2a550eeb50de011079f2f0b994cf94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444636
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/base/flag.go   | 3 ++-
+ src/cmd/compile/internal/noder/irgen.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit a5c4e0fa2a9b409d6b268a3aeba99af23b968a9a
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Aug 9 09:40:05 2012 +1000
+
+    math: update definition of NaN in assembly language files
+    
+    R=rsc, minux.ma, golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6461047
+
+ src/pkg/math/dim_amd64.s    | 2 +-
+ src/pkg/math/hypot_386.s    | 2 +-
+ src/pkg/math/hypot_amd64.s  | 4 ++--
+ src/pkg/math/log_amd64.s    | 2 +-
+ src/pkg/math/sincos_amd64.s | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

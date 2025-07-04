@@ -1,0 +1,13 @@
+commit c10f8700e065338dcacda0f4659339e86c402358
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Aug 19 10:46:49 2016 -0700
+
+    net/http/httptrace: test the order of hooks when ctx has multi ClientTraces
+    
+    Change-Id: I95cae14bb5561947ada9577fb05053f93321a4a8
+    Reviewed-on: https://go-review.googlesource.com/27400
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptrace/trace_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

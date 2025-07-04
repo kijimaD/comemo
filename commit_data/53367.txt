@@ -1,0 +1,19 @@
+commit 0445497e5045d8417012ad7b407a615dc949a9bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 30 08:38:56 2023 -0700
+
+    go/types: don't use user string as format string
+    
+    Fixes #60500.
+    
+    Change-Id: I272c71071f239d5c9472e19ae25461001e7f6a8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499275
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/errors.go                              |  2 +-
+ src/internal/types/testdata/fixedbugs/issue60500.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

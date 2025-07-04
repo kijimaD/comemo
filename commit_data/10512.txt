@@ -1,0 +1,14 @@
+commit f1fecf8d2a128d203dab25b4a3ff4537b4b22e3e
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Sun Nov 27 18:01:08 2011 -0800
+
+    math: fix typo in Log1p comments
+    
+    Also note the special case of -0.0.
+    
+    R=rsc, golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5435084
+
+ src/pkg/math/log1p.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

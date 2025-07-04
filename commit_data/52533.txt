@@ -1,0 +1,17 @@
+commit d389f779d443f10a6ea7698ac732b026768c5ce6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 05:52:04 2023 +1100
+
+    cmd/internal/obj/arm64: use more appropriate types for opbfm and opextr
+    
+    This allows for a large number of casts to be removed at call sites.
+    
+    Change-Id: I44a162040cc5b4de02e106d3a6de10f8e0870cb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471515
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 36 +++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 21 deletions(-)

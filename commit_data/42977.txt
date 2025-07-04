@@ -1,0 +1,18 @@
+commit 506eb0a9b1a7051f64788f330ea26722fa293f3c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Sep 14 20:59:50 2020 +0000
+
+    Revert "encoding/json: implement Is on SyntaxError"
+    
+    This reverts CL 253037.
+    
+    Reason for revert: The recommended way to check for a type of error is errors.As. API changes should also start with a proposal.
+    
+    Change-Id: I62896717aa47ed491c2c4775d2b05d80e5e9cde3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254837
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/encoding/json/scanner.go      | 6 ------
+ src/encoding/json/scanner_test.go | 9 ---------
+ 2 files changed, 15 deletions(-)

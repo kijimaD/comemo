@@ -1,0 +1,12 @@
+commit 8bce3b56581ffa758a868fc9a6d7282086c530d2
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 9 17:52:41 2008 -0800
+
+    bug127
+    
+    R=r
+    OCL=20874
+    CL=20874
+
+ src/cmd/gc/const.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

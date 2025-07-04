@@ -1,0 +1,13 @@
+commit 049eee68065de196fbe4aa99c322bd17aa804ec1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 22:45:13 2015 -0400
+
+    cmd/internal/obj: use map for symbol table
+    
+    Change-Id: I105c1e7730c1e7ccf36297b9cbf96dc0a4868013
+    Reviewed-on: https://go-review.googlesource.com/7621
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/link.go | 12 ++++++------
+ src/cmd/internal/obj/sym.go  | 23 ++++++-----------------
+ 2 files changed, 12 insertions(+), 23 deletions(-)

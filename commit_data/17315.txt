@@ -1,0 +1,15 @@
+commit e8140bd03c154f8f9e894f5cb4be8b854c944412
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 11:18:43 2013 +1000
+
+    make.bash: exit if dist fails
+    The shell's -e doesn't work across "eval"; need to error-check by hand.
+    The recent spate of Darwin build failures pointed out that if the first
+    run of cmd/dist fails, we keep going. We shouldn't.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13098043
+
+ src/make.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

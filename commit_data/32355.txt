@@ -1,0 +1,26 @@
+commit c6f3e98eb568a364eb77445a50e4dfbe95ba5058
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 11:44:31 2017 -0400
+
+    cmd/go: rewrite TestCgoFlagContainsSpace not to use a fake CC
+    
+    Using a fake CC fails today if runtime/cgo is stale, because the
+    build will try to rebuild runtime/cgo using the fake CC, and the
+    fake CC is not a working C compiler.
+    
+    Worse, in the future, when the go command is sensitive to details like
+    the fact that different CCs produce different outputs, putting in
+    the fake CC will make runtime/cgo look stale even if it was
+    formerly up-to-date.
+    
+    Fix both problems by not overriding CC and instead looking at
+    the command being run to make sure the flags are quoted as expected.
+    
+    Change-Id: I4417e35cfab33a07546cc90748ddb6119d8fdb2d
+    Reviewed-on: https://go-review.googlesource.com/56272
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 59 +++++++--------------------------------------------
+ 1 file changed, 8 insertions(+), 51 deletions(-)

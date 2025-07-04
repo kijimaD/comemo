@@ -1,0 +1,28 @@
+commit bf2164390bd499145fc712194bb54290effd7e14
+Author: Robert Stepanek <robert.stepanek@gmail.com>
+Date:   Sat Sep 5 16:06:43 2015 +0200
+
+    encoding/xml: Return SyntaxError for unmatched root start elements.
+    
+    Currently, the xml.Decoder's Token routine returns successfully for
+    XML input that does not properly close root start elements (and any
+    unclosed descendants). For example, all the following inputs
+    
+        <root>
+        <root><foo>
+        <root><foo></foo>
+    
+    cause Token to return with nil and io.EOF, indicating a successful
+    parse.
+    
+    This change fixes that. It leaves the semantics of RawToken intact.
+    
+    Fixes #11405
+    
+    Change-Id: I6f1328c410cf41e17de0a93cf357a69f12c2a9f7
+    Reviewed-on: https://go-review.googlesource.com/14315
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/encoding/xml/xml.go      |  3 +++
+ src/encoding/xml/xml_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

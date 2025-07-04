@@ -1,0 +1,13 @@
+commit 7a3c6c950bddf21d4c39289abe1173dc52f757a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 7 11:01:23 2012 +1100
+
+    os: fix SameFile to work for directories on windows
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5756064
+
+ src/pkg/os/stat_windows.go         | 2 +-
+ src/pkg/path/filepath/path_test.go | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

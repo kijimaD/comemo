@@ -1,0 +1,22 @@
+commit e17e5308fd5a26da5702d16cc837ee77cdb30ab6
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Feb 9 10:18:38 2024 -0500
+
+    net/http: refine trailing-slash redirect logic
+    
+    Do not add a trailing slash and redirect if the path already
+    ends in a slash.
+    
+    Also, and unrelatedly, add a test for cleanPath.
+    
+    Fixes #65624.
+    
+    Change-Id: Ifcf9edc929d2eb6db88132c09d2bade85c5dda3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562557
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/serve_test.go  | 16 ++++++++++++++++
+ src/net/http/server.go      |  4 ++--
+ src/net/http/server_test.go | 18 ++++++++++++++++++
+ 3 files changed, 36 insertions(+), 2 deletions(-)

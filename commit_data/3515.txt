@@ -1,0 +1,13 @@
+commit 4700ded2824b11233e9feb60ae3c3dc6063982cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 12 19:08:17 2009 -0700
+
+    bug fix: convert \v's into \t's if there's no tabwriter
+    
+    R=rsc
+    DELTA=15  (12 added, 2 deleted, 1 changed)
+    OCL=35641
+    CL=35645
+
+ src/pkg/go/printer/printer.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

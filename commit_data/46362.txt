@@ -1,0 +1,30 @@
+commit c8d4fe2adc556317f75c2ebad195568ad5ff9644
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 09:58:44 2021 -0400
+
+    go/types: temporarily pin the Checker to Interface during checking
+    
+    While type checking expressions involving interface types, it is
+    possible that their type set is used before delayed actions are
+    processed. As a result, computeInterfaceTypeSet is called with a nil
+    checker, and errors in the interface type definition result in panics
+    (see #48234).
+    
+    To avoid the panics, store a *Checker on Interface for use in between
+    checking of the interface type expression and processing of delayed
+    actions.
+    
+    Fixes #48234
+    
+    Change-Id: I5509bc1c01b55edac52446b9e075fbe8fcc01874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348371
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/interface.go                      | 15 ++++++++++++---
+ src/go/types/sizeof_test.go                    |  2 +-
+ src/go/types/testdata/fixedbugs/issue48234.go2 | 10 ++++++++++
+ src/go/types/universe.go                       |  4 ++--
+ 4 files changed, 25 insertions(+), 6 deletions(-)

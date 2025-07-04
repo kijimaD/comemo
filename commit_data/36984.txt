@@ -1,0 +1,28 @@
+commit c9130cae9a9cd59178e842851f3f30b1d97ab0bd
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 11:55:34 2018 +0100
+
+    runtime/internal/math: add multiplication with overflow check
+    
+    This CL adds a new internal math package for use by the runtime.
+    The new package exports a MulUintptr function with uintptr arguments
+    a and b and returns uintptr(a*b) and whether the full-width product
+    x*y does overflow the uintptr value range (uintptr(x*y) != x*y).
+    
+    Uses of MulUinptr in the runtime and intrinsics for performance
+    will be added in followup CLs.
+    
+    Updates #21588
+    
+    Change-Id: Ia5a02eeabc955249118e4edf68c67d9fc0858058
+    Reviewed-on: https://go-review.googlesource.com/c/91755
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go |  3 ++
+ src/cmd/compile/internal/gc/racewalk.go | 10 ++++++-
+ src/go/build/deps_test.go               |  3 +-
+ src/runtime/internal/math/math.go       | 19 ++++++++++++
+ src/runtime/internal/math/math_test.go  | 51 +++++++++++++++++++++++++++++++++
+ 5 files changed, 84 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 4aff88ded24c575bed9c1c0d1fc149eab405111a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:01:46 2019 -0800
+
+    misc/cgo/testcshared: delete temporary directory in test
+    
+    The deferred os.RemoveAll was accidentally committed as commented out
+    in the original https://golang.org/cl/87158.
+    
+    Updates #30500
+    
+    Change-Id: Idc5195816d7978253760dbfd78fde6d22c456296
+    Reviewed-on: https://go-review.googlesource.com/c/164858
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ misc/cgo/testcshared/cshared_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

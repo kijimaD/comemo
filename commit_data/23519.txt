@@ -1,0 +1,15 @@
+commit 450988b5a2697083bcd377c0c7721cb3d7254dc9
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Fri Apr 24 21:47:25 2015 +0300
+
+    net/http: escape path in implicit /tree→/tree/ ServeMux.Handle redirect
+    
+    Fixes #10572
+    
+    Change-Id: I764f3c226cf98ff39d9e553e4613d0ee108ef766
+    Reviewed-on: https://go-review.googlesource.com/9311
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/serve_test.go | 3 +++
+ src/net/http/server.go     | 3 ++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

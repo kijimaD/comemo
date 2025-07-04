@@ -1,0 +1,12 @@
+commit 5cf707b499ff8115a8156a5e7139581aa5fde4f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 8 13:45:03 2010 -0800
+
+    Clarify that conversions to complex are OK.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/296042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

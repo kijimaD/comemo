@@ -1,0 +1,16 @@
+commit 012fec3821d6d01b69a563125fcb7ae49186be81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 15:15:11 2016 -0700
+
+    cmd/compile/internal/syntax: don't depend on hardwired $GOROOT name
+    
+    Fixes #17697.
+    
+    Change-Id: I3c47e139b09bde81566e29a1ac0ec8c58d55a34a
+    Reviewed-on: https://go-review.googlesource.com/32539
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

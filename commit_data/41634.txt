@@ -1,0 +1,19 @@
+commit d84cbec8908a04aa56889919942a3210963abaef
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 10 14:08:40 2020 -0700
+
+    cmd/compile: convert 386 port to use addressing modes pass
+    
+    Update #36468
+    
+    Change-Id: Idfdb845d097994689be450d6e8a57fa9adb57166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222782
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |   83 +-
+ src/cmd/compile/internal/ssa/gen/386.rules      |  289 +-
+ src/cmd/compile/internal/ssa/rewrite386.go      | 7170 ++++++-----------------
+ test/codegen/memops.go                          |   78 +-
+ 4 files changed, 1898 insertions(+), 5722 deletions(-)

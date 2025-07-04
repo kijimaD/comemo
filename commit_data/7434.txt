@@ -1,0 +1,13 @@
+commit 37b178739279d2ab17b836de64375401abdda8ae
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Feb 11 12:23:54 2011 +0100
+
+    flag: allow hexadecimal and octal input for integer flags.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4182043
+
+ src/pkg/flag/flag.go      | 8 ++++----
+ src/pkg/flag/flag_test.go | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

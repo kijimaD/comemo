@@ -1,0 +1,22 @@
+commit bcb98f126bc3a12a63333069b669cb8aaf251b89
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:33:33 2021 -0500
+
+    doc/go1.18: add docs on User.GroupIds
+    
+    Cobbled up some release notes from:
+    
+    https://go-review.googlesource.com/c/go/+/330753/
+    
+    Updates #47694
+    
+    Change-Id: I249e4b96b7d51185b07c11a734505677e9e36315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368358
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

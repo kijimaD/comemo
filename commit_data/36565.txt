@@ -1,0 +1,27 @@
+commit f02cc88f46e01c21e550dbf212aefcdad138a91d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat May 19 09:42:52 2018 +0200
+
+    test: relax whitespaces matching in codegen tests
+    
+    The codegen testsuite uses regexp to parse the syntax, but it doesn't
+    have a way to tell line comments containing checks from line comments
+    containing English sentences. This means that any syntax error (that
+    is, non-matching regexp) is currently ignored and not reported.
+    
+    There were some tests in memcombine.go that had an extraneous space
+    and were thus effectively disabled. It would be great if we could
+    report it as a syntax error, but for now we just punt and swallow the
+    spaces as a workaround, to avoid the same mistake again.
+    
+    Fixes #25452
+    
+    Change-Id: Ic7747a2278bc00adffd0c199ce40937acbbc9cf0
+    Reviewed-on: https://go-review.googlesource.com/113835
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/codegen/memcombine.go | 4 ++--
+ test/run.go                | 9 +++++----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

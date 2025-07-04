@@ -1,0 +1,16 @@
+commit 9b2b0c8c1663330c64c6cec8feb413f4cf464348
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 12:08:09 2014 -0400
+
+    regexp/syntax: reject large repetitions created by nesting small ones
+    
+    Fixes #7609.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/150270043
+
+ src/regexp/syntax/parse.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/regexp/syntax/parse_test.go | 13 +++++++++++++
+ 2 files changed, 47 insertions(+)

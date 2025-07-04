@@ -1,0 +1,26 @@
+commit 244c8b050093ec546311707760afaafabcbf2fef
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 20 12:46:33 2022 -0700
+
+    cmd/cgo: allow cgo to pass strings or []bytes bigger than 1<<30
+    
+    There's no real reason to limit to 1<<30 bytes. Maybe it would catch
+    some mistakes, but probably ones that would quickly manifest in other
+    ways.
+    
+    We can't use the fancy new unsafe.Slice function because this code
+    may still be generated for people with 1.16 or earlier in their go.mod file.
+    Use unsafe shenanigans instead.
+    
+    Fixes #53965
+    Fixes #53958
+    
+    Change-Id: Ibfa095192f50276091d6c2532e8ccd7832b57ca8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418557
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

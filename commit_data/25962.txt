@@ -1,0 +1,22 @@
+commit 75cc05fa557b26336bc8e3f0a6c9f03b904a85eb
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 12:19:49 2016 +0100
+
+    fmt: fix formatting of numbers with f.space and f.plus specified
+    
+    Do not replace the sign in front of a number with a space if both
+    f.space and f.plus are both specified for number formatting.
+    This was already the case for integers but not for floats
+    and complex numbers.
+    
+    Updates: #14543.
+    
+    Change-Id: I07ddeb505003db84a8a7d2c743dc19fc427a00bd
+    Reviewed-on: https://go-review.googlesource.com/19974
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 18 +++++++++++++++++-
+ src/fmt/format.go   |  5 +++--
+ 2 files changed, 20 insertions(+), 3 deletions(-)

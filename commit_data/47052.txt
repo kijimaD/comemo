@@ -1,0 +1,19 @@
+commit cfb532158fc5b5cd6b9c35bbc2ff7c203fe5f09b
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Wed Oct 27 11:41:47 2021 +0800
+
+    cmd/go: add darwin/arm64 in the list of supported systems in help message
+    
+    Fixes #49173.
+    
+    Change-Id: I71270b4ff7e9ede3cdfa5946b73142a731752adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358901
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/work/build.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

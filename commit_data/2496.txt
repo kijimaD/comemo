@@ -1,0 +1,14 @@
+commit 23d9197160d3fd7b90cbf94b0079c6f3c49727e4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 22 14:40:08 2009 -0700
+
+    canonicalize bug122.go
+    
+    R=rsc
+    DELTA=6  (1 added, 3 deleted, 2 changed)
+    OCL=30604
+    CL=30604
+
+ test/fixedbugs/bug122.go | 3 ++-
+ test/golden.out          | 3 ---
+ 2 files changed, 2 insertions(+), 4 deletions(-)

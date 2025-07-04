@@ -1,0 +1,14 @@
+commit c23e21e672873bf02946002df61e9127964aa44b
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Mar 13 11:54:25 2015 +0100
+
+    .gitignore: ignore ARM64 build products
+    
+    Change-Id: I56297aac4ee282fd117ec525b88dee4769477111
+    Reviewed-on: https://go-review.googlesource.com/7560
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ .gitignore | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 2c32f29f2f88e56f329547467090e7315cd3c1e8
+Author: Matthias Dötsch <matze@mdoetsch.de>
+Date:   Fri Oct 29 03:23:15 2021 +0000
+
+    cmd/go: clarify errors for pseudo-version commit length
+    
+    These error messages contain the expected shortened revision in braces,
+    but don't explicitly tell the user that this is the expected one.
+    
+    Just unified it with the "does not match version-control timestamp" error which does the same...
+    
+    Change-Id: I8e07df7bd776fd1b39c4c90c4788cb3d626ea00b
+    GitHub-Last-Rev: d14681ad086790f4e43c312c8a328d588acc6ec4
+    GitHub-Pull-Request: golang/go#42578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269877
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           | 6 +++---
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit d95888127195f5f0e032e280ef969eee669c8474
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Nov 5 22:47:45 2015 -0800
+
+    runtime: use WriteConsole to implement print and panic on windows
+    
+    Fixes #7864
+    
+    Change-Id: Id13369352aeccac8387876f0b911e383c543c28e
+    Reviewed-on: https://go-review.googlesource.com/16714
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_windows.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

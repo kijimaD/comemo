@@ -1,0 +1,26 @@
+commit 85d2751d2ea38b10127df0b27d04b1a26f54bcfa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 22 17:05:35 2021 +0700
+
+    cmd/compile: prevent compiling closures more than once
+    
+    Since CL 282892, functions are always compiled before closures. To do
+    that, when walking the closure, it is added to its outer function queue
+    for scheduling compilation later. Thus, a closure may be added to queue
+    more than once, causing the ICE dues to being compiled twice.
+    
+    To fix this, catching the re-walking of the closure expression and do
+    not add it to the compilation queue.
+    
+    Fixes #49029
+    
+    Change-Id: I7d188e8f5b4d5c4248a0d8e6389da26f1084e464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357960
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/walk/closure.go | 11 ++++++++++-
+ test/fixedbugs/issue49029.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

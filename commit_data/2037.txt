@@ -1,0 +1,32 @@
+commit c8f93788898e61fd3d94245a3a79bfc826a32cc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 00:18:37 2009 -0700
+
+    regenerate Makefiles.
+    fix bug in RPC.go (import "RPC" not "rpc.pb")
+    
+    R=r
+    DELTA=483  (261 added, 64 deleted, 158 changed)
+    OCL=27547
+    CL=27549
+
+ src/lib/container/Makefile | 26 ++++++++++++++++++--------
+ src/lib/fmt/Makefile       | 25 +++++++++++++++++--------
+ src/lib/go/Makefile        | 37 +++++++++++++++++++++++--------------
+ src/lib/hash/Makefile      | 45 +++++++++++++++++++++++++++------------------
+ src/lib/http/Makefile      | 29 +++++++++++++++++++----------
+ src/lib/io/Makefile        | 25 +++++++++++++++++--------
+ src/lib/json/Makefile      | 25 +++++++++++++++++--------
+ src/lib/math/Makefile      | 33 +++++++++++++++++++++------------
+ src/lib/net/Makefile       | 26 +++++++++++++++-----------
+ src/lib/os/Makefile        | 32 ++++++++++++++++++++------------
+ src/lib/reflect/Makefile   | 31 ++++++++++++++++++++-----------
+ src/lib/regexp/Makefile    | 23 ++++++++++++++++-------
+ src/lib/strconv/Makefile   | 31 ++++++++++++++++++++-----------
+ src/lib/sync/Makefile      | 23 ++++++++++++++++-------
+ src/lib/syscall/Makefile   | 42 ++++++++++++++++++++++++------------------
+ src/lib/tabwriter/Makefile | 23 ++++++++++++++++-------
+ src/lib/template/Makefile  | 25 +++++++++++++++++--------
+ src/lib/time/Makefile      | 31 ++++++++++++++++++++-----------
+ src/lib/unicode/Makefile   | 25 +++++++++++++++++--------
+ 19 files changed, 360 insertions(+), 197 deletions(-)

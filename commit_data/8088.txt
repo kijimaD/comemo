@@ -1,0 +1,12 @@
+commit 9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 14 08:16:40 2011 -0400
+
+    runtime: fix set and not used in chan.c
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4416042
+
+ src/pkg/runtime/chan.c | 1 -
+ 1 file changed, 1 deletion(-)

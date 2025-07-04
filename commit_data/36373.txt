@@ -1,0 +1,29 @@
+commit d7ab57efda161c1757e591ec469ca4d01976cb66
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 15 12:40:07 2018 +0100
+
+    cmd/go: fix 'go vet -h' to print the right text
+    
+    For the last two releases, its output has been the same as 'go -h'.
+    
+    The test and vet sub-commands share their flag logic via the cmdflag
+    package, so fixing it there would mean a larger refactor. Moreover, the
+    test subcommand handles its '-h' flag in a special way; that's #26999.
+    
+    For now, use a much less invasive fix, mirroring the special-casing of
+    'test -h' to simply print vet's short usage text.
+    
+    Also add a regression test via a cmd/go test script.
+    
+    Fixes #26998.
+    
+    Change-Id: Ie6b866d98116a1bc5f84a204e1c9f1c2f6b48bff
+    Reviewed-on: https://go-review.googlesource.com/129318
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/main.go                  | 7 +++++++
+ src/cmd/go/testdata/script/help.txt | 6 ++++++
+ 2 files changed, 13 insertions(+)

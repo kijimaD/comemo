@@ -1,0 +1,15 @@
+commit 66cb673de6068a42ce67b538ae561ac23aca13f1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 14:27:32 2020 -0400
+
+    crypto/tls: expand the ConnectionState docs
+    
+    Fixes #37572
+    
+    Change-Id: I493392f535a979ee16609861041da2ecfe21cf77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239744
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go | 82 +++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 63 insertions(+), 19 deletions(-)

@@ -1,0 +1,12 @@
+commit 5fcb0087dfc7fabf08c4b18494a14a9f805bb854
+Author: Adrian O'Grady <elpollouk@gmail.com>
+Date:   Mon Nov 30 14:27:37 2009 -0800
+
+    Added my name to the AUTHORS and CONTRIBUTORS files.
+    
+    R=rsc
+    https://golang.org/cl/157153
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

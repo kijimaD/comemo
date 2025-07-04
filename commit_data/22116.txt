@@ -1,0 +1,28 @@
+commit b9602632448099ce0ab16e53d5d2528030e94467
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 18 12:29:40 2015 -0400
+
+    cmd/internal/gc: move componentgen into portable code
+    
+    Change-Id: I652cc7a33a186d1041f62f6e7581421496832a27
+    Reviewed-on: https://go-review.googlesource.com/7747
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/5g/cgen.go         | 267 +-------------------------------------------
+ src/cmd/5g/galign.go       |   1 +
+ src/cmd/5g/ggen.go         |   2 +-
+ src/cmd/6g/cgen.go         | 267 +-------------------------------------------
+ src/cmd/6g/galign.go       |   1 +
+ src/cmd/6g/ggen.go         |   2 +-
+ src/cmd/7g/cgen.go         | 271 +--------------------------------------------
+ src/cmd/7g/galign.go       |   1 +
+ src/cmd/7g/ggen.go         |   5 +-
+ src/cmd/8g/cgen.go         | 267 +-------------------------------------------
+ src/cmd/8g/galign.go       |   1 +
+ src/cmd/8g/ggen.go         |   2 +-
+ src/cmd/9g/cgen.go         | 271 +--------------------------------------------
+ src/cmd/9g/galign.go       |   1 +
+ src/cmd/9g/ggen.go         |   5 +-
+ src/cmd/internal/gc/gen.go | 265 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/go.go  |   1 +
+ 17 files changed, 291 insertions(+), 1339 deletions(-)

@@ -1,0 +1,21 @@
+commit a9cc1051c11f821cb03d63fb9e05930f9e2f9fa5
+Author: David Golden <david@autopragmatic.com>
+Date:   Wed Apr 22 21:16:49 2020 -0400
+
+    time: note that formats may parse invalid strings
+    
+    The existing documentation for time format constants doesn't mention
+    that they may parse technically-invalid strings, such as single-digit
+    hours when a two-digit hour is required by a specification.  This commit
+    adds a short warning note to that effect.
+    
+    Fixes #37616
+    
+    Change-Id: I6e5e12bd42dc368f8ca542b4c0527a2b7d30acaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229460
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

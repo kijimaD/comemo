@@ -1,0 +1,21 @@
+commit d94ab597af9b3f8e8ba371023314d80f6b3be5a5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 8 15:59:07 2024 +0000
+
+    cmd/cgo/internal/testsanitizers: disable location checking for clang
+    
+    Pending a resolution to #65606, this CL marks clang's ASAN runtime as
+    unable to symbolize stack traces to unblock the LUCI clang builder.
+    
+    For #65606.
+    Fixes #65469.
+    
+    Change-Id: I649773085aff30e5703e7f7ac2c72a0430a015c2
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562675
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testsanitizers/cc_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

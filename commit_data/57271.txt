@@ -1,0 +1,16 @@
+commit fe63d483f4385ce7376f68abd37ad202e8ab798a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 28 11:15:32 2024 -0400
+
+    cmd/go: print the proper error message for setting telemetry vars
+    
+    For #68960
+    
+    Change-Id: I5495b3d45ad3817d7edf6336a5e24a331d5cf8d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/envcmd/env.go        | 2 +-
+ src/cmd/go/testdata/script/telemetry.txt | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

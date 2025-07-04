@@ -1,0 +1,26 @@
+commit 0f7ac9b4f5f6bc20344feb8a2c32b8126df80baa
+Author: Alex Opie <amtopie@gmail.com>
+Date:   Thu Sep 17 04:31:50 2020 +0000
+
+    cmd/go: use the correct linker config in the buildID hash
+    
+    The linker config is hashed into the buildID; however,
+    the GOROOT_FINAL environment variable that is
+    actually used when -trimpath is specified was not
+    reflected in that hash. This change fixes that.
+    
+    Fixes #38989
+    
+    Change-Id: I418a21a9f6293ca63c101d22b501dfdba8e91ac6
+    GitHub-Last-Rev: 4cf82920e4a76173c5cb5359b059e87ee7fc7f51
+    GitHub-Pull-Request: golang/go#40296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243557
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                   |  9 +++--
+ src/cmd/go/internal/work/gc.go                     |  5 ++-
+ .../go/testdata/script/link_matching_actionid.txt  | 38 ++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 3 deletions(-)

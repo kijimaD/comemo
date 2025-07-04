@@ -1,0 +1,19 @@
+commit c312d0e0cacb419a414578a7eb3fb56ceb3964e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 16:35:35 2010 -0800
+
+    net: use slightly less predictable dns request id
+    
+    not trying to be secure, just not repetitive
+    (sending with the same id repeatedly makes
+    some resolvers stop replying.)
+    
+    eventually we'll replace this with linking against
+    the system's native resolver.
+    
+    R=p
+    CC=golang-dev
+    https://golang.org/cl/207051
+
+ src/pkg/net/dnsclient.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

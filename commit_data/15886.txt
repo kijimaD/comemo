@@ -1,0 +1,14 @@
+commit 0ffdfe42d169bf54ac60240822bb9032648af4c7
+Author: Miki Tebeka <miki.tebeka@gmail.com>
+Date:   Thu Mar 21 20:06:25 2013 -0700
+
+    cmd/cgo: fix the cgo example on multiple assignment context.
+    
+    Change from atoi to strtol since atoi does not set errno.
+    
+    R=golang-dev, minux.ma, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7888047
+
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 3b770f2ccb1fa6fecc22ea822a19447b10b70c5c
+Author: Rob Findley <rfindley@google.com>
+Date:   Sat May 29 22:14:12 2021 -0400
+
+    go/types: don't declare 'comparable' when typeparams are disabled
+    
+    Fixes #46453
+    
+    Change-Id: I92b9b1e43ec5182162b2eeeb667f1f548ea373a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323609
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go | 8 ++++++++
+ src/go/types/universe.go   | 5 ++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

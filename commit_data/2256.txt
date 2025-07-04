@@ -1,0 +1,13 @@
+commit c1fd171d182e190730fdf8f89fc26b76e2faf16a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 20 11:10:18 2009 -0700
+
+    removed TODO
+    (new rules on type compatibility cover this already)
+    
+    DELTA=2  (0 added, 2 deleted, 0 changed)
+    OCL=29094
+    CL=29096
+
+ doc/go_spec.html | 2 --
+ 1 file changed, 2 deletions(-)

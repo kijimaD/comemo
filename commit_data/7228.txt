@@ -1,0 +1,14 @@
+commit ab036abdf02620dd018c27217b3cd15f4042588d
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Jan 24 13:03:32 2011 -0800
+
+    suffixarray: use binary search for both ends of Lookup
+    
+    This prevents many unnecessary comparisons when n is large.
+    
+    R=gri, gri1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4068043
+
+ src/pkg/index/suffixarray/suffixarray.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

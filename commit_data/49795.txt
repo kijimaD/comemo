@@ -1,0 +1,22 @@
+commit 0d9ed0638be1aa5c68c1bef0713c338e206a6656
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 9 10:32:59 2022 -0400
+
+    test: skip -buildmode=pie tests on alpine
+    
+    Skip a collection of -buildmode=pie tests on alpine, which are
+    currently failing on the linux-amd64-alpine builder. Once #54354 has
+    been investigated and resolved we can turn these tests back on.
+    
+    Updates #54354.
+    
+    Change-Id: I99d4016a40873ee6bb4eda571a64eddbe719c76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testshared/shared_test.go |  3 +++
+ src/cmd/dist/test.go               | 17 +++++++++++++----
+ src/cmd/go/go_test.go              |  4 ++++
+ 3 files changed, 20 insertions(+), 4 deletions(-)

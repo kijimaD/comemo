@@ -1,0 +1,14 @@
+commit 939bab606aa0327fcd6e64a7cc95bce15d893cc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 23 22:08:27 2009 -0800
+
+    Add a test for issue 337.
+    
+    gccgo currently miscompiles this test.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181050
+
+ test/fixedbugs/bug237.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,12 @@
+commit 67aa1399d65a0d7c2d3b4d99447f07811cf79194
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 19:07:10 2009 -0800
+
+    - make make test working again
+    - some factoring for easier experimentation
+    
+    R=rsc
+    https://golang.org/cl/174048
+
+ src/cmd/gofmt/test.sh | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,16 @@
+commit 0c31992eb3ee5a4faa424b22666098bd422117cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 11:52:19 2015 -0400
+
+    test: add test that variables captured by deferred funcs are current on fault
+    
+    This came up in private mail.
+    It works today and I want to make sure it stays working.
+    
+    Change-Id: I13ebdc2dfadb3c72d7f179be89883137320c05d0
+    Reviewed-on: https://go-review.googlesource.com/7390
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ test/recover4.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

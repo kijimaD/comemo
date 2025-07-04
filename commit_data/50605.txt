@@ -1,0 +1,31 @@
+commit efa3f1749fabe3b3062edff7651baa8cb1f574ab
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 28 12:24:31 2021 -0400
+
+    internal/coverage: add apis for reading/writing counter data
+    
+    Add utilities for reading and writing of counter data files as part of
+    the new code coverage implementation.
+    
+    Trivia note: currently the contents of counter data files are emitted
+    in little-endian form, which for the counters is somewhat painful in
+    that we need to visit each counter value and properly encode it. It
+    might be better to instead emit counters in native endianity and then
+    teach the tools to decode properly in the case of an endianity
+    mismatch.
+    
+    Updates #51430.
+    
+    Change-Id: I124fdcb40fc339a48b64b35264bf24c3be50ddd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359403
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/go/build/deps_test.go                          |   8 +
+ .../coverage/decodecounter/decodecounterfile.go    | 385 +++++++++++++++++++++
+ src/internal/coverage/encodecounter/encode.go      | 284 +++++++++++++++
+ src/internal/coverage/stringtab/stringtab.go       |  35 +-
+ src/internal/coverage/test/counter_test.go         | 231 +++++++++++++
+ src/internal/coverage/test/roundtrip_test.go       |   2 +-
+ 6 files changed, 935 insertions(+), 10 deletions(-)

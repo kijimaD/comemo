@@ -1,0 +1,19 @@
+commit 7fa3b9f7ea3f6c24a32a6592c4cd21ee0b1f2add
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Aug 14 13:04:14 2012 -0400
+
+    exp/proxy: remove package.
+    
+    This package has moved to go.net.
+    
+    R=golang-dev, minux.ma, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6461056
+
+ src/pkg/exp/proxy/direct.go        |  18 ----
+ src/pkg/exp/proxy/per_host.go      | 140 -------------------------
+ src/pkg/exp/proxy/per_host_test.go |  55 ----------
+ src/pkg/exp/proxy/proxy.go         |  94 -----------------
+ src/pkg/exp/proxy/proxy_test.go    |  50 ---------
+ src/pkg/exp/proxy/socks5.go        | 207 -------------------------------------
+ 6 files changed, 564 deletions(-)

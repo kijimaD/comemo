@@ -1,0 +1,19 @@
+commit 064ae118c1b8db9a5704be2529675cdab05109db
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 07:26:07 2017 +0900
+
+    cmd/link: correct runtime/cgo detection for -linkshared
+    
+    Current code detect runtime/cgo iff the package or sub packages imports
+    runtime/cgo directly. However, when we are using linkshared, imported
+    shared libraries might have already included runtime/cgo.
+    This CL handles later case by looking an actual runtime/cgo symbol.
+    
+    Change-Id: I35e7dfdb5e1a939eafc95a0259ee1af9782bc864
+    Reviewed-on: https://go-review.googlesource.com/56310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

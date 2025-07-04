@@ -1,0 +1,21 @@
+commit b89033399894776d677a4cecc82e2ac888fd7906
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 11:37:12 2015 -0500
+
+    runtime: clean up gcMarkDone
+    
+    This improves the documentation comment on gcMarkDone, replaces a
+    recursive call with a simple goto, and disables preemption before
+    stopping the world in accordance with the documentation comment on
+    stopTheWorldWithSema.
+    
+    Updates #13363, but, sadly, doesn't fix it.
+    
+    Change-Id: I6cb2a5836b35685bf82f7b1ce7e48a7625906656
+    Reviewed-on: https://go-review.googlesource.com/17149
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 43ae54ba2a4583fbdbf8a7641bf584ab5f8153b1
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Jun 22 19:33:42 2017 -0700
+
+    net/http: document that Dir can serve sensitive directories
+    
+    Updates #20759.
+    
+    Change-Id: Ic61dcb6d101ad1491dca535aebb6ee8ee740d013
+    Reviewed-on: https://go-review.googlesource.com/46468
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,12 @@
+commit 31f2ed2cae4df04d9180574f75ec94a80578f8ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 27 01:22:53 2016 +0000
+
+    doc: go1.7.txt updates
+    
+    Change-Id: I6ac3d11ee8896f636235fe10c2556f93584019b5
+    Reviewed-on: https://go-review.googlesource.com/19984
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.7.txt | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 704893b16be5ab99913ee04c615d570ad5d57027
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 8 10:21:09 2018 +0200
+
+    misc/ios: retry iOS launch even if no device app path was found
+    
+    Now that the iOS exec wrapper uninstalls any existing test app before
+    installing a new, looking up the device app path might fail. Before,
+    the lookup always succeeded (even though the path reported might be
+    stale).
+    
+    For the iOS builder.
+    
+    Change-Id: I5667b6fae15f88745bdee796db219a429a26e203
+    Reviewed-on: https://go-review.googlesource.com/112075
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

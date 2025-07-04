@@ -1,0 +1,12 @@
+commit 5de2e1c5bb0e72ee3e7bf301ea388c0c5efe2a1b
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Feb 25 20:06:41 2010 -0800
+
+    doc: Use byte("...") over byte{...}
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/224069
+
+ doc/progs/helloworld3.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

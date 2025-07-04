@@ -1,0 +1,12 @@
+commit 3fa133f482a7bfcf033a118c85121fef9902492b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Apr 24 14:30:31 2017 +0900
+
+    cmd/compile: fix comments in transformclosure
+    
+    Change-Id: I7a18798180405504dc064424d63dac49634168fb
+    Reviewed-on: https://go-review.googlesource.com/41530
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

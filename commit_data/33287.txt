@@ -1,0 +1,33 @@
+commit 15d6ab69fbd8c84cde109def59c7e002296c19e8
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 15:20:21 2017 -0400
+
+    runtime: make systemstack tail call if already switched
+    
+    Currently systemstack always calls its argument, even if we're already
+    on the system stack. Unfortunately, traceback with _TraceJump stops at
+    the first systemstack it sees, which often cuts off runtime stacks
+    early in profiles.
+    
+    Fix this by performing a tail call if we're already on the system
+    stack. This eliminates it from the traceback entirely, so it won't
+    stop prematurely (or all get mushed into a single node in the profile
+    graph).
+    
+    Change-Id: Ibc69e8765e899f8d3806078517b8c7314da196f4
+    Reviewed-on: https://go-review.googlesource.com/74050
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_386.s      |  7 ++++---
+ src/runtime/asm_amd64.s    |  7 ++++---
+ src/runtime/asm_amd64p32.s |  5 +++--
+ src/runtime/asm_arm.s      |  6 ++++--
+ src/runtime/asm_arm64.s    |  6 ++++--
+ src/runtime/asm_mips64x.s  |  7 +++++--
+ src/runtime/asm_mipsx.s    |  7 +++++--
+ src/runtime/asm_ppc64x.s   |  3 +++
+ src/runtime/asm_s390x.s    |  7 +++++--
+ src/runtime/export_test.go | 13 +++++++++++++
+ src/runtime/stack_test.go  | 33 +++++++++++++++++++++++++++++++++
+ 11 files changed, 83 insertions(+), 18 deletions(-)

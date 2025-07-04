@@ -1,0 +1,13 @@
+commit b23b001bd2e780ddb1eacded10797e92be1f3650
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 14:25:52 2012 -0400
+
+    A+C: add Ingo Oeser (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5794061
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

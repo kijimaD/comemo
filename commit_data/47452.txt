@@ -1,0 +1,25 @@
+commit 787708a6ff66092678cd4312358e90a5085eac89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 08:59:49 2021 -0800
+
+    cmd/compile/internal/types2: remove tparamIsIface flag and corresponding dead code
+    
+    Added/clarified some comments.
+    
+    Change-Id: Ib08d3343ff08c23cc8880a27a0148d1ff077a80f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363654
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go   | 27 +-------
+ src/cmd/compile/internal/types2/decl.go       |  4 ++
+ src/cmd/compile/internal/types2/expr.go       | 15 +----
+ src/cmd/compile/internal/types2/index.go      | 89 +--------------------------
+ src/cmd/compile/internal/types2/predicates.go | 18 +-----
+ src/cmd/compile/internal/types2/sizes.go      |  7 ++-
+ src/cmd/compile/internal/types2/struct.go     |  5 +-
+ src/cmd/compile/internal/types2/type.go       |  4 +-
+ src/cmd/compile/internal/types2/typeparam.go  | 17 +----
+ 9 files changed, 24 insertions(+), 162 deletions(-)

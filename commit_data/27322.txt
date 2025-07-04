@@ -1,0 +1,19 @@
+commit f0e2d32fde77ad03616304ab42b8c7426cf3a350
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 6 15:34:25 2016 +0000
+
+    Revert "net/url: validate ports in IPv4 addresses"
+    
+    This reverts commit 9f1ccd647fcdb1b703c1042c90434e15aff75013.
+    
+    For #14860.
+    
+    Change-Id: I63522a4dda8915dc8b972ae2e12495553ed65f09
+    Reviewed-on: https://go-review.googlesource.com/22861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go      | 6 +-----
+ src/net/url/url_test.go | 6 ++----
+ 2 files changed, 3 insertions(+), 9 deletions(-)

@@ -1,0 +1,14 @@
+commit 549a60046b54b14ed93f3fb9136beb007030cf15
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 18 17:21:00 2009 -0700
+
+    tests for redeclaration in :=
+    
+    R=ken
+    DELTA=71  (71 added, 0 deleted, 0 changed)
+    OCL=27616
+    CL=27616
+
+ test/decl.go    | 29 +++++++++++++++++++++++++++++
+ test/declbad.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+)

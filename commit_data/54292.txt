@@ -1,0 +1,29 @@
+commit 06f420fc19f8af6a1935e4edbfd1af361f663190
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Apr 21 11:08:09 2023 +0800
+
+    runtime: remove the meaningless offset of 8 for duffzero on loong64
+    
+    Currently we subtract 8 from offset when calling duffzero because 8
+    is added to offset in the duffzero implementation. This operation is
+    meaningless, so remove it.
+    
+    Change-Id: I7e451d04d7e98ccafe711645d81d3aadf376766f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487295
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/loong64/ggen.go        |  23 ++-
+ src/cmd/compile/internal/loong64/ssa.go         |  11 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go           |   2 +-
+ src/runtime/duff_loong64.s                      | 256 ++++++++++++------------
+ src/runtime/mkduff.go                           |   4 +-
+ 6 files changed, 151 insertions(+), 149 deletions(-)

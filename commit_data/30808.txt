@@ -1,0 +1,38 @@
+commit 86dc86b4f948e16001903879162e9cf8da8f0537
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 18 11:16:30 2017 -0700
+
+    cmd/compile: don't merge load+op if other op arg is still live
+    
+    We want to merge a load and op into a single instruction
+    
+        l = LOAD ptr mem
+        y = OP x l
+    
+    into
+    
+        y = OPload x ptr mem
+    
+    However, all of our OPload instructions require that y uses
+    the same register as x. If x is needed past this instruction, then
+    we must copy x somewhere else, losing the whole benefit of merging
+    the instructions in the first place.
+    
+    Disable this optimization if x is live past the OP.
+    
+    Also disable this optimization if the OP is in a deeper loop than the load.
+    
+    Update #19595
+    
+    Change-Id: I87f596aad7e91c9127bfb4705cbae47106e1e77a
+    Reviewed-on: https://go-review.googlesource.com/38337
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  41 +++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  56 ++++++------
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++++++-------
+ src/cmd/compile/internal/ssa/likelyadjust.go |   8 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |  28 +++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 112 +++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 132 +++++++++++++--------------
+ 7 files changed, 249 insertions(+), 194 deletions(-)

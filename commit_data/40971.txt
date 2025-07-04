@@ -1,0 +1,37 @@
+commit 41348081fa0511c8f442d236d32ff8d589c8c557
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Dec 10 14:27:53 2019 +0000
+
+    all: fix a number of misuses of the word "an"
+    
+    After golang.org/cl/210124, I wondered if the same error had gone
+    unnoticed elsewhere. I quickly spotted another dozen mistakes after
+    reading through the output of:
+    
+            git grep '\<[Aa]n [bcdfgjklmnpqrtvwyz][a-z]'
+    
+    Many results are false positives for acronyms like "an mtime", since
+    it's pronounced "an em-time". However, the total amount of output isn't
+    that large given how simple the grep pattern is.
+    
+    Change-Id: Iaa2ca69e42f4587a9e3137d6c5ed758887906ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210678
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Zach Jones <zachj1@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/articles/go_command.html          | 2 +-
+ src/archive/tar/reader.go             | 2 +-
+ src/cmd/link/internal/ld/deadcode.go  | 2 +-
+ src/cmd/link/internal/ld/deadcode2.go | 2 +-
+ src/cmd/pprof/readlineui.go           | 2 +-
+ src/crypto/elliptic/p256.go           | 2 +-
+ src/encoding/gob/gobencdec_test.go    | 2 +-
+ src/io/io_test.go                     | 2 +-
+ src/io/multi_test.go                  | 2 +-
+ src/reflect/type.go                   | 2 +-
+ src/runtime/alg.go                    | 2 +-
+ src/runtime/runtime1.go               | 2 +-
+ 12 files changed, 12 insertions(+), 12 deletions(-)

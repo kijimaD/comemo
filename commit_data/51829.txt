@@ -1,0 +1,25 @@
+commit cb61585e870e2967d965d673c98f9d9a45b6e855
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 11 17:27:56 2023 -0500
+
+    cmd/dist: skip building std for the host when cross-compiling
+    
+    The purpose of building the host toolchain is so that we can use it to
+    build and test the target configuration.
+    
+    The host configuration should already be tested separately (with its
+    own builder), so we do not need to build the parts of that
+    configuration that are not relevant to the task of building and
+    testing the target configuration.
+    
+    Updates #47257.
+    
+    Change-Id: I814778d2d65b1f2887c9419232b5bfd4068f58af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461676
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/dist/build.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

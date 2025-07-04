@@ -1,0 +1,12 @@
+commit 5c19c4e5e31849c7a597adf88617e26a180ec4fb
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon May 24 16:53:23 2010 -0700
+
+    net: udp, implement BindToDevice
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/1271041
+
+ src/pkg/net/udpsock.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

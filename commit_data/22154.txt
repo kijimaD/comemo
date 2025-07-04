@@ -1,0 +1,20 @@
+commit 04642e92aca42076662edd3eedc57873bb1568dd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Mar 9 03:05:40 2015 -0400
+
+    cmd/internal/ld, cmd/8l: external linking for windows/386
+    
+    Update #4069: this CL fixes the issue on windows/386.
+    
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2e
+    Reviewed-on: https://go-review.googlesource.com/7283
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/8l/asm.go           |  35 ++++++
+ src/cmd/8l/obj.go           |   4 +-
+ src/cmd/internal/ld/data.go |   6 +-
+ src/cmd/internal/ld/go.go   |   5 -
+ src/cmd/internal/ld/lib.go  |  18 +++
+ src/cmd/internal/ld/pe.go   | 282 ++++++++++++++++++++++++++++++++++++++------
+ 6 files changed, 309 insertions(+), 41 deletions(-)

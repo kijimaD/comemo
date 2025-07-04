@@ -1,0 +1,31 @@
+commit ac9137f8d312c3a6916ab71de61b05c192c455f0
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Jul 7 11:20:16 2023 -0400
+
+    go/types, types2: do not mutate arguments in NewChecker
+    
+    CL 507975 resulted in new data races (as reported in #61212), because
+    the pkg argument to NewChecker was mutated.
+    
+    Fix this by deferring the recording of the goVersion in pkg until type
+    checking is actually initiated via a call to Checker.Files.
+    Additionally, modify types2/check.go to bring it in sync with the
+    changes in go/types/check.go, and generate the new version_test.go from
+    the types2 file.
+    
+    Also move parsing the version into checkFiles, for simplicity.
+    
+    Fixes #61212
+    
+    Change-Id: I15edb6c2cff3085622fe7c6a3b0dab531d27bd04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508439
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/check.go        | 38 +++++++++++++------
+ src/cmd/compile/internal/types2/version_test.go | 24 ++++++++++++
+ src/go/types/check.go                           | 49 ++++++++++++++-----------
+ src/go/types/generate_test.go                   |  1 +
+ src/go/types/version_test.go                    |  2 +
+ 5 files changed, 82 insertions(+), 32 deletions(-)

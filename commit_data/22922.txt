@@ -1,0 +1,14 @@
+commit 965d00f82a5efa1a729db71b813bc6c3fd57bcf2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 6 22:10:28 2015 -0400
+
+    buildall.bash: also build for linux/arm with GOARM=5
+    
+    Similar for linux/386 with GO386=387.
+    
+    Change-Id: If8b6f8a0659a1b3e078d87a43fcfe8a38af20308
+    Reviewed-on: https://go-review.googlesource.com/9821
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

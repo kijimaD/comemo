@@ -1,0 +1,17 @@
+commit 3e6ca3a506fc89f19277b3c19b751847b3864185
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 20 10:22:10 2022 -0400
+
+    cmd/go/internal/modload: update TestQueryImport to pass with tagged versions of x/net
+    
+    For #48523.
+    
+    Change-Id: Ied35d15462cbae1002e1db1e6e119a6c9f8323da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444156
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

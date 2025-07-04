@@ -1,0 +1,23 @@
+commit fe5f95eeccb1b913f608c547b2b9f8919dc9b225
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 24 20:14:33 2020 +0200
+
+    lib/time, time/tzdata: update tz data to 2020d
+    
+    See http://mm.icann.org/pipermail/tz-announce/2020-October/000060.html
+    and http://mm.icann.org/pipermail/tz-announce/2020-October/000062.html
+    for a description of the changes.
+    
+    Updates #22487
+    
+    Change-Id: I4b2717d2d642284889345a0125eb6c614575c0ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264681
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 422355 -> 422449 bytes
+ src/time/tzdata/zipdata.go | 13659 ++++++++++++++++++++++---------------------
+ 3 files changed, 6832 insertions(+), 6831 deletions(-)

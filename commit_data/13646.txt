@@ -1,0 +1,21 @@
+commit 58064a7cab9d39ff9b58c94e76e441dc238343b9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 18 17:03:32 2012 +1000
+
+    pprof: make it work on windows again
+    
+    - pprof is a perl script, so go command should invoke
+      perl instead of trying to run pprof directly;
+    - pprof should use "go tool nm" unconditionally on windows,
+      no one else can extract symbols from Go program;
+    - pprof should use "go tool nm" instead of "6nm".
+    
+    Fixes #3879.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6445082
+
+ misc/pprof         | 18 ++++++++----------
+ src/cmd/go/tool.go | 12 +++++++++++-
+ 2 files changed, 19 insertions(+), 11 deletions(-)

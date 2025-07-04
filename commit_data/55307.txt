@@ -1,0 +1,28 @@
+commit 8e3930f2588a3f6d8fcaac7ef8add9c2d5dedc0e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 18 17:03:19 2023 +0000
+
+    runtime: skip TestRuntimeLockMetricsAndProfile for flakiness
+    
+    This test was added to check new mutex profile functionality.
+    Specifically, it checks to make sure that the functionality behind
+    GODEBUG=runtimecontentionstacks works. The runtime currently tracks
+    contention from runtime-internal mutexes in mutex profiles, but it does
+    not record stack traces for them, attributing the time to a dummy
+    symbol. This GODEBUG enables collecting stacks.
+    
+    Just disable the test. Even if this functionality breaks, it won't
+    affect Go users and it'll help keep the builders green. It's fine to
+    leave the test because this will be revisited in the next dev cycle.
+    
+    For #64253.
+    
+    Change-Id: I7938fe0f036fc4e4a0764f030e691e312ec2c9b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,15 @@
+commit 1a706bbf055d78238ec33c381a12b71800dae92f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 12 14:20:17 2017 +0200
+
+    doc: unify colons and spacing in diagnostics guide
+    
+    Unify colons (outside of <strong></strong>) and add a missing space in
+    the list of groups of diagnostics solutions.
+    
+    Change-Id: Icbcd94427d4905dd88c4ea82aaa5dbf064c00990
+    Reviewed-on: https://go-review.googlesource.com/63111
+    Reviewed-by: JBD <jbd@google.com>
+
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

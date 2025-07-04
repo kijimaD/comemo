@@ -1,0 +1,26 @@
+commit 397ba2cb4a10ec5e383f1df7617b4b8bccf8dfab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 11:30:08 2013 -0400
+
+    cmd/cgo: replace C.malloc with our own wrapper
+    
+    This allows us to make two changes:
+    
+    1. Force the argument type to be size_t, even on broken
+       systems that declare malloc to take a ulong.
+    
+    2. Call runtime.throw if malloc fails.
+       (That is, the program crashes; it does not panic.)
+    
+    Fixes #3403.
+    Fixes #5926.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13413047
+
+ src/cmd/cgo/ast.go        |  7 +++++++
+ src/cmd/cgo/main.go       |  2 +-
+ src/cmd/cgo/out.go        | 40 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/cgocall.c |  2 ++
+ 4 files changed, 48 insertions(+), 3 deletions(-)

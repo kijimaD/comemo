@@ -1,0 +1,15 @@
+commit 8c46e47b61447c21d4269fe746a9a248acd5dfd4
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Aug 12 14:44:16 2011 +1000
+
+    crypto, exec, path, time: add support for OpenBSD
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4837048
+
+ src/pkg/crypto/rand/Makefile   | 3 +++
+ src/pkg/exec/Makefile          | 3 +++
+ src/pkg/path/filepath/Makefile | 3 +++
+ src/pkg/time/Makefile          | 5 +++++
+ 4 files changed, 14 insertions(+)

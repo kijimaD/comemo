@@ -1,0 +1,12 @@
+commit 84834feffd4bb39dd9be5bef131f3b7a7a20c247
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 14 18:02:08 2010 -0700
+
+    log: roll back deprecation of old API to apply fix to log.Output in public release.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2525042
+
+ src/pkg/log/log.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

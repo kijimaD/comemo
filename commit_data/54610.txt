@@ -1,0 +1,28 @@
+commit dc523c8ddf5b0ce985ea90c65cbaa097c9e3ee09
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri May 26 12:02:54 2023 +0800
+
+    cmd: add a new analyzer for check missing values after append
+    
+    If there is no second parameter added during append, there will be no prompt when executing go vet. Add an analyzer to detect this situation
+    
+    Update #60448
+    
+    Change-Id: If9848835424f310c54e3e9377aaaad4a1516871a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498416
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/internal/test/flagdefs.go               |  1 +
+ .../x/tools/go/analysis/passes/appends/appends.go  | 49 ++++++++++++++++++++++
+ .../x/tools/go/analysis/passes/appends/doc.go      | 20 +++++++++
+ src/cmd/vendor/modules.txt                         |  1 +
+ src/cmd/vet/main.go                                |  2 +
+ src/cmd/vet/testdata/appends/appends.go            | 12 ++++++
+ src/cmd/vet/vet_test.go                            |  1 +
+ 7 files changed, 86 insertions(+)

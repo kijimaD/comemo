@@ -1,0 +1,15 @@
+commit ec8c611b406ca7667dfe7ef87a149624bc88e21d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 17:04:51 2009 -0700
+
+    - use new css for godoc templates
+    - final location of files TBD
+    
+    R=rsc,r
+    DELTA=84  (19 added, 46 deleted, 19 changed)
+    OCL=34758
+    CL=34761
+
+ lib/godoc/package.html    | 11 ++++++-----
+ lib/godoc/parseerror.html |  6 ++++++
+ 2 files changed, 12 insertions(+), 5 deletions(-)

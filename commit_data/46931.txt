@@ -1,0 +1,20 @@
+commit 3befaf0cdb18420f45acfa7cee725297aa550faf
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Oct 16 23:19:57 2021 +0800
+
+    net/url: fix stale RFC 3986 links
+    
+    The URLs for RFC 3986 have been changed from:
+      http://tools.ietf.org/html/rfc3986
+    to:
+      https://datatracker.ietf.org/doc/html/rfc3986
+    
+    Change-Id: I0662557d91bbb7de51d7ca4bc64e838741cd9074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356429
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/net/url/url_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

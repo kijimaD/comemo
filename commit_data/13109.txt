@@ -1,0 +1,14 @@
+commit ed480128a6da8e65119738bf792f3fbe4af2e16f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 00:12:58 2012 -0400
+
+    cmd/6a, cmd/6l: add BSWAPL, BSWAPQ
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6209087
+
+ src/cmd/6a/lex.c   | 2 ++
+ src/cmd/6l/6.out.h | 2 ++
+ src/cmd/6l/optab.c | 7 +++++++
+ 3 files changed, 11 insertions(+)

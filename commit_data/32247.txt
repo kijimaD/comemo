@@ -1,0 +1,17 @@
+commit c3fa6f4ddc4a79f436e842742ae735e617f8522e
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 14 17:26:22 2017 +0900
+
+    debug/macho: make Type implements fmt.(Go)Stringer interfaces
+    
+    Fixes #21436
+    
+    Change-Id: I56f43e2852696c28edbcc772a54125a9a9c32497
+    Reviewed-on: https://go-review.googlesource.com/55262
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/file_test.go |  9 +++++++++
+ src/debug/macho/macho.go     | 10 ++++++++++
+ 2 files changed, 19 insertions(+)

@@ -1,0 +1,35 @@
+commit 23c5db9bbbfe2d5656b8f153e1cc7327e90d8005
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Sun May 7 15:58:03 2017 +0100
+
+    cmd/asm: enable MOVSD in the encoding end-to-end test
+    
+    MOVSD is properly handled but its encoding test wasn't enabled. Enable
+    it.
+    
+    For reference this was found with a little tool I wrote [1] to explore
+    which instructions are missing or not tested in the go obj package and
+    assembler:
+    
+    "which SSE2 instructions aren't tested? And don't list instructions
+    which can take MMX operands"
+    
+    $ x86db-gogen list --extension SSE2 --not-tested --not-mmx
+    CLFLUSH mem           [m:  np 0f ae /7] WILLAMETTE,SSE2
+    MOVSD   xmmreg,xmmreg [rm: f2 0f 10 /r] WILLAMETTE,SSE2
+    MOVSD   xmmreg,xmmreg [mr: f2 0f 11 /r] WILLAMETTE,SSE2
+    MOVSD   mem64,xmmreg  [mr: f2 0f 11 /r] WILLAMETTE,SSE2
+    MOVSD   xmmreg,mem64  [rm: f2 0f 10 /r] WILLAMETTE,SSE2
+    
+    (CLFLUSH was introduced with SSE2, but has its own CPUID bit)
+    
+    [1] https://github.com/dlespiau/x86db
+    
+    Change-Id: Ic3af3028cb8d4f02e53fdebb9b30fb311f4ee454
+    Reviewed-on: https://go-review.googlesource.com/42814
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

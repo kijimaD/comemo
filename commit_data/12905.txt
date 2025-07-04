@@ -1,0 +1,14 @@
+commit b2c6116843a8881debb003168aacaf7c9d488472
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 18 09:57:00 2012 +1000
+
+    lib9: fix warning under clang 3.1
+    
+    Fixes #3534.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6035054
+
+ src/lib9/ctime.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

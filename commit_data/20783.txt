@@ -1,0 +1,16 @@
+commit fdf458436af89b8052489fd9ba53ef16e693d12b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Oct 24 15:49:17 2014 -0200
+
+    cmd/go: add bzr support for vcs root checking
+    
+    Complements the logic introduced in CL 147170043.
+    
+    LGTM=rsc
+    R=rsc, gustavo
+    CC=golang-codereviews
+    https://golang.org/cl/147240043
+
+ src/cmd/go/get.go | 11 +++++++++--
+ src/cmd/go/vcs.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 5 deletions(-)

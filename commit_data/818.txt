@@ -1,0 +1,21 @@
+commit d364d28142ec9083a7fe373d7f47f151b726e7de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:36:30 2008 -0700
+
+    implement new semicolon rules:
+    
+     *  1. all statements and declarations are terminated by semicolons
+     *  2. semicolons can be omitted at top level.
+     *  3. semicolons can be omitted before and after the closing ) or }
+     *      on a list of statements or declarations.
+    
+    now that semicolons are in, uncomment forward declaration
+            of interfaces
+    
+    R=ken
+    DELTA=285  (124 added, 114 deleted, 47 changed)
+    OCL=16638
+    CL=16646
+
+ src/cmd/gc/go.y | 282 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 146 insertions(+), 136 deletions(-)

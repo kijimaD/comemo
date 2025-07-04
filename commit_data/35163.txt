@@ -1,0 +1,16 @@
+commit b9785fc844f49230c6b7a59e2b9e4114feb9ae4f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 26 15:46:12 2018 -0700
+
+    cmd/compile: log Ctz non-zero proofs
+    
+    I forgot this in CL 109358.
+    
+    Change-Id: Ia5e8bd9cf43393f098b101a0d6a0c526e3e4f101
+    Reviewed-on: https://go-review.googlesource.com/109775
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,23 @@
+commit 86e3cb8da5a22794bbbdf34e934dc180e1c86d01
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 11:10:31 2014 -0500
+
+    runtime: introduce MSpan.needzero instead of writing to span data
+    
+    This cleans up the code significantly, and it avoids any
+    possible problems with madvise zeroing out some but
+    not all of the data.
+    
+    Fixes #6400.
+    
+    LGTM=dave
+    R=dvyukov, dave
+    CC=golang-codereviews
+    https://golang.org/cl/57680046
+
+ src/pkg/runtime/malloc.goc |  2 +-
+ src/pkg/runtime/malloc.h   |  3 ++-
+ src/pkg/runtime/mcentral.c |  4 ++--
+ src/pkg/runtime/mgc0.c     |  6 ++++--
+ src/pkg/runtime/mheap.c    | 44 +++++++++++---------------------------------
+ 5 files changed, 20 insertions(+), 39 deletions(-)

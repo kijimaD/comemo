@@ -1,0 +1,14 @@
+commit 108ec5f75a45f3e8f12698f5476b51723feda838
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 22:52:45 2015 -0400
+
+    runtime: fix systemstack tracebacks on nacl/arm
+    
+    For #11956.
+    
+    Change-Id: Ic9b57cafa197953cc7f435941e44d42b60b3ddf0
+    Reviewed-on: https://go-review.googlesource.com/13011
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/asm_arm.s | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,17 @@
+commit c6eb85aecf638430aa959232dde83367f197c3e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 1 14:50:18 2008 -0700
+
+    - simplified handling of primary types (types w/ names which must
+      be canonicalized upon import)
+    - missed some exports
+    
+    R=r
+    OCL=13733
+    CL=13733
+
+ usr/gri/gosrc/export.go | 52 ++++++++++++++++++++++++-------------------------
+ usr/gri/gosrc/import.go | 51 +++++++++++++++++++++++-------------------------
+ usr/gri/gosrc/object.go |  8 +++-----
+ usr/gri/gosrc/parser.go | 16 +++++++++++++--
+ 4 files changed, 67 insertions(+), 60 deletions(-)

@@ -1,0 +1,17 @@
+commit 36694064e52c721b337f882473280b7da8282d1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 18:16:50 2015 -0700
+
+    cmd/compile: disable checknils during alg eq generation
+    
+    Cuts 20k off cmd/go and 32k off golang.org/x/tools/cmd/godoc, approx 0.15% each.
+    
+    For #6853 and #9930
+    
+    Change-Id: Ic510b76b80a9153b1ede7b3533d2dbc16caa5c63
+    Reviewed-on: https://go-review.googlesource.com/19768
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

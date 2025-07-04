@@ -1,0 +1,26 @@
+commit 6b0688f7421aeef904d40a374bae75c37ba0b8b4
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Mar 24 17:42:01 2016 +0100
+
+    runtime: speed up growslice by avoiding divisions 2
+    
+    This is a follow-up of https://go-review.googlesource.com/#/c/20653/
+    
+    Special case computation for slices with elements of byte size or
+    pointer size.
+    
+    name                      old time/op  new time/op  delta
+    GrowSliceBytes-4          86.2ns ± 3%  75.4ns ± 2%  -12.50%  (p=0.000 n=20+20)
+    GrowSliceInts-4            161ns ± 3%   136ns ± 3%  -15.59%  (p=0.000 n=19+19)
+    GrowSlicePtr-4             239ns ± 2%   233ns ± 2%   -2.52%  (p=0.000 n=20+20)
+    GrowSliceStruct24Bytes-4   258ns ± 3%   256ns ± 3%     ~     (p=0.134 n=20+20)
+    
+    Change-Id: Ice5fa648058fe9d7fa89dee97ca359966f671128
+    Reviewed-on: https://go-review.googlesource.com/21101
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/append_test.go | 24 ++++++++++++++++++++++--
+ src/runtime/slice.go       | 32 ++++++++++++++++++++------------
+ 2 files changed, 42 insertions(+), 14 deletions(-)

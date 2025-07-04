@@ -1,0 +1,14 @@
+commit eee095399f1c42d32b327942701550e513432af1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 26 10:24:48 2010 +1000
+
+    syscall: improve windows errno handling
+    
+    R=rsc, Joe Poirier, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/1872045
+
+ src/pkg/runtime/windows/thread.c        |   3 +
+ src/pkg/syscall/mksyscall_windows.sh    |   6 +-
+ src/pkg/syscall/zsyscall_windows_386.go | 284 ++++++++++++++++++++++++++------
+ 3 files changed, 244 insertions(+), 49 deletions(-)

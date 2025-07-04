@@ -1,0 +1,28 @@
+commit 03103a54d830ee14187aac7720e42000927a6ce9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Sep 25 10:32:49 2024 +0000
+
+    hash/maphash: add WriteComparable and Comparable
+    
+    Default, use  hash function in the runtime package.
+    If the build tag is purego or raw memory cannot be hash directly,
+    use reflect get each field to hash separately.
+    
+    Fixes #54670
+    
+    Change-Id: Ic968864c9c3c51883967d4f6dc24432385c7dc79
+    GitHub-Last-Rev: 5ae8a28834c8b809a52c74617e2a8530acec8095
+    GitHub-Pull-Request: golang/go#69166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609761
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ api/next/54670.txt                               |   2 +
+ doc/next/6-stdlib/99-minor/hash/maphash/54670.md |   2 +
+ src/hash/maphash/maphash.go                      | 123 +++++++++++++-
+ src/hash/maphash/maphash_purego.go               |   6 +
+ src/hash/maphash/maphash_runtime.go              |  18 +++
+ src/hash/maphash/maphash_test.go                 | 196 +++++++++++++++++++++++
+ 6 files changed, 346 insertions(+), 1 deletion(-)

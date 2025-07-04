@@ -1,0 +1,18 @@
+commit a9a49fe9625194395d9eb791de7c2674d7b6f8d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 13:08:35 2012 -0800
+
+    spec: calling delete on a nil map is a no-op
+    
+    This is language change. It is a backward-compatible
+    change but for code that relies on a run-time panic
+    when calling delete on a nil map (unlikely).
+    
+    Fixes #4253.
+    
+    R=rsc, r, iant, ken, bradfitz, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6909060
+
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 4435c8bf2a7d4fcc33fd15903487958590a157f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 12:51:27 2012 -0800
+
+    exp/sql: close Rows on EOF
+    
+    Fixes #2624
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5530068
+
+ src/pkg/exp/sql/fakedb_test.go | 25 +++++++++++++++++--------
+ src/pkg/exp/sql/sql.go         |  7 +++++--
+ src/pkg/exp/sql/sql_test.go    | 10 +++++++++-
+ 3 files changed, 31 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 45d334ecf1b2bcbf0f8667d4c772ef3db0e03587
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 29 16:35:33 2016 +1100
+
+    net/http/cgi: allow CGI host to configure where child's stderr goes
+    
+    Patch originally from Steven Hartland. Tweaked a bit & added a test.
+    
+    Fixes #7197
+    
+    Change-Id: I09012b4674e7c641dba31a24e9758cedb898d3ee
+    Reviewed-on: https://go-review.googlesource.com/21196
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cgi/host.go           | 10 +++++++++-
+ src/net/http/cgi/host_test.go      | 18 ++++++++++++++++++
+ src/net/http/cgi/testdata/test.cgi |  4 ++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

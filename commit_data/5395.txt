@@ -1,0 +1,12 @@
+commit 39f009cb8eaf261d4ecbe706e55b9bf0c0efe6dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 10:57:27 2010 -0700
+
+    go spec: fix iota description
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/946046
+
+ doc/go_spec.html | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

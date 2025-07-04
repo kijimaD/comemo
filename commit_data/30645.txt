@@ -1,0 +1,18 @@
+commit 53937aad99f1d1e177fca3a3d0ec5c83825e015b
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 13 18:29:46 2017 +0200
+
+    cmd/vet: check shift calculations with "unsafe" package
+    
+    vet should properly handle shift calculations via "unsafe"
+    package after the CL 37950.
+    
+    Change-Id: I7737f2e656a5166337a17b92db46a0997f2a4e0e
+    Reviewed-on: https://go-review.googlesource.com/38064
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/shift.go          | 22 ----------------------
+ src/cmd/vet/testdata/shift.go |  5 ++++-
+ 2 files changed, 4 insertions(+), 23 deletions(-)

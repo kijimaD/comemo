@@ -1,0 +1,19 @@
+commit bb644e7982b7a669f67eb680c14ddd290f7bc237
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 25 14:54:18 2020 -0500
+
+    cmd/go/internal/modfetch: retry rename for unzipped directories
+    
+    No test because this is difficult to reproduce, and such a test would
+    always be flaky.
+    
+    Updates #36568
+    
+    Change-Id: I8170410a7729ecc6f90baf8005444d6b1241185e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220978
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

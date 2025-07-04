@@ -1,0 +1,12 @@
+commit f35fa85a3fa52b954a057ad7057a74c169e13103
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 6 16:56:30 2012 +1100
+
+    doc/gopher: flip frontpage gopher's eyes
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5759045
+
+ doc/gopher/frontpage.png | Bin 31610 -> 17668 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

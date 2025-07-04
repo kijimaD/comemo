@@ -1,0 +1,22 @@
+commit 0a48185b4383fac8d260112efa261112f3d41ee2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 31 22:02:37 2017 -0400
+
+    reflect: fix pointer past-the-end in Call with zero-sized return value
+    
+    If a function with nonzero frame but zero-sized return value is
+    Call'd, we may write a past-the-end pointer in preparing the
+    return Values. Fix by return the zero value for zero-sized
+    return value.
+    
+    Fixes #21717.
+    
+    Change-Id: I5351cd86d898467170a888b4c3fc9392f0e7aa3b
+    Reviewed-on: https://go-review.googlesource.com/60811
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/all_test.go | 25 +++++++++++++++++++++++++
+ src/reflect/value.go    | 10 ++++++++--
+ 2 files changed, 33 insertions(+), 2 deletions(-)

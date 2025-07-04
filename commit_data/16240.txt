@@ -1,0 +1,33 @@
+commit 4dcb13bb4489559119d4c86741c59e4c1eace469
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 29 22:44:40 2013 -0700
+
+    cmd/gc: fix some overflows in the compiler
+    Some 64-bit fields were run through 32-bit words, some counts were
+    not checked for overflow, and relocations must fit in 32 bits.
+    Tests to follow.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9033043
+
+ src/cmd/5g/cgen.c      |  4 +++-
+ src/cmd/5g/gsubr.c     |  5 +++--
+ src/cmd/6g/cgen.c      | 10 ++++++----
+ src/cmd/6g/ggen.c      |  2 +-
+ src/cmd/6g/gobj.c      |  3 ++-
+ src/cmd/6g/gsubr.c     |  8 +++++---
+ src/cmd/6g/reg.c       |  6 +++---
+ src/cmd/8g/cgen.c      |  4 +++-
+ src/cmd/8g/gsubr.c     |  3 ++-
+ src/cmd/gc/align.c     |  7 +++++--
+ src/cmd/gc/closure.c   |  2 +-
+ src/cmd/gc/gen.c       |  2 +-
+ src/cmd/gc/go.h        | 12 ++++++------
+ src/cmd/gc/pgen.c      | 13 +++++++++++--
+ src/cmd/gc/sinit.c     |  8 ++++++--
+ src/cmd/gc/subr.c      | 11 ++++++++---
+ src/cmd/gc/swt.c       |  2 ++
+ src/cmd/gc/typecheck.c |  3 ++-
+ src/cmd/gc/unsafe.c    |  2 +-
+ 19 files changed, 71 insertions(+), 36 deletions(-)

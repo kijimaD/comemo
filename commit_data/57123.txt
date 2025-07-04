@@ -1,0 +1,29 @@
+commit fe392d0dff0089c70f6addf83c122100af7d24be
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 1 16:26:00 2024 +0200
+
+    os/user: support calling Current on impersonated threads
+    
+    The syscall.OpenCurrentProcessToken call in user.Current fails
+    when called from an impersonated thread, as the process token is
+    normally in that case.
+    
+    This change ensures that the current thread is not impersonated
+    when calling OpenCurrentProcessToken, and then restores the
+    impersonation state, if any.
+    
+    Fixes #68647
+    
+    Change-Id: I3197535dd8355d21029a42f7aa3936d8fb021202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602415
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/security_windows.go |  24 ++++
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go |  36 ++++++
+ src/os/user/lookup_windows.go                    | 113 +++++++++++++-----
+ src/os/user/user_windows_test.go                 | 145 +++++++++++++++++++++++
+ 5 files changed, 291 insertions(+), 28 deletions(-)

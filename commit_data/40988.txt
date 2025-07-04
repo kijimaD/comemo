@@ -1,0 +1,22 @@
+commit 0497f911acbb33efbeac7271dc46e920fe26f4b8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Dec 12 17:04:04 2019 -0500
+
+    doc: remove expiration from PGP key in security.html
+    
+    The key had expired earlier this year. Simply resigned it with no
+    expiration, so it maintains the same fingerprint.
+    
+    Removed the encouragement to use PGP above the fold. We trust the
+    security of our mail system, so it's really only there for people that
+    want it.
+    
+    Also removed the individual keys, as they were never used, and both Adam
+    and I have access to the security@golang.org key anyway.
+    
+    Change-Id: Icc5ad6dfb4f0b52128a59a080b7f270b20d3c520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211177
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/security.html | 81 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 40 insertions(+), 41 deletions(-)

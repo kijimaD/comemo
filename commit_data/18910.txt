@@ -1,0 +1,13 @@
+commit ceb346685d58f2ddd0694f55cfbfb95d82abfd29
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 20 22:21:10 2014 +0100
+
+    cmd/6g: make comment more consistent.
+    
+    LGTM=dave, iant
+    R=iant, khr, rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/77960044
+
+ src/cmd/6g/ggen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

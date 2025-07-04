@@ -1,0 +1,13 @@
+commit 938c5c5e2c155d32137b2230e65b95e7be52cae7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:05:53 2008 -0700
+
+    - fixed test commands
+    
+    SVN=121551
+
+ test/bugs/bug032.go |  2 +-
+ test/bugs/bug033.go |  2 +-
+ test/bugs/bug034.go |  2 +-
+ test/golden.out     | 18 +++++++++---------
+ 4 files changed, 12 insertions(+), 12 deletions(-)

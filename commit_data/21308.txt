@@ -1,0 +1,15 @@
+commit de47e9ca54deccae631468b107a90f64b3c0cd79
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 16 15:11:26 2015 -0800
+
+    math/big: better test coverage, misc. cleanups
+    
+    Change-Id: I4ce5cee63093d917095bf90f4e11123f7ec0f93c
+    Reviewed-on: https://go-review.googlesource.com/2964
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go      |  2 +-
+ src/math/big/int_test.go | 40 ++++++++++++++++++++++++++++++++
+ src/math/big/nat.go      | 18 ++++++++++-----
+ src/math/big/nat_test.go | 60 +++++++++++++++++++++++++++++++++---------------
+ 4 files changed, 94 insertions(+), 26 deletions(-)

@@ -1,0 +1,14 @@
+commit 62be54a8c029a85bf06742a19bcdb5e86151559d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 26 14:43:03 2014 -0700
+
+    unicode: use go generate instead of make to create tables.go
+    
+    LGTM=mpvl, rsc
+    R=mpvl, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/135820043
+
+ src/pkg/unicode/Makefile  | 15 ---------------
+ src/pkg/unicode/letter.go |  3 +++
+ 2 files changed, 3 insertions(+), 15 deletions(-)

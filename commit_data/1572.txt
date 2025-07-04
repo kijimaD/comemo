@@ -1,0 +1,20 @@
+commit e90314d0242fe520f578ea256db1cb3800f1e7b9
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 27 14:12:35 2009 -0800
+
+    pragma textflag
+    fixes latent bugs in go and defer
+    
+    R=r
+    OCL=23613
+    CL=23613
+
+ src/cmd/6a/lex.c   |  7 +++++++
+ src/cmd/6c/txt.c   |  4 +++-
+ src/cmd/8c/txt.c   |  4 +++-
+ src/cmd/cc/cc.h    |  4 ++--
+ src/cmd/cc/dpchk.c | 18 ++++++------------
+ src/cmd/cc/lex.c   |  1 -
+ src/cmd/cc/macbody |  4 ++--
+ src/runtime/proc.c |  4 ++++
+ 8 files changed, 27 insertions(+), 19 deletions(-)

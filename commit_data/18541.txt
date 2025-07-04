@@ -1,0 +1,17 @@
+commit a50c5fe6c368296d8d3857b32876017294f20162
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 16 20:46:03 2014 +1100
+
+    go/build: temporarily disable cgo for freebsd/arm
+    
+    Update #7331
+    
+    cgo is currently broken on freebsd/arm.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/63900043
+
+ src/pkg/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,16 @@
+commit ae7e0ad7b8cdc16b6a7d5043375bb92a9cf6190a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 16:21:56 2016 -0700
+
+    cmd/compile: remove more dead code
+    
+    Change-Id: I0131b0d7421ff1397f16a08eff758250abbdf8e2
+    Reviewed-on: https://go-review.googlesource.com/29239
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/amd64/prog.go  | 12 ------------
+ src/cmd/compile/internal/arm/gsubr.go   | 24 +-----------------------
+ src/cmd/compile/internal/arm64/gsubr.go | 25 +------------------------
+ src/cmd/compile/internal/gc/gsubr.go    | 20 --------------------
+ src/cmd/compile/internal/gc/pgen.go     |  2 --
+ 5 files changed, 2 insertions(+), 81 deletions(-)

@@ -1,0 +1,15 @@
+commit b66b97e0a120880e37b03eba00c0c7679f0a70c1
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Mon May 16 10:11:59 2016 -0300
+
+    net/http: mention ALPN in http.Server.TLSNextProto documentation
+    
+    Make clear negotiation can happen via NPN or ALPN, similar to
+    http.Transport.TLSNextProto and x/net/http2.NextProtoTLS.
+    
+    Change-Id: Ied00b842bc04e11159d6d2107beda921cefbc6ca
+    Reviewed-on: https://go-review.googlesource.com/23108
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

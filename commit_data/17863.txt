@@ -1,0 +1,12 @@
+commit 3a7ab7eab40d8f7fb1e3ab24bbf1b3ebf00e68c5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 4 17:41:08 2013 +1100
+
+    C: add Robert Snedegar (Google CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/21390044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

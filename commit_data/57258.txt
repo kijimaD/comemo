@@ -1,0 +1,22 @@
+commit 36b45bca66d86020f0b4daf1f15b02921a8dad43
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 12 15:31:25 2023 -0700
+
+    cmd/compile: regalloc: drop values that aren't used until after a call
+    
+    No point in keeping values in registers when their next use is after
+    a call, as we'd have to spill/restore them anyway.
+    
+    cmd/go is 0.1% smaller.
+    
+    Fixes #59297
+    
+    Change-Id: I10ee761d0d23229f57de278f734c44d6a8dccd6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 52 ++++++++++++++++++++++++++++++--
+ test/codegen/issue59297.go               | 17 +++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 903c307c2bf7026f4bc3904b8e4e9cd248654851
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 8 14:32:52 2016 -0500
+
+    runtime/pprof: skip TestStackBarrierProfiling on FreeBSD, too
+    
+    Sigh. Sleeps on FreeBSD also yield the rest of the time slice and
+    profiling signals are only delivered when a process completes a time
+    slice (worse, itimer time is only accounted to the process that
+    completes a time slice). It's less noticeable than the other BSDs
+    because the default tick rate is 1000Hz, but it's still failing
+    regularly.
+    
+    Fixes #13846.
+    
+    Change-Id: I41bf116bffe46682433b677183f86944d0944ed4
+    Reviewed-on: https://go-review.googlesource.com/18455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/pprof/pprof_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit b3e0a8df24e5c98f516e542681bb9a752999dc29
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 28 21:45:12 2014 +1100
+
+    cmd/dist: add missing Native Client bits
+    
+    Some parts of CL 15400047 didn't survive the merge.
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/69870044
+
+ src/cmd/dist/buildruntime.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

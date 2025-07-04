@@ -1,0 +1,12 @@
+commit c99598cbd3aa5eab2971ee449b5685f299b89755
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 13:24:26 2019 -0700
+
+    errors: clarify docs for when As returns false
+    
+    Change-Id: Ic8d8399f726c1f9376499fdae92bea41632586ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193602
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/errors/wrap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

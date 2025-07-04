@@ -1,0 +1,13 @@
+commit 3d3bc88bb5f06431729585daec436d5a16603dd0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 12 14:29:50 2015 -0700
+
+    cmd/compile/internal/gc: use slice instead of linked list for nodes to export
+    
+    Change-Id: Ib79ab787fdc90a5a29b25474d91afa9bfaf51276
+    Reviewed-on: https://go-review.googlesource.com/13589
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 21 ++++++++++++---------
+ src/cmd/compile/internal/gc/go.go     |  2 +-
+ 2 files changed, 13 insertions(+), 10 deletions(-)

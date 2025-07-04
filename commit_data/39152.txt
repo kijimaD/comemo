@@ -1,0 +1,27 @@
+commit a9e107c85cf69d735ac81c29f4a354643e40b2b5
+Author: Keith Randall <khr@google.com>
+Date:   Mon May 13 13:43:49 2019 -0700
+
+    cmd/compile: make sure to initialize static entries of slices
+    
+    If a slice's entries are sparse, we decide to initialize it dynamically
+    instead of statically. That's CL 151319.
+    
+    But if we do initialize it dynamically, we still need to initialize
+    the static entries. Typically we do that, but the bug fixed here is
+    that we don't if the entry's value is itself an array or struct.
+    
+    To fix, use initKindLocalCode to ensure that both static and
+    dynamic entries are initialized via code.
+    
+    Fixes #31987
+    
+    Change-Id: I1192ffdbfb5cd50445c1206c4a3d8253295201dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176904
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 15 ++++++++++++++-
+ test/fixedbugs/issue31987.go         | 22 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

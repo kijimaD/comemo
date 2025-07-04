@@ -1,0 +1,14 @@
+commit c3533d7a26d659c5ae3af27320a462c602bd25ee
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jul 28 01:22:24 2018 +0300
+
+    cmd/cover: remove unused global var and the unquote function
+    
+    Change-Id: I52a39f2d8f1a296f23624e3ec577d9ad1b8302f1
+    Reviewed-on: https://go-review.googlesource.com/126555
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/cover/cover.go | 12 ------------
+ 1 file changed, 12 deletions(-)

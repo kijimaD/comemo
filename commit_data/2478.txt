@@ -1,0 +1,14 @@
+commit eba82f4391a8259f4e1454e5c007c05fe8171ff8
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 18 15:49:41 2009 -0700
+
+    better diagnostics for eof in a string.
+    this assumes that embedded newlines are
+    legal in back-quote strings.
+    
+    R=r
+    OCL=30502
+    CL=30502
+
+ src/cmd/gc/lex.c | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

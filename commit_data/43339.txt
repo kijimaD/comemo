@@ -1,0 +1,19 @@
+commit f1e3c8f14232cde8da8666ad68df493563287634
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 14 19:26:20 2020 -0400
+
+    runtime/cgo: build iOS-specific code only on iOS
+    
+    Don't build them on macOS/ARM64.
+    
+    Updates #38485.
+    
+    Change-Id: I9fbea838fdce52db22742487926879761dea0d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262559
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_darwin_arm64.c                  | 21 ++++++++++++++++-----
+ ...gnal_darwin_nolldb.c => gcc_signal_ios_nolldb.c} |  4 ++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)

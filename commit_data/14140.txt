@@ -1,0 +1,12 @@
+commit 422da762b7dd63c54de9b39a4f7f3283f5d0afeb
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Oct 12 14:09:24 2012 -0700
+
+    compress/bzip2: use io.ByteReader instead of internal interface
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6663044
+
+ src/pkg/compress/bzip2/bit_reader.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

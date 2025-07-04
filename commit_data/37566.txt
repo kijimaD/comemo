@@ -1,0 +1,20 @@
+commit 48399cae9f828668bd2c010dc46e4767f2acd011
+Author: SALLEYRON Julien <julien.salleyron@gmail.com>
+Date:   Mon Dec 3 20:46:23 2018 +0000
+
+    net/http/httputil: fix unannounced trailers when body is empty
+    
+    Fix unannounced trailers when body is empty and without announced trailers.
+    
+    Fixes #29031
+    
+    Change-Id: If49951a42fe56d4be4436a999627db4c2678659d
+    GitHub-Last-Rev: 3469adc8f5fd977438350274134950687853a468
+    GitHub-Pull-Request: golang/go#29032
+    Reviewed-on: https://go-review.googlesource.com/c/151898
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 18 ++++++-----
+ src/net/http/httputil/reverseproxy_test.go | 48 ++++++++++++++++++++++++------
+ 2 files changed, 49 insertions(+), 17 deletions(-)

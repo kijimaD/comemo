@@ -1,0 +1,21 @@
+commit 39effbc105f5c54117a6011af3c48e3c8f14eca9
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Jun 9 10:08:27 2023 +0800
+
+    all: fix function names in comments
+    
+    Change-Id: I915eff34fcfe82f3514254f7d8998baa88a91da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501997
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/gcc.go                     | 2 +-
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ src/crypto/x509/sec1.go                | 2 +-
+ src/go/printer/printer.go              | 2 +-
+ src/internal/godebug/godebug.go        | 3 ++-
+ 5 files changed, 6 insertions(+), 5 deletions(-)

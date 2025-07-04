@@ -1,0 +1,14 @@
+commit c5d419683463ef0ce5ba3d078624bd36e9e20e31
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 3 03:34:04 2013 +0800
+
+    cmd/go: fix typo in docs
+    Fixes #5181.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8277043
+
+ src/cmd/go/doc.go  | 13 +++++++------
+ src/cmd/go/test.go | 13 +++++++------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 3b000b3eaebced151dd80d6c5d37263606368390
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 20 23:53:31 2015 +0000
+
+    net/http: update copy of http2
+    
+    Updates to x/net git revision 9946ad7
+    
+    Change-Id: I95c03daf382667002a5b22f184bd9b7d18144913
+    Reviewed-on: https://go-review.googlesource.com/16066
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go                        | 224 +++++++++++++++--------
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go |   6 +
+ 2 files changed, 157 insertions(+), 73 deletions(-)

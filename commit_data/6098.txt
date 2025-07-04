@@ -1,0 +1,13 @@
+commit 25410fc57d03d9d7c8a6f060c671654dc4fe94ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 13:21:06 2010 -0400
+
+    A+C: Corey Thomasson (individual CLA)
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1952047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit b7b8f2b0862061e4ca67a6157c30c0880dda9e54
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Jun 20 14:46:32 2011 +1000
+
+    misc/godashboard: Accept sub-directories for goinstall's report.
+    Fixed issue 1155.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4592059
+
+ misc/dashboard/godashboard/package.py | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

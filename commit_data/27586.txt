@@ -1,0 +1,23 @@
+commit 3d037cfaf8c70b8af87cb5d57553a7e3e9dc2117
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 27 10:05:52 2016 -0700
+
+    runtime: pass signal context to cgo traceback function
+    
+    When doing a backtrace from a signal that occurs in C code compiled
+    without using -fasynchronous-unwind-tables, we have to rely on frame
+    pointers. In order to do that, the traceback function needs the signal
+    context to reliably pick up the frame pointer.
+    
+    Change-Id: I7b45930fced01685c337d108e0f146057928f876
+    Reviewed-on: https://go-review.googlesource.com/23494
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_traceback.c                    |  2 ++
+ src/runtime/testdata/testprogcgo/pprof.go          |  1 +
+ src/runtime/testdata/testprogcgo/traceback.go      |  1 +
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  1 +
+ src/runtime/traceback.go                           | 22 ++++++++++++++++------
+ 5 files changed, 21 insertions(+), 6 deletions(-)

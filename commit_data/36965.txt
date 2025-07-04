@@ -1,0 +1,14 @@
+commit c4f07510a0161c4493a751984e24532a1b189759
+Author: Ivan Sharavuev <shpiwan@gmail.com>
+Date:   Sat Oct 13 13:14:39 2018 +0300
+
+    strings: Replace s[:] to s where s is a slice.
+    
+    Change-Id: Ie7ba3f9ece9b0fc0e8a5c92fbae9c3b558815e4c
+    Reviewed-on: https://go-review.googlesource.com/c/141997
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+
+ src/strings/replace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

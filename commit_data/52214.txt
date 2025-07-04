@@ -1,0 +1,21 @@
+commit d6fa0d2ef3fc29c38af2675d395a089cc73af996
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 8 17:10:06 2023 -0500
+
+    net/http: remove arbitrary timeout in TestServerAllowsBlockingRemoteAddr
+    
+    If the test actually deadlocks, we probably want a goroutine dump to
+    debug it anyway. Otherwise, the arbitrary timeout can only cause
+    spurious failures.
+    
+    Fixes #36179.
+    
+    Change-Id: Ic2037496959a38d3231eefdbc1dd5d45eebdf306
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474582
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,21 @@
+commit 7e3b30aea6d741cbc8718faae114ed99ebffa673
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 05:29:26 2015 -0500
+
+    cmd/5a: prepare reglist correctly
+    
+    This was working when 5a was built on x86 because REG_R0 = 32,
+    and a 32-bit shift on x86 uses only the low 32 bits of the shift count.
+    
+    On ARM, the shift clamping is different.
+    
+    Moving to Go will avoid these differing shift semantics.
+    I tripped over and fixed this bug in new5a the same way earlier tonight.
+    
+    Change-Id: Id56aa0bb1830ccf250960f843e0acb8a0409e87d
+    Reviewed-on: https://go-review.googlesource.com/3961
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/5a/a.y     |  20 ++++++--
+ src/cmd/5a/y.tab.c | 134 +++++++++++++++++++++++++++++------------------------
+ 2 files changed, 89 insertions(+), 65 deletions(-)

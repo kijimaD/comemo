@@ -1,0 +1,41 @@
+commit faef52c214c3f0cb610aff18f45bfc3e620be63a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 21:50:24 2013 +0800
+
+    all: fix typos
+    
+    R=golang-dev, bradfitz, khr, r
+    CC=golang-dev
+    https://golang.org/cl/7461046
+
+ src/cmd/5c/peep.c         | 2 +-
+ src/cmd/5g/gsubr.c        | 2 +-
+ src/cmd/5g/peep.c         | 6 +++---
+ src/cmd/5g/reg.c          | 2 +-
+ src/cmd/5l/pass.c         | 4 ++--
+ src/cmd/6c/peep.c         | 2 +-
+ src/cmd/6c/txt.c          | 2 +-
+ src/cmd/6g/cgen.c         | 2 +-
+ src/cmd/6g/gsubr.c        | 4 ++--
+ src/cmd/6g/peep.c         | 2 +-
+ src/cmd/8c/peep.c         | 2 +-
+ src/cmd/8c/txt.c          | 2 +-
+ src/cmd/8g/cgen.c         | 2 +-
+ src/cmd/8g/peep.c         | 2 +-
+ src/cmd/8g/reg.c          | 2 +-
+ src/cmd/cc/funct.c        | 2 +-
+ src/cmd/cc/lexbody        | 2 +-
+ src/cmd/cc/pgen.c         | 2 +-
+ src/cmd/cc/pswt.c         | 2 +-
+ src/cmd/dist/plan9.c      | 2 +-
+ src/cmd/dist/unix.c       | 2 +-
+ src/cmd/gc/obj.c          | 2 +-
+ src/cmd/gc/swt.c          | 2 +-
+ src/cmd/go/test.bash      | 2 +-
+ src/cmd/ld/data.c         | 2 +-
+ src/cmd/ld/dwarf.c        | 6 +++---
+ src/cmd/yacc/units.txt    | 2 +-
+ src/libmach/6obj.c        | 2 +-
+ src/libmach/8obj.c        | 2 +-
+ test/chan/doubleselect.go | 2 +-
+ 30 files changed, 36 insertions(+), 36 deletions(-)

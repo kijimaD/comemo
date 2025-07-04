@@ -1,0 +1,27 @@
+commit ff059add10d71fe13239cf893c0cca113de1fc21
+Author: Lucien Coffe <lucien.coffe@botify.com>
+Date:   Fri Apr 21 13:44:35 2023 +0200
+
+    runtime: resolve checkdead panic by refining `startm` lock handling in caller context
+    
+    This change addresses a `checkdead` panic caused by a race condition between
+    `sysmon->startm` and `checkdead` callers, due to prematurely releasing the
+    scheduler lock. The solution involves allowing a `startm` caller to acquire the
+    scheduler lock and call `startm` in this context. A new `lockheld` bool
+    argument is added to `startm`, which manages all lock and unlock calls within
+    the function. The`startIdle` function variable in `injectglist` is updated to
+    call `startm` with the lock held, ensuring proper lock handling in this
+    specific case. This refined lock handling resolves the observed race condition
+    issue.
+    
+    Fixes #59600
+    
+    Change-Id: I11663a15536c10c773fc2fde291d959099aa71be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487316
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 45 +++++++++++++++++++++++++++++++--------------
+ 1 file changed, 31 insertions(+), 14 deletions(-)

@@ -1,0 +1,41 @@
+commit f6aec889e1c880316b1989bdc6ce3b926cbe5fe4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 13 06:57:00 2016 -0400
+
+    cmd/compile: add a writebarrier phase in SSA
+    
+    When the compiler insert write barriers, the frontend makes
+    conservative decisions at an early stage. This may have false
+    positives which result in write barriers for stack writes.
+    
+    A new phase, writebarrier, is added to the SSA backend, to delay
+    the decision and eliminate false positives. The frontend still
+    makes conservative decisions. When building SSA, instead of
+    emitting runtime calls directly, it emits WB ops (StoreWB,
+    MoveWB, etc.), which will be expanded to branches and runtime
+    calls in writebarrier phase. Writes to static locations on stack
+    are detected and write barriers are removed.
+    
+    All write barriers of stack writes found by the script from
+    issue #17330 are eliminated (except two false positives).
+    
+    Fixes #17330.
+    
+    Change-Id: I9bd66333da9d0ceb64dcaa3c6f33502798d1a0f8
+    Reviewed-on: https://go-review.googlesource.com/31131
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 135 ++++---------
+ src/cmd/compile/internal/ssa/check.go          |   2 +-
+ src/cmd/compile/internal/ssa/compile.go        |   1 +
+ src/cmd/compile/internal/ssa/config.go         |   8 +-
+ src/cmd/compile/internal/ssa/export_test.go    |   4 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +
+ src/cmd/compile/internal/ssa/op.go             |  29 +--
+ src/cmd/compile/internal/ssa/opGen.go          |  21 ++
+ src/cmd/compile/internal/ssa/value.go          |   6 +
+ src/cmd/compile/internal/ssa/writebarrier.go   | 263 +++++++++++++++++++++++++
+ test/writebarrier.go                           |   8 +
+ 11 files changed, 372 insertions(+), 112 deletions(-)

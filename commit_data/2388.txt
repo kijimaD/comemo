@@ -1,0 +1,18 @@
+commit 424f4f0ff5427e9c3149e93abacf00956701e16f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 4 15:28:09 2009 -0700
+
+    use the new bytes package
+    
+    R=rsc
+    DELTA=61  (8 added, 31 deleted, 22 changed)
+    OCL=29897
+    CL=29899
+
+ src/lib/Make.deps              |  6 +++---
+ src/lib/bytes/bytes.go         |  5 +++--
+ src/lib/io/io.go               |  5 ++---
+ src/lib/strconv/decimal.go     | 11 ++++++-----
+ src/lib/tabwriter/tabwriter.go |  5 ++---
+ src/lib/utf8/utf8_test.go      | 25 +++++++------------------
+ 6 files changed, 23 insertions(+), 34 deletions(-)

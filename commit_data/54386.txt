@@ -1,0 +1,28 @@
+commit 3997fb924376bf0262a8108c916132329700dbf0
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 14 09:41:43 2023 -0400
+
+    runtime: test change to adapt to new inliner
+    
+    The new inliner tries to de-prioritize inlining of call sites on panic
+    paths, e.g. for a call such as the one to "foo" below, the inliner
+    will use a much lower size threshold when deciding whether to inline,
+    since the path is very likely to be "cold".
+    
+       if mumble() {
+          foo()           <<-- here
+          panic("bad")
+       }
+    
+    This patch reworks one of the traceback tests is relying on the old
+    inliner's "inline F everywhere if F inlinable" strategy by tweaking
+    the code slightly (no change in test functionality).
+    
+    Change-Id: I83a686b0cc4d94a6cfc63d1e84e45455c1afd5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519196
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/traceback_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

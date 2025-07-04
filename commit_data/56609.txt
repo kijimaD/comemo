@@ -1,0 +1,19 @@
+commit 0ec709f180c8c2453694d79d1761e279ea77f675
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 8 09:17:05 2024 -0700
+
+    html: update jstmpllitinterp doc
+    
+    We no longer do anything with this GODEBUG.
+    
+    Fixes #66217
+    
+    Change-Id: I998797b6a573013f5b9c8ded835acae572327d18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584117
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ doc/godebug.md           |  4 ++++
+ src/html/template/doc.go | 10 ++++------
+ 2 files changed, 8 insertions(+), 6 deletions(-)

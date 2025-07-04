@@ -1,0 +1,19 @@
+commit 4b993bffb83394105d13b426dae12afe0ab05804
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Oct 28 16:16:56 2022 -0400
+
+    go/types: avoid formatting unneeded causes
+    
+    This one slipped through a previous cleanup
+    and showed up in an allocation profile.
+    
+    Change-Id: Ife447fe32797f1685c20806718193b0985b4a412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446295
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/instantiate.go | 12 ++++++------
+ src/go/types/instantiate.go                    | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

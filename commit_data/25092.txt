@@ -1,0 +1,16 @@
+commit 1dae47378cd32c3bdc0351f7eed71bd3d3aaf364
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Nov 26 10:33:45 2015 +0100
+
+    unicode/utf8: add test for FullRune
+    
+    Check that it now properly handles \xC0 and \xC1.
+    
+    Fixes #11733.
+    
+    Change-Id: I66cfe0d43f9d123d4c4509a3fa18b9b6380dfc39
+    Reviewed-on: https://go-review.googlesource.com/17225
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/unicode/utf8/utf8_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

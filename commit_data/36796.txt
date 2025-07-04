@@ -1,0 +1,19 @@
+commit e5489cfc12a99f25331831055a79750bfa227943
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Oct 2 19:11:14 2018 +0200
+
+    misc/wasm: add mention of polyfill for Edge support
+    
+    Edge supports WebAssembly but not TextEncoder or TextDecoder.
+    This change adds a comment pointing to a polyfill that could
+    be used. The polyfill is not added by default, because we want to
+    let the user decide if/how to include the polyfill.
+    
+    Fixes #27295
+    
+    Change-Id: I375f58f2168665f549997b368428c398dfbbca1c
+    Reviewed-on: https://go-review.googlesource.com/139037
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.html | 5 +++++
+ 1 file changed, 5 insertions(+)

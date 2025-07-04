@@ -1,0 +1,25 @@
+commit 4deaa6a178d89631302470f78574c1e957cf84a5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 18 16:01:23 2021 +0000
+
+    runtime: call nanotimeQPC from nanotime1 without a wrapper
+    
+    This changes makes it so that nanotimeQPC calls nanotime1 without an ABI
+    wrapper by specifying the ABIInternal version directly. The reason why
+    this is necessary is because ABI wrappers typically require additional
+    stack space, and nanotimeQPC is used deep within nosplit contexts,
+    and with the ABI wrappers now enabled, this exhausts the stack guard
+    space held for nosplit functions. Rather than increase the stack guard,
+    we choose to do this.
+    
+    For #40724.
+    
+    Change-Id: Ia9173ca903335a9d6f380f57f4a45e49b58da6bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303069
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_windows_amd64.s | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

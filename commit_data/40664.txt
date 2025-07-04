@@ -1,0 +1,22 @@
+commit 933bf75edaf4e762f65e6738d5a9d71b6438b50f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 20:42:00 2019 -0400
+
+    runtime: add async preemption support on S390X
+    
+    This CL adds support of call injection and async preemption on
+    S390X.
+    
+    Like ARM64, we need to clobber one register (REGTMP) for
+    returning from the injected call. Previous CLs have marked code
+    sequences that use REGTMP async-nonpreemtible.
+    
+    Change-Id: I78adbc5fd70ca245da390f6266623385b45c9dfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204106
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  2 ++
+ src/runtime/mkpreempt.go                     | 35 ++++++++++++++++++++-
+ src/runtime/preempt_s390x.s                  | 47 ++++++++++++++++++++++++++--
+ src/runtime/signal_linux_s390x.go            | 14 +++++++--
+ 4 files changed, 93 insertions(+), 5 deletions(-)

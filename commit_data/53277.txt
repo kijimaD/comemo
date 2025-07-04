@@ -1,0 +1,23 @@
+commit bfdd3bf3a5bce39fefe388a19f75dfd9a484ea21
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 24 17:16:33 2023 +0000
+
+    Revert "testing: only report subtest races once"
+    
+    This reverts CL 494057.
+    
+    Reason for revert: test is failing on -race builders.
+    
+    Fixes #60393.
+    
+    Change-Id: If98238a12673aec597cf69aeead7bdf4782b4524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497996
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/testing/benchmark.go    |   5 +-
+ src/testing/testing.go      |  64 ++++----------------------
+ src/testing/testing_test.go | 108 --------------------------------------------
+ 3 files changed, 13 insertions(+), 164 deletions(-)

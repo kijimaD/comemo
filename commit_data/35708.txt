@@ -1,0 +1,23 @@
+commit 3a7cbfaa40e91e22a8857cfc1132110b2265ce3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 13 15:49:52 2018 -0700
+
+    cmd/cgo: add import path to hash
+    
+    This avoids name conflicts when two identical packages use cgo.
+    This can happen in practice when the same package is vendored multiple
+    times in a single build.
+    
+    Fixes #23555
+    
+    Change-Id: I9f0ec6db9165dcf9cdf3d314c668fee8ada18f9c
+    Reviewed-on: https://go-review.googlesource.com/118739
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue23555.go    | 11 +++++++++++
+ misc/cgo/test/issue23555a/a.go | 12 ++++++++++++
+ misc/cgo/test/issue23555b/a.go | 12 ++++++++++++
+ src/cmd/cgo/main.go            |  2 ++
+ 4 files changed, 37 insertions(+)

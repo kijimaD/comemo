@@ -1,0 +1,18 @@
+commit 9a9a0fcc0d0ba2a23549e3260fa70c6b631f38e9
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Thu May 11 16:44:33 2017 -0700
+
+    cmd/vet: diagnose xml/json tag with space after comma
+    
+    Fixes #19520
+    
+    Change-Id: Ib0a1f0f2429172d2781c9b6fbd21f9cb8da1b8ed
+    Reviewed-on: https://go-review.googlesource.com/43295
+    Run-TryBot: Francesc Campoy Flores <campoy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/cmd/vet/all/whitelist/all.txt | 25 +++++++++++++++++++++++++
+ src/cmd/vet/structtag.go          | 24 +++++++++++++++++++++++-
+ src/cmd/vet/testdata/structtag.go | 15 +++++++++++++++
+ 3 files changed, 63 insertions(+), 1 deletion(-)

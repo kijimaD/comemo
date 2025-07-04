@@ -1,0 +1,17 @@
+commit 8f53bc06127bcb3f01ee2771f01277e10d2c81b2
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Dec 15 15:07:35 2008 -0800
+
+    new convention, direction bit is
+    always left cleared. changed
+    compiler generated memcpy and
+    memset to assume CLD.
+    
+    R=r
+    OCL=21215
+    CL=21215
+
+ src/cmd/6g/cgen.c       | 15 +++++++++++----
+ src/cmd/6g/gen.c        | 33 +++++++++++++++++----------------
+ src/runtime/rt0_amd64.s |  1 +
+ 3 files changed, 29 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit 44b8934d35878dd28907b01a4b3b9723fcc52356
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 16 12:44:21 2008 -0700
+
+    back out last chan fix
+    allow print of pointers
+    
+    SVN=127548
+
+ src/cmd/gc/sys.go      |   2 +-
+ src/cmd/gc/sysimport.c | 228 ++++++++++++++++++++++++-------------------------
+ src/cmd/gc/walk.c      |  23 +++--
+ src/runtime/chan.c     |  10 +--
+ 4 files changed, 134 insertions(+), 129 deletions(-)

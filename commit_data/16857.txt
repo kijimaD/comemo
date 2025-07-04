@@ -1,0 +1,12 @@
+commit a0935cc97983c3d3e4b2be896ecc0d92572a02c0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 24 17:48:13 2013 +0900
+
+    runtime: fix throw message in netpoll
+    
+    R=dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/11761043
+
+ src/pkg/runtime/netpoll.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 8e032b917ac6b54c86dbf6f8fc110d82d3ecbea9
+Author: An Xiao <hac@zju.edu.cn>
+Date:   Mon Sep 30 21:46:32 2019 +0000
+
+    net: update quotation marks in comment
+    
+    This change updates the use of quotation marks by replacing `ones' with 'ones'.
+    Quotation like `this' should not be used any more according to
+    https://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html
+    
+    Change-Id: I58470cdcc207864fbc8ca68ec0e77329bd81dc19
+    GitHub-Last-Rev: d03c81ebfba19a98a8dcc99451db60d129b43784
+    GitHub-Pull-Request: golang/go#33719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/ip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 2ad57b45833cb7db3f5ae501d97b731ef16e8ff6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 18:26:43 2013 +0100
+
+    cmd/gc: don't hash nor compare struct padding or blank fields.
+    
+    Fixes #4585.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7142052
+
+ src/cmd/gc/subr.c           | 45 ++++++++++++++++------
+ src/cmd/gc/walk.c           |  2 +
+ test/blank.go               | 17 ++++++---
+ test/fixedbugs/issue4585.go | 91 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 139 insertions(+), 16 deletions(-)

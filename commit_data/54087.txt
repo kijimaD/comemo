@@ -1,0 +1,41 @@
+commit e8a767b609a32972aca848b806700b3f7ddd34d3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 17 18:36:00 2023 +0000
+
+    runtime/pprof: increase contention upper bound in TestMutexProfile
+    
+    Currently TestMutexProfile expects contention to reported as somewhere
+    between 0.9x and 2.0x the expected amount introduced. While bounding
+    from below is fine (especially since the goroutine holding the mutex
+    doesn't even start to sleep until the required number of goroutines are
+    blocked on a mutex), bounding from above can easily lead to flakiness.
+    Delays and non-determinism can come from anywhere in the system,
+    and nevertheless clocks keep ticking. The result is that goroutines
+    could easily appear to be blocked on a mutex much longer than just the
+    sleep time.
+    
+    However, the contention upper bound is still useful, especially for
+    identifying wildly incorrect values. Set the contention total to be
+    proportional to the total wall-time spent in the actual sampling mutex
+    block sampling portion of the code. This should be a generous
+    upper-bound on how much contention there could be, because it should in
+    theory capture any delays from the environment in it as well.
+    
+    Still, rounding errors could be an issue, and on Windows the time
+    granularity is quite low (~15ms, or 15% of what each goroutine is
+    supposed to add to the mutex profile), so getting unlucky with where
+    time measurements fall within each tick could also be a problem. Add an
+    extra 10%, which seems to make it much less likely to fail in a Windows
+    gomote.
+    
+    Fixes #62094.
+    
+    Change-Id: I59a10a73affd077185dada8474b91d0bc43b4a43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520635
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pprof/pprof_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

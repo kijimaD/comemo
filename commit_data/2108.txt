@@ -1,0 +1,15 @@
+commit 7326a389fc014736a50c037a6579676e7a6f72cc
+Author: Brendan O'Dea <bod@golang.org>
+Date:   Wed Apr 29 17:36:37 2009 -0700
+
+    Fix channels used by WaitWrite (http server hangs on writes
+    which hit EAGAIN).
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=27955
+    CL=28054
+
+ src/lib/net/fd.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

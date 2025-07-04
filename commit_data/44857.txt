@@ -1,0 +1,20 @@
+commit a95454b6f31a982f064d262987199fba19f085e9
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Mar 29 15:10:50 2021 +0800
+
+    runtime: init plan9 hashkey by time
+    
+    Maphash requires non-zero integer for initial hashkey
+    
+    Fixes #45090
+    
+    Change-Id: Ie567f648c19e81cddc8e72a1c64809fbf52df188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303969
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_plan9.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

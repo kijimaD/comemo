@@ -1,0 +1,29 @@
+commit 463c34451dbb08970768c6184b666157c67191bf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 21 14:10:24 2023 -0700
+
+    cmd/compile: use better line numbers for write barriers
+    
+    When the write barrier does several pointer writes under one
+    write barrier flag check, the line numbers aren't really correct.
+    
+    The writes inside the write barrier have a confusing set of positions.
+    The loads of the old values are given the line number of the
+    corresponding store instruction, but the stores into the write buffer
+    are given the line number of the first store. Instead, give them all
+    line numbers corresponding to the store instruction.
+    
+    The writes at the merge point, which are the original writes and the
+    only ones that happen when the barrier is off, are currently all given
+    the line number of the first write. Instead give them their original
+    line number.
+    
+    Change-Id: Id64820b707f45f07b0978f8d03c97900fdc4bc0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521499
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

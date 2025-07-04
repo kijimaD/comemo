@@ -1,0 +1,37 @@
+commit dfd4123edc1863a5b3b6d7cfabba6856c319ba5b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 18 10:13:15 2014 -0700
+
+    encoding/gob: speedup encoding
+    
+    Replace typeLock with copy-on-write map using atomic.Value.
+    
+    benchmark                               old ns/op     new ns/op     delta
+    BenchmarkEndToEndPipe                   7722          7709          -0.17%
+    BenchmarkEndToEndPipe-2                 5114          4344          -15.06%
+    BenchmarkEndToEndPipe-4                 3192          2429          -23.90%
+    BenchmarkEndToEndPipe-8                 1833          1438          -21.55%
+    BenchmarkEndToEndPipe-16                1332          983           -26.20%
+    BenchmarkEndToEndPipe-32                1444          675           -53.25%
+    BenchmarkEndToEndByteBuffer             6474          6019          -7.03%
+    BenchmarkEndToEndByteBuffer-2           4280          2810          -34.35%
+    BenchmarkEndToEndByteBuffer-4           2264          1774          -21.64%
+    BenchmarkEndToEndByteBuffer-8           1275          979           -23.22%
+    BenchmarkEndToEndByteBuffer-16          1257          753           -40.10%
+    BenchmarkEndToEndByteBuffer-32          1342          644           -52.01%
+    BenchmarkEndToEndArrayByteBuffer        727725        671349        -7.75%
+    BenchmarkEndToEndArrayByteBuffer-2      394079        320473        -18.68%
+    BenchmarkEndToEndArrayByteBuffer-4      211785        178175        -15.87%
+    BenchmarkEndToEndArrayByteBuffer-8      141003        118857        -15.71%
+    BenchmarkEndToEndArrayByteBuffer-16     139249        86367         -37.98%
+    BenchmarkEndToEndArrayByteBuffer-32     144128        73454         -49.04%
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/147720043
+
+ src/encoding/gob/encode.go  | 77 ++++++++++++++++++++++-----------------------
+ src/encoding/gob/encoder.go |  4 ---
+ src/encoding/gob/type.go    | 76 ++++++++++++++++++++++++++++++--------------
+ 3 files changed, 91 insertions(+), 66 deletions(-)

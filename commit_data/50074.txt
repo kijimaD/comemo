@@ -1,0 +1,32 @@
+commit ef22285f31ab16ff6751418705b8a7df8e0d661f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 21 14:17:40 2022 +0100
+
+    all: use go/parser.SkipObjectResolution in more places
+    
+    None of cgo, "go test", nor srcimporter make use of go/ast's object
+    resolution via go/ast.Object. As such, we can skip that work during
+    parse time, which should save some CPU time.
+    
+    We don't have any benchmark numbers, as none of the three packages have
+    any usable benchmarks, but we measured gofmt to be about 5% faster
+    thanks to this tweak in https://go.dev/cl/401454.
+    These three packages are quite different to gofmt, but one can expect
+    similar speed-ups in the 1-5% range.
+    
+    Two notable exceptions, which do make use of go/ast.Object, are cmd/fix
+    and cmd/doc - we do not modify those here.
+    
+    See #46485.
+    
+    Change-Id: Ie3e65600d4790641c4e4d6f1c379be477fa02cee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401455
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/ast.go                         | 4 ++--
+ src/cmd/go/internal/load/test.go           | 2 +-
+ src/go/internal/srcimporter/srcimporter.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

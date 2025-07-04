@@ -1,0 +1,13 @@
+commit 95be81da4d0d7dcf3de81962411b8dc964383a65
+Author: James Aguilar <jaguilar@google.com>
+Date:   Fri Nov 13 15:52:30 2009 -0800
+
+    Correct indentation for go-mode where a close brace following a semi-
+    colon-less statement would be indented one stop too many.
+    
+    R=rsc, aclements
+    CC=aclements
+    https://golang.org/cl/154096
+
+ misc/emacs/go-mode.el | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

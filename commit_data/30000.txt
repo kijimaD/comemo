@@ -1,0 +1,20 @@
+commit 9f26b9b93e2622ce9d5d5e7824eedf8a4a8957e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 31 16:20:42 2016 -0700
+
+    cmd/compile: eliminate iota_
+    
+    Change-Id: Iad9c1961aedcc754ad2f6010a49f94c5a0a4bfee
+    Reviewed-on: https://go-review.googlesource.com/32487
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/dcl.go       | 18 +++++++-----------
+ src/cmd/compile/internal/gc/go.go        |  2 --
+ src/cmd/compile/internal/gc/main.go      |  1 -
+ src/cmd/compile/internal/gc/noder.go     | 11 +++--------
+ src/cmd/compile/internal/gc/subr.go      | 17 +----------------
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  7 +++++--
+ 7 files changed, 17 insertions(+), 41 deletions(-)

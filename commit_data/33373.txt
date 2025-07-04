@@ -1,0 +1,16 @@
+commit c604792d28334d07fb6c86893d7f352d89e06949
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:37:07 2017 -0400
+
+    cmd/go: add "go env GOCACHE"
+    
+    This lets users see the effective GOCACHE setting.
+    
+    Change-Id: I0b6dd2945d54611be89ed68fe2fd99110b9a25f6
+    Reviewed-on: https://go-review.googlesource.com/75293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go                 | 19 ++++----
+ src/cmd/go/internal/cache/default.go | 85 ++++++++++++++++++++----------------
+ src/cmd/go/internal/envcmd/env.go    |  2 +
+ 3 files changed, 59 insertions(+), 47 deletions(-)

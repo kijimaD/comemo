@@ -1,0 +1,21 @@
+commit 0a0f4bc181835882717d2f4be75fced4061d4572
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Oct 12 11:34:47 2016 +0900
+
+    cmd/compile/internal/gc: cleanup esc.go
+    
+    * convert important functions to methods
+    * rename EscXXX to XXX in NodeEscState
+    * rename local variables more friendly
+    * simplify redundant code
+    * update comments
+    
+    Change-Id: I8442bf4f8dde84523d9a2ad3d04b1cd326bd4719
+    Reviewed-on: https://go-review.googlesource.com/30893
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 622 ++++++++++++++++++-------------------
+ src/cmd/compile/internal/gc/fmt.go |   4 +-
+ 2 files changed, 311 insertions(+), 315 deletions(-)

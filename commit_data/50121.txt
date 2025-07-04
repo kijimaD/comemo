@@ -1,0 +1,22 @@
+commit b9bf82465569397191a62c4e4fb9a7d1013a2e64
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 19 19:01:05 2022 -0700
+
+    go/parser: match go/defer error message of syntax package
+    
+    Adjust corresponding type checker tests accordingly.
+    
+    For #54511.
+    
+    Change-Id: Ieaf29f26c0877973fc0acbde35292cd69a4b709c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425007
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/parser/parser.go              | 2 +-
+ src/go/parser/short_test.go          | 4 ++--
+ src/go/types/testdata/check/stmt0.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

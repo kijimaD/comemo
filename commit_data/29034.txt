@@ -1,0 +1,15 @@
+commit c0e2318f7c9a83b237a08b208eb145d520e3a233
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 21 17:23:01 2016 -0700
+
+    cmd/compile: simplify parsing of type aliases
+    
+    Change-Id: Ia86841cf84bc17ff6ecc6e5ac4cec86384a0da00
+    Reviewed-on: https://go-review.googlesource.com/31719
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go       |  5 -----
+ src/cmd/compile/internal/syntax/nodes.go   |  1 -
+ src/cmd/compile/internal/syntax/parser.go  | 15 +++++++--------
+ src/cmd/compile/internal/syntax/printer.go |  6 +-----
+ 4 files changed, 8 insertions(+), 19 deletions(-)

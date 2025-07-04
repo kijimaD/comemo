@@ -1,0 +1,19 @@
+commit a2b440239ddb07c52da6833a24125f973ee94c0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 22:16:24 2017 -0400
+
+    cmd/go: add "go clean -cache"
+    
+    Give users a way to remove their caches.
+    
+    Change-Id: I0b041aa54b318e98605675f168fed54ab9b6fd14
+    Reviewed-on: https://go-review.googlesource.com/75470
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go               |  9 ++++----
+ src/cmd/go/alldocs.go              |  5 ++++-
+ src/cmd/go/internal/clean/clean.go | 42 +++++++++++++++++++++++++++++++++++---
+ 3 files changed, 48 insertions(+), 8 deletions(-)

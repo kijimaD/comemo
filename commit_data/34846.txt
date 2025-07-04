@@ -1,0 +1,19 @@
+commit 97677273532cf1a4e8b181c242d89c0be8c92bb6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 3 19:11:53 2018 +0100
+
+    test: skip locklinear's lockmany test for now
+    
+    Since it's been reliably failing on one of the linux-arm builders
+    (arm5spacemonkey) for a long time.
+    
+    Updates #24221.
+    
+    Change-Id: I8fccc7e16631de497ccc2c285e510a110a93ad95
+    Reviewed-on: https://go-review.googlesource.com/104535
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/locklinear.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

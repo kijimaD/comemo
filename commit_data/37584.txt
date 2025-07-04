@@ -1,0 +1,18 @@
+commit 9be01c2eab928f9899c67eb7bcdb164728f85a2c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 4 12:05:11 2018 +1100
+
+    runtime: correct isAbortPC check in isgoexception
+    
+    The expression passed into isAbortPC call was written specifically
+    for windows/amd64 and windows/386 runtime.abort implementation.
+    Adjust the code, so it also works for windows/arm.
+    
+    Fixes #29050
+    
+    Change-Id: I3dc8ddd08031f34115396429eff512827264826f
+    Reviewed-on: https://go-review.googlesource.com/c/152357
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_windows.go | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

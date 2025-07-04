@@ -1,0 +1,14 @@
+commit 9e849dcee4a7049325e483bddef27c22b19dd88b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 26 12:11:34 2018 -0800
+
+    runtime: improve godoc formatting of memclrNoHeapPointers comment
+    
+    Fixes #28955
+    
+    Change-Id: I738ad0c76f7bf8fc504a48cf55d3becd5ed7a9d6
+    Reviewed-on: https://go-review.googlesource.com/c/151337
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stubs.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

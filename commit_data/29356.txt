@@ -1,0 +1,20 @@
+commit b89135777be7c2f123dbf2eea3c92a5402e4c63c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 09:39:32 2016 -0400
+
+    crypto/x509: expose UnknownAuthorityError.Cert
+    
+    This matches exposing CertificateInvalidError.Cert.
+    and (exposing but not the spelling of) HostnameError.Certificate.
+    
+    Fixes #13519.
+    
+    Change-Id: Ifae9a09e063d642c09de3cdee8a728ff06d3a5df
+    Reviewed-on: https://go-review.googlesource.com/32644
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go      | 2 +-
+ src/crypto/x509/verify_test.go | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

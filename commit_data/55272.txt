@@ -1,0 +1,15 @@
+commit ce43fb806f8fc1442adfef812db9301910d3210c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Dec 11 17:50:08 2023 -0500
+
+    doc/go1.22: document ast.Unparen
+    
+    Updates #60061
+    
+    Change-Id: Ifa51f0bac0346ebc352c7524204aa94336a2b5ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548882
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ doc/go1.22.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

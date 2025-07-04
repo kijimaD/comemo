@@ -1,0 +1,32 @@
+commit 78d9a6074d0dce10c10246c02567655764d89188
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 28 12:36:39 2010 +1000
+
+    Wiki codelab, complete with tests.
+    
+    R=r, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/887045
+
+ doc/codelab/wiki/Makefile               |  29 +
+ doc/codelab/wiki/edit.html              |   6 +
+ doc/codelab/wiki/final-noclosure.go     | 100 ++++
+ doc/codelab/wiki/final-noerror.go       |  52 ++
+ doc/codelab/wiki/final-parsetemplate.go |  90 +++
+ doc/codelab/wiki/final-template.go      |  64 ++
+ doc/codelab/wiki/final.go               |  93 +++
+ doc/codelab/wiki/htmlify.go             |  12 +
+ doc/codelab/wiki/http-sample.go         |  15 +
+ doc/codelab/wiki/index.html             | 997 ++++++++++++++++++++++++++++++++
+ doc/codelab/wiki/notemplate.go          |  55 ++
+ doc/codelab/wiki/part1-noerror.go       |  30 +
+ doc/codelab/wiki/part1.go               |  33 ++
+ doc/codelab/wiki/part2.go               |  40 ++
+ doc/codelab/wiki/srcextract.go          |  73 +++
+ doc/codelab/wiki/test.sh                |  24 +
+ doc/codelab/wiki/test_Test.txt.good     |   1 +
+ doc/codelab/wiki/test_edit.good         |   6 +
+ doc/codelab/wiki/test_view.good         |   5 +
+ doc/codelab/wiki/view.html              |   5 +
+ doc/codelab/wiki/wiki.html              | 783 +++++++++++++++++++++++++
+ 21 files changed, 2513 insertions(+)

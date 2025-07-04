@@ -1,0 +1,15 @@
+commit 5d2377a6070ced8a158365addce94f9677246924
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 6 14:30:56 2019 -0400
+
+    cmd/go/internal/modload: propagate errors from Query in 'list -versions'
+    
+    Fixes #32335
+    
+    Change-Id: I1cf8645ecc5ba0866d9b3589a18bb500ea17f865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181018
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/list.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit e85b8db604bd6dd84502708434a19596b54468b5
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Oct 22 20:45:04 2018 +0200
+
+    runtime: use multiplication with overflow check for makemap
+    
+    This improves performance for maps with a bucket size
+    (key+value*8 bytes) larger than 32 bytes and removes loading
+    a value from the maxElems array for smaller bucket sizes.
+    
+    name                old time/op  new time/op  delta
+    MakeMap/[Byte]Byte  93.5ns ± 1%  91.8ns ± 1%  -1.83%  (p=0.000 n=10+10)
+    MakeMap/[Int]Int     134ns ± 1%   127ns ± 2%  -5.61%  (p=0.000 n=9+10)
+    
+    Updates #21588
+    
+    Change-Id: I53f77186769c4bd0f2b90f3c6c17df643b060e39
+    Reviewed-on: https://go-review.googlesource.com/c/143797
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/map.go                |  7 +++++--
+ src/runtime/map_benchmark_test.go | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

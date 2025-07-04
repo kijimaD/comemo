@@ -1,0 +1,19 @@
+commit 089d363a9187fcefb2e6e9335a7ec2b74eeec003
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 10 18:32:40 2015 +0300
+
+    runtime: fix tracing of syscall exit
+    
+    Fix tracing of syscall exit after:
+    https://go-review.googlesource.com/#/c/7504/
+    
+    Change-Id: Idcde2aa826d2b9a05d0a90a80242b6bfa78846ab
+    Reviewed-on: https://go-review.googlesource.com/8728
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/trace/parser.go | 36 ++++++++++++++++++++++++++++++------
+ src/runtime/proc1.go         | 27 ++++++++++++++++++++-------
+ src/runtime/trace.go         |  6 +++---
+ 3 files changed, 53 insertions(+), 16 deletions(-)

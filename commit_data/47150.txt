@@ -1,0 +1,18 @@
+commit b5a5b7bfb1ba25abf8cad8b9ad9451fb6e79d941
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 29 22:42:50 2021 +0000
+
+    runtime: disable pacer lock held assertions in tests
+    
+    Fixes #49234.
+    
+    Change-Id: I64c1eab0dce2bbe990343b43a32858a6c9f3dcda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359878
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go |  1 +
+ src/runtime/mgcpacer.go    | 15 ++++++++++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)

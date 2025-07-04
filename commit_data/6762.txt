@@ -1,0 +1,14 @@
+commit bac478da1cfe945433c7658e6753974195846bc2
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Nov 12 15:57:33 2010 -0800
+
+    sort: simplify semantics of Search.
+    As discussed earlier.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3025042
+
+ src/pkg/sort/search.go      | 48 ++++++++++++++++++++++-----------------------
+ src/pkg/sort/search_test.go | 31 +++++++++++++++--------------
+ 2 files changed, 40 insertions(+), 39 deletions(-)

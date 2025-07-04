@@ -1,0 +1,10 @@
+commit d0cf215bf2c29a244a42375e145afd947a43b46c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 12 13:20:21 2008 -0700
+
+    add new test - factorial by inc and dec
+    
+    SVN=126937
+
+ test/peano.go | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)

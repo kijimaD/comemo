@@ -1,0 +1,15 @@
+commit 87c8707e6ffa40937191ae37e27af5d17d1a215a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 4 10:38:50 2015 -0700
+
+    spec: clarify sentence about non-constant shifts
+    
+    Fixes #10514.
+    
+    Change-Id: Iae95a304d3ebb1ed82567aa234e05dc434db984f
+    Reviewed-on: https://go-review.googlesource.com/13098
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

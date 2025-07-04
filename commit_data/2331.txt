@@ -1,0 +1,25 @@
+commit e81d97ea840728970c75e14c5001e333bf217771
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 23:55:14 2009 -0700
+
+    clean up gmove:
+            * conversions all in one place.
+            * no separate load, store phases;
+              direct memory addressing when possible
+              (this is the x86 after all!).
+              avoids extra registers, extra MOVQs.
+            * fixes int32 -> uint64 bug
+              (was zero-extending)
+    
+    R=ken
+    OCL=29482
+    CL=29484
+
+ src/cmd/6g/cgen.c  |   8 +-
+ src/cmd/6g/ggen.c  |   4 +-
+ src/cmd/6g/gsubr.c | 815 +++++++++++++++++++++--------------------------------
+ src/cmd/gc/const.c |  92 ++++++
+ src/cmd/gc/dcl.c   |   2 +-
+ src/cmd/gc/go.h    |   8 +-
+ src/cmd/gc/subr.c  |  27 +-
+ 7 files changed, 459 insertions(+), 497 deletions(-)

@@ -1,0 +1,17 @@
+commit 40c7be9b0f92d88b90a5aa35838d786579e4fa1d
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 31 10:35:20 2023 -0700
+
+    doc/go1.21: crypto release notes
+    
+    Updates #58645
+    
+    Change-Id: Ib7e2baba41bb327d8fc466afb1e117fe2f22e1c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499637
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.21.html | 30 +++++++-----------------------
+ 1 file changed, 7 insertions(+), 23 deletions(-)

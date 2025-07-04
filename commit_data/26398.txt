@@ -1,0 +1,27 @@
+commit 8dc04cbedcab9a769bb9f74d897c35ed9bc73ba2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 18 10:45:30 2016 -0700
+
+    cmd/compile: enforce 32-bit restrictions on ops
+    
+    Most 64-bit x86 ops can only take a signed 32-bit constant.
+    Clean up our rewrite rules to enforce this restriction.
+    
+    Modify the assembler to fail if the offset does not fit
+    in the instruction.
+    
+    That last check triggers a few times on weird testing code.
+    Suppress those errors if the compiler itself generated errors.
+    
+    Fixes #14862
+    
+    Change-Id: I76559af035b38483b1e59621a8029fc66b3a5d1e
+    Reviewed-on: https://go-review.googlesource.com/20815
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/dcl.go           |   4 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 243 ++++++------
+ src/cmd/compile/internal/ssa/rewrite.go      |  10 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 561 +++++++++++++++------------
+ src/cmd/internal/obj/x86/asm6.go             |  10 +
+ 5 files changed, 459 insertions(+), 369 deletions(-)

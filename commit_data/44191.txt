@@ -1,0 +1,33 @@
+commit ce8b318624adcdd45ecd53b33f6bae38bcccc7be
+Author: Hilko Bengen <bengen@hilluzination.de>
+Date:   Mon Jan 25 22:54:20 2021 +0000
+
+    net/http/fcgi: remove locking added to prevent a test-only race
+    
+    The race reported in issue #41167 was detected only because the
+    ReadWriter used in test code happened to be a bytes.Buffer whose
+    Read and Write operate (unsafely) on shared state. This is not the
+    case in any realistic scenario where the FastCGI protocol is spoken
+    over sockets or pairs of pipes.
+    
+    Since tests that use nopWriteCloser don't care about any output
+    generate by child.Serve(), we change nopWriteCloser to provide
+    a dummy Write method.
+    
+    Remove the locking added in CL 252417, since it causes a deadlock
+    during write as reported in #43901. The race in tests no longer
+    happens thanks to the aforementioned change to nopWriteCloser.
+    
+    Fixes #43901.
+    Updates #41167.
+    
+    Change-Id: I8cf31088a71253c34056698f8e2ad0bee9fcf6c6
+    GitHub-Last-Rev: b06d8377fdada075775d79a20577d38a7c471b45
+    GitHub-Pull-Request: golang/go#43027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275692
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/fcgi/child.go     |  3 ---
+ src/net/http/fcgi/fcgi_test.go | 12 ++++++++----
+ 2 files changed, 8 insertions(+), 7 deletions(-)

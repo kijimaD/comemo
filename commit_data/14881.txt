@@ -1,0 +1,12 @@
+commit a0509d85104f8e4397a1d882524278c24221b58d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 14 19:29:03 2013 +0900
+
+    syscall: simplify netlink sockets
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7039044
+
+ src/pkg/syscall/netlink_linux.go | 170 +++++++++++++++------------------------
+ 1 file changed, 66 insertions(+), 104 deletions(-)

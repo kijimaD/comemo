@@ -1,0 +1,19 @@
+commit b6dbaef68fdbb3f14387e4c32a8890144220f54e
+Author: Henrique Vicente <henriquevicente@gmail.com>
+Date:   Mon Feb 17 02:22:47 2020 +0100
+
+    os/signal: add NotifyContext to cancel context using system signals
+    
+    Fixes #37255
+    
+    Change-Id: Ic0fde3498afefed6e4447f8476e4da7c1faa7145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219640
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/example_unix_test.go |  47 +++++++++++
+ src/os/signal/signal.go            |  75 +++++++++++++++++
+ src/os/signal/signal_test.go       | 162 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 284 insertions(+)

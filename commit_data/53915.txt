@@ -1,0 +1,21 @@
+commit cf39736f87613195aa8a2d7304ee20d7d9eeaa47
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jul 28 10:35:10 2023 -0400
+
+    log/slog: don't panic on aliased Record
+    
+    If the shared slice in a copied is modified, make a copy of it
+    and insert an attribute that warns of the bug.
+    
+    Previously, we panicked, and panics in logging code should be avoided.
+    
+    Change-Id: I24e9b0bf5c8cd09cf733e7dae8a82d025ef214e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513760
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/record.go      |  4 +++-
+ src/log/slog/record_test.go | 11 +++++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

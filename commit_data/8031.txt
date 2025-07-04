@@ -1,0 +1,14 @@
+commit e6e2eb58071a084e1d3aa62fa9d5d03ebd629fd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 8 13:04:29 2011 -0400
+
+    http: do not listen on 0.0.0.0 during test
+    
+    Quiets the pop-up boxes on OS X.
+    
+    R=bradfitzgo, r2
+    CC=golang-dev
+    https://golang.org/cl/4387042
+
+ src/pkg/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

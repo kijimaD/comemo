@@ -1,0 +1,18 @@
+commit 5bf420f0c894fac193f50af990675012480c8677
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sat Oct 30 20:16:44 2010 -0700
+
+    pidigits: Remove TODO, minor improvements
+    
+    I tried adding a Scale method to big.Int and it didn't make any noticeable
+    difference, so I'm removing my TODO.
+    
+    Also got rid of a few obvious allocations that I missed earlier for a modest
+    improvement (~5%).
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/2711043
+
+ test/bench/pidigits.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 02d2b4466f88914c30b4ca5f54538464d404cd3a
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 14 11:28:55 2012 -0400
+
+    A+C: add Michael Gehring (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6188076
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

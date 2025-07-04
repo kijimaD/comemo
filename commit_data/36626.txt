@@ -1,0 +1,16 @@
+commit bbf9e6db0ad4ce951706759d3743dbab2257d033
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Aug 12 11:16:26 2018 +1000
+
+    internal/poll: cap reads and writes to 1GB on windows
+    
+    Fixes #26923
+    
+    Change-Id: I62fec814220ccdf7acd8d79a133d1add3f24cf98
+    Reviewed-on: https://go-review.googlesource.com/129137
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_windows.go | 144 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 105 insertions(+), 39 deletions(-)

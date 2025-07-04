@@ -1,0 +1,18 @@
+commit 3ce5371aaf6abc63ade70447198e9a88cb186910
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 4 01:15:14 2017 +0100
+
+    Revert "cmd/go, misc: rework cwd handling for iOS tests"
+    
+    This reverts commit 593ea3b3606a16da39e38406e22e373eeb944287.
+    
+    Replaced by a improved strategy later in the CL relation chain.
+    
+    Change-Id: I6963e4d1bf38e7028cf545a953e28054d83548
+    Change-Id: I6963e4d1bf38e7028cf545a953e28054d8354870
+    Reviewed-on: https://go-review.googlesource.com/36067
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go   | 14 +++++++++-----
+ src/cmd/go/internal/test/test.go | 22 +++-------------------
+ 2 files changed, 12 insertions(+), 24 deletions(-)

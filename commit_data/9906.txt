@@ -1,0 +1,12 @@
+commit bb51de1cbaf2b85fa1fa33592a00d6f58feba49a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 7 15:14:37 2011 -0700
+
+    gofmt: update test.sh
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5235043
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,32 @@
+commit d480b5c790196c615213f2308d6b7b975eb99ff9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 8 13:10:08 2021 -0400
+
+    cmd/link: put gcprog symbols along with gcbits
+    
+    A stack object record may refer to the object's type's GC mask or
+    GC program (for very large types). For the latter, currently the GC
+    program symbol is named "type..gcprog.XXX" which is then laid out
+    along with type symbols at link time. When relro is used, the type
+    symbols end up in a different section.
+    
+    As we now use relative addressing for stack object records to refer
+    to GC masks or GC programs, it is important that it is laid out in
+    the rodata section (not rodata.rel.ro). Move GC program symbols to
+    be along with GC masks, as they are similar and accessed the same
+    way. They don't have relocations so they don't need to be laid to a
+    relro section.
+    
+    This fixes flaky failures like
+    https://build.golang.org/log/3bdbaaf786ec831b4393a64a959d2130edb5e050
+    
+    Change-Id: I97aeac1234869da5b0f3a73a3010513d6a3156c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354793
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/link/internal/ld/symtab.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

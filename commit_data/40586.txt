@@ -1,0 +1,17 @@
+commit 11db7e44692a2389b7e9bc2e157b363cf7be5ed8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 20 17:24:14 2019 -0400
+
+    runtime: test a frameless function for async preemption
+    
+    Frameless function is an interesting case for call injection
+    espcially for LR architectures. Extend the test for this case.
+    
+    Change-Id: I074090d09eeaf642e71e3f44fea216f66d39b817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202339
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/testdata/testprog/preempt.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

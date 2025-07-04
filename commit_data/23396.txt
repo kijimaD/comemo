@@ -1,0 +1,13 @@
+commit e38bcb58d77b8e62b8c78157fea76afdba6e0105
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 17 22:05:55 2015 +0900
+
+    net: fix build on netbsd
+    
+    Change-Id: Ia5c6d9fb114be65d7c20c7eb97ed696977051031
+    Reviewed-on: https://go-review.googlesource.com/11167
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_resnew.go | 2 +-
+ src/net/cgo_resold.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

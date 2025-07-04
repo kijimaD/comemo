@@ -1,0 +1,20 @@
+commit 3d20a327a1f91ae912865aa13bc07cda9930fefc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 2 13:00:02 2024 -0500
+
+    runtime: initialize crashFD to -1
+    
+    crashFD defaults to the zero value of (surprise!) zero. Zero is a valid
+    FD, so on the first call to SetCrashOutput we actually close FD 0 since
+    it is a "valid" FD.
+    
+    Initialize crashFD to -1, the sentinel for "no FD".
+    
+    Change-Id: I3b108c60603f2b83b867cbe079f035c159b6a6ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560776
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go    | 1 +
+ src/runtime/runtime.go | 2 ++
+ 2 files changed, 3 insertions(+)

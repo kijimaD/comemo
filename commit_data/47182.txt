@@ -1,0 +1,29 @@
+commit 4ec52e363e93baa859cbdec23f997a489cfeca11
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 20 13:17:07 2021 -0700
+
+    go/types: add check that code is monomorphizable
+    
+    This CL adds a check to ensure that generic Go code doesn't involve
+    any unbounded recursive instantiation, which are incompatible with an
+    implementation that uses static instantiation (i.e., monomorphization
+    or compile-time dictionary construction).
+    
+    Updates #48098.
+    
+    Change-Id: I9d051f0f9369ab881592a361a5d0e2a716788a6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357449
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/call.go                           |   2 +
+ src/go/types/check.go                          |   6 +
+ src/go/types/errorcodes.go                     |   7 +
+ src/go/types/mono.go                           | 331 +++++++++++++++++++++++++
+ src/go/types/mono_test.go                      |  92 +++++++
+ src/go/types/signature.go                      |   1 +
+ src/go/types/testdata/fixedbugs/issue48974.go2 |   2 +-
+ src/go/types/typexpr.go                        |   2 +
+ 8 files changed, 442 insertions(+), 1 deletion(-)

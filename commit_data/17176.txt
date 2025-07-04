@@ -1,0 +1,12 @@
+commit f7ab3917f93b7eabf2d642d5241f225a3207d803
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 13 15:08:10 2013 +1000
+
+    doc: release notes for go1.1.2
+    
+    R=golang-dev, go.peter.90, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/12016043
+
+ doc/devel/release.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,15 @@
+commit de20cec9c94ae1c29830cbb288f19bdf5fd961df
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Aug 24 14:55:03 2011 -0700
+
+    big: fix nat.scan bug
+    
+    Scanning "0" with detected base did not actually set the nat to 0.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4923050
+
+ src/pkg/big/int_test.go | 3 +++
+ src/pkg/big/nat.go      | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

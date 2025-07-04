@@ -1,0 +1,15 @@
+commit e5a06ccd3789aba38d5255be32cec1ff740f306b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 26 12:38:18 2014 -0700
+
+    runtime: name hi and lo parts of ret in assembly
+    
+    Makes vet happy.
+    
+    LGTM=bradfitz
+    R=dvyukov, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/131320043
+
+ src/pkg/runtime/asm_386.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

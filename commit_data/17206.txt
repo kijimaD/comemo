@@ -1,0 +1,14 @@
+commit 992374f8fb665d4b389019400178189b1b671547
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 00:55:18 2013 +0400
+
+    net: fix build fix
+    Now builders say:
+    pkg/net/dnsclient_unix_test.go:10: imported and not used: "runtime"
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12890043
+
+ src/pkg/net/dnsclient_unix_test.go | 1 -
+ 1 file changed, 1 deletion(-)

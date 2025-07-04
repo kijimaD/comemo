@@ -1,0 +1,20 @@
+commit 49abcf1a974fb452e345cb696216bf47a97dc3e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 17 20:39:48 2018 +1100
+
+    os: adjust TempDir for Z:\
+    
+    If TMP environment variable is set to Z:\, TempDir returns Z:.
+    But Z: refers to current directory on Z:, while Z:\ refers to root
+    directory on Z:. Adjust TempDir to return Z:\.
+    
+    Fixes #29291
+    
+    Change-Id: If04d0c7977a8ac2d9d558307502e81beb68776ef
+    Reviewed-on: https://go-review.googlesource.com/c/154384
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_windows.go    |  5 ++++-
+ src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)

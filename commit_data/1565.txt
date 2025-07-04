@@ -1,0 +1,28 @@
+commit 1ce17918e32afe42824404a1419b54a465e8b155
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 17:37:05 2009 -0800
+
+    gc #0.  mark and sweep collector.
+    
+    R=r,gri
+    DELTA=472  (423 added, 2 deleted, 47 changed)
+    OCL=23522
+    CL=23541
+
+ src/lib/malloc.go              |  15 ++-
+ src/runtime/Makefile           |   1 +
+ src/runtime/malloc.c           |  73 +++++++++---
+ src/runtime/malloc.h           |  28 ++++-
+ src/runtime/malloc_go.cgo      |   7 +-
+ src/runtime/mcentral.c         |  12 +-
+ src/runtime/mgc0.c             | 246 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.c            |  53 +++++++++
+ src/runtime/msize.c            |   7 +-
+ src/runtime/proc.c             |   9 +-
+ src/runtime/rt1_amd64_darwin.c |   3 +
+ src/runtime/rt1_amd64_linux.c  |   4 +
+ src/runtime/runtime.c          |  24 ++--
+ src/runtime/runtime.h          |   4 +
+ test/gc.go                     |  25 +++++
+ test/gc1.go                    |  13 +++
+ 16 files changed, 477 insertions(+), 47 deletions(-)

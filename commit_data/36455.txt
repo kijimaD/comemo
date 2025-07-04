@@ -1,0 +1,29 @@
+commit 4b439e41e2cdd78e0eeed05942c93364c5d99b6b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 1 12:17:41 2018 +0100
+
+    cmd/vet: check embedded field tags too
+    
+    We can no longer use the field's position for the duplicate field tag
+    warning - since we now check embedded tags, the positions may belong to
+    copmletely different packages.
+    
+    Instead, keep track of the lowest field that's still part of the
+    top-level struct type that we are checking.
+    
+    Finally, be careful to not repeat the independent struct field warnings
+    when checking fields again because they are embedded into another
+    struct. To do this, separate the duplicate tag value logic into a func
+    that recurses into embedded fields on a per-encoding basis.
+    
+    Fixes #25593.
+    
+    Change-Id: I3bd6e01306d8ec63c0314d25e3136d5e067a9517
+    Reviewed-on: https://go-review.googlesource.com/115677
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/structtag.go          | 110 +++++++++++++++++++++++---------------
+ src/cmd/vet/testdata/structtag.go |  29 ++++++----
+ 2 files changed, 87 insertions(+), 52 deletions(-)

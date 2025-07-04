@@ -1,0 +1,23 @@
+commit 05a805a6de9c1b49ee1d5d55589a119cae5ab556
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 15:55:58 2019 -0700
+
+    cmd/compile: introduce EscLeaks abstraction
+    
+    This CL better abstracts away the parameter leak info that was
+    directly encoded into the uint16 value. Followup CL will rewrite the
+    implementation.
+    
+    Passes toolstash-check.
+    
+    Updates #33981.
+    
+    Change-Id: I27f81d26f5dd2d85f5b0e5250ca529819a1f11c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197679
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go    |  64 ++++++++------
+ src/cmd/compile/internal/gc/escape.go | 159 ++++++++++++++++++++--------------
+ 2 files changed, 130 insertions(+), 93 deletions(-)

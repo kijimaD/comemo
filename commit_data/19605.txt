@@ -1,0 +1,15 @@
+commit eb4c3455de0ae2383038b5756e8948ca2516f090
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 25 08:22:22 2014 +1000
+
+    cmd/go: build test files containing non-runnable examples
+    
+    Even if we can't run them, we should at least check that they compile.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/107320046
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

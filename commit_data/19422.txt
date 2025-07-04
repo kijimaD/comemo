@@ -1,0 +1,18 @@
+commit f85600859dbe0ebad85f997f158f8e0224a3c02f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 20 21:36:50 2014 -0700
+
+    cmd/ld: really import runtime/cgo for external link
+    
+    Fixes #8032.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/95580043
+
+ misc/cgo/nocgo/nocgo.go      | 22 ++++++++++++++++++++++
+ misc/cgo/nocgo/nocgo_test.go | 14 ++++++++++++++
+ src/cmd/ld/lib.c             |  2 ++
+ src/run.bash                 |  3 +++
+ 4 files changed, 41 insertions(+)

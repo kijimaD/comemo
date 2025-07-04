@@ -1,0 +1,18 @@
+commit a7f918c1a596d691da5839b3b1f29dd9c674bfb8
+Author: Nathan Fiscaletti <nate.fiscaletti@gmail.com>
+Date:   Sat Mar 7 05:44:31 2020 +0000
+
+    cmd/cgo: avoid extra newline in doc comment of exported function
+    
+    Fixes #37722
+    
+    Change-Id: Ie9154f9d91824558a8ac34ad2fb5bc4e02c64a4b
+    GitHub-Last-Rev: 9fbe1c1d802287ff3c3ccee62e4e74d802196ffb
+    GitHub-Pull-Request: golang/go#37723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222419
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

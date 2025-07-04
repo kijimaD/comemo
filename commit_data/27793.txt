@@ -1,0 +1,18 @@
+commit 3a03e877cc03c1fd155055e60a3f1f9cb8bda8d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 4 19:53:52 2016 -0700
+
+    os: check for waitid returning ENOSYS
+    
+    Reportedly waitid is not available for Ubuntu on Windows.
+    
+    Fixes #16610.
+    
+    Change-Id: Ia724f45a85c6d3467b847da06d8c65d280781dcd
+    Reviewed-on: https://go-review.googlesource.com/25507
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/wait_waitid.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

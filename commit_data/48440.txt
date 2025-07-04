@@ -1,0 +1,44 @@
+commit 9465878114232d4a9cd755fee9241fff1d63bbea
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 00:19:05 2022 -0500
+
+    time: fix zoneinfo.zip locating logic when built with -trimpath
+    
+    When the test binary is built with the -trimpath flag,
+    runtime.GOROOT() is invalid, and must not be used to locate
+    GOROOT/lib/time/zoneinfo.zip. (We can use other sources instead.)
+    
+    However, the test for the package expects zoneinfo.zip to definitely
+    exist. 'go test' runs the test binary in the directory containing its
+    source code — in this case GOROOT/src/time — so we can use that
+    information to find the zoneinfo.zip file when runtime.GOROOT isn't
+    available.
+    
+    For #51483
+    
+    Change-Id: I9de35252a988d146b5d746794323214d400e64e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391814
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/export_android_test.go   | 12 ++++++++----
+ src/time/export_test.go           |  3 ++-
+ src/time/format_test.go           |  4 ++--
+ src/time/internal_test.go         | 21 +++++++++++++--------
+ src/time/time_test.go             |  8 ++++----
+ src/time/tzdata_test.go           |  4 ++--
+ src/time/zoneinfo.go              |  2 +-
+ src/time/zoneinfo_android.go      | 13 ++++++++++---
+ src/time/zoneinfo_android_test.go |  4 ++--
+ src/time/zoneinfo_goroot.go       | 14 ++++++++++++++
+ src/time/zoneinfo_ios.go          | 16 ++++++++--------
+ src/time/zoneinfo_js.go           |  4 +---
+ src/time/zoneinfo_plan9.go        |  5 +----
+ src/time/zoneinfo_read.go         | 17 ++++++++++++++---
+ src/time/zoneinfo_test.go         | 22 +++++++++++++---------
+ src/time/zoneinfo_unix.go         |  6 ++----
+ src/time/zoneinfo_windows.go      |  5 +----
+ 17 files changed, 98 insertions(+), 62 deletions(-)

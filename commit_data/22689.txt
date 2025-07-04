@@ -1,0 +1,15 @@
+commit b3000b6f6a36ff89836bac5549669859efd80ff0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 24 09:10:44 2015 -0700
+
+    cmd/go: rename doc.go to alldocs.go in preparation for "go doc"
+    
+    Also rename and update mkdoc.sh to mkalldocs.sh
+    
+    Change-Id: Ief3673c22d45624e173fc65ee279cea324da03b5
+    Reviewed-on: https://go-review.googlesource.com/9226
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/{doc.go => alldocs.go}     | 0
+ src/cmd/go/{mkdoc.sh => mkalldocs.sh} | 4 ++--
+ 2 files changed, 2 insertions(+), 2 deletions(-)

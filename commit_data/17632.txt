@@ -1,0 +1,19 @@
+commit eef7035ec860a2a8eac39ed3f4c0cb2a384599a2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 17 13:30:36 2013 -0400
+
+    crypto/tls: don't select ECDSA ciphersuites with only an RSA certificate.
+    
+    47ec7a68b1a2 added support for ECDSA ciphersuites but didn't alter the
+    cipher suite selection to take that into account. Thus Go servers could
+    try and select an ECDSA cipher suite while only having an RSA
+    certificate, leading to connection failures.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13239053
+
+ src/pkg/crypto/tls/cipher_suites.go         | 51 ++++++++++++++++++-----------
+ src/pkg/crypto/tls/handshake_server.go      | 41 +++++++++++++----------
+ src/pkg/crypto/tls/handshake_server_test.go | 22 +++++++++++++
+ 3 files changed, 77 insertions(+), 37 deletions(-)

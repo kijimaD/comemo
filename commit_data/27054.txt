@@ -1,0 +1,22 @@
+commit 64a26b79ac781118d4fa364f884ce8080ba97870
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 17 11:42:37 2016 -0400
+
+    runtime: simplify/optimize allocate-black a bit
+    
+    Currently allocating black switches to the system stack (which is
+    probably a historical accident) and atomically updates the global
+    bytes marked stat. Since we're about to depend on this much more,
+    optimize it a bit by putting it back on the regular stack and updating
+    the per-P bytes marked stat, which gets lazily folded into the global
+    bytes marked stat.
+    
+    Change-Id: Ibbe16e5382d3fd2256e4381f88af342bf7020b04
+    Reviewed-on: https://go-review.googlesource.com/22170
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go  |  4 +---
+ src/runtime/mgcmark.go | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 74a7cc9bf2fcf034c5de92b9217e7fab51880e73
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 26 15:21:07 2012 +1000
+
+    reflect.DeepEqual: document that empty and nil are unequal for slices
+    
+    Update #4133.
+    Added a sentence of documentation to call out the behavior.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6572051
+
+ src/pkg/reflect/deepequal.go | 1 +
+ 1 file changed, 1 insertion(+)

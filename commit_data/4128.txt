@@ -1,0 +1,11 @@
+commit 72e7444ad4d222aa26818f45cb40ef80a6a176e9
+Author: William Josephson <wjosephson@gmail.com>
+Date:   Wed Nov 18 09:18:51 2009 -0800
+
+    Missing flags for FreeBSD shared link as used by cgo in default build.
+    
+    R=rsc
+    https://golang.org/cl/157065
+
+ src/Make.pkg | 1 +
+ 1 file changed, 1 insertion(+)

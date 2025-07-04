@@ -1,0 +1,21 @@
+commit b1335037fad4c81ce296f652372aa631a29dcb48
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Mar 7 23:03:24 2018 +0100
+
+    cmd/go: skip TestVetWithOnlyCgoFiles when cgo is disabled
+    
+    CL 99175 added TestVetWithOnlyCgoFiles. However, this
+    test is failing on platforms where cgo is disabled,
+    because no file can be built.
+    
+    This change fixes TestVetWithOnlyCgoFiles by skipping
+    this test when cgo is disabled.
+    
+    Fixes #24304.
+    
+    Change-Id: Ibb38fcd3e0ed1a791782145d3f2866f12117c6fe
+    Reviewed-on: https://go-review.googlesource.com/99275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,24 @@
+commit 1fa41734441ba95f06171db25af7769f6ae26b30
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 1 18:34:41 2011 -0500
+
+    5l, 8l: pass stack frame size to morestack when needed
+    
+    Shame on me: I fixed the same bug in 6l in 8691fcc6a66e
+    (https://golang.org/cl/2609041) and neglected
+    to look at 5l and 8l to see if they were affected.
+    
+    On the positive side, the check I added in that CL is the
+    one that detected this bug.
+    
+    Fixes #1457.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3981052
+
+ src/cmd/5l/noop.c      |  5 +++--
+ src/cmd/8l/pass.c      |  2 +-
+ src/pkg/runtime/proc.c |  6 ++++--
+ test/stack.go          | 27 +++++++++++++++++++++++++++
+ 4 files changed, 35 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 29cea6583ead4fa5b12a333e6a9dabe3f8a52fdd
+Author: Wingrez <31106425+wingrez@users.noreply.github.com>
+Date:   Sun Jan 21 09:26:40 2024 +0000
+
+    cmd/compile/internal/ssa: fix typo in sccp
+    
+    Change-Id: I7f522a4e1b0c50a469ce948249342d6e7cf7777c
+    GitHub-Last-Rev: f89d7ee576814c6ebde823b68a0b64bba8c2ad8f
+    GitHub-Pull-Request: golang/go#65188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557255
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/sccp.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

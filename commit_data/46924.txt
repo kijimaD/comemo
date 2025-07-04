@@ -1,0 +1,17 @@
+commit 543a513304c35d42b162790a6e70191aac68225c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 17 01:18:20 2021 +0700
+
+    reflect: add test that method values have the same code pointers
+    
+    Updates #40592
+    
+    Change-Id: I16252dd57aceb5c49ddc11d8c12c601ca87ca902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356252
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

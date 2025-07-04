@@ -1,0 +1,14 @@
+commit 90e5574f1ca9aa695613484f5b0cbf4e6777f641
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Nov 3 15:32:49 2008 -0800
+
+    treat ... as agreed
+    only unencapsulated if passing one ddd
+    argument to one ddd parameter.
+    
+    R=r
+    OCL=18376
+    CL=18376
+
+ src/cmd/gc/walk.c | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

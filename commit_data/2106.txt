@@ -1,0 +1,23 @@
+commit 22301e8cea47be4356417233d533fc0127f85172
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 28 19:11:37 2009 -0700
+
+    Some adjustments to godoc:
+    - work-around for incorrect import path
+    - added tmpl root in order to run against a goroot w/o templates
+    - clarifications
+    
+    Daily snapshot of syntax-driven formatter. Some progress.
+    
+    Updated gccgo Makefile.
+    
+    TBR=r
+    OCL=28004
+    CL=28004
+
+ usr/gri/pretty/Makefile.iant |  38 +-------
+ usr/gri/pretty/ast.txt       | 217 +++++++++++++++++++++++++++++++++++++++----
+ usr/gri/pretty/format.go     | 168 ++++++++++++++++++++-------------
+ usr/gri/pretty/godoc.go      |  54 ++++++-----
+ usr/gri/pretty/pretty.go     |   2 +-
+ 5 files changed, 341 insertions(+), 138 deletions(-)

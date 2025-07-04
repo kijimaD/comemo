@@ -1,0 +1,17 @@
+commit c68398617b861e79ca9425f6cc983cd434f191b0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 6 14:21:21 2009 -0700
+
+    mandelbrot
+    
+    R=rsc
+    DELTA=147  (145 added, 0 deleted, 2 changed)
+    OCL=32840
+    CL=32845
+
+ test/bench/mandelbrot.c   |  91 ++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/mandelbrot.go  |  95 ++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/mandelbrot.txt | Bin 0 -> 5011 bytes
+ test/bench/timing.log     |   9 ++++-
+ test/bench/timing.sh      |  11 +++++-
+ 5 files changed, 204 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit d829b626812cfe9ee53cb71ccdd75d3fa0eda265
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 5 22:02:03 2023 -0500
+
+    runtime: use srcFunc for showframe
+    
+    Since srcFunc can represent information for either an real text
+    function or an inlined function, this means we no longer have to
+    synthesize a fake _func just to call showframe on an inlined frame.
+    
+    This is cleaner and also eliminates the one case where _func values
+    live in the heap. This will let us mark them NotInHeap, which will in
+    turn eliminate pesky write barriers in the traceback rewrite.
+    
+    For #54466.
+    
+    Change-Id: Ibf5e24d01ee4bf384c825e1a4e2922ef444a438e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466097
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 37 ++++++++++++-------------------------
+ 1 file changed, 12 insertions(+), 25 deletions(-)

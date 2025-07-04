@@ -1,0 +1,18 @@
+commit 830f9ac030a99265379fcbff8f40d66f4fa3e669
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Dec 17 12:59:13 2013 +0400
+
+    race.bat: fix env setup
+    
+    Currently it fails as:
+    go tool dist: $GOROOT is not set correctly or not exported
+    GOROOT=c:\go
+    c:\go\include\u.h does not exist
+    Fail.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/42550044
+
+ src/race.bat | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 6372c821c7cada20e662f9cc37f5d1c202a6b5fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 13 21:44:35 2016 -0700
+
+    doc: GCC 6 will have the Go 1.6.1 user libraries
+    
+    Update #14759.
+    
+    Change-Id: I8a174aad721beb62380e10071d9648b6b1c21b8c
+    Reviewed-on: https://go-review.googlesource.com/22072
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

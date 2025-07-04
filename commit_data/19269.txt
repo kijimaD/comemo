@@ -1,0 +1,15 @@
+commit 28c515f40faba1cd1589dcc3f6f0fe3e2f5f6325
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri May 2 13:06:58 2014 -0400
+
+    runtime: fix bug in GOTRACEBACK=crash causing suppression of core dumps.
+    
+    Because gotraceback is called early and often, its cache commits to the value of getenv("GOTRACEBACK") before getenv is even ready.  So now we reset its cache once getenv becomes ready.  Panicking programs now dump core again.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/97800045
+
+ src/pkg/runtime/runtime.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

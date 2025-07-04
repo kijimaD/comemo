@@ -1,0 +1,23 @@
+commit 8108444eaa7ee45a74b2f2da6d21dd1d2b0c0352
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Dec 14 12:48:31 2021 -0500
+
+    go/types: record types for union subexpressions
+    
+    Prior to unions, unary and binary expressions always had a recorded
+    type. Preserve this by recording a type for all unary and binary
+    expressions encountered while parsing a union type.
+    
+    Updates #50093
+    
+    Change-Id: I5ba20f37854760596350d91ea325dc98e67e115a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371757
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/api.go      |  6 ------
+ src/go/types/api_test.go | 13 ++++++++++++
+ src/go/types/union.go    | 55 +++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 51 insertions(+), 23 deletions(-)

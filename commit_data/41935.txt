@@ -1,0 +1,29 @@
+commit 796475ce1f7c4be3b7171cacea225cc313083c6d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 7 12:12:44 2020 -0400
+
+    runtime/pprof: try to use real stack in TestTryAdd
+    
+    TestTryAdd is particularly brittle because it tests some real cases by
+    constructing fake sample stack frames. If those frames don't correctly
+    represent what the runtime would generate then they may fail to catch
+    regressions.
+    
+    Instead, call runtime.Callers at the bottom of real function calls to
+    generate real frames as a base for truncation, etc in tests. Several of
+    these tests still have to fake parts of the frames to test the right
+    thing, but this is a bit less fragile.
+    
+    This change is equivalent to the original
+    0dfb0513ec6a0e97db166bd91a2dc0a1ceb154f7 (golang.org/cl/227484), except
+    that the test skips if the test functions aren't inline (e.g., noopt
+    builders).
+    
+    Change-Id: Ie9e32b5660cfe28a924f9cfcddcd887ea2effd66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227922
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/pprof/pprof_test.go | 95 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 70 insertions(+), 25 deletions(-)

@@ -1,0 +1,20 @@
+commit fde3ab843faaf4ba7a741bfdc192dbb5f2ddf209
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 15 15:00:56 2014 +1100
+
+    cmd/go: handle \r in input text
+    
+    Remove carriage returns from //go:generate lines.
+    Carriage returns are the predecessor of BOMs and still
+    live on Windows.
+    
+    Fixes #9264
+    
+    Change-Id: I637748c74335c696b3630f52f2100061153fcdb4
+    Reviewed-on: https://go-review.googlesource.com/1564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/generate.go      | 4 ++++
+ src/cmd/go/generate_test.go | 6 ++++++
+ 2 files changed, 10 insertions(+)

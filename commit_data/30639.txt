@@ -1,0 +1,49 @@
+commit a51e4cc9cea152a203ab508197dc0965c00e3a76
+Author: khr <khr@khr-glaptop.roam.corp.google.com>
+Date:   Thu Mar 9 10:38:45 2017 -0800
+
+    cmd/compile: zero return parameters earlier
+    
+    Move the zeroing of results earlier.  In particular, they need to
+    come before any move-to-heap operations, as those require allocation.
+    Those allocations are points at which the GC can see the uninitialized
+    result slots.
+    
+    For the function:
+    
+    func f() (x, y, z *int) {
+      defer(){}()
+      escape(&y)
+      return
+    }
+    
+    We used to generate code like this:
+    
+    x = nil
+    y = nil
+    &y = new(int)
+    z = nil
+    
+    Now we will generate:
+    
+    x = nil
+    y = nil
+    z = nil
+    &y = new(int)
+    
+    Since the fix for #18860, the return slots are always live if there
+    is a defer, so the former ordering allowed the GC to see junk
+    in the z slot.
+    
+    Fixes #19078
+    
+    Change-Id: I71554ae437549725bb79e13b2c100b2911d47ed4
+    Reviewed-on: https://go-review.googlesource.com/38133
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 10 ++++++---
+ src/cmd/compile/internal/gc/walk.go  | 35 ++++++++++++++++++++----------
+ test/fixedbugs/issue19078.go         | 42 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 14 deletions(-)

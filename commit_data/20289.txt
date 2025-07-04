@@ -1,0 +1,13 @@
+commit d3a2021f71d5a4d31bba88ca634823b14904e239
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 4 16:23:37 2014 +0900
+
+    runtime: fix typos
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/141000043
+
+ src/pkg/runtime/netpoll.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

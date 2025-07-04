@@ -1,0 +1,19 @@
+commit 21a1fe4ddf77a49fee1d82d1891e66b1dce932bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 28 17:02:29 2016 -0400
+
+    runtime/pprof/internal/gzip0: new package for pprof
+    
+    Writes gzip-format uncompressed files.
+    
+    Change-Id: Id5dc01852e21732978700fd9efcc2d4a5899ffeb
+    Reviewed-on: https://go-review.googlesource.com/32260
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/go/build/deps_test.go                      |   1 +
+ src/runtime/pprof/internal/gzip0/gzip0.go      | 156 +++++++++++++++++++++++++
+ src/runtime/pprof/internal/gzip0/gzip0_test.go |  43 +++++++
+ 3 files changed, 200 insertions(+)

@@ -1,0 +1,17 @@
+commit 92607fdd304c1d2f1be243a8bf0fc1b8224d2c18
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 26 12:48:33 2017 -0700
+
+    cmd/compile: split dumptypestructs further
+    
+    This is preparatory cleanup to make future changes clearer.
+    
+    Change-Id: I20fb9c78257de61b8bd096fce6b1e751995c01f2
+    Reviewed-on: https://go-review.googlesource.com/41818
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go     | 3 ++-
+ src/cmd/compile/internal/gc/reflect.go | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

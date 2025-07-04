@@ -1,0 +1,17 @@
+commit c0bd4f33ccc9a9454d50245a1dba1fa46e62a1ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 6 15:57:00 2017 -0800
+
+    spec: pick up a few corrections missed in prior commit
+    
+    This CL picks up a couple of minor fixes that were present
+    in https://go-review.googlesource.com/#/c/36213/6..5 but
+    accidentally got dropped in https://go-review.googlesource.com/#/c/36213/
+    because I submitted from the wrong client.
+    
+    Change-Id: I3ad0d20457152ea9a116cbb65a23eb0dc3a8525e
+    Reviewed-on: https://go-review.googlesource.com/36471
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

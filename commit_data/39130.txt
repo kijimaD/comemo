@@ -1,0 +1,16 @@
+commit 8d212c3ac3bacdf8d135e94d1e0a0c3cfba6e13a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 15:34:17 2019 -0400
+
+    cmd/go/internal/modfetch/codehost: ignore incomplete semver tags in RecentTag
+    
+    Fixes #31965
+    
+    Change-Id: I2126903196b630c0bee2c022be1a818e0856ce3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176539
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

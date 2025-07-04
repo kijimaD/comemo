@@ -1,0 +1,21 @@
+commit a45ea55da732198dca2457ecb7cabe4ab4a7a162
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Apr 21 16:56:22 2020 -0400
+
+    cmd/internal: allow ADDE to work with memory location on s390x
+    
+    Originally on s390x, ADDE does not work when adding numbers from a memory location.
+    For example: ADDE (R3), R4 will result in a failure.
+    
+    Since ADDC, ADD and ADDW already supports adding from memory location,
+    let's support that for ADDE as well.
+    
+    Change-Id: I7cbe112ea154733a621b948c6a21bbee63fb0c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229304
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 4 ++++
+ src/cmd/internal/obj/s390x/asmz.go        | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 67b1b6a2e3a405e3e0b5c6a76f702b2a6071c1f0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 13 10:55:19 2021 +0700
+
+    cmd/compile: allow ir.OSLICE2ARRPTR in mayCall
+    
+    CL 301650 adds conversion from slice to array ptr. The conversion
+    expression may appear as argument to a function call, so it will be
+    tested by mayCall. But ir.OSLICE2ARRPTR  op is not handled by mayCall,
+    causes the compiler crashes.
+    
+    Updates #395
+    Fixes #46720
+    
+    Change-Id: I39e1b3e38e224a31f3dec46dbbdc855ff3b2c6a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327649
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/walk.go |  2 +-
+ test/fixedbugs/issue46720.go          | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

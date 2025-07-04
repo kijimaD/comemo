@@ -1,0 +1,16 @@
+commit 73b0d84c83833b21968ed9bf4d00cbfbc2ec2fdb
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 30 11:12:08 2014 +0100
+
+    net/http: temporarily disable the failing tests on Plan 9
+    
+    Update #7237
+    
+    LGTM=bradfitz
+    R=jas, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/57190045
+
+ src/pkg/net/http/serve_test.go     | 12 ++++++++++++
+ src/pkg/net/http/transport_test.go | 12 ++++++++++++
+ 2 files changed, 24 insertions(+)

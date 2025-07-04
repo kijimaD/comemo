@@ -1,0 +1,26 @@
+commit 4f80b50e235dd6e7637cf1b15f450d5c50d5ba9f
+Author: Jens Frederich <jfrederich@gmail.com>
+Date:   Tue Oct 14 23:24:58 2014 -0400
+
+    go/build: Return MultiplePackageError on importing a dir containing multiple packages
+    
+    When the Import function in go/build encounters a directory
+    without any buildable Go source files, it returns a handy
+    NoGoError. Now if, instead it encounters multiple Go source files
+    from multiple packages, it returns a handy MultiplePackageError.
+    
+    A new test for NoGoError and MultiplePackageError is also provided.
+    
+    Fixes #8286.
+    
+    LGTM=adg, rsc
+    R=bradfitz, rsc, adg
+    CC=golang-codereviews
+    https://golang.org/cl/155050043
+
+ src/go/build/build.go                         | 15 ++++++++++++++-
+ src/go/build/build_test.go                    | 14 ++++++++++++++
+ src/go/build/testdata/empty/dummy             |  0
+ src/go/build/testdata/multi/file.go           |  5 +++++
+ src/go/build/testdata/multi/file_appengine.go |  5 +++++
+ 5 files changed, 38 insertions(+), 1 deletion(-)

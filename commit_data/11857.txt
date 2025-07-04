@@ -1,0 +1,16 @@
+commit 422826270de705ddb1c4982f4d544f46f7bdd55b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 16:02:13 2012 -0500
+
+    cmd/cgo: omit //line in -godefs, -cdefs output
+    
+    Makes files like src/pkg/syscall/ztypes_linux_amd64.go easier to read.
+    (The copy that is checked in predates the //line output mode,
+    so this also preserves the status quo.)
+    
+    R=golang-dev, iant, gri
+    CC=golang-dev
+    https://golang.org/cl/5655068
+
+ src/cmd/cgo/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

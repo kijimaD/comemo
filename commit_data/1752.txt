@@ -1,0 +1,13 @@
+commit 83de0698d61389f7043a4e6b7e86cda359b0dd83
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 13:30:39 2009 -0800
+
+    document vector
+    
+    R=rsc
+    DELTA=36  (30 added, 0 deleted, 6 changed)
+    OCL=25740
+    CL=25766
+
+ src/lib/container/vector.go | 42 ++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 36 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit b6bac1c0a501353f418df309f56ca0cdec39b214
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 16 14:12:24 2009 -0800
+
+    Don't ignore flags controlling the amount of source code parsed
+    in parser's ParsePkgFile and ParsePackage functions.
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/180070
+
+ src/pkg/exp/parser/interface.go | 10 +++++-----
+ src/pkg/go/parser/interface.go  | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

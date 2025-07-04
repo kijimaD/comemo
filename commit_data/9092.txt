@@ -1,0 +1,16 @@
+commit 331840f50935cb886254ee6b5bc6daad7788979b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 17 12:32:00 2011 +1000
+
+    exp/template: allow declaration of variables only inside control structures.
+    In simple pipelines the declaration has no scope.
+    Also document the scope.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4761044
+
+ src/pkg/exp/template/doc.go        | 16 +++++++++++-----
+ src/pkg/exp/template/parse.go      | 11 +++++++----
+ src/pkg/exp/template/parse_test.go |  3 +--
+ 3 files changed, 19 insertions(+), 11 deletions(-)

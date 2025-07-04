@@ -1,0 +1,13 @@
+commit e56c0555da9d1b603c11671b759000e7aa5bb9ed
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 9 15:14:38 2010 +1000
+
+    Make.inc: fix build for tiny.
+    Suggested by paulzhol@gmail.com
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2122049
+
+ src/Make.inc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

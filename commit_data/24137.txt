@@ -1,0 +1,26 @@
+commit 8d478e845cf56045fe805b51ddabf74f93f0290a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Aug 31 10:14:00 2015 +1000
+
+    cmd/internal/obj/arm: remove CASE and BCASE
+    
+    Update #10994
+    
+    CASE and BCASE were used by 5c in switch statements, cmd/compile
+    does not use them.
+    
+    Change-Id: I7a578c461b52b94690e35460926849b28971b770
+    Reviewed-on: https://go-review.googlesource.com/14009
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm.out | 39 ++++++++++----------
+ src/cmd/asm/internal/asm/testdata/arm.s   |  8 -----
+ src/cmd/compile/internal/arm/peep.go      |  5 +--
+ src/cmd/internal/obj/arm/a.out.go         |  2 --
+ src/cmd/internal/obj/arm/anames.go        |  2 --
+ src/cmd/internal/obj/arm/asm5.go          | 59 -------------------------------
+ src/cmd/internal/obj/arm/obj5.go          | 21 ++---------
+ 7 files changed, 22 insertions(+), 114 deletions(-)

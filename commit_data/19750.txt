@@ -1,0 +1,30 @@
+commit 8a23c0021edad5bbf117b71ee7db32406b0c9a67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 16 16:29:51 2014 -0700
+
+    src, misc: applied gofmt -s -w
+    
+    Pending CL 113120043.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/112290043
+
+ src/cmd/cgo/out.go                          |  2 +-
+ src/pkg/bufio/bufio_test.go                 |  2 +-
+ src/pkg/database/sql/sql.go                 |  2 +-
+ src/pkg/database/sql/sql_test.go            |  4 ++--
+ src/pkg/go/printer/printer_test.go          |  2 +-
+ src/pkg/log/syslog/syslog_test.go           |  2 +-
+ src/pkg/net/dial_test.go                    |  2 +-
+ src/pkg/os/exec/exec.go                     |  2 +-
+ src/pkg/runtime/malloc_test.go              |  2 +-
+ src/pkg/runtime/map_test.go                 |  2 +-
+ src/pkg/runtime/mapspeed_test.go            |  4 ++--
+ src/pkg/runtime/race/testdata/chan_test.go  |  4 ++--
+ src/pkg/runtime/race/testdata/map_test.go   |  8 ++++----
+ src/pkg/runtime/race/testdata/slice_test.go | 10 +++++-----
+ src/pkg/runtime/string_test.go              |  4 ++--
+ src/pkg/unicode/utf8/utf8.go                |  2 +-
+ 16 files changed, 27 insertions(+), 27 deletions(-)

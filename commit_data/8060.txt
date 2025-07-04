@@ -1,0 +1,16 @@
+commit 89901bbd14298f4e21c1b8bf8df166c47480183d
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Wed Apr 13 11:55:41 2011 +1000
+
+    misc/vim: add plugin with Fmt command.
+    
+    Fmt command filters the current Go buffer through gofmt.
+    It tries to preserve cursor position and avoids replacing
+    the buffer with stderr output.
+    
+    R=golang-dev, dsymonds, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4382053
+
+ misc/vim/ftplugin/go/fmt.vim | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

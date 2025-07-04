@@ -1,0 +1,21 @@
+commit 61ce82a3601955a39ef26f51654fa2abc2049c11
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 18 14:17:43 2020 -0400
+
+    cmd/go: skip the cmd/cgo staleness check on darwin builders
+    
+    Some of the darwin-amd64 builders are providing a stale environment.
+    Let's un-break them while we investigate.
+    
+    Updates #37573
+    Updates #33598
+    
+    Change-Id: I8b79778fe4d5aa916557c1ba89fa9c776d130b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223925
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/test_race_install_cgo.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

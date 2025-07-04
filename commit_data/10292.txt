@@ -1,0 +1,98 @@
+commit 45e3bcb34389808232f61899936731ebacb778ef
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:41:54 2011 -0800
+
+    renaming_3: gofix -r go1pkgrename src/pkg/[m-z]*
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5345045
+
+ src/pkg/math/big/int.go                        | 2 +-
+ src/pkg/math/big/int_test.go                   | 2 +-
+ src/pkg/math/big/nat.go                        | 2 +-
+ src/pkg/math/big/rat_test.go                   | 2 +-
+ src/pkg/mime/multipart/multipart_test.go       | 2 +-
+ src/pkg/net/dnsclient.go                       | 2 +-
+ src/pkg/net/dnsclient_unix.go                  | 2 +-
+ src/pkg/net/http/cgi/child.go                  | 4 ++--
+ src/pkg/net/http/cgi/host.go                   | 4 ++--
+ src/pkg/net/http/cgi/host_test.go              | 6 +++---
+ src/pkg/net/http/cgi/matryoshka_test.go        | 2 +-
+ src/pkg/net/http/client.go                     | 2 +-
+ src/pkg/net/http/client_test.go                | 6 +++---
+ src/pkg/net/http/cookie_test.go                | 2 +-
+ src/pkg/net/http/fcgi/child.go                 | 4 ++--
+ src/pkg/net/http/filetransport_test.go         | 2 +-
+ src/pkg/net/http/fs.go                         | 2 +-
+ src/pkg/net/http/fs_test.go                    | 6 +++---
+ src/pkg/net/http/httptest/recorder.go          | 2 +-
+ src/pkg/net/http/httptest/server.go            | 2 +-
+ src/pkg/net/http/httputil/chunked.go           | 2 +-
+ src/pkg/net/http/httputil/dump.go              | 2 +-
+ src/pkg/net/http/httputil/dump_test.go         | 4 ++--
+ src/pkg/net/http/httputil/persist.go           | 2 +-
+ src/pkg/net/http/httputil/reverseproxy.go      | 4 ++--
+ src/pkg/net/http/httputil/reverseproxy_test.go | 6 +++---
+ src/pkg/net/http/pprof/pprof.go                | 2 +-
+ src/pkg/net/http/readrequest_test.go           | 2 +-
+ src/pkg/net/http/request.go                    | 2 +-
+ src/pkg/net/http/request_test.go               | 6 +++---
+ src/pkg/net/http/requestwrite_test.go          | 2 +-
+ src/pkg/net/http/response.go                   | 2 +-
+ src/pkg/net/http/response_test.go              | 2 +-
+ src/pkg/net/http/serve_test.go                 | 6 +++---
+ src/pkg/net/http/server.go                     | 2 +-
+ src/pkg/net/http/sniff_test.go                 | 4 ++--
+ src/pkg/net/http/transport.go                  | 2 +-
+ src/pkg/net/http/transport_test.go             | 6 +++---
+ src/pkg/net/http/triv.go                       | 2 +-
+ src/pkg/net/rpc/client.go                      | 4 ++--
+ src/pkg/net/rpc/debug.go                       | 4 ++--
+ src/pkg/net/rpc/jsonrpc/all_test.go            | 4 ++--
+ src/pkg/net/rpc/jsonrpc/client.go              | 4 ++--
+ src/pkg/net/rpc/jsonrpc/server.go              | 4 ++--
+ src/pkg/net/rpc/server.go                      | 6 +++---
+ src/pkg/net/rpc/server_test.go                 | 2 +-
+ src/pkg/old/netchan/common.go                  | 2 +-
+ src/pkg/old/regexp/regexp.go                   | 2 +-
+ src/pkg/old/template/parse.go                  | 2 +-
+ src/pkg/old/template/template_test.go          | 2 +-
+ src/pkg/os/env_windows.go                      | 2 +-
+ src/pkg/path/filepath/match.go                 | 2 +-
+ src/pkg/path/match.go                          | 2 +-
+ src/pkg/regexp/exec_test.go                    | 4 ++--
+ src/pkg/regexp/regexp.go                       | 2 +-
+ src/pkg/regexp/syntax/parse.go                 | 2 +-
+ src/pkg/runtime/softfloat64_test.go            | 2 +-
+ src/pkg/sort/sort_test.go                      | 2 +-
+ src/pkg/strconv/quote.go                       | 2 +-
+ src/pkg/strings/reader.go                      | 2 +-
+ src/pkg/strings/strings.go                     | 2 +-
+ src/pkg/strings/strings_test.go                | 2 +-
+ src/pkg/syscall/exec_windows.go                | 2 +-
+ src/pkg/syscall/syscall_windows.go             | 2 +-
+ src/pkg/testing/quick/quick.go                 | 2 +-
+ src/pkg/testing/quick/quick_test.go            | 2 +-
+ src/pkg/testing/script/script.go               | 2 +-
+ src/pkg/text/scanner/scanner.go                | 2 +-
+ src/pkg/text/scanner/scanner_test.go           | 2 +-
+ src/pkg/text/tabwriter/tabwriter.go            | 2 +-
+ src/pkg/text/template/exec.go                  | 2 +-
+ src/pkg/text/template/funcs.go                 | 4 ++--
+ src/pkg/text/template/parse.go                 | 2 +-
+ src/pkg/text/template/parse/lex.go             | 2 +-
+ src/pkg/text/template/set.go                   | 2 +-
+ src/pkg/unicode/maketables.go                  | 2 +-
+ src/pkg/unicode/utf16/utf16_test.go            | 2 +-
+ src/pkg/unicode/utf8/string_test.go            | 4 ++--
+ src/pkg/unicode/utf8/utf8_test.go              | 2 +-
+ src/pkg/websocket/client.go                    | 2 +-
+ src/pkg/websocket/hixie.go                     | 6 +++---
+ src/pkg/websocket/hixie_test.go                | 4 ++--
+ src/pkg/websocket/hybi.go                      | 4 ++--
+ src/pkg/websocket/hybi_test.go                 | 4 ++--
+ src/pkg/websocket/server.go                    | 2 +-
+ src/pkg/websocket/websocket.go                 | 6 +++---
+ src/pkg/websocket/websocket_test.go            | 6 +++---
+ 87 files changed, 126 insertions(+), 126 deletions(-)

@@ -1,0 +1,16 @@
+commit c5d744a4f6b12a858fe549ddafde7a5bb81c7082
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 10 19:15:36 2018 +0000
+
+    os/exec: skip TestContextCancel on the Windows XP builder
+    
+    Updates #17245
+    
+    Change-Id: I3d7ea362809040fbbba4b33efd57bf2d27d4c390
+    Reviewed-on: https://go-review.googlesource.com/87257
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

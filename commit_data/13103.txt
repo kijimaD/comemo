@@ -1,0 +1,19 @@
+commit b4456df6d237e2f8dc66c3f405d2d79836aa797d
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon May 21 10:57:15 2012 -0700
+
+    net/http: add cookies from jar to POST request.
+    
+    The main content of this CL is a test case checking the reported
+    issue 3511 and a tiny fix for it.  A subsequent CL will refactor
+    the fix as proposed issue 3511.
+    
+    Fixes #3511.
+    
+    R=golang-dev, steven.hartland, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6013049
+
+ src/pkg/net/http/client.go      |  5 +++++
+ src/pkg/net/http/client_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

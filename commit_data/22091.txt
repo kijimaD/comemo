@@ -1,0 +1,16 @@
+commit bef356b28281b8ff4a585d857a881783926cabb1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 15:31:11 2015 -0400
+
+    runtime: improve comment in concurrent GC
+    
+    "Sync" is not very informative. What's being synchronized and with
+    whom? Update this comment to explain what we're really doing: enabling
+    write barriers.
+    
+    Change-Id: I4f0cbb8771988c7ba4606d566b77c26c64165f0f
+    Reviewed-on: https://go-review.googlesource.com/7700
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

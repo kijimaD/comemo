@@ -1,0 +1,14 @@
+commit afe675c2fa9deacd61f5684be54f1ebbdc94fc0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 14:37:31 2016 -0400
+
+    doc/faq: mention that copying discussion is semantics, not implementation
+    
+    Fixes #17181.
+    
+    Change-Id: If7cc4865e391acf76512f7ec7167d5a31377b598
+    Reviewed-on: https://go-review.googlesource.com/31574
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

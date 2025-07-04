@@ -1,0 +1,18 @@
+commit 8a1b3d5a579ef4b20357ed6d0254976b0d1a19d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 15:53:11 2012 -0500
+
+    runtime: fix windows build
+    
+    Implement runtime·write, like on the other systems,
+    and also runtime·badcallback, in assembly to reduce
+    stack footprint.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5785055
+
+ src/pkg/runtime/sys_windows_386.s   | 40 +++++++++++++++++++++++++
+ src/pkg/runtime/sys_windows_amd64.s | 58 +++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/thread_windows.c    | 41 ++------------------------
+ 3 files changed, 94 insertions(+), 45 deletions(-)

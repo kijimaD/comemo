@@ -1,0 +1,20 @@
+commit 7179c1acd967daea44fb806865e57308ea0c3679
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 15:59:48 2016 -0700
+
+    Revert "go/printer: support for printing alias declarations"
+    
+    This reverts commit 59c63c711c73f3872c3047c2e80debba5ff1b802.
+    
+    Reason: Decision to back out current alias implementation.
+    
+    For #16339.
+    
+    Change-Id: Idd135fe84b7ce4814cb3632f717736fc6985634c
+    Reviewed-on: https://go-review.googlesource.com/32822
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/go/printer/nodes.go                     | 66 +++--------------------------
+ src/go/printer/testdata/declarations.golden | 44 -------------------
+ src/go/printer/testdata/declarations.input  | 44 -------------------
+ 3 files changed, 7 insertions(+), 147 deletions(-)

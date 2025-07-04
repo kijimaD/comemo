@@ -1,0 +1,21 @@
+commit ff4e45fbc2ab7980087c0ae882a36803f6bc248f
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jan 24 02:54:56 2024 +0000
+
+    cmd/compile/internal/reflectdata,reflect: merge MaxPtrmaskBytes const into internal/abi
+    
+    For #59670
+    
+    Change-Id: I5c0a463f54208db215683f11e6454d0178edda3c
+    GitHub-Last-Rev: 6963f3c8fb9cf34cdc8dda7ee92a58c71ca65520
+    GitHub-Pull-Request: golang/go#64904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 35 +------------------------
+ src/internal/abi/type.go                        | 31 ++++++++++++++++++++++
+ src/reflect/type.go                             |  5 +---
+ 3 files changed, 33 insertions(+), 38 deletions(-)

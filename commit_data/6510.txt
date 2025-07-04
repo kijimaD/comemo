@@ -1,0 +1,12 @@
+commit 78d19b9b7387db42470a3c47c602993fae452f48
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 13 14:40:02 2010 +1100
+
+    runtime: remove done TODO from SetFinalizer
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2472041
+
+ src/pkg/runtime/extern.go | 1 -
+ 1 file changed, 1 deletion(-)

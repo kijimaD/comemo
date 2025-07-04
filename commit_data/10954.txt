@@ -1,0 +1,12 @@
+commit 914ab8a23f2beec9ff98d211f8aa9f6ee0ab1fa1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 17:17:28 2011 -0500
+
+    os/exec: dump lsof on failure
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5504063
+
+ src/pkg/os/exec/exec_test.go | 1 +
+ 1 file changed, 1 insertion(+)

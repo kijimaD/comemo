@@ -1,0 +1,23 @@
+commit 822dbcb7d4b7ab2410bdc19355a0bff99c3c467e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 31 17:10:58 2022 -0500
+
+    Revert "runtime: normalize sigprof traceback flags"
+    
+    This reverts commit CL 358900.
+    
+    Adding _TraceJumpStack to cgo traceback exposed a crashing condition.
+    This CL was primarily a cleanup, so we revert it entirely for now
+    and follow-up with the VDSO and libcall parts later.
+    
+    Fixes #50936.
+    
+    Change-Id: Ie45c9caaa8e2ef5bc9498ba65c36c887ca821bf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382079
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

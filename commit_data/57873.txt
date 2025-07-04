@@ -1,0 +1,22 @@
+commit d72b5bc3d710d0ded53c2c958abaff8054adf5ef
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 4 13:32:36 2024 -0500
+
+    cmd/go/internal/web: split interceptor into separate package
+    
+    This moves the interception code ito package
+    cmd/go/internal/web/intercept so that it can also be used by
+    cmd/go/internal/auth.
+    
+    For #26232
+    
+    Change-Id: Id8148fca56f48adaf98ddd09a62657c08f890441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625036
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/go_test.go                          | 10 ++--
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go   | 12 ++---
+ src/cmd/go/internal/web/http.go                | 67 ++----------------------
+ src/cmd/go/internal/web/intercept/intercept.go | 72 ++++++++++++++++++++++++++
+ 4 files changed, 88 insertions(+), 73 deletions(-)

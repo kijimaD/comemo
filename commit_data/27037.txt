@@ -1,0 +1,24 @@
+commit ed41054b6d1306537df0ba3a34d11579ae2c1829
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 18 14:50:14 2016 -0400
+
+    cmd/link: process data symbols with slices
+    
+    First (and largest single) step to switching cmd/link from linked
+    lists of symbols to slices.
+    
+    Sort sections independently and concurrently.
+    This reduces jujud link times on linux/amd64 by ~4%.
+    
+    Updates #15374
+    
+    Change-Id: I452bc8f33081039468636502fe3c1cc8d6ed9efa
+    Reviewed-on: https://go-review.googlesource.com/22205
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/link/internal/ld/data.go  | 626 ++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/elf.go   |  17 +-
+ src/cmd/link/internal/ld/lib.go   |   3 +-
+ src/cmd/link/internal/ld/macho.go |  16 +-
+ src/cmd/link/internal/ld/pe.go    |  14 +-
+ 5 files changed, 380 insertions(+), 296 deletions(-)

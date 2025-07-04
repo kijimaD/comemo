@@ -1,0 +1,19 @@
+commit 8550a5840227fa21d2eecf67aa1e891bd5753de6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 1 16:42:43 2019 -0400
+
+    cmd/go.mod: upgrade x/mod to pull in CL 204821
+    
+    Updates #34822
+    
+    Change-Id: I189d93ebd3ce6cd1b8f1e29336876fd82a7cfff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go.mod                                  | 2 +-
+ src/cmd/go.sum                                  | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 2 ++
+ src/cmd/vendor/modules.txt                      | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

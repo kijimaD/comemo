@@ -1,0 +1,21 @@
+commit f07059d949057f414dd0f8303f93ca727d716c62
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Sat Jun 8 21:40:20 2019 +0900
+
+    cmd/compile: rename sizeof_Array and array_* to slice_*
+    
+    Renames variables sizeof_Array and other array_* variables
+    that were actually intended for slices and not arrays.
+    
+    Change-Id: I391b95880cc77cabb8472efe694b7dd19545f31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180919
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go    |  2 +-
+ src/cmd/compile/internal/gc/go.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/sinit.go    | 18 +++++++++---------
+ src/cmd/compile/internal/gc/ssa.go      |  4 ++--
+ src/cmd/compile/internal/gc/universe.go | 10 +++++-----
+ 5 files changed, 23 insertions(+), 23 deletions(-)

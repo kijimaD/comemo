@@ -1,0 +1,30 @@
+commit ce9a4afa6f931c1ab832b4c92d3d6768fbd2ab7a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Dec 22 18:14:00 2014 +0300
+
+    runtime: simplify procresize
+    
+    Currently we do very a complex rebalancing of runnable goroutines
+    between queues, which tries to preserve scheduling fairness.
+    Besides being complex and error-prone, it also destroys all locality
+    of scheduling.
+    
+    This change uses simpler scheme: leave runnable goroutines where
+    they are, during starttheworld start all Ps with local work,
+    plus start one additional P in case we have excessive runnable
+    goroutines in local queues or in the global queue.
+    
+    The schedler must be able to operate efficiently w/o the rebalancing,
+    because garbage collections do not have to happen frequently.
+    
+    The immediate need is execution tracing support: handling of
+    garabage collection which does stoptheworld/starttheworld several
+    times becomes exceedingly complex if the current execution can
+    jump between Ps during starttheworld.
+    
+    Change-Id: I4fdb7a6d80ca4bd08900d0c6a0a252a95b1a2c90
+    Reviewed-on: https://go-review.googlesource.com/1951
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc1.go | 112 ++++++++++++++++++++++-----------------------------
+ 1 file changed, 48 insertions(+), 64 deletions(-)

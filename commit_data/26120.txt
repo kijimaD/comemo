@@ -1,0 +1,67 @@
+commit 0d9258a830c585c65e7ef614588d9c9a014b6123
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 18:00:08 2016 -0800
+
+    cmd/internal/obj: add As type for assembly opcodes
+    
+    Passes toolstash/buildall.
+    
+    Fixes #14692.
+    
+    Change-Id: I4352678d8251309f2b8b7793674c550fac948006
+    Reviewed-on: https://go-review.googlesource.com/20350
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go        |  44 +++----
+ src/cmd/asm/internal/arch/arm.go         |  16 +--
+ src/cmd/asm/internal/arch/arm64.go       |   4 +-
+ src/cmd/asm/internal/arch/mips64.go      |   9 +-
+ src/cmd/asm/internal/arch/ppc64.go       |  11 +-
+ src/cmd/asm/internal/asm/asm.go          |  14 +--
+ src/cmd/asm/internal/asm/parse.go        |   4 +-
+ src/cmd/compile/internal/amd64/galign.go |   8 +-
+ src/cmd/compile/internal/amd64/ggen.go   |   6 +-
+ src/cmd/compile/internal/amd64/gsubr.go  |  16 +--
+ src/cmd/compile/internal/arm/cgen.go     |   2 +-
+ src/cmd/compile/internal/arm/ggen.go     |   6 +-
+ src/cmd/compile/internal/arm/gsubr.go    |  12 +-
+ src/cmd/compile/internal/arm/peep.go     |  12 +-
+ src/cmd/compile/internal/arm64/cgen.go   |   2 +-
+ src/cmd/compile/internal/arm64/ggen.go   |   4 +-
+ src/cmd/compile/internal/arm64/gsubr.go  |  18 +--
+ src/cmd/compile/internal/arm64/peep.go   |   4 +-
+ src/cmd/compile/internal/gc/cgen.go      |   6 +-
+ src/cmd/compile/internal/gc/go.go        |  10 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   6 +-
+ src/cmd/compile/internal/gc/pgen.go      |   2 +-
+ src/cmd/compile/internal/gc/plive.go     |   4 +-
+ src/cmd/compile/internal/gc/reg.go       |   4 +-
+ src/cmd/compile/internal/gc/ssa.go       |  29 ++---
+ src/cmd/compile/internal/mips64/cgen.go  |   2 +-
+ src/cmd/compile/internal/mips64/ggen.go  |   4 +-
+ src/cmd/compile/internal/mips64/gsubr.go |  18 +--
+ src/cmd/compile/internal/mips64/peep.go  |   2 +-
+ src/cmd/compile/internal/ppc64/cgen.go   |   2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |   4 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  |  16 +--
+ src/cmd/compile/internal/ppc64/peep.go   |   8 +-
+ src/cmd/compile/internal/ppc64/prog.go   |  13 ++-
+ src/cmd/compile/internal/ssa/gen/main.go |   7 +-
+ src/cmd/compile/internal/ssa/op.go       |  13 ++-
+ src/cmd/compile/internal/ssa/opGen.go    |   7 +-
+ src/cmd/compile/internal/x86/ggen.go     |   6 +-
+ src/cmd/compile/internal/x86/gsubr.go    |  18 +--
+ src/cmd/internal/obj/arm/asm5.go         |  72 ++++++------
+ src/cmd/internal/obj/arm/obj5.go         |  16 ++-
+ src/cmd/internal/obj/arm64/asm7.go       | 192 +++++++++++++++----------------
+ src/cmd/internal/obj/arm64/obj7.go       |  18 ++-
+ src/cmd/internal/obj/link.go             |  40 +++++--
+ src/cmd/internal/obj/mips/asm0.go        |  56 ++++-----
+ src/cmd/internal/obj/mips/obj0.go        |  12 +-
+ src/cmd/internal/obj/ppc64/asm9.go       |  32 +++---
+ src/cmd/internal/obj/ppc64/obj9.go       |  20 ++--
+ src/cmd/internal/obj/util.go             |  30 +----
+ src/cmd/internal/obj/x86/asm6.go         |  18 ++-
+ src/cmd/internal/obj/x86/obj6.go         |  41 +++----
+ 51 files changed, 461 insertions(+), 459 deletions(-)

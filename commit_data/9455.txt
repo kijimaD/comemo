@@ -1,0 +1,27 @@
+commit f0ef4f474620ed95a7572c579689f262e79a724f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 23 12:17:21 2011 +0400
+
+    http: add MaxBytesReader to limit request body size
+    
+    This adds http.MaxBytesReader, similar to io.LimitReader,
+    but specific to http, and for preventing a class of DoS
+    attacks.
+    
+    This also makes the 10MB ParseForm limit optional (if
+    not already set by a MaxBytesReader), documents it,
+    and also adds "PUT" as a valid verb for parsing forms
+    in the request body.
+    
+    Improves issue 2093 (DoS protection)
+    Fixes #2165 (PUT form parsing)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4921049
+
+ src/pkg/http/request.go    | 61 +++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/http/serve_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     | 27 ++++++++++++++++++--
+ src/pkg/http/transfer.go   | 11 +++++++++
+ 4 files changed, 145 insertions(+), 8 deletions(-)

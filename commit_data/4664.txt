@@ -1,0 +1,21 @@
+commit 1cecac8134a833b80b2508a887392c8fc62ba0ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 23:33:59 2010 -0800
+
+    gc: record full package paths in runtime type data
+    
+    detect compilation of special package runtime with
+    compiler flag instead of package name.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/193080
+
+ src/cmd/gc/go.h             |  6 ++++-
+ src/cmd/gc/go.y             |  3 ++-
+ src/cmd/gc/lex.c            |  3 +++
+ src/cmd/gc/reflect.c        | 54 +++++++++++++++++++++++++++++++++++++++------
+ src/cmd/gc/subr.c           |  2 --
+ src/pkg/reflect/all_test.go |  7 ++++++
+ src/pkg/runtime/Makefile    |  3 +++
+ 7 files changed, 67 insertions(+), 11 deletions(-)

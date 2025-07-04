@@ -1,0 +1,17 @@
+commit 7ee60b174dd92edca7e608dc06ec4f1b2d0eb79f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 7 10:03:34 2008 -0700
+
+    sys.stringtorune doesn't need a length parameter.
+    
+    R=rsc
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=16600
+    CL=16630
+
+ src/cmd/gc/sys.go      | 2 +-
+ src/cmd/gc/sysimport.c | 4 ++--
+ src/runtime/rune.c     | 4 ++--
+ src/runtime/runtime.h  | 2 +-
+ test/utf.go            | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)

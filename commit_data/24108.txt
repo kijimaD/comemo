@@ -1,0 +1,12 @@
+commit 90dbd975fda18583efbeb177acc43c1f2ce535ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 28 12:04:16 2015 -0400
+
+    cmd/internal/objfile: use golang.org/x/arch instead of rsc.io
+    
+    Change-Id: I5348774ff01a5f0f706a1dba4aa9500661841f47
+    Reviewed-on: https://go-review.googlesource.com/14020
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

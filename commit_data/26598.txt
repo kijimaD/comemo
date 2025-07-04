@@ -1,0 +1,16 @@
+commit 09c672d50a704a712b64df87796fba4c80a9db8d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 29 10:00:54 2016 -0700
+
+    cmd/compile: add typChan
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I2c71882f957c44047c7ac83c78236dcc3dfa15a1
+    Reviewed-on: https://go-review.googlesource.com/21304
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/parser.go    | 16 ++++------------
+ src/cmd/compile/internal/gc/type.go      |  8 ++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  5 +----
+ 3 files changed, 13 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit f74f50e046cbbb651586005c0ea73dfc8fe828c4
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Jun 1 13:12:37 2011 +1000
+
+    Make unix Readdir and windows Readdirnames return partially successful results on error.
+    Make plan 9 Readdir & Readdirnames return os.EOF at end.
+    Also fix typos in the unix and windows comments.
+    
+    R=golang-dev, fshahriar, bradfitz, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4557053
+
+ src/pkg/os/dir_plan9.go    | 68 ++++++++++++++++++++++++++++------------------
+ src/pkg/os/dir_windows.go  |  5 ----
+ src/pkg/os/file_unix.go    | 15 +++-------
+ src/pkg/os/file_windows.go |  6 ++--
+ 4 files changed, 49 insertions(+), 45 deletions(-)

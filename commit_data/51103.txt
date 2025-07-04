@@ -1,0 +1,22 @@
+commit 3615eb16af57b832a3b6d957d86b84b656865a14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 3 13:22:37 2022 -0700
+
+    testing: add Get method for -test.v option
+    
+    There is existing code that calls flag.Lookup("test.v") and inspects
+    the value. That stopped working as of CL 443596. Make code like that
+    continue to work at least for the case where we aren't using
+    -test.v=test2json.
+    
+    Change-Id: Idb30b149b48ee3987a201e349cf4d9bfe9ddee56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447796
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/testing/flag_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go   |  7 ++++
+ 2 files changed, 93 insertions(+)

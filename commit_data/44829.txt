@@ -1,0 +1,24 @@
+commit 3a0061822e0bfa79f2a464807e12970f588e3e94
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Mar 23 15:35:30 2021 +0800
+
+    cmd/compile: add arm64 rules to optimize go codes to constant 0
+    
+    Optimize the following codes to constant 0.
+    
+      function shift (x uint32) uint64 {
+        return uint64(x) >> 32
+      }
+    
+    Change-Id: Ida6b39d713cc119ad5a2f01fd54bfd252cf2c975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303830
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 10 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 90 ++++++++++++++++++++++++++++
+ test/codegen/bitfield.go                     | 11 ++++
+ 3 files changed, 111 insertions(+)

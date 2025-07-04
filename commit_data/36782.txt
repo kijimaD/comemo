@@ -1,0 +1,40 @@
+commit 1c95d9728aa5c8638db1bbabfb6ae764c4613c68
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Sep 8 16:05:29 2018 +1000
+
+    os: use FILE_FLAG_OPEN_REPARSE_POINT in SameFile
+    
+    SameFile opens file to discover identifier and volume serial
+    number that uniquely identify the file. SameFile uses Windows
+    CreateFile API to open the file, and that works well for files
+    and directories. But CreateFile always follows symlinks, so
+    SameFile always opens symlink target instead of symlink itself.
+    
+    This CL uses FILE_FLAG_OPEN_REPARSE_POINT flag to adjust
+    CreateFile behavior when handling symlinks.
+    
+    As per https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+    
+    "... If FILE_FLAG_OPEN_REPARSE_POINT is specified and:
+    
+    If an existing file is opened and it is a symbolic link, the handle
+    returned is a handle to the symbolic link. ...".
+    
+    I also added new tests for both issue #21854 and #27225.
+    Issue #27225 is still to be fixed, so skipping the test on
+    windows for the moment.
+    
+    Fixes #21854
+    Updates #27225
+    
+    Change-Id: I8aaa13ad66ce3b4074991bb50994d2aeeeaa7c95
+    Reviewed-on: https://go-review.googlesource.com/134195
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_windows_test.go |  62 +----------
+ src/os/stat_test.go       | 276 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/types_windows.go   |   8 +-
+ 3 files changed, 284 insertions(+), 62 deletions(-)

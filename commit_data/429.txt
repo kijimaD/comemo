@@ -1,0 +1,18 @@
+commit 20a02661d98f8206a52def4dcca80e89df5482e9
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 26 14:49:21 2008 -0700
+
+    beginnings of a low-level syscall library
+    
+    R=ken
+    OCL=13483
+    CL=13496
+
+ src/cmd/ar/ar.c                    |   2 +-
+ src/syscall/Makefile               |  41 ++++
+ src/syscall/errstr_darwin.go       | 354 ++++++++++++++++++++++++++++++
+ src/syscall/errstr_linux.go        | 428 +++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall.go             |  15 ++
+ src/syscall/syscall_amd64_darwin.s | 107 ++++++++++
+ src/syscall/syscall_amd64_linux.s  | 123 +++++++++++
+ 7 files changed, 1069 insertions(+), 1 deletion(-)

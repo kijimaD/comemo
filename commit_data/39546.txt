@@ -1,0 +1,24 @@
+commit 01d137262a713b308c4308ed5b26636895e68d89
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 29 12:51:19 2019 -0700
+
+    runtime: use uintptr instead of int32 for counting to next heap profile sample
+    
+    Overflow of the comparison caused very large (>=1<<32) allocations to
+    sometimes not get sampled at all. Use uintptr so the comparison will
+    never overflow.
+    
+    Fixes #33342
+    
+    Tested on the example in 33342. I don't want to check a test in that
+    needs that much memory, however.
+    
+    Change-Id: I51fe77a9117affed8094da93c0bc5f445ac2d3d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188017
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 12 ++++++------
+ src/runtime/mcache.go |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

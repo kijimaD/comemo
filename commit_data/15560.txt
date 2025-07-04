@@ -1,0 +1,12 @@
+commit 13393fb6c7bf78a61ea3f44753396687abe2c5b5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 3 11:25:49 2013 +0900
+
+    net: add TCP over IPv6 benchmarks
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7433044
+
+ src/pkg/net/tcp_test.go | 48 ++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 38 insertions(+), 10 deletions(-)

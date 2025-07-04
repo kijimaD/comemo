@@ -1,0 +1,13 @@
+commit 67ec47d1c04d57f582f51acb437d6aebb8de576d
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Mon Jun 20 07:41:18 2011 -0700
+
+    mime: fix RFC references
+    
+    R=golang-dev, bradfitz
+    CC=brad fitzpatrick <bradfitz, golang-dev
+    https://golang.org/cl/4634063
+
+ src/pkg/mime/grammar.go   | 4 ++--
+ src/pkg/mime/mediatype.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

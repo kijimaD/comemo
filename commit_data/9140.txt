@@ -1,0 +1,12 @@
+commit df07b6d14aa72eee879d13f197dd861aad4b2465
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jul 20 19:46:05 2011 +1000
+
+    exp/norm: API for normalization library.
+    
+    R=r, r, mpvl, rsc
+    CC=golang-dev
+    https://golang.org/cl/4678041
+
+ src/pkg/exp/norm/normalize.go | 75 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)

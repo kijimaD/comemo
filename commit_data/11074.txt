@@ -1,0 +1,12 @@
+commit 8cad9251b37606282e5ce8738afd0a5fa1838316
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 10 14:47:20 2012 +0900
+
+    cmd/go: fix freebsd build
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5530063
+
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

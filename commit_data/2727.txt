@@ -1,0 +1,18 @@
+commit 190228305375d8bf3a273493d4f52304cb9dca92
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Jul 16 09:48:37 2009 -0700
+
+    Fix handling of non-waitable zombie threads.  Now they are not
+    considered running, so WaitStop doesn't lock up and
+    breakpoints get installed and uninstalled.  We also don't try
+    to detach from them, since that will fail.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=35  (26 added, 2 deleted, 7 changed)
+    OCL=31683
+    CL=31731
+
+ usr/austin/ptrace/ptrace-nptl.txt |  3 ++-
+ usr/austin/ptrace/ptrace_linux.go | 39 +++++++++++++++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 9 deletions(-)

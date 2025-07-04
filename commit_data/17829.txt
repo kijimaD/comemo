@@ -1,0 +1,14 @@
+commit d220c9957ccc4f2985849ee2e8c7e49fb20f04fe
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 22 18:33:05 2013 -0400
+
+    time: fix ParseDuration overflow when given more than 9 digits on 32-bit arch
+    Fixes #6617.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/15080043
+
+ src/pkg/time/format.go    | 4 ++--
+ src/pkg/time/time_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

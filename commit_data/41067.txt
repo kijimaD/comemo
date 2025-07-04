@@ -1,0 +1,21 @@
+commit d5967a710094b4e901175948727bbda7a197565c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 2 15:39:28 2020 -0500
+
+    cmd/go: convert TestGoTestWithoutTests to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ibc3cb3823bd1c1b80058076f2c9933dc729447a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213127
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                        | 10 ----------
+ src/cmd/go/testdata/script/test_no_tests.txt | 11 +++++++++++
+ src/cmd/go/testdata/src/testnorun/p.go       |  5 -----
+ 3 files changed, 11 insertions(+), 15 deletions(-)

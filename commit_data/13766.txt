@@ -1,0 +1,16 @@
+commit 488350ac423094a3cd252696c8e841168f1705a8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 7 10:28:24 2012 -0700
+
+    spec: an initial BOM can be ignored
+    After further deliberation, let's back down to the Unicode proposal.
+    Ignoring aBOMinations anywhere means that things like
+            grep unsafe *.go
+    might fail because there's a BOM in the middle: unBOMsafe.
+    
+    R=golang-dev, rsc, 0xjnml, gri, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6490091
+
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

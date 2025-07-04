@@ -1,0 +1,15 @@
+commit 32f2fd15dfdc28e2ff22a2b25831abd4c81987c0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 17 13:25:28 2013 -0700
+
+    doc/go1.1.html, mime/multipart: document quoted-printable decoding
+    
+    Fixes #5293
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8840043
+
+ doc/go1.1.html                      | 3 +++
+ src/pkg/mime/multipart/multipart.go | 7 ++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

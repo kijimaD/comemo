@@ -1,0 +1,26 @@
+commit dba08e0615b54f3b9ebbf3133e6918de7b130645
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 11 14:47:18 2013 +1100
+
+    misc/dist: rename to makerelease
+    
+    The ambiguity has gone on too long.
+    
+    R=golang-dev, minux.ma, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/39920043
+
+ misc/{dist => makerelease}/darwin/Distribution        |   0
+ misc/{dist => makerelease}/darwin/Resources/bg.png    | Bin
+ misc/{dist => makerelease}/darwin/etc/paths.d/go      |   0
+ misc/{dist => makerelease}/darwin/scripts/postinstall |   0
+ misc/{dist => makerelease}/darwin/scripts/preinstall  |   0
+ misc/{dist/bindist.go => makerelease/makerelease.go}  |  18 +++++++++---------
+ misc/{dist => makerelease}/windows/LICENSE.rtf        | Bin
+ misc/{dist => makerelease}/windows/README.txt         |   0
+ misc/{dist => makerelease}/windows/images/Banner.jpg  | Bin
+ misc/{dist => makerelease}/windows/images/Dialog.jpg  | Bin
+ .../windows/images/DialogLeft.jpg                     | Bin
+ misc/{dist => makerelease}/windows/images/gopher.ico  | Bin
+ misc/{dist => makerelease}/windows/installer.wxs      |   0
+ 13 files changed, 9 insertions(+), 9 deletions(-)

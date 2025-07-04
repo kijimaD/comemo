@@ -1,0 +1,22 @@
+commit 543e601c118c4bffbeee65e7e9baf79a17ffdfaf
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue May 16 09:19:58 2023 +0200
+
+    net/http: second do not force the Content-Length header if nilled
+    
+    This is a second round of CL 469095 which has been fixed after
+    the issue discovered in the revert CL 495017.
+    
+    The issue was a missing res.Body.Close() in the newly added test.
+    
+    Change-Id: Ifd9d8458022e59f4486397443a2862d06383e990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495115
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/serve_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  2 +-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

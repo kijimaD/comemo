@@ -1,0 +1,14 @@
+commit 844bc6c0acdb053936321739083cab80c4a913d4
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Aug 14 13:41:36 2013 +1000
+
+    misc/notepadplus: support Calltips
+    
+    Fixes #5789.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10601043
+
+ misc/notepadplus/go.xml | 178 ++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 121 insertions(+), 57 deletions(-)

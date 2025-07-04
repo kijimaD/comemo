@@ -1,0 +1,19 @@
+commit 6d69fd1fe378077aa99505af9cd0a64553d5df57
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 5 23:36:37 2010 -0700
+
+    runtime: fix Caller
+    log: add test of Caller
+    
+    New regexp in log test is picky and will require some
+    maintenance, but it catches off-by-one mistakes too.
+    
+    Fixes #710.
+    
+    R=gri
+    CC=esko.luontola, golang-dev
+    https://golang.org/cl/887043
+
+ src/pkg/log/log_test.go   | 2 +-
+ src/pkg/runtime/runtime.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

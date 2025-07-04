@@ -1,0 +1,15 @@
+commit d6b177d1eb7849375e246b97c58406aed7350c86
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 15:08:24 2016 -0400
+
+    runtime: remove empty 386 archauxv
+    
+    archauxv no longer does anything on 386, so remove it.
+    
+    Change-Id: I94545238e40fa6a6832a7c3b40aedfc6c1f6a97b
+    Reviewed-on: https://go-review.googlesource.com/22063
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_linux_386.go    | 12 ------------
+ src/runtime/os_linux_noauxv.go |  2 +-
+ 2 files changed, 1 insertion(+), 13 deletions(-)

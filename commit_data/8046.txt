@@ -1,0 +1,14 @@
+commit 8c1a703560a90e4286eb37571c6bdd001b82276c
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Apr 11 12:39:53 2011 -0700
+
+    syscall: fix StartProcess in Plan 9
+    
+    This makes os_test.TestStartProcess test from os package pass.
+    
+    R=paulzhol, r2, r
+    CC=golang-dev
+    https://golang.org/cl/4385052
+
+ src/pkg/syscall/exec_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

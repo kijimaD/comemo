@@ -1,0 +1,32 @@
+commit 5a67ea3883fcdf493c9d96adfe4b72ee5a892a7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 17:06:06 2009 -0700
+
+    6g: simplify trampoline by postponing load.
+    
+            TEXT tramp
+                    MOVQ 8(SP), AX
+                    ADDQ $40, AX
+                    MOVQ AX, 8(SP)
+                    JMP oldfunc
+    
+            is now
+    
+            TEXT tramp
+                    ADDQ $40, 8(SP)
+                    JMP oldfunc
+    
+            and if s/40/0/, then it simplifies to
+    
+            TEXT tramp
+                    JMP oldfunc
+    
+            (the tramp is still needed to satisfy
+            symbol references from other object files)
+    
+    R=ken
+    OCL=28377
+    CL=28381
+
+ src/cmd/6g/obj.c | 59 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 22 deletions(-)

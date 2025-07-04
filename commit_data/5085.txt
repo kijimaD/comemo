@@ -1,0 +1,13 @@
+commit c6a2c49e12030ad0f0ee595be78e5dcc79cefd62
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 19 15:54:27 2010 -0700
+
+    A+C: add James Toy (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/660041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

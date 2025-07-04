@@ -1,0 +1,10 @@
+commit f53db3eaa9d50a50e355f6c04a693efe2e393d6d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 27 18:32:47 2008 -0700
+
+    Add description of type conversions.
+    
+    SVN=116978
+
+ doc/go_lang.txt | 37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)

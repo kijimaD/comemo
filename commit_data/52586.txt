@@ -1,0 +1,21 @@
+commit 5e93a2c2042484ee7a941e967294a5248ab6a593
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 9 10:31:41 2023 +0200
+
+    net: re-enable unixpacket tests on netbsd/386
+    
+    The tests seem to work fine on netbsd/386 (NetBSD 9.3). This reverts CL
+    80756.
+    
+    Updates #22927
+    
+    Change-Id: I2235d69129aa81b43513a171834d058f47cd9933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483395
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/platform_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

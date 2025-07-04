@@ -1,0 +1,26 @@
+commit 082cfabf126d63e952e1ac29d47c2a47f1c64bee
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 14 17:57:22 2022 -0700
+
+    crypto/x509: don't create certs with negative serials
+    
+    Refuse to create certificates with negative serial numbers, as they
+    are explicitly disallowed by RFC 5280.
+    
+    We still allow parsing certificates with negative serial numbers,
+    because in the past there were buggy CA implementations which would
+    produce them (although there are currently *no* trusted certificates
+    that have this issue). We may want to revisit this decision if we can
+    find metrics about the prevalence of this issue in enterprise settings.
+    
+    Change-Id: I131262008db99b6354f542f335abc68775a2d6d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400494
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      |  6 +++++-
+ src/crypto/x509/x509_test.go | 43 ++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 43 insertions(+), 6 deletions(-)

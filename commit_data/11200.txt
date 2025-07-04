@@ -1,0 +1,13 @@
+commit 8e99016c80ee8c113674654123a02f0bd9e32ebb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 17 11:48:20 2012 +0400
+
+    old/netchan: fix data race on client hashmap
+    Fixes #2713.
+    
+    R=golang-dev, r
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5545065
+
+ src/pkg/old/netchan/common.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,31 @@
+commit ba068c1a6f77eec17571d83c4c693674006a5fff
+Author: zdjones <zachj1@gmail.com>
+Date:   Fri Aug 30 14:41:09 2019 +0100
+
+    cmd/compile: rename poset method dominates to reaches
+    
+    The partially ordered set uses a method named 'dominates' to determine whether
+    two nodes are partially ordered. Dominates does a depth-first search of the
+    DAG, beginning at the source node, and returns true as soon as it finds a path
+    to the target node. In the context of the forest-of-DAGs that makes up the
+    poset, dominates is not necessarily checking dominance, but is checking
+    reachability. See the issue tracker for a more detailed discussion of the
+    difference.
+    
+    Fortunately, reachability is logically correct everywhere dominates is currently
+    used in poset.go. Reachability within a DAG is sufficient to establish the
+    partial ordering (source < target).
+    
+    This CL changes the name of the method (dominates -> reaches) and updates
+    all the comments in the file accordingly.
+    
+    Fixes #33971.
+    
+    Change-Id: Ia3a34f7b14b363801d75b05099cfc686035f7d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192617
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/poset.go | 40 +++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

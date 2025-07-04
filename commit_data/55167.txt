@@ -1,0 +1,18 @@
+commit 636c6e350dfc89c164f3e26aee85b241faf06ae0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 28 13:09:42 2023 -0800
+
+    doc: release notes for GOARM hardfloat/softfloat change
+    
+    See CL 514907
+    
+    Change-Id: Ieba2d7737115c66990b0ea7629033e787a99be93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545655
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ludi Rehak <ludi317@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ doc/go1.22.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

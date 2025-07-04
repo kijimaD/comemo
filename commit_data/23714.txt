@@ -1,0 +1,15 @@
+commit 2b9e5a7165bce1058de7a144ca9d166df4484d02
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 15 14:42:14 2015 -0700
+
+    A+C: more updates, including Medium corporate CLA
+    
+    Updates #10639
+    
+    Change-Id: I0958e150f6eab122095bfc148746a38028b72dbc
+    Reviewed-on: https://go-review.googlesource.com/12263
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ AUTHORS      | 3 +++
+ CONTRIBUTORS | 3 +++
+ 2 files changed, 6 insertions(+)

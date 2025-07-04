@@ -1,0 +1,18 @@
+commit 360771e422ff0e586963e1dc0818c427b5444379
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 29 12:09:34 2018 -0400
+
+    cmd/compile: don't clobber dead slots in runtime.wbBufFlush
+    
+    runtime.wbBufFlush must not modify its arguments, because the
+    argument slots are also used as spill slots in runtime.gcWriteBarrier.
+    So, GOEXPERIMENT=clobberdead must not clobber them.
+    
+    Updates #27326.
+    
+    Change-Id: Id02bb22a45201eecee748d89e7bdb3df7e4940e4
+    Reviewed-on: https://go-review.googlesource.com/131957
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

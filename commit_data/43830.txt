@@ -1,0 +1,25 @@
+commit 96b943a483dca715ea0164644e1192052105881a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 17:05:02 2020 -0800
+
+    go/types: report an error for invalid constant values
+    
+    The parser reports syntactic errors in constant literals.
+    The go/constant package produces an "unknown" value for
+    syntactically correct numeric constants that are too small
+    or too large. Check for the unknown value and report an
+    error rather than silently continuing.
+    
+    Fixes #42695.
+    
+    Change-Id: I414214559a285d67ed50184dc750f106960b5620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271377
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/expr.go                  |  6 +++++-
+ src/go/types/fixedbugs/issue42695.src | 17 +++++++++++++++++
+ src/go/types/operand.go               |  8 +++++++-
+ 3 files changed, 29 insertions(+), 2 deletions(-)

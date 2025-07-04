@@ -1,0 +1,14 @@
+commit 5ffc0f8fbbde7306cdac750b4ce74841ba650e97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 16 13:19:32 2013 -0700
+
+    cmd/cgo: remove inaccurate comment
+    
+    All these features have in fact been implemented.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/13419049
+
+ src/cmd/cgo/doc.go | 2 --
+ 1 file changed, 2 deletions(-)

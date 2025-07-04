@@ -1,0 +1,16 @@
+commit 581a63c93c4a239913b574d1bfa1a4d3d02c2788
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu May 26 05:46:58 2022 -0700
+
+    doc/go1.19: add pdqsort change to release notes
+    
+    Change-Id: I4a36491e561f3b2112f980ff580fa4f85d501b6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408834
+    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.19.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

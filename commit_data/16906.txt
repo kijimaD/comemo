@@ -1,0 +1,23 @@
+commit 64db2ec915f7d3a7ea515ac3050afd4063cd7438
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 29 23:41:12 2013 +0400
+
+    runtime: fix arm build
+    
+    The current failure is:
+    fatal error: runtime: stack split during syscall
+    goroutine 2 [stack split]:
+    _addv(0xb6fa0f28, 0xd0a5112e, 0x13156d6e, 0xf8475800, 0xd)
+            /usr/local/go/src/pkg/runtime/vlrt_arm.c:66 fp=0xb6fa0ef8
+    notetsleep(0xb6fa0f9c, 0xf8475800, 0xd, 0x0, 0x0, ...)
+            /usr/local/go/src/pkg/runtime/lock_futex.c:156 +0xd0 fp=0xb6fa0f18
+    runtime.notetsleepg(0xb6fa0f9c, 0xf8475800, 0xd)
+            /usr/local/go/src/pkg/runtime/lock_futex.c:197 +0x74 fp=0xb6fa0f3c
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12052043
+
+ src/pkg/runtime/vlop_arm.s | 2 +-
+ src/pkg/runtime/vlrt_arm.c | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

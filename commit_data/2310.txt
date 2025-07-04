@@ -1,0 +1,13 @@
+commit 70d711dfb80ddf4a329a79d82d099ad9ab98867f
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 26 16:06:03 2009 -0700
+
+    bug150 is fixed
+    
+    R=ken
+    OCL=29407
+    CL=29407
+
+ test/{bugs => fixedbugs}/bug150.go | 0
+ test/golden.out                    | 7 +------
+ 2 files changed, 1 insertion(+), 6 deletions(-)

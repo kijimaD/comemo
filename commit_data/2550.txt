@@ -1,0 +1,63 @@
+commit d3a412a5abf1ee8815b2e70a18ee092154af7672
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 15:24:23 2009 -0700
+
+    io.StringBytes -> strings.Bytes
+    io.ByteBuffer -> bytes.Buffer
+    
+    left io.ByteBuffer stub around for now,
+    for protocol compiler.
+    
+    R=r
+    OCL=30861
+    CL=30872
+
+ src/cmd/godoc/godoc.go                             | 17 +++++-----
+ src/pkg/Make.deps                                  | 22 ++++++-------
+ src/pkg/archive/tar/untar_test.go                  |  5 +--
+ src/pkg/base64/base64_test.go                      | 23 +++++++-------
+ src/pkg/bufio/bufio_test.go                        | 14 +++++----
+ src/pkg/bytes/Makefile                             |  6 ++--
+ src/pkg/{io/bytebuffer.go => bytes/buffer.go}      | 36 +++++++++++-----------
+ .../bytebuffer_test.go => bytes/buffer_test.go}    |  0
+ src/pkg/bytes/bytes_test.go                        | 16 +++++-----
+ src/pkg/compress/gzip/gunzip_test.go               |  3 +-
+ src/pkg/crypto/block/cbc_aes_test.go               |  5 +--
+ src/pkg/crypto/block/cfb_aes_test.go               |  5 +--
+ src/pkg/crypto/block/ctr_aes_test.go               |  5 +--
+ src/pkg/crypto/block/eax_aes_test.go               |  5 +--
+ src/pkg/crypto/block/ecb_aes_test.go               |  5 +--
+ src/pkg/crypto/block/ecb_test.go                   |  5 +--
+ src/pkg/crypto/block/ofb_aes_test.go               |  5 +--
+ src/pkg/crypto/block/xor_test.go                   |  5 +--
+ src/pkg/crypto/hmac/hmac_test.go                   | 12 ++++----
+ src/pkg/datafmt/datafmt.go                         | 19 ++++++------
+ src/pkg/datafmt/datafmt_test.go                    | 14 ++++-----
+ src/pkg/datafmt/parser.go                          |  3 +-
+ src/pkg/exvar/exvar.go                             |  3 +-
+ src/pkg/fmt/fmt_test.go                            | 13 ++++----
+ src/pkg/go/doc/comment.go                          | 12 ++++----
+ src/pkg/go/parser/parser.go                        | 12 +++++---
+ src/pkg/go/printer/printer.go                      |  5 +--
+ src/pkg/go/scanner/scanner_test.go                 | 10 +++---
+ src/pkg/gob/codec_test.go                          |  7 ++---
+ src/pkg/http/request.go                            |  2 +-
+ src/pkg/http/triv.go                               |  3 +-
+ src/pkg/io/Makefile                                | 15 +++------
+ src/pkg/io/io.go                                   | 12 ++------
+ src/pkg/io/pipe_test.go                            |  3 +-
+ src/pkg/io/utils.go                                |  5 +--
+ src/pkg/json/parse.go                              |  4 +--
+ src/pkg/net/dialgoogle_test.go                     |  3 +-
+ src/pkg/net/server_test.go                         |  2 +-
+ src/pkg/os/os_test.go                              | 11 ++++---
+ src/pkg/path/path.go                               |  4 +--
+ src/pkg/regexp/regexp.go                           |  3 +-
+ src/pkg/runtime/mgc0.c                             |  3 ++
+ src/pkg/strings/strings.go                         | 10 ++++++
+ src/pkg/tabwriter/tabwriter.go                     |  5 +--
+ src/pkg/template/format.go                         | 10 +++---
+ src/pkg/template/template.go                       |  6 ++--
+ src/pkg/template/template_test.go                  |  9 +++---
+ src/pkg/utf8/utf8_test.go                          |  6 ++--
+ 48 files changed, 218 insertions(+), 190 deletions(-)

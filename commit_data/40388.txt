@@ -1,0 +1,14 @@
+commit 67fb5530f07ae77a5e2fe6b8f5dcf3305e117460
+Author: Ghazni Nattarshah <ghazni.nattarshah@gmail.com>
+Date:   Wed Oct 23 22:09:25 2019 +0530
+
+    crypto/x509: gofmt verify.go
+    
+    Fixes #35052
+    
+    Change-Id: Ie7c52f39203cf16d8b53a333b591cffccdf7446a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

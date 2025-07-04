@@ -1,0 +1,25 @@
+commit 3504945081db0188ce1c7ec72c2ede669ee1b86f
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sat Mar 19 23:27:41 2016 +0200
+
+    cmd/link: optimize int parsing
+    
+    Speeds up linking cmd/go by ~1.5%:
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.58 ± 6%  0.57 ± 5%  -1.21%  (p=0.000 n=98+99)
+    
+    Less noisy benchmark, with garbage collection off:
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.49 ± 2%  0.49 ± 2%  -1.79%  (p=0.000 n=98+99)
+    
+    Change-Id: I0123bcb66a87cbc4d703356e4c5a4035032012ec
+    Reviewed-on: https://go-review.googlesource.com/20916
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/util.go        |  2 ++
+ src/cmd/link/internal/ld/objfile.go | 12 +++++++-----
+ 2 files changed, 9 insertions(+), 5 deletions(-)

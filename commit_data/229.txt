@@ -1,0 +1,14 @@
+commit e90ae879d6b9b1a936247f6905a4bce322c3b47b
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 25 20:22:10 2008 -0700
+
+    autolib (#pragma lib)
+    added to 6g to autoload
+    the included import files.
+    
+    SVN=124759
+
+ src/cmd/6g/gen.c  |  1 -
+ src/cmd/gc/lex.c  |  4 +++-
+ src/cmd/gc/subr.c | 16 +++++++++++++---
+ 3 files changed, 16 insertions(+), 5 deletions(-)

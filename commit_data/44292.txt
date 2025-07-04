@@ -1,0 +1,23 @@
+commit 0ca0551f02257283d00c01303100a16433c526c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:32:38 2021 -0500
+
+    debug/pe: recognize arm64 executables
+    
+    We still need to add test data, but as yet we haven't identified
+    a good Windows arm64 compiler to produce small binaries.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: Ifbecb9a6e25f7af38e20b7d7830df7f5efe2798a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288820
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/debug/pe/file.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

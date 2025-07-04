@@ -1,0 +1,21 @@
+commit c705701c69a0ae18ec690cd6a34481f52c52f65b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 17 13:31:59 2011 +1000
+
+    exp/templates: variable scope persists until "end".
+    The previous CL doicumented and diagnosed the old situation.
+    This one changes it to something more traditional: any action
+    may declare a variable, and the block structure of scopes
+    applies only to control seequences.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4748047
+
+ src/pkg/exp/template/doc.go        | 10 ++++++----
+ src/pkg/exp/template/exec.go       |  7 ++-----
+ src/pkg/exp/template/exec_test.go  |  4 +++-
+ src/pkg/exp/template/parse.go      | 15 ++++++---------
+ src/pkg/exp/template/parse_test.go |  3 ++-
+ src/pkg/exp/template/set_test.go   |  1 +
+ 6 files changed, 20 insertions(+), 20 deletions(-)

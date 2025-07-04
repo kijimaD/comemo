@@ -1,0 +1,17 @@
+commit ba66d62b688d50f4e89b724d1c5b48bb05f8b117
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 18:25:05 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for memory stores
+    
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    a register to memory stores, generate the appropriate machine instruction
+    sequence directly.
+    
+    Change-Id: I6eac8637e1fcb48c04d9f331cac7ae5d8cc54092
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344455
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 52 ++++++++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 23 deletions(-)

@@ -1,0 +1,15 @@
+commit 6acdf3edff349e966a4928dac91101379ff5b225
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 13:01:28 2008 -0700
+
+    - addded interface pretty printer
+    
+    R=r
+    OCL=13646
+    CL=13646
+
+ usr/gri/gosrc/compilation.go |   6 +
+ usr/gri/gosrc/decls.go       |   3 +-
+ usr/gri/gosrc/parser.go      |  51 +++++----
+ usr/gri/gosrc/printer.go     | 265 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 299 insertions(+), 26 deletions(-)

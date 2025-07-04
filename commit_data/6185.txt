@@ -1,0 +1,12 @@
+commit 6f5f558c101a5948f1d90007fe93159804743bb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 7 09:55:05 2010 -0400
+
+    test/garbage/parser: sync with recent parser changes
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2144042
+
+ test/garbage/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

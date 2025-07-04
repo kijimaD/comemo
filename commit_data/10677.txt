@@ -1,0 +1,12 @@
+commit 9a358df947580c585f5596d89a2ab2be22fea018
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Dec 8 22:27:14 2011 -0500
+
+    spec: fix typo in example comment
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5475046
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

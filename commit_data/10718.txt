@@ -1,0 +1,15 @@
+commit 2c2a582ae9555845b359a089704e17a299aa40b0
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 12 16:14:00 2011 -0500
+
+    os: fix Plan 9 build for new FileInfo API
+    
+    R=lucio.dere, rsc
+    CC=golang-dev
+    https://golang.org/cl/5440073
+
+ src/pkg/os/dir_plan9.go     |   6 +--
+ src/pkg/os/exec/lp_plan9.go |   2 +-
+ src/pkg/os/file_plan9.go    |   4 +-
+ src/pkg/os/stat_plan9.go    | 105 ++++++++++++++++++++++++--------------------
+ 4 files changed, 62 insertions(+), 55 deletions(-)

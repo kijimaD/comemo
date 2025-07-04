@@ -1,0 +1,27 @@
+commit ffd7d31787c7d08f61fc31feef154f0e8627bd44
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 4 10:58:42 2015 -0700
+
+    runtime: unblock special glibc signals on each thread
+    
+    Glibc uses some special signals for special thread operations.  These
+    signals will be used in programs that use cgo and invoke certain glibc
+    functions, such as setgid.  In order for this to work, these signals
+    need to not be masked by any thread.  Before this change, they were
+    being masked by programs that used os/signal.Notify, because it
+    carefully masks all non-thread-specific signals in all threads so that a
+    dedicated thread will collect and report those signals (see ensureSigM
+    in signal1_unix.go).
+    
+    This change adds the two glibc special signals to the set of signals
+    that are unmasked in each thread.
+    
+    Fixes #12498.
+    
+    Change-Id: I797d71a099a2169c186f024185d44a2e1972d4ad
+    Reviewed-on: https://go-review.googlesource.com/14297
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/test/setgid_linux.go | 19 ++++++++++++++++++-
+ src/runtime/signal_linux.go   |  4 ++--
+ 2 files changed, 20 insertions(+), 3 deletions(-)

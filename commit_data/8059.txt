@@ -1,0 +1,14 @@
+commit 1de71a07e08c86e6fdf1be4ca11ae57c7c757635
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 13 10:56:33 2011 +1000
+
+    archive/tar: fix example's handling of os.EOF.
+    
+    Fixes #1677.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4402042
+
+ src/pkg/archive/tar/reader.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 19db74566491dcbb4dc2ad0a92b98aa2c28dd8fe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 14 16:31:52 2016 +0900
+
+    net: relax TestInterfaces and TestInterfaceAddrs for BSD variants
+    
+    Fixes #15249.
+    
+    Change-Id: I91fc3d6a2df294b21a67d085da6fe661827a850e
+    Reviewed-on: https://go-review.googlesource.com/22079
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

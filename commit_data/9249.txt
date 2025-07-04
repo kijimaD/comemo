@@ -1,0 +1,15 @@
+commit bed7e3ed78692b06128194abff79bd8c75731c88
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 21:03:40 2011 -0400
+
+    gc: fix pprof deadlock
+    
+    Fixes #2051.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4834041
+
+ src/pkg/runtime/cpuprof.c |  4 ++++
+ src/pkg/runtime/symtab.c  | 17 +++++++++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

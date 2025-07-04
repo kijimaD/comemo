@@ -1,0 +1,18 @@
+commit c764d56ff1c8810b294c0a72a813858f33c75185
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Feb 25 14:22:52 2024 +0000
+
+    runtime: add crash stack support for 386
+    
+    Change-Id: Ib787b27670ad0f10bcc94b3ce76e86746997af00
+    GitHub-Last-Rev: e5abb9a556ae709d30d6ffb5a13805923c215254
+    GitHub-Pull-Request: golang/go#65934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566715
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm.s     |  2 ++
+ src/runtime/asm_386.s | 50 ++++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 43 insertions(+), 11 deletions(-)

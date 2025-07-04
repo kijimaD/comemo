@@ -1,0 +1,16 @@
+commit ae3bfba6269fcc75aced2418b870ba2706b0d35f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 13:54:53 2020 +0100
+
+    doc/go1.16: add text/template changes to release notes
+    
+    For #40700
+    Fixes #42914
+    
+    Change-Id: I673d86a946c362e28bfbf35fab2c60ebfbd8bda2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274472
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

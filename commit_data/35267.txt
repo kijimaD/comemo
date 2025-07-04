@@ -1,0 +1,28 @@
+commit 498c803c19caa94d9d37eb378deed786117bbeab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 2 16:42:58 2018 -0700
+
+    cmd/go, go/build: add support for gccgo tooldir
+    
+    The gccgo toolchain does not put tools (cgo, vet, etc.) in
+    $GOROOT/pkg/tool, but instead in a directory available at
+    runtime.GCCGOTOOLDIR.
+    
+    Update the go/build package and the cmd/go tool to use this tool
+    directory when using gccgo.
+    
+    Change-Id: Ib827336ff53601208300aceb77f76c2e1b069859
+    Reviewed-on: https://go-review.googlesource.com/111097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go               |  3 +++
+ src/cmd/go/internal/cfg/cfg.go      | 18 +++++++++++++-----
+ src/cmd/go/internal/help/helpdoc.go |  3 +++
+ src/cmd/go/internal/load/pkg.go     |  6 +++++-
+ src/cmd/go/internal/tool/tool.go    | 16 ++++++++++++++++
+ src/go/build/build.go               |  2 +-
+ src/go/build/gc.go                  | 17 +++++++++++++++++
+ src/go/build/gccgo.go               | 14 ++++++++++++++
+ 8 files changed, 72 insertions(+), 7 deletions(-)

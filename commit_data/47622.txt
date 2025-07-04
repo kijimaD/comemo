@@ -1,0 +1,23 @@
+commit fad67f8a5342f4bc309f26f0ae021ce9d21724e6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 25 12:22:36 2021 +0100
+
+    cmd/go/internal: gofmt after CL 355010
+    
+    Change-Id: I25902cc4e7a3d2a78b467825b723cd72b310e2a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367094
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/go/internal/generate/generate.go | 2 +-
+ src/cmd/go/internal/get/get.go           | 2 +-
+ src/cmd/go/internal/list/list.go         | 2 +-
+ src/cmd/go/internal/load/test.go         | 2 +-
+ src/cmd/go/internal/modload/query.go     | 2 +-
+ src/cmd/go/internal/run/run.go           | 2 +-
+ src/cmd/go/internal/vcs/vcs.go           | 2 +-
+ src/cmd/go/internal/work/buildid.go      | 2 +-
+ src/cmd/go/internal/work/gccgo.go        | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

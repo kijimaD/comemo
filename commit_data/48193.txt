@@ -1,0 +1,19 @@
+commit 3140625606f83328a5c7754fd952ed8d52a76404
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 22 12:54:57 2022 -0500
+
+    doc/go1.18: correct "go build -asan" HTML tag
+    
+    The tag was "go-mod-vendor", which doesn't match the content.
+    
+    Also move that section later, so "go mod" sections stay together.
+    
+    For #47694.
+    
+    Change-Id: Id4fa7ee0768682a9aadfeb1b2f1d723e7521896b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387354
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit e6d66633ba96d8edbe43cb8f8c12b34d329a0804
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 2 16:49:25 2010 +0200
+
+    A+C: added Daniel Fleischman
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1475041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

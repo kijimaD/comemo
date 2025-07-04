@@ -1,0 +1,23 @@
+commit 61719e18f7715e4fbd0914395633b15a4a2e17a7
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Wed Jun 14 07:13:37 2023 +0200
+
+    cmd/asm: add KDSA instruction support
+    
+    KDSA(Compute Digital Signature Authentication) instruction provides
+    support for the signing and verification of elliptic curves
+    
+    Change-Id: I19996a307162dd4f476a1cfe4f8d1a74a609e6c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503215
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  1 +
+ src/cmd/internal/obj/s390x/a.out.go       |  1 +
+ src/cmd/internal/obj/s390x/anames.go      |  1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
+ src/crypto/ecdsa/ecdsa_s390x.s            |  2 +-
+ src/internal/cpu/cpu_s390x.s              |  2 +-
+ 6 files changed, 22 insertions(+), 2 deletions(-)

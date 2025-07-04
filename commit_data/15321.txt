@@ -1,0 +1,16 @@
+commit 92ab6fb4e1e994c951749e4ed82c88d99bd10f0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 19 22:40:54 2013 -0800
+
+    doc: fix old broken link
+    
+    The Camlistore code tree rearranged after the go tool came
+    out. (I didn't know this link was here until I saw it in
+    some logs.)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7374043
+
+ doc/articles/error_handling.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

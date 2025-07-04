@@ -1,0 +1,17 @@
+commit 5726af54eb3a52b9446a834991110b945e780e99
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Apr 29 10:51:42 2015 +0100
+
+    cmd/internal/gc: ignore declarations of types for goto validation
+    
+    Fixes #8042.
+    
+    Change-Id: I75080f24104256065fd73b07a13c5b8e7d6da94c
+    Reviewed-on: https://go-review.googlesource.com/9442
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/dcl.go |  3 +++
+ src/cmd/internal/gc/gen.go | 21 ++++++++++++++++++---
+ src/cmd/internal/gc/go.go  |  1 +
+ test/goto.go               | 16 ++++++++++++++++
+ 4 files changed, 38 insertions(+), 3 deletions(-)

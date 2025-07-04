@@ -1,0 +1,16 @@
+commit 24ed667b33aa634081a4f562f1503c758a208ddc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 14 23:54:40 2012 +0800
+
+    os: IsNotExist() should also consider ERROR_PATH_NOT_FOUND on Windows
+        Also update documentation about IsExist() and IsNotExist(), they are not
+        about files only.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5794073
+
+ src/pkg/os/error.go         |  8 +++----
+ src/pkg/os/error_test.go    | 54 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/os/error_windows.go |  7 +++---
+ 3 files changed, 60 insertions(+), 9 deletions(-)

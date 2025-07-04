@@ -1,0 +1,15 @@
+commit 23fc0ac061e559995d710069312a2ffb953ed8fe
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Dec 14 17:06:06 2008 -0800
+
+    more code optimization
+    
+    R=r
+    OCL=21159
+    CL=21159
+
+ src/cmd/6g/cgen.c  |  25 +++--
+ src/cmd/6g/gg.h    |   4 +-
+ src/cmd/6g/gsubr.c | 295 ++++++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/6g/reg.c   |   1 +
+ 4 files changed, 276 insertions(+), 49 deletions(-)

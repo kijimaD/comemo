@@ -1,0 +1,12 @@
+commit 3959e0798d2be3de99b33bc7d19949ec88adc4c9
+Author: Nick Kubala <nkubala@google.com>
+Date:   Fri Apr 7 14:23:49 2017 -0700
+
+    os/exec: Update Cmd.Run() docs to reflect correct error return types
+    
+    Change-Id: I3fe92d74ff259abdf5d1fd28cdc822db88aae191
+    Reviewed-on: https://go-review.googlesource.com/39993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

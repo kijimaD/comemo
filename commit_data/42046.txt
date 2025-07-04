@@ -1,0 +1,16 @@
+commit 099c6116ccb11595620148cd1a321bd216d37e2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 19:03:53 2020 +0000
+
+    Revert "runtime/pprof: speed up CPU profiling shutdown"
+    
+    This reverts commit 1f0738c1577a55a6b7229b821ddfe762b84771d0.
+    
+    Reason for revert: This May have caused issue 38567.
+    
+    Change-Id: I2afa6a9d42cb29cfad09e706fb465c57e3774abd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229301
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/pprof/pprof.go | 27 ++++++---------------------
+ 1 file changed, 6 insertions(+), 21 deletions(-)

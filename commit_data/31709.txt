@@ -1,0 +1,14 @@
+commit 3cc2da6397e5ca8efd5d0cf3e919f33bc74dc4b6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jun 3 21:36:51 2017 +0200
+
+    encoding/json: clarify unmarshaling behaviour on bad fields
+    
+    Fixes #19526
+    
+    Change-Id: Ifaaf454e0e89fdf4309118c2e2e6ac0d0a43c39d
+    Reviewed-on: https://go-review.googlesource.com/44711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

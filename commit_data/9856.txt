@@ -1,0 +1,13 @@
+commit da99a5bca4950a1477913fc22ca43cde41d93e60
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Oct 4 11:27:06 2011 -0300
+
+    path/filepath: added Rel as the complement of Abs
+    
+    R=golang-dev, rsc, gustavo, r, borman
+    CC=golang-dev
+    https://golang.org/cl/4981049
+
+ src/pkg/path/filepath/path.go      | 69 +++++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_test.go | 85 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 148 insertions(+), 6 deletions(-)

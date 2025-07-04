@@ -1,0 +1,14 @@
+commit b57b10f9926c93e5369d1f08900cb3f62d7be64e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 21 08:40:33 2010 -0700
+
+    go/parser: consume auto-inserted semi when calling ParseExpr()
+    
+    Fixes #1170.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2622041
+
+ src/pkg/go/parser/interface.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

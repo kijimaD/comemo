@@ -1,0 +1,18 @@
+commit 85fa418fd5bec603dd87254178e64afd1782bd35
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 20:42:45 2024 +0000
+
+    internal/sync: add CompareAndSwap to HashTrieMap
+    
+    This change adds the CompareAndSwap operation (with the same semantics
+    as sync.Map's CompareAndSwap) to HashTrieMap.
+    
+    Change-Id: I86153799fc47304784333d17f0c6a7ad7682f04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594063
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/sync/hashtriemap.go      |  81 ++++++++++++--
+ src/internal/sync/hashtriemap_test.go | 191 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 263 insertions(+), 9 deletions(-)

@@ -1,0 +1,21 @@
+commit 5e1e8c4c9f99da52419c99e618425794102c9769
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Thu May 7 21:12:21 2020 +0000
+
+    net/http: fix data race due to writeLoop goroutine left running
+    
+    Fix a data race for clients that mutate requests after receiving a
+    response error which is caused by the writeLoop goroutine left
+    running, this can be seen on canceled requests.
+    
+    Fixes #37669
+    
+    Change-Id: I0e0e4fd63266326b32587d8596456760bf848b13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232799
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 10 ++++-
+ src/net/http/transport_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+), 1 deletion(-)

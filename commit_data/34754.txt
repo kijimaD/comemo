@@ -1,0 +1,16 @@
+commit 4907c62f99fbfc8608a79a17c20d89f50956d9fc
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Wed Mar 28 18:09:17 2018 -0700
+
+    testing: document -race goroutine limits
+    
+    -race sets a hard cap of 8,192, which is easily hit while testing.
+    
+    Fixes #23611
+    
+    Change-Id: I0f720ec39c82c2194a485d437d6373f4bdc8a9c1
+    Reviewed-on: https://go-review.googlesource.com/103160
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/testing/testing.go | 3 +++
+ 1 file changed, 3 insertions(+)

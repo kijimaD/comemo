@@ -1,0 +1,19 @@
+commit dc725bfb3c3f29c7395e088d25ef6bf8dba8f129
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Mon Feb 8 23:27:52 2021 +0000
+
+    doc/go1.16: mention new vet check for asn1.Unmarshal
+    
+    This vet check was added in CL 243397.
+    
+    For #40700.
+    
+    Change-Id: Ibff6df9395d37bb2b84a791443578009f23af4fb
+    GitHub-Last-Rev: e47c38f6309f31a6de48d4ffc82078d7ad45b171
+    GitHub-Pull-Request: golang/go#44147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290330
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

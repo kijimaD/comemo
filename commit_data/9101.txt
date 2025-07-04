@@ -1,0 +1,12 @@
+commit 08e47ebb7d01a8df9e67491f5ab1b191923a1aab
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 18 11:44:27 2011 +1000
+
+    fmt: fix a couple of documentation glitches.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4758050
+
+ src/pkg/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

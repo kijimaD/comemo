@@ -1,0 +1,12 @@
+commit 1c4d380b8091d42abbfe070197b4555daa56e4d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 30 12:26:50 2010 -0700
+
+    CONTRIBUTORS: add wcn@google.com alias to match with code review
+    
+    R=wcn
+    CC=golang-dev
+    https://golang.org/cl/1902043
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

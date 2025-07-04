@@ -1,0 +1,23 @@
+commit 3323dab1f45bbad1033cdd0c2fbfb9884c5d54cc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 15 17:09:00 2022 -0500
+
+    os/exec: retry ETXTBSY errors in TestFindExecutableVsNoexec
+    
+    I made this test parallel in CL 439196, which exposed it to the
+    fork/exec race condition described in #22315. The ETXTBSY errors from
+    that race should resolve on their own, so we can simply retry the call
+    to get past them.
+    
+    Fixes #56811.
+    Updates #22315.
+    
+    Change-Id: I2c6aa405bf3a1769d69cf08bf661a9e7f86440b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458016
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec/lp_linux_test.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit 5a03cbd12a2fcaf85482f1f4d9570c064510da9b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 2 12:01:24 2021 -0700
+
+    encoding/json: use reflect.Value.UnsafePointer over Pointer
+    
+    The latter returns a uintptr, while the former returns a unsafe.Pointer.
+    A uintptr is unsafe if Go ever switches to a moving GC,
+    while a unsafe.Pointer will be properly tracked by the GC.
+    
+    We do not use unsafe.Pointer for any unsafe type conversions,
+    and only use it for comparability purposes, which is relatively safe.
+    
+    Updates #40592
+    
+    Change-Id: I813e218668704b63a3043acda4331205a3835a66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360855
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/json/encode.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

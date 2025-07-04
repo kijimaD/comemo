@@ -1,0 +1,20 @@
+commit 089e482b3dd2026178c8ee5b90d9aadb6bf81239
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Feb 15 19:23:07 2020 -0800
+
+    runtime: reorder race detector calls in slicecopy
+    
+    In rare circumstances, this helps report a race which would
+    otherwise go undetected.
+    
+    Fixes #36794
+    
+    Change-Id: I8a3c9bd6fc34efa51516393f7ee72531c34fb073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220685
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/testdata/slice_test.go | 16 ++++++++++++++++
+ src/runtime/slice.go                    |  4 ++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

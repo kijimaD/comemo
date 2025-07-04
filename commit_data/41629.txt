@@ -1,0 +1,21 @@
+commit 1f231d74f6e6b7ce1ccdbf49fc12b022dd875196
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Mar 11 21:05:21 2020 +0200
+
+    runtime: emit more specific errors from checkptr
+    
+    Update error messages for pointer alignment checks and pointer
+    arithmetic checks so that each type of error has a unique error
+    message.
+    
+    Fixes #37488
+    
+    Change-Id: Ida2c2fa3f041a3307d665879a463f9e8f2c1fd03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223037
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/checkptr.go      | 8 ++++----
+ src/runtime/checkptr_test.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

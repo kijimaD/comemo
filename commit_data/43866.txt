@@ -1,0 +1,20 @@
+commit 65dcd15c720585958908668fb17c47bc620a9923
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 24 13:23:10 2020 -0500
+
+    doc/go1.16: fill in Go 1.16 release note TODOs using relnote
+    
+    The additions were generated using golang.org/x/build/cmd/relnote
+    at CL 272907. It was modified to find previously-missed entries
+    by querying the Gerrit API in addition to the maintner corpus.
+    
+    For #40700.
+    Updates #41849.
+    
+    Change-Id: If575984fe40e0133ad5e8fc5411ea5063457250d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272871
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.16.html | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 188 insertions(+), 3 deletions(-)

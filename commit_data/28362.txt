@@ -1,0 +1,17 @@
+commit 2e675142dd269348da992c1862a28e56e0a87eb6
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Wed Sep 14 13:17:37 2016 +0200
+
+    test/float_lit2: fix expressions in comment
+    
+    The change corrects the values of the largest float32 value (f1) and the
+    value of the halfway point between f1 and the next, overflow value (f2).
+    
+    Fixes #17012
+    
+    Change-Id: Idaf9997b69d61fafbffdb980d751c9857732e14d
+    Reviewed-on: https://go-review.googlesource.com/29171
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/float_lit2.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

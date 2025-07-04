@@ -1,0 +1,41 @@
+commit 9776d028f4b99b9a935dae9f63f32871b77c49af
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 23:45:05 2024 +0100
+
+    crypto/ecdsa: implement deterministic and hedged signatures
+    
+    For the future, some test vectors we should generate and then share
+    through Wycheproof or CCTV:
+     - A private key with a leading zero byte.
+     - A hash longer than the modulus.
+     - A hash longer than the P-521 modulus by a few bits.
+     - Reductions happening in hashToNat and bits2octets.
+    
+    Fixes #64802
+    
+    Change-Id: Ia0f89781b2c78eedd5103cf0e9720630711c37ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628681
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go                          | 133 ++++++------
+ src/crypto/ecdsa/ecdsa_legacy.go                   |  14 ++
+ src/crypto/ecdsa/ecdsa_test.go                     | 121 +++++++++++
+ src/crypto/internal/fips/ecdsa/cast.go             | 150 +++++++------
+ src/crypto/internal/fips/ecdsa/ecdsa.go            | 169 +++++++++------
+ src/crypto/internal/fips/ecdsa/ecdsa_noasm.go      |   6 +-
+ src/crypto/internal/fips/ecdsa/ecdsa_s390x.go      |  10 +-
+ src/crypto/internal/fips/ecdsa/ecdsa_test.go       |  17 +-
+ src/crypto/internal/fips/ecdsa/hmacdrbg.go         |  49 ++++-
+ src/crypto/internal/fipstest/cast_test.go          |   7 +-
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  80 +++----
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  80 +++----
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  |  96 ++++-----
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  78 +++----
+ .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 236 ++++++++++-----------
+ .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |  66 +++---
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  64 +++---
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 +++++++-------
+ 18 files changed, 896 insertions(+), 638 deletions(-)

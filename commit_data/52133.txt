@@ -1,0 +1,23 @@
+commit eee2697c38b73b731604d5584abd97bf674857ed
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 17 11:57:30 2023 +0700
+
+    cmd/compile: use ONAME node directly from generated hash func
+    
+    This reverts CL 468879
+    
+    CL 469017 marked type eq/hash functions as non-inlineable, so this
+    change won't cause ICE anymore.
+    
+    Updates #58572
+    
+    Change-Id: I3e6ec9ba2217102693acd1848a0eba0886dc9fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469018
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/reflectdata/alg.go | 31 ++++++++++-------------------
+ 1 file changed, 11 insertions(+), 20 deletions(-)

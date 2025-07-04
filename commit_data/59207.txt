@@ -1,0 +1,24 @@
+commit dceb77a33676c8a4efb9c63267c351268848de6f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 28 18:04:16 2025 -0400
+
+    cmd/vet: add waitgroup analyzer
+    
+    + relnote
+    
+    Fixes #18022
+    
+    Change-Id: I92d1939e9d9f16824655c6c909a5f58ed9500014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661519
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ doc/next/3-tools.md                  | 9 +++++++++
+ src/cmd/go/internal/test/flagdefs.go | 1 +
+ src/cmd/vet/doc.go                   | 1 +
+ src/cmd/vet/main.go                  | 3 ++-
+ src/cmd/vet/vet_test.go              | 2 +-
+ 5 files changed, 14 insertions(+), 2 deletions(-)

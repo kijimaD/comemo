@@ -1,0 +1,27 @@
+commit c41137d2428587b7e6df09952cddabd6441bc4b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 8 02:25:23 2016 +0000
+
+    syscall: fix name of prlimit parameters
+    
+    Fixes #17606
+    
+    Change-Id: I040c7621cef265d44b58f16556e6d58660a2245d
+    Reviewed-on: https://go-review.googlesource.com/32889
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go           | 2 +-
+ src/syscall/zsyscall_linux_386.go      | 4 ++--
+ src/syscall/zsyscall_linux_amd64.go    | 4 ++--
+ src/syscall/zsyscall_linux_arm.go      | 4 ++--
+ src/syscall/zsyscall_linux_arm64.go    | 4 ++--
+ src/syscall/zsyscall_linux_mips.go     | 4 ++--
+ src/syscall/zsyscall_linux_mips64.go   | 4 ++--
+ src/syscall/zsyscall_linux_mips64le.go | 4 ++--
+ src/syscall/zsyscall_linux_mipsle.go   | 4 ++--
+ src/syscall/zsyscall_linux_ppc64.go    | 4 ++--
+ src/syscall/zsyscall_linux_ppc64le.go  | 4 ++--
+ src/syscall/zsyscall_linux_s390x.go    | 4 ++--
+ 12 files changed, 23 insertions(+), 23 deletions(-)

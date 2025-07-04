@@ -1,0 +1,37 @@
+commit 2d4f7ba0cd65dfd9b47b3641f24b759c627c9433
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 2 12:33:02 2008 -0800
+
+    printf as we know and love it.
+    
+    Plus print[ln] with the ability to print struct values.
+    
+    Note for language mavens: if a "..." function passes its argument
+    to another "..." function, the argument is not wrapped again.  This
+    allows printf to call fprintf without extra manipulation. It's good
+    but needs to go in the spec.
+    
+    This code works:
+    ///
+    package main
+    
+    import fmt "fmt"
+    import os "os"
+    
+    type T struct { s string; a, b int }
+    
+    func main() {
+            P := fmt.Printer();
+            P.printf("%s = %d with float value %.4f\n", "hi there", 7, 123.456);
+            P.println("hi there", 7, 123.456);
+            P.fprintf(os.Stdout, "%s = %d with float value %.4f\n", "hi there", 7, 123.456);
+            P.println(T{"x", 7, 234}, "end of struct", 8, 9);
+    }
+    
+    R=rsc
+    DELTA=28  (7 added, 3 deleted, 18 changed)
+    OCL=18321
+    CL=18324
+
+ src/lib/fmt/print.go | 46 +++++++++++++++++++++++++---------------------
+ 1 file changed, 25 insertions(+), 21 deletions(-)

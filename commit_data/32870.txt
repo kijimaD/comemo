@@ -1,0 +1,23 @@
+commit 197f9ba11d4559cbd19350ca652da7881f4b273f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 27 14:26:20 2017 +0200
+
+    syscall: correct TCGETS/TCSETS values on ppc64/ppc64le
+    
+    Correcting values is allowed per the syscall package rules, so update
+    these constants to their correct value on ppc64/ppc64le. The values now
+    match the corresponding constants in x/sys/unix.
+    
+    Update #19560
+    Fixes #22000
+    
+    Change-Id: I1d358de345766ec96e15dfcc8911fe2f39fb0ddb
+    Reviewed-on: https://go-review.googlesource.com/66510
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/ztypes_linux_ppc64.go   | 4 ++--
+ src/syscall/ztypes_linux_ppc64le.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

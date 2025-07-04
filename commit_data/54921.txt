@@ -1,0 +1,20 @@
+commit ba0dd3b328d16e0e66a6fcb8be5fda266d965ea2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Nov 6 14:27:32 2023 +0000
+
+    cmd/go/internal/modload: avoid calling strings.HasPrefix twice in *MainModuleSet.DirImportPath
+    
+    Since TrimPrefix uses HasPrefix internally.
+    
+    Change-Id: Ifadb99dd9192578056636adacaccc9d88a1c1f32
+    GitHub-Last-Rev: 74bcfff3fb5eaee281796ccb5bc84c6941d44615
+    GitHub-Pull-Request: golang/go#63893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539096
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/load.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

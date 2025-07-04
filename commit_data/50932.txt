@@ -1,0 +1,19 @@
+commit b6e1a563fc142d7129a0ea6a3c6137ee12ff43f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 13:46:26 2022 -0400
+
+    cmd/go: fix longtest builder after runtime/internal/atomic
+    
+    Loosen test to accept staleness in any runtime/internal package.
+    Fixes longtest builder.
+    
+    Change-Id: Iffda9c1d1816f76c782aecc4d53c0ea3e6580587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

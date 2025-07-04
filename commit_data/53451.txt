@@ -1,0 +1,37 @@
+commit 77786d90fae21f526caaddd23c887a2a7233a299
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 25 17:07:26 2023 -0400
+
+    cmd/go: adjust pruning and switch toolchains if needed when go get changes go version
+    
+    When we do 'go get', the Go version can change now.
+    That means we need to do the pruning conversions that
+    until now have only been necessary in go mod tidy -go=version.
+    
+    We may also need to upgrade the toolchain in order to load enough o
+    the module graph to finish the edit, so we should let a TooNewError
+    bubble up to the caller instead of trying to downgrade the affected
+    module to avoid the error.
+    
+    Revised from CL 498120.
+    
+    For #57001.
+    
+    Change-Id: Ic8994737eca4ed61ccc093a69e46f5a6caa8be87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498267
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modget/get.go                  |   4 +
+ src/cmd/go/internal/modload/buildlist.go           |  47 +++++----
+ src/cmd/go/internal/modload/edit.go                | 109 +++++++++++++++++----
+ src/cmd/go/internal/modload/init.go                |  45 ++++++---
+ src/cmd/go/internal/modload/load.go                |   2 +
+ src/cmd/go/internal/modload/modfile.go             |   4 +-
+ src/cmd/go/testdata/script/mod_indirect_main.txt   |   2 -
+ src/cmd/go/testdata/script/mod_skip_write.txt      |   2 -
+ src/cmd/go/testdata/script/mod_tidy_version.txt    |  94 ++++++++++++++++++
+ .../go/testdata/script/work_why_download_graph.txt |   2 +-
+ 10 files changed, 254 insertions(+), 57 deletions(-)

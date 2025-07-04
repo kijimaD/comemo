@@ -1,0 +1,26 @@
+commit 177306f6305b35bf6993c2d74baa7fb60cd3f5d4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 3 13:34:47 2022 -0700
+
+    cmd/internal/notsha256: add purego tag as needed
+    
+    This permits building the package with gccgo, when using gccgo
+    as a bootstrap compiler.
+    
+    Fixes #53662
+    
+    Change-Id: Ic7ae9323ec5954e9306a32e1160e9aa1ed3aa202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415935
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/notsha256/sha256block_386.s      | 3 +++
+ src/cmd/internal/notsha256/sha256block_amd64.go   | 3 +++
+ src/cmd/internal/notsha256/sha256block_amd64.s    | 3 +++
+ src/cmd/internal/notsha256/sha256block_decl.go    | 3 ++-
+ src/cmd/internal/notsha256/sha256block_generic.go | 4 ++--
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 3 ++-
+ 6 files changed, 15 insertions(+), 4 deletions(-)

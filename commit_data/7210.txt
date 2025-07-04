@@ -1,0 +1,14 @@
+commit 68683a6a61d7647a7c1fde201fb8286c89f7a9a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 21 08:37:58 2011 -0800
+
+    test: s/float/float64/
+    
+    Otherwise gccgo gives an extra error message not matched by errchk.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4053042
+
+ test/method1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit 87039c7d340eaf5731f3c12c1d1dd9875c7693fa
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 12 22:59:44 2022 +0000
+
+    cmd/go: reference BuildID field from list's -export docs
+    
+    In https://golang.org/cl/263542 we added BuildID to the Package struct
+    in the docs for "go list", correctly pointing out that it's only set
+    when -export is used.
+    
+    Further down, the doc details the -export flag on its own.
+    It already mentioned the Export field, and we forgot to add a mention to
+    BuildID as well. Do that.
+    
+    Change-Id: I5838a8900edae8012fe333937d86baea3066c5f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392114
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/alldocs.go            | 3 ++-
+ src/cmd/go/internal/list/list.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

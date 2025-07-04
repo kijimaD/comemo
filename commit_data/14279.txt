@@ -1,0 +1,12 @@
+commit 95329d4cd4c036f5b0ab77eaea7927f124d81c97
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 1 22:02:52 2012 +0400
+
+    run.bash: add sanity test for race detector
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6612064
+
+ src/run.bash | 8 ++++++++
+ 1 file changed, 8 insertions(+)

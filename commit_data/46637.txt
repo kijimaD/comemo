@@ -1,0 +1,29 @@
+commit 5511f14a735736e88c5fc832975f9b27244c56e1
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Sep 27 19:23:17 2021 -0400
+
+    go/types: add a NewSignatureType constructor accepting type parameters
+    
+    In #47916, consensus has emerged that adding a new constructor is
+    preferable to using setters for type parameters. This is more consistent
+    with the rest of the type API, which is immutable except in cases where
+    mutation is necessary to break cycles (such as Named.SetUnderlying).
+    
+    This CL adds a new constructor NewSignatureType that accepts type
+    parameters and receiver type parameters, deprecating the existing
+    NewSignature constructor. SetTypeParams and SetRecvTypeParams are not
+    yet removed: this will be done in a follow-up CL once x/tools no longer
+    has a dependency on the old APIs.
+    
+    Updates #47916
+    
+    Change-Id: I9d04dcfd304344d2aa08e527b371c3faa9d738e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352615
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/iimport.go | 19 +++++++++----------
+ src/go/types/signature.go             | 26 +++++++++++++++++++++++++-
+ 2 files changed, 34 insertions(+), 11 deletions(-)

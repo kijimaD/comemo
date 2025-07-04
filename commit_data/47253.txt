@@ -1,0 +1,19 @@
+commit fc5e8cd6c9de00f8d7da645343934c548e62223e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 4 19:52:48 2021 +0000
+
+    runtime: update and access scavengeGoal atomically
+    
+    The first step toward acquiring the heap lock less frequently in the
+    scavenger.
+    
+    Change-Id: Idc69fd8602be2c83268c155951230d60e20b42fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353973
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcscavenge.go | 8 ++++----
+ src/runtime/mheap.go       | 7 +++++--
+ 2 files changed, 9 insertions(+), 6 deletions(-)

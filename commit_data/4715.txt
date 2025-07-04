@@ -1,0 +1,15 @@
+commit f2539b14171bc8bbf248155409b26a68967a1adc
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Wed Jan 27 21:13:22 2010 -0800
+
+    Allow underscores in XML element names (except for leading characters)
+    
+    Fixes #569
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/194121
+
+ src/pkg/xml/read.go     | 10 ++++++++--
+ src/pkg/xml/xml_test.go | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

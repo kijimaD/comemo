@@ -1,0 +1,58 @@
+commit a5291099d2a79c8cc85c331dfd08ad42e92ce063
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Nov 4 13:09:21 2011 -0400
+
+    html/template: wraps package template instead of exposing func Escape
+    
+    This does escaping on first execution.
+    
+    template.go defines the same interface elements as package template.
+    It requires rather more duplication of code than I'd like, but I'm
+    not clear how to avoid that.
+    
+    Maybe instead of
+    
+        mySet.ParseGlob(...)
+        template.ParseSetGlob(...)
+        mySet.ParseFiles(...)
+        mySet.ParseTemplateFiles(...)
+        template.ParseTemplateFiles(...)
+    
+    we combine these into a fileset abstraction that can be wrapped
+    
+        var fileset template.FileSet
+        fileset.Glob(...)  // Load a few files by glob
+        fileset.Files(...)  // Load a few {{define}}d files
+        fileset.TemplateFiles(...)  // Load a few files as template bodies
+        fileset.Funcs(...)  // Make the givens func available to templates
+        // Do the parsing.
+        set, err := fileset.ParseSet()
+        // or set, err := fileset.ParseInto(set)
+    
+    or provide an interface that can receive filenames and functions and
+    parse messages:
+    
+        type Bundle interface {
+          TemplateFile(string)
+          File(string)
+          Funcs(FuncMap)
+        }
+    
+    and define template.Parse* to handle the file-system stuff and send
+    messages to a bundle:
+    
+        func ParseFiles(b Bundle, filenames ...string)
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5270042
+
+ src/pkg/html/template/Makefile        |   1 +
+ src/pkg/html/template/clone_test.go   |   2 +-
+ src/pkg/html/template/content_test.go |   3 +-
+ src/pkg/html/template/doc.go          |  55 ++++----
+ src/pkg/html/template/error.go        |  64 ++++-----
+ src/pkg/html/template/escape.go       |  26 ++--
+ src/pkg/html/template/escape_test.go  |  68 +++++-----
+ src/pkg/html/template/template.go     | 239 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 331 insertions(+), 127 deletions(-)

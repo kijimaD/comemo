@@ -1,0 +1,20 @@
+commit 4fe46cee4ea4eb15e38675ff32222f07e6b15404
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jan 21 02:36:45 2023 +0700
+
+    builtin: add documentation for clear
+    
+    Updates #56351
+    
+    Change-Id: I7b1dd29e60f71d804a6d9cba3377e28c3a5b964e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462935
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/builtin/builtin.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

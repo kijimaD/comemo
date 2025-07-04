@@ -1,0 +1,19 @@
+commit bb282baa93bbb3158f6e52cb1436286a544000e3
+Author: David Anderson <danderson@google.com>
+Date:   Fri Oct 14 09:19:45 2011 -0700
+
+    syscall: adjust Mount to accomodate stricter FS implementations.
+    
+    Notably, the "data" argument should be nil if no options are
+    given, or (at least) the cgroup filesystem will refuse to
+    mount.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5147047
+
+ src/pkg/syscall/syscall_linux.go        | 11 ++++++++++-
+ src/pkg/syscall/zsyscall_linux_386.go   | 16 ++++++++--------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 16 ++++++++--------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 16 ++++++++--------
+ 4 files changed, 34 insertions(+), 25 deletions(-)

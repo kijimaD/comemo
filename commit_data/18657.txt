@@ -1,0 +1,19 @@
+commit fa6375ea47ce054d5f1d93a4a1fe7efe2e293991
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 07:37:10 2014 -0800
+
+    cmd/6g, cmd/8g: simplify calls to gvardef
+    
+    The gvardef function does nothing if n->class == PEXTERN, so
+    we don't need to test for that before calling it.  This makes
+    the 6g/8g code more like the 5g code and clarifies that the
+    cases that do not test for n->class != PEXTERN are not buggy.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/68900044
+
+ src/cmd/6g/cgen.c | 12 ++++++------
+ src/cmd/8g/cgen.c |  6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit d5717d262a201ab504e5de0c873d3707c66b04e7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 5 13:39:00 2009 -0800
+
+    update the text on the landing page.
+    
+    R=agl, rsc
+    CC=go-dev
+    http://go/go-review/1017053
+
+ doc/root.html | 41 ++++++++++++++++++++++++++---------------
+ 1 file changed, 26 insertions(+), 15 deletions(-)

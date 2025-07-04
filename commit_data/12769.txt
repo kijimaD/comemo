@@ -1,0 +1,14 @@
+commit 603a44c50f8028500ff012de2549313cfcbc96c6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 27 14:03:46 2012 +1100
+
+    doc: fix concurrency patterns rawhtml generation
+    
+    The Makefile target was broken due to the rename of the HTML file.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5918045
+
+ doc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

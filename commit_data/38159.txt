@@ -1,0 +1,16 @@
+commit d24c3124cab290f5f7e1c75be4c6cbe6dd05a85c
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 01:03:20 2019 +0100
+
+    misc/android: evaluate symlinks before comparing GOROOT and GOPATH
+    
+    Should fix Android builders on Darwin hosts.
+    
+    Change-Id: I1554849bdf2ad2440529af7f93566fa6f11d5407
+    Reviewed-on: https://go-review.googlesource.com/c/164697
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

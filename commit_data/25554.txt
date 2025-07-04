@@ -1,0 +1,16 @@
+commit 771da53958618108c8ea56a69412eaeaae79e0ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 12 20:51:08 2016 -0800
+
+    net/http2: update bundled http2
+    
+    Update bundled http2 to git rev 76365a4 for https://golang.org/issue/18571
+    
+    Fixes golang/go#13924
+    
+    Change-Id: Ibb48cd6935b35d9965df70fb8761be5986d79ffc
+    Reviewed-on: https://go-review.googlesource.com/18591
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

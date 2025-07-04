@@ -1,0 +1,14 @@
+commit da634dd703a10bde7a923075241fcd43048d529b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 12 19:40:58 2013 +0800
+
+    cmd/go: clarify test filenames in help messages
+    Fixes #5655.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9944044
+
+ src/cmd/go/doc.go  | 4 ++--
+ src/cmd/go/test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit 269e5319172bfb8774d19538e8dfc8ae0650ffec
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 17:02:16 2018 +0200
+
+    cmd/link: add AIX operating system
+    
+    This commit adds AIX operating system to cmd/link package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I349e0a2658c31919b72117b62c4c9935c9af07c0
+    Reviewed-on: https://go-review.googlesource.com/c/138730
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go   |   25 +
+ src/cmd/link/internal/ld/go.go     |    7 +-
+ src/cmd/link/internal/ld/lib.go    |   15 +-
+ src/cmd/link/internal/ld/main.go   |    4 +
+ src/cmd/link/internal/ld/sym.go    |    2 +-
+ src/cmd/link/internal/ld/xcoff.go  | 1232 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ppc64/asm.go |   29 +
+ src/cmd/link/internal/ppc64/obj.go |    4 +
+ 8 files changed, 1315 insertions(+), 3 deletions(-)

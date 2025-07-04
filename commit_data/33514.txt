@@ -1,0 +1,18 @@
+commit c19abe30a00058dbf0950f30d5b7c2e451e676a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 12:21:44 2017 +1000
+
+    net: ignore duplicate interfaces in TestInterfaceHardwareAddrWithGetmac
+    
+    Sometimes getmac lists many interfaces for the same MAC address,
+    while Interfaces returns only single name for that address. Adjust
+    the test to ignore the names that are not returned by the Interfaces.
+    
+    Fixes #21027
+    
+    Change-Id: I08d98746a7c669f2d730dba2da36e07451a6f405
+    Reviewed-on: https://go-review.googlesource.com/59411
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/net_windows_test.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 7678c5bfa10748d29696b11ac3b5b1392319159c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 5 07:34:27 2010 +1000
+
+    godashboard: fix benchmarks page (first pass)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/844044
+
+ misc/dashboard/godashboard/benchmark1.html | 68 +++++---------------------
+ misc/dashboard/godashboard/benchmarks.html | 76 ++++++++----------------------
+ misc/dashboard/godashboard/gobuild.py      | 60 ++++++++++++++++-------
+ 3 files changed, 72 insertions(+), 132 deletions(-)

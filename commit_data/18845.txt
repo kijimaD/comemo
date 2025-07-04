@@ -1,0 +1,32 @@
+commit 8303a13bb8e46a11c64080f4da1b6c9ed11ac5a2
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 12 18:12:25 2014 -0700
+
+    runtime: use unoptimized memmove and memclr on Plan 9
+    
+    On Plan 9, the kernel disallows the use of floating point
+    instructions while handling a note. Previously, we worked
+    around this by using a simple loop in place of memmove.
+    
+    When I added that work-around, I verified that all paths
+    from the note handler didn't end up calling memmove. Now
+    that memclr is using SSE instructions, the same process
+    will have to be done again.
+    
+    Instead of doing that, however, this CL just punts and
+    uses unoptimized functions everywhere on Plan 9.
+    
+    LGTM=rsc
+    R=rsc, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/73830044
+
+ src/pkg/runtime/memclr_386.s          |   2 +
+ src/pkg/runtime/memclr_amd64.s        |   2 +
+ src/pkg/runtime/memclr_plan9_386.s    |  50 +++++++++++++
+ src/pkg/runtime/memclr_plan9_amd64.s  |  48 +++++++++++++
+ src/pkg/runtime/memmove_386.s         |   2 +
+ src/pkg/runtime/memmove_amd64.s       |   2 +
+ src/pkg/runtime/memmove_plan9_386.s   | 127 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_plan9_amd64.s | 126 +++++++++++++++++++++++++++++++++
+ 8 files changed, 359 insertions(+)

@@ -1,0 +1,15 @@
+commit e0d6f95069aef81ba682be6c99bfa2d2dddec9f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 13:04:30 2011 -0400
+
+    build: update all-qemu.bash
+    
+    nothing but GOARCH=arm makes sense.
+    http/cgi uses network too.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4800053
+
+ src/all-qemu.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

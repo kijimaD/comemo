@@ -1,0 +1,16 @@
+commit 5a5799f613d802a52bc06207086af5425664038b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 16:26:40 2010 -0800
+
+    gc: more precise handling of import .
+    
+    Fixes #455.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/186212
+
+ src/cmd/gc/dcl.c  | 11 ++++++++---
+ src/cmd/gc/lex.c  |  6 +++---
+ src/cmd/gc/subr.c |  1 +
+ 3 files changed, 12 insertions(+), 6 deletions(-)

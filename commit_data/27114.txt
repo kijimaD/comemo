@@ -1,0 +1,24 @@
+commit 6f3f02f80d23d3bbc2857be147341517d1762fbd
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 24 17:04:32 2016 -0700
+
+    runtime: zero tmpbuf between len and cap
+    
+    Zero the entire buffer so we don't need to
+    lower its capacity upon return.  This lets callers
+    do some appending without allocation.
+    
+    Zeroing is cheap, the byte buffer requires only
+    4 extra instructions.
+    
+    Fixes #14235
+    
+    Change-Id: I970d7badcef047dafac75ac17130030181f18fe2
+    Reviewed-on: https://go-review.googlesource.com/22424
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/string.go      |  6 ++++--
+ src/runtime/string_test.go | 26 ++++++++++++++++++++++----
+ 2 files changed, 26 insertions(+), 6 deletions(-)

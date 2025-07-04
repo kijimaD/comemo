@@ -1,0 +1,23 @@
+commit 15f336b675c358e799abb2053c50caf852ebbe2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 17:54:10 2010 -0400
+
+    build: let pkg/Makefile coordinate building of Go commands
+    
+    Commands written in Go depend on Go packages, so they
+    cannot be built by src/cmd/make.bash.  They have been
+    built by src/make.bash after all the packages are done, but
+    we want to be able to use cgo (written in Go) during the build
+    of package net.  To make this possible, build the commands
+    from src/pkg/Makefile instead of src/make.bash, so that they
+    are included in the package dependency analysis.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1972046
+
+ src/cmd/make.bash |  2 +-
+ src/make.bash     |  3 ++-
+ src/pkg/Makefile  | 18 ++++++++++++++++++
+ src/pkg/deps.bash |  3 ++-
+ 4 files changed, 23 insertions(+), 3 deletions(-)

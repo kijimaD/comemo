@@ -1,0 +1,19 @@
+commit 4bd8a3864180e88b51939f9880ac52b575bf21fa
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 6 11:10:47 2012 +1000
+
+    image/jpeg: fix quantization tables to be in zig-zag order, not natural
+    order.
+    
+    JPEG images generated prior to this CL are still valid JPEGs, as the
+    quantization tables used are encoded in the wire format. Such JPEGs just
+    don't use the recommended quantization tables.
+    
+    R=r, dsymonds, raph, adg
+    CC=golang-dev, tuom.larsen
+    https://golang.org/cl/6497083
+
+ src/pkg/image/jpeg/reader.go      | 17 ++++----
+ src/pkg/image/jpeg/writer.go      | 42 +++++++++++---------
+ src/pkg/image/jpeg/writer_test.go | 82 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 26 deletions(-)

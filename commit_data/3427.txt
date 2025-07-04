@@ -1,0 +1,24 @@
+commit 4b3a13d37971fb07468383dc46c8947dda4aac41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 2 22:24:05 2009 -0700
+
+    - improved handling of white space around declarations and statements
+    - extra tests
+    
+    R=rsc
+    DELTA=366  (264 added, 37 deleted, 65 changed)
+    OCL=35299
+    CL=35301
+
+ src/pkg/go/printer/printer.go                   | 153 ++++++++++++------------
+ src/pkg/go/printer/printer_test.go              |   1 +
+ src/pkg/go/printer/testdata/comments.golden     |   5 +
+ src/pkg/go/printer/testdata/comments.x          |   8 ++
+ src/pkg/go/printer/testdata/declarations.go     |  22 ++++
+ src/pkg/go/printer/testdata/declarations.golden |  26 ++++
+ src/pkg/go/printer/testdata/empty.go            |   5 +
+ src/pkg/go/printer/testdata/empty.golden        |   5 +
+ src/pkg/go/printer/testdata/expressions.golden  |   3 +
+ src/pkg/go/printer/testdata/statements.go       |  90 ++++++++++++--
+ src/pkg/go/printer/testdata/statements.golden   | 105 ++++++++++++++--
+ 11 files changed, 325 insertions(+), 98 deletions(-)

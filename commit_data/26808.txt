@@ -1,0 +1,29 @@
+commit 0435e88a119fd057aa7209591ba3dff122c9f24c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Mar 18 10:56:23 2016 +0100
+
+    runtime: revert "do not call timeBeginPeriod on windows"
+    
+    This reverts commit ab4c9298b8185a056ff1152f2c7bd9b38d3d06f3.
+    
+    Sysmon critically depends on system timer resolution for retaking
+    of Ps blocked in system calls. See #14790 for an example
+    of a program where execution time goes from 2ms to 30ms if
+    timeBeginPeriod(1) is not used.
+    
+    We can remove timeBeginPeriod(1) when we support UMS (#7876).
+    
+    Update #14790
+    
+    Change-Id: I362b56154359b2c52d47f9f2468fe012b481cf6d
+    Reviewed-on: https://go-review.googlesource.com/20834
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testcarchive/carchive_test.go |  2 +-
+ src/runtime/export_windows_test.go     |  7 ++--
+ src/runtime/os_windows.go              |  9 ++++-
+ src/runtime/syscall_windows_test.go    | 66 ++++++----------------------------
+ 4 files changed, 25 insertions(+), 59 deletions(-)

@@ -1,0 +1,42 @@
+commit dfa5893d4f5a5724e36e1265eba4e148ca42911f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 3 14:21:28 2008 -0800
+
+    preparation for exec.
+    
+    * syscall:
+            add syscall.RawSyscall, which doesn't use sys.entersyscall/sys.exitsyscall
+            add syscall.dup2
+            add syscall.BytePtrPtr
+            add syscall.Rusage, RusagePtr
+            add syscall.F_GETFD, F_SETFD, FD_CLOEXEC
+    
+    * runtime:
+            clean up, correct signal handling.
+            can now survive (continue running after) a signal.
+    
+    R=r
+    DELTA=394  (286 added, 51 deleted, 57 changed)
+    OCL=20351
+    CL=20369
+
+ src/lib/syscall/Makefile              |  5 ++-
+ src/lib/syscall/asm_amd64_darwin.s    | 18 +++++++++
+ src/lib/syscall/asm_amd64_linux.s     | 19 +++++++++
+ src/lib/syscall/cast_amd64.s          | 10 +++++
+ src/lib/syscall/file_darwin.go        |  6 +++
+ src/lib/syscall/file_linux.go         |  6 +++
+ src/lib/syscall/syscall.go            |  2 +
+ src/lib/syscall/types_amd64_darwin.go | 28 +++++++++++++
+ src/lib/syscall/types_amd64_linux.go  | 28 +++++++++++++
+ src/runtime/rt1_amd64_darwin.c        | 75 +++++++++++++++++++++--------------
+ src/runtime/rt1_amd64_linux.c         | 65 ++++++++++++++++++------------
+ src/runtime/runtime.h                 | 11 +++--
+ src/runtime/signals.h                 | 40 -------------------
+ src/runtime/signals_darwin.h          | 48 ++++++++++++++++++++++
+ src/runtime/signals_linux.h           | 48 ++++++++++++++++++++++
+ src/runtime/sys_amd64_darwin.s        | 14 +++++--
+ src/runtime/sys_amd64_linux.s         | 10 ++++-
+ test/golden.out                       |  3 ++
+ test/sigchld.go                       | 19 +++++++++
+ 19 files changed, 349 insertions(+), 106 deletions(-)

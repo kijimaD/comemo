@@ -1,0 +1,17 @@
+commit 3be4d5982020bf60d1ed98fd7b9e40edd4c797ee
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 9 11:15:53 2015 -0700
+
+    runtime: remove redundant type cast
+    
+      (*T)(unsafe.Pointer(&t)) === &t
+    for t of type T
+    
+    Change-Id: I43c1aa436747dfa0bf4cb0d615da1647633f9536
+    Reviewed-on: https://go-review.googlesource.com/15656
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

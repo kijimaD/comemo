@@ -1,0 +1,34 @@
+commit 34975095d0fbf61e1c22c0adf71ca1568106862f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 20:27:54 2017 -0700
+
+    cmd/compile: provide pos and curfn to temp
+    
+    Concurrent compilation requires providing an
+    explicit position and curfn to temp.
+    This implementation of tempAt temporarily
+    continues to use the globals lineno and Curfn,
+    so as not to collide with mdempsky's
+    work for #19683 eliminating the Curfn dependency
+    from func nod.
+    
+    Updates #15756
+    Updates #19683
+    
+    Change-Id: Ib3149ca4b0740e9f6eea44babc6f34cdd63028a9
+    Reviewed-on: https://go-review.googlesource.com/38592
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gen.go            |  8 ++++++++
+ src/cmd/compile/internal/gc/pgen.go           |  3 ++-
+ src/cmd/compile/internal/gc/ssa.go            | 10 +++++++---
+ src/cmd/compile/internal/ssa/config.go        |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go   |  2 +-
+ src/cmd/compile/internal/ssa/loop_test.go     |  3 ++-
+ src/cmd/compile/internal/ssa/regalloc.go      | 13 ++++++-------
+ src/cmd/compile/internal/ssa/regalloc_test.go |  9 ++++++---
+ src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
+ 10 files changed, 35 insertions(+), 19 deletions(-)

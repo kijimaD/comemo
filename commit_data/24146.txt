@@ -1,0 +1,15 @@
+commit dd42eff8fe6320fbab8ebdc71a0b8a52abf7ea47
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Aug 30 22:24:53 2015 +0200
+
+    cmd/compile/internal/gc: use slice instead of NodeList for Label.Use
+    
+    Change-Id: I021c95df24edbff24ff2922769ef2b2acd47016a
+    Reviewed-on: https://go-review.googlesource.com/14081
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/gen.go | 12 +++++-------
+ src/cmd/compile/internal/gc/go.go  |  2 +-
+ 2 files changed, 6 insertions(+), 8 deletions(-)

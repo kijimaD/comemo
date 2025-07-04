@@ -1,0 +1,23 @@
+commit 2c1bbe7e32e9e56905cc2c4b34530d69bb5cbc6e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Sun Mar 31 18:37:12 2024 -0400
+
+    go/types: add go1.23 iterator methods for 10 exported types
+    
+    These methods will not be mirrored in types2 until the
+    bootstrap compiler reaches go1.23; therefore range-over-func
+    statements must not be used in code common to types + types2.
+    
+    Fixes #66626
+    
+    Change-Id: I3c2c15e3652ee95d9aff208d8a188b912ed5bc9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/66626.txt                           |  11 ++
+ doc/next/6-stdlib/99-minor/go/types/66626.md |  32 ++++++
+ src/go/types/example_test.go                 |   5 +-
+ src/go/types/iter.go                         | 159 +++++++++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 3 deletions(-)

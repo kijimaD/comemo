@@ -1,0 +1,67 @@
+commit 76a8409eb81eda553363783dcdd9d6224368ae0e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 22 16:23:43 2024 -0400
+
+    runtime: update and restore g0 stack bounds at cgocallback
+    
+    Currently, at a cgo callback where there is already a Go frame on
+    the stack (i.e. C->Go->C->Go), we require that at the inner Go
+    callback the SP is within the g0's stack bounds set by a previous
+    callback. This is to prevent that the C code switches stack while
+    having a Go frame on the stack, which we don't really support. But
+    this could also happen when we cannot get accurate stack bounds,
+    e.g. when pthread_getattr_np is not available. Since the stack
+    bounds are just estimates based on the current SP, if there are
+    multiple C->Go callbacks with various stack depth, it is possible
+    that the SP of a later callback falls out of a previous call's
+    estimate. This leads to runtime throw in a seemingly reasonable
+    program.
+    
+    This CL changes it to save the old g0 stack bounds at cgocallback,
+    update the bounds, and restore the old bounds at return. So each
+    callback will get its own stack bounds based on the current SP,
+    and when it returns, the outer callback has the its old stack
+    bounds restored.
+    
+    Also, at a cgo callback when there is no Go frame on the stack,
+    we currently always get new stack bounds. We do this because if
+    we can only get estimated bounds based on the SP, and the stack
+    depth varies a lot between two C->Go calls, the previous
+    estimates may be off and we fall out or nearly fall out of the
+    previous bounds. But this causes a performance problem: the
+    pthread API to get accurate stack bounds (pthread_getattr_np) is
+    very slow when called on the main thread. Getting the stack bounds
+    every time significantly slows down repeated C->Go calls on the
+    main thread.
+    
+    This CL fixes it by "caching" the stack bounds if they are
+    accurate. I.e. at the second time Go calls into C, if the previous
+    stack bounds are accurate, and the current SP is in bounds, we can
+    be sure it is the same stack and we don't need to update the bounds.
+    This avoids the repeated calls to pthread_getattr_np. If we cannot
+    get the accurate bounds, we continue to update the stack bounds
+    based on the SP, and that operation is very cheap.
+    
+    On a Linux/AMD64 machine with glibc:
+    
+    name                     old time/op  new time/op  delta
+    CgoCallbackMainThread-8  96.4µs ± 3%   0.1µs ± 2%  -99.92%  (p=0.000 n=10+9)
+    
+    Fixes #68285.
+    Fixes #68587.
+    
+    Change-Id: I3422badd5ad8ff63e1a733152d05fb7a44d5d435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600296
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 57 +++++++++++++--
+ .../internal/testcarchive/testdata/libgo10/a.go    | 12 ++++
+ .../cgo/internal/testcarchive/testdata/libgo9/a.go | 22 +++++-
+ .../cgo/internal/testcarchive/testdata/main10.c    | 22 ++++++
+ src/cmd/cgo/internal/testcarchive/testdata/main9.c | 16 +++--
+ src/runtime/cgo/gcc_stack_unix.c                   |  9 +--
+ src/runtime/cgocall.go                             | 73 +++++++++----------
+ src/runtime/proc.go                                |  1 +
+ src/runtime/runtime2.go                            | 83 +++++++++++-----------
+ 9 files changed, 201 insertions(+), 94 deletions(-)

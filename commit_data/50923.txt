@@ -1,0 +1,35 @@
+commit 07c57aff5d6d8f1df96eb99507bd04c57d0616ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 5 21:13:08 2022 -0400
+
+    all: use Go 1.17.13 for bootstrap
+    
+    Previously we used Go 1.17, but we realized thanks to tickling
+    a pre-Go1.17.3 bug that if we are going to change the bootstrap
+    toolchain that we should default to the latest available point release
+    at the time we make the switch, not the initial major release, so as
+    to avoid bugs that were fixed in the point releases.
+    
+    This CL updates the default search locations and the release notes.
+    
+    Users who run make.bash and depend on finding $HOME/sdk/go1.17
+    may need to run
+    
+            go install golang.org/dl/go1.17.13@latest
+            go1.17.13 download
+    
+    to provide a Go 1.17.13 toolchain to their builds.
+    
+    Change-Id: I3a2511f088cf852470a7216a5a41ae775fb561b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.20.html          |  2 +-
+ src/cmd/dist/notgo117.go |  4 ++--
+ src/make.bash            | 14 ++++++++------
+ src/make.bat             |  8 +++++---
+ src/make.rc              |  7 ++++---
+ 5 files changed, 20 insertions(+), 15 deletions(-)

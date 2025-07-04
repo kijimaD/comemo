@@ -1,0 +1,22 @@
+commit 09eefb3a4d15bb409ad8a85b505ec9230702a27a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 25 22:10:38 2023 +0700
+
+    cmd/compile: add race instrumentation during walkCompare
+    
+    So the racy usage could be detected after re-writing "==" to
+    runtime.memequal call.
+    
+    Updates #61204
+    
+    Change-Id: Idb4ac37e55813cc87f9d16aa656fb447edf69ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601117
+    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/walk/compare.go | 14 +++++++--
+ src/runtime/race/output_test.go          | 54 ++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)

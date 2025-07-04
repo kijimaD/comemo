@@ -1,0 +1,18 @@
+commit e5fb1c6d7ad0f7308d520b18d745e130b32af083
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 26 15:52:59 2019 -0800
+
+    cmd/compile/internal/ssa: fix bad CL rebase
+    
+    CL 142497 renamed "statictmp_N" to ".stmp_N", but missed an instance
+    that was added by CL 151498 (submitted between the window that CL
+    142497 was reviewed/tested and later rebased/merged).
+    
+    Change-Id: I597ee59dfa40821c7af2881b47e06f84a8140ec8
+    Reviewed-on: https://go-review.googlesource.com/c/163877
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

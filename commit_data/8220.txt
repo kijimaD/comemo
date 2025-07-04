@@ -1,0 +1,33 @@
+commit 8698bb6c8ca104f3f0fae437d5e609f75c4ef5b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 16:58:00 2011 -0400
+
+    runtime: turn "too many EPIPE" into real SIGPIPE
+    
+    Tested on Linux and OS X, amd64 and 386.
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/4452046
+
+ src/pkg/os/file_posix.go               |  4 +++-
+ src/pkg/runtime/darwin/386/signal.c    |  7 +++++++
+ src/pkg/runtime/darwin/386/sys.s       | 10 ++++++++++
+ src/pkg/runtime/darwin/amd64/signal.c  |  7 +++++++
+ src/pkg/runtime/darwin/amd64/sys.s     |  9 +++++++++
+ src/pkg/runtime/darwin/os.h            |  2 ++
+ src/pkg/runtime/freebsd/386/signal.c   |  7 +++++++
+ src/pkg/runtime/freebsd/386/sys.s      | 14 ++++++++++++++
+ src/pkg/runtime/freebsd/amd64/signal.c |  7 +++++++
+ src/pkg/runtime/freebsd/amd64/sys.s    | 12 ++++++++++++
+ src/pkg/runtime/freebsd/os.h           |  2 ++
+ src/pkg/runtime/linux/386/signal.c     |  7 +++++++
+ src/pkg/runtime/linux/386/sys.s        |  8 ++++++++
+ src/pkg/runtime/linux/amd64/signal.c   |  7 +++++++
+ src/pkg/runtime/linux/amd64/sys.s      |  9 +++++++++
+ src/pkg/runtime/linux/arm/signal.c     |  7 +++++++
+ src/pkg/runtime/linux/arm/sys.s        | 11 +++++++++++
+ src/pkg/runtime/linux/os.h             |  2 ++
+ src/pkg/runtime/plan9/thread.c         |  5 +++++
+ src/pkg/runtime/windows/thread.c       |  6 ++++++
+ 20 files changed, 142 insertions(+), 1 deletion(-)

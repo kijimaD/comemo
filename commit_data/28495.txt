@@ -1,0 +1,20 @@
+commit 9e028b70ea3c1a81220a63c2ed3a2c1cd216c733
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 21 14:21:11 2016 -0700
+
+    runtime: merge signal[12]_unix.go into signal_unix.go
+    
+    Requires adding a sigfwd function for Solaris, as previously
+    signal2_unix.go was not built for Solaris.
+    
+    Change-Id: Iea3ff0ddfa15af573813eb075bead532b324a3fc
+    Reviewed-on: https://go-review.googlesource.com/29550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal1_unix.go     | 350 ----------------------------------
+ src/runtime/signal2_unix.go     |  69 -------
+ src/runtime/signal_unix.go      | 403 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/sys_solaris_amd64.s |   8 +
+ 4 files changed, 410 insertions(+), 420 deletions(-)

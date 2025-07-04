@@ -1,0 +1,36 @@
+commit 7c151f328056c354d3db13c17b3d96bec316cff6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 14 09:41:19 2022 -0800
+
+    internal/pkgbits: extract unified IR coding-level logic
+    
+    This logic is needed for the go/types unified IR importer, so extract
+    it into a separate internal package so we can reuse a single copy.
+    
+    Change-Id: I5f734b76e580fdb69ee39e45ac553c22d01c5909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386000
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/codes.go            |  65 +--
+ src/cmd/compile/internal/noder/decoder.go          | 302 --------------
+ src/cmd/compile/internal/noder/linker.go           | 174 ++++----
+ src/cmd/compile/internal/noder/reader.go           | 347 ++++++++--------
+ src/cmd/compile/internal/noder/reader2.go          | 195 ++++-----
+ .../compile/internal/noder/syncmarker_string.go    |  87 ----
+ src/cmd/compile/internal/noder/unified.go          | 101 ++---
+ src/cmd/compile/internal/noder/writer.go           | 445 +++++++++++----------
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/go/build/deps_test.go                          |   1 +
+ src/internal/pkgbits/codes.go                      |  60 +++
+ src/internal/pkgbits/decoder.go                    | 332 +++++++++++++++
+ .../internal/noder => internal/pkgbits}/encoder.go | 184 ++++-----
+ .../noder => internal/pkgbits}/frames_go1.go       |   2 +-
+ .../noder => internal/pkgbits}/frames_go17.go      |   2 +-
+ .../internal/noder => internal/pkgbits}/reloc.go   |  38 +-
+ src/internal/pkgbits/support.go                    |  17 +
+ .../internal/noder => internal/pkgbits}/sync.go    | 150 +++----
+ src/internal/pkgbits/syncmarker_string.go          |  87 ++++
+ 19 files changed, 1314 insertions(+), 1276 deletions(-)

@@ -1,0 +1,17 @@
+commit a13903562d612346507d9bacf481aaf0d9fa02fc
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Aug 14 15:08:59 2022 +0800
+
+    cmd/compile/internal/ssagen: gofmt -w -s ssa.go
+    
+    Change-Id: Ie169c226e8973c8b504412cc0ac1f14abcdfdb1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 644 ++++++++++++++++-----------------
+ 1 file changed, 322 insertions(+), 322 deletions(-)

@@ -1,0 +1,41 @@
+commit 3ae5ff2a2727410a9240215e8c86aedd5af2d910
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Oct 31 16:57:23 2024 +0800
+
+    cmd/asm: add support for loong64 FMA instructions
+    
+    Add support for assembling the FMA instructions present in the LoongArch
+    base ISA v1.00. This requires adding a new instruction format and making
+    use of a third source operand, which is put in RestArgs[0].
+    
+    The single-precision instructions have the `.s` prefix in their official
+    mnemonics, and similar Go asm instructions all have `S` prefix for the
+    other architectures having FMA support, but in this change they instead
+    have `F` prefix in Go asm because loong64 currently follows the mips
+    backends in the naming convention. This could be changed later because
+    FMA is fully expressible in pure Go, making it unlikely to have to hand-
+    write such assembly in the wild.
+    
+    Example mapping between actual encoding and Go asm syntax:
+    
+    fmadd.s fd, fj, fk, fa -> FMADDF fa, fk, fj, fd
+    (prog.From = fa, prog.Reg = fk, prog.RestArgs[0] = fj and prog.To = fd)
+    
+    fmadd.s fd, fd, fk, fa -> FMADDF fa, fk, fd
+    (prog.From = fa, prog.Reg = fk and prog.To = fd)
+    
+    This patch is a copy of CL 477716.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: I9b4e4c601d6c5a854ee238f085849666e4faf090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623877
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 17 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 +++++
+ src/cmd/internal/obj/loong64/asm.go             | 47 +++++++++++++++++++++++++
+ 4 files changed, 82 insertions(+)

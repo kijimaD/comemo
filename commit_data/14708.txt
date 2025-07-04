@@ -1,0 +1,12 @@
+commit 4f79cef7f2d58f6d08e07a94d5214b2f61f4d3df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 21 11:52:21 2012 -0800
+
+    go/ast: ast.DeclStmt.Decl must be an *ast.GenDecl node (documentation)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6996046
+
+ src/pkg/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

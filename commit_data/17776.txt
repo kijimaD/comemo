@@ -1,0 +1,16 @@
+commit 50d4dae80b9afc34dc931caef180161dba9b1530
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Oct 10 16:30:47 2013 -0700
+
+    codereview: fix hg sync closing of CLs for subrepositories
+    
+    The regexp for closing CLs that were sent by you but committed by
+    someone else only matched messages for the main repository,
+    because of the added &repo=... for subrepositories.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14512045
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

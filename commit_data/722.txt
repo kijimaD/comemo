@@ -1,0 +1,17 @@
+commit 42b7789a9277e7626e4ddaadcbaefb7689d9d8d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 15:26:55 2008 -0700
+
+    early HTTP library and trivial server
+    
+    R=r
+    OCL=15777
+    CL=15791
+
+ src/lib/http/Makefile   |  59 ++++++++++
+ src/lib/http/conn.go    |  60 ++++++++++
+ src/lib/http/request.go | 300 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/http/server.go  |  65 +++++++++++
+ src/lib/http/triv.go    |  30 +++++
+ src/lib/http/url.go     | 178 ++++++++++++++++++++++++++++
+ 6 files changed, 692 insertions(+)

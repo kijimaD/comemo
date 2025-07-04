@@ -1,0 +1,14 @@
+commit 091388d8e92f46480ead687391ee7d582f6585b2
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Thu Sep 20 14:58:33 2012 -0400
+
+    cmd/ld: remove unused assignment
+    
+    The calculation of datsize is redundant.
+    
+    R=golang-dev, seed, rsc
+    CC=golang-dev
+    https://golang.org/cl/6503122
+
+ src/cmd/ld/data.c | 1 -
+ 1 file changed, 1 deletion(-)

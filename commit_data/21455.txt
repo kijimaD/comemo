@@ -1,0 +1,13 @@
+commit 6966e07ae754f7b06af734222936d299010c3623
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 16:33:31 2015 -0800
+
+    math/big: fix typos
+    
+    Change-Id: Icb1490f97584d61823339ae809b88d423b185e64
+    Reviewed-on: https://go-review.googlesource.com/3751
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go     | 2 +-
+ src/math/big/floatconv.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

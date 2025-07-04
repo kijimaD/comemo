@@ -1,0 +1,15 @@
+commit 42e9db134b947169d8935ac49fee3f7ce4aa6895
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 17 19:23:17 2009 -0700
+
+    Test that a type can refer to itself recursively as long as it
+    does so in ways that permit its size to be known.
+    
+    R=rsc
+    DELTA=35  (35 added, 0 deleted, 0 changed)
+    OCL=33427
+    CL=33433
+
+ test/bugs/bug190.go | 26 ++++++++++++++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 2 files changed, 35 insertions(+)

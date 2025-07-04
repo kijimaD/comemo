@@ -1,0 +1,12 @@
+commit b3ca3e95642f23c682a04d51ed60cc90825b08a5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 17:09:15 2012 +1100
+
+    misc/dist: force modes to 0755 or 0644 in tarballs
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5823045
+
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

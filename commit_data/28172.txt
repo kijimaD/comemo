@@ -1,0 +1,25 @@
+commit 8895a99c9ff522cf41f3a1bee365bd0c7e0c7900
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Sep 1 08:31:37 2016 +0200
+
+    cmd/compile: disallow typed non-integer constant len and cap make arguments
+    
+    make(T, n, m) returns a slice of type T with length n and capacity m
+    where "The size arguments n and m must be of integer type or untyped."
+    https://tip.golang.org/ref/spec#Making_slices_maps_and_channels
+    
+    The failure to reject typed non-integer size arguments in make
+    during compile time was uncovered after https://golang.org/cl/27851
+    changed the generation of makeslice calls.
+    
+    Fixes   #16940
+    Updates #16949
+    
+    Change-Id: Ib1e3576f0e6ad199c9b16b7a50c2db81290c63b4
+    Reviewed-on: https://go-review.googlesource.com/28301
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ test/fixedbugs/issue16949.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 5 deletions(-)

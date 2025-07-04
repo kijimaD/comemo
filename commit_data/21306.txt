@@ -1,0 +1,12 @@
+commit 5efcbba9eecf3d9b7a620b7b183840ba74e5e571
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 20 15:03:16 2015 +1100
+
+    misc/makerelease: send file size when uploading
+    
+    Change-Id: I1a1ed1e23067268a2bac08fc4c99c594fb723837
+    Reviewed-on: https://go-review.googlesource.com/3050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 2 ++
+ 1 file changed, 2 insertions(+)

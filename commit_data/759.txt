@@ -1,0 +1,15 @@
+commit bf855f5a9479868ff095dd956bfbc55cc398d210
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Sep 27 17:42:18 2008 -0700
+
+    - allow for embeded types in fields, and parameter lists w/o parameter names
+    - temporary work-around for 6g bug
+    
+    R=r
+    OCL=16052
+    CL=16052
+
+ usr/gri/pretty/ast.go     |  2 +-
+ usr/gri/pretty/parser.go  | 45 +++++++++++++++++++++++++++++++++++----------
+ usr/gri/pretty/printer.go |  6 ++++--
+ 3 files changed, 40 insertions(+), 13 deletions(-)

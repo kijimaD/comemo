@@ -1,0 +1,13 @@
+commit c39509a3b3bdf645bbf4aef8186fddee67e61eae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 23 19:29:15 2012 -0700
+
+    A+C: Add Julien Schmidt (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6459050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

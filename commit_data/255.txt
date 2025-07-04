@@ -1,0 +1,10 @@
+commit 102fcc668950d412431eae1645b02cb667dd372b
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 27 16:43:02 2008 -0700
+
+    sametype message
+    
+    SVN=125216
+
+ src/cmd/gc/export.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 38c24726092773bc360d7c440683b57316d6aeac
+Author: Cary Hull <chull@google.com>
+Date:   Tue Oct 7 17:25:32 2008 -0700
+
+    Unterminated declaration breaks build.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=16688
+    CL=16690
+
+ src/lib/net/fd_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

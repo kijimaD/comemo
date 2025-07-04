@@ -1,0 +1,16 @@
+commit 417a7f80d20b38168cb0c48bffbcd3e0c469cf57
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 15 16:55:15 2012 -0700
+
+    go/ast: Walk: do not walk comment list
+    
+    A comment to that effect was introduced
+    with rev d332f4b9cef5 but the respective
+    code wasn't deleted.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6304086
+
+ src/pkg/go/ast/walk.go | 3 ---
+ 1 file changed, 3 deletions(-)

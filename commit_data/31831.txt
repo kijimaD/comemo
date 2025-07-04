@@ -1,0 +1,16 @@
+commit 2f55031c593ae842ab383c911aadcaee97a6715e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 22:04:33 2017 +0000
+
+    net, doc: document JoinHostPort change in release notes, clarify its docs
+    
+    Updates #18059
+    Updates #20587
+    
+    Change-Id: Icbb4c7cb201ac51d2cc6066620b47ba09ff6fe65
+    Reviewed-on: https://go-review.googlesource.com/45780
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/go1.9.html    | 7 ++-----
+ src/net/ipsock.go | 4 ++--
+ 2 files changed, 4 insertions(+), 7 deletions(-)

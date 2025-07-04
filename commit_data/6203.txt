@@ -1,0 +1,30 @@
+commit e21b3a40ac76b5ca4659fc7cfbbd8c5d04a6bf04
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Wed Sep 8 22:20:35 2010 -0400
+
+    build: test for _WIN32, not _MINGW32
+    
+    Use OS rather than compiler specific flag the same way that
+    __FreeBSD__, __APPLE__, __OpenBSD__, and __linux__ are used.
+    
+    _WIN32 is defined by GCC (and others) on windows for Win32
+    and Win64 applications. _WIN32 is set by default for several
+    other windows based compilers: DMC, MSVC, Intel, Watcom, LCC.
+    
+    Although the change is for consistency, it allows the Go tools
+    to be compiled with non-Mingw GCC distributions and non-GCC
+    compilers that support the GCC extensions.
+    
+    R=rsc, brainman, vcc
+    CC=golang-dev
+    https://golang.org/cl/2168043
+
+ src/cmd/cc/lex.c      | 2 +-
+ src/cmd/godefs/main.c | 2 +-
+ src/lib9/dirfwstat.c  | 2 +-
+ src/lib9/dirstat.c    | 2 +-
+ src/lib9/time.c       | 4 ++--
+ src/libbio/bseek.c    | 2 +-
+ src/libcgo/386.S      | 2 +-
+ src/libcgo/amd64.S    | 2 +-
+ 8 files changed, 9 insertions(+), 9 deletions(-)

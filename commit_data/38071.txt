@@ -1,0 +1,12 @@
+commit 5a7e8f466e9becdb7277ac725b5540d6bd8e3727
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Sun Feb 10 17:55:27 2019 -0800
+
+    crypto/tls: fix typo
+    
+    Change-Id: If9332bae87449c94fc14710133614fcd84d2815c
+    Reviewed-on: https://go-review.googlesource.com/c/161726
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 35e84546d7c3cc599dd5bf31ad86bf8d3d841d04
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Oct 17 17:46:25 2015 -0400
+
+    runtime: check and fail early with a message if MMX is not available on 386
+    
+    Fixes #12970.
+    
+    Change-Id: Id0026e8274e071d65d47df63d65a93110abbec5d
+    Reviewed-on: https://go-review.googlesource.com/15998
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_386.s | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

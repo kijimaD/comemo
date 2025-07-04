@@ -1,0 +1,15 @@
+commit 5035750f233545a6ee47c2d849f9973cbbf55f59
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 16 17:16:12 2014 -0700
+
+    runtime: align gomemeq return value correctly
+    
+    Fixes #8378
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/114880043
+
+ src/pkg/runtime/asm_amd64p32.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

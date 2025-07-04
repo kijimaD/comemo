@@ -1,0 +1,18 @@
+commit 3571ab58b8069fd945427ba49c4d8a702325bdb0
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 17:47:32 2021 -0400
+
+    go/types: make built-in to accept type sets with single underlying types
+    
+    This is a straightforward port of CL 357776 to go/types.
+    
+    Change-Id: I64220840a01f57cd7955f7d956b9aa8227473b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359874
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go                 |  6 +++---
+ src/go/types/testdata/check/builtins.go2 | 22 +++++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

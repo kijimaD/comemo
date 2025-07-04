@@ -1,0 +1,18 @@
+commit e88e7ed6ba2efd7cffacdd1c3bb1e94d64795af0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 2 19:43:39 2014 +0900
+
+    net: enable unixpacket test on available platforms
+    
+    DragonFlyBSD, FreeBSD 9 and beyond, NetBSD 6 and beyond, and
+    Solaris (illumos) support AF_UNIX+SOCK_SEQPACKET socket.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/83390043
+
+ src/pkg/net/conn_test.go      | 23 ++++++------
+ src/pkg/net/protoconn_test.go |  2 +-
+ src/pkg/net/server_test.go    | 84 +++++++++++++++++++++----------------------
+ 3 files changed, 56 insertions(+), 53 deletions(-)

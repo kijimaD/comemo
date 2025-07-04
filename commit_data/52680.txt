@@ -1,0 +1,26 @@
+commit 57678d5e033fad85660e08a5f5146eeda4022415
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 13 16:11:14 2023 -0700
+
+    go/types, types2: factor out type parameter renaming from type inference
+    
+    Preparation for reverse type inference where there is no need
+    to rename all type parameters supplied to type inference when
+    passing generic functions as arguments to (possibly generic)
+    function calls.
+    
+    This also leads to a better separation of concerns.
+    
+    Change-Id: Id487a5c1340b743519b9053edc43f8aa99408522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484655
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go  | 14 +++++++++++---
+ src/cmd/compile/internal/types2/infer.go | 12 +++++-------
+ src/go/types/call.go                     | 14 +++++++++++---
+ src/go/types/infer.go                    | 12 +++++-------
+ 4 files changed, 32 insertions(+), 20 deletions(-)

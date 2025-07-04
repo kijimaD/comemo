@@ -1,0 +1,14 @@
+commit ef12ae46318b4242a0c2d65e9627afa73dbe12fb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 3 13:42:04 2008 -0700
+
+    drop some superfluous file prefixes in runtime
+    
+    SVN=125956
+
+ src/runtime/Makefile                       | 9 ++++++---
+ src/runtime/clean.bash                     | 2 +-
+ src/runtime/{runtime_map.c => map.c}       | 0
+ src/runtime/{runtime_print.c => print.c}   | 0
+ src/runtime/{runtime_string.c => string.c} | 0
+ 5 files changed, 7 insertions(+), 4 deletions(-)

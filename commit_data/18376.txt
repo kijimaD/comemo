@@ -1,0 +1,14 @@
+commit 327e431057f0e367e7287c3cc4326196f53218cb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 29 18:18:46 2014 +0400
+
+    runtime: prepare for 8K pages
+    Ensure than heap is PageSize aligned.
+    
+    LGTM=iant
+    R=iant, dave, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/56630043
+
+ src/pkg/runtime/malloc.goc | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

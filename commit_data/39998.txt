@@ -1,0 +1,27 @@
+commit 904fdb37575e7ec5533652ac8da0218a34478958
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 27 14:51:38 2019 -0400
+
+    crypto/aes,crypto/cipher: add asm implementation for aes-gcm on ppc64le
+    
+    This adds an asm implementation for aes-gcm on ppc64le to improve
+    performance.
+    
+    Results on power8:
+    
+    name                     old time/op    new time/op     delta
+    AESGCMSeal1K-192           13.4µs ± 0%      3.7µs ± 0%    -72.48%  (p=1.000 n=1+1)
+    AESGCMOpen1K-192           10.6µs ± 0%      2.9µs ± 0%    -72.97%  (p=1.000 n=1+1)
+    AESGCMSign8K-192           60.2µs ± 0%      1.3µs ± 0%    -97.88%  (p=1.000 n=1+1)
+    AESGCMSeal8K-192           80.5µs ± 0%     22.9µs ± 0%    -71.51%  (p=1.000 n=1+1)
+    AESGCMOpen8K-192           80.5µs ± 0%     21.5µs ± 0%    -73.27%  (p=1.000 n=1+1)
+    
+    Change-Id: I026bd4f417095a987eda0f521004af90bc964661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191969
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/crypto/aes/gcm_ppc64le.go | 257 +++++++++++++++++++
+ src/crypto/aes/gcm_ppc64le.s  | 563 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 820 insertions(+)

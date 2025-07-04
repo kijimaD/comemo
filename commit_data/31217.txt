@@ -1,0 +1,25 @@
+commit 78510bd17c35932cd45f1433adb21aeaa0587767
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 13 19:17:41 2017 +0200
+
+    cmd/vet: skip unreachable "if" and "case" code in shift check.
+    
+    Such dead code is legitimate when dealing with arch-specific
+    types (int, uint, uintptr).
+    
+    The CL removes the majority of 'too small for shift' false positives
+    from such a code.
+    
+    Change-Id: I62c5635a1d3774ab2d71d3d7056f0589f214cbe5
+    Reviewed-on: https://go-review.googlesource.com/38065
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/32bit.txt |  16 ------
+ src/cmd/vet/dead.go                 | 108 ++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go                 |  12 +++-
+ src/cmd/vet/shift.go                |   5 ++
+ src/cmd/vet/testdata/shift.go       |  50 +++++++++++++++++
+ src/sync/atomic/atomic_test.go      |  24 ++++----
+ 6 files changed, 186 insertions(+), 29 deletions(-)

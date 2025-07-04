@@ -1,0 +1,26 @@
+commit d8e8d092f701fb6776dabd07be9d14cce99f2ee8
+Author: Keith Randall <khr@google.com>
+Date:   Thu Oct 17 21:17:18 2019 -0700
+
+    runtime/race: update race detector shared libraries
+    
+    Pulls in a new snapshot of the race detector, containing
+    a fix that lets it handle mid-stack inlining correctly.
+    
+    Fixes #33309
+    
+    Change-Id: I7551912a491f0615e77d069f198c1b8a6eead280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201898
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 398868 -> 432640 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 503384 -> 555192 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 449328 -> 478360 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 418080 -> 454752 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 505304 -> 570032 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 507208 -> 574896 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 348915 -> 429378 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

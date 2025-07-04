@@ -1,0 +1,30 @@
+commit dc0f0ab70f94e97f273ab6d3f798eefe93e90fd0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 22 13:45:12 2017 -0400
+
+    runtime: don't count manually-managed spans from heap_{inuse,sys}
+    
+    Currently, manually-managed spans are included in memstats.heap_inuse
+    and memstats.heap_sys, but when we export these stats to the user, we
+    subtract out how much has been allocated for stack spans from both.
+    This works for now because stacks are the only manually-managed spans
+    we have.
+    
+    However, we're about to use manually-managed spans for more things
+    that don't necessarily have obvious stats we can use to adjust the
+    user-presented numbers. Prepare for this by changing the accounting so
+    manually-managed spans don't count toward heap_inuse or heap_sys. This
+    makes these fields align with the fields presented to the user and
+    means we don't have to track more statistics just so we can adjust
+    these statistics.
+    
+    For #19325.
+    
+    Change-Id: I5cb35527fd65587ff23339276ba2c3969e2ad98f
+    Reviewed-on: https://go-review.googlesource.com/38577
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go  | 25 ++++++++++++++-----------
+ src/runtime/mstats.go | 19 ++++++++++---------
+ 2 files changed, 24 insertions(+), 20 deletions(-)

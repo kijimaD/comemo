@@ -1,0 +1,17 @@
+commit 80fe2e6e37120e665cd523e1edf7eb1401b9b73b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 19:15:25 2018 +0000
+
+    net: lazily look up the listenerBacklog value on first use
+    
+    Don't open files or do sysctls in init.
+    
+    Updates #26775
+    
+    Change-Id: I017bed6c24ef1e4bc30040120349fb779f203225
+    Reviewed-on: https://go-review.googlesource.com/127655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net.go        | 11 ++++++++++-
+ src/net/sock_posix.go |  2 +-
+ 2 files changed, 11 insertions(+), 2 deletions(-)

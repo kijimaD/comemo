@@ -1,0 +1,19 @@
+commit 17b3766d18aa2d7070b043b4bd6a502cf4a3bf98
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 12 10:51:13 2012 -0800
+
+    doc/gopher: add high-resolution pencil sketches
+    These are higher-resolution scans of the little
+    drawings used as clip art on golang.org
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6929058
+
+ doc/gopher/pencil/gopherhat.jpg     | Bin 0 -> 129627 bytes
+ doc/gopher/pencil/gopherhelmet.jpg  | Bin 0 -> 151965 bytes
+ doc/gopher/pencil/gophermega.jpg    | Bin 0 -> 122348 bytes
+ doc/gopher/pencil/gopherrunning.jpg | Bin 0 -> 86299 bytes
+ doc/gopher/pencil/gopherswim.jpg    | Bin 0 -> 158593 bytes
+ doc/gopher/pencil/gopherswrench.jpg | Bin 0 -> 231095 bytes
+ 6 files changed, 0 insertions(+), 0 deletions(-)

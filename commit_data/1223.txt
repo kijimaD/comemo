@@ -1,0 +1,14 @@
+commit 0e198da6342aae5763d081a282bbba51affa7e17
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 23 17:27:44 2008 -0800
+
+    fix %g 20 -> "2e+01" want "20"
+    
+    R=r
+    DELTA=11  (10 added, 0 deleted, 1 changed)
+    OCL=19885
+    CL=19887
+
+ src/lib/strconv/ftoa.go      | 9 ++++++++-
+ src/lib/strconv/ftoa_test.go | 3 +++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit adaec0c4f43726457b36d2e2cad33b411ae96bc2
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 22 16:58:30 2008 -0700
+
+    vectors bug
+    
+    R=r
+    OCL=15664
+    CL=15664
+
+ src/cmd/6g/cgen.c      |  35 ++-
+ src/cmd/6g/gg.h        |   2 +-
+ src/cmd/gc/sys.go      |   6 +-
+ src/cmd/gc/sysimport.c | 581 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |  33 ++-
+ src/runtime/iface.c    | 120 ++++++----
+ 6 files changed, 424 insertions(+), 353 deletions(-)

@@ -1,0 +1,12 @@
+commit 7f4c26850a6ede3cf619efd36e5ad853948a608a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 23 15:00:04 2014 +1100
+
+    runtime: import unsafe in os_windows.go (fixes windows build)
+    
+    Change-Id: I55419cb580e6d18cf1c17c3e7bb8777ed6d794e7
+    Reviewed-on: https://go-review.googlesource.com/1995
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_windows.go | 2 ++
+ 1 file changed, 2 insertions(+)

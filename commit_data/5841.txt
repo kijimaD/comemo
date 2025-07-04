@@ -1,0 +1,12 @@
+commit 04cd38131d2386b5d59d7e2959114f35d431cfd5
+Author: James Whitehead <jnwhiteh@gmail.com>
+Date:   Mon Jul 19 14:10:00 2010 +1000
+
+    hgignore: adds bin/ to support setting $GOBIN to $GOROOT/bin
+    
+    R=PeterGo, adg
+    CC=golang-dev, jnw
+    https://golang.org/cl/1699046
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

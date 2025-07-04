@@ -1,0 +1,20 @@
+commit e9348ab4e9c8c189036ef405d73528ca50a6f785
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jul 25 21:44:11 2017 +0900
+
+    runtime: move mincore from stubs.go to os_linux.go
+    
+    Although mincore is declared in stubs.go, mincore isn't used by any
+    OSes except linux. Move it to os_linux.go and clean up unused code.
+    
+    Change-Id: I6cfb0fed85c0317a4d091a2722ac55fa79fc7c9a
+    Reviewed-on: https://go-review.googlesource.com/54910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_linux.go        |  2 ++
+ src/runtime/stubs.go           |  1 -
+ src/runtime/sys_darwin_arm.s   | 10 ----------
+ src/runtime/sys_darwin_arm64.s |  1 -
+ 4 files changed, 2 insertions(+), 12 deletions(-)

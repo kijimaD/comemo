@@ -1,0 +1,18 @@
+commit 5f8d8161e66bda5fa9559648f7793e96885c89e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 30 14:51:26 2019 -0400
+
+    cmd/go/internal/cache: verify that timestamp is positive
+    
+    An apparent typo caused us to re-check size instead.
+    
+    Updates #29667
+    
+    Change-Id: Icc1fb9cef1ba77b8490c8fbe6c343be06ff48d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188020
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cache/cache.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

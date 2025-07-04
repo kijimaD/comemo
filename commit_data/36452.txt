@@ -1,0 +1,23 @@
+commit c5d38b896df504e3354d7a27f7ad86fa9661ce6b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 10 13:25:39 2018 +0200
+
+    cmd/compile: add convnop helper function
+    
+    Like the conv helper function but for creating OCONVNOP nodes
+    instead of OCONV nodes.
+    
+    passes toolstash -cmp
+    
+    Change-Id: Ib93ffe66590ebaa2b4fa552c81f1a2902e789d8e
+    Reviewed-on: https://go-review.googlesource.com/112597
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go | 10 ++--------
+ src/cmd/compile/internal/gc/range.go   |  3 +--
+ src/cmd/compile/internal/gc/select.go  | 13 +++++--------
+ src/cmd/compile/internal/gc/subr.go    |  3 +--
+ src/cmd/compile/internal/gc/walk.go    | 19 ++++++++++++-------
+ 5 files changed, 21 insertions(+), 27 deletions(-)

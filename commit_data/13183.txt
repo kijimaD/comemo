@@ -1,0 +1,87 @@
+commit fefae6eed1df88397b4a53ed932e3cf3b32345ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 29 12:09:27 2012 -0400
+
+    cmd/6g, cmd/8g: move panicindex calls out of line
+    
+    The old code generated for a bounds check was
+                    CMP
+                    JLT ok
+                    CALL panicindex
+            ok:
+                    ...
+    
+    The new code is (once the linker finishes with it):
+                    CMP
+                    JGE panic
+                    ...
+            panic:
+                    CALL panicindex
+    
+    which moves the calls out of line, putting more useful
+    code in each cache line.  This matters especially in tight
+    loops, such as in Fannkuch.  The benefit is more modest
+    elsewhere, but real.
+    
+    From test/bench/go1, amd64:
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17   6096092000   6088808000   -0.12%
+    BenchmarkFannkuch11     6151404000   4020463000  -34.64%
+    BenchmarkGobDecode        28990050     28894630   -0.33%
+    BenchmarkGobEncode        12406310     12136730   -2.17%
+    BenchmarkGzip               179923       179903   -0.01%
+    BenchmarkGunzip              11219        11130   -0.79%
+    BenchmarkJSONEncode       86429350     86515900   +0.10%
+    BenchmarkJSONDecode      334593800    315728400   -5.64%
+    BenchmarkRevcomp25M     1219763000   1180767000   -3.20%
+    BenchmarkTemplate        492947600    483646800   -1.89%
+    
+    And 386:
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17   6354902000   6243000000   -1.76%
+    BenchmarkFannkuch11     8043769000   7326965000   -8.91%
+    BenchmarkGobDecode        19010800     18941230   -0.37%
+    BenchmarkGobEncode        14077500     13792460   -2.02%
+    BenchmarkGzip               194087       193619   -0.24%
+    BenchmarkGunzip              12495        12457   -0.30%
+    BenchmarkJSONEncode      125636400    125451400   -0.15%
+    BenchmarkJSONDecode      696648600    685032800   -1.67%
+    BenchmarkRevcomp25M     2058088000   2052545000   -0.27%
+    BenchmarkTemplate        602140000    589876800   -2.04%
+    
+    To implement this, two new instruction forms:
+    
+            JLT target      // same as always
+            JLT $0, target  // branch expected not taken
+            JLT $1, target  // branch expected taken
+    
+    The linker could also emit the prediction prefixes, but it
+    does not: expected taken branches are reversed so that the
+    expected case is not taken (as in example above), and
+    the default expectaton for such a jump is not taken
+    already.
+    
+    R=golang-dev, gri, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6248049
+
+ src/cmd/6a/a.y     |    5 +
+ src/cmd/6a/y.tab.c |  829 +++++++++++++++++-----------------
+ src/cmd/6g/cgen.c  |    2 +
+ src/cmd/6g/gg.h    |    1 +
+ src/cmd/6g/ggen.c  |    5 +
+ src/cmd/6g/gsubr.c |   12 +
+ src/cmd/6l/optab.c |    4 +-
+ src/cmd/6l/pass.c  |   35 +-
+ src/cmd/8a/a.y     |    5 +
+ src/cmd/8a/y.tab.c | 1272 ++++++++++++++++++++++------------------------------
+ src/cmd/8a/y.tab.h |   44 +-
+ src/cmd/8g/cgen.c  |    2 +
+ src/cmd/8g/gg.h    |    1 +
+ src/cmd/8g/ggen.c  |    2 +
+ src/cmd/8g/gsubr.c |    7 +
+ src/cmd/8l/optab.c |    4 +-
+ src/cmd/8l/pass.c  |   25 +-
+ 17 files changed, 1075 insertions(+), 1180 deletions(-)

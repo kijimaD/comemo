@@ -1,0 +1,14 @@
+commit 3c56a7b17e71eaf4c30203a553669c5ea2e44ce9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:00:44 2011 -0500
+
+    test: make array smaller in nilptr test
+    
+    Fixes #2314.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5437154
+
+ test/nilptr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 048cb4ceee652e358d84fbca260fc93d7a0dfbe3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 10 09:59:07 2021 -0700
+
+    crypto/x509: remove duplicate import
+    
+    Change-Id: I86742ae7aa4ff49a38f8e3bc1d64fb223feae73e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318409
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/parser.go | 115 +++++++++++++++++++++++-----------------------
+ 1 file changed, 57 insertions(+), 58 deletions(-)

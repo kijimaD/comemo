@@ -1,0 +1,19 @@
+commit 8409251e105486e25d9ae47568ae221eeec636c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 15:08:49 2023 -0500
+
+    cmd/go: document GODEBUG=installgoroot=all
+    
+    At the moment the only documentation is the release notes,
+    but everything mentioned in the release notes should have
+    proper documentation separate from them.
+    
+    Change-Id: I9885962f6c6d947039b0be59b608385781479271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462196
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go             | 10 ++++++++--
+ src/cmd/go/internal/work/build.go | 10 ++++++++--
+ 2 files changed, 16 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit ee1ef8fe676e20c82d381b839b02e8967f1dcf43
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Thu Jun 18 17:22:25 2015 +0200
+
+    math/big: Add small complete example of big.Float usage
+    
+    Updates #11241
+    
+    Change-Id: I573be85d0cfcf410f6125ecd2be8a3d292c40bbb
+    Reviewed-on: https://go-review.googlesource.com/11245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/example_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

@@ -1,0 +1,25 @@
+commit 29264c6f4f341586b733e2c5b165ca627b6050d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 11:21:21 2011 -0800
+
+    json: use strconv.Append variants to avoid allocations in encoding
+    
+    Before/after, best of 3:
+    json.BenchmarkCodeEncoder  10  183495300 ns/op  10.58 MB/s
+    ->
+    json.BenchmarkCodeEncoder  10  133025100 ns/op  14.59 MB/s
+    
+    But don't get too excited about this.  These benchmarks, while
+    stable at any point of time, fluctuate wildly with any line of
+    code added or removed anywhere in the path due to stack splitting
+    issues.
+    
+    It's currently much faster, though, and this is the API that
+    doesn't allocate so should always be faster in theory.
+    
+    R=golang-dev, dsymonds, rsc, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5411052
+
+ src/pkg/encoding/json/encode.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 1c9297c365d6e53d4a813192c46dc6e7e953946f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Mar 2 22:20:36 2018 +0100
+
+    cmd/compile: skip TestEmptyDwarfRanges on Plan 9
+    
+    TestEmptyDwarfRanges has been added in CL 94816.
+    This test is failing on Plan 9 because executables
+    don't have a DWARF symbol table.
+    
+    Fixes #24226.
+    
+    Change-Id: Iff7e34b8c2703a2f19ee8087a4d64d0bb98496cd
+    Reviewed-on: https://go-review.googlesource.com/98275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/scope_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

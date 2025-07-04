@@ -1,0 +1,15 @@
+commit d1f4e0413fd2b5cb78a7b645e802565f202d1926
+Author: Mike Appleby <mike@app.leby.org>
+Date:   Fri Sep 30 19:43:42 2016 -0500
+
+    time: update comment to reflect correct file path.
+    
+    Update cross-reference in the comment for runtimeTimer to point to the
+    new go file instead of the old .h file.
+    
+    Change-Id: Iddb3614c41e1989096d6caf77d6c0d5781005181
+    Reviewed-on: https://go-review.googlesource.com/30157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sleep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

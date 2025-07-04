@@ -1,0 +1,29 @@
+commit 2acd3646fc448b760e82fcace189adda94a1904a
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 2 11:07:55 2022 -0700
+
+    cmd/compile: rework induction variable detector
+    
+    Induction variable detection is still not quite right. I've added
+    another failing test.
+    
+    Redo the overflow/underflow detector so it is more obviously correct.
+    
+    Update #53600
+    Fixes #53653
+    Fixes #53663
+    
+    Change-Id: Id95228e282fdbf6bd80b26e1c41d62e935ba08ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415874
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 340 ++++++++++++++++++--------------
+ test/fixedbugs/issue53600.go            |  11 ++
+ test/fixedbugs/issue53600.out           |   1 +
+ test/fixedbugs/issue53653.go            |  42 ++++
+ test/fixedbugs/issue53653.out           |   8 +
+ test/loopbce.go                         |  65 +++++-
+ 6 files changed, 319 insertions(+), 148 deletions(-)

@@ -1,0 +1,14 @@
+commit 0e544fa0e330c615d290a7d78609d16295b0b946
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 10 18:13:20 2008 -0800
+
+    fix error-handling bug.
+    add newline after stack traces.
+    
+    R=rsc
+    DELTA=3  (2 added, 1 deleted, 0 changed)
+    OCL=18945
+    CL=18953
+
+ src/cmd/prof/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

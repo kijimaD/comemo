@@ -1,0 +1,65 @@
+commit 4af3c17f8cd37288a5bb9bc53e8b88c58f5624d1
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 1 10:37:44 2019 -0400
+
+    runtime: wrap nanotime, walltime, and write
+    
+    In preparation for general faketime support, this renames the existing
+    nanotime, walltime, and write functions to nanotime1, walltime1, and
+    write1 and wraps them with trivial Go functions. This will let us
+    inject different implementations on all platforms when faketime is
+    enabled.
+    
+    Updates #30439.
+    
+    Change-Id: Ice5ccc513a32a6d89ea051638676d3ee05b00418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192738
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js            |  8 ++++----
+ src/runtime/os2_aix.go            |  6 +++---
+ src/runtime/os3_solaris.go        |  8 ++++----
+ src/runtime/os_aix.go             |  4 ++--
+ src/runtime/os_js.go              |  2 +-
+ src/runtime/os_nacl.go            |  2 ++
+ src/runtime/os_plan9.go           |  8 ++++----
+ src/runtime/os_windows.go         | 11 ++++++++---
+ src/runtime/stubs2.go             |  2 +-
+ src/runtime/stubs3.go             |  3 +--
+ src/runtime/sys_aix_ppc64.s       |  4 ++--
+ src/runtime/sys_darwin.go         |  6 +++---
+ src/runtime/sys_dragonfly_amd64.s |  8 ++++----
+ src/runtime/sys_freebsd_386.s     |  2 +-
+ src/runtime/sys_freebsd_amd64.s   |  2 +-
+ src/runtime/sys_freebsd_arm.s     |  2 +-
+ src/runtime/sys_linux_386.s       |  8 ++++----
+ src/runtime/sys_linux_amd64.s     |  8 ++++----
+ src/runtime/sys_linux_arm.s       |  8 ++++----
+ src/runtime/sys_linux_arm64.s     |  8 ++++----
+ src/runtime/sys_linux_mips64x.s   |  8 ++++----
+ src/runtime/sys_linux_mipsx.s     |  8 ++++----
+ src/runtime/sys_linux_ppc64x.s    |  8 ++++----
+ src/runtime/sys_linux_s390x.s     |  8 ++++----
+ src/runtime/sys_netbsd_386.s      | 12 ++++++------
+ src/runtime/sys_netbsd_amd64.s    |  8 ++++----
+ src/runtime/sys_netbsd_arm.s      | 12 ++++++------
+ src/runtime/sys_netbsd_arm64.s    | 12 ++++++------
+ src/runtime/sys_openbsd_386.s     | 12 ++++++------
+ src/runtime/sys_openbsd_amd64.s   |  8 ++++----
+ src/runtime/sys_openbsd_arm.s     | 12 ++++++------
+ src/runtime/sys_openbsd_arm64.s   | 12 ++++++------
+ src/runtime/sys_plan9_386.s       |  6 +++---
+ src/runtime/sys_plan9_amd64.s     |  6 +++---
+ src/runtime/sys_plan9_arm.s       |  4 ++--
+ src/runtime/sys_solaris_amd64.s   | 10 +++++-----
+ src/runtime/sys_wasm.s            |  4 ++--
+ src/runtime/sys_windows_386.s     |  2 +-
+ src/runtime/sys_windows_amd64.s   |  2 +-
+ src/runtime/sys_windows_arm.s     |  2 +-
+ src/runtime/time_nofake.go        | 25 +++++++++++++++++++++++++
+ src/runtime/timestub2.go          |  2 +-
+ src/runtime/vdso_freebsd.go       |  4 ++--
+ 43 files changed, 164 insertions(+), 133 deletions(-)

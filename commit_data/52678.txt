@@ -1,0 +1,22 @@
+commit 25bc96dbd2448470da92e0f1393e5d5a82013c8c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Feb 20 12:49:03 2023 +0700
+
+    cmd/compile: remove typecheck.EvalConst
+    
+    types2 has already done most of the constant folding parts. The only
+    case left is unsafe.{Alignoff,Offsetof,Sizeof} with variable size
+    argument, which is handled separately during typecheck.
+    
+    Change-Id: I8050b7613a16b19b91751726ac07253333177f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469595
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/typecheck/const.go     | 184 ------------------------
+ src/cmd/compile/internal/typecheck/typecheck.go |   7 -
+ 2 files changed, 191 deletions(-)

@@ -1,0 +1,31 @@
+commit 3afd2d7fc87615e124b77692e87095bdba79e557
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Mar 23 21:56:21 2018 +0300
+
+    cmd/compile/internal/gc: properly initialize ssa.Func Type field
+    
+    The ssa.Func has Type field that is described as
+    function signature type.
+    
+    It never gets any value and remains nil.
+    This leads to "<T>" signature printed representation.
+    
+    Given this function declaration:
+            func foo(x int, f func() string) (int, error)
+    
+    GOSSAFUNC printed it as below:
+            compiling foo
+            foo <T>
+    
+    After this change:
+            compiling foo
+            foo func(int, func() string) (int, error)
+    
+    Change-Id: Iec5eec8aac5c76ff184659e30f41b2f5fe86d329
+    Reviewed-on: https://go-review.googlesource.com/102375
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

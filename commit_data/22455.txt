@@ -1,0 +1,14 @@
+commit c0d48836eced2571222f49d78a27955da49590fb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:25:45 2015 -0400
+
+    net/http/cgi: skip fork test on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ib9a32bb0aed5f08b27de11a93aaf273cacdf5779
+    Reviewed-on: https://go-review.googlesource.com/8819
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/http/cgi/matryoshka_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

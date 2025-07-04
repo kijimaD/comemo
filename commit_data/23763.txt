@@ -1,0 +1,18 @@
+commit 852f383c9b19dc07d05dfea26723c2a2e75165a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 17 08:38:52 2015 -0700
+
+    api: add go1.5.txt API file, reset next.txt
+    
+    Fixes #11752
+    
+    Change-Id: If4196b4bbba4f1485608bfafa98fa54781177273
+    Reviewed-on: https://go-review.googlesource.com/12325
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.5.txt      | 971 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 957 ----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 972 insertions(+), 958 deletions(-)

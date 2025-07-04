@@ -1,0 +1,21 @@
+commit 269906548310445132bbf2f14233485e3875e730
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 02:55:42 2022 +0700
+
+    cmd/compile: do not write implicit conversion for append in Unified IR
+    
+    Same as CL 418475, but for Unified IR.
+    
+    Updates #53888
+    Fixes #54337
+    
+    Change-Id: I31d5a7af04d8e3902ed25db85009d46ea4c38dbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422040
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/noder/reader.go         | 7 +++++++
+ src/cmd/compile/internal/test/issue53888_test.go | 3 +--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

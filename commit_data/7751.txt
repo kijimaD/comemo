@@ -1,0 +1,12 @@
+commit a7528f1b810cd5824fb91b5cc3ff12801f333e89
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 11 18:18:59 2011 -0800
+
+    runtime/proc.c: which to that
+    
+    R=iant, dho
+    CC=golang-dev
+    https://golang.org/cl/4286044
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

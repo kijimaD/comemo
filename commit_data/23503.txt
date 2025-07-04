@@ -1,0 +1,25 @@
+commit 765c0f37ed4d716eebd2965acd0b79f5b614e617
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Jun 23 18:59:52 2015 -0500
+
+    cmd/compile: fix half multiply issue
+    
+    In walkdiv, an OMUL node was created and passed to typecheck,
+    before the op was changed back to OHMUL.  In some instances,
+    the node that came back was an evaluated literal constant that
+    occurred with a full multiply.  The end result was a literal node
+    with a non-shifted value and an OHMUL op. This change causes code
+    to be generated for the OHMUL.
+    
+    Fixes #11358
+    Fixes #11369
+    
+    Change-Id: If42a98c6830d07fe065d5ca57717704fb8cfbd33
+    Reviewed-on: https://go-review.googlesource.com/11400
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  1 +
+ src/cmd/compile/internal/gc/typecheck.go |  1 +
+ src/cmd/compile/internal/gc/walk.go      |  6 ++----
+ test/fixedbugs/issue11369.go             | 27 +++++++++++++++++++++++++++
+ 4 files changed, 31 insertions(+), 4 deletions(-)

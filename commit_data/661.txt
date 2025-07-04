@@ -1,0 +1,14 @@
+commit a456463891697503409f3afb204f1baca3cb8b0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 17 13:05:39 2008 -0700
+
+    - changed my scanner/parser to accept new channel syntax
+    
+    R=r
+    OCL=15439
+    CL=15439
+
+ usr/gri/gosrc/decls.go   |  4 ++--
+ usr/gri/gosrc/parser.go  | 56 ++++++++++++++++++++----------------------------
+ usr/gri/gosrc/scanner.go | 18 +++++-----------
+ 3 files changed, 30 insertions(+), 48 deletions(-)

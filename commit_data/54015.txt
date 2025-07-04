@@ -1,0 +1,23 @@
+commit 1e245d21b8ec0a4afb459b6f146cbc0c47f5cb24
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 15 10:24:41 2023 -0400
+
+    cmd/internal/archive: skip sentinel archive entries created by Go cmd
+    
+    When reading an archive, check for the presence of sentinel entries
+    created by the Go command. These zero-sized marker entries don't contain
+    any useful symbols, but rather are there to communicate info to the
+    linker; ignore them during symbol dumping.
+    
+    Fixes #62036.
+    
+    Change-Id: Ied017b0c5b92a3cf6fd13bb9c9f3a9664e4f20f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519635
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../script/cgo_suspect_flag_force_external.txt       | 20 ++++++++++++++++++++
+ src/cmd/internal/archive/archive.go                  | 18 ++++++++++++++++++
+ src/cmd/internal/objfile/goobj.go                    |  2 +-
+ 3 files changed, 39 insertions(+), 1 deletion(-)

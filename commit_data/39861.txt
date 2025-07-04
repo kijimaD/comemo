@@ -1,0 +1,24 @@
+commit 11c2411c5031235c709c351b65898427dcf7496c
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Thu Aug 22 09:53:54 2019 -0400
+
+    cmd/compile/internal/s390x: replace 4-byte NOP with a 2-byte NOP on s390x
+    
+    Added a new instruction, NOPH, with the encoding [0x0700](i.e: bcr 0, 0) and
+    replace the current 4-byte nop that was encoded using the WORD instruction.
+    
+    This reduces the size of .text section in go binary by around 17KB and make
+    generated code easier to read.
+    
+    Change-Id: I6a756df39e93c4415ea6d038ba4af001b8ccb286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194344
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
+ src/cmd/compile/internal/s390x/ggen.go    | 5 +----
+ src/cmd/internal/obj/s390x/a.out.go       | 2 ++
+ src/cmd/internal/obj/s390x/anames.go      | 1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
+ 5 files changed, 13 insertions(+), 4 deletions(-)

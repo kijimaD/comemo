@@ -1,0 +1,14 @@
+commit 20c5bcfdbbb72bbea79284e2cd3bb5af68344f3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 6 10:02:18 2008 -0700
+
+    returning from a function that specified a result should cause a run-time
+    failure if no return is actually executed
+    
+    R=r
+    OCL=13915
+    CL=13915
+
+ test/bugs/bug086.go | 23 +++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 27 insertions(+)

@@ -1,0 +1,16 @@
+commit 1e49021f8936d1ed435ae7d314aeaf55dcc55001
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Jan 18 14:45:25 2019 -0500
+
+    doc/go1.12: mention heap sampling change
+    
+    This is about a minor change but worthy of note because this
+    may affect the profile results users will see.
+    
+    Change-Id: Ie2c4358b248f868662dbc71db587576481aa7238
+    Reviewed-on: https://go-review.googlesource.com/c/158577
+    Reviewed-by: Raul Silvera <rauls5382@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

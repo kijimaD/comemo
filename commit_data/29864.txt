@@ -1,0 +1,41 @@
+commit 9c6a5ef9227736f1fd8aa0c36cef78193ec11d62
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 19:32:47 2016 +0000
+
+    A+C: automated update
+    
+    Now with a few more repos included.
+    
+    Add Albert Yu (individual CLA)
+    Add Alessandro Baffa (individual CLA)
+    Add Alexandre Fiori (individual CLA)
+    Add Andrew Austin (individual CLA)
+    Add Andy Finkenstadt (individual CLA)
+    Add Antonio Bibiano (individual CLA)
+    Add Baiju Muthukadan (individual CLA)
+    Add Ben Lubar (individual CLA)
+    Add Euan Kemp (individual CLA)
+    Add Harry Moreno (individual CLA)
+    Add Jason Buberel (corporate CLA for Google Inc.)
+    Add Joop Kiefte (individual CLA)
+    Add Maksym Trykur (individual CLA)
+    Add Mathieu Olivier (individual CLA)
+    Add Nick Leli (individual CLA)
+    Add Nik Nyby (individual CLA)
+    Add Quinn Slack (corporate CLA for Sourcegraph Inc)
+    Add Rafal Jeczalik (individual CLA)
+    Add Raphael Geronimi (individual CLA)
+    Add Ryan Bagwell (individual CLA)
+    Add Steve Francia (corporate CLA for Google Inc.)
+    Add Tristan Colgate (individual CLA)
+    Add Фахриддин Балтаев (individual CLA)
+    
+    Updates #12042
+    
+    Change-Id: Iab98da8a7a9fd3ee54f716ea358b2d515e1e32c4
+    Reviewed-on: https://go-review.googlesource.com/34658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 21 +++++++++++++++++++++
+ CONTRIBUTORS | 23 +++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

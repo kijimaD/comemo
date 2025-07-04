@@ -1,0 +1,13 @@
+commit ff86d222be18c5140a1457381ba1f46c9ab3af35
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 23:22:55 2013 +0900
+
+    runtime: fix wrong syscall numbers on freebsd/386, openbsd/386
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/12876044
+
+ src/pkg/runtime/sys_freebsd_386.s | 4 ++--
+ src/pkg/runtime/sys_openbsd_386.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

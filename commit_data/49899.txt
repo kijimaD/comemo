@@ -1,0 +1,23 @@
+commit 1d66144bfd4b6aad915a8b62e43e3cab5460e9bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 12 12:16:47 2022 -0400
+
+    build: update comments about Go 1.4 in make.bash, make.bat, make.rc
+    
+    A few lingering references to Go 1.4 remain.
+    Fix them, and document the ones that should stay.
+    
+    For #44505.
+    Fixes #54301.
+    
+    Change-Id: Ieb9c0f08e4d1890ea3fdfd9c8df5493934ae7493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423354
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/make.bash | 13 ++++++++-----
+ src/make.bat  |  4 ++--
+ src/make.rc   |  6 +++---
+ 3 files changed, 13 insertions(+), 10 deletions(-)

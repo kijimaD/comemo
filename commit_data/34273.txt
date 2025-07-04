@@ -1,0 +1,17 @@
+commit 21ced9c748951221993dd595e967cc510c5b593f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 10:23:04 2017 -0400
+
+    cmd/trace: encode selection in trace URL
+    
+    This adds the ability to add a #x:y anchor to the trace view URL that
+    causes the viewer to initially select from x ms to y ms.
+    
+    Change-Id: I4a980d8128ecc85dbe41f224e8ae336707a4eaab
+    Reviewed-on: https://go-review.googlesource.com/60794
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/trace.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

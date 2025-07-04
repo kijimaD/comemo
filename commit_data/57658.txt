@@ -1,0 +1,32 @@
+commit 1c6288f7e1005a1217859c20e4892a9f2cfd8091
+Author: xzhang39 <xzhang39@tesla.com>
+Date:   Fri Oct 11 03:58:57 2024 +0000
+
+    cmd/go: add file names for cyclic import error
+    
+    The PR is to add more details for the error, so that it would be easier to troubleshoot the cyclic imports error.
+    
+    The change for the error looks like the following:
+    
+    package cyclic-import-example
+            imports cyclic-import-example/packageA from /Users/personal/cyclic-import-example/main.go:4:5
+            imports cyclic-import-example/packageB from /Users/personal/cyclic-import-example/packageA/a.go:5:2
+            imports cyclic-import-example/packageA from /Users/personal/cyclic-import-example/packageB/bb.go:5:2: import cycle not allowed
+    
+    Fixes #66078
+    
+    Change-Id: I162cd348004bf4e4774b195f8355151c1bf0a652
+    GitHub-Last-Rev: c5a16256d1b5bb4d720c72624a44477be20da743
+    GitHub-Pull-Request: golang/go#68337
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597035
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/list/list.go                |  2 +-
+ src/cmd/go/internal/load/pkg.go                 | 94 ++++++++++++++++++-------
+ src/cmd/go/internal/load/test.go                | 22 ++++--
+ src/cmd/go/internal/work/action.go              |  2 +-
+ src/cmd/go/testdata/script/list_test_cycle.txt  |  6 +-
+ src/cmd/go/testdata/script/mod_import_cycle.txt |  2 +-
+ 6 files changed, 90 insertions(+), 38 deletions(-)

@@ -1,0 +1,14 @@
+commit 243c8eb8c290ebbf2e2811da2dd7538200dde6b3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 4 16:48:28 2019 -0800
+
+    cmd/compile: add pure Go math/big functions to TestIntendedInlining
+    
+    Change-Id: Id29a9e48a09965e457f923a0ff023722b38b27ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165157
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit e0879490904495d26f762e19a997d4384bffa932
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 20 19:08:14 2021 -0500
+
+    runtime: check the correct environment variable in TestCgoCallbackGC
+    
+    The test checks RUNTIME_TESTING_SHORT, whereas the test runner
+    actually set RUNTIME_TEST_SHORT. Check the correct one.
+    
+    Updates #32023.
+    
+    Change-Id: Ie8ab00e1f5b8c02112a9aa1ee0e56028185c8a44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373614
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/testdata/testprogcgo/callback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

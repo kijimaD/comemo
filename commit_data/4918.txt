@@ -1,0 +1,12 @@
+commit e465ad3cbda8ee8aec4ae188ad878e4ce1e079dc
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Feb 22 14:46:59 2010 -0800
+
+    http: fix bug in Post
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217059
+
+ src/pkg/http/client.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

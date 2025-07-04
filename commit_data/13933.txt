@@ -1,0 +1,13 @@
+commit 74a1a8ae5fb2472d533cc497aee079e7ef52813b
+Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Sep 24 15:03:16 2012 -0400
+
+    testing: add memory allocation stats to benchmark
+    
+    R=rsc, nigeltao, dave, bradfitz, r, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6497084
+
+ src/pkg/testing/benchmark.go | 62 ++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/testing/testing.go   |  2 +-
+ 2 files changed, 58 insertions(+), 6 deletions(-)

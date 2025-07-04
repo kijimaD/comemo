@@ -1,0 +1,16 @@
+commit cf63e34b1dfe25f4a9f1d21294891bbe96d6540d
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Wed Feb 2 22:36:54 2011 -0500
+
+    gc: correct rounding of denormal constants
+    
+    Fixes #1463.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4079060
+
+ src/cmd/gc/mparith3.c        | 27 ++++++++++++++++++++-------
+ src/pkg/strconv/ftoa_test.go |  3 +--
+ test/fixedbugs/bug321.go     | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 9 deletions(-)

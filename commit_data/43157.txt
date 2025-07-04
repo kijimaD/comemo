@@ -1,0 +1,27 @@
+commit 89f687d6dbc11613f715d1644b4983905293dd33
+Merge: 2ca2e94731 97b46b4ade
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Thu Oct 1 15:16:43 2020 +0000
+
+    Merge "cmd/link: merge branch 'dev.link' into master"
+
+ src/cmd/internal/goobj/funcinfo.go            |  82 +--
+ src/cmd/internal/goobj/objfile.go             |  12 +-
+ src/cmd/internal/obj/link.go                  |  15 +-
+ src/cmd/internal/obj/objfile.go               |  85 ++-
+ src/cmd/internal/obj/pcln.go                  |  55 +-
+ src/cmd/internal/objfile/goobj.go             |  16 +-
+ src/cmd/link/internal/ld/data.go              |  10 +-
+ src/cmd/link/internal/ld/dwarf.go             |   2 +-
+ src/cmd/link/internal/ld/lib.go               |   4 +-
+ src/cmd/link/internal/ld/link.go              |   1 -
+ src/cmd/link/internal/ld/main.go              |  10 +-
+ src/cmd/link/internal/ld/pcln.go              | 932 +++++++++++++++-----------
+ src/cmd/link/internal/ld/symtab.go            |  16 +-
+ src/cmd/link/internal/loader/loader.go        |  82 +--
+ src/cmd/link/internal/loader/symbolbuilder.go |   9 +
+ src/cmd/link/internal/sym/symbol.go           |   4 -
+ src/debug/gosym/pclntab.go                    |  95 ++-
+ src/runtime/runtime2.go                       |  15 +-
+ src/runtime/symtab.go                         |  47 +-
+ 19 files changed, 907 insertions(+), 585 deletions(-)

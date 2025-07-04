@@ -1,0 +1,16 @@
+commit 8ffc4500492a1acaab9b5d37f44ae1b22cc10222
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Feb 8 19:07:48 2015 +0300
+
+    cmd/gc: remove dead code
+    
+    Change-Id: Ib46a42fc873066b1cc00368fe43648f08dce48bd
+    Reviewed-on: https://go-review.googlesource.com/4200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gc/dcl.c  | 16 +---------------
+ src/cmd/gc/go.h   |  2 +-
+ src/cmd/gc/init.c |  2 +-
+ src/cmd/gc/lex.c  |  2 +-
+ src/cmd/gc/subr.c |  6 +++---
+ 5 files changed, 7 insertions(+), 21 deletions(-)

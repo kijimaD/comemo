@@ -1,0 +1,16 @@
+commit ec4d06e47010ef5a7a69080046530997169e7666
+Author: Carl Jackson <carl@stripe.com>
+Date:   Fri Jul 31 23:25:48 2015 -0700
+
+    net/http: fix SetKeepAlivesEnabled receiver name
+    
+    This makes the receiver name consistent with the rest of the methods on
+    type Server.
+    
+    Change-Id: Ic2a007d3b5eb50bd87030e15405e9856109cf590
+    Reviewed-on: https://go-review.googlesource.com/13035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

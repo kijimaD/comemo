@@ -1,0 +1,13 @@
+commit ec1948a44d93b76692188df3a9d1dc45c8ee390e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 13:12:50 2013 -0800
+
+    runtime: clear up lr comments
+    
+    R=cshapiro
+    CC=golang-dev
+    https://golang.org/cl/7230052
+
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 9 +--------
+ 2 files changed, 2 insertions(+), 9 deletions(-)

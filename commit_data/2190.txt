@@ -1,0 +1,17 @@
+commit 6c384d22688772c4be8aac10841aa6c64b3de2e6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 12 15:41:19 2009 -0700
+
+    Allow http.Redirect to do both temporary (307) and permanent (301) redirects.
+    This also adds a missing 'return' when a malformed URL is passed to it.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=30  (13 added, 2 deleted, 15 changed)
+    OCL=28598
+    CL=28710
+
+ src/lib/http/fs.go      |  6 +++---
+ src/lib/http/server.go  | 37 ++++++++++++++++++++++++-------------
+ usr/gri/pretty/godoc.go |  2 +-
+ 3 files changed, 28 insertions(+), 17 deletions(-)

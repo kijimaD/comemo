@@ -1,0 +1,39 @@
+commit 49f62af790c02c389d34a24227a17ddd4b4db94a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 13:59:48 2019 -0400
+
+    runtime: fix vet complaints for linux/arm64, linux/mips*, linux/ppc64*, linux/s390x
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOS/GOARCHes,
+    except for an unresolved complaint on mips/mipsle that is a bug in vet,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    
+    For #31916.
+    
+    Change-Id: I6ef7e982a2fdbbfbc22cee876ca37ac54d8109e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176102
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/vet/all/whitelist/aix_ppc64.txt    |  5 -----
+ src/cmd/vet/all/whitelist/arm64.txt        |  5 -----
+ src/cmd/vet/all/whitelist/linux_ppc64x.txt |  4 ----
+ src/cmd/vet/all/whitelist/mips.txt         |  7 -------
+ src/cmd/vet/all/whitelist/mipsle.txt       |  7 -------
+ src/runtime/asm_ppc64x.s                   |  3 ---
+ src/runtime/asm_s390x.s                    |  3 ---
+ src/runtime/memclr_s390x.s                 |  4 ++--
+ src/runtime/memmove_s390x.s                |  4 ++--
+ src/runtime/stubs_arm64.go                 |  9 +++++++++
+ src/runtime/stubs_mips64x.go               | 11 +++++++++++
+ src/runtime/stubs_mipsx.go                 | 11 +++++++++++
+ src/runtime/stubs_ppc64x.go                | 12 ++++++++++++
+ src/runtime/stubs_s390x.go                 |  9 +++++++++
+ src/runtime/sys_aix_ppc64.s                | 18 +++++++++---------
+ src/runtime/sys_linux_mipsx.s              | 19 +++++++++++--------
+ src/runtime/sys_linux_ppc64x.s             | 13 ++++++++-----
+ src/runtime/sys_linux_s390x.s              |  3 +++
+ 18 files changed, 87 insertions(+), 60 deletions(-)

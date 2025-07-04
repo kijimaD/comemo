@@ -1,0 +1,17 @@
+commit cf3134a0178c1c5a2c1b523dbdfa953dbf60481b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 9 11:01:01 2015 -0700
+
+    cmd/doc: the builtin package should always show unexported symbols
+    
+    Trivial fix: set unexported=true for builtin.
+    Godoc itself has a similar hack.
+    
+    Fixes #12541
+    
+    Change-Id: Ib701f867d117931eb6ec6de223941b52eb6cd4a7
+    Reviewed-on: https://go-review.googlesource.com/14441
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/doc/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

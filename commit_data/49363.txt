@@ -1,0 +1,16 @@
+commit 3b6b9a7ef0b4849d87e7d30fbf1ef3255ea99f69
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 16:39:54 2022 -0400
+
+    doc/go1.19: add release note for CL 398058
+    
+    Change-Id: I483de9a6a2016432df13e030c675d42470db9ed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409175
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.19.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

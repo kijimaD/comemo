@@ -1,0 +1,20 @@
+commit ca9abbb731a6d1f824dd755afde83e5727dab3c6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 1 15:36:04 2018 +0000
+
+    cmd/compile: remove some unused parameters
+    
+    As reported by unparam.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I55473e1eed096ed1c3e431aed2cbf0b6b5444b91
+    Reviewed-on: https://go-review.googlesource.com/97895
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dwinl.go    |  2 +-
+ src/cmd/compile/internal/gc/obj.go      |  4 +--
+ src/cmd/compile/internal/gc/pgen.go     |  6 ++---
+ src/cmd/compile/internal/gc/racewalk.go | 13 ++++------
+ src/cmd/compile/internal/gc/reflect.go  | 45 +++++++++++++++------------------
+ 5 files changed, 32 insertions(+), 38 deletions(-)

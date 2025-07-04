@@ -1,0 +1,20 @@
+commit cfe232042981972dc0c7e8d741a04556ecaae3c3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Oct 6 08:03:44 2019 -0400
+
+    os: re-enable TestPipeThreads on darwin
+    
+    CL 197938 actually fixes those regression on Darwin as syscalls
+    are no longer labeled as always blocking and consume a thread.
+    
+    Fixes #33953
+    Fixes #32326
+    
+    Change-Id: I82c98516c23cd36f762bc5433d7b71ea8939a0ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199477
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/os_test.go | 2 --
+ 1 file changed, 2 deletions(-)

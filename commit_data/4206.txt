@@ -1,0 +1,12 @@
+commit 541eeb8dbca03813d37795353a154bc475b03074
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 11:33:43 2009 -0800
+
+    add Roger Peppe to AUTHORS/CONTRIBUTORS
+    
+    R=r
+    https://golang.org/cl/157157
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit 6c4943cb51cc7c4b27233a7717d74742871f7faa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed May 15 01:25:20 2013 +0200
+
+    cmd/gc: fix race instrumentation of selectors T(v).Field
+    
+    Fixes #5424.
+    
+    R=golang-dev, daniel.morsing, dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/9033048
+
+ src/cmd/gc/racewalk.c                      | 33 ++++++++++++++++++
+ src/pkg/runtime/race/testdata/comp_test.go | 54 ++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

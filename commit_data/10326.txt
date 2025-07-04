@@ -1,0 +1,15 @@
+commit 217408abf37b54aad25c2566d3e44691bc72b699
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 14:22:44 2011 -0800
+
+    crypto: update incorrect references to Cipher interface; should be Block.
+    
+    R=gri, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5372050
+
+ doc/go_spec.html                  | 8 ++++----
+ src/pkg/crypto/aes/cipher.go      | 2 +-
+ src/pkg/crypto/blowfish/cipher.go | 2 +-
+ src/pkg/crypto/xtea/cipher.go     | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

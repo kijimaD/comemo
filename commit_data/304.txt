@@ -1,0 +1,13 @@
+commit 6db99de6069162a3e2b41de3e202e58ce329988d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 8 10:36:43 2008 -0700
+
+    add bytestorune and stringtorune to sys.
+    
+    SVN=126321
+
+ src/cmd/gc/sys.go      |   6 ++
+ src/cmd/gc/sysimport.c | 187 ++++++++++++++++++++++++++-----------------------
+ src/runtime/rune.c     |  19 +++++
+ src/runtime/runtime.h  |   6 ++
+ 4 files changed, 130 insertions(+), 88 deletions(-)

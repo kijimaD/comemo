@@ -1,0 +1,20 @@
+commit 0362f5ba14e15c4fcc607f9f462c3f02fb11ff52
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:34:09 2022 +1000
+
+    cmd/dist,internal/platform: add openbsd/riscv64 port
+    
+    Updates #55999
+    
+    Change-Id: I3c07f776919e36e4c1fdc5346f7622e5901a2902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518624
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/dist/build.go            | 8 +++++---
+ src/internal/platform/zosarch.go | 2 ++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

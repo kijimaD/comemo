@@ -1,0 +1,33 @@
+commit 551d8b9ff5b64bded6a7dd284fb1790a2f78ead0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Aug 17 03:42:34 2012 +0800
+
+    cmd/go: new cgo build procedure
+       This CL adds a step to the build procedure for cgo programs. It uses 'ld -r'
+    to combine all gcc compiled object file and generate a relocatable object file
+    for our ld. Additionally, this linking step will combine some static linking
+    gcc library into the relocatable object file, so that we can use libgcc,
+    libmingwex and libmingw32 without problem.
+    
+       Fixes #3261.
+       Fixes #1741.
+       Added a testcase for linking in libgcc.
+    
+    TODO:
+    1. still need to fix the INDIRECT_SYMBOL_LOCAL problem on Darwin/386.
+    2. still need to enable the libgcc test on Linux/ARM, because 5l can't deal
+    with thumb libgcc.
+    
+    Tested on Darwin/amd64, Darwin/386, FreeBSD/amd64, FreeBSD/386, Linux/amd64,
+    Linux/386, Linux/ARM, Windows/amd64, Windows/386
+    
+    R=iant, rsc, bradfitz, coldredlemur
+    CC=golang-dev
+    https://golang.org/cl/5822049
+
+ misc/cgo/test/cgo_test.go                          |  1 +
+ misc/cgo/test/issue3261.go                         | 43 ++++++++++++++++++++++
+ .../{sleep_windows.go => sleep_windows_386.go}     |  4 ++
+ src/cmd/go/build.go                                | 33 ++++++++++++++++-
+ src/run.bat                                        |  8 +++-
+ 5 files changed, 87 insertions(+), 2 deletions(-)

@@ -1,0 +1,32 @@
+commit 2f02daaa46b2648f464d7c39ff4a1c5ee43631d5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 3 17:24:57 2019 +0000
+
+    cmd/go/internal/base: remove MergeEnvLists
+    
+    This internally exported function allowed merging environment variable
+    lists, and was mostly a convenience for the rest of cmd/go/internal.
+    It seems to date all the way back to 2013.
+    
+    However, since CL 37586 in early 2017, os/exec has already taken care of
+    deduplicating environment variable lists. Thus, it's unnecessary for
+    cmd/go to take care of that before calling exec.Cmd.Start.
+    
+    Moreover, because os/exec will deduplicate the list in any case, we're
+    adding extra work in all these scenarios.
+    
+    Finally, remove an unnecessary addition of GOROOT= in internal/tool.
+    cfg.OrigEnv may not have the correct GOROOT set up, but os.Environ does;
+    cmd/go's main function makes sure of that.
+    
+    Change-Id: I1f92f65fb927dc15bc7b0397cfd1a572b6337bb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164703
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/base/env.go          | 32 +++++---------------------------
+ src/cmd/go/internal/generate/generate.go |  2 +-
+ src/cmd/go/internal/tool/tool.go         |  2 --
+ src/cmd/go/internal/work/exec.go         |  6 ++++--
+ 4 files changed, 10 insertions(+), 32 deletions(-)

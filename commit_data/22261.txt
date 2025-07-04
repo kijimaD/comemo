@@ -1,0 +1,12 @@
+commit fb4b46738cfc0adf4e02781c25603ca16764cdbf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 1 16:33:43 2015 -0700
+
+    doc/go1.5: add Stats to database/sql
+    
+    Change-Id: I7b0c186ea292655f7ff45c15ac29f6d1b71ef132
+    Reviewed-on: https://go-review.googlesource.com/8370
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,31 @@
+commit acc2957bc9873ab7e65942045830a3dc0592eda2
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 5 19:26:21 2021 -0700
+
+    net/http: fix hang in probing for a zero-length request body
+    
+    Fix a hang that occurs when making a request and all of the following apply:
+    * The request method is one of GET, HEAD, DELETE, OPTIONS, PROPFIND, or SEARCH.
+    * The Request.Body is non-nil.
+    * The content length is not set, or is set to -1.
+    * Transfer-Encoding: chunked is not set.
+    * The request body does not respond to a read within 200ms.
+    
+    In this case, we give up on probing for a zero-length body and send the
+    request while the probe completes in the background. Fix a bug in the
+    io.Reader wrapping the in-flight probe: It should return io.EOF after
+    the probe completes, but does not.
+    
+    Fixes #47568.
+    
+    Change-Id: I7f9188c96e1210055df68424081af927006e4816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340256
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go    |  4 ++++
+ 2 files changed, 48 insertions(+)

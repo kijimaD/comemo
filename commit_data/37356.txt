@@ -1,0 +1,23 @@
+commit 52b222055908a3ae23c2a9185e53919fe56b54db
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 19 14:24:02 2018 -0400
+
+    cmd/asm: factor out line parsing from assembling
+    
+    Currently cmd/asm's Parser.line both consumes a line of assembly from
+    the lexer and assembles it. This CL separates these two steps so that
+    the line parser can be reused for purposes other than generating a
+    Prog stream.
+    
+    For #27539.
+    Updates #17544.
+    
+    Change-Id: I452c9a2112fbcc1c94bf909efc0d1fcc71014812
+    Reviewed-on: https://go-review.googlesource.com/c/147097
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/line_test.go |  3 +-
+ src/cmd/asm/internal/asm/parse.go     | 65 +++++++++++++++++++++++------------
+ 2 files changed, 44 insertions(+), 24 deletions(-)

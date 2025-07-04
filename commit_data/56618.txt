@@ -1,0 +1,22 @@
+commit 8d464e4ae36c09acfd73a5e3b6dc5a34b6f0202b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 16:22:51 2024 -0700
+
+    go/types, types2: operand.AssignableTo must consider Alias types
+    
+    Fixes regression from Go 1.22.
+    
+    For #67547.
+    
+    Change-Id: Id0d07d6b24e1eab6ed1c7476d9d9b82d28aee80a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587161
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/operand.go         |  6 ++++--
+ src/go/types/operand.go                            |  6 ++++--
+ .../types/testdata/fixedbugs/issue67547.go         | 23 +++++++++++++++++++++-
+ 3 files changed, 30 insertions(+), 5 deletions(-)

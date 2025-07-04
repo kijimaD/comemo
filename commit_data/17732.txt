@@ -1,0 +1,14 @@
+commit 94a6511b7f54501116144e529f9e0e7a1cbb5e87
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 22:09:54 2013 -0400
+
+    net: use original argument in lookup error
+    
+    Fixes #6324.
+    
+    R=golang-dev, iant, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/13280049
+
+ src/pkg/net/dnsclient_unix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

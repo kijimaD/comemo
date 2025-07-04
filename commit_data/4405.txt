@@ -1,0 +1,16 @@
+commit 58578905bad8c1c4c2bfec974964567d1da0044f
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Dec 13 13:05:49 2009 -0800
+
+    syscall: fix error return bug for 64-bit return on 32-bit platform
+    
+    R=dho, rsc
+    CC=r
+    https://golang.org/cl/176058
+
+ src/pkg/syscall/mksyscall.sh            |  1 -
+ src/pkg/syscall/zsyscall_darwin_386.go  |  3 +-
+ src/pkg/syscall/zsyscall_freebsd_386.go |  3 +-
+ src/pkg/syscall/zsyscall_linux_386.go   |  6 ++--
+ src/pkg/syscall/zsyscall_linux_arm.go   | 51 +++++++++++++++++----------------
+ 5 files changed, 35 insertions(+), 29 deletions(-)

@@ -1,0 +1,14 @@
+commit 39fa2a5bf2bbc484d00fc6fc943b16315eb039b6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 11 08:27:16 2011 +1000
+
+    exp/template: truth for interface values.
+    Also protect against invalid (zero Value) reflect.Values.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4810094
+
+ src/pkg/exp/template/exec.go      | 8 ++++++--
+ src/pkg/exp/template/exec_test.go | 4 +++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit 28cee7075e3a2eda9504c73ad4649ffcc01b52a4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 18:06:06 2018 -0400
+
+    cmd/go: test that 'go get pkg@version' installs pkg
+    
+    This test passes, but it encodes several behaviors that I think are bugs.
+    I suggest that we check it in as-is, and we can update it as the bugs are fixed.
+    
+    Change-Id: Icb073de9cb13036dbccadb4ff2cb3169ffb56236
+    Reviewed-on: https://go-review.googlesource.com/128137
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ .../mod/research.swtch.com_vgo-tour_v1.0.0.txt     | 23 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +++++++++
+ src/cmd/go/testdata/script/mod_install.txt         | 16 +++++++++++++++
+ 3 files changed, 48 insertions(+)

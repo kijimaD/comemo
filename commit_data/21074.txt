@@ -1,0 +1,15 @@
+commit 24ea0330fe8bc7970a3fc5c5377d54bf0cbe8660
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 23 12:09:38 2014 +1100
+
+    build: give freebsd longer to run tests
+    
+    The freebsd-386 and freebsd-amd64 builders are timing out sometimes.
+    This will give them some more breathing room.
+    
+    Change-Id: Ib65bd172cca046a52861759a4232d7b4b6514fa8
+    Reviewed-on: https://go-review.googlesource.com/1994
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/run.bash | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

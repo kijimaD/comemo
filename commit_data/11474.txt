@@ -1,0 +1,12 @@
+commit 6ebf8a6400e9637f579da52a50a0ecb94d798e46
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 13:41:38 2012 -0500
+
+    test: add test of NaN in map
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/5576071
+
+ test/map.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

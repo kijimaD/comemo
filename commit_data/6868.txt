@@ -1,0 +1,13 @@
+commit 63544c47547fd3246e7509e5e13fe90a9d5e3f20
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Tue Dec 7 17:20:52 2010 -0500
+
+    ld: fix dwarf decoding of 64-bit reflect values
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3002041
+
+ src/cmd/ld/dwarf.c | 18 ++++++++++++------
+ src/cmd/ld/lib.c   |  9 +++++++--
+ 2 files changed, 19 insertions(+), 8 deletions(-)

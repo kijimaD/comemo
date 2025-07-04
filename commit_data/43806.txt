@@ -1,0 +1,24 @@
+commit d70a33a40bd2bab2f8cd6ab714c4664ce55dc499
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 1 10:53:41 2020 -0400
+
+    cmd/go/internal/work: add missing newline to go version note
+    
+    A missed newline was added for one case in CL 162957, but
+    the parallel no-output case was missed.
+    
+    Add the missed newline for the second case and update the test to
+    cover the full line for both cases.
+    
+    Updates #30263
+    
+    Change-Id: I02aa523290295a6d409cd68066b45c6990e6fb6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258758
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go              |  2 +-
+ src/cmd/go/testdata/script/mod_go_version.txt | 41 +++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 3 deletions(-)

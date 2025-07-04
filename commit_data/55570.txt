@@ -1,0 +1,23 @@
+commit 20f4b6d8f910adb5a3739dce5f4ffcfd2eb491c4
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Thu Feb 8 08:56:33 2024 -0800
+
+    runtime: call traceAdvance before exiting
+    
+    This ensures the trace buffers are as up-to-date as possible right
+    before crashing. It increases the chance of finding the culprit for the
+    crash when looking at core dumps, e.g. if slowness is the cause for the
+    crash (monitor kills process).
+    
+    Fixes #65319.
+    
+    Change-Id: Iaf5551911b3b3b01ba65cb8749cf62a411e02d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562616
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/crash_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 10 +++++++
+ src/runtime/trace.go      |  3 ++
+ 3 files changed, 83 insertions(+)

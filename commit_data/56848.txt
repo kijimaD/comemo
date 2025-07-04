@@ -1,0 +1,47 @@
+commit a2e90be996fb0e75966b1e1097dd20aa07eebc37
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sun Jun 9 12:47:23 2024 -0700
+
+    os: rewrite TestChtimesWithZeroTimes
+    
+    First, this enables checks on DragonFly BSD, which partially works since
+    CL 589496 (except two things: atime is not supported on hammer2 fs, and
+    when both times are omitted, it doesn't work due to a kernel bug).
+    
+    Second, there are a few problems with TestChtimesWithZeroTimes:
+    
+     - test cases are interdependent (former cases influence the latter ones),
+       making the test using too many different times and also hard to read;
+    
+     - time is changed forward not backward which could be racy;
+    
+     - if the test has failed, it hard to see which exact case is failing.
+    
+    Plus, there are issues with the error exclusion code in
+    TestChtimesWithZeroTimes:
+    
+     - the atime comparison is done twice for the default ("unix") case;
+    
+     - the atime exclusion caused by noatime mount flag applies to all
+       unixes rather than netbsd only as it should;
+    
+     - the atime exclusion tries to read wrong files (/bin/mounts and
+       /etc/mtab instead of /proc/mounts);
+    
+     - the exclusion for netbsd is only applied for 64-bit arches, which
+       seems wrong (and I've reproduced noatime issue on NetBSD 9.4/i386).
+    
+    Let's rewrite it, fixing all these issues, and rename to
+    TestChtimesOmit.
+    
+    NB: TestChtimes can now be removed.
+    
+    Change-Id: If9020256ca920b4db836a1f0b2e055b5fce4a552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591535
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/os_test.go | 173 +++++++++++++++++++++++++-----------------------------
+ 1 file changed, 79 insertions(+), 94 deletions(-)

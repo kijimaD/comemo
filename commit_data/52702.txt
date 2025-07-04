@@ -1,0 +1,27 @@
+commit d959dd97b12f4067c8511fb11493e3bf47eb9737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 14 14:36:12 2023 -0700
+
+    runtime: change lfstack support to taggedPointer
+    
+    This is a refactoring with no change in behavior, in preparation
+    for future netpoll work.
+    
+    For #59545
+    
+    Change-Id: I493c5fd0f49f31b75787f7b5b89c544bed73f64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484836
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Orlando Labao <orlando.labao43@gmail.com>
+
+ src/runtime/lfstack.go                            |  8 ++++
+ src/runtime/lfstack_32bit.go                      | 19 --------
+ src/runtime/malloc.go                             |  4 ++
+ src/runtime/tagptr.go                             | 14 ++++++
+ src/runtime/tagptr_32bit.go                       | 30 +++++++++++++
+ src/runtime/{lfstack_64bit.go => tagptr_64bit.go} | 53 +++++++++++++++--------
+ 6 files changed, 92 insertions(+), 36 deletions(-)

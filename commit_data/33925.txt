@@ -1,0 +1,24 @@
+commit 2ba3fd484bb048be86c2bd804900151a1ec5affd
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Jan 1 17:17:14 2018 -0800
+
+    net/http: relax the matching of strace output in test
+    
+    Modify the regex in TestLinuxSendfile to not match the parameters of
+    the syscall, just its name and the opening parenthesis. This is enough
+    to recognize that the syscall was invoked.
+    
+    This fixes the TestLinuxSendfile test when running in Clear Linux,
+    where strace always execute with -yy implied, having output with extra
+    information in the parameters:
+    
+        [pid  5336] sendfile(6<TCP:[127.0.0.1:35007->127.0.0.1:55170]>, 8</home/c/src/go/src/net/http/testdata/index.html>, NULL, 22) = 22
+    
+    Change-Id: If7639b785d5fdf65fae8e6149a97a57b06ea981c
+    Reviewed-on: https://go-review.googlesource.com/85657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

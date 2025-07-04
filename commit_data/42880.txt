@@ -1,0 +1,33 @@
+commit 5f5a55679c54784d07643099b55228b6f88c0bdf
+Author: Paul Forgey <paulf@tessier-ashpool.net>
+Date:   Tue Sep 1 00:38:01 2020 +0000
+
+    net/http: refactor ResponseWriter.ReadFrom to permit splice on Linux
+    
+    Rather than probe and guess if sendfile will work inside ResponseWriter.ReadFrom(src),
+    this change fixes the underlying issue of starting to respond before src is readable
+    We'll no longer send a status OK if a header has not yet been written and reading
+    from src is destined to fail. This small change implicitly takes care of the need for
+    the server to sniff the response body to determine the Content-Type.
+    
+    This allows splice to work on Linux when src is a socket or any non-regular file that's spliceable.
+    
+    The extra read of 512 bytes may raise an objection, and that's fair, but
+    we're already swapping some syscall prep work for another and a read of
+    512 probably will not impact the overall performance. For shorter
+    bodies, there's likely less setup time. A little initial slop is not too
+    unusual in zero copy network code, and sometimes actually helps.
+    
+    Fixes #40888
+    
+    Change-Id: I4a8e2ad0ace1318bae66dae5671d06ea6d4838ed
+    GitHub-Last-Rev: 097364ea866613d103a31e2247b44f4a12077f9e
+    GitHub-Pull-Request: golang/go#40903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249238
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/fs_test.go | 12 +++++++--
+ src/net/http/server.go  | 70 +++++++++++++++++++++++++------------------------
+ 2 files changed, 46 insertions(+), 36 deletions(-)

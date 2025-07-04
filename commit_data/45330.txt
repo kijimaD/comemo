@@ -1,0 +1,14 @@
+commit 8e368708c510219dabfb38a4781d2152420c778f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:12:04 2021 -0400
+
+    cmd/link: implement windows/arm64 external linking
+    
+    Change-Id: Ia73309ec7013138b37028e669d7ae5eac81126e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312044
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 186 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/pe.go     |  10 ++
+ 2 files changed, 140 insertions(+), 56 deletions(-)

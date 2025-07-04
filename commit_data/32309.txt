@@ -1,0 +1,12 @@
+commit 29186526608b10d04a67ce250d4df11bcd8dc661
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed Aug 16 05:33:36 2017 -0700
+
+    go/internal/gcimporter: fix typo: cmd/compiler → cmd/compile
+    
+    Change-Id: I087980d30308353c4a450636122f7e87c8310090
+    Reviewed-on: https://go-review.googlesource.com/56090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gcimporter/bimport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

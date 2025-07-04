@@ -1,0 +1,14 @@
+commit 251f3e5b9cf204b80f78eb383f84e3672603d57d
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Mon Mar 9 16:32:49 2020 -0400
+
+    runtime/pprof: document that debug=0 emits proto
+    
+    Updates #16093.
+    
+    Change-Id: I629b3d44d6b2083f5e62701cc0c23fe2362502d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222676
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/pprof.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

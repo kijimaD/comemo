@@ -1,0 +1,18 @@
+commit b618f32687ca1f71c5cc137cee735a2811f74a57
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 15 13:44:35 2011 -0800
+
+    govet: divide the program into one file per vetting suite
+    Just a rearrangement except for a couple of new functions
+    and names so govet.go can have all the generic walk routines.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5489058
+
+ src/cmd/govet/Makefile     |   3 +
+ src/cmd/govet/govet.go     | 405 ++++-----------------------------------------
+ src/cmd/govet/method.go    | 161 ++++++++++++++++++
+ src/cmd/govet/print.go     | 202 ++++++++++++++++++++++
+ src/cmd/govet/structtag.go |  34 ++++
+ 5 files changed, 432 insertions(+), 373 deletions(-)

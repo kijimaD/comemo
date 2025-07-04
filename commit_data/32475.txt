@@ -1,0 +1,18 @@
+commit 4d6da864696fd302aa62666eeed8b01918577f14
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 25 13:43:56 2017 -0700
+
+    go/build: add go1.10 build tag
+    
+    Add this early in the cycle so that we can start regression testing
+    of the master toolchain.
+    
+    Change-Id: Ida3ccad6e9642648f489babd12877fc8a5eca07a
+    Reviewed-on: https://go-review.googlesource.com/59151
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 5 ++++-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)

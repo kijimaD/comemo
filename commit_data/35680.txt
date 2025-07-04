@@ -1,0 +1,13 @@
+commit 3885e864114f9e45ed7d4322e0d802b897124c37
+Author: Matthew Broberg <gogetmb@gmail.com>
+Date:   Sat Jul 15 17:40:29 2017 -0600
+
+    regexp: add QuoteMeta example
+    
+    Change-Id: I0bbb53cad9a7c464ab1cfca381128f33496813ff
+    Reviewed-on: https://go-review.googlesource.com/49130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/example_test.go | 6 ++++++
+ src/regexp/regexp.go       | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

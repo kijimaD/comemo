@@ -1,0 +1,46 @@
+commit 01f5a17aa3b99af34ad7c914657fc7345fe562fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 6 13:44:32 2023 -0500
+
+    misc/cgo/{life,stdio}: remove reliance on test/run.go
+    
+    The misc/cgo/life and misc/cgo/stdio tests started out as fairly simple
+    test cases when they were added, but the machinery to execute them has
+    grown in complexity over the years.
+    
+    They currently reuse the test/run.go runner and its "run" action without
+    needing much of the additional flexibility that said runner implements.
+    Given that runner isn't well documented, it makes it harder to see that
+    ultimately these tests just do 'go run' on a few test programs and check
+    that the output matches a golden file.
+    
+    Maybe these test cases should move out of misc to be near similar tests,
+    or the machinery to execute them can made available in a package that is
+    easier and safer to reuse. I'd rather not block the refactor of the test
+    directory runner on that, so for now rewrite these to be self-contained.
+    
+    Also delete misc/cgo/stdio/testdata/run.out which has no effect on the
+    test. It was seemingly accidentally kept behind during the refactor in
+    CL 6220049.
+    
+    For #56844.
+    
+    Change-Id: I5e2f542824925092cdddb03b44b6295a4136ccb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465755
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/life/life_test.go             |  19 +++--
+ misc/cgo/life/testdata/life.go         |   2 -
+ misc/cgo/life/testdata/main.go         |   4 +-
+ misc/cgo/stdio/stdio_test.go           |  33 +++++---
+ misc/cgo/stdio/testdata/chain.go       |   4 +-
+ misc/cgo/stdio/testdata/fib.go         |   4 +-
+ misc/cgo/stdio/testdata/hello.go       |   4 +-
+ misc/cgo/stdio/testdata/run.out        | 150 ---------------------------------
+ misc/cgo/stdio/testdata/stdio/file.go  |   2 -
+ misc/cgo/stdio/testdata/stdio/stdio.go |   2 -
+ 10 files changed, 37 insertions(+), 187 deletions(-)

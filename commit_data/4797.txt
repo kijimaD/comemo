@@ -1,0 +1,13 @@
+commit bc43cc3db0091fa697c65d0239c70abf099945e3
+Author: Stephen Weinberg <stephen@q5comm.com>
+Date:   Fri Feb 5 02:39:33 2010 -0800
+
+    path: make Join variadic
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/198049
+
+ src/pkg/path/path.go      | 14 ++++++++------
+ src/pkg/path/path_test.go | 36 ++++++++++++++++++++++++++----------
+ 2 files changed, 34 insertions(+), 16 deletions(-)

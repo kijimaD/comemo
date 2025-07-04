@@ -1,0 +1,14 @@
+commit da43976c8bd1fd86332c2401956c0b66c19282f0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 11 21:54:20 2014 +1100
+
+    doc/play: update obsolete comment in peano.go.
+    
+    Change-Id: Ibecc2ef1e70c927c325c48bc381091f52c09da85
+    Reviewed-on: https://go-review.googlesource.com/1355
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/play/peano.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

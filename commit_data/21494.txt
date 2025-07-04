@@ -1,0 +1,17 @@
+commit d81cc374bedd670d8866a5721fcf5e601c35f13a
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Tue Feb 3 12:41:52 2015 -0800
+
+    test: chdir before running go tool, cleanup afterwards.
+    
+    issue9355 generated a file a.[568] in test/ directory and left it there.
+    For tests like these, it is best to chdir to a test specific directory
+    before generating any temporary files, since the tests are running
+    in parallel and might otherwise race with each other for the same files.
+    
+    Change-Id: I58d96256d4d8ee3fda70d81077f19006064a7425
+    Reviewed-on: https://go-review.googlesource.com/3813
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue9355.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

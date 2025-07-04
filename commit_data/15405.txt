@@ -1,0 +1,12 @@
+commit 1174a18c3d2c61466db60feb3919288b1dd8a548
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 24 13:18:36 2013 -0800
+
+    cmd/vet: fix up some nits in print.go found by kamil.kisiel@gmail.com
+    
+    R=golang-dev, kamil.kisiel, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7369049
+
+ src/cmd/vet/print.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

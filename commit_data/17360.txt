@@ -1,0 +1,12 @@
+commit e541c861a3e2d012e8acee84185f32c6fecac9f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 22 12:34:05 2013 +1000
+
+    net: fix misspelled variable name (fixes windows build)
+    
+    R=golang-dev, adg
+    CC=golang-dev, mikioh.mikioh
+    https://golang.org/cl/12848047
+
+ src/pkg/net/lookup_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

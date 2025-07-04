@@ -1,0 +1,24 @@
+commit 27f41bb15391668fa8ba18561efe364bab9b8312
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 21 21:42:52 2024 +0000
+
+    Revert "testing: add TB.SetGOMAXPROCS function"
+    
+    This reverts CL 519235.
+    
+    Reason for revert: Proposal is still in incoming.
+    
+    For #62020
+    
+    Change-Id: Icccb930209f36097f5d930c01eda6b5042bdddc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573516
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/62020.txt                          |  4 --
+ doc/next/6-stdlib/99-minor/testing/62020.md |  1 -
+ src/testing/testing.go                      | 49 +--------------
+ src/testing/testing_test.go                 | 97 -----------------------------
+ 4 files changed, 2 insertions(+), 149 deletions(-)

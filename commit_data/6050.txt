@@ -1,0 +1,17 @@
+commit 95fa16a892f3ca8393813ad7dcf988356927177b
+Author: Eric Clark <zerohp@gmail.com>
+Date:   Wed Aug 18 22:29:05 2010 -0400
+
+    cgo: add C.GoStringN
+    
+    Function to create a GoString with a known length so it can contain NUL
+    bytes anywhere in the string. Some C libraries have strings like this.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2007042
+
+ src/cmd/cgo/out.go         | 12 ++++++++++--
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/string.goc | 10 ++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

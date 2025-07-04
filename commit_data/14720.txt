@@ -1,0 +1,16 @@
+commit c956dcdc54937ac17a4e1a01e7353cd9110b7400
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Dec 22 17:36:10 2012 +0100
+
+    cmd/gc: Reject parenthesised .(type) expressions.
+    
+    Fixes #4470.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6949073
+
+ src/cmd/gc/go.y             |   1 +
+ src/cmd/gc/y.tab.c          | 331 ++++++++++++++++++++++----------------------
+ test/fixedbugs/issue4470.go |  16 +++
+ 3 files changed, 183 insertions(+), 165 deletions(-)

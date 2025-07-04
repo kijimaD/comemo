@@ -1,0 +1,22 @@
+commit ab0e9019ea61c1b49572876354af7086f961bc8c
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Apr 4 17:03:10 2017 -0700
+
+    database/sql: de-duplicate various methods
+    
+    Form a new method pattern where *driverConn and
+    release functions are passed into the method.
+    They are named DB.execDC, DB.queryDC, DB.beginDC. This
+    allows more code to be de-duplicated when starting
+    queries.
+    
+    The Stmt creation and management code are untouched.
+    
+    Change-Id: I24c853531e511d8a4bc1f53dd4dbdf968763b4e7
+    Reviewed-on: https://go-review.googlesource.com/39630
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 91 ++++++++++++++++++++++---------------------------
+ 1 file changed, 41 insertions(+), 50 deletions(-)

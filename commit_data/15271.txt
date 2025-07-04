@@ -1,0 +1,14 @@
+commit d47cc872b5654508a1ca4e29b4653e869c463a70
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 12:43:28 2013 -0500
+
+    exp/cookiejar: fix windows/386 build
+    
+    More mysteriously broken tests.
+    
+    TBR=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7342048
+
+ src/pkg/exp/cookiejar/jar_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

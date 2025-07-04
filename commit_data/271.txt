@@ -1,0 +1,11 @@
+commit 0b6e6afb76496ddeb6018fe3c1f4d6e400f9e9e5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 16:52:17 2008 -0700
+
+    add test that was mistakenly not checked in, now fixed
+    
+    SVN=125408
+
+ test/fixedbugs/bug059.go | 34 ++++++++++++++++++++++++++++++++++
+ test/golden.out          |  5 ++---
+ 2 files changed, 36 insertions(+), 3 deletions(-)

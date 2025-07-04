@@ -1,0 +1,15 @@
+commit 5046cb8a6e8496f70e47f648ed368ffe87bc5e4e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 10:36:10 2020 +0100
+
+    doc/go1.16: fix formatting in net, net/http and net/http/httputil sections
+    
+    For #40700.
+    
+    Change-Id: I83d9ef9f79d59a0165a47ccc938fc2bf40e90703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278212
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

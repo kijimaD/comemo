@@ -1,0 +1,13 @@
+commit 4b2dfd6c2cf9caade6702cede4a9424f4d308fc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 00:30:44 2012 -0500
+
+    A+C: Damian Gryski (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5600055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

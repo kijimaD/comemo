@@ -1,0 +1,31 @@
+commit c7c6c113be96b7b68f54696d2986f98dc9df64d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 15:12:08 2021 -0500
+
+    runtime: convert windows/arm64 assembly
+    
+    The assembly is mostly a straightforward conversion of the
+    equivalent arm assembly.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I61b15d712ade4d3a7285c7680de8e0987aacba10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288828
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm64.s         |   7 +
+ src/runtime/defs_windows.go     |   1 +
+ src/runtime/memclr_arm.s        |   1 +
+ src/runtime/memclr_arm64.s      |   1 +
+ src/runtime/os_windows.go       |   3 +
+ src/runtime/signal_windows.go   |   1 +
+ src/runtime/stubs_arm64.go      |   2 +
+ src/runtime/sys_windows_arm.s   |  18 +-
+ src/runtime/sys_windows_arm64.s | 807 ++++++++++++++++++++--------------------
+ src/runtime/syscall_windows.go  |   1 +
+ src/runtime/tls_arm64.h         |  12 +-
+ src/runtime/tls_arm64.s         |   8 +-
+ 12 files changed, 441 insertions(+), 421 deletions(-)

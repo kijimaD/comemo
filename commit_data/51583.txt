@@ -1,0 +1,22 @@
+commit e870de9936a7efa42ac1915ff4ffb16017dbc819
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 27 13:46:23 2022 -0500
+
+    misc/cgo/testsanitizers: add libfuzzer tests
+    
+    Apparently we don't have tests for libfuzzer mode. Add some tests.
+    
+    Updates #57449.
+    
+    Change-Id: I813da3e71c6d6f15db31914b248db220b0b7041e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testsanitizers/cc_test.go             | 30 ++++++++-
+ misc/cgo/testsanitizers/libfuzzer_test.go      | 90 ++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/testdata/libfuzzer1.go | 16 +++++
+ misc/cgo/testsanitizers/testdata/libfuzzer2.c  | 11 ++++
+ misc/cgo/testsanitizers/testdata/libfuzzer2.go | 16 +++++
+ 5 files changed, 160 insertions(+), 3 deletions(-)

@@ -1,0 +1,37 @@
+commit 4af639a5685355b22f8a541c72ba092bed768941
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 4 14:50:35 2019 -0800
+
+    cmd: vendor in new version of x/tools
+    
+    Fixes #35264
+    
+    Change-Id: Id540a48f593d8ac1b414551255c5eff24666aa0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205240
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |  18 ++-
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |  13 ++
+ .../x/tools/go/analysis/internal/facts/facts.go    |   5 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   9 ++
+ .../x/tools/go/analysis/passes/atomic/atomic.go    |   2 +-
+ .../x/tools/go/analysis/passes/bools/bools.go      |   4 +-
+ .../go/analysis/passes/composite/composite.go      |   2 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |  14 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
+ .../analysis/passes/httpresponse/httpresponse.go   |   2 +-
+ .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
+ .../go/analysis/passes/loopclosure/loopclosure.go  |   2 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   6 +-
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 151 +++++++++++++--------
+ .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
+ .../go/analysis/passes/stdmethods/stdmethods.go    |   2 +-
+ .../go/analysis/passes/unreachable/unreachable.go  |   2 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |   2 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 22 files changed, 162 insertions(+), 88 deletions(-)

@@ -1,0 +1,22 @@
+commit 253ad67b3458ca640bc3d56a278b94b0823fec59
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 6 15:04:17 2015 -0500
+
+    debug/dwarf: document DWARF class -> Go type mapping
+    
+    Currently, the only way to know the Go type of an attribute of some
+    DWARF attribute class was to read the dwarf package code (or
+    experiment).  This makes it hard to go from the DWARF specification to
+    writing code that uses the dwarf package.
+    
+    Fix this by adding a table to the documentation comment of the Field
+    type that gives the correspondence between DWARF attribute classes and
+    Go types.
+    
+    Change-Id: I57c678a551fa1eb46f8207085d5a53d44985e3e7
+    Reviewed-on: https://go-review.googlesource.com/7280
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/debug/dwarf/entry.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,0 +1,29 @@
+commit 5b328c4a2fbae10ec10d233d691435fe0295fc39
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 28 11:00:15 2021 -0400
+
+    cmd/compile: use desired register only if it satisfies register mask
+    
+    In the register allocator, if possible, we allocate a value to its
+    desired register (the ideal register for its next use). In some
+    cases the desired register does not satisfies the value's output
+    register mask. We should not use the register in this case.
+    
+    In the following example, v33 is going to be returned as a
+    function result, so it is allocated to its desired register AX.
+    However, its Op cannot use AX as output, causing miscompilation.
+    
+    v33 = CMOVQEQF <int> v24 v28 v29 : AX (~R0[int])
+    v35 = MakeResult <int,int,mem> v33 v26 v18
+    Ret v35
+    
+    Change-Id: Id0f4f27c4b233ee297e83077e3c8494fe193e664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314630
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go |  7 +++--
+ test/abi/result_regalloc.go              | 46 ++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

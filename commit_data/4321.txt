@@ -1,0 +1,189 @@
+commit d6b3f37e1ef1714de56fe52bd748c752461e3e24
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 10:23:43 2009 -0800
+
+    bytes: asm for bytes.IndexByte
+    
+    PERFORMANCE DIFFERENCE
+    
+    SUMMARY
+    
+                                                       amd64           386
+    2.2 GHz AMD Opteron 8214 HE (Linux)             3.0x faster    8.2x faster
+    3.60 GHz Intel Xeon (Linux)                     2.2x faster    6.2x faster
+    2.53 GHz Intel Core2 Duo E7200 (Linux)          1.5x faster    4.4x faster
+    2.66 Ghz Intel Xeon 5150 (Mac Pro, OS X)        1.5x SLOWER    3.0x faster
+    2.33 GHz Intel Xeon E5435 (Linux)               1.5x SLOWER    3.0x faster
+    2.33 GHz Intel Core2 T7600 (MacBook Pro, OS X)  1.4x SLOWER    3.0x faster
+    1.83 GHz Intel Core2 T5600 (Mac Mini, OS X)        none*       3.0x faster
+    
+    * but yesterday I consistently saw 1.4x SLOWER.
+    
+    DETAILS
+    
+    2.2 GHz AMD Opteron 8214 HE (Linux)
+    
+    amd64 (3x faster)
+    
+    IndexByte4K            500000           3733 ns/op     1097.24 MB/s
+    IndexByte4M               500        4328042 ns/op      969.10 MB/s
+    IndexByte64M               50       67866160 ns/op      988.84 MB/s
+    
+    IndexBytePortable4K    200000          11161 ns/op      366.99 MB/s
+    IndexBytePortable4M       100       11795880 ns/op      355.57 MB/s
+    IndexBytePortable64M       10      188675000 ns/op      355.68 MB/s
+    
+    386 (8.2x faster)
+    
+    IndexByte4K            500000           3734 ns/op     1096.95 MB/s
+    IndexByte4M               500        4209954 ns/op      996.28 MB/s
+    IndexByte64M               50       68031980 ns/op      986.43 MB/s
+    
+    IndexBytePortable4K     50000          30670 ns/op      133.55 MB/s
+    IndexBytePortable4M        50       31868220 ns/op      131.61 MB/s
+    IndexBytePortable64M        2      508851500 ns/op      131.88 MB/s
+    
+    3.60 GHz Intel Xeon (Linux)
+    
+    amd64 (2.2x faster)
+    
+    IndexByte4K            500000           4612 ns/op      888.12 MB/s
+    IndexByte4M               500        4835250 ns/op      867.44 MB/s
+    IndexByte64M               20       77388450 ns/op      867.17 MB/s
+    
+    IndexBytePortable4K    200000          10306 ns/op      397.44 MB/s
+    IndexBytePortable4M       100       11201460 ns/op      374.44 MB/s
+    IndexBytePortable64M       10      179456800 ns/op      373.96 MB/s
+    
+    386 (6.3x faster)
+    
+    IndexByte4K            500000           4631 ns/op      884.47 MB/s
+    IndexByte4M               500        4846388 ns/op      865.45 MB/s
+    IndexByte64M               20       78691200 ns/op      852.81 MB/s
+    
+    IndexBytePortable4K    100000          28989 ns/op      141.29 MB/s
+    IndexBytePortable4M        50       31183180 ns/op      134.51 MB/s
+    IndexBytePortable64M        5      498347200 ns/op      134.66 MB/s
+    
+    2.53 GHz Intel Core2 Duo E7200  (Linux)
+    
+    amd64 (1.5x faster)
+    
+    IndexByte4K            500000           6502 ns/op      629.96 MB/s
+    IndexByte4M               500        6692208 ns/op      626.74 MB/s
+    IndexByte64M               10      107410400 ns/op      624.79 MB/s
+    
+    IndexBytePortable4K    200000           9721 ns/op      421.36 MB/s
+    IndexBytePortable4M       100       10013680 ns/op      418.86 MB/s
+    IndexBytePortable64M       10      160460800 ns/op      418.23 MB/s
+    
+    386 (4.4x faster)
+    
+    IndexByte4K            500000           6505 ns/op      629.67 MB/s
+    IndexByte4M               500        6694078 ns/op      626.57 MB/s
+    IndexByte64M               10      107397600 ns/op      624.86 MB/s
+    
+    IndexBytePortable4K    100000          28835 ns/op      142.05 MB/s
+    IndexBytePortable4M        50       29562680 ns/op      141.88 MB/s
+    IndexBytePortable64M        5      473221400 ns/op      141.81 MB/s
+    
+    2.66 Ghz Intel Xeon 5150  (Mac Pro, OS X)
+    
+    amd64 (1.5x SLOWER)
+    
+    IndexByte4K            200000           9290 ns/op      440.90 MB/s
+    IndexByte4M               200        9568925 ns/op      438.33 MB/s
+    IndexByte64M               10      154473600 ns/op      434.44 MB/s
+    
+    IndexBytePortable4K    500000           6202 ns/op      660.43 MB/s
+    IndexBytePortable4M       500        6583614 ns/op      637.08 MB/s
+    IndexBytePortable64M       20      107166250 ns/op      626.21 MB/s
+    
+    386 (3x faster)
+    
+    IndexByte4K            200000           9301 ns/op      440.38 MB/s
+    IndexByte4M               200        9568025 ns/op      438.37 MB/s
+    IndexByte64M               10      154391000 ns/op      434.67 MB/s
+    
+    IndexBytePortable4K    100000          27526 ns/op      148.80 MB/s
+    IndexBytePortable4M       100       28302490 ns/op      148.20 MB/s
+    IndexBytePortable64M        5      454170200 ns/op      147.76 MB/s
+    
+    2.33 GHz Intel Xeon E5435  (Linux)
+    
+    amd64 (1.5x SLOWER)
+    
+    IndexByte4K            200000          10601 ns/op      386.38 MB/s
+    IndexByte4M               100       10827240 ns/op      387.38 MB/s
+    IndexByte64M               10      173175500 ns/op      387.52 MB/s
+    
+    IndexBytePortable4K    500000           7082 ns/op      578.37 MB/s
+    IndexBytePortable4M       500        7391792 ns/op      567.43 MB/s
+    IndexBytePortable64M       20      122618550 ns/op      547.30 MB/s
+    
+    386 (3x faster)
+    
+    IndexByte4K            200000          11074 ns/op      369.88 MB/s
+    IndexByte4M               100       10902620 ns/op      384.71 MB/s
+    IndexByte64M               10      181292800 ns/op      370.17 MB/s
+    
+    IndexBytePortable4K     50000          31725 ns/op      129.11 MB/s
+    IndexBytePortable4M        50       32564880 ns/op      128.80 MB/s
+    IndexBytePortable64M        2      545926000 ns/op      122.93 MB/s
+    
+    2.33 GHz Intel Core2 T7600 (MacBook Pro, OS X)
+    
+    amd64 (1.4x SLOWER)
+    
+    IndexByte4K            200000          11120 ns/op      368.35 MB/s
+    IndexByte4M               100       11531950 ns/op      363.71 MB/s
+    IndexByte64M               10      184819000 ns/op      363.11 MB/s
+    
+    IndexBytePortable4K    500000           7419 ns/op      552.10 MB/s
+    IndexBytePortable4M       200        8018710 ns/op      523.06 MB/s
+    IndexBytePortable64M       10      127614900 ns/op      525.87 MB/s
+    
+    386 (3x faster)
+    
+    IndexByte4K            200000          11114 ns/op      368.54 MB/s
+    IndexByte4M               100       11443530 ns/op      366.52 MB/s
+    IndexByte64M               10      185212000 ns/op      362.34 MB/s
+    
+    IndexBytePortable4K     50000          32891 ns/op      124.53 MB/s
+    IndexBytePortable4M        50       33930580 ns/op      123.61 MB/s
+    IndexBytePortable64M        2      545400500 ns/op      123.05 MB/s
+    
+    1.83 GHz Intel Core2 T5600  (Mac Mini, OS X)
+    
+    amd64 (no difference)
+    
+    IndexByte4K            200000          13497 ns/op      303.47 MB/s
+    IndexByte4M               100       13890650 ns/op      301.95 MB/s
+    IndexByte64M                5      222358000 ns/op      301.81 MB/s
+    
+    IndexBytePortable4K    200000          13584 ns/op      301.53 MB/s
+    IndexBytePortable4M       100       13913280 ns/op      301.46 MB/s
+    IndexBytePortable64M       10      222572600 ns/op      301.51 MB/s
+    
+    386 (3x faster)
+    
+    IndexByte4K            200000          13565 ns/op      301.95 MB/s
+    IndexByte4M               100       13882640 ns/op      302.13 MB/s
+    IndexByte64M                5      221411600 ns/op      303.10 MB/s
+    
+    IndexBytePortable4K     50000          39978 ns/op      102.46 MB/s
+    IndexBytePortable4M        50       41038160 ns/op      102.20 MB/s
+    IndexBytePortable64M        2      656362500 ns/op      102.24 MB/s
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/166055
+
+ src/pkg/bytes/Makefile       |  3 +++
+ src/pkg/bytes/asm_386.s      | 17 +++++++++++++++++
+ src/pkg/bytes/asm_amd64.s    | 17 +++++++++++++++++
+ src/pkg/bytes/asm_arm.s      |  8 ++++++++
+ src/pkg/bytes/bytes.go       |  4 +++-
+ src/pkg/bytes/bytes_test.go  | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/export_test.go |  8 ++++++++
+ 7 files changed, 96 insertions(+), 1 deletion(-)

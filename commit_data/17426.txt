@@ -1,0 +1,16 @@
+commit f5f0e40e803125e47c64372fc7d808cbd8b9577a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 29 21:09:23 2013 +0200
+
+    compress/flate: implement Reset method on Writer.
+    
+    Fixes #6138.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12953048
+
+ src/pkg/compress/flate/deflate.go            | 67 +++++++++++++++++++++++++++-
+ src/pkg/compress/flate/deflate_test.go       | 64 ++++++++++++++++++++++++++
+ src/pkg/compress/flate/huffman_bit_writer.go | 25 +++++++++++
+ 3 files changed, 154 insertions(+), 2 deletions(-)

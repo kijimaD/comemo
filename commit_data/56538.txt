@@ -1,0 +1,13 @@
+commit b4376b8513bd0d0ace2102048c18371651ea6ae0
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 17 17:07:33 2024 -0400
+
+    runtime: skip coro cgo test on platforms without cgo
+    
+    Change-Id: Ibbe82a3ae2a67fb8f2b831130123dc74bc4dc9dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586535
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/coro_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

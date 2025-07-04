@@ -1,0 +1,18 @@
+commit 21e47d831bafb59f22b1ea8098f709677ec8ce33
+Author: Joe Harrison <joehazzers@gmail.com>
+Date:   Mon Mar 23 14:21:20 2015 +0000
+
+    mime: add "image/svg+xml" type for extension ".svg"
+    
+    Since there is internal usage of svg files in cmd/trace served via
+    HTTP, add it to the (small) map of mime types.
+    
+    MIME type as documented at http://www.w3.org/TR/SVG11/mimereg.html
+    
+    Change-Id: If14f07cbe2e55d8d68af663f30920a530e2e7974
+    Reviewed-on: https://go-review.googlesource.com/7942
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

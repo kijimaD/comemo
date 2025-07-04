@@ -1,0 +1,15 @@
+commit 6db195cae25904a8675804073f87c2b65e154370
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 29 14:31:21 2013 +1000
+
+    misc/dashboard/builder: increase cmdTimeout to 10 minutes
+    
+    It takes more then 5 minutes to clone go repo
+    on windows-386 builder now.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12007043
+
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

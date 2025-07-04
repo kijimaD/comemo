@@ -1,0 +1,12 @@
+commit 5aacf436511d32e43f27fada87681aea2d391a45
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 2 11:55:25 2013 -0800
+
+    doc/go1.1.html: document the moving of exp/... and old/....
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7445050
+
+ doc/go1.1.html | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit e198c8e66cf21b6016d6c78382ed75f811760acc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 21 18:57:21 2010 -0800
+
+    test: rename nul.go to nul1.go
+    
+    nul is a reserved file name in Windows
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/216068
+
+ test/{nul.go => nul1.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

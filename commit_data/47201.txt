@@ -1,0 +1,14 @@
+commit 2157498dfee125e43cc37cad622fb7d2115dd3a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 2 07:59:16 2021 -0700
+
+    doc/go1.18: remove some redundancy from netip docs
+    
+    Change-Id: I593862331add3366f6b337844588568301746b80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360608
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.18.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit a3dfcf51c6543ac1af853f1799d70eae83073f1a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 1 19:50:27 2015 -0700
+
+    cmd/internal/gc: unsafe.Pointer constants may only be converted to uintptr
+    
+    Fixes #8927.
+    
+    Change-Id: I638cddd439dd2d4eeef5474118cfcbde0c8a5a43
+    Reviewed-on: https://go-review.googlesource.com/9632
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/gc/const.go | 10 ++++++++--
+ test/convlit.go              |  7 +++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

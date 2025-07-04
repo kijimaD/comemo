@@ -1,0 +1,15 @@
+commit 3b092fec363252d1ac8522b138ac37d9f1c9de4d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 17:13:14 2009 -0800
+
+    json: support \u escaping in strings
+    
+    Fixes #73.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/154072
+
+ src/pkg/json/generic_test.go |  1 +
+ src/pkg/json/parse.go        | 39 +++++++++++++++++++++++++++------------
+ 2 files changed, 28 insertions(+), 12 deletions(-)

@@ -1,0 +1,13 @@
+commit acb550504fa77e16070405fd5a89770a416de75b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Apr 20 00:41:10 2012 +0800
+
+    net/http: add example for FileServer to mention StripPrefix
+            Fixes #3530.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6032052
+
+ src/pkg/net/http/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

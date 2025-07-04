@@ -1,0 +1,14 @@
+commit 3c2febb748600a051e276347b0bf0960421ca723
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 8 12:43:57 2015 -0700
+
+    syscall: fix vet warning in UnixRights
+    
+    Change-Id: Ic19c94fe0af55e17f6c2fcfd36085ccb1584da6f
+    Reviewed-on: https://go-review.googlesource.com/15608
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/sockcmsg_unix.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

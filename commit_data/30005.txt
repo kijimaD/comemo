@@ -1,0 +1,19 @@
+commit 457ac38e7a4066d27a64845c2569fad2b4d7bc8a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Feb 1 14:40:58 2017 -0500
+
+    cmd/compile: fix generic.rules
+    
+    generic.rules wasn't updated when rewritegeneric.go was. This commit
+    updates it so that the rewritegeneric.go file can be regenerated.
+    
+    Fixes #18885.
+    
+    Change-Id: Ie7dab653ca0a9ea1c255fd12e311a0d9e66afdd2
+    Reviewed-on: https://go-review.googlesource.com/36032
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

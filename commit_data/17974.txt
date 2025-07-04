@@ -1,0 +1,14 @@
+commit 936665f6414f0fa0e416f734bbe46571f1fc65ac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 17:17:02 2013 -0800
+
+    test: add []rune case to string_lit.go
+    
+    Gccgo managed to get this case wrong.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/41490044
+
+ test/string_lit.go | 5 +++++
+ 1 file changed, 5 insertions(+)

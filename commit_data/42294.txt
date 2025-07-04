@@ -1,0 +1,15 @@
+commit 5d9549debb313269a7adabdb271f3d67113fef1a
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Wed Dec 18 22:41:10 2019 +0800
+
+    cmd/go: accept hash-style in LDFLAGS
+    
+    Change-Id: I493bb7e5e9a9e1752236dea1e032b317da7f67f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211560
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 1 +
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 3 insertions(+)

@@ -1,0 +1,31 @@
+commit dd005f43f136790c18cbf278863aa531a579040d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 21:47:35 2024 -0700
+
+    go/types, types2: factor out list substitution code (cleanup)
+    
+    - Replace the various subst.XList methods with a generic function.
+    - Rename comparable function to comparableType to avoid shadowing
+      predeclared type comparable.
+    - Rename substFunc/Var to cloneFunc/Var which is more accurate.
+    
+    Change-Id: I3243f2093e4c43a537766f47e3348402de517090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587775
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go        |   2 +-
+ src/cmd/compile/internal/types2/instantiate.go |   4 +-
+ src/cmd/compile/internal/types2/named.go       |   4 +-
+ src/cmd/compile/internal/types2/predicates.go  |   8 +-
+ src/cmd/compile/internal/types2/subst.go       | 116 ++++++++-----------------
+ src/cmd/compile/internal/types2/typeset.go     |   4 +-
+ src/go/types/expr.go                           |   2 +-
+ src/go/types/instantiate.go                    |   4 +-
+ src/go/types/named.go                          |   4 +-
+ src/go/types/predicates.go                     |   8 +-
+ src/go/types/subst.go                          | 116 ++++++++-----------------
+ src/go/types/typeset.go                        |   4 +-
+ 12 files changed, 94 insertions(+), 182 deletions(-)

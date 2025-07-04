@@ -1,0 +1,15 @@
+commit 08ce7f1d5c309cf4187fbb1e442ee4388c29212b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 11:09:55 2012 -0800
+
+    net/http: follow certain redirects after POST requests
+    
+    Fixes #4145
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6923055
+
+ src/pkg/net/http/client.go      | 28 ++++++++++++++++++------
+ src/pkg/net/http/client_test.go | 47 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 6 deletions(-)

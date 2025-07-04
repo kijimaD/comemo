@@ -1,0 +1,24 @@
+commit bda1ef13f8f9954d20b712ece649776c272f8526
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 30 10:04:16 2023 -0800
+
+    cmd/compile: fix memcombine pass for big endian, > 1 byte elements
+    
+    The shift amounts were wrong in this case, leading to miscompilation
+    of load combining.
+    
+    Also the store combining was not triggering when it should.
+    
+    Fixes #64468
+    
+    Change-Id: Iaeb08972c5fc1d6f628800334789c6af7216e87b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546355
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/memcombine.go       |  12 +--
+ src/cmd/compile/internal/test/memcombine_test.go | 126 +++++++++++++++++++++++
+ test/codegen/memcombine.go                       |  37 +++++++
+ 3 files changed, 169 insertions(+), 6 deletions(-)

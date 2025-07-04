@@ -1,0 +1,20 @@
+commit 1e51b1fac3b65562ed4d6cf357f96665da55fed1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 30 11:11:39 2023 -0500
+
+    runtime/cgo: preserve nonvolatile VRs when crosscalling into Go on PPC64
+    
+    ELFv1 and ELFv2 declare V20-V31 as nonvolatile (callee save) registers.
+    Go does not. Preserve them before calling into Go.
+    
+    Change-Id: If60a6d8f71b51b1136a86eab2b90d964900becd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480657
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgo/asm_ppc64x.s | 112 ++++---------------------------------------
+ 1 file changed, 9 insertions(+), 103 deletions(-)

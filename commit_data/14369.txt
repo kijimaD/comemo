@@ -1,0 +1,12 @@
+commit 5612edb13e5a772e79ade881038ee0760df70d8c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Nov 10 14:34:34 2012 +0900
+
+    net: add more tests for protocol specific methods
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6821100
+
+ src/pkg/net/protoconn_test.go | 225 ++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 206 insertions(+), 19 deletions(-)

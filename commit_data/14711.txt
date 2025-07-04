@@ -1,0 +1,12 @@
+commit 9622f5032e67561c822374714aceb779389c3c00
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 22 14:56:02 2012 +0900
+
+    net: fix timeout tests
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7003049
+
+ src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

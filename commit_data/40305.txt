@@ -1,0 +1,25 @@
+commit 46aa8354fa57ab5a4fb133898baf18aafbeb2e88
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 16:31:19 2019 -0700
+
+    cmd/compile: only escape unsafe.Pointer conversions when -d=checkptr=2
+    
+    Escaping all unsafe.Pointer conversions for -d=checkptr seems like it
+    might be a little too aggressive to enable for -race/-msan mode, since
+    at least some tests are written to expect unsafe.Pointer conversions
+    to not affect escape analysis.
+    
+    So instead only enable that functionality behind -d=checkptr=2.
+    
+    Updates #22218.
+    Updates #34959.
+    
+    Change-Id: I2f0a774ea5961dabec29bc5b8ebe387a1b90d27b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201840
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/escape.go | 4 ++--
+ src/cmd/compile/internal/gc/main.go   | 5 +++++
+ src/cmd/compile/internal/gc/walk.go   | 9 +++++----
+ 3 files changed, 12 insertions(+), 6 deletions(-)

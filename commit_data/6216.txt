@@ -1,0 +1,16 @@
+commit 1678dcc3784459ccf818779ba013e12c5b31df31
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 9 17:11:51 2010 -0400
+
+    gc: more accurate line numbers for ATEXT
+    and other begin and end of function code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2158044
+
+ src/cmd/5g/ggen.c | 4 ++++
+ src/cmd/6g/ggen.c | 4 ++++
+ src/cmd/8g/ggen.c | 4 ++++
+ src/cmd/gc/go.y   | 1 +
+ 4 files changed, 13 insertions(+)

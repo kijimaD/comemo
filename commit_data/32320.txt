@@ -1,0 +1,44 @@
+commit d9606e55328340b85c70bd7c15affc1c961c5b22
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Aug 12 20:35:40 2017 +0530
+
+    archive/tar: add reader/writer benchmarks
+    
+    According to the discussion on golang.org/cl/55210,
+    adding benchmarks for reading from and writing to tar archives.
+    
+    Splitting the benchmarks into 3 sections of USTAR, GNU, PAX each.
+    
+    Results ran with -cpu=1 -count=10 on an amd64 machine (i5-5200U CPU @ 2.20GHz)
+    name           time/op
+    /Writer/USTAR  5.31µs ± 0%
+    /Writer/GNU    5.01µs ± 1%
+    /Writer/PAX    11.0µs ± 2%
+    /Reader/USTAR  3.22µs ± 1%
+    /Reader/GNU    3.04µs ± 1%
+    /Reader/PAX    7.48µs ± 1%
+    
+    name           alloc/op
+    /Writer/USTAR  1.20kB ± 0%
+    /Writer/GNU    1.15kB ± 0%
+    /Writer/PAX    2.61kB ± 0%
+    /Reader/USTAR  1.38kB ± 0%
+    /Reader/GNU    1.35kB ± 0%
+    /Reader/PAX    4.91kB ± 0%
+    
+    name           allocs/op
+    /Writer/USTAR    53.0 ± 0%
+    /Writer/GNU      47.0 ± 0%
+    /Writer/PAX       107 ± 0%
+    /Reader/USTAR    32.0 ± 0%
+    /Reader/GNU      30.0 ± 0%
+    /Reader/PAX      67.0 ± 0%
+    
+    Change-Id: I58b1b85b52e58cbd566736aae4d722a3ddf2395b
+    Reviewed-on: https://go-review.googlesource.com/55254
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/tar_test.go | 94 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 94 insertions(+)

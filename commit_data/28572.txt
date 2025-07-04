@@ -1,0 +1,20 @@
+commit 456a01ac47c1473d6b241c56eb8db0cb832d9be2
+Author: Blixt <me@blixt.nyc>
+Date:   Wed Aug 24 12:59:01 2016 -0400
+
+    encoding/binary: add bool support
+    
+    This change adds support for decoding and encoding the bool type. The
+    encoding is a single byte, with a zero value for false and a non-zero
+    value for true.
+    
+    Closes #16856.
+    
+    Change-Id: I1d1114b320263691473bb100cad0f380e0204186
+    Reviewed-on: https://go-review.googlesource.com/28514
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/binary/binary.go      | 54 +++++++++++++++++++++++++++++++++++---
+ src/encoding/binary/binary_test.go | 39 +++++++++++++++++++++++----
+ 2 files changed, 85 insertions(+), 8 deletions(-)

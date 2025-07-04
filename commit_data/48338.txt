@@ -1,0 +1,35 @@
+commit b8248fab897da9bee2211a98df1656883ccecd6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 9 10:01:24 2022 -0800
+
+    go/types, types2: disable field accesses through type parameters
+    
+    This is a feature that is not understood well enough and may have
+    subtle repercussions impacting future changes. Disable for Go 1.18.
+    
+    The actual change is trivial: disable a branch through a flag.
+    The remaining changes are adjustments to tests.
+    
+    Fixes #51576.
+    
+    Change-Id: Ib77b038b846711a808315a8889b3904e72367bce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391135
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/lookup.go          |  3 +-
+ .../types2/testdata/fixedbugs/issue50417.go2       | 24 ++++++++------
+ .../types2/testdata/fixedbugs/issue50782.go2       | 13 ++++++--
+ src/go/types/lookup.go                             |  3 +-
+ src/go/types/testdata/fixedbugs/issue50417.go2     | 24 ++++++++------
+ src/go/types/testdata/fixedbugs/issue50782.go2     | 13 ++++++--
+ test/typeparam/absdiff2.go                         | 32 +++++++++++++------
+ test/typeparam/absdiffimp2.dir/a.go                | 32 +++++++++++++------
+ test/typeparam/issue50417.go                       |  6 ++++
+ test/typeparam/issue50417b.go                      |  8 +++++
+ test/typeparam/issue50690a.go                      | 37 +++++++++++++++-------
+ test/typeparam/issue50690b.go                      | 26 ++++++++++-----
+ test/typeparam/issue50690c.go                      | 30 +++++++++++++-----
+ 13 files changed, 177 insertions(+), 74 deletions(-)

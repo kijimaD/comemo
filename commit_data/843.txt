@@ -1,0 +1,14 @@
+commit 827dcb86b78925997706f2c0cadaa30a9c087185
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 10 15:30:32 2008 -0700
+
+    add sys.BUG_intereq to compare interfaces for equality
+    
+    R=r
+    OCL=16929
+    CL=16929
+
+ src/cmd/gc/sys.go       |  1 +
+ src/cmd/gc/sysimport.c  |  1 +
+ src/runtime/rt0_amd64.s | 18 ++++++++++++++++++
+ 3 files changed, 20 insertions(+)

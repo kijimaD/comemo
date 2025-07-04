@@ -1,0 +1,24 @@
+commit cad4dca518a3a984bfd6b19ee304a59f51937fd8
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 5 13:44:12 2025 -0500
+
+    cmd/compile: use inline-Pos-based recursion test
+    
+    Look at the inlining stack of positions for a call site,
+    if the line/col/file of the call site appears in that
+    stack, do not inline.  This subsumes all the other
+    recently-added recursive inlining checks, but they are
+    left in to make this easier+safer to backport.
+    
+    Fixes #72090
+    
+    Change-Id: I0f487bb0d4c514015907c649312672b7be464abd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655155
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go | 22 +++++++++
+ test/fixedbugs/issue72090.go           | 85 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+)

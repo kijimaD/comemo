@@ -1,0 +1,19 @@
+commit 54abac678ac9d92e168360e961214100712ceb4f
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jun 21 15:11:29 2008 -0700
+
+    redeclarations of variables in the same block.
+    half-step toward multivalued map indexing
+    
+    SVN=124019
+
+ src/cmd/6g/cgen.c  |  28 +++++++++-
+ src/cmd/6g/gen.c   |  35 +++++++++++-
+ src/cmd/6g/gsubr.c |  28 +++++-----
+ src/cmd/gc/dcl.c   |  38 +++++++------
+ src/cmd/gc/go.h    |  47 +++++++++-------
+ src/cmd/gc/go.y    | 161 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/lex.c   |  10 ++--
+ src/cmd/gc/subr.c  |   2 +
+ src/cmd/gc/walk.c  | 146 +++++++++++++++++++++++++++++++++++++++++++-----
+ 9 files changed, 394 insertions(+), 101 deletions(-)

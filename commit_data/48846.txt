@@ -1,0 +1,16 @@
+commit 9de57244e1708cbdac5b8d53e5cf7eea788f3f33
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 11:19:56 2022 -0400
+
+    go/build: replace a call to os.Environ with (*exec.Cmd).Environ
+    
+    This is a code simplification using the new API added in #50599.
+    
+    Change-Id: Icb9628bcd0daa3dc2d653e9654b38099730137d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401535
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/build.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

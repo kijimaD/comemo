@@ -1,0 +1,15 @@
+commit a81870badf2b625dd82c705796d2e897b53749bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 8 11:19:45 2009 -0800
+
+    add error to catch 6g alignment bug.
+    the fix appears to be to align the
+    out struct on an 8 boundary, but that
+    is a bit involved.
+    
+    R=ken
+    OCL=24657
+    CL=24657
+
+ src/cmd/gc/walk.c | 5 +++++
+ 1 file changed, 5 insertions(+)

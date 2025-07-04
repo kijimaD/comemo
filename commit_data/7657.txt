@@ -1,0 +1,12 @@
+commit 94401f524ea26f72afcb6454b0cd2c5c7749a7f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 7 12:23:57 2011 +1100
+
+    path/filepath: disable test on windows to fix build
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4235054
+
+ src/pkg/path/filepath/path_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

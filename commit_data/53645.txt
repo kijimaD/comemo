@@ -1,0 +1,20 @@
+commit 5b72f45dd17314af39627c2fcac0fbc099b67603
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 30 14:32:39 2023 -0400
+
+    runtime: check GOFLAGS not GCFLAGS
+    
+    GCFLAGS doesn't have any defined meaning. cmd/dist enables
+    mayMoreStackPreempt with GOFLAGS.
+    
+    For #55160.
+    
+    Change-Id: I7ac71e4a1a983a56bd228ab5d24294db5cc595f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507359
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/crash_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

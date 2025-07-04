@@ -1,0 +1,17 @@
+commit 2ae749c13fa365fc14a639c5a7f74d2c12d98b31
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 4 18:48:06 2016 +0900
+
+    net: rename TestSelfConnect to TestTCPSelfConnect
+    
+    Alos moves TestTCPSelfConnect into tcpsock_test.go
+    
+    Change-Id: I3e1cbd029594ecb36a67f42bc3ecdbc7176a95dc
+    Reviewed-on: https://go-review.googlesource.com/21447
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go    | 46 ----------------------------------------------
+ src/net/tcpsock_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 46 deletions(-)

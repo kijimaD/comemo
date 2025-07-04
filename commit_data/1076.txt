@@ -1,0 +1,17 @@
+commit 9906bfc7bb6758cb505db60452c015a90a516d8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 13:31:13 2008 -0800
+
+    6g ninit fixes - fixes the two test cases
+    i isolated last night.  does not fix rob's
+    interface-smashing bug.
+    
+    R=ken
+    OCL=18698
+    CL=18698
+
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/go.y   |  6 ++++++
+ src/cmd/gc/subr.c | 11 +++++++----
+ src/cmd/gc/walk.c |  6 +++++-
+ 4 files changed, 20 insertions(+), 5 deletions(-)

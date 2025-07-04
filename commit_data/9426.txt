@@ -1,0 +1,12 @@
+commit f7b9ac765b9febe3be51cb6e29ed907279f08b59
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 21 20:28:29 2011 +1000
+
+    goinstall: error out with paths that end with '/'
+    
+    R=adg, rsc, tarmigan+golang
+    CC=golang-dev
+    https://golang.org/cl/4807048
+
+ src/cmd/goinstall/main.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

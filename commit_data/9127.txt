@@ -1,0 +1,13 @@
+commit 423ab2333ac4f4e0fb3e7238ddf571af912c013e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 19 15:44:25 2011 +1000
+
+    5l: fix arm linker bug introduced by 4742041
+    Should fix the arm build.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/4777041
+
+ src/cmd/5l/span.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

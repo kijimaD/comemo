@@ -1,0 +1,14 @@
+commit c54ed66c756d0e4814350a6ddd75cff2b457c10d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 7 12:03:45 2011 -0700
+
+    syscall: fix build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4368050
+
+ src/pkg/syscall/syscall_bsd.go     | 29 -----------------------------
+ src/pkg/syscall/syscall_darwin.go  | 30 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_freebsd.go | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 29 deletions(-)

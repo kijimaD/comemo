@@ -1,0 +1,54 @@
+commit ab55465098a0cd33007684091b573717a6ea54cf
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Nov 1 16:09:32 2024 +0800
+
+    cmd/compile: wire up math/bits.TrailingZeros intrinsics for loong64
+    
+    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    TrailingZeros     1.7240n ± 0%   0.8120n ± 0%  -52.90% (p=0.000 n=20)
+    TrailingZeros8    1.0530n ± 0%   0.8015n ± 0%  -23.88% (p=0.000 n=20)
+    TrailingZeros16    2.072n ± 0%    1.015n ± 0%  -51.01% (p=0.000 n=20)
+    TrailingZeros32   1.7160n ± 0%   0.8122n ± 0%  -52.67% (p=0.000 n=20)
+    TrailingZeros64   2.0060n ± 0%   0.8125n ± 0%  -59.50% (p=0.000 n=20)
+    geomean            1.669n        0.8470n       -49.25%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    TrailingZeros     2.6275n ± 0%   0.9120n ± 0%  -65.29% (p=0.000 n=20)
+    TrailingZeros8     1.451n ± 0%    1.163n ± 0%  -19.85% (p=0.000 n=20)
+    TrailingZeros16    3.069n ± 0%    1.201n ± 0%  -60.87% (p=0.000 n=20)
+    TrailingZeros32   2.9060n ± 0%   0.9115n ± 0%  -68.63% (p=0.000 n=20)
+    TrailingZeros64   2.6305n ± 0%   0.9115n ± 0%  -65.35% (p=0.000 n=20)
+    geomean            2.456n         1.011n       -58.83%
+    
+    This patch is a copy of CL 479498.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: I1a5b2114a844dc0d02c8e68f41ce2443ac3b5fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624356
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go            |  2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go              | 28 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 12 ++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  8 +++----
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  7 ++++++
+ test/codegen/mathbits.go                           |  5 ++++
+ 8 files changed, 62 insertions(+), 4 deletions(-)

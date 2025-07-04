@@ -1,0 +1,13 @@
+commit bf13b711bd56367486f01d76ae344b8620a04694
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 6 17:24:03 2014 +1000
+
+    runtime: burn cpu before calling yield in windows runtime.systime
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/117670043
+
+ src/pkg/runtime/os_windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

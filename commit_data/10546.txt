@@ -1,0 +1,61 @@
+commit 8dce57e169255608b46bb563bb7de1581908aea6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 12:04:16 2011 -0500
+
+    os: new FileInfo, FileMode types + update tree
+    
+    R=golang-dev, r, r, gri, bradfitz, iant, iant, nigeltao, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5416060
+
+ misc/dashboard/builder/main.go       |   4 +-
+ misc/dashboard/builder/package.go    |  10 +--
+ src/cmd/godoc/codewalk.go            |   4 +-
+ src/cmd/godoc/dirtrees.go            |  11 +--
+ src/cmd/godoc/filesystem.go          |  60 +++-------------
+ src/cmd/godoc/godoc.go               |  30 +++-----
+ src/cmd/godoc/httpzip.go             |  62 ++++++++--------
+ src/cmd/godoc/index.go               |   7 +-
+ src/cmd/godoc/parser.go              |   3 +-
+ src/cmd/godoc/zip.go                 |  25 ++++---
+ src/cmd/gofix/main.go                |  13 ++--
+ src/cmd/gofmt/gofmt.go               |  13 ++--
+ src/cmd/goinstall/download.go        |   2 +-
+ src/cmd/govet/govet.go               |   6 +-
+ src/cmd/hgpatch/main.go              |   4 +-
+ src/pkg/archive/zip/reader.go        |   2 +-
+ src/pkg/exp/gotype/gotype.go         |  12 ++--
+ src/pkg/exp/types/check_test.go      |   2 +-
+ src/pkg/exp/types/gcimporter.go      |   2 +-
+ src/pkg/exp/types/gcimporter_test.go |  10 +--
+ src/pkg/go/build/build.go            |   6 +-
+ src/pkg/go/build/dir.go              |  35 ++++-----
+ src/pkg/go/build/path.go             |   4 +-
+ src/pkg/go/parser/interface.go       |   7 +-
+ src/pkg/go/parser/parser_test.go     |   2 +-
+ src/pkg/io/ioutil/ioutil.go          |  24 +++----
+ src/pkg/io/ioutil/ioutil_test.go     |   8 +--
+ src/pkg/net/http/fs.go               |  20 +++---
+ src/pkg/net/http/fs_test.go          |   4 +-
+ src/pkg/os/dir_windows.go            |   2 +-
+ src/pkg/os/exec/lp_unix.go           |   2 +-
+ src/pkg/os/exec/lp_windows.go        |   6 +-
+ src/pkg/os/export_test.go            |  10 +++
+ src/pkg/os/file_unix.go              |  53 ++++++--------
+ src/pkg/os/file_windows.go           |   6 +-
+ src/pkg/os/getwd.go                  |  12 ++--
+ src/pkg/os/os_test.go                | 136 ++++++++++-------------------------
+ src/pkg/os/os_unix_test.go           |  75 +++++++++++++++++++
+ src/pkg/os/path.go                   |   6 +-
+ src/pkg/os/stat_darwin.go            |  57 +++++++++------
+ src/pkg/os/stat_freebsd.go           |  57 +++++++++------
+ src/pkg/os/stat_linux.go             |  57 +++++++++------
+ src/pkg/os/stat_openbsd.go           |  57 +++++++++------
+ src/pkg/os/stat_windows.go           |  38 +++++-----
+ src/pkg/os/types.go                  | 124 ++++++++++++++++++++++----------
+ src/pkg/os/user/user_test.go         |   4 +-
+ src/pkg/path/filepath/match.go       |   2 +-
+ src/pkg/path/filepath/path.go        |  32 ++++-----
+ src/pkg/path/filepath/path_test.go   |   9 +--
+ src/pkg/time/zoneinfo_plan9.go       |   8 +--
+ 50 files changed, 620 insertions(+), 525 deletions(-)

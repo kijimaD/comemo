@@ -1,0 +1,18 @@
+commit cd5b785efe3cf67a8e065f8ff2ee8a39badbec40
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 1 13:18:44 2014 -0700
+
+    net/rpc: shut down connection if gob has error
+    The nicest solution would be to buffer the message and only write
+    it if it encodes correctly, but that adds considerable memory and
+    CPU overhead for a very rare condition. Instead, we just shut
+    down the connection if this happens.
+    Fixes #7689.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/146670043
+
+ src/net/rpc/server.go | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

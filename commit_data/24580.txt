@@ -1,0 +1,12 @@
+commit d8c6bf916e9afe3c53bfe781d2d42933d5c9626e
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Oct 21 15:51:02 2015 +1100
+
+    cmd/compile: remove a stray word in the go:nosplit documentation
+    
+    Change-Id: I7a85c0ad8aba2d50032c8faa58c83fb327f360cf
+    Reviewed-on: https://go-review.googlesource.com/16140
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/compile/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 457c8f4fe9e4d45f97d0a3f3c4a80789c6616fd6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 16 12:25:38 2018 -0400
+
+    runtime: eliminate blocking GC work drains
+    
+    Now work.helperDrainBlock is always false, so we can remove it and
+    code paths that only ran when it was true. That means we no longer use
+    the gcDrainBlock mode of gcDrain, so we can eliminate that. That means
+    we no longer use gcWork.get, so we can eliminate that. That means we
+    no longer use getfull, so we can eliminate that.
+    
+    Updates #26903. This is a follow-up to unifying STW GC and concurrent GC.
+    
+    Change-Id: I8dbcf8ce24861df0a6149e0b7c5cd0eadb5c13f6
+    Reviewed-on: https://go-review.googlesource.com/c/134782
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 25 +++-----------
+ src/runtime/mgcmark.go | 44 ++++++++-----------------
+ src/runtime/mgcwork.go | 88 +-------------------------------------------------
+ 3 files changed, 18 insertions(+), 139 deletions(-)

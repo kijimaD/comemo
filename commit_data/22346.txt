@@ -1,0 +1,123 @@
+commit 254964074f34dc1cb39693f3e23a95938092044f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 6 18:23:51 2015 -0700
+
+    go/types, go/exact: "vendor" go/types into std repo
+    
+    This is a first step towards moving go/types from the tools
+    repo into the std repo. The files were brought over via the
+    added src/go/types.bash script for reproducability. The
+    script can be removed once all dependencies on go/types
+    have moved to the std repo go/types.
+    
+    The script moved packages as follows:
+    
+    - x/tools/go/types => go/types (type-checker)
+    - x/tools/go/exact => go/exact (constants)
+    - x/tools/go/gcimporter => go/types/internal/gcimporter
+    
+    The gcimporter is needed to be able to run tests. go/types
+    should probably have some factory function to provide an
+    appropriate importer.
+    
+    Some of the go/types tests fail for a handful of platforms
+    (windows and nacl). In order to keep this change "clean"
+    from manual changes, the next change will disable those
+    tests for now so we can move forward.
+    
+    Change-Id: I448d8f7faa39ad2e04811911b699f7682627c224
+    Reviewed-on: https://go-review.googlesource.com/8530
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/exact/exact.go                              |  920 ++++++++++++
+ src/go/exact/exact_test.go                         |  375 +++++
+ src/go/exact/go13.go                               |   24 +
+ src/go/exact/go14.go                               |   13 +
+ src/go/types.bash                                  |   93 ++
+ src/go/types/api.go                                |  365 +++++
+ src/go/types/api_test.go                           |  936 ++++++++++++
+ src/go/types/assignments.go                        |  323 +++++
+ src/go/types/builtins.go                           |  628 +++++++++
+ src/go/types/builtins_test.go                      |  204 +++
+ src/go/types/call.go                               |  441 ++++++
+ src/go/types/check.go                              |  363 +++++
+ src/go/types/check_test.go                         |  294 ++++
+ src/go/types/conversions.go                        |  146 ++
+ src/go/types/decl.go                               |  419 ++++++
+ src/go/types/errors.go                             |   96 ++
+ src/go/types/eval.go                               |   95 ++
+ src/go/types/eval_test.go                          |  148 ++
+ src/go/types/expr.go                               | 1483 ++++++++++++++++++++
+ src/go/types/exprstring.go                         |  220 +++
+ src/go/types/exprstring_test.go                    |   94 ++
+ src/go/types/go11.go                               |   17 +
+ src/go/types/go12.go                               |   17 +
+ src/go/types/hilbert_test.go                       |  232 +++
+ src/go/types/initorder.go                          |  222 +++
+ src/go/types/internal/gcimporter/exportdata.go     |  108 ++
+ src/go/types/internal/gcimporter/gcimporter.go     |  961 +++++++++++++
+ .../types/internal/gcimporter/gcimporter_test.go   |  216 +++
+ .../types/internal/gcimporter/testdata/exports.go  |   89 ++
+ src/go/types/issues_test.go                        |  205 +++
+ src/go/types/labels.go                             |  268 ++++
+ src/go/types/lookup.go                             |  341 +++++
+ src/go/types/methodset.go                          |  271 ++++
+ src/go/types/methodsetcache.go                     |   69 +
+ src/go/types/object.go                             |  340 +++++
+ src/go/types/objset.go                             |   31 +
+ src/go/types/operand.go                            |  287 ++++
+ src/go/types/ordering.go                           |  127 ++
+ src/go/types/package.go                            |   58 +
+ src/go/types/predicates.go                         |  309 ++++
+ src/go/types/resolver.go                           |  446 ++++++
+ src/go/types/resolver_test.go                      |  187 +++
+ src/go/types/return.go                             |  185 +++
+ src/go/types/scope.go                              |  145 ++
+ src/go/types/selection.go                          |  143 ++
+ src/go/types/self_test.go                          |  101 ++
+ src/go/types/sizes.go                              |  211 +++
+ src/go/types/stdlib_test.go                        |  254 ++++
+ src/go/types/stmt.go                               |  732 ++++++++++
+ src/go/types/testdata/blank.src                    |    5 +
+ src/go/types/testdata/builtins.src                 |  881 ++++++++++++
+ src/go/types/testdata/const0.src                   |  282 ++++
+ src/go/types/testdata/const1.src                   |  314 +++++
+ src/go/types/testdata/constdecl.src                |   97 ++
+ src/go/types/testdata/conversions.src              |   88 ++
+ src/go/types/testdata/cycles.src                   |  143 ++
+ src/go/types/testdata/cycles1.src                  |   77 +
+ src/go/types/testdata/cycles2.src                  |  118 ++
+ src/go/types/testdata/cycles3.src                  |   60 +
+ src/go/types/testdata/cycles4.src                  |  110 ++
+ src/go/types/testdata/decls0.src                   |  206 +++
+ src/go/types/testdata/decls1.src                   |  144 ++
+ src/go/types/testdata/decls2a.src                  |  111 ++
+ src/go/types/testdata/decls2b.src                  |   65 +
+ src/go/types/testdata/decls3.src                   |  309 ++++
+ src/go/types/testdata/errors.src                   |   55 +
+ src/go/types/testdata/expr0.src                    |  168 +++
+ src/go/types/testdata/expr1.src                    |    7 +
+ src/go/types/testdata/expr2.src                    |  247 ++++
+ src/go/types/testdata/expr3.src                    |  534 +++++++
+ src/go/types/testdata/gotos.src                    |  560 ++++++++
+ src/go/types/testdata/importdecl0a.src             |   53 +
+ src/go/types/testdata/importdecl0b.src             |   33 +
+ src/go/types/testdata/importdecl1a.src             |   11 +
+ src/go/types/testdata/importdecl1b.src             |    7 +
+ src/go/types/testdata/init0.src                    |  106 ++
+ src/go/types/testdata/init1.src                    |   97 ++
+ src/go/types/testdata/init2.src                    |  139 ++
+ src/go/types/testdata/issues.src                   |   73 +
+ src/go/types/testdata/labels.src                   |  207 +++
+ src/go/types/testdata/methodsets.src               |  214 +++
+ src/go/types/testdata/shifts.src                   |  321 +++++
+ src/go/types/testdata/stmt0.src                    |  833 +++++++++++
+ src/go/types/testdata/stmt1.src                    |  165 +++
+ src/go/types/testdata/vardecl.src                  |  186 +++
+ src/go/types/token_test.go                         |   47 +
+ src/go/types/type.go                               |  452 ++++++
+ src/go/types/typestring.go                         |  266 ++++
+ src/go/types/typestring_test.go                    |  158 +++
+ src/go/types/typexpr.go                            |  721 ++++++++++
+ src/go/types/universe.go                           |  224 +++
+ 91 files changed, 23146 insertions(+)

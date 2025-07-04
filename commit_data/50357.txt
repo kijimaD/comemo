@@ -1,0 +1,17 @@
+commit 812fd2fe70112209557c4f6392ab8eaee6f68dda
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Sep 6 18:39:52 2022 +0800
+
+    cmd/compile: gofmt comments
+    
+    Change-Id: I79634efbd8d0189afdfe22e147d63c889e8047ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427964
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/walk/builtin.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

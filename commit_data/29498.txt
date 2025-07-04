@@ -1,0 +1,16 @@
+commit fabb4115ed311ec4af19f87c2334e38497dbb8d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 10:11:19 2016 -0500
+
+    time: update Timer.Stop doc to account for AfterFunc
+    
+    Fixes #17600.
+    
+    Change-Id: I7aa0eb0dd959da031b6039b51f07db668d4fb468
+    Reviewed-on: https://go-review.googlesource.com/33131
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Gudger <igudger@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sleep.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

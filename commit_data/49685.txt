@@ -1,0 +1,14 @@
+commit 8b13a073a19336923622a1de47d2b4fa2994545d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 13 15:00:53 2022 -0700
+
+    doc: mention removal of cmd/compile's -importmap and -installsuffix flags
+    
+    Updates #51225.
+    
+    Change-Id: I820f3f5ba169635fee37c30e41b370c9399a436d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417534
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.19.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

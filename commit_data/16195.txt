@@ -1,0 +1,18 @@
+commit 12566a60d789077bcaeb699879695060cae6f8c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 18 12:43:23 2013 -0700
+
+    doc: misc tweaks, new links, fix broken links
+    
+    I read docs and wrote a crawler + link checker on the plane,
+    which also checks for #fragments. I'll send that out later
+    when it's less gross.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8729050
+
+ doc/go1.1.html     | 21 +++++++++++++--------
+ doc/go1.html       | 10 +++++-----
+ doc/reference.html |  2 +-
+ 3 files changed, 19 insertions(+), 14 deletions(-)

@@ -1,0 +1,26 @@
+commit ad05d29103703c54e6e08cfb640373d12229173c
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Nov 14 20:38:00 2009 -0800
+
+    crypto/rsa: handle the case of non-coprime blinds.
+    
+    We are dealing with the multiplicative group ℤ/pqℤ. Multiples of
+    either p or q are not members of the group since they cannot have an
+    inverse. (Such numbers are 0 in the subgroup ℤ/pℤ.)
+    
+    With p and q of typical size (> 512 bits), the probability of a random
+    blind [1..pq-1] being a multiple of p or q is negligible. However, in
+    the unit tests, much smaller sizes are used and the event could occur.
+    
+    This change checks the result of the ext GCD and deals with this case.
+    
+    It also increases the size of p and q in the unit test as a large
+    number of the keys selected were p, q = 227,169.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/154141
+
+ src/pkg/crypto/rsa/rsa.go      | 35 +++++++++++++++++++++++++----------
+ src/pkg/crypto/rsa/rsa_test.go |  2 +-
+ 2 files changed, 26 insertions(+), 11 deletions(-)

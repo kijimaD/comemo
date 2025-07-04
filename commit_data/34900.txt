@@ -1,0 +1,27 @@
+commit 07029254a0f8991fb93f0838e469d2fcff514e0f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 14:29:32 2018 -0700
+
+    cmd/compile: add package height to export data
+    
+    A package's height is defined as the length of the longest import path
+    between itself and a leaf package (i.e., package with no imports).
+    
+    We can't rely on knowing the path of the package being compiled, so
+    package height is useful for defining a package ordering.
+    
+    Updates #24693.
+    
+    Change-Id: I965162c440b6c5397db91b621ea0be7fa63881f1
+    Reviewed-on: https://go-review.googlesource.com/105038
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  4 +++-
+ src/cmd/compile/internal/gc/bimport.go | 21 +++++++++++++++++++--
+ src/cmd/compile/internal/gc/main.go    | 13 +++++++++++++
+ src/cmd/compile/internal/gc/noder.go   |  2 ++
+ src/cmd/compile/internal/types/pkg.go  | 24 +++++++++++++++++-------
+ src/go/internal/gcimporter/bimport.go  |  7 +++++--
+ 6 files changed, 59 insertions(+), 12 deletions(-)

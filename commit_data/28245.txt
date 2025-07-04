@@ -1,0 +1,12 @@
+commit bec84c728a3ef14a15740f856d0fbcf6c7a70b01
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Thu Sep 8 09:52:36 2016 +0100
+
+    doc: fix typo in the release notes
+    
+    Change-Id: I003795d8dc2176532ee133740bf35e23a3aa3878
+    Reviewed-on: https://go-review.googlesource.com/28811
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

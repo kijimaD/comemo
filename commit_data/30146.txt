@@ -1,0 +1,22 @@
+commit e410d2a81ef26d7dcef0c712b584d2345b15148e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 7 15:29:18 2017 -0800
+
+    cmd/gofmt: clear pattern match map at the correct time
+    
+    We need to clear the pattern match map after the recursive rewrite
+    applications, otherwise there might be lingering entries that cause
+    match to fail.
+    
+    Fixes #18987.
+    
+    Change-Id: I7913951c455c98932bda790861db6a860ebad032
+    Reviewed-on: https://go-review.googlesource.com/36546
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/gofmt/rewrite.go               |  2 +-
+ src/cmd/gofmt/testdata/rewrite9.golden | 11 +++++++++++
+ src/cmd/gofmt/testdata/rewrite9.input  | 11 +++++++++++
+ 3 files changed, 23 insertions(+), 1 deletion(-)

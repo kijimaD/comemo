@@ -1,0 +1,35 @@
+commit aa1e8064b211acfe96364da1de28deae3398a217
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 10:49:47 2009 -0700
+
+    change HTTP access for RPC.
+    
+    1. use CONNECT instead of GET.
+       CONNECT has exactly the meaning
+       we want; most of the time people
+       connect to ip:port; we're connecting
+       to /_goRPC_
+    
+    2. wait for a successful HTTP response
+       before assuming we are connected to
+       the RPC protocol.  this allows better
+       error reporting and also keeps the
+       protocol alternating between speakers,
+       so that the buffering in the HTTP request
+       reader cannot accidentally eat some
+       RPC bytes too.
+    
+    gotest sometimes hangs, but not in HTTP.
+    
+    gotest -match=Unknown hangs every few runs
+    even in a clean client.
+    
+    R=r
+    DELTA=117  (57 added, 44 deleted, 16 changed)
+    OCL=31656
+    CL=31685
+
+ src/pkg/http/client.go | 72 ++++++++++++++++++++++++++++----------------------
+ src/pkg/rpc/client.go  | 18 +++++++++++--
+ src/pkg/rpc/server.go  | 31 ++++++++--------------
+ 3 files changed, 67 insertions(+), 54 deletions(-)

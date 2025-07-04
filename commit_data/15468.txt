@@ -1,0 +1,46 @@
+commit 752fec22bb1934decb73195ef049e88c625242f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 11:59:36 2013 -0800
+
+    net: add DialOpt, the extensible Dial w/ options dialer
+    
+    Add DialOpt. So we have:
+    
+    func Dial(net, addr string) (Conn, error)
+    func DialTimeout(net, addr string, timeout time.Duration) (Conn, error)
+    func DialOpt(addr string, opts ...DialOption) (Conn, error)
+    
+    DialTimeout (and Dial) are regrettable in retrospect. Maybe
+    in a future Go we'll be back down to one Dial, with DialOpt
+    becoming Dial.
+    
+    DialOpt looks like:
+    
+    c, err := net.DialOpt("google.com:80")  // tcp is default
+    c, err := net.DialOpt("google.com:80", net.Timeout(30 * time.Second))
+    c, err := net.DialOpt("google.com:80", net.TCPFastOpen())
+    c, err := net.DialOpt("google.com:80", net.LocalAddr(..))
+    c, err := net.DialOpt("google.com:53", net.Network("udp6"))
+    
+    And then: (clustered in godoc)
+    
+    type DialOption interface { /* private only */ }
+      func Deadline(time.Time) DialOption
+      func LocalAddr(Addr) DialOption
+      func Network(string) DialOption
+      func TCPFastOpen() DialOption
+      func Timeout(time.Duration) DialOption
+    
+    I'm pretty confident we could add Happy Eyeballs to this too.
+    
+    Fixes #3097
+    Update #3610
+    Update #4842
+    
+    R=golang-dev, r, dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7365049
+
+ src/pkg/net/dial.go    | 143 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/net/fd_unix.go |   2 +-
+ 2 files changed, 134 insertions(+), 11 deletions(-)

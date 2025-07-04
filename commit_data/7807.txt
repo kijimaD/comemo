@@ -1,0 +1,13 @@
+commit 61c83b6407547f189cfb21fb0b088a351e150130
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Mar 17 16:47:00 2011 -0700
+
+    sinit.c: recursion in sinit
+    fixes #1617
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4277059
+
+ src/cmd/gc/range.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

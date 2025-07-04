@@ -1,0 +1,32 @@
+commit e9ab343f0e762951b771fe68cb841a8c03f339d7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 11:51:47 2015 +1000
+
+    cmd/internal/obj: clean up Biobuf
+    
+    This is a follow up to rev 443a32e707d2 which reduces some of the
+    duplication between methods and functions that operate on obj.Biobuf.
+    
+    obj.Biobuf has Flush and Write methods as well as helpers which duplicate
+    those methods, consolidate on the former and remove the latter.
+    
+    Also, address a final comment from CL 9525.
+    
+    Change-Id: I67deaf3a163bb489a9bb21bb39524785d7a2f6c5
+    Reviewed-on: https://go-review.googlesource.com/9527
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/8g/galign.go                      |  2 +-
+ src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
+ src/cmd/asm/main.go                       |  4 ++--
+ src/cmd/internal/asm/asm.go               |  4 ++--
+ src/cmd/internal/asm/lexbody.go           |  2 +-
+ src/cmd/internal/gc/obj.go                | 14 +++++++-------
+ src/cmd/internal/gc/subr.go               |  2 +-
+ src/cmd/internal/obj/arm/obj5.go          |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go        |  4 ++--
+ src/cmd/internal/obj/objfile.go           |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go        |  4 ++--
+ src/cmd/internal/obj/util.go              |  8 --------
+ 12 files changed, 22 insertions(+), 30 deletions(-)

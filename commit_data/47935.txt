@@ -1,0 +1,28 @@
+commit 4fa6e33f30365a8bca374ab8bd47acd82b9faa96
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 25 13:50:24 2021 -0700
+
+    all: add a handful of fuzz targets
+    
+    Adds simple fuzz targets to archive/tar, archive/zip, compress/gzip,
+    encoding/json, image/jpeg, image/gif, and image/png.
+    
+    Second attempt, this time we don't use the archives in testdata when
+    fuzzing archive/tar, since those are rather memory intensive, and
+    were crashing a number of builders.
+    
+    Change-Id: I4828d64fa4763c0d8c980392a6578e4dfd956e13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378174
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/archive/tar/fuzz_test.go   | 80 ++++++++++++++++++++++++++++++++++++
+ src/archive/zip/fuzz_test.go   | 81 +++++++++++++++++++++++++++++++++++++
+ src/compress/gzip/fuzz_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++
+ src/encoding/json/fuzz_test.go | 83 +++++++++++++++++++++++++++++++++++++
+ src/image/gif/fuzz_test.go     | 61 ++++++++++++++++++++++++++++
+ src/image/jpeg/fuzz_test.go    | 61 ++++++++++++++++++++++++++++
+ src/image/png/fuzz_test.go     | 68 +++++++++++++++++++++++++++++++
+ 7 files changed, 526 insertions(+)

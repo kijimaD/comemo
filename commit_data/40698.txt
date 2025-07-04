@@ -1,0 +1,14 @@
+commit 3e5c04313c28e463fa866c2ef669ed66628faf9b
+Author: sergey <sngasuan@gmail.com>
+Date:   Thu May 2 18:07:34 2019 +0300
+
+    net/url: reduce allocs on resolvePath func
+    
+    pregrow result array to avoid small allocation.
+    
+    Change-Id: Ife5f815efa4c163ecdbb3a4c16bfb60a484dfa11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174706
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

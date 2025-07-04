@@ -1,0 +1,12 @@
+commit ce0f1dee6f87e683f1ee35a653befab08fe75f49
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 27 13:33:50 2008 -0700
+
+    change print(float) from 5 to 7 sig digits
+    
+    R=r
+    OCL=16045
+    CL=16045
+
+ src/runtime/print.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

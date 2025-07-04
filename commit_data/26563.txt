@@ -1,0 +1,28 @@
+commit 79688ca58f59a65eee324694fd8a559dae8af149
+Author: Michel Lespinasse <walken@google.com>
+Date:   Thu Mar 17 07:00:33 2016 -0700
+
+    cmd/link: collect itablinks as a slice in moduledata
+    
+    See #14874
+    
+    This change tells the linker to collect all the itablink symbols and
+    collect them so that moduledata can have a slice of all compiler
+    generated itabs.
+    
+    The logic is shamelessly adapted from what is done with typelink symbols.
+    
+    Change-Id: Ie93b59acf0fcba908a876d506afbf796f222dbac
+    Reviewed-on: https://go-review.googlesource.com/20889
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/goobj/read.go       |  2 ++
+ src/cmd/internal/obj/link.go         |  1 +
+ src/cmd/internal/objfile/goobj.go    |  2 +-
+ src/cmd/link/internal/ld/data.go     | 23 ++++++++++++++++++++++-
+ src/cmd/link/internal/ld/deadcode.go |  7 ++++---
+ src/cmd/link/internal/ld/elf.go      |  3 +++
+ src/cmd/link/internal/ld/lib.go      |  1 +
+ src/cmd/link/internal/ld/symtab.go   | 17 +++++++++++++++++
+ src/runtime/symtab.go                |  1 +
+ 9 files changed, 52 insertions(+), 5 deletions(-)

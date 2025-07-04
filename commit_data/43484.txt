@@ -1,0 +1,21 @@
+commit 4a6782562828779025d1423c9a04bc47ca9c3688
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Oct 24 03:53:53 2020 +1100
+
+    cmd/internal/obj/riscv: support additional register to register moves
+    
+    Add support for signed and unsigned register to register moves of various
+    sizes. This makes it easier to handle zero and sign extension and will allow
+    for further changes that improve the compiler optimisations for riscv64.
+    
+    While here, change the existing register to register moves from obj.Prog
+    rewriting to instruction generation.
+    
+    Change-Id: Id21911019b76922367a134da13c3449a84a1fb08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264657
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 29 ++++++++------
+ src/cmd/internal/obj/riscv/obj.go            | 56 ++++++++++++++++++++--------
+ 2 files changed, 59 insertions(+), 26 deletions(-)

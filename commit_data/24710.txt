@@ -1,0 +1,22 @@
+commit b1050542c1dcff9f5902ab2745aae3ccc8340c11
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 3 12:04:20 2015 -0800
+
+    net/http: don't panic after request if Handler sets Request.Body to nil
+    
+    The Server's server goroutine was panicing (but recovering) when
+    cleaning up after handling a request. It was pretty harmless (it just
+    closed that one connection and didn't kill the whole process) but it
+    was distracting.
+    
+    Updates #13135
+    
+    Change-Id: I2a0ce9e8b52c8d364e3f4ce245e05c6f8d62df14
+    Reviewed-on: https://go-review.googlesource.com/16572
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ src/net/http/server.go     |  8 +++++---
+ 2 files changed, 30 insertions(+), 3 deletions(-)

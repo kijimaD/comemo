@@ -1,0 +1,21 @@
+commit 83f8688915de59d974e74dd6accd7a3d54e9a6e7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jan 17 14:22:33 2023 -0500
+
+    internal/goversion: update Version to 1.21
+    
+    This is the start of the Go 1.21 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that
+    will soon open up for development (and eventually become released).
+    
+    For #40705.
+    For #57736.
+    
+    Change-Id: I31b739f632bdc8d14f46560e0e5bf333fb8e7740
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462456
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

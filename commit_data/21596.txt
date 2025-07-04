@@ -1,0 +1,21 @@
+commit 60a16ea36799710b449b69594506c471c76d02a2
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:30:08 2015 -0500
+
+    runtime: remove drainallwbufs argument to drainworkbuf
+    
+    All calls to drainworkbuf now pass true for this argument, so remove
+    the argument and update the documentation to reflect the simplified
+    interface.
+    
+    At a higher level, there are no longer any situations where we drain
+    "one wbuf" (though drainworkbuf didn't guarantee this anyway).  We
+    either drain everything, or we drain a specific number of objects.
+    
+    Change-Id: Ib7ee0fde56577eff64232ee1e711ec57c4361335
+    Reviewed-on: https://go-review.googlesource.com/4784
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

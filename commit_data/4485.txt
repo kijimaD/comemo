@@ -1,0 +1,23 @@
+commit 9ebb59634e40aebb8e74266e0e42f2d251421b92
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 23 11:13:09 2009 -0800
+
+    crypto/tls: extensions and Next Protocol Negotiation
+    
+    Add support for TLS extensions in general and Next Protocol
+    Negotiation in particular.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181045
+
+ src/pkg/crypto/tls/common.go                  |  17 +-
+ src/pkg/crypto/tls/handshake_client.go        |   4 +-
+ src/pkg/crypto/tls/handshake_messages.go      | 292 +++++++++++++++++++++++++-
+ src/pkg/crypto/tls/handshake_messages_test.go |  49 ++++-
+ src/pkg/crypto/tls/handshake_server.go        |  19 +-
+ src/pkg/crypto/tls/handshake_server_test.go   |  10 +-
+ src/pkg/crypto/tls/record_process.go          |   2 +
+ src/pkg/crypto/tls/record_process_test.go     |  12 +-
+ src/pkg/crypto/tls/record_read.go             |   2 +-
+ 9 files changed, 379 insertions(+), 28 deletions(-)

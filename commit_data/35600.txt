@@ -1,0 +1,16 @@
+commit 409a943f69b27a329c523230ec83d0fef495c20a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 5 16:29:06 2018 -0700
+
+    cmd/compile: avoid nil pointer deref in debugging output
+    
+    Found while tracking down another issue.
+    
+    Change-Id: If06eee72ce3e3f45dc00b3b68670e1e4d99c87a7
+    Reviewed-on: https://go-review.googlesource.com/116455
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

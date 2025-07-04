@@ -1,0 +1,30 @@
+commit 74f99d0933d5c201fc17d90ab612cd1a9c7d425f
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Tue Jun 9 08:58:08 2020 +0100
+
+    database/sql: Fix idle connection reuse
+    
+    Fix idle connection reuse so that ConnMaxIdleTime clears down excessive
+    idle connections.
+    
+    This now ensures that db.freeConn is ordered by returnedAt and that
+    connections that have been idle for the shortest period are reused
+    first.
+    
+    In addition connectionCleanerRunLocked updates the next check deadline
+    based on idle and maximum life time information so that we avoid waiting
+    up to double MaxIdleTime to close connections.
+    
+    Corrected the calling timer of connectionCleaner.
+    
+    Fixes #39471
+    
+    Change-Id: I6d26b3542179ef35aa13e5265a89bc0f08ba7fa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237337
+    Reviewed-by: Tamás Gulácsi <tgulacsi78@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go      | 86 +++++++++++++++++++++++++++++--------------
+ src/database/sql/sql_test.go | 87 ++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 130 insertions(+), 43 deletions(-)

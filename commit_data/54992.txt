@@ -1,0 +1,32 @@
+commit b5e31780b612c1317c9853f9e59df5c1bd0b3552
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 7 17:20:35 2023 -0500
+
+    cmd/compile: check for iteration after range func loop exit
+    
+    When this happens, panic.
+    
+    This is a revised version of a check that used #next,
+    where this one instead uses a per-loop #exit flag,
+    and catches more problematic iterators.
+    
+    Updates #56413.
+    Updates #61405.
+    
+    Change-Id: I6574f754e475bb67b9236b4f6c25979089f9b629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540263
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/codes.go            |    1 +
+ src/cmd/compile/internal/noder/reader.go           |    4 +
+ src/cmd/compile/internal/noder/writer.go           |    9 +
+ .../compile/internal/rangefunc/rangefunc_test.go   | 1297 ++++++++++++++++++++
+ src/cmd/compile/internal/rangefunc/rewrite.go      |  192 ++-
+ src/cmd/compile/internal/syntax/type.go            |   36 +-
+ .../compile/internal/typecheck/_builtin/runtime.go |    3 +
+ src/cmd/compile/internal/typecheck/builtin.go      |    1 +
+ src/cmd/internal/goobj/builtinlist.go              |    9 +-
+ src/runtime/panic.go                               |    7 +
+ 10 files changed, 1521 insertions(+), 38 deletions(-)

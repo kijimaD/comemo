@@ -1,0 +1,14 @@
+commit ff70f09d2704cf9e78cded8975141bb9de1520fa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 20 13:36:14 2009 -0800
+
+    Rewrite lexical section.
+    Put grammar productions into a box with a separate background color.
+    
+    R=gri
+    DELTA=397  (132 added, 49 deleted, 216 changed)
+    OCL=25235
+    CL=25258
+
+ doc/go_spec.html | 563 +++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 320 insertions(+), 243 deletions(-)

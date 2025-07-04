@@ -1,0 +1,11 @@
+commit 36ca636fab865cb8d5d01927d274ed54153c4e73
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 7 20:52:22 2014 -0700
+
+    doc: add a few http items to go1.4.txt
+    
+    CC=golang-codereviews
+    https://golang.org/cl/132670045
+
+ doc/go1.4.txt | 3 +++
+ 1 file changed, 3 insertions(+)

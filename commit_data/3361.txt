@@ -1,0 +1,23 @@
+commit 0c71ead9e689d428469bd936b2de3b2900916aa5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 12:53:35 2009 -0700
+
+    convert 8l to new ELF code.
+    mostly cut and paste from 6l.
+    
+    R=r
+    DELTA=930  (525 added, 182 deleted, 223 changed)
+    OCL=34976
+    CL=34976
+
+ src/cmd/6l/asm.c    | 125 +++------
+ src/cmd/8l/8.out.h  |   1 +
+ src/cmd/8l/Makefile |   3 +
+ src/cmd/8l/asm.c    | 769 +++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/8l/l.h      |  20 +-
+ src/cmd/8l/obj.c    |   6 +-
+ src/cmd/8l/pass.c   |   8 +-
+ src/cmd/8l/span.c   |  12 +
+ src/cmd/ld/elf.c    | 124 +++++++--
+ src/cmd/ld/elf.h    |  33 ++-
+ 10 files changed, 722 insertions(+), 379 deletions(-)

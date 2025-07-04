@@ -1,0 +1,25 @@
+commit 93dcaba1192bac57409602a2f767f9b2f70b5f3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 13:36:53 2021 -0700
+
+    cmd/compile/internal/types2: review of stmt.go
+    
+    The changes between (equivalent, and reviewed) go/types/stmt.go
+    and stmt.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, and minor adjustments
+    to get the code slightly closer to go/types/stmt.go.
+    
+    The primary differences compared to go/types are:
+    - use of syntax rather than go/ast package, with significant
+      differences in the representation of switch and select statements,
+      range clauses of for statements, and inc/dec statements.
+    - no reporting of error codes
+    - use or error_ for collecting addition error information
+    
+    Change-Id: I4409f62ecafd0653e4c8ef087c2580d8f0544efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305576
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

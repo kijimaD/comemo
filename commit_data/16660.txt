@@ -1,0 +1,35 @@
+commit 7ebb187e8e5e588d8c594213ff5187917c4abb20
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 27 21:03:35 2013 +0400
+
+    undo CL 9776044 / 1e280889f997
+    
+    Failure on bot:
+    http://build.golang.org/log/f4c648906e1289ec2237c1d0880fb1a8b1852a08
+    
+    ««« original CL description
+    runtime: fix CPU underutilization
+    runtime.newproc/ready are deliberately sloppy about waking new M's,
+    they only ensure that there is at least 1 spinning M.
+    Currently to compensate for that, schedule() checks if the current P
+    has local work and there are no spinning M's, it wakes up another one.
+    It does not work if goroutines do not call schedule.
+    With this change a spinning M wakes up another M when it finds work to do.
+    It's also not ideal, but it fixes the underutilization.
+    A proper check would require to know the exact number of runnable G's,
+    but it's too expensive to maintain.
+    Fixes #5586.
+    
+    R=rsc
+    TBR=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9776044
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10692043
+
+ src/pkg/runtime/proc.c       | 41 ++++++++++++++---------------------------
+ src/pkg/runtime/proc_test.go | 24 ------------------------
+ 2 files changed, 14 insertions(+), 51 deletions(-)

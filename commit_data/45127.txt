@@ -1,0 +1,14 @@
+commit e224787fef3227587aceddbe21a792e3102d3cfb
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Fri Apr 9 23:56:44 2021 +0800
+
+    runtime: fix formatting of gcMark
+    
+    Change-Id: I08aed75f3aab0da705544665e532f332adfb075e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308949
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Trust: David Chase <drchase@google.com>
+
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

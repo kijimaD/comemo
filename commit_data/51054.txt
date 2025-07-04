@@ -1,0 +1,21 @@
+commit 02cffcde177bf3fbb36e75d749d0cb338b4f7566
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 28 13:46:32 2022 -0400
+
+    cmd/cover: fix buglet causing differences in -m output
+    
+    Use a slightly different line number pragma when emitting instrumented
+    code, so as to ensure that we don't get any changes in the
+    "-gcflags=-m" output for coverage vs non-coverage.
+    
+    Fixes #56475.
+    
+    Change-Id: I3079171fdf83c0434ed6ea0ce3eb2797c2280c55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446259
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/cover/cover.go                     |  2 +-
+ src/cmd/go/testdata/script/cover_error.txt | 33 ++----------------------------
+ 2 files changed, 3 insertions(+), 32 deletions(-)

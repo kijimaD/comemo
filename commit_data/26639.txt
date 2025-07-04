@@ -1,0 +1,61 @@
+commit c27efce66bce7534dbb357ac1779bbc08395b267
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Mar 29 22:04:03 2016 -0700
+
+    compress/flate: make Reader.Read return io.EOF eagerly
+    
+    Rather than checking the block final bit on the next invocation
+    of nextBlock, we check it at the termination of the current block.
+    This ensures that we return (n, io.EOF) instead of (0, io.EOF)
+    more frequently for most streams.
+    
+    However, there are certain situations where an eager io.EOF is not done:
+    1) We previously returned from Read because the write buffer of the internal
+    dictionary was full, and it just so happens that there is no more data
+    remaining in the stream.
+    2) There exists a [non-final, empty, raw block] after all blocks that
+    actually contain uncompressed data. We cannot return io.EOF eagerly here
+    since it would break flushing semantics.
+    
+    Both situations happen infrequently, but it is still important to note that
+    this change does *not* guarantee that flate will *always* return (n, io.EOF).
+    
+    Furthermore, this CL makes no changes to the pattern of ReadByte calls
+    to the underlying io.ByteReader.
+    
+    Below is the motivation for this change, pulling the text from
+    @bradfitz's CL/21290:
+    
+    net/http and other things work better when io.Reader implementations
+    return (n, io.EOF) at the end, instead of (n, nil) followed by (0,
+    io.EOF). Both are legal, but the standard library has been moving
+    towards n+io.EOF.
+    
+    An investigation of net/http connection re-use in
+    https://github.com/google/go-github/pull/317 revealed that with gzip
+    compression + http/1.1 chunking, the net/http package was not
+    automatically reusing the underlying TCP connections when the final
+    EOF bytes were already read off the wire. The net/http package only
+    reuses the connection if the underlying Readers (many of them nested
+    in this case) all eagerly return io.EOF.
+    
+    Previous related CLs:
+        https://golang.org/cl/76400046 - tls.Reader
+        https://golang.org/cl/58240043 - http chunked reader
+    
+    In addition to net/http, this behavior also helps things like
+    ioutil.ReadAll (see comments about performance improvements in
+    https://codereview.appspot.com/49570044)
+    
+    Updates #14867
+    Updates google/go-github#317
+    
+    Change-Id: I637c45552efb561d34b13ed918b73c660f668378
+    Reviewed-on: https://go-review.googlesource.com/21302
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/flate_test.go | 78 ++++++++++++++++++++++++++++++++++++++++
+ src/compress/flate/inflate.go    | 27 +++++++-------
+ 2 files changed, 93 insertions(+), 12 deletions(-)

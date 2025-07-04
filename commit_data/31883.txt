@@ -1,0 +1,14 @@
+commit 7a2fb4048e4f16c5cad5e90f87a62afd199d3367
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 21 11:51:34 2017 -0700
+
+    go/ast: improved documentation for comments associated with an AST
+    
+    Fixes #18593.
+    
+    Change-Id: Ibe33ad9b536fee909120b3654b9d831e469eb285
+    Reviewed-on: https://go-review.googlesource.com/46370
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/ast/ast.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

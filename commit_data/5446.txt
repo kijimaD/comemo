@@ -1,0 +1,12 @@
+commit 46152bb9fe5f3edc9bc8b599b49974c34f251e13
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 5 15:17:26 2010 -0700
+
+    pkg/Makefile: add netchan to standard package list
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1121041
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

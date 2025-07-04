@@ -1,0 +1,13 @@
+commit 2d697d67dc22fc739d734e04d818530e03eee15d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 21 17:18:01 2008 -0700
+
+    clarify pointer forward decls per ian's suggestion
+    
+    R=r
+    DELTA=13  (3 added, 7 deleted, 3 changed)
+    OCL=14406
+    CL=14406
+
+ doc/go_lang.txt | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

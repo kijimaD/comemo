@@ -1,0 +1,21 @@
+commit 494ec85d9fd6deea388c454dfd836d9f845f7153
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jul 6 16:45:46 2020 -0400
+
+    go/types: update test case to exercise mutually recursive interfaces
+    
+    Due to a typo, this test case was not actually exercising the bug
+    described in golang/go#33656. Update it to do so. Interestingly, the
+    comparison is now valid (as it should be) -- I suspect #33656 is
+    actually fixed.
+    
+    Fixes #33656
+    
+    Change-Id: If50a917f6477d8eb4f82f5a2a96bf5d9123ff0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241263
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/testdata/cycles2.src | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

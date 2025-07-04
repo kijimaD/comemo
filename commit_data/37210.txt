@@ -1,0 +1,45 @@
+commit f10815898c0732e2e6cdb697d6f95f33f8650b4e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 20 16:30:57 2018 +1100
+
+    os: use CreateFile for Stat of symlinks
+    
+    Stat uses Windows FindFirstFile + CreateFile to gather symlink
+    information - FindFirstFile determines if file is a symlink,
+    and then CreateFile follows symlink to capture target details.
+    
+    Lstat only uses FindFirstFile.
+    
+    This CL replaces current approach with just a call to CreateFile.
+    Lstat uses FILE_FLAG_OPEN_REPARSE_POINT flag, that instructs
+    CreateFile not to follow symlink. Other than that both Stat and
+    Lstat look the same now. New code is simpler.
+    
+    CreateFile + GetFileInformationByHandle (unlike FindFirstFile)
+    does not report reparse tag of a file. I tried to ignore reparse
+    tag altogether. And it works for symlinks and mount points.
+    Unfortunately (see https://github.com/moby/moby/issues/37026),
+    files on deduped disk volumes are reported with
+    FILE_ATTRIBUTE_REPARSE_POINT attribute set and reparse tag set
+    to IO_REPARSE_TAG_DEDUP. So, if we ignore reparse tag, Lstat
+    interprets deduped volume files as symlinks. That is incorrect.
+    So I had to add GetFileInformationByHandleEx call to gather
+    reparse tag after calling CreateFile and GetFileInformationByHandle.
+    
+    Fixes #27225
+    Fixes #27515
+    
+    Change-Id: If60233bcf18836c147597cc17450d82f3f88c623
+    Reviewed-on: https://go-review.googlesource.com/c/143578
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+
+ src/internal/syscall/windows/mksyscall.go        |  2 +-
+ src/internal/syscall/windows/symlink_windows.go  | 25 +++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 57 ++++++++++------
+ src/os/stat_test.go                              | 10 +--
+ src/os/stat_windows.go                           | 85 +++++++++++++++---------
+ src/os/types_windows.go                          | 69 +++----------------
+ 6 files changed, 126 insertions(+), 122 deletions(-)

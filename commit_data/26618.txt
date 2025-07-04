@@ -1,0 +1,37 @@
+commit a6557a05a03490af3b26f97f9a4ce99c7c773fe5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 22:11:41 2016 -0700
+
+    net/http: allow Handlers to handle http2 upgrade PRI requests
+    
+    The http2 spec defines a magic string which initates an http2 session:
+    
+        "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+    
+    It was intentionally chosen to kinda look like an HTTP request, but
+    just different enough to break things not ready for it. This change
+    makes Go ready for it.
+    
+    Notably: Go now accepts the request header (the prefix "PRI *
+    HTTP/2.0\r\n\r\n") as a valid request, even though it doesn't have a
+    Host header. But we now mark it as "Connection: close" and teach the
+    Server to never read a second request from the connection once that's
+    seen. If the http.Handler wants to deal with the upgrade, it has to
+    hijack the request, read out the "body", compare it against
+    "SM\r\n\r\n", and then speak http2. One of the new tests demonstrates
+    that hijacking.
+    
+    Fixes #14451
+    Updates #14141 (h2c)
+    
+    Change-Id: Ib46142f31c55be7d00c56fa2624ec8a232e00c43
+    Reviewed-on: https://go-review.googlesource.com/21327
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/readrequest_test.go | 21 +++++++++++++++
+ src/net/http/request.go          | 16 ++++++++++++
+ src/net/http/serve_test.go       | 55 +++++++++++++++++++++++++++++++++++++++-
+ src/net/http/server.go           |  6 ++++-
+ 4 files changed, 96 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 051cbf3f3720086ec6d3fd159a234bae3ffd12ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 21 12:38:23 2017 -0700
+
+    cmd/compile: add regress test for issue 19632
+    
+    Updates #19632.
+    
+    Change-Id: I1411dd997c8c6a789d17d0dcc0bfbd2281447b16
+    Reviewed-on: https://go-review.googlesource.com/38401
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue19632.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

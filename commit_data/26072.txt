@@ -1,0 +1,18 @@
+commit 3da1a26fba32fe65f43ac5226d079224255ada68
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 16:39:07 2016 -0800
+
+    cmd/compile: stop leaking 'any' type into user package
+    
+    The new check corresponds to the (etype != TANY || Debug['A'] != 0)
+    that was lost in golang.org/cl/19936.
+    
+    Fixes #14652.
+    
+    Change-Id: Iec3788ff02529b3b0f0d4dd92ec9f3ef20aec849
+    Reviewed-on: https://go-review.googlesource.com/20271
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ test/fixedbugs/issue14652.go       | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 091948a55fb198be4202c21a5809ec68d77f70c4
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Wed Nov 3 22:23:29 2021 +0800
+
+    time: make Ticker.Reset(0) panic
+    
+    Fixes #49315
+    
+    Change-Id: I0887bad1059b25ae0749bfa1ed6ddccbecca7951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361074
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/time/tick.go      |  6 +++++-
+ src/time/tick_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

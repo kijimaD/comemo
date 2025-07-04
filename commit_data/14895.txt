@@ -1,0 +1,15 @@
+commit 44ff17e6646ae39cf6f703bb0adaa6bd21a11cf4
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Jan 17 14:41:53 2013 +1100
+
+    time: add Timer.Reset
+    
+    Fixes #4412.
+    
+    R=adg, rsc, rogpeppe, andrewdg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7086050
+
+ src/pkg/time/sleep.go      | 15 +++++++++++++--
+ src/pkg/time/sleep_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

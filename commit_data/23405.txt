@@ -1,0 +1,13 @@
+commit 24db235deb09423c3dc8274bab5c19d93f242a85
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 18 09:38:04 2015 +0900
+
+    net: fix build on android
+    
+    Change-Id: Ib6d0b2947748dec98cad2e6abb6812cac46a9897
+    Reviewed-on: https://go-review.googlesource.com/11220
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_resnew.go | 2 +-
+ src/net/cgo_resold.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

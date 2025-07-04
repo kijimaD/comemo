@@ -1,0 +1,26 @@
+commit 530147e870eee380a1533f5f83ef7efe73b7139b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 29 13:55:27 2012 +0100
+
+    cmd/gc: inlining functions with local variables
+    
+    - make sure dclcontext == PAUTO only in function bodies
+    - introduce PDISCARD to discard declarations in bodies of repeated imports
+    - skip printing initializing OAS'es in export mode, assuming they only occur after ODCL's
+    - remove ODCL and the initializing OAS from inl.c:ishairy
+    - fix confused use of ->typecheck in typecheckinl: it's about the ->inl, not about the fn.
+    - debuging aids: print ntype on ONAMEs too and -Emm instead of -Ell.
+    
+    fixes #2812
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6800043
+
+ src/cmd/gc/dcl.c   |   5 +-
+ src/cmd/gc/fmt.c   |  10 ++
+ src/cmd/gc/go.h    |   2 +
+ src/cmd/gc/go.y    |  10 +-
+ src/cmd/gc/inl.c   |  29 ++----
+ src/cmd/gc/y.tab.c | 268 +++++++++++++++++++++++++++--------------------------
+ 6 files changed, 169 insertions(+), 155 deletions(-)

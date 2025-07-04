@@ -1,0 +1,73 @@
+commit fccac5fe98d10479cab5031d1dd913b2f96387f2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 8 11:16:48 2025 +0100
+
+    crypto/ecdsa,crypto/ed25519: cache FIPS private keys
+    
+    All private keys need to go through a slow PCT in FIPS-140 mode.
+    
+    ECDH and RSA keys have places to hide a precomputed value without
+    causing races, but Ed25519 and ECDSA keys might be constructed by the
+    application and then used with concurrent Sign calls.
+    
+    For these, implement an equivalent to crypto/internal/boring/bcache
+    using weak.Pointer and runtime.AddCleanup.
+    
+    fips140: latest
+    goos: linux
+    goarch: amd64
+    pkg: crypto/ed25519
+    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+               │ 1a93e4a2cf  │             78a819ea78             │
+               │   sec/op    │   sec/op     vs base               │
+    Signing-16   72.72µ ± 0%   16.93µ ± 1%  -76.72% (p=0.002 n=6)
+    
+    fips140: off
+    goos: linux
+    goarch: amd64
+    pkg: crypto/ed25519
+    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+               │ 310bad31e5  │         310bad31e5-dirty          │
+               │   sec/op    │   sec/op     vs base              │
+    Signing-16   17.18µ ± 1%   16.95µ ± 1%  -1.36% (p=0.002 n=6)
+    
+    fips140: latest
+    goos: linux
+    goarch: amd64
+    pkg: crypto/ecdsa
+    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+                 │  1a93e4a2cf  │             78a819ea78             │
+                 │    sec/op    │   sec/op     vs base               │
+    Sign/P256-16    90.97µ ± 0%   21.04µ ± 0%  -76.87% (p=0.002 n=6)
+    Sign/P384-16    701.6µ ± 1%   142.0µ ± 0%  -79.75% (p=0.002 n=6)
+    Sign/P521-16   2943.5µ ± 1%   491.9µ ± 0%  -83.29% (p=0.002 n=6)
+    
+    fips140: off
+    goos: linux
+    goarch: amd64
+    pkg: crypto/ecdsa
+    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+                 │ 1a93e4a2cf  │             78a819ea78             │
+                 │   sec/op    │   sec/op     vs base               │
+    Sign/P256-16   21.27µ ± 0%   21.13µ ± 0%   -0.65% (p=0.002 n=6)
+    Sign/P384-16   143.3µ ± 0%   142.4µ ± 0%   -0.63% (p=0.009 n=6)
+    Sign/P521-16   525.3µ ± 0%   462.1µ ± 0%  -12.04% (p=0.002 n=6)
+    
+    This unavoidably introduces allocations in the very first use of Ed25519
+    private keys, but usually that's not in the hot path.
+    
+    Change-Id: I6a6a465640a5dff64edd73ee5dda5f2ad1b476b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654096
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/ecdsa/ecdsa.go                      |  26 +++-
+ src/crypto/ed25519/ed25519.go                  |  23 ++--
+ src/crypto/ed25519/ed25519_test.go             |   4 +-
+ src/crypto/internal/fips140cache/cache.go      |  52 ++++++++
+ src/crypto/internal/fips140cache/cache_test.go | 167 +++++++++++++++++++++++++
+ src/go/build/deps_test.go                      |   1 +
+ 6 files changed, 259 insertions(+), 14 deletions(-)

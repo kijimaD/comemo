@@ -1,0 +1,19 @@
+commit bfa116b345b9216fa3dce253864d51dcefb42d0f
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Wed Feb 28 15:21:18 2024 -0800
+
+    text/tabwriter: add recovered panic message to rethrow
+    
+    Without it, there is little information to debug why the original write
+    failed.
+    
+    Change-Id: I21615ab7ca402115d02becdbd11bbacde55b98b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567955
+    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/text/tabwriter/tabwriter.go      | 3 ++-
+ src/text/tabwriter/tabwriter_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,29 @@
+commit e94c52933b9c414d3f8fa94ead0d9cc5b7d7d717
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Sep 16 21:42:18 2016 -0400
+
+    cmd/compile: intrinsify Ctz{32,64} and Bswap{32,64} on s390x
+    
+    Also adds the 'find leftmost one' instruction (FLOGR) and replaces the
+    WORD-encoded use of FLOGR in math/big with it.
+    
+    Change-Id: I18e7cd19e75b8501a6ae8bd925471f7e37ded206
+    Reviewed-on: https://go-review.googlesource.com/29372
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s    |  1 +
+ src/cmd/compile/internal/gc/ssa.go           |  8 +--
+ src/cmd/compile/internal/s390x/prog.go       |  1 +
+ src/cmd/compile/internal/s390x/ssa.go        | 13 ++--
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  7 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 13 ++++
+ src/cmd/compile/internal/ssa/opGen.go        | 44 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 90 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/s390x/a.out.go          |  3 +
+ src/cmd/internal/obj/s390x/anames.go         |  1 +
+ src/cmd/internal/obj/s390x/asmz.go           | 10 ++++
+ src/math/big/arith_s390x.s                   | 10 ++--
+ test/intrinsic.go                            |  2 +-
+ 13 files changed, 185 insertions(+), 18 deletions(-)

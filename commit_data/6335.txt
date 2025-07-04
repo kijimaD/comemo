@@ -1,0 +1,18 @@
+commit a0718530151135878f7df2c8a6f0f96d9a633c91
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 22 13:12:25 2010 +1000
+
+    os: make Open() O_APPEND flag work on windows
+    
+    Fixes #1124.
+    Implementation is suggested by Skip.
+    Test is suggested by PeterGo.
+    
+    R=r, PeterGo, rsc
+    CC=golang-dev, skip.tavakkolian
+    https://golang.org/cl/2256041
+
+ src/pkg/os/os_test.go                 | 30 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go    |  4 ++++
+ src/pkg/syscall/ztypes_windows_386.go |  2 ++
+ 3 files changed, 36 insertions(+)

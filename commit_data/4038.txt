@@ -1,0 +1,15 @@
+commit aebae2577af4d6ae99abd9adf799cf58952377c5
+Author: David Titarenco <david.titarenco@gmail.com>
+Date:   Fri Nov 13 18:06:47 2009 -0800
+
+    Created new Conn.Flush() public method so the fd pipeline can be drained arbitrarily by the user.
+    Commented both flush methods so people know what they are looking at.
+    
+    This is a necessary fix for streaming and long polling HTTP services.
+    Fixes #93.
+    
+    R=r, rsc, david.titarenco
+    https://golang.org/cl/154099
+
+ src/pkg/http/server.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

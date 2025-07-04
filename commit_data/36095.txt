@@ -1,0 +1,18 @@
+commit c814ac44c0571f844718f07aa52afa47e37fb1ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 19 16:59:50 2018 -0400
+
+    cmd/go: fix TestScript/list_test_e on Windows
+    
+    I forgot to run trybots on CL 123758, and the test failed on Windows because I
+    hard-coded a slash-delimited path.
+    
+    Use the tent-in-a-box operator ([/\\]) to make the path platform-agnostic.
+    
+    Change-Id: I9113ab60d21152c11e2ebdf822b58a44b1b38574
+    Reviewed-on: https://go-review.googlesource.com/125115
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/script/list_test_e.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

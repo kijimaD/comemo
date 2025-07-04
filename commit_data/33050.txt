@@ -1,0 +1,32 @@
+commit 4f34a5291317fe959074fb40b85d9be242b8a2fc
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 16 16:21:12 2017 -0400
+
+    runtime: terminate locked OS thread if its goroutine exits
+    
+    runtime.LockOSThread is sometimes used when the caller intends to put
+    the OS thread into an unusual state. In this case, we never want to
+    return this thread to the runtime thread pool. However, currently
+    exiting the goroutine implicitly unlocks its OS thread.
+    
+    Fix this by terminating the locked OS thread when its goroutine exits,
+    rather than simply returning it to the pool.
+    
+    Fixes #20395.
+    
+    Change-Id: I3dcec63b200957709965f7240dc216fa84b62ad9
+    Reviewed-on: https://go-review.googlesource.com/46038
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/crash_cgo_test.go                    |   9 ++
+ src/runtime/crash_test.go                        |   3 +-
+ src/runtime/proc.go                              |  14 ++-
+ src/runtime/proc_test.go                         |  17 ++++
+ src/runtime/testdata/testprog/gettid.go          |  29 ++++++
+ src/runtime/testdata/testprog/gettid_none.go     |  15 +++
+ src/runtime/testdata/testprog/lockosthread.go    |  94 +++++++++++++++++++
+ src/runtime/testdata/testprogcgo/lockosthread.c  |  13 +++
+ src/runtime/testdata/testprogcgo/lockosthread.go | 111 +++++++++++++++++++++++
+ 9 files changed, 303 insertions(+), 2 deletions(-)

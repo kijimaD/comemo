@@ -1,0 +1,15 @@
+commit c00371eafd6d53217354e61c97afba57e455c8cc
+Author: Christopher Cahoon <chris.cahoon@gmail.com>
+Date:   Sun Dec 16 19:31:59 2012 -0500
+
+    cmd/fix: Add keys to printer.Config composite literals.
+    
+    Fixes #4499.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6931046
+
+ src/cmd/fix/printerconfig.go      | 61 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/printerconfig_test.go | 37 ++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+)

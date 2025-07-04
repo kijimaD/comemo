@@ -1,0 +1,13 @@
+commit 044a3b1a5e87b2750ca1ec553cc60c12b5601890
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 5 16:09:49 2008 -0700
+
+    bug: package name not visible
+    
+    R=r
+    OCL=13898
+    CL=13898
+
+ test/bugs/bug085.go | 27 +++++++++++++++++++++++++++
+ test/golden.out     | 12 ++++++++----
+ 2 files changed, 35 insertions(+), 4 deletions(-)

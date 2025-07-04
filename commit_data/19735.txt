@@ -1,0 +1,15 @@
+commit 8422d1ea65e4722098ec940e202a0aa33efa3309
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 15 10:27:36 2014 +0400
+
+    runtime: zero dangling pointer
+    I don't see how it can lead to bad things today.
+    But it's better to kill it before it does.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/111130045
+
+ src/pkg/runtime/chan.goc | 2 ++
+ 1 file changed, 2 insertions(+)

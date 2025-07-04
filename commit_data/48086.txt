@@ -1,0 +1,33 @@
+commit 727790a2fda02e75844ce91320c05fd2bf1f431d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 15:04:58 2022 -0800
+
+    go/types, types2: remove superflous type parameter length checks
+    
+    There is no need to check for length equality of type parameter
+    lists in Checker.missingMethod: the Identical predicate does
+    this check. Furthermore, we don't have methods with their own
+    type parameters. Remove the unnecessary (duplicate) code.
+    
+    Also, update doc string on missingMethod and rename the 2nd
+    result parameter for clarity, and clarify internal comments.
+    
+    For go/types, include the same case-folding code as for types2
+    but leave it disabled or now. Adjust any other differences in
+    the missingMethod implementation.
+    
+    With this change, the types2 and go/types code of missingMethod
+    is identical again except for the disabled case-folding lookup.
+    
+    No functionality changes.
+    
+    Preparation for fixing some of the outstanding error reporting issues.
+    
+    Change-Id: I4778d006c17f4e084ecc2cac7386c68e86aa49eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382614
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go | 54 ++++++++----------------------
+ src/go/types/lookup.go                    | 55 +++++++++++--------------------
+ 2 files changed, 33 insertions(+), 76 deletions(-)

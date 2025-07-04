@@ -1,0 +1,12 @@
+commit 73be5d82d443def1f721474bff9819155eb5bdf0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 22:15:07 2016 -0700
+
+    cmd/compile: use printer in vconv
+    
+    Change-Id: Ib30ed686448c4c0a5777cdf1d505ea06eb8b2a47
+    Reviewed-on: https://go-review.googlesource.com/27917
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 54 ++++++++++++++++++++++----------------
+ 1 file changed, 32 insertions(+), 22 deletions(-)

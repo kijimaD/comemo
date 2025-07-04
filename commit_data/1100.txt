@@ -1,0 +1,15 @@
+commit 2a58e7d7a02064f8c5a95c98e7c3e30a26e1fa55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 10 17:56:46 2008 -0800
+
+    more work on elastic tabs:
+    - new code enabled, but no comments printed yet (so the effect
+      of the elastic tabs is not seen yet)
+    
+    TBR=r
+    DELTA=200  (93 added, 69 deleted, 38 changed)
+    OCL=18951
+    CL=18951
+
+ usr/gri/pretty/printer.go | 196 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 110 insertions(+), 86 deletions(-)

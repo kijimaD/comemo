@@ -1,0 +1,18 @@
+commit 23573d0ea225d4b93ccd2b946b1de121c3a6cee5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 21 12:00:24 2020 +0700
+
+    cmd/compile: clearer error when non-bool used as "||" and "&&" operand
+    
+    Fixes #41500
+    
+    Change-Id: I658d8921b7769b6e4288ca781cbdca5ff14a84ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255899
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++++++
+ test/fixedbugs/issue41500.go             | 20 ++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,0 +1,19 @@
+commit b795ce9ab0cce86f9f76904a9f933b11ac993c8a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Oct 8 20:14:03 2015 +1100
+
+    cmd/internal/obj: improve obj.ProgInfo struct layout
+    
+    obj.ProgInfo is a field inside obj.Prog, which is currently 320 bytes
+    on 64bit platforms. By moving the Flags field below the other fields
+    the size of obj.Prog drops into the 288 byte size class, a saving of
+    32 bytes per value allocated on the heap.
+    
+    Change-Id: If8bb12f45328996d7df1d0bac9d1c019d2af73bd
+    Reviewed-on: https://go-review.googlesource.com/15522
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

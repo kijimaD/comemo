@@ -1,0 +1,19 @@
+commit 5faf941df067b33485edb9cd2e880869e7feb6a3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 3 13:39:30 2020 -0500
+
+    internal/goversion: update Version to 1.17
+    
+    (The corresponding update for the last release cycle was CL 248038.)
+    
+    For #40705.
+    
+    Change-Id: I13becdc4c3718a1c6986876ec56879cce3bcb34f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275297
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit a607408403df7515f831fef64991222673a50a68
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jan 20 17:58:21 2021 +0800
+
+    cmd/internal/obj/arm64: add support for op(extended register) with RSP arguments
+    
+    Refer to ARM reference manual, like add(extended register) instructions,
+    the extension is encoded in the "option" field. If "Rd" or "Rn" is
+    RSP and "option" is "010" then LSL is preferred. Therefore, the instrution
+    "add Rm<<imm, RSP, RSP" or "add Rm<<imm RSP" is valid and can be encoded
+    as add(extended register) instruction.
+    
+    But the current assembler can not handle like "op R1<<1, RSP, RSP"
+    instructions, this patch adds the support.
+    
+    Because MVN(extended register) does not exist, remove it.
+    
+    Add test cases.
+    
+    Change-Id: I968749d75c6b93a4f297b39c73cc292e6b1035ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284900
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 10 ++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  3 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 46 +++++++++++++++++++++++---
+ 3 files changed, 54 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit eed77574d029e8c8426195bc9e7267462f568a8a
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 8 08:32:07 2022 -0700
+
+    cmd/compile: trying to linkname a method is not an ICE, just an error
+    
+    Fixes #52774
+    
+    Change-Id: I853f462146d10e44a35e5a8716d41f32b6052fd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404936
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

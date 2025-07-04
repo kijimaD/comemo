@@ -1,0 +1,21 @@
+commit d9f90df2b488b2fb7ca8c24d99f82878befb68f8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 29 17:24:01 2022 -0400
+
+    cmd/dist: simplify exec.Cmd helpers
+    
+    Now that the required Go bootstrap version is 1.17, we can simplify
+    some of the logic for working with exec.Cmd.Env as those APIs have
+    been simplified.
+    
+    Updates #44505.
+    
+    Change-Id: Ia62ab9830320c7daf65a15f2313471dfaba687b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427957
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/exec.go | 21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)

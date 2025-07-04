@@ -1,0 +1,21 @@
+commit cd2ecfb7b35cb4199bcbc735bd120393e6c4ba8e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 6 08:53:46 2010 +1100
+
+    Ugly hack to provide some mechanism for printing documentation about
+    Go source outside $GOROOT.
+    
+    If the argument is a path starting with / or ., disregard $GOROOT.
+    Also, disable the check for package name matching the directory,
+    which is counterproductive in this case.
+    
+    Apologies for the violence to the code but we need some help documenting
+    Go code outside the standard repository.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/201064
+
+ src/cmd/godoc/godoc.go | 30 ++++++++++++++++++++++++++++--
+ src/cmd/godoc/main.go  | 10 ++++++++++
+ 2 files changed, 38 insertions(+), 2 deletions(-)

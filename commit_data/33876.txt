@@ -1,0 +1,18 @@
+commit de14b2f63891213d99e950809503569f1fa9e45b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:57:44 2017 -0500
+
+    all: fix t.Skipf formats
+    
+    Found by upcoming cmd/vet change.
+    
+    Change-Id: I7a8264a304b2a4f26f3bd418c1b28cc849889c9b
+    Reviewed-on: https://go-review.googlesource.com/83835
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                                              | 4 ++--
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go | 2 +-
+ src/runtime/crash_cgo_test.go                                      | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

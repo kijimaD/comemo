@@ -1,0 +1,13 @@
+commit a093f3d5a03b790de027da4ec0fd6c29144c4d52
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jan 13 20:05:08 2011 -0800
+
+    fix tst instruction on arm to set overflow bit
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4009041
+
+ src/cmd/5g/cgen.c | 2 +-
+ src/cmd/5l/asm.c  | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

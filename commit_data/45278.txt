@@ -1,0 +1,18 @@
+commit 0636d88f6d79827e0acdc8e53b8f249652061d2d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Apr 19 10:40:20 2021 +0800
+
+    cmd/compile: add restrictions on the shift amount range of arm64 various instructions
+    
+    For arm64 constant shift instructions, e.g., LSL(immediate), they use
+    only the low 6 bits. To conform the semantics of the hardware instructions,
+    this CL comments in ARM64OPS.go about restricted AuxInt ranges for the
+    various instructions involved.
+    
+    Change-Id: I2b6560d6580e22ba7cbfa744a02b046dd5714b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303569
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 93 ++++++++++++++--------------
+ 1 file changed, 47 insertions(+), 46 deletions(-)

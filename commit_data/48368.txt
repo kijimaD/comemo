@@ -1,0 +1,18 @@
+commit 7900576bac4630bbeec7f4f1aa4b1cb0d51bd8a1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Mar 13 22:38:15 2022 +0700
+
+    cmd/compile: remove unified IR stmtTypeDeclHack
+    
+    After CL 385998, unified IR quirks mode was gone, it's time to remove
+    stmtTypeDeclHack, too.
+    
+    Change-Id: Id73dd1d6c11b91c0c6c6cbe85f1b06977a9876d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392214
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/codes.go | 3 ---
+ 1 file changed, 3 deletions(-)

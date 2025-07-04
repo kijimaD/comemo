@@ -1,0 +1,29 @@
+commit d63865b5d19ec3ca57aa30b45b2e0b57b3d54087
+Author: pooja shyamsundar <poojashyam@ibm.com>
+Date:   Sun May 15 21:07:27 2022 -0700
+
+    crypto/internal/nistec: re-enable s390x asm for P-256
+    
+    - formatting and optimized init functionality for precomputed table
+    - updated formatting for comments
+    - further optimized init functionality
+    Fixes #52709
+    
+    Change-Id: Ie96a8ee52f09821d5ac53115185cbc1ad8f954d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404058
+    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Pooja Shyamsundar <poojashyam@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/nistec/p256.go                |    2 +-
+ src/crypto/internal/nistec/p256_asm.go            |   12 +-
+ src/crypto/internal/nistec/p256_asm_s390x.s       | 1014 ++++++++-------------
+ src/crypto/internal/nistec/p256_asm_table_test.go |    2 +-
+ src/crypto/internal/nistec/p256_s390x.go          |  570 ------------
+ 5 files changed, 371 insertions(+), 1229 deletions(-)

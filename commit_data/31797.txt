@@ -1,0 +1,20 @@
+commit 4c028e565071c80803c975ca9c6431dbc6bb2a88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 13 13:05:33 2017 -0700
+
+    cmd/go: adjust regexp that cleans cgo-related errors
+    
+    The compiler now also prints column information - make sure we use
+    the correct regexp for compiler error cleanups. Accept both, error
+    positions with columns and without, since column printing may be
+    disabled with -gcflags=-C.
+    
+    Fixes #20628.
+    
+    Change-Id: I46dc921dd5c29d7b8172cd19a3df57951f60d889
+    Reviewed-on: https://go-review.googlesource.com/45612
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

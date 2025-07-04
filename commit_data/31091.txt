@@ -1,0 +1,20 @@
+commit 758d078fd5ab423d00f5a46028139c1d13983120
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 11 18:52:05 2017 -0500
+
+    plugin: resolve random crash when calling exported functions
+    
+    open modified the plugin symbols map while ranging over it. This is
+    normally harmless, except that the operations performed were not
+    idempotent leading to function pointers being corrupted.
+    
+    Fixes #19269
+    
+    Change-Id: I4b6eb1d45567161412e4a34b41f1ebf647bcc942
+    Reviewed-on: https://go-review.googlesource.com/40431
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/plugin/plugin_dlopen.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,40 @@
+commit 069f9fb20548e904cb94f165f4cbf716a0fc108e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 24 17:27:33 2023 -0700
+
+    debug/pe: return error on reading from section with uninitialized data
+    
+    A section with uninitialized data contains no bytes and occupies
+    no space in the file. This change makes it return an error on reading
+    from this section so that it will force the caller to check for
+    a section with uninitialized data.
+    
+    This is the debug/pe version of CL 429601.
+    
+    This will break programs that expect a byte slice with the length
+    described by the SizeOfRawData field. There are two reasons to
+    introduce this breaking change: 1) uninitialized data is uninitialized
+    and there is no reason to allocate memory for it; 2) it could result
+    in an OOM if the file is corrupted and has a large invalid SizeOfRawData.
+    
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
+    
+    For #47653
+    Fixes #59817
+    
+    Change-Id: I1ae94e9508f803b37926275d9a571f724a09af9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: kortschak <dan@kortschak.io>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/debug/pe/file.go      | 17 ++++++++---------
+ src/debug/pe/file_test.go | 14 +++-----------
+ src/debug/pe/section.go   |  6 ++++++
+ 3 files changed, 17 insertions(+), 20 deletions(-)

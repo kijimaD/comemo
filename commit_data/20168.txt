@@ -1,0 +1,16 @@
+commit b53b47f5ac9e11fdcd3f704bc2cb0828bdee6958
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 28 10:36:48 2014 -0400
+
+    runtime: finish converting iface.goc to iface.go
+    
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/131510043
+
+ src/pkg/runtime/heapdump.c |   5 +-
+ src/pkg/runtime/iface.go   |  13 ++++
+ src/pkg/runtime/iface.goc  | 155 ---------------------------------------------
+ src/pkg/runtime/runtime.h  |   2 +-
+ 4 files changed, 18 insertions(+), 157 deletions(-)

@@ -1,0 +1,21 @@
+commit e8df7df68f8d3b182570049879e780fec57a1878
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sat Nov 3 02:19:47 2018 +0900
+
+    syscall: add Syscall18 on Windows
+    
+    There are some OpenGL functions that take more than 15 arguments.
+    This CL adds Syscall18 to enable to call such functions on Windows
+    via syscall functions.
+    
+    Fixes #28434
+    
+    Change-Id: Ic7e37dda9cadf4516183e98166bfc52844ad2bbe
+    Reviewed-on: https://go-review.googlesource.com/c/147117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/syscall_windows.go | 13 +++++++++++++
+ src/syscall/dll_windows.go     |  7 +++++++
+ 2 files changed, 20 insertions(+)

@@ -1,0 +1,23 @@
+commit acfdaf06f573c7b483515aed451c5148e32d6e60
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Oct 21 09:18:53 2022 +0200
+
+    runtime: skip TestVectoredHandlerExceptionInNonGoThread
+    
+    windows-amd-2012 builder seems to have some problems handling
+    exception thrown in external C code which is affecting
+    TestVectoredHandlerExceptionInNonGoThread.
+    The issue is known and discussed in #49681.
+    
+    This Cl skips the offending test on windows-amd-2012.
+    
+    Change-Id: I7ca4353c9e531f0d75ac6a8dbd809acfa1f15bf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444616
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/signal_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

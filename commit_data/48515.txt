@@ -1,0 +1,30 @@
+commit 0ed31eb73b13bd57aff727f4ab759c6701d45a01
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 18 10:57:02 2022 +0000
+
+    cmd/gofmt: return a proper error for empty Go files
+    
+    I was testing edge cases in gofumpt, a fork of gofmt,
+    and noticed that gofmt will return a bare io error on empty files,
+    as demonstrated by the added test case without a fix:
+    
+            > ! exec $GOROOT/bin/gofmt empty.go nopackage.go
+            [stderr]
+            EOF
+            nopackage.go:1:1: expected 'package', found not
+    
+    The problem is the code that detects concurrent modifications.
+    It relies on ReadFull and correctly deals with io.ErrUnexpectedEOF,
+    but it did not pay attention to io.EOF, which can happen when size==0.
+    
+    Change-Id: I6092391721edad4584fb5922d3e3a8fb3da86493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393757
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++++++
+ src/cmd/gofmt/gofmt.go                         | 7 ++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

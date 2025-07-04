@@ -1,0 +1,12 @@
+commit 5bd61e060382a51bd2c538552775aa375e7f63a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 29 13:06:34 2013 -0700
+
+    math/big: better documentation for Rat.Float64
+    
+    R=adonovan, r
+    CC=golang-dev
+    https://golang.org/cl/11961043
+
+ src/pkg/math/big/rat.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

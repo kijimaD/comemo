@@ -1,0 +1,17 @@
+commit d6f89d735e66c7b955f262d38ba95f5e9a793b95
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 30 21:32:20 2013 -0700
+
+    runtime: set MSpan.limit properly for large spans.
+    Then use the limit to make sure MHeap_LookupMaybe & inlined
+    copies don't return a span if the pointer is beyond the limit.
+    Use this fact to optimize all call sites.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/9869045
+
+ src/pkg/runtime/malloc.goc |  6 +-----
+ src/pkg/runtime/mgc0.c     | 10 ++--------
+ src/pkg/runtime/mheap.c    |  4 +---
+ 3 files changed, 4 insertions(+), 16 deletions(-)

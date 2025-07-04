@@ -1,0 +1,12 @@
+commit 3ea8d854a3a0b7f812d8590d4d1c3c2671288b60
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 23:07:30 2009 -0700
+
+    make string(array) take []byte only (and thus *[10]byte but not [10]byte)
+    
+    R=ken
+    OCL=27581
+    CL=27585
+
+ src/cmd/gc/walk.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

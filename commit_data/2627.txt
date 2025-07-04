@@ -1,0 +1,14 @@
+commit 1b359698712a625b8967a2e596fd065c35c99bc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:18 2009 -0700
+
+    json: use new reflect interface (CL 31107)
+    
+    R=r
+    DELTA=192  (52 added, 43 deleted, 97 changed)
+    OCL=31116
+    CL=31286
+
+ src/pkg/json/struct.go      | 173 +++++++++++++++++++++++---------------------
+ src/pkg/json/struct_test.go |  86 +++++++++++-----------
+ 2 files changed, 134 insertions(+), 125 deletions(-)

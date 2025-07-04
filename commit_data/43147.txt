@@ -1,0 +1,23 @@
+commit bb9b319228760f9e4b2517114b6eecc6fe0cef30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 23 16:32:59 2020 -0400
+
+    cmd/go: add yet another test case for ambiguous arguments to 'go get'
+    
+    For #37438
+    
+    Change-Id: Ie40971ff677d36ddadbf9834bba2d366a0fc34d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256922
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../mod/example.net_ambiguous_nested_v0.1.0.txt    |  19 ++++
+ .../testdata/mod/example.net_ambiguous_v0.1.0.txt  |  19 ++++
+ .../testdata/mod/example.net_ambiguous_v0.2.0.txt  |  18 ++++
+ .../go/testdata/script/mod_get_ambiguous_arg.txt   |   8 +-
+ .../go/testdata/script/mod_get_ambiguous_pkg.txt   | 101 +++++++++++++++++++++
+ 5 files changed, 161 insertions(+), 4 deletions(-)

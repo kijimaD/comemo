@@ -1,0 +1,11 @@
+commit 90da636c15e222743c5b45ff287d1778218cb1e9
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 19 14:20:46 2008 -0700
+
+    init filename vs pkgname
+    
+    SVN=128117
+
+ src/cmd/gc/dcl.c        | 10 ++++++----
+ src/runtime/rt0_amd64.s |  2 +-
+ 2 files changed, 7 insertions(+), 5 deletions(-)

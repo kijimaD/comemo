@@ -1,0 +1,24 @@
+commit 4daf8719e7f4c71a620f650d73caab2a9d7ea499
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon May 4 12:21:18 2020 +0530
+
+    runtime: use correct truncated constants for float conversion
+    
+    There is a range of numbers lower than 0x7fff_ffff_ffff_ffff which
+    cannot be represented by a 64 bit float. We set that to the correct
+    limit beyond which conversions can happen properly.
+    
+    It appears that the negative bound check can indeed by correctly handled
+    by I64TruncF64S. But we use the same limit for consistency.
+    
+    Fixes #38839
+    
+    Change-Id: Ib783a22cb331fba7e6955459f41c67f9ceb53461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231837
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/conv_wasm_test.go | 128 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_wasm.s        |   6 +-
+ 2 files changed, 131 insertions(+), 3 deletions(-)

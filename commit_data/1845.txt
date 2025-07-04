@@ -1,0 +1,13 @@
+commit 08eeb2535d71524ea786d77cceb2b2dc639df508
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 18 14:05:05 2009 -0700
+
+    simplify test to eliminate now-deprecated forms of switch.
+    
+    R=rsc
+    DELTA=76  (0 added, 63 deleted, 13 changed)
+    OCL=26439
+    CL=26490
+
+ test/typeswitch.go | 89 ++++++++----------------------------------------------
+ 1 file changed, 13 insertions(+), 76 deletions(-)

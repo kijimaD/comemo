@@ -1,0 +1,16 @@
+commit b44bf986a2ddd903059732b519237d4504cfdeb2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 5 09:52:35 2020 -0700
+
+    doc/go1.15: mention new debug/pe constants
+    
+    The constants were added in CL 222637.
+    
+    For #37419
+    
+    Change-Id: Iae662d677d31c44a7560399ef6771f520c1f7663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236682
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 317ad14c6a963b9bb6f81050254026061082a3e8
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Dec 20 09:01:18 2011 -0800
+
+    time: JSON marshaler for Time
+    
+    R=golang-dev, dsymonds, hectorchu, r, r
+    CC=golang-dev
+    https://golang.org/cl/5496064
+
+ src/pkg/time/time.go      | 58 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/time/time_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 113 insertions(+), 11 deletions(-)

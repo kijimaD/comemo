@@ -1,0 +1,34 @@
+commit 8d8ac637eee69aac0c4037661d7f53c5430cd2ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 13 15:28:54 2011 -0400
+
+    build: stop early if commands are missing
+    
+    If we fail due to a missing command (always bison)
+    during the build, it is running many things in parallel
+    and the error message gets lost in the noise.
+    Also diagnose bison++.
+    
+    $ ./make.bash
+    Your system's bison is bison++, a buggy copy of the original bison.
+    Go needs the original bison instead.
+    See http://golang.org/doc/install.html#ctools
+    $ sudo apt-get remove bison++
+    ... ridiculous amount of output ...
+    $ ./make.bash
+    Cannot find 'bison' on search path.
+    See http://golang.org/doc/install.html#ctools
+    $ sudo apt-get install bison
+    ... ridiculous amount of output ...
+    $ ./make.bash
+    ... works
+    
+    Fixes #1938.
+    Fixes #1946.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4528137
+
+ src/env.bash | 45 ++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 44 insertions(+), 1 deletion(-)

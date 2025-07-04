@@ -1,0 +1,22 @@
+commit 5a72ca45fba1aad8ab08d66cd73fd40560407dbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 16:08:44 2009 -0700
+
+    - renamed scanner.Location to token.Position
+    - by moving Position into token, scanner dependencies
+      are removed from several files
+    - clearer field names in token.Position, now possible to
+      have a Pos() accessor w/o naming conflicts
+    - added Pos() accessor
+    - use anonymous token.Position field in AST nodes
+    
+    R=r
+    DELTA=244  (28 added, 55 deleted, 161 changed)
+    OCL=26786
+    CL=26793
+
+ src/lib/go/scanner.go      |  94 +++++++++---------
+ src/lib/go/scanner_test.go |  22 ++---
+ src/lib/go/token.go        |  22 ++++-
+ usr/gri/pretty/ast.go      | 241 +++++++++++++++++++--------------------------
+ 4 files changed, 176 insertions(+), 203 deletions(-)

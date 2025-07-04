@@ -1,0 +1,14 @@
+commit 45a3b3714ff78fe1c81a5b3680822859a9fa35ff
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 15:47:49 2013 -0800
+
+    doc/effective_go.html: unify and expand the discussion of Sprintf and String
+    It's a common mistake to build a recursive String method; explain it well and
+    show how to avoid it.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/7486049
+
+ doc/effective_go.html | 59 +++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 46 insertions(+), 13 deletions(-)

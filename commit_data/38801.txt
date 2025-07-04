@@ -1,0 +1,14 @@
+commit e5986209e082cd207989d7f8759ba92e3f9dd8cb
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Jan 29 15:34:26 2019 +0800
+
+    cmd/go: Remove old mod helper prints in Go 1.12.
+    
+    Change-Id: I43d233739ce6a6fbc4ee281b569d6230dd552cb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160057
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/main.go | 31 -------------------------------
+ 1 file changed, 31 deletions(-)

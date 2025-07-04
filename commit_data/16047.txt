@@ -1,0 +1,13 @@
+commit 3a012c02ed8e76a6103a1a36d7220580e79a63ac
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 2 10:25:02 2013 -0700
+
+    sort: be consistent when describing "less: function in the multiKeys example
+    s/ordering/less/g
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8267043
+
+ src/pkg/sort/example_multi_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

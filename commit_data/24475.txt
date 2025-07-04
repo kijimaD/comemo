@@ -1,0 +1,16 @@
+commit 6fed2a68f7adec2a059acc4f702ebe950fdb5ce5
+Author: Charlie Dorian <cldorian@gmail.com>
+Date:   Wed Oct 7 18:23:28 2015 -0400
+
+    math: Modf(-0) returns -0,-0
+    
+    Fixes #12867
+    
+    Change-Id: I8ba81c622bce2a77a6142f941603198582eaf8a4
+    Reviewed-on: https://go-review.googlesource.com/15570
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go |  4 +++-
+ src/math/modf.go     |  5 ++++-
+ src/math/modf_386.s  | 13 +++++++++++++
+ 3 files changed, 20 insertions(+), 2 deletions(-)

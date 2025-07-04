@@ -1,0 +1,41 @@
+commit b8f42d74e87aeec189f53e9fdb2a7e6026c099b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 14:58:45 2018 -0400
+
+    cmd/go: move module cache from $GOPATH/src/mod to $GOPATH/pkg/mod
+    
+    Using $GOPATH/src/mod confuses too many tools.
+    $GOPATH/pkg/mod seems better for now.
+    It's also next to dep's cache, $GOPATH/pkg/dep.
+    If we do eliminate GOPATH/pkg for holding .a files (#4719)
+    then we could still keep it around for pkg/mod.
+    (Or we could move the module cache again then.)
+    
+    Fixes #26401.
+    Fixes #26635.
+    
+    Change-Id: I18f7da216ed9f490eded3c00d837fb086ae5b6a4
+    Reviewed-on: https://go-review.googlesource.com/126755
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go                         | 111 +++++++++++++++-----------
+ src/cmd/go/internal/clean/clean.go            |   4 +-
+ src/cmd/go/internal/help/helpdoc.go           |   2 +-
+ src/cmd/go/internal/load/pkg.go               |   2 +-
+ src/cmd/go/internal/modconv/convert_test.go   |   2 +-
+ src/cmd/go/internal/modfetch/cache.go         |  16 ++--
+ src/cmd/go/internal/modfetch/fetch.go         |  10 +--
+ src/cmd/go/internal/modfetch/proxy.go         |   4 +-
+ src/cmd/go/internal/modload/help.go           |   2 +-
+ src/cmd/go/internal/modload/init.go           |  20 ++---
+ src/cmd/go/internal/modload/query_test.go     |   2 +-
+ src/cmd/go/testdata/addmod.go                 |   4 +-
+ src/cmd/go/testdata/script/mod_file_proxy.txt |   6 +-
+ src/cmd/go/testdata/script/mod_import_mod.txt |   2 +-
+ src/cmd/go/testdata/script/mod_list.txt       |   6 +-
+ src/cmd/go/testdata/script/mod_list_dir.txt   |   8 +-
+ src/cmd/go/testdata/script/mod_multirepo.txt  |   8 +-
+ src/cmd/go/testdata/script/mod_verify.txt     |  12 +--
+ 18 files changed, 120 insertions(+), 101 deletions(-)

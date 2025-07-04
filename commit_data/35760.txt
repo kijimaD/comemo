@@ -1,0 +1,23 @@
+commit 0c9be48a90bfafac68cde05c4d7db8eee17492f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 19 16:53:18 2018 -0700
+
+    go/internal/gccgoimporter: read export data from archives
+    
+    When used with the go tool, gccgo will normally generate archive files.
+    This change teaches the gccgoimporter package how to read the export
+    data from an archive.
+    
+    This is needed by, for example, cmd/vet, when typechecking packages.
+    
+    Change-Id: I21267949a7808cd81c0042af425c774a4ff7d82f
+    Reviewed-on: https://go-review.googlesource.com/119895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gccgoimporter/ar.go                | 148 +++++++++++++++++++++
+ src/go/internal/gccgoimporter/importer.go          |  50 ++++---
+ src/go/internal/gccgoimporter/importer_test.go     |   1 +
+ .../internal/gccgoimporter/testdata/libimportsar.a | Bin 0 -> 9302 bytes
+ 4 files changed, 178 insertions(+), 21 deletions(-)

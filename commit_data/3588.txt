@@ -1,0 +1,18 @@
+commit e76cce1a6db43af9fa3ecf726a973abe254c0827
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 13:57:51 2009 -0700
+
+    support one-line functions
+    
+    R=rsc
+    DELTA=207  (160 added, 42 deleted, 5 changed)
+    OCL=35854
+    CL=35887
+
+ src/pkg/go/printer/printer.go                   | 140 ++++++++++++++++--------
+ src/pkg/go/printer/testdata/declarations.go     |  10 ++
+ src/pkg/go/printer/testdata/declarations.golden |  10 ++
+ src/pkg/go/printer/testdata/expressions.go      |  20 ++++
+ src/pkg/go/printer/testdata/expressions.golden  |  12 ++
+ src/pkg/go/printer/testdata/expressions.raw     |  12 ++
+ 6 files changed, 161 insertions(+), 43 deletions(-)

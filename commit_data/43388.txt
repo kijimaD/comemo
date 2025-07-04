@@ -1,0 +1,21 @@
+commit d595712540f00d980b1276ed25495ee7e05c1bfa
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 20 09:06:42 2020 -0400
+
+    cmd/asm: rename "compiling runtime" flag
+    
+    Rename the assembler "-compilingRuntime" flag to "-compiling-runtime",
+    to be more consistent with the flag style of other Go commands.
+    
+    Change-Id: I8cc5cbf0b9b34d1dd4e9fa499d3fec8c1ef10b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263857
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/flags/flags.go | 2 +-
+ src/cmd/dist/build.go               | 2 +-
+ src/cmd/go/internal/work/gc.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

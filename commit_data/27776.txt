@@ -1,0 +1,14 @@
+commit df7c159f06ab6d6c7ac6c953e491f8900f40d282
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 17:14:10 2016 -0700
+
+    path/filepath: fix typo in comment
+    
+    Change-Id: I0c76e8deae49c1149647de421503c5175028b948
+    Reviewed-on: https://go-review.googlesource.com/24781
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

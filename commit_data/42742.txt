@@ -1,0 +1,61 @@
+commit c12d9ed87596688aeeeb61111e408f6a176aa287
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 18 10:54:11 2020 -0400
+
+    cmd/go: revert 3 CLs affecting par.Work, context propagation, tracing
+    
+    This reverts the following changes:
+    
+    •       cmd/go: add tracing for querying and downloading from the proxy
+            CL 242786, commit 1a3558341860357c2400e37773e5076bb3a51628
+    
+    •       cmd/go: do context propagation for tracing downloads
+            CL 248327, commit c0cf190d226cc3defb71d17c01d0b45bf49a8a85
+    
+    •       cmd/go/internal: remove some users of par.Work
+            CL 248326, commit f30044a03bc7cf107dbec03c02fb6d0072878252
+    
+    Reason for revert: broke linux 386 and amd64 longtest builders.
+    
+    The problem started with CL 248326, but CL 248327 and CL 242786
+    are reverted as well due to conflicts.
+    
+    Updates #38714.
+    Fixes #40861.
+    
+    Change-Id: I68496b4e5a27e47a42183553c3a645b288edac83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249017
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/get.go                     |  4 +-
+ src/cmd/go/internal/list/list.go                   |  5 +-
+ src/cmd/go/internal/load/pkg.go                    | 40 ++++++------
+ src/cmd/go/internal/load/test.go                   |  6 +-
+ src/cmd/go/internal/modcmd/download.go             | 75 ++++++++++------------
+ src/cmd/go/internal/modcmd/graph.go                | 19 +++---
+ src/cmd/go/internal/modcmd/init.go                 |  2 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  2 +-
+ src/cmd/go/internal/modcmd/vendor.go               |  2 +-
+ src/cmd/go/internal/modcmd/why.go                  |  6 +-
+ src/cmd/go/internal/modconv/convert.go             | 59 ++++++++---------
+ src/cmd/go/internal/modconv/convert_test.go        |  5 +-
+ src/cmd/go/internal/modfetch/fetch.go              | 24 ++-----
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |  3 +-
+ src/cmd/go/internal/modget/get.go                  | 59 +++++++----------
+ src/cmd/go/internal/modload/build.go               | 17 +++--
+ src/cmd/go/internal/modload/import.go              |  9 ++-
+ src/cmd/go/internal/modload/import_test.go         |  5 +-
+ src/cmd/go/internal/modload/init.go                |  9 ++-
+ src/cmd/go/internal/modload/list.go                | 49 ++++++--------
+ src/cmd/go/internal/modload/load.go                | 39 ++++++-----
+ src/cmd/go/internal/modload/mvs.go                 |  5 +-
+ src/cmd/go/internal/modload/query.go               | 55 ++++++----------
+ src/cmd/go/internal/modload/query_test.go          |  5 +-
+ src/cmd/go/internal/modload/search.go              |  5 +-
+ src/cmd/go/internal/run/run.go                     |  2 +-
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/work/exec.go                   |  2 +-
+ 28 files changed, 216 insertions(+), 299 deletions(-)

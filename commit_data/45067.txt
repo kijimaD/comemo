@@ -1,0 +1,15 @@
+commit 16cd770e0668a410a511680b2ac1412e554bd27b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 11 14:49:38 2021 +0200
+
+    cmd/cgo: throw if C.malloc returns NULL in C.CString or C.CBytes
+    
+    Change-Id: Iea07b7f3e64f5938cfb1cd1c07bdce4adf8e4470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308992
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

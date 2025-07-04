@@ -1,0 +1,13 @@
+commit 22731159b039c8d6d83d6533d301e720c32cd662
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 16:35:02 2008 -0700
+
+    array literals not initialized
+    
+    R=r
+    DELTA=11  (11 added, 0 deleted, 0 changed)
+    OCL=15222
+    CL=15276
+
+ test/bugs/bug101.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

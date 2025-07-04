@@ -1,0 +1,25 @@
+commit 12d1c9b863ab5135d498a031616ff8a172e471a4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 11 06:52:09 2020 -0700
+
+    cmd/compile: delete gdata
+    
+    All callers to gdata knew the kind of node they were working with,
+    so all calls to gdata have been replaced with more specific calls.
+    
+    Some OADDR nodes were constructed solely for the purpose of
+    passing them to gdata for unwrapping. In those cases, we can now
+    cut to the chase.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iacc1abefd7f748cb269661a03768d3367319b0b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228888
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go   | 129 ++++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/sinit.go |  35 ++++------
+ 2 files changed, 88 insertions(+), 76 deletions(-)

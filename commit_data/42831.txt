@@ -1,0 +1,14 @@
+commit 6f561e65b16645fea771375d3af6d7896ab025e6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 26 23:18:41 2020 +0700
+
+    cmd/fix: remove un-used code
+    
+    Change-Id: Ibbd9da6fd1f3219c9c6103d8f858347ab3a21210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250857
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/fix/fix.go | 292 -----------------------------------------------------
+ 1 file changed, 292 deletions(-)

@@ -1,0 +1,13 @@
+commit eca37e1eed089bd6bfb6e929a64761435dae65ae
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 04:19:36 2012 +0800
+
+    codereview: more mercurial interface fixes
+            Fixes #4131.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6614061
+
+ lib/codereview/codereview.py | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

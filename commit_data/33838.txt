@@ -1,0 +1,22 @@
+commit f72196647e017e834f65dc7264b844e0a2760490
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Dec 7 13:38:16 2017 -0800
+
+    sync: throw, not panic, for unlock of unlocked mutex
+    
+    This was originally done in https://golang.org/cl/31359 but partially
+    undone (apparently unintentionally) in https://golang.org/cl/34310
+    
+    Fix it, and update tests to ensure the error is unrecoverable.
+    
+    Fixes #23039
+    
+    Change-Id: I923ebd613a05e67d8acce77f4a68c64c8574faa6
+    Reviewed-on: https://go-review.googlesource.com/82656
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/mutex.go      | 6 +++---
+ src/sync/mutex_test.go | 5 ++++-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

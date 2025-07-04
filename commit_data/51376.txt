@@ -1,0 +1,22 @@
+commit dccc58e1b9d3fbc88c6a86c02f77ed0f26d07a4a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 18 14:54:14 2022 -0500
+
+    cmd/go: don't report non-go files in CompiledGoFiles
+    
+    We save non-go files in the cached srcfiles file because we want the
+    non-go files for vet, but we shouldn't report them in CompiledGoFiles.
+    Filter them out before adding them to CompiledGoFiles.
+    
+    Fixes #28749
+    
+    Change-Id: I889d4bbf8c4ec1348584a62ef5e4f8b3f05e97da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451285
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/exec.go                       | 18 ++++++++++--------
+ .../testdata/script/list_compiled_files_issue28749.txt | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 8 deletions(-)

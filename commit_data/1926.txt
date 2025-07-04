@@ -1,0 +1,23 @@
+commit dc5b4678e2981bda6b6b8a7aa8737f202196374c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 31 00:22:59 2009 -0700
+
+    minimal 8g.  can compile
+    
+            package main
+            func main() {
+            }
+    
+    and not much else.
+    
+    R=ken
+    OCL=26943
+    CL=26943
+
+ src/cmd/8g/Makefile |  39 ++++
+ src/cmd/8g/align.c  |  38 ++++
+ src/cmd/8g/gen.c    | 184 ++++++++++++++++++
+ src/cmd/8g/gg.h     | 140 ++++++++++++++
+ src/cmd/8g/list.c   | 298 +++++++++++++++++++++++++++++
+ src/cmd/8g/obj.c    | 532 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 1231 insertions(+)

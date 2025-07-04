@@ -1,0 +1,19 @@
+commit dbc7203d22e782275c1cad6840b235a0bcf83288
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 15:09:11 2015 -0700
+
+    io: clarify documentation for Seeker
+    
+    The later part of the docstring simply talks about "offset" but does
+    not disambiguate what it is relative to. For both the return value
+    and valid offsets to seek to, it only makes sense in the context of
+    "offset relative to origin of file".
+    
+    Fixes #11877
+    
+    Change-Id: Ic238a407cf8e8fdd64991d98a6584cdc8a51cd6b
+    Reviewed-on: https://go-review.googlesource.com/15257
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/io/io.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

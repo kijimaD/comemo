@@ -1,0 +1,13 @@
+commit d27dfd2152efd34d0603fdb105b1aaeb0f8b492e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 21 10:16:49 2014 -0700
+
+    cmd/api: reduce stutter in runtime type stubs
+    
+    LGTM=khr
+    R=khr
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/132770044
+
+ src/cmd/api/goapi.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

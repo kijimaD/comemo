@@ -1,0 +1,40 @@
+commit 9a9780a20d6987d462d97fa191de3c4a66980022
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 9 15:19:46 2017 -0400
+
+    cmd/go: separate compile and link steps in action graph
+    
+    To the extent that invoking the compiler and invoking the linker
+    have different dependency requirements, representing both steps
+    by a single action node leads to confusion.
+    
+    If we move to having separate .a and .x (import metadata) files
+    in the standard builds, then the .a is a link dependency but not
+    a compile dependency, and vice versa for .x.
+    Today, in shared library builds, the .a is a compile dependency
+    and a link dependency, while the .so is only a link dependency.
+    
+    Also in this CL: change the gccgo link step to extract _cgo_flags
+    into root.Objdir, which is private to the link step, instead of into
+    b.WorkDir, which is shared by all the link steps that could possibly
+    be running in parallel. And attempt to handle the -n and -x flags
+    when loading _cgo_flags, instead of dying attempting to read
+    an archive that wasn't written.
+    
+    Also in this CL: create a.Objdir before running a.Func, to avoid
+    duplicating the Mkdir(a.Objdir) in every a.Func.
+    
+    A future CL will update the link action's Deps to be accurate.
+    (Right now the link steps search out the true Deps by walking
+    the entire action graph.)
+    
+    Change-Id: I15128ce2bd064887f98abc3a4cf204241f518631
+    Reviewed-on: https://go-review.googlesource.com/69830
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go             |   4 +-
+ src/cmd/go/internal/test/test.go  |   5 --
+ src/cmd/go/internal/work/build.go | 122 ++++++++++++++++++++------------------
+ 3 files changed, 67 insertions(+), 64 deletions(-)

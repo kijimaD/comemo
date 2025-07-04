@@ -1,0 +1,17 @@
+commit 6a228239392fd4f3a3d04c816be4fdd39d3a36b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 30 14:40:12 2014 -0700
+
+    gofmt: remove redundant check in rewriter
+    
+    If the actual types of two reflect values are
+    the same and the values are structs, they must
+    have the same number of fields.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/108280043
+
+ src/cmd/gofmt/rewrite.go | 3 ---
+ 1 file changed, 3 deletions(-)

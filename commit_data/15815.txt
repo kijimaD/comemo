@@ -1,0 +1,20 @@
+commit ba50e4f1203ad5cc20b7ada2fce4da62ab195622
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 18 20:11:11 2013 +0100
+
+    runtime: fix tv_sec 32-bit overflows in sleep routines.
+    
+    Fixes #5063.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7876043
+
+ src/pkg/runtime/export_futex_test.go | 13 +++++++++++++
+ src/pkg/runtime/futex_test.go        | 31 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_darwin.c          |  7 ++++++-
+ src/pkg/runtime/os_freebsd.c         |  7 ++++++-
+ src/pkg/runtime/os_linux.c           | 10 ++++++----
+ src/pkg/runtime/os_netbsd.c          |  7 ++++++-
+ src/pkg/runtime/os_openbsd.c         |  7 ++++++-
+ 7 files changed, 74 insertions(+), 8 deletions(-)

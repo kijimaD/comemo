@@ -1,0 +1,55 @@
+commit 80629caecb5b21b718f5d1d01fefda6e8d3a5baf
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 13 16:54:02 2023 -0400
+
+    all: update vendored dependencies
+    
+    Generated with x/build/cmd/updatestd.
+    
+    For #36905.
+    For #55079.
+    
+    Change-Id: I5ba28993359cb5bbfb1bc7cfcea9576b07fcfb14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502878
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |    8 +-
+ src/cmd/go.sum                                     |   16 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |    2 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    6 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   30 +-
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   17 +-
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |   14 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_386.s   |   10 +
+ .../x/sys/unix/zsyscall_openbsd_amd64.go           |   32 +-
+ .../golang.org/x/sys/unix/zsyscall_openbsd_amd64.s |   10 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm.s   |   10 +
+ .../x/sys/unix/zsyscall_openbsd_arm64.go           |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm64.s |   10 +
+ .../x/sys/unix/zsyscall_openbsd_mips64.go          |   22 +
+ .../x/sys/unix/zsyscall_openbsd_mips64.s           |   10 +
+ .../x/sys/unix/zsyscall_openbsd_ppc64.go           |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s |   12 +
+ .../x/sys/unix/zsyscall_openbsd_riscv64.go         |   22 +
+ .../x/sys/unix/zsyscall_openbsd_riscv64.s          |   10 +
+ .../x/tools/go/types/objectpath/objectpath.go      |   41 +-
+ .../x/tools/internal/typeparams/common.go          |   20 +
+ src/cmd/vendor/modules.txt                         |    8 +-
+ src/go.mod                                         |    8 +-
+ src/go.sum                                         |   16 +-
+ src/vendor/golang.org/x/net/idna/idna9.0.0.go      |    2 +-
+ src/vendor/golang.org/x/net/idna/tables13.0.0.go   | 2988 ++++----
+ src/vendor/golang.org/x/net/idna/tables15.0.0.go   | 5145 +++++++++++++
+ src/vendor/golang.org/x/net/idna/trie.go           |   21 -
+ src/vendor/golang.org/x/net/idna/trie12.0.0.go     |   31 +
+ src/vendor/golang.org/x/net/idna/trie13.0.0.go     |   31 +
+ .../golang.org/x/text/unicode/bidi/tables13.0.0.go |    4 +-
+ .../golang.org/x/text/unicode/bidi/tables15.0.0.go | 2043 +++++
+ .../golang.org/x/text/unicode/norm/tables13.0.0.go |    4 +-
+ .../golang.org/x/text/unicode/norm/tables15.0.0.go | 7908 ++++++++++++++++++++
+ src/vendor/modules.txt                             |    8 +-
+ 37 files changed, 17084 insertions(+), 1523 deletions(-)

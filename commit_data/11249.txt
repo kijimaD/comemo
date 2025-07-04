@@ -1,0 +1,14 @@
+commit f47807a57f9dacab74ebf7e9d86f3dc0dcb933b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 19:27:16 2012 -0800
+
+    cmd/go: skip _obj directories in package scans
+    
+    Fixes #2693
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5557057
+
+ src/cmd/go/main.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

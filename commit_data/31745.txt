@@ -1,0 +1,21 @@
+commit 766e1ae3623f7a30b308200ebdf42901ced6676c
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Wed May 24 20:37:53 2017 +0300
+
+    sync: remove note about creating with structures
+    
+    Remove note that sync.Cond, sync.Mutex, sync.RWMutex and atomic.Value
+    can be created as part of other data structures. Structs can be embedded
+    by default, and default should not be repeated.
+    
+    Fixes #20471.
+    
+    Change-Id: If3f5703d3f60abd96482b58ca43450d02a9e645a
+    Reviewed-on: https://go-review.googlesource.com/44071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sync/atomic/value.go | 1 -
+ src/sync/cond.go         | 1 -
+ src/sync/mutex.go        | 3 +--
+ src/sync/rwmutex.go      | 3 +--
+ 4 files changed, 2 insertions(+), 6 deletions(-)

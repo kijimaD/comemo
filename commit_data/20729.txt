@@ -1,0 +1,13 @@
+commit 68521aa6a8d8c6d8a136858f9be8d6b067498462
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 16 13:55:32 2014 -0700
+
+    CONTRIBUTORS: add Damien Neil
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/159920044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

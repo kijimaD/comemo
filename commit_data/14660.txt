@@ -1,0 +1,15 @@
+commit 8c86f1f3310047f7c7b3212cca38e5ef96ec9bfa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 17 02:34:49 2012 +0100
+
+    encoding/json: cleanup leftover redundant variables.
+    
+    Those variables come from ancient times when reflect.Value was
+    an interface.
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6946059
+
+ src/pkg/encoding/json/decode.go | 36 ++++++++++++++----------------------
+ 1 file changed, 14 insertions(+), 22 deletions(-)

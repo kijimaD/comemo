@@ -1,0 +1,13 @@
+commit 2a6520c2d367020951648379d9df7228f8d7151c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 17:47:40 2013 +0400
+
+    runtime: hide mheap from GC
+    It contains pointers to first blocks of lots of spans.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11416046
+
+ src/pkg/runtime/malloc.goc | 2 ++
+ 1 file changed, 2 insertions(+)

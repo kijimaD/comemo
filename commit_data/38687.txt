@@ -1,0 +1,17 @@
+commit 081bc62d728c0dc47fb62d26936f297d50efc1f4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Apr 6 09:50:28 2019 -0700
+
+    cmd/go: do not write output when -o is not specified, but folder with same name exists
+    
+    Fixes #31296
+    
+    Change-Id: Ib8850fe22749ca0bf268614ba045ffe3fc68f5cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171057
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/build.go               | 5 +++++
+ src/cmd/go/testdata/script/build_multi_main.txt | 6 ++++++
+ 2 files changed, 11 insertions(+)

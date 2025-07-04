@@ -1,0 +1,27 @@
+commit c3c4aea55b404c2e6ef109ec6a345f4ccb877381
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 28 11:18:51 2022 -0400
+
+    regexp: limit size of parsed regexps
+    
+    Set a 128 MB limit on the amount of space used by []syntax.Inst
+    in the compiled form corresponding to a given regexp.
+    
+    Also set a 128 MB limit on the rune storage in the *syntax.Regexp
+    tree itself.
+    
+    Thanks to Adam Korczynski (ADA Logics) and OSS-Fuzz for reporting this issue.
+    
+    Fixes CVE-2022-41715.
+    Fixes #55949.
+    
+    Change-Id: Ia656baed81564436368cf950e1c5409752f28e1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439356
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/regexp/syntax/parse.go      | 147 ++++++++++++++++++++++++++++++++++++++--
+ src/regexp/syntax/parse_test.go |  13 ++--
+ 2 files changed, 150 insertions(+), 10 deletions(-)

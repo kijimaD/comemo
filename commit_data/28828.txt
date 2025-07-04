@@ -1,0 +1,25 @@
+commit 1bc6be6423e48318451a0faeaae840772137b001
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 11 22:58:21 2016 -0400
+
+    runtime: mark several types go:notinheap
+    
+    This covers basically all sysAlloc'd, persistentalloc'd, and
+    fixalloc'd types.
+    
+    Change-Id: I0487c887c2a0ade5e33d4c4c12d837e97468e66b
+    Reviewed-on: https://go-review.googlesource.com/30941
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/cpuprof.go   |  1 +
+ src/runtime/malloc.go    |  2 ++
+ src/runtime/mcache.go    |  2 ++
+ src/runtime/mcentral.go  |  2 ++
+ src/runtime/mfinal.go    | 11 +++++++----
+ src/runtime/mfixalloc.go |  4 ++++
+ src/runtime/mgcwork.go   |  3 +++
+ src/runtime/mheap.go     | 22 +++++++++++++++++++---
+ src/runtime/mprof.go     |  4 ++++
+ src/runtime/netpoll.go   |  4 ++++
+ src/runtime/trace.go     |  7 +++++++
+ 11 files changed, 55 insertions(+), 7 deletions(-)

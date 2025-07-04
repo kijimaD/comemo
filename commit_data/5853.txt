@@ -1,0 +1,13 @@
+commit de228c0e0c6e4f5736dcdde913afff527d0f76f5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 20 19:53:59 2010 -0700
+
+    bytes: add Title
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1872042
+
+ src/pkg/bytes/bytes.go      | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

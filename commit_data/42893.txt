@@ -1,0 +1,19 @@
+commit 7432bee7b372efbbd09b16c4e3176b69fbb6878a
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Wed Sep 2 10:53:39 2020 +0800
+
+    net/http/fcgi: fix race in child.serve connection read
+    
+    Guards the connection read with a mutex, because typeStdin
+    asynchronously and concurrently writes to the underlying conn.
+    
+    Fixes #41167
+    
+    Change-Id: Ia2610f4fde0bd4b108c54164095ea293980b0301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252417
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/fcgi/child.go | 3 +++
+ 1 file changed, 3 insertions(+)

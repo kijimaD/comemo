@@ -1,0 +1,14 @@
+commit e6d2112ba9fb4823aa14bec5e32c57533d135787
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 18 17:33:29 2015 +1000
+
+    internal/testenv: skip network tests only when -short is specified
+    
+    Change-Id: I157879f5204d543eb3fc81c212d563b146473ba8
+    Reviewed-on: https://go-review.googlesource.com/11232
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/testenv/testenv.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

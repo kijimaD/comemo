@@ -1,0 +1,12 @@
+commit 29e32d73efc0cd6df128097f4f686d134411cc17
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Thu May 31 16:51:49 2012 -0400
+
+    CONTRIBUTORS: Add Ryan Barrett (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6244071
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

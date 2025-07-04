@@ -1,0 +1,18 @@
+commit 3e1478ef0d4e98e5655afdee6efec2fc886d66fc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 1 02:04:29 2023 +0700
+
+    cmd/compile: cleanup atomic.Pointer[T] inline test
+    
+    Updates #57410
+    
+    Change-Id: I9be38e20c6b83d14f7785049a66de77ac7ecdf15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463997
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

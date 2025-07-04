@@ -1,0 +1,14 @@
+commit 3d72ca9908ba2696e1acafa7d7f8fee21131fe5e
+Author: Xia Bin <snyh@snyh.org>
+Date:   Mon Nov 19 11:24:12 2018 +0800
+
+    cmd/link: directly get max pc value in findfunctab
+    
+    Change-Id: I70afd2f7b6783926174c4e66565b711cffeb97c5
+    Reviewed-on: https://go-review.googlesource.com/c/150141
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

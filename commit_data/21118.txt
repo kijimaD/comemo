@@ -1,0 +1,20 @@
+commit fcd61eb07e11f856e62de3f24383f51627f25009
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 30 14:44:41 2014 -0500
+
+    go/parser: add {map,chan,interface} to expression lookahead tokens
+    
+    + tests that these parse:
+      map[int]int{}[0]++
+      interface{f()}(x).f()
+      chan int(x) <- 0
+    
+    Fixes #9474
+    
+    Change-Id: If9fa57b3ab415ae7e93aa9935ec63edda8fe9d4f
+    Reviewed-on: https://go-review.googlesource.com/2178
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/parser.go     | 2 +-
+ src/go/parser/short_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

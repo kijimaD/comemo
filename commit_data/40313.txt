@@ -1,0 +1,24 @@
+commit 504fce98ba3052135ec1f9564e06819f42cdbc86
+Author: Umang Parmar <umangjparmar@gmail.com>
+Date:   Sun Oct 20 11:25:56 2019 +0000
+
+    go/build: recognize '.sx' as equivalent of '.S'
+    
+    On case insensitive filesystems, '.S' is interpreted as '.s' so,
+    providing option to use '.sx' extension for '.S' files as an alternative.
+    
+    Fixes #32434
+    
+    Change-Id: Ie2f7e5e2f3f12690ce18659e30ca94252a8f7bfc
+    GitHub-Last-Rev: dcca989ec41ddc1d06ea509b78dce7d70bc996ed
+    GitHub-Pull-Request: golang/go#32557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181699
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go                  | 2 +-
+ src/cmd/go/alldocs.go               | 6 +++---
+ src/cmd/go/internal/help/helpdoc.go | 6 +++---
+ src/go/build/build.go               | 8 ++++----
+ 4 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit b4bd4d926d471656da382b4c77b82f9d1683c927
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Tue Feb 23 13:50:46 2010 -0800
+
+    misc/bbedit: treat predeclared identifiers as "keywords"
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/218064
+
+ misc/bbedit/Go.plist | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

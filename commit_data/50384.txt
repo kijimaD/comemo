@@ -1,0 +1,21 @@
+commit b53471a655f3928d2d0a851b1fb5f7ebb02adc76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 7 01:14:31 2022 +0000
+
+    Revert "sync: convert Once.done to atomic type"
+    
+    This reverts commit CL 427140.
+    
+    Reason for revert: Comments say that done should be the first field.
+    
+    Change-Id: Id131da064146b44e1182289546aeb877867e63cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428638
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/sync/once.go    | 14 +++++++-------
+ test/inline_sync.go |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

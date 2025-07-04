@@ -1,0 +1,19 @@
+commit c793ea37195f982bbe0b78f90fa0392bb856e834
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 23:47:02 2018 +0000
+
+    net/http: remove dead code noted in post-submit review of CL 81778
+    
+    Per comments in https://github.com/golang/go/issues/20239#issuecomment-402199944
+    
+    Updates #20239
+    Updates #26303
+    
+    Change-Id: Iddf34c0452bd30ca9111b951bca48d1e011bd85a
+    Reviewed-on: https://go-review.googlesource.com/122820
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

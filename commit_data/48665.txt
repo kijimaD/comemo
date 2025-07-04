@@ -1,0 +1,34 @@
+commit 35fb79be6abc1a9a0860cd28cae89dda038f5125
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 1 17:02:28 2022 -0700
+
+    go/types, types2: fix overlap test for union termlist
+    
+    Per the spec, "the type sets of all non-interface terms must be
+    pairwise disjoint (the pairwise intersection of the type sets must
+    be empty)" in a union.
+    
+    For the overlap test, the existing implementation casually mixed
+    syntactic union terms (which may have interface type) with type set
+    terms (which are normalized/expanded and must not have interface
+    type). As a consequence, in some cases the overlap test failed.
+    
+    This change skips terms with interface types in the overlap test.
+    
+    Fixes #51607.
+    
+    Change-Id: I8ae9953db31f0a0428389c6a45a6696aa2450219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397695
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/examples/constraints.go        |  3 +-
+ .../types2/testdata/fixedbugs/issue51607.go        | 65 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/union.go           | 14 +++--
+ src/go/types/testdata/examples/constraints.go      |  3 +-
+ src/go/types/testdata/fixedbugs/issue51607.go      | 65 ++++++++++++++++++++++
+ src/go/types/union.go                              | 14 +++--
+ 6 files changed, 152 insertions(+), 12 deletions(-)

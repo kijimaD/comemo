@@ -1,0 +1,16 @@
+commit d8630694db6b00782a9172ac6b88ec9fc8f7da3f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 10 17:39:13 2013 -0500
+
+    doc: move os specific build instructions to wiki
+    
+    Fixes #4010.
+    
+    This proposal avoids cluttering the main install-source.html with OS specific instructions by linking to the wiki for details. See discussion in the comments.
+    
+    R=adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7241068
+
+ doc/install-source.html | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)

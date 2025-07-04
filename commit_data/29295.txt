@@ -1,0 +1,13 @@
+commit 2c5bce1cfa242f27ffece3d30e8b851e3e923be2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 30 11:56:19 2016 -0400
+
+    time: simplify: tell people to not use == with Time values
+    
+    Change-Id: I49952f89b04f41109bb6591c6f025971d9880123
+    Reviewed-on: https://go-review.googlesource.com/32411
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

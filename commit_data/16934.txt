@@ -1,0 +1,14 @@
+commit 1794880299eaac110dad1fb972c91cb8a6e17086
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 23:21:07 2013 -0400
+
+    runtime: fix build on FreeBSD
+    
+    This is what I get for being talked into a test.
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12045044
+
+ src/pkg/runtime/map_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

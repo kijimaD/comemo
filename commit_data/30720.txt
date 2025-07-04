@@ -1,0 +1,21 @@
+commit 2c397c7a753963494ce5dd5d7eda471354074698
+Author: Damien Lespiau <damien.lespiau@gmail.com>
+Date:   Sat Mar 18 19:44:37 2017 +0000
+
+    cmd/gofmt: unindent the second line of a BUG note
+    
+    Currently, this second line is treated a pre-formatted text as it's
+    indented relatively to the BUG() line.
+    
+    The current state can be seen at:
+    
+      https://golang.org/cmd/gofmt/#pkg-note-BUG
+    
+    Unindenting makes the rest of the sentence part of the same paragraph.
+    
+    Change-Id: I6dee55c9c321b1a03b41c7124c6a1ea15772c878
+    Reviewed-on: https://go-review.googlesource.com/38353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

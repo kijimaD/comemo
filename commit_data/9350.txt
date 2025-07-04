@@ -1,0 +1,22 @@
+commit 5c45e56898261c29ae44e65bd087a508c9abe0a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 12 15:43:10 2011 -0700
+
+    godoc: remove last vestiges of old template system
+    
+    - rename template funcs for better consistency and
+      sort them into groups of related functionality
+    - try to be more consistent with html vs url escaping
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4887041
+
+ lib/godoc/godoc.html     |   2 +-
+ lib/godoc/package.html   |  50 +++++------
+ lib/godoc/package.txt    |  20 ++---
+ lib/godoc/search.html    |  41 ++++-----
+ lib/godoc/search.txt     |   6 +-
+ src/cmd/godoc/godoc.go   | 228 ++++++++++++++++++-----------------------------
+ src/cmd/godoc/snippet.go |   9 +-
+ 7 files changed, 152 insertions(+), 204 deletions(-)

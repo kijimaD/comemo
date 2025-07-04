@@ -1,0 +1,18 @@
+commit f8ff3b10550e359a2608f3ddffaea4f27aa9a0b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 25 16:36:17 2009 -0700
+
+    daily snapshot:
+    - more work on template-driven ast formatting
+    - added preliminary test suite
+    - added documentation
+    
+    TBR=r
+    OCL=27858
+    CL=27858
+
+ usr/gri/pretty/ast.txt        |  22 +-
+ usr/gri/pretty/format.go      | 461 ++++++++++++++++++++++++++----------------
+ usr/gri/pretty/format_test.go |  95 +++++++++
+ usr/gri/pretty/pretty.go      |   2 +-
+ 4 files changed, 397 insertions(+), 183 deletions(-)

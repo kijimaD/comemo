@@ -1,0 +1,27 @@
+commit cd58f44b203b54ea3125637461d910fc447f0bad
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 16:10:15 2015 -0500
+
+    runtime/cgo: assume Solaris thread stack is at least 1 MB
+    
+    When run with "ulimit -s unlimited", the misc/cgo/test test binary
+    finds a stack size of 0x3000 returned by getcontext, causing the
+    runtime to try to stay within those bounds and then fault when
+    called back in the test after 64 kB has been used by C.
+    
+    I suspect that Solaris is doing something clever like reporting the
+    current stack size and growing the stack as faults happen.
+    On all the other systems, getcontext reports the maximum stack size.
+    And when the ulimit is not unlimited, even Solaris reports the
+    maximum stack size.
+    
+    Work around this by assuming that any stack on Solaris must be at least 1 MB.
+    
+    Fixes #12210.
+    
+    Change-Id: I0a6ed0afb8a8f50aa1b2486f32b4ae470ab47dbf
+    Reviewed-on: https://go-review.googlesource.com/17452
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_solaris_amd64.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

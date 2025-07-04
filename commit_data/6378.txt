@@ -1,0 +1,19 @@
+commit f33ef07f3804863b8b24dc838570d00e5c72724c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 14:59:34 2010 -0400
+
+    syscall: fix socketpair in syscall_bsd
+    
+    THIS WILL BREAK THE BUILD.
+    
+    The z files have socketpair code in them that was
+    written by hand; breaking the build with this is the first
+    step in getting rid of that hand-written code.
+    
+    R=adg
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2197050
+
+ src/pkg/syscall/syscall_bsd.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

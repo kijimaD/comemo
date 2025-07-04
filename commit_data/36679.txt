@@ -1,0 +1,17 @@
+commit 5eec2373e492081132cf374daa494264df923c98
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 17 17:22:48 2018 +0200
+
+    syscall: enable TestSyscallNoError on all Linux 32-bit architectures
+    
+    Check the size of uintptr instead of listing GOARCHes explicitly. This
+    will make the test also run on linux/mips{,le}.
+    
+    Change-Id: I649f15d293002afc1360b1913910202c3e5188b7
+    Reviewed-on: https://go-review.googlesource.com/135715
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

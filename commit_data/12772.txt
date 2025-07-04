@@ -1,0 +1,16 @@
+commit bf9620ebbdf6f9dfa2f46e5823f6afc5bfa8206f
+Author: Ben Fried <ben.fried@gmail.com>
+Date:   Mon Mar 26 23:26:39 2012 -0400
+
+    misc/emacs: fix overindentation caused by mis-parsing lines ending with special chars
+    
+    Fixes #3313
+    
+    go-mode-backward-skip-comments is probably due for a more ambitious refactoring --- it repeats guard conditions after every nearly every movement of point.
+    
+    R=sameer, r
+    CC=golang-dev
+    https://golang.org/cl/5844063
+
+ misc/emacs/go-mode.el | 203 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 179 insertions(+), 24 deletions(-)

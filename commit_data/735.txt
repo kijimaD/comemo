@@ -1,0 +1,17 @@
+commit 3548350d3ee691475ab6572065e510d61754b2da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 17:20:39 2008 -0700
+
+    Snapshot.
+    Added support for function literals, composite literals.
+    Bug fixes.
+    
+    R=r
+    OCL=15911
+    CL=15911
+
+ usr/gri/pretty/ast.go     |  41 +++++++++++++----
+ usr/gri/pretty/parser.go  | 114 ++++++++++++++++++++++++++++------------------
+ usr/gri/pretty/printer.go |  26 ++++++++++-
+ usr/gri/pretty/scanner.go |   4 +-
+ 4 files changed, 128 insertions(+), 57 deletions(-)

@@ -1,0 +1,16 @@
+commit 5bbb854cee2df329e031e50181ccc022c9d93a85
+Author: Gyu-Ho Lee <gyuhox@gmail.com>
+Date:   Sat Jun 4 23:26:12 2016 -0700
+
+    net/http/httputil: preallocate trailerKeys slice
+    
+    To prevent slice growths with append operations.
+    
+    Change-Id: Icdb745b23cc44dfaf3e16746b94c06997f814e15
+    Reviewed-on: https://go-review.googlesource.com/23784
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

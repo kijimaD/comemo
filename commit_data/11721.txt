@@ -1,0 +1,12 @@
+commit 3fce00d99e30d66f63f8e3cb85debc137329db0d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 08:36:13 2012 +1100
+
+    log/syslog: return length of data provided by the user, not length of header
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5644059
+
+ src/pkg/log/syslog/syslog.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

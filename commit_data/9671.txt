@@ -1,0 +1,20 @@
+commit 7406379fffb45e2ab84a0efcdadc997da98b57ce
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 14 16:19:45 2011 +1000
+
+    runtime: syscall to return both AX and DX for windows/386
+    
+    Fixes #2181.
+    
+    R=golang-dev, jp
+    CC=golang-dev
+    https://golang.org/cl/5000042
+
+ src/pkg/runtime/runtime.h               |  3 +-
+ src/pkg/runtime/syscall_windows_test.go | 71 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/sys.s       | 24 +++++------
+ src/pkg/runtime/windows/amd64/sys.s     |  2 +-
+ src/pkg/runtime/windows/os.h            |  1 -
+ src/pkg/runtime/windows/syscall.goc     | 61 +++++++++++++++++++++++-----
+ src/pkg/runtime/windows/thread.c        | 17 +-------
+ 7 files changed, 138 insertions(+), 41 deletions(-)

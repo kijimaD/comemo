@@ -1,0 +1,15 @@
+commit 73417e4098f59b3b03e7b3287427be6e47d9f56e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 24 08:32:11 2013 +0900
+
+    net: add missing File method document
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/8698049
+
+ src/pkg/net/tcpsock_plan9.go  | 4 ++++
+ src/pkg/net/tcpsock_posix.go  | 4 ++++
+ src/pkg/net/unixsock_plan9.go | 4 ++++
+ src/pkg/net/unixsock_posix.go | 4 ++++
+ 4 files changed, 16 insertions(+)

@@ -1,0 +1,43 @@
+commit dd6b3821ca4ffec1ae074e60f5a990835b976662
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Aug 25 13:55:59 2024 +0200
+
+    crypto/rand: use arc4random_buf() on OpenBSD
+    
+    OpenBSD system calls are mediated by libc anyway, and arc4random_buf()
+    is the preferred mechanism to obtain random bytes.
+    
+    Also, rename NetBSD's function to reflect it's not actually calling
+    getentropy(3).
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-openbsd-amd64
+    Change-Id: Id1f3f7af16750537e2420bcf44b086de5854198c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608395
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rand/rand.go                            |  3 +--
+ .../rand/{rand_darwin.go => rand_arc4random.go}    |  2 ++
+ .../rand/{rand_getentropy.go => rand_netbsd.go}    |  8 +++----
+ .../{getentropy_netbsd.go => arandom_netbsd.go}    |  4 +---
+ src/internal/syscall/unix/arc4random_openbsd.go    | 23 ++++++++++++++++++++
+ src/internal/syscall/unix/asm_openbsd.s            |  2 ++
+ src/internal/syscall/unix/getentropy_openbsd.go    | 18 ----------------
+ .../syscall/unix/getentropy_openbsd_mips64.go      | 25 ----------------------
+ src/syscall/linkname_openbsd.go                    |  1 -
+ src/syscall/syscall_openbsd_libc.go                |  1 -
+ src/syscall/zsyscall_openbsd_386.go                | 20 -----------------
+ src/syscall/zsyscall_openbsd_386.s                 |  2 --
+ src/syscall/zsyscall_openbsd_amd64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_amd64.s               |  2 --
+ src/syscall/zsyscall_openbsd_arm.go                | 20 -----------------
+ src/syscall/zsyscall_openbsd_arm.s                 |  2 --
+ src/syscall/zsyscall_openbsd_arm64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_arm64.s               |  2 --
+ src/syscall/zsyscall_openbsd_ppc64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_ppc64.s               |  3 ---
+ src/syscall/zsyscall_openbsd_riscv64.go            | 20 -----------------
+ src/syscall/zsyscall_openbsd_riscv64.s             |  2 --
+ 22 files changed, 33 insertions(+), 187 deletions(-)

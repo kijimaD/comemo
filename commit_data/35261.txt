@@ -1,0 +1,30 @@
+commit 150b728675c64addd24d79ad3bb68fec4c137940
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 14 14:51:39 2018 -0500
+
+    runtime: use native CAS and memory barrier on ARMv7
+    
+    This gets us around the kernel helpers on ARMv7.
+    
+    It is slightly faster than using the kernel helper.
+    
+    name           old time/op  new time/op  delta
+    AtomicLoad-4   72.5ns ± 0%  69.5ns ± 0%  -4.08%  (p=0.000 n=9+9)
+    AtomicStore-4  57.6ns ± 1%  54.4ns ± 0%  -5.58%  (p=0.000 n=10+9)
+    [Geo mean]     64.6ns       61.5ns       -4.83%
+    
+    If performance is really critical, we can even do compiler intrinsics
+    on GOARM=7.
+    
+    Fixes #23792.
+    
+    Change-Id: I36497d880890b26bdf01e048b542bd5fd7b17d23
+    Reviewed-on: https://go-review.googlesource.com/94076
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/atomic/bench_test.go   | 16 ++++++++++++++++
+ src/runtime/internal/atomic/sys_linux_arm.s |  9 ++++++++-
+ src/runtime/sys_linux_arm.s                 | 13 +++++++++----
+ 3 files changed, 33 insertions(+), 5 deletions(-)

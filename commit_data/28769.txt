@@ -1,0 +1,49 @@
+commit 6c517df4daa0acaa25a16baeef5ea037c9a0194c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 21:04:16 2016 -0700
+
+    syscall: unify NsecToTime{spec,val}, fix for times < 1970
+    
+    All the implementations of NsecToTimespec and NsecToTimeval were the
+    same other than types. Write a single version that uses
+    GOARCH/GOOS-specific setTimespec and setTimeval functions to handle the
+    types.
+    
+    The logic in NsecToTimespec and NsecToTimeval caused times before 1970
+    to have a negative usec/nsec. The Linux kernel requires that usec
+    contain a positive number; for consistency, we do this for both
+    NsecToTimespec and NsecToTimeval.
+    
+    Change-Id: I525eaba2e7cdb00cb57fa00182dabf19fec298ae
+    Reviewed-on: https://go-review.googlesource.com/30826
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/syscall/syscall_darwin_386.go      | 13 ++++---------
+ src/syscall/syscall_darwin_amd64.go    | 13 ++++---------
+ src/syscall/syscall_darwin_arm.go      | 13 ++++---------
+ src/syscall/syscall_dragonfly_amd64.go | 13 ++++---------
+ src/syscall/syscall_freebsd_386.go     | 13 ++++---------
+ src/syscall/syscall_freebsd_amd64.go   | 13 ++++---------
+ src/syscall/syscall_freebsd_arm.go     | 13 ++++---------
+ src/syscall/syscall_linux_386.go       | 13 ++++---------
+ src/syscall/syscall_linux_amd64.go     | 13 ++++---------
+ src/syscall/syscall_linux_arm.go       | 13 ++++---------
+ src/syscall/syscall_linux_arm64.go     | 13 ++++---------
+ src/syscall/syscall_linux_mips64x.go   | 13 ++++---------
+ src/syscall/syscall_linux_ppc64x.go    | 13 ++++---------
+ src/syscall/syscall_linux_s390x.go     | 13 ++++---------
+ src/syscall/syscall_nacl_386.go        | 13 ++++---------
+ src/syscall/syscall_nacl_amd64p32.go   | 13 ++++---------
+ src/syscall/syscall_nacl_arm.go        | 13 ++++---------
+ src/syscall/syscall_netbsd_386.go      | 13 ++++---------
+ src/syscall/syscall_netbsd_amd64.go    | 13 ++++---------
+ src/syscall/syscall_netbsd_arm.go      | 13 ++++---------
+ src/syscall/syscall_openbsd_386.go     | 13 ++++---------
+ src/syscall/syscall_openbsd_amd64.go   | 13 ++++---------
+ src/syscall/syscall_openbsd_arm.go     | 13 ++++---------
+ src/syscall/syscall_solaris_amd64.go   | 13 ++++---------
+ src/syscall/timestruct.go              | 29 +++++++++++++++++++++++++++++
+ 25 files changed, 125 insertions(+), 216 deletions(-)

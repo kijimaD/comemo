@@ -1,0 +1,13 @@
+commit 56e1614c47cca7dc76b435f485fe86fe088d5127
+Author: Hasan Ozgan <hasan@ozgan.net>
+Date:   Fri Feb 8 00:50:51 2019 +0000
+
+    path/filepath: add examples for Base, Dir and IsAbs
+    
+    Change-Id: I7a438409748f0f9d6517a7ea1cdee6512ce3ca8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161678
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/filepath/example_unix_test.go | 71 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

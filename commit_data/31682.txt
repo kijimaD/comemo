@@ -1,0 +1,21 @@
+commit 91a80cc174dc2b0df4cab12966c498ac435dbc31
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Thu May 25 13:59:39 2017 +0800
+
+    runtime: fix stack split at bad time when disable inlining
+    
+    key32 is called between entersyscallblock and exitsyscall
+    stack split may occur if disable inlining and the G is preempted
+    
+    Fix the problem by describing key32 as nosplit function
+    
+    Fixes #20510
+    
+    Change-Id: I1f0787995936f34ef0052cf79fde036f1b338865
+    Reviewed-on: https://go-review.googlesource.com/44390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/lock_futex.go | 1 +
+ 1 file changed, 1 insertion(+)

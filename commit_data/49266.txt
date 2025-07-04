@@ -1,0 +1,33 @@
+commit 740b0ebb76c4cb6788eb03be683650938a7f5897
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Dec 1 17:15:16 2021 +0800
+
+    runtime: implement asyncPreempt for linux/loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I7a64e38b15a99816bd74262c02f62dad021cc166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368078
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mkpreempt.go      |  41 ++++++++++++++
+ src/runtime/preempt_loong64.s | 129 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+)

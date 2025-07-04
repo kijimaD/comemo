@@ -1,0 +1,13 @@
+commit 5e53270a6cb691e6db892ed293a4634d02131be2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 18:20:26 2009 -0700
+
+    attach package comment
+    
+    R=r
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=29473
+    CL=29477
+
+ src/lib/template/template.go | 1 -
+ 1 file changed, 1 deletion(-)

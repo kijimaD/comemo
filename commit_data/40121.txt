@@ -1,0 +1,27 @@
+commit f7f85bdc2c4a8a472a271a7d2333557ad6143eeb
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 30 16:23:55 2019 -0400
+
+    cmd/compile: refine statement marking in numberlines
+    
+    1) An empty block is treated as not-a-statement unless its line differs
+    from at least one of its predecessors (it might make sense to
+    rearrange branches in predecessors, but that is a different issue).
+    
+    2) When iterating forward to choose a "good" place for a statement,
+    actually check that the chosen place is in fact good.
+    
+    3) Refactor same line and same file into methods on XPos and Pos.
+    
+    This reduces the failure rate of ssa/stmtlines_test by 7-ish lines.
+    (And interacts favorably with later debugging CLs.)
+    
+    Change-Id: Idb7cca7068f6fc9fbfdbe25bc0da15bcfc7b9d4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188217
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/numberlines.go | 41 ++++++++++++++++++-----------
+ src/cmd/internal/src/pos.go                 |  5 ++--
+ src/cmd/internal/src/xpos.go                |  5 ++++
+ 3 files changed, 33 insertions(+), 18 deletions(-)

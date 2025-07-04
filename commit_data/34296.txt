@@ -1,0 +1,14 @@
+commit af11038428d12a64024cb8a07e638499e63726cc
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Wed Feb 21 11:36:43 2018 +0100
+
+    cmd/compile: aggregate some rules in AMD64.rules
+    
+    No changes in the generated file, as expected.
+    
+    Change-Id: I30e0404612cd150f1455378b8db1c18b1e12d34e
+    Reviewed-on: https://go-review.googlesource.com/95616
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 396 +++++++--------------------
+ 1 file changed, 92 insertions(+), 304 deletions(-)

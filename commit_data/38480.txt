@@ -1,0 +1,22 @@
+commit cb8aefd3b06f39679ebe1abbd38abef52cbd76b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 19 10:40:52 2019 -0700
+
+    cmd/internal/obj/x86: slightly optimize ADJSP encoding
+    
+    This shaves a few bytes off here and there.
+    
+    file    before    after     Δ       %
+    buildid 2865992   2861896   -4096   -0.143%
+    pprof   14744060  14739964  -4096   -0.028%
+    trace   11680644  11676548  -4096   -0.035%
+    vet     8448240   8444144   -4096   -0.048%
+    
+    Change-Id: I799034afabc06a37b535301cd1380d63b4461095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168343
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/cmd/internal/obj/x86/asm6.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

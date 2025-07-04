@@ -1,0 +1,59 @@
+commit 28c1ad9d35f27b3b57afff4ee78faac746a8ed0a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 17 13:23:40 2017 +0000
+
+    text/template: add variable assignments
+    
+    Variables can be declared and shadowing is supported, but modifying
+    existing variables via assignments was not available.
+    
+    This meant that modifying a variable from a nested block was not
+    possible:
+    
+            {{ $v := "init" }}
+            {{ if true }}
+                    {{ $v := "changed" }}
+            {{ end }}
+            v: {{ $v }} {{/* "init" */}}
+    
+    Introduce the "=" assignment token, such that one can now do:
+    
+            {{ $v := "init" }}
+            {{ if true }}
+                    {{ $v = "changed" }}
+            {{ end }}
+            v: {{ $v }} {{/* "changed" */}}
+    
+    To avoid confusion, rename PipeNode.Decl to PipeNode.Vars, as the
+    variables may not always be declared after this change. Also change a
+    few other names to better reflect the added ambiguity of variables in
+    pipelines.
+    
+    Modifying the text/template/parse package in a backwards incompatible
+    manner is acceptable, given that the package godoc clearly states that
+    it isn't intended for general use. It's the equivalent of an internal
+    package, back when internal packages didn't exist yet.
+    
+    To make the changes to the parse package sit well with the cmd/api test,
+    update except.txt with the changes that we aren't worried about.
+    
+    Fixes #10608.
+    
+    Change-Id: I1f83a4297ee093fd45f9993cebb78fc9a9e81295
+    Reviewed-on: https://go-review.googlesource.com/84480
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ api/README                            |  1 -
+ api/except.txt                        | 19 ++++++++++++++++
+ src/html/template/escape.go           |  2 +-
+ src/text/template/doc.go              |  4 ++++
+ src/text/template/exec.go             | 42 ++++++++++++++++++++++++-----------
+ src/text/template/exec_test.go        |  7 ++++++
+ src/text/template/parse/lex.go        |  7 ++++--
+ src/text/template/parse/lex_test.go   |  8 +++----
+ src/text/template/parse/node.go       | 39 ++++++++++++++++----------------
+ src/text/template/parse/parse.go      | 24 +++++++++++++-------
+ src/text/template/parse/parse_test.go |  4 ++--
+ 11 files changed, 107 insertions(+), 50 deletions(-)

@@ -1,0 +1,20 @@
+commit 3fa379e797bb5f9920295a34d22f9a7f18ec2eb0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 22:00:36 2009 -0800
+
+    document the gc go compilers.
+    fix the usage message.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016033
+
+ src/cmd/5g/doc.go | 15 +++++++++++++++
+ src/cmd/5l/doc.go |  2 ++
+ src/cmd/6g/doc.go | 13 +++++++++++++
+ src/cmd/6l/doc.go |  2 ++
+ src/cmd/8g/doc.go | 15 +++++++++++++++
+ src/cmd/8l/doc.go |  2 ++
+ src/cmd/gc/doc.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/lex.c  |  2 +-
+ 8 files changed, 96 insertions(+), 1 deletion(-)

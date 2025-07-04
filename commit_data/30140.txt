@@ -1,0 +1,13 @@
+commit 1f93ba66d6ccb200e8b0a037a01265f6563fdf58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 7 11:34:20 2017 -0800
+
+    math/big: add IsInt64/IsUint64 predicates
+    
+    Change-Id: Ia5ed3919cb492009ac8f66d175b47a69f83ee4f1
+    Reviewed-on: https://go-review.googlesource.com/36487
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go      |  34 +++++++++----
+ src/math/big/int_test.go | 123 +++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 110 insertions(+), 47 deletions(-)

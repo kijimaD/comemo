@@ -1,0 +1,12 @@
+commit 98828f033a41d478fbd0b9331694b239633b0800
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 28 23:39:39 2011 -0400
+
+    fix build
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/4322041
+
+ src/pkg/net/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

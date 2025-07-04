@@ -1,0 +1,14 @@
+commit 28a50c7f51ea031f91b47421322be981a5a0d8a6
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Dec 13 23:48:48 2012 +0800
+
+    runtime: deletion on nil maps is a no-op now
+    Fixes #4535.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6942044
+
+ src/pkg/runtime/hashmap.c   |  2 +-
+ test/fixedbugs/issue4535.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

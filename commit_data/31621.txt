@@ -1,0 +1,16 @@
+commit 15aa04d200881fac553ff8ad44fc62b6cb60e7d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 19 19:39:20 2017 +0000
+
+    doc: remove mentions of yacc tool
+    
+    It was removed in CL 27325.
+    
+    Fixes #20431
+    
+    Change-Id: I6842851444186e19029d040f61fdf4f87a3103a6
+    Reviewed-on: https://go-review.googlesource.com/43771
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/cmd.html | 8 --------
+ 1 file changed, 8 deletions(-)

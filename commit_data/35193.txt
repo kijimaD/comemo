@@ -1,0 +1,19 @@
+commit 0cdf2ec81a07e8d8303e24aab49df137b355fa3b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 30 12:30:58 2018 +0200
+
+    doc: update FAQ on binary sizes
+    
+    In the binary sizes FAQ, the approximate size of a Go hello world
+    binary was said to be 1.5MB (it was about 1.6MB on go1.7 on
+    linux/amd64). Sadly, this is no longer true. A Go1.10 hello world is
+    2.0MB, and in 1.11 it'll be about 2.5MB.
+    
+    Just say "a couple megabytes" to stop this dance.
+    
+    Change-Id: Ib4dc13a47ccd51327c1a9d90d4116f79597513a4
+    Reviewed-on: https://go-review.googlesource.com/110069
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 66401719143692f1b892fb47aaef286f885395c9
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 7 07:46:27 2021 -0700
+
+    cmd/compile: fix type substituter to copy Funarg value for structs
+    
+    We were missing copying the Funarg value when substituting for a struct
+    type.
+    
+    Change-Id: Id0c2d9e55fb15987acb9edba6f74cf57cfd3417e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347913
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

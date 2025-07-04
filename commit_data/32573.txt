@@ -1,0 +1,20 @@
+commit 4d269ad1754afa177a590b0dfaff48d8adce2619
+Author: Chris Ball <chris@printf.net>
+Date:   Thu May 25 15:48:02 2017 -0400
+
+    runtime: add symbols for Linux syscall numbers on 386/amd64
+    
+    Matches other architectures by using names for syscalls instead of
+    numbers directly.
+    
+    Fixes #20499.
+    
+    Change-Id: I63d606b0b1fe6fb517fd994a7542a3f38d80dd54
+    Reviewed-on: https://go-review.googlesource.com/44213
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_386.s   | 114 +++++++++++++++++++++++++++---------------
+ src/runtime/sys_linux_amd64.s | 112 +++++++++++++++++++++++++++--------------
+ 2 files changed, 149 insertions(+), 77 deletions(-)

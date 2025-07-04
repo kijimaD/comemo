@@ -1,0 +1,15 @@
+commit 0f9b6affb776ac558c54edb69f07a1021a02cad6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 5 08:48:21 2014 -0700
+
+    net: temporarily skip TestAcceptIgnoreSomeErrors
+    
+    Update #8662
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/138120043
+
+ src/pkg/net/net_windows_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

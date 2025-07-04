@@ -1,0 +1,29 @@
+commit 020a18c545bf49ffc087ca93cd238195d8dcc411
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Oct 14 22:28:58 2018 +0200
+
+    cmd/compile: move slice construction to callers of makeslice
+    
+    Only return a pointer p to the new slices backing array from makeslice.
+    Makeslice callers then construct sliceheader{p, len, cap} explictly
+    instead of makeslice returning the slice.
+    
+    Reduces go binary size by ~0.2%.
+    Removes 92 (~3.5%) panicindex calls from go binary.
+    
+    Change-Id: I29b7c3b5fe8b9dcec96e2c43730575071cfe8a94
+    Reviewed-on: https://go-review.googlesource.com/c/141822
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |  12 +--
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/op_string.go       |   4 +-
+ src/cmd/compile/internal/gc/ssa.go             |   6 ++
+ src/cmd/compile/internal/gc/syntax.go          | 119 +++++++++++++------------
+ src/cmd/compile/internal/gc/typecheck.go       |  41 +++++++++
+ src/cmd/compile/internal/gc/walk.go            |  14 ++-
+ src/runtime/runtime-gdb_test.go                |   5 +-
+ src/runtime/slice.go                           |   7 +-
+ 9 files changed, 136 insertions(+), 76 deletions(-)

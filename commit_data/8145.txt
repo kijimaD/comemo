@@ -1,0 +1,15 @@
+commit 857f17d346b41979d7f1db8a1d21f4fd2a6e79b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 18 16:03:24 2011 -0400
+
+    http: fix IP confusion in TestServerTimeouts
+    
+    Don't assume that localhost == 127.0.0.1.
+    It might be ::1.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4430055
+
+ src/pkg/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

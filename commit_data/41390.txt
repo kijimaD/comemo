@@ -1,0 +1,30 @@
+commit 218f4572f5d5832c81e13d71690791aea67dacd2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Dec 19 14:13:59 2019 +0000
+
+    text/template: make reflect.Value indirections more robust
+    
+    Always shadow or modify the original parameter name. With code like:
+    
+            func index(item reflect.Value, ... {
+                    v := indirectInterface(item)
+    
+    It was possible to incorrectly use 'item' and 'v' later in the function,
+    which could result in subtle bugs. This is precisely the kind of mistake
+    that led to #36199.
+    
+    Instead, don't keep both the old and new reflect.Value variables in
+    scope. Always shadow or modify the original variable.
+    
+    While at it, simplify the signature of 'length', to receive a
+    reflect.Value directly and save a few redundant lines.
+    
+    Change-Id: I01416636a9d49f81246d28b91aca6413b1ba1aa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212117
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Roberto Clapis <robclap8@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/funcs.go | 138 ++++++++++++++++++++++-----------------------
+ 1 file changed, 66 insertions(+), 72 deletions(-)

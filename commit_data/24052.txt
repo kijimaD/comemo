@@ -1,0 +1,33 @@
+commit 5b920281558aa24a4cd422a7ecf9d651355d9936
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sat May 9 17:55:05 2015 +0200
+
+    html: speed up UnescapeString
+    
+    Add benchmarks for for sparsely escaped and densely escaped strings.
+    Then speed up the sparse unescaping part heavily by using IndexByte and
+    copy to skip the parts containing no escaping very fast.
+    
+    Unescaping densely escaped strings slower because of
+    the new function call overhead. But sparsely encoded strings are seen
+    more often in the utf8 enabled web.
+    
+    We win part of the speed back by looking up entityName differently.
+    
+            benchmark                  old ns/op    new ns/op    delta
+            BenchmarkEscape                31680        31396   -0.90%
+            BenchmarkEscapeNone             6507         6872   +5.61%
+            BenchmarkUnescape              36481        48298  +32.39%
+            BenchmarkUnescapeNone            332          325   -2.11%
+            BenchmarkUnescapeSparse         8836         3221  -63.55%
+            BenchmarkUnescapeDense         30639        32224   +5.17%
+    
+    Change-Id: If606cb01897a40eefe35ba98f2ff23bb25251606
+    Reviewed-on: https://go-review.googlesource.com/10172
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/escape.go      | 60 +++++++++++++++++++++++++------------------------
+ src/html/escape_test.go | 20 +++++++++++++++--
+ 2 files changed, 49 insertions(+), 31 deletions(-)

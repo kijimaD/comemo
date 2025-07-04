@@ -1,0 +1,18 @@
+commit 9068c6844dc0f0100bd810ad73dbf877bb92507b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 16 15:45:25 2022 -0400
+
+    cmd/dist: add package . to 'go test' commands
+    
+    This suppresses verbose output if the test passes,
+    eliminating some "hello from C" noise for the ../misc/cgo test.
+    
+    Change-Id: I6324bfb4b3633c20e0eb0ae03aa25d40fab9fcfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412776
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 44 ++++++++++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

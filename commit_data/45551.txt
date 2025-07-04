@@ -1,0 +1,22 @@
+commit 69368cece5a50056fbfc58010dd6e6ec585611e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 10:47:24 2021 -0700
+
+    cmd/compile/internal/types2: make TestManual work for directories
+    
+    If no source argument is provided, test testdata/manual.go2
+    instead.
+    
+    Remove testdata/check/tmp/go2 in favor of testdata/manual.go2.
+    
+    These changes affect testing only.
+    
+    Change-Id: I49aba4d8fc4cc5964911e38c55b4c5d013710aeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315769
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go      | 85 ++++++++++++++--------
+ .../compile/internal/types2/testdata/check/tmp.go2 | 17 -----
+ .../compile/internal/types2/testdata/manual.go2    |  8 ++
+ 3 files changed, 64 insertions(+), 46 deletions(-)

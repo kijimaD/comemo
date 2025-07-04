@@ -1,0 +1,18 @@
+commit e6990b76298ecd9bfc0be7cebc6081f28a88094f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Oct 4 09:50:29 2023 -0500
+
+    crypto/cipher: update GCM test
+    
+    This adds more variations for sizes of the input text
+    to the gcm tests.
+    
+    Change-Id: I39dba5f08c77f04f94278200c3ce9234f977506f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532635
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/cipher/gcm_test.go | 173 ++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 159 insertions(+), 14 deletions(-)

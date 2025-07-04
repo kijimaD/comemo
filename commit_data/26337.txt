@@ -1,0 +1,20 @@
+commit c1a4fe8d57d7b9bc85f8dc521bfb0ec039c322fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 16 14:02:56 2016 -0700
+
+    cmd/compile: remove dead code handling '~' operator
+    
+    The parser code was not reachable ever since some of the lexer cleanups.
+    We could recognize '~' in the lexer, complain, and return a '^' instead,
+    but it's been a few years since Go was new and this may have been a use-
+    ful error. The lexer complains with "illegal character U+007E '~'" which
+    is good enough.
+    
+    For #13244.
+    
+    Change-Id: Ie3283738486eb6f8462d594f2728ac98333c0520
+    Reviewed-on: https://go-review.googlesource.com/20768
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/parser.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

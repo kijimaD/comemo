@@ -1,0 +1,20 @@
+commit 894abb5f680c040777f17f9f8ee5a5ab3a03cb94
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Oct 29 00:53:49 2016 +0200
+
+    runtime/race: ignore user GORACE env var in tests
+    
+    I did 'export GORACE=atexit_sleep_ms=0' in a console
+    and then was puzzled as to why race tests fail.
+    Existing GORACE env var may (or may not) override
+    the one that we setup.
+    Filter out GORACE as we do for other important env vars.
+    
+    Change-Id: I29be86b0cbb9b5dc7f9efb15729ade86fc79b0e0
+    Reviewed-on: https://go-review.googlesource.com/32163
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race/race_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

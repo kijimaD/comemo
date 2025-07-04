@@ -1,0 +1,12 @@
+commit 5dfdccf2b0d499881b9453eb4a1e8b91a3f1e706
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 22 11:33:30 2011 -0700
+
+    Fix Windows build; ErrorString->NewError
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4634080
+
+ src/pkg/os/exec_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

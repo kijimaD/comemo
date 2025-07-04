@@ -1,0 +1,19 @@
+commit 7dd279013b8da9fac12a97607b53a0a607648b44
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 9 13:43:34 2017 -0500
+
+    cmd/compile/internal/ssa: Mark ADD[Q|L]const as rematerializeable
+    
+    We can rematerialize only ops that have SP or SB as their only argument.
+    There are some ADDQconst(SP) that can be rematerialized, but are spilled/filled instead,
+    so mark addconst as rematerializeable. This shaves ~1kb from go tool.
+    
+    Change-Id: Ib4cf4fe5f2ec9d3d7e5f0f77f1193eba66ca2f08
+    Reviewed-on: https://go-review.googlesource.com/54393
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 22 ++++++++++++----------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

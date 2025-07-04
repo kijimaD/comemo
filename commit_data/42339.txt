@@ -1,0 +1,14 @@
+commit 0242d461c9293d50f429fc9bdc41a02510b86995
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Apr 28 12:11:14 2020 -0400
+
+    net/http/pprof: document the trace endpoint is for execution trace
+    
+    Update google/pprof#529
+    
+    Change-Id: Iec3b343a487b399ada3a6f73c120b5f7ed8938be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230538
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/pprof/pprof.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 1eed2a5ab299807341af05eca2a829d95f08c6e8
+Author: Fedor Korotkiy <dartslon@gmail.com>
+Date:   Thu Feb 28 15:35:30 2019 +0300
+
+    cmd/go: PackageVetx in vet.cfg should list only immediate dependencies.
+    
+    Updates #30296
+    
+    Change-Id: Ifea1a4c82c1c5b31fdc2e96fdbb1274748c8f50e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164459
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/action.go      |  2 +-
+ src/cmd/go/testdata/script/vet_deps.txt | 34 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

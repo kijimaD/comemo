@@ -1,0 +1,21 @@
+commit 7f9255c2120f784c334431661145ee89e75f64fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 20:40:52 2016 -0400
+
+    net: revise IP.String result for malformed IP address to add ? back
+    
+    In earlier versions of Go the result was simply "?".
+    A change in this cycle made the result echo back the hex bytes
+    of the address, which is certainly useful, but now the result is
+    not clearly indicating an error. Put the "?" back, at the beginning
+    of the hex string, to make the invalidity of the string clearer.
+    
+    Change-Id: I3e0f0b6a005601cd98d982a62288551959185b40
+    Reviewed-on: https://go-review.googlesource.com/23376
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ip.go      | 4 ++--
+ src/net/ip_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

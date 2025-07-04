@@ -1,0 +1,24 @@
+commit d3ab6b50496a58ff3deb2502b6c8b9b38947eeca
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 18 11:35:45 2021 -0400
+
+    test: switch fieldtrack test to use GOEXPERIMENT
+    
+    Now that we can set GOEXPERIMENT at build time, we no longer need
+    -d=fieldtrack in the compiler to enabled field tracking at build time.
+    Switch the one test that uses -d=fieldtrack to use GOEXPERIMENT
+    instead so we can eliminate this debug flag and centralize on
+    GOEXPERIMENT.
+    
+    Updates #42681.
+    
+    Change-Id: I14c352c9a97187b9c5ec8027ff672d685f22f543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302969
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue42686.go | 2 +-
+ test/run.go                  | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

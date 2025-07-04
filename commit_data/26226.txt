@@ -1,0 +1,17 @@
+commit e2836935bb95e82432b527b1f6a9f3e566150ff8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 10 19:32:04 2016 -0500
+
+    cmd/link: treat reflect.Value.Method like Call
+    
+    Fixes #14740
+    
+    Change-Id: Iad8d971c21977b0a1f4ef55a08bb180a8125e976
+    Reviewed-on: https://go-review.googlesource.com/20562
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 30 +++++++++++++++++-------------
+ test/reflectmethod4.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 13 deletions(-)

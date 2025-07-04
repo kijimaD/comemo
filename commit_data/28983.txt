@@ -1,0 +1,19 @@
+commit 6eae03e136f031649683d359a0879f6d6ae5e023
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 20 09:48:24 2016 -0700
+
+    net/http: drop custom tls.Config cloning code.
+    
+    Now that we have the Clone method on tls.Config, net/http doesn't need
+    any custom functions to do that any more.
+    
+    Change-Id: Ib60707d37f1a7f9a7d7723045f83e59eceffd026
+    Reviewed-on: https://go-review.googlesource.com/31595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go   |  8 ++++++--
+ src/crypto/tls/tls_test.go |  4 ++++
+ src/net/http/transport.go  | 48 ++++------------------------------------------
+ 3 files changed, 14 insertions(+), 46 deletions(-)

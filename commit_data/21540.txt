@@ -1,0 +1,18 @@
+commit ea22a08fd4f8ebb296baf4ff59861d8885ac3435
+Author: mattn <mattn.jp@gmail.com>
+Date:   Mon Jan 19 16:56:04 2015 +0900
+
+    net: re-implement Interfaces and InterfaceAddrs for IPNet, IPv6 on Windows
+    
+    Fixes #5395
+    
+    Change-Id: I4322bc8a974d04d9bae6b48c71c5d32d9252973c
+    Reviewed-on: https://go-review.googlesource.com/3024
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/go/build/deps_test.go                        |   2 +-
+ src/internal/syscall/windows/syscall_windows.go  |  99 +++++++++
+ src/internal/syscall/windows/zsyscall_windows.go |  20 ++
+ src/net/interface_test.go                        |  11 +-
+ src/net/interface_windows.go                     | 244 +++++++++++++++--------
+ 5 files changed, 280 insertions(+), 96 deletions(-)

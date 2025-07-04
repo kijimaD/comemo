@@ -1,0 +1,13 @@
+commit ef86beb4453bc7675b21480bf9bfdb1c6d2dca23
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 23:23:34 2013 +1000
+
+    encoding/binary: fix 32-bit build
+    Sigh.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12491045
+
+ src/pkg/encoding/binary/binary_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

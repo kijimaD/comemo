@@ -1,0 +1,12 @@
+commit 8ee2a6658b87eb14361b813d1f58d45df923427f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 15:12:53 2014 -0700
+
+    runtime: missed a file in alg checkin
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/122740044
+
+ src/pkg/runtime/alg.go | 153 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 153 insertions(+)

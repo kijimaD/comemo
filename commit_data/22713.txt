@@ -1,0 +1,18 @@
+commit 4a3e000a48fdfe4cbcfe8970db9c1ebec9c4b89d
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Apr 24 17:20:21 2015 +0100
+
+    encoding/xml: do not escape newlines
+    
+    There is no need to escape newlines in char data -
+    it makes the XML larger and harder to read.
+    
+    Change-Id: I1c1fcee1bdffc705c7428f89ca90af8085d6fb73
+    Reviewed-on: https://go-review.googlesource.com/9310
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/marshal.go      |  2 +-
+ src/encoding/xml/marshal_test.go |  2 +-
+ src/encoding/xml/xml.go          | 10 ++++++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

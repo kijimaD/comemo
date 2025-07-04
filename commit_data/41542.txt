@@ -1,0 +1,24 @@
+commit 117297cf42c5fd96fc1392e600c8d62d3bba7c5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 7 16:01:01 2020 -0800
+
+    go/types: simplify method set computation
+    
+    After fixing #37081 we don't need to explicitly keep track of
+    field collisions in the method set computation anymore; we only
+    need to know which field (names) exists at each embedding level.
+    Simplify the code by removing the dedicated fieldSet data type
+    in favor of a simple string set.
+    
+    Follow-up on https://golang.org/cl/218617; separate CL to make it
+    easier to identify a problem with these two changes, should there
+    be one.
+    
+    Updates #37081.
+    
+    Change-Id: I5c259c63c75a148a42d5c3e1e4860e1ffe5631bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218618
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/methodset.go | 40 +++++++++-------------------------------
+ 1 file changed, 9 insertions(+), 31 deletions(-)

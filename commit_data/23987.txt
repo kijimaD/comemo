@@ -1,0 +1,15 @@
+commit 98aa82287f7a06b2c12884b062c87bc3c18b66ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 29 15:42:04 2015 -0700
+
+    spec: clarify semantics of built-in functions 'complex', 'real', and 'imag'
+    
+    For #11669, #11540, #11945, #11946, #11947.
+    
+    Change-Id: Ifb0053c498cee9f3473c396f9338d82bd856c110
+    Reviewed-on: https://go-review.googlesource.com/12860
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)

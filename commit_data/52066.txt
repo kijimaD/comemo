@@ -1,0 +1,23 @@
+commit 20da76da91ddf1629cbabb31d4f05cdff1ce452a
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 23 20:17:09 2023 +0000
+
+    Revert "cmd/link: default to external linking with cgo std packages"
+    
+    This reverts CL 470298.
+    
+    Reason for revert: causes issues with Google internal testing.
+    
+    Updates #58619.
+    Updates #58620.
+    
+    Change-Id: Ic6601820ba8758ef96b71e32d9ffc549c36d5c98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470835
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ 1 file changed, 3 insertions(+)

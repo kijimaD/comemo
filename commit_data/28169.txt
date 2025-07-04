@@ -1,0 +1,17 @@
+commit c53879512f38982b1e773fd2aeecee4ebf382006
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 31 13:36:10 2016 -0700
+
+    cmd/compile: missing float indexed loads/stores on amd64
+    
+    Update #16141
+    
+    Change-Id: I7d32c5cdc197d86491a67ea579fa16cb3d675b51
+    Reviewed-on: https://go-review.googlesource.com/28273
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   4 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 100 +++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+)

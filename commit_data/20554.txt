@@ -1,0 +1,19 @@
+commit 13a2c1ca78c47a4314e32badddf6c31c4229da7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:48:30 2014 -0400
+
+    cmd/go: display program name when reporting crash
+    
+    Fix by atom (from CL 89190044), comment and test by me.
+    
+    Fixes #6823.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=0xe2.0x9a.0x9b, adg, golang-codereviews, iant, r
+    https://golang.org/cl/148180043
+
+ src/cmd/go/build.go  |  8 ++++++++
+ src/cmd/go/test.bash | 11 +++++++++++
+ src/cmd/ld/pobj.c    |  9 +++++++++
+ 3 files changed, 28 insertions(+)

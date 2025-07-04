@@ -1,0 +1,20 @@
+commit 2d78538c12ed63cc931b552c9c98b7c93b91b21d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 12:15:41 2017 -0800
+
+    cmd/compile: refactor liveness analysis for moving to SSA
+    
+    In the SSA CFG, TEXT, RET, and JMP instructions correspond to Blocks,
+    not Values. Rework liveness analysis so that progeffects only cares
+    about Progs that result from Values, and handle Blocks separately.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ic23719c75b0421fdb51382a08dac18c3ba042b32
+    Reviewed-on: https://go-review.googlesource.com/38085
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/plive.go | 132 ++++++++++++++++-------------------
+ 1 file changed, 62 insertions(+), 70 deletions(-)

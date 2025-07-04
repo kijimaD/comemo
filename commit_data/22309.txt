@@ -1,0 +1,40 @@
+commit c264c87335ff4b3111d43f830dbe37eac1509f2e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 22 14:15:47 2015 -0800
+
+    bytes, strings: add Reader.Size methods
+    
+    As noted on recently on golang-nuts, there's currently no way to know
+    the total size of a strings.Reader or bytes.Reader when using ReadAt
+    on them. Most callers resort to wrapping it in an io.SectionReader to
+    retain that information.
+    
+    The SizeReaderAt abstraction (an io.ReaderAt with a Size() int64
+    method) has proven useful as a way of expressing a concurrency-safe
+    read-only number of bytes.
+    
+    As one example, see http://talks.golang.org/2013/oscon-dl.slide#49 and
+    the rest of that presentation for its use in dl.google.com.
+    
+    SizeReaderAt is also used in the open source google-api-go-client, and
+    within Google's internal codebase, where it exists in a public package
+    created in 2013 with the package comment: "These may migrate to the
+    standard library after we have enough experience with their feel."
+    
+    I'm still as happy with the SizeReaderAt abstraction and its
+    composabilty as I was in 2013, so I'd like to make these two Readers
+    also be SizeReaderAts.
+    
+    Fixes #9667
+    
+    Change-Id: Ie6f145ada419dd116280472d8c029f046d5edf70
+    Reviewed-on: https://go-review.googlesource.com/3199
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/reader.go        |  6 ++++++
+ src/bytes/reader_test.go   | 12 ++++++++++++
+ src/strings/reader.go      |  6 ++++++
+ src/strings/reader_test.go | 13 +++++++++++++
+ 4 files changed, 37 insertions(+)

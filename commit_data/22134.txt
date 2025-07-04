@@ -1,0 +1,12 @@
+commit 25bf792197ff737fc84c8b1dd46be8a6b066333a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 19 09:46:43 2015 +1100
+
+    image/color: add alpha-premultiplied comment.
+    
+    Change-Id: I9968f53a8286a0e5ccc197a9b5fae499e2f95326
+    Reviewed-on: https://go-review.googlesource.com/7790
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/color.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

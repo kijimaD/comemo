@@ -1,0 +1,17 @@
+commit 51533fdac6157c4abb546619bf05530821557539
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 11 10:50:09 2018 +0200
+
+    cmd/go: document GOTOOLDIR environment variable
+    
+    Also, make the variables list sorted.
+    
+    Fixes #24794
+    
+    Change-Id: I55f77004b00391875d26df8e55e54d79cef168dc
+    Reviewed-on: https://go-review.googlesource.com/106255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 10 +++++++---
+ src/cmd/go/internal/help/helpdoc.go | 10 +++++++---
+ 2 files changed, 14 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 328214e85ccffa80daa2b78d017c0ccb249f8221
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue May 12 11:05:24 2020 +0800
+
+    cmd/compile: convert more ARM64.rules lines to typed aux mode
+    
+    Add a check code for checking whether the "c" value can be
+    represented as a signed 32 bit integer in some rules.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I84e4431dc75945985695516d34565b841c8b53e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233738
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 266 ++++++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 360 +++++++++++++++------------
+ 2 files changed, 335 insertions(+), 291 deletions(-)

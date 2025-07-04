@@ -1,0 +1,16 @@
+commit b21c837008a398fe23f06741946cf39e52dfdfa7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 13:16:50 2019 -0400
+
+    doc/go1.13: describe the change in behavior of GO111MODULE=auto
+    
+    Updates #31857
+    
+    Change-Id: Id0dc66246f768a2c730c67cd7a4a7830547f22a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183922
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.13.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

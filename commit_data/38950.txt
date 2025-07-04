@@ -1,0 +1,32 @@
+commit fbc6a972226f889d2ab1150468755615098ee80f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Apr 24 12:06:43 2019 -0700
+
+    testing: delay flag registration; move to an Init function
+    
+    Any code that imports the testing package forces the testing flags to be
+    defined, even in non-test binaries. People work around this today by
+    defining a copy of the testing.TB interface just to avoid importing
+    testing.
+    
+    Fix this by moving flag registration into a new function, testing.Init.
+    Delay calling Init until the testing binary begins to run, in
+    testing.MainStart.
+    
+    Init is exported for cases where users need the testing flags to be
+    defined outside of a "go test" context. In particular, this may be
+    needed where testing.Benchmark is called outside of a test.
+    
+    Fixes #21051
+    
+    Change-Id: Ib7e02459e693c26ae1ba71bbae7d455a91118ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173722
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go                              |  6 ++
+ .../go/testdata/standalone_testmain_flag_test.go   | 29 +++++++
+ src/testing/benchmark.go                           | 18 +++--
+ src/testing/sub_test.go                            |  2 +-
+ src/testing/testing.go                             | 88 +++++++++++++++++-----
+ test/fixedbugs/bug369.dir/main.go                  |  1 +
+ 6 files changed, 118 insertions(+), 26 deletions(-)

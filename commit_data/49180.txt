@@ -1,0 +1,30 @@
+commit 2eb8b6eec65d3d214c07067db474bbb93de3443a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 6 20:17:52 2022 +0000
+
+    runtime: make CPU limiter assist time much less error-prone
+    
+    At the expense of performance (having to update another atomic counter)
+    this change makes CPU limiter assist time much less error-prone to
+    manage. There are currently a number of issues with respect to how
+    scavenge assist time is treated, and this change resolves those by just
+    having the limiter maintain its own internal pool that's drained on each
+    update.
+    
+    While we're here, clear the measured assist time each cycle, which was
+    the impetus for the change.
+    
+    Change-Id: I84c513a9f012b4007362a33cddb742c5779782b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404304
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go   | 12 ++++++---
+ src/runtime/mgc.go           | 12 ++++++---
+ src/runtime/mgclimit.go      | 62 +++++++++++++++++++++-----------------------
+ src/runtime/mgclimit_test.go | 48 ++++++++++++++++++----------------
+ src/runtime/mgcmark.go       |  5 ++--
+ src/runtime/mgcpacer.go      |  2 +-
+ src/runtime/mheap.go         |  5 ++--
+ 7 files changed, 79 insertions(+), 67 deletions(-)

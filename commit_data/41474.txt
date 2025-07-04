@@ -1,0 +1,20 @@
+commit 98858c438016bbafd161b502a148558987aa44d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 20:23:15 2020 -0800
+
+    runtime: don't panic on racy use of timers
+    
+    If we see a racy use of timers, as in concurrent calls to Timer.Reset,
+    do the operations in an unpredictable order, rather than crashing.
+    
+    Fixes #37400
+    
+    Change-Id: Idbac295df2dfd551b6d762909d5040fc532c1b34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go   | 216 ++++++++++++++++----------------------------------
+ src/time/time_test.go |  40 ++++++----
+ 2 files changed, 92 insertions(+), 164 deletions(-)

@@ -1,0 +1,16 @@
+commit e7b96e1a1f1ead0d5def61f339e446c3afefa617
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 14 18:51:18 2016 -0700
+
+    cmd/internal/sys: cleanup documentation
+    
+    Expand description of ArchFamily, because it seems to be a common
+    source of confusion.  Also, update InFamily's description to reflect
+    current name.
+    
+    Change-Id: I66b7999aef64ab8fee39aec0f752ae4f3a08d36d
+    Reviewed-on: https://go-review.googlesource.com/22102
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/sys/arch.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

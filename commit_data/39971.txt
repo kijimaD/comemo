@@ -1,0 +1,14 @@
+commit 3507551a1f0d34d567d77242b68bf19b00caf9b7
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Fri Sep 20 14:05:20 2019 +0200
+
+    os/user: clean error message formatting
+    
+    Change-Id: I02728c690a377ecdd2a6bc92d1606cbae3e2723a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196677
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/user/lookup_stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

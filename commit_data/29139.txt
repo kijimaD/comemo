@@ -1,0 +1,14 @@
+commit aff37662d1f70f2bf9e47b4f962e85521e7c18d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 10:06:14 2016 -0700
+
+    spec: add new language for alias declarations
+    
+    For #16339.
+    
+    Change-Id: I7d912ea634bbfacfc0217f97dccb270fde06f16b
+    Reviewed-on: https://go-review.googlesource.com/30601
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 69 insertions(+), 6 deletions(-)

@@ -1,0 +1,29 @@
+commit 4e5e0b1d20f8636be3e576302a4e3a6f59caab3e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 25 11:36:13 2011 +1000
+
+    misc: Import/Drop commands for Vim
+    
+    New ftplugin adds Import and Drop commands for Go buffers
+    in Vim.  These commands ensure that the provided package is
+    imported (or not imported) in the current Go buffer, using
+    proper style and ordering, without moving the cursor.
+    
+    E.g.
+    
+        :Import strings
+        :ImportAs . strings
+        :Drop strings
+    
+    Two mappings are also introduced to help with the fmt package:
+    
+        \f => :Import fmt
+        \F => :Drop fmt
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4009043
+
+ misc/vim/ftplugin/go/import.vim | 203 ++++++++++++++++++++++++++++++++++++++++
+ misc/vim/readme.txt             |  14 +++
+ 2 files changed, 217 insertions(+)

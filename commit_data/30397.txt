@@ -1,0 +1,25 @@
+commit 4b3e6fe123d95f461d8f9febfe782a138ba2387c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Nov 14 08:05:45 2016 +0100
+
+    strings: speed up Map
+    
+    name                  old time/op  new time/op  delta
+    ByteByteMap-4         2.03µs ± 2%  1.03µs ± 2%  -49.24%  (p=0.000 n=10+10)
+    Map/identity/ASCII-4   246ns ± 0%   158ns ± 0%  -35.90%    (p=0.000 n=9+9)
+    Map/identity/Greek-4   367ns ± 1%   273ns ± 1%  -25.63%  (p=0.000 n=10+10)
+    Map/change/ASCII-4     582ns ± 1%   324ns ± 1%  -44.34%  (p=0.000 n=10+10)
+    Map/change/Greek-4     709ns ± 2%   623ns ± 2%  -12.16%  (p=0.000 n=10+10)
+    MapNoChanges-4         171ns ± 1%   111ns ± 1%  -35.36%   (p=0.000 n=8+10)
+    
+    Updates #17859
+    
+    Change-Id: I55d7d261fdc1ce2dcd0ebe23b0fa20b9889bf54c
+    Reviewed-on: https://go-review.googlesource.com/33201
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/replace_test.go | 41 ++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 61 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 82 insertions(+), 20 deletions(-)

@@ -1,0 +1,23 @@
+commit 9e94cc3666cc5ff6ecf5930fb5da48ba62ad8080
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 09:50:47 2021 -0500
+
+    misc/cgo/test: remove unnecessary forward declaration
+    
+    This test otherwise fails to build on windows/arm64 as of CL 364774
+    due to a warning (promoted to an error) about a mismatched dllexport
+    attribute. Fortunately, it seems not to need the forward-declared
+    function in this file anyway.
+    
+    Updates #49633
+    Updates #49721
+    
+    Change-Id: Ia4698b85077d0718a55d2cc667a7950f1d8e50ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366075
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/testx.go | 1 -
+ 1 file changed, 1 deletion(-)

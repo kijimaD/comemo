@@ -1,0 +1,19 @@
+commit 48e22da1d24dc5b038bd83a78553173af5474e76
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Oct 4 16:32:21 2018 -0700
+
+    cmd/link: fix deferreturn location on wasm
+    
+    On wasm, pcln tables are indexed by "resumption point ID" instead of
+    by pc offset. When finding a deferreturn call, we must find the
+    associated resumption point ID for the deferreturn call.
+    
+    Update #27518
+    Fixes wasm bug introduced in CL 134637.
+    
+    Change-Id: I3d178a3f5203a06c0180a1aa2309bfb7f3014f0f
+    Reviewed-on: https://go-review.googlesource.com/c/139898
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

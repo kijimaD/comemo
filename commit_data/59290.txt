@@ -1,0 +1,32 @@
+commit 0c0d2572414d4d32feca74d902a761ff25457af9
+Author: James Tucker <jftucker@gmail.com>
+Date:   Fri Apr 11 21:41:00 2025 +0000
+
+    internal/poll: disable SIO_UDP_NETRESET on Windows
+    
+    Disable the reception of NET_UNREACHABLE (TTL expired) message reporting
+    on UDP sockets to match the default behavior of sockets on other
+    plaforms.
+    
+    See https://learn.microsoft.com/en-us/windows/win32/winsock/winsock-ioctls#sio_udp_netreset
+    
+    This is similar to, but a different case from the prior change 3114bd6 /
+    https://golang.org/issue/5834 that disabled one of the two flags
+    influencing behavior in response to the reception of related ICMP.
+    
+    Updates #5834
+    Updates #68614
+    
+    Change-Id: I39bc77ab68f5edfc14514d78870ff4a24c0f645e
+    GitHub-Last-Rev: 78f073bac226aeca438b64acc2c66f76c25f29f8
+    GitHub-Pull-Request: golang/go#68615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601397
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/internal/syscall/windows/types_windows.go | 2 ++
+ src/net/fd_windows.go                         | 9 +++++++++
+ 2 files changed, 11 insertions(+)

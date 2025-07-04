@@ -1,0 +1,17 @@
+commit 9bf62783d2fc3804fd31f68092e779ef52f26cf9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 25 14:06:14 2019 +0200
+
+    syscall: fix nil pointer dereference in Getdirentries on 32-bit freebsd 12
+    
+    Don't attempt to dereference basep if it's nil, just pass it to
+    getdirentries_freebsd12 as is.
+    
+    Ported from x/sys/unix CL 183223
+    
+    Change-Id: Id1c4e0eb6ff36dd39524da8194fed9a5957bce61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_freebsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

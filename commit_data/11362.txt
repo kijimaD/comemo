@@ -1,0 +1,14 @@
+commit 2c2c20224acb4743a20eb72331413e66ef8f8975
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 14:19:59 2012 -0800
+
+    encoding/binary: document that PutVarint, PutUvarint may panic
+    
+    Fixes #2628
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5571058
+
+ src/pkg/encoding/binary/varint.go | 2 ++
+ 1 file changed, 2 insertions(+)

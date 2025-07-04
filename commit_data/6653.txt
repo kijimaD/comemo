@@ -1,0 +1,12 @@
+commit 6062515a9387f93bf21eae574a407e49016ed712
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 29 08:48:16 2010 +1100
+
+    container/list: document iteration
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2768042
+
+ src/pkg/container/list/list.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

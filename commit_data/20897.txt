@@ -1,0 +1,13 @@
+commit f07ea227eec5fb99d8b6b22ac099692474126831
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 17 11:27:53 2014 +1100
+
+    misc/makerelease: use release-branch.go1.4 for tools and tour
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175870043
+
+ misc/makerelease/makerelease.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

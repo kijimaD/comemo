@@ -1,0 +1,18 @@
+commit 7f349e82a257737dac18b28eab69ce793969d9cd
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 17:02:10 2020 +0000
+
+    Revert "cmd/compile: improve generated eq algs for structs containing interfaces"
+    
+    This reverts commit 1cc7be89a94951cbd1b6db669cb5a278e7aea545.
+    
+    Reason for revert: Undoing to get back to semantics discussed in #8606.
+    
+    Change-Id: Ib44a2e79cf113b3d15c3546cd8aa6fc27860819e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236146
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go | 8 --------
+ 1 file changed, 8 deletions(-)

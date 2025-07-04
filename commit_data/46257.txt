@@ -1,0 +1,19 @@
+commit 717f337d1d68299ca55a96e9fbb5168e8f7788f4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 19 04:06:55 2021 +0000
+
+    cmd/asm: adjust riscv64 test data to avoid churn
+    
+    Rather than jumping and branching to a label (the offset for which changes
+    when instructions are added or removed), use PC-relative offsets. This
+    reduces unnecessary churn in the instruction encodings.
+    
+    Change-Id: I6816ce939eeabdf828039f59f4f29260eb1ac8da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344449
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 48 +++++++++++++----------------
+ 1 file changed, 22 insertions(+), 26 deletions(-)

@@ -1,0 +1,38 @@
+commit d88560afd32d18d8c9c3b31c41ae9877ca292e1d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Aug 22 18:25:29 2022 +0200
+
+    syscall: rely on utf16.AppendRune
+    
+    Using utf16.AppendRune instead of utf16.Encode safe a bunch
+    of allocations across the board, as many higher level functions
+    use it to call Windows syscalls, for example to `os` package:
+    
+    name                old alloc/op   new alloc/op   delta
+    Readdirname-12        15.6kB ± 0%    15.6kB ± 0%   +0.26%  (p=0.008 n=5+5)
+    Readdir-12            29.4kB ± 0%    29.4kB ± 0%   +0.14%  (p=0.008 n=5+5)
+    ReadDir-12            29.4kB ± 0%    29.4kB ± 0%   +0.14%  (p=0.016 n=4+5)
+    StatDot-12              552B ± 0%      560B ± 0%   +1.45%  (p=0.008 n=5+5)
+    StatFile-12             512B ± 0%      336B ± 0%  -34.38%  (p=0.008 n=5+5)
+    StatDir-12              432B ± 0%      288B ± 0%  -33.33%  (p=0.008 n=5+5)
+    LstatDot-12             552B ± 0%      560B ± 0%   +1.45%  (p=0.008 n=5+5)
+    LstatFile-12            512B ± 0%      336B ± 0%  -34.38%  (p=0.008 n=5+5)
+    LstatDir-12             432B ± 0%      288B ± 0%  -33.33%  (p=0.008 n=5+5)
+    StatFile-12             4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.008 n=5+5)
+    StatDir-12              4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.008 n=5+5)
+    LstatFile-12            4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.008 n=5+5)
+    LstatDir-12             4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.008 n=5+5)
+    
+    Updates #51786
+    
+    Change-Id: I0a088cf1a96e9c304da9311bb3895b70443c1637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425054
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_windows.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

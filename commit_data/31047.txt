@@ -1,0 +1,47 @@
+commit c9446398e8d72263f75c11bb835d75421627b3a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 9 22:41:32 2017 -0800
+
+    cmd/compile: allow composite literal structs with _ fields
+    
+    Given code such as
+    
+    type T struct {
+      _ string
+    }
+    
+    func f() {
+      var x = T{"space"}
+      // ...
+    }
+    
+    the compiler rewrote the 'var x' line as
+    
+    var x T
+    x._ = "space"
+    
+    The compiler then rejected the assignment to
+    a blank field, thus rejecting valid code.
+    
+    It also failed to catch a number of invalid assignments.
+    And there were insufficient checks for validity
+    when emitting static data, leading to ICEs.
+    
+    To fix, check earlier for explicit blanks field names,
+    explicitly handle legit blanks in sinit,
+    and don't try to emit static data for nodes
+    for which typechecking has failed.
+    
+    Fixes #19482
+    
+    Change-Id: I594476171d15e6e8ecc6a1749e3859157fe2c929
+    Reviewed-on: https://go-review.googlesource.com/38006
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go     |  9 ++++++++-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/internal/obj/data.go             |  2 +-
+ test/fixedbugs/issue19482.go             | 34 ++++++++++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 3 deletions(-)

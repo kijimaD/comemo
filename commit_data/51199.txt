@@ -1,0 +1,21 @@
+commit b820fb8df11e5ab4068b4ed9522a96bf52cf8b4d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 10 09:44:39 2022 -0500
+
+    go/build: in TestImportDirTarget, only expect an install target when cgo is enabled
+    
+    As of CL 448803, packages in GOROOT only have install targets when
+    they have cgo source files. When cgo is not enabled, that condition
+    is necessarily false, and no install target will exist.
+    
+    For #47257.
+    
+    Change-Id: I653a9c5f89d18a5841810f3de8d490bd7cb7e922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449375
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/go/build/build_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

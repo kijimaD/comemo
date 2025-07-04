@@ -1,0 +1,17 @@
+commit 9b95035654d620e1aafebd461fd976fe34adb72b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 10 15:47:10 2018 -0800
+
+    cmd/nm: run tests in parallel, don't use Scanner on []byte
+    
+    Saves about 35% on total test time on my laptop.
+    
+    Fixes #26471
+    
+    Change-Id: I15b28b1bc00f889934d577dc7996864bbab10105
+    Reviewed-on: https://go-review.googlesource.com/c/153499
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/nm/nm_test.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

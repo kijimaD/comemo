@@ -1,0 +1,12 @@
+commit f1e726e3117b68d0b1be780af8b7fe8ff3347566
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Dec 5 17:49:34 2013 -0800
+
+    cmd/dist: revert an accidental change to the optimization setting
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/38130043
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

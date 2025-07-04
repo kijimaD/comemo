@@ -1,0 +1,12 @@
+commit be219c5e9b44a20d66f9109f5c0361ef0ac1f05b
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 30 11:36:42 2009 -0700
+
+    removed debug print
+    
+    R=r
+    OCL=34087
+    CL=34087
+
+ src/cmd/6g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

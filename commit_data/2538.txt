@@ -1,0 +1,17 @@
+commit d6197d94b53d7ba7a299f5501dd29cfa2a76132d
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jun 26 13:44:25 2009 -0700
+
+    Adding more debug output when 5l encounters a bad op
+    combination.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=69  (68 added, 0 deleted, 1 changed)
+    OCL=30798
+    CL=30801
+
+ src/cmd/5l/l.h    |  1 +
+ src/cmd/5l/list.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/span.c |  2 +-
+ 3 files changed, 69 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit d27ebc7b8630993269c36e7728a7f30543ffa048
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 13 16:32:37 2020 -0400
+
+    cmd/go/internal/modload: implement the "all" pattern for lazy loading
+    
+    The new semantics of the "all" package pattern can be implemented
+    without actually changing module loading per se. This change
+    implements those semantics, so that the change can be decoupled from
+    the changes to the module requirement graph.
+    
+    For #36460
+    
+    Change-Id: I0ee8b17afa8b728dc470a42a540fcc01764a4442
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240623
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.16.html                        |  14 ++++-
+ src/cmd/go/internal/modcmd/tidy.go     |  12 ++++
+ src/cmd/go/internal/modcmd/why.go      |   2 +
+ src/cmd/go/internal/modload/load.go    |  16 ++++--
+ src/cmd/go/internal/modload/modfile.go |  22 ++++++++
+ src/cmd/go/testdata/script/mod_all.txt | 100 +++++++++++++++++++++++++++++++--
+ 6 files changed, 154 insertions(+), 12 deletions(-)

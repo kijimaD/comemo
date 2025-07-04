@@ -1,0 +1,15 @@
+commit 8ee7688af69ba278712bb5ba4d963de3dd18b3bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 15 21:59:08 2009 -0700
+
+    make Len() == 0 for nil vector.Vector
+    (mimic behavior of slices)
+    
+    R=r
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=28960
+    CL=28962
+
+ src/lib/container/vector/vector.go      | 4 ++++
+ src/lib/container/vector/vector_test.go | 8 ++++++++
+ 2 files changed, 12 insertions(+)

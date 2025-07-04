@@ -1,0 +1,18 @@
+commit 69041c79dc2767c220519cbcb9538c39fadec59c
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Aug 30 17:05:36 2021 -0400
+
+    net: add examples for remaining IP functions
+    
+    Fixes #48848
+    
+    Change-Id: If85fc16ed10a26eca840ed128ab47c5f00776ddd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346289
+    Reviewed-by: Amelia Downs <adowns@vmware.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/net/example_test.go | 206 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 206 insertions(+)

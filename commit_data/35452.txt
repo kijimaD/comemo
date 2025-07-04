@@ -1,0 +1,17 @@
+commit a10d390676937ade864e8b20878a51d6e927ea2c
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun May 20 21:42:25 2018 +0200
+
+    crypto/x509: document fields used in CreateCertificate
+    
+    The added fields are used in buildExtensions so
+    should be documented too.
+    
+    Fixes #21363
+    
+    Change-Id: Ifcc11da5b690327946c2488bcf4c79c60175a339
+    Reviewed-on: https://go-review.googlesource.com/113916
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 484ba939d2b6848531ee64eae428721b9ae8fac0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 00:17:46 2009 -0800
+
+    update sys.reflect and sys.unreflect to accomodate
+    the possibility of large objects in interface values.
+    
+    R=r
+    DELTA=171  (97 added, 22 deleted, 52 changed)
+    OCL=22382
+    CL=22382
+
+ src/cmd/gc/sys.go           |   4 +-
+ src/cmd/gc/sysimport.c      |   4 +-
+ src/lib/reflect/all_test.go |  21 ++++++++
+ src/lib/reflect/type.go     |   6 +++
+ src/lib/reflect/value.go    |  36 ++++++++-----
+ src/runtime/iface.c         | 128 ++++++++++++++++++++++++++++----------------
+ src/runtime/runtime.h       |   2 +-
+ 7 files changed, 138 insertions(+), 63 deletions(-)

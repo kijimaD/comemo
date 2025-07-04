@@ -1,0 +1,19 @@
+commit 554d0aa589c3e90d192ef8904baa154fcb8248ad
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 5 10:17:38 2008 -0800
+
+    make sizes and offsets int, not uint64
+    add Value.Interface, to extract an empty interface
+    that can be converted to a regular Go value of the
+    appropriate type, if known.
+    
+    R=rsc
+    DELTA=49  (2 added, 0 deleted, 47 changed)
+    OCL=18526
+    CL=18526
+
+ src/lib/reflect/test.go     |  2 +-
+ src/lib/reflect/tostring.go |  4 ++--
+ src/lib/reflect/type.go     | 52 +++++++++++++++++++++++----------------------
+ src/lib/reflect/value.go    | 30 +++++++++++++-------------
+ 4 files changed, 45 insertions(+), 43 deletions(-)

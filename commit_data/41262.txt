@@ -1,0 +1,17 @@
+commit 1c241d28792fad017cbd64bae72ea3f3ee51e4df
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 6 11:18:22 2020 -0800
+
+    hash/maphash: mention that hash values do not persist in package docs
+    
+    Updates #36878
+    Fixes #37040
+    
+    Change-Id: Ib0bd21481e5d9c3b3966c116966ecfe071243a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218297
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.14.html             | 4 ++++
+ src/hash/maphash/maphash.go | 3 +++
+ 2 files changed, 7 insertions(+)

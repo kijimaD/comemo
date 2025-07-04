@@ -1,0 +1,15 @@
+commit 416afcb411d7b2fe59d38257bcfe0df3a903919e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 17:17:19 2011 -0800
+
+    testing: add wrapper methods so the godoc output lists all methods
+    To be deleted when godoc catches up.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5504079
+
+ src/pkg/testing/Makefile   |   5 ++-
+ src/pkg/testing/testing.go |   2 +-
+ src/pkg/testing/wrapper.go | 105 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 109 insertions(+), 3 deletions(-)

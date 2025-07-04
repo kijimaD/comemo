@@ -1,0 +1,25 @@
+commit d0652e7f82da12e84fb143c4ad6c19e39f238f05
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 19 12:39:02 2015 +1000
+
+    cmd/doc: add test
+    
+    Refactor main a bit to make it possible to run tests without an exec every time.
+    (Makes a huge difference in run time.)
+    
+    Add a silver test. Not quite golden, since it looks for pieces rather than the
+    full output, and also includes tests for what should not appear.
+    
+    Fixes #10920.
+    
+    Change-Id: I6a4951cc14e61763379754a10b0cc3484d30c267
+    Reviewed-on: https://go-review.googlesource.com/11272
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+
+ misc/nacl/testzip.proto     |   6 +
+ src/cmd/doc/doc_test.go     | 343 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/doc/main.go         |  53 +++++--
+ src/cmd/doc/pkg.go          |  49 +++++--
+ src/cmd/doc/testdata/pkg.go |  91 ++++++++++++
+ 5 files changed, 514 insertions(+), 28 deletions(-)

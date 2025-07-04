@@ -1,0 +1,17 @@
+commit 0b0e209ffb937f283cdca8b51efadc78cc93f8a1
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Feb 28 03:26:26 2014 +1100
+
+    runtime: disable TestSetPanicOnFault for dragonfly/386
+    
+    This test currently deadlocks on dragonfly/386.
+    
+    Update #7421
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/69380043
+
+ src/pkg/runtime/runtime_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

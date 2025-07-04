@@ -1,0 +1,23 @@
+commit b15c4245c59e5658937d38b605a87394d8f3fe63
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 16:15:15 2010 -0500
+
+    crypto/tls: add *Config argument to Dial
+    
+    Document undocumented exported names.
+    Allow nil Rand, Time, RootCAs in Config.
+    
+    Fixes #1248.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/3481042
+
+ src/pkg/crypto/tls/ca_set.go           |  1 +
+ src/pkg/crypto/tls/common.go           | 78 +++++++++++++++++++++++++---------
+ src/pkg/crypto/tls/handshake_client.go | 10 ++---
+ src/pkg/crypto/tls/handshake_server.go |  8 ++--
+ src/pkg/crypto/tls/tls.go              | 48 +++++++++++++++++----
+ src/pkg/http/client.go                 |  2 +-
+ src/pkg/websocket/client.go            |  2 +-
+ 7 files changed, 109 insertions(+), 40 deletions(-)

@@ -1,0 +1,22 @@
+commit 1973be519aaab9bd21d9255b0926d960d2ea2666
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 15:45:13 2022 -0700
+
+    cmd/compile/internal/noder: remove unified IR assumptions on LocalPkg.Path == ""
+    
+    Replace `pkg.Path == ""` check with `pkg == types.LocalPkg`. This is a
+    prep refactoring for CL 393715, which will properly initialize
+    types.LocalPkg.
+    
+    Updates #51734.
+    
+    Change-Id: I7a5428ef1f422de396762b6bc6d323992834b27c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406056
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/linker.go  | 2 +-
+ src/cmd/compile/internal/noder/reader.go  | 4 ++--
+ src/cmd/compile/internal/noder/unified.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

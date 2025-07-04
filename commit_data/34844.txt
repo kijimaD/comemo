@@ -1,0 +1,34 @@
+commit 562a199961c28741a93cf7a0365c0646da3ddb9f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 4 15:53:27 2018 -0700
+
+    cmd/compile: extract inline related fields into separate Inline type
+    
+    Inl, Inldcl, and InlCost are only applicable to functions with bodies
+    that can be inlined, so pull them out into a separate Inline type to
+    make understanding them easier.
+    
+    A side benefit is that we can check if a function can be inlined by
+    just checking if n.Func.Inl is non-nil, which simplifies handling of
+    empty function bodies.
+    
+    While here, remove some unnecessary Curfn twiddling, and make imported
+    functions use Inl.Dcl instead of Func.Dcl for consistency for local
+    functions.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ifd4a80349d85d9e8e4484952b38ec4a63182e81f
+    Reviewed-on: https://go-review.googlesource.com/104756
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go     |  6 +--
+ src/cmd/compile/internal/gc/bimport.go     | 22 ++++------
+ src/cmd/compile/internal/gc/inl.go         | 66 ++++++++++++++----------------
+ src/cmd/compile/internal/gc/main.go        |  2 +-
+ src/cmd/compile/internal/gc/pgen.go        |  9 +---
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      | 18 ++++++--
+ 7 files changed, 61 insertions(+), 64 deletions(-)

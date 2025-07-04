@@ -1,0 +1,16 @@
+commit e4e1d089bea9afa1c97a9613d1f820a2e896954e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 31 10:09:27 2017 -0700
+
+    go/types: use std "DO NOT EDIT" comment for generated hilbert test
+    
+    For #13560.
+    
+    Change-Id: I884e63f89d0756ca87b8c2092b4fd8360f791a2f
+    Reviewed-on: https://go-review.googlesource.com/39171
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/hilbert_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

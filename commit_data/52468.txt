@@ -1,0 +1,28 @@
+commit 92261b38638af61a3aae2fdc48fd0b9f0cbff096
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Mar 29 18:03:26 2023 -0400
+
+    run.bash: drop 'export GOROOT' and its obsolete comment
+    
+    The comment justifies exporting GOROOT by saying the api test needs it,
+    which was relevant back when it was added in CL 99870043, but isn't true
+    by now.
+    
+    As of Go 1.8, GOPATH can be unset (https://go.dev/doc/go1.8#gopath).
+    At some point it also became okay to leave GOROOT unset, at least
+    whenever one is looking to use the default GOROOT tree of the go command
+    being executed and not intentionally changing it to a custom directory.
+    
+    It's also not there in the .bat and .rc variants of this script.
+    Drop it.
+    
+    Change-Id: Ibcb386c560523fcfbfec8020f90692dcfa5aa686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480376
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/run.bash | 1 -
+ 1 file changed, 1 deletion(-)

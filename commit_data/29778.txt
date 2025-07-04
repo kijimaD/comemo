@@ -1,0 +1,17 @@
+commit 3a067cc812ff20327a80748c2e72bce420e837d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 9 06:43:24 2016 +0000
+
+    api: remove testing Context accessors from go1.8.txt
+    
+    Fixes the build.
+    
+    Updates #18199
+    
+    Change-Id: Ibf029ba9f9293d1f3d49c1c8773fc262159a5d5b
+    Reviewed-on: https://go-review.googlesource.com/34242
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.8.txt | 3 ---
+ 1 file changed, 3 deletions(-)

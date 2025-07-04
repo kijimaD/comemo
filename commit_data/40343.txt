@@ -1,0 +1,22 @@
+commit 0050c079d5a50e441aa32d0da5338687890194ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:38:26 2019 -0700
+
+    runtime, syscall, time: prepare for adding timers to P's
+    
+    Add new fields to runtime.timer, and adjust the various timer
+    functions in preparation for adding timers to P's. This continues to
+    use the old timer code.
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: I9adb3814f657e083ec5e22736c4b5b52b77b6a3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171829
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 138 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/time/sleep.go   |  13 +++--
+ 2 files changed, 143 insertions(+), 8 deletions(-)

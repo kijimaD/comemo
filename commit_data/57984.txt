@@ -1,0 +1,38 @@
+commit 60d66e6a86085478bc86fc924d1cd0221565262f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Nov 7 12:22:20 2024 +0100
+
+    os/user: support built-in service user accounts on Windows
+    
+    Built-in service user accounts should be treated as special cases
+    of well-known groups and allowed in user.Lookup and user.LookupId.
+    
+    Namely, these accounts are:
+    - NT AUTHORITY\SYSTEM (S-1-5-18)
+    - NT AUTHORITY\LOCAL SERVICE (S-1-5-19)
+    - NT AUTHORITY\NETWORK SERVICE (S-1-5-20)
+    
+    See https://learn.microsoft.com/en-us/windows/win32/services/service-user-accounts.
+    
+    Note that #49509 also mentions S-1-5-17 (NT AUTHORITY\IUSR) as
+    another well-known group that should be treated as a user. I haven't
+    found any documentation supporting this claim, and it is not an account
+    that is used usually, so I'm not adding it for now.
+    
+    This CL is heavily based on CL 452497.
+    
+    Fixes #49509
+    
+    Change-Id: I6e204ddfb4ed0c01b4503001cf284602531e4a88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/next/6-stdlib/99-minor/os/user/49509.md      |   5 ++
+ src/internal/syscall/windows/security_windows.go |  24 ++++++
+ src/internal/syscall/windows/zsyscall_windows.go |  28 +++++++
+ src/os/user/lookup_windows.go                    | 102 ++++++++++++++++++-----
+ src/os/user/user_windows_test.go                 |  68 +++++++++++++++
+ 5 files changed, 206 insertions(+), 21 deletions(-)

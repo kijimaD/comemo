@@ -1,0 +1,12 @@
+commit 62c24811e73b45481f1abcf693606ea3e598b932
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 7 15:44:10 2011 -0400
+
+    syscall: fix freebsd/386 again
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4380042
+
+ src/pkg/syscall/syscall_freebsd_386.go | 2 ++
+ 1 file changed, 2 insertions(+)

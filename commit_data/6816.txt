@@ -1,0 +1,16 @@
+commit 6f1835dce02b592b28a4ea9bb9a77dbc990198a2
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Dec 2 09:18:20 2010 -0800
+
+    Sort: reduced stack depth to lg(n) in quickSort
+    
+    Doing the tail recursion elimination explicitly
+    seems safer than leaving it to the compiler;
+    the code is still clean and easy to understand.
+    
+    R=r, r2, gri
+    CC=golang-dev
+    https://golang.org/cl/3373041
+
+ src/pkg/sort/sort.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

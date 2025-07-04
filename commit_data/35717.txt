@@ -1,0 +1,21 @@
+commit 46076c37578fba9b49059584ef896099c9240fb2
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Jun 14 11:51:57 2018 +0200
+
+    mime/multipart: return error from NextPart if boundary is empty
+    
+    NewReader cannot return an error. This behaviour is kept.
+    NextPart returns EOF when boundary is empty.
+    RFC 2046 does not allow it. The fix is to return an error
+    on the call of NextPart.
+    
+    Fixes #23170
+    
+    Change-Id: I775afd3f93e8b56e6cb274bc5c9de362a18bcc3c
+    Reviewed-on: https://go-review.googlesource.com/118822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/multipart.go      | 4 +++-
+ src/mime/multipart/multipart_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

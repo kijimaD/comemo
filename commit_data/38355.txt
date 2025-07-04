@@ -1,0 +1,24 @@
+commit 2bd28cee2356c34427a94f4323bd534641f7070b
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Thu Jan 17 16:53:41 2019 +0100
+
+    syscall: correctly set up uid/gid mappings in user namespaces
+    
+    Before this CL, uid/gid mapping was always set up from the parent
+    process, which is a privileged operation.
+    
+    When using unprivileged user namespaces, a process can modify its
+    uid/gid mapping after the unshare(2) call (but setting the uid/gid
+    mapping from another process is NOT possible).
+    
+    Fixes #29789
+    
+    Change-Id: I8c96a03f5da23fe80bbb83ef051ad89cf185d750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158298
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go      | 98 ++++++++++++++++++++++++++++++++++--------
+ src/syscall/exec_linux_test.go | 43 ++++++++++++++++++
+ 2 files changed, 122 insertions(+), 19 deletions(-)

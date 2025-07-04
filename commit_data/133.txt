@@ -1,0 +1,11 @@
+commit 9abf9e8a37dc843ed7ffab7f803bc23f1bd0bf73
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 8 18:26:23 2008 -0700
+
+    nihon
+    
+    SVN=121620
+
+ src/cmd/gc/go.h  |  2 +-
+ src/cmd/gc/lex.c | 24 ++++++++++--------------
+ 2 files changed, 11 insertions(+), 15 deletions(-)

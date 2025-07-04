@@ -1,0 +1,17 @@
+commit a9f1569e7bff932eada0c4c691123e3c1177b6f0
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Apr 11 11:45:18 2013 -0700
+
+    gc: escape unicode BOM in exported string literals
+    
+    Fixes #5260.
+    
+    R=golang-dev, minux.ma, 0xjnml, r
+    CC=golang-dev
+    https://golang.org/cl/8658043
+
+ src/cmd/gc/fmt.c                  |  3 +++
+ test/fixedbugs/issue5260.dir/a.go |  7 +++++++
+ test/fixedbugs/issue5260.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue5260.go       | 10 ++++++++++
+ 4 files changed, 31 insertions(+)

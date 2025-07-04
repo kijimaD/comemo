@@ -1,0 +1,14 @@
+commit c5ac91d0e1082914d3eeb8dff9d80974eb1bf9b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 6 16:32:13 2018 +0000
+
+    all: clean up some Deprecated comments
+    
+    Change-Id: Ie801fe6a2883d79229ee2955e26948c1b4964802
+    Reviewed-on: https://go-review.googlesource.com/122496
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/image/jpeg/reader.go |  3 ++-
+ src/net/http/request.go  | 14 +++++++++++---
+ src/net/http/server.go   |  4 +++-
+ 3 files changed, 16 insertions(+), 5 deletions(-)

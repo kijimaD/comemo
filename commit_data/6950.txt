@@ -1,0 +1,12 @@
+commit 6a4b0191c0b3e37680f726a57faaea711f4139e8
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Dec 14 12:22:28 2010 -0500
+
+    crypto/tls: use rand.Reader in cert generation example
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/3536043
+
+ src/pkg/crypto/tls/generate_cert.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

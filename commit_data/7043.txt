@@ -1,0 +1,15 @@
+commit 0f26608ebcfbe08aaf1ba2f3b0592cc5ce1feec1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 5 14:35:13 2011 -0500
+
+    io: fix Copyn EOF handling
+    
+    Fixes #1383.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3821044
+
+ src/pkg/io/io.go      |  7 ++++++-
+ src/pkg/io/io_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

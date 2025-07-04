@@ -1,0 +1,10 @@
+commit 28590a0abb2ba3aa14a4d16a08c372c773ad8d6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 5 23:00:44 2008 -0800
+
+    - updated docs
+    
+    SVN=111539
+
+ doc/go_lang.txt | 231 +++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 130 insertions(+), 101 deletions(-)

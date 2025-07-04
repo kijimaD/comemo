@@ -1,0 +1,30 @@
+commit 8cd04da7627576197b4fb1ef28985ac9243d13a3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 16 16:03:00 2016 -0700
+
+    compress/flate: make huffmanBitWriter errors persistent
+    
+    For persistent error handling, the methods of huffmanBitWriter have to be
+    consistent about how they check errors. It must either consistently
+    check error *before* every operation OR immediately *after* every
+    operation. Since most of the current logic uses the previous approach,
+    we apply the same style of error checking to writeBits and all calls
+    to Write such that they only operate if w.err is already nil going
+    into them.
+    
+    The error handling approach is brittle and easily broken by future commits to
+    the code. In the near future, we should switch the logic to use panic at the
+    lowest levels and a recover at the edge of the public API to ensure
+    that errors are always persistent.
+    
+    Fixes #16749
+    
+    Change-Id: Ie1d83e4ed8842f6911a31e23311cd3cbf38abe8c
+    Reviewed-on: https://go-review.googlesource.com/27200
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/deflate.go            |  2 +-
+ src/compress/flate/deflate_test.go       | 50 ++++++++++++++++++++++++++++++++
+ src/compress/flate/huffman_bit_writer.go | 40 ++++++++++++++++---------
+ 3 files changed, 78 insertions(+), 14 deletions(-)

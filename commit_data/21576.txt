@@ -1,0 +1,20 @@
+commit ed8cc5cf9bfa9ba6b3ec84ba10028aa0366e0c0c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 10 15:26:07 2015 +0300
+
+    runtime: fix race instrumentation of append
+    
+    typedslicecopy is another write barrier that is not
+    understood by racewalk. It seems quite complex to handle it
+    in the compiler, so instead just instrument it in runtime.
+    
+    Update #9796
+    
+    Change-Id: I0eb6abf3a2cd2491a338fab5f7da22f01bf7e89b
+    Reviewed-on: https://go-review.googlesource.com/4370
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/racewalk.c                   |  1 +
+ src/runtime/mbarrier.go                 |  7 +++
+ src/runtime/race/testdata/slice_test.go | 95 +++++++++++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+)

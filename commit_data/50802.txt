@@ -1,0 +1,21 @@
+commit 97d38f300273a3eb7af100d3943decaa433fd28f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 18:18:01 2022 -0700
+
+    go/types, types2: use consistent error messages for invalid struct literals
+    
+    Fixes #51879.
+    
+    Change-Id: Ic7ac892b82a0fe4ad6f95ff8ae84e6d30c52c111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438855
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/expr.go             | 9 ++++++---
+ src/go/types/expr.go                                | 9 ++++++---
+ src/internal/types/testdata/check/expr3.go          | 2 +-
+ src/internal/types/testdata/fixedbugs/issue51877.go | 8 ++++----
+ 4 files changed, 17 insertions(+), 11 deletions(-)

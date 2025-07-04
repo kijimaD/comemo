@@ -1,0 +1,22 @@
+commit 599d5395ebb41eb17bbe77e75d12ed0d13294767
+Author: Fannie Zhang <Fannie.Zhang@arm.com>
+Date:   Wed Mar 16 12:08:54 2022 +0000
+
+    Revert "cmd/compile: set conversions to unsafe.Pointer as an escaping operation when -asan is enabled"
+    
+    This reverts commit 5fd0ed7aaf39f783ea6f505a3f2ac7d9da7cb03b.
+    
+    Reason for revert: <The internal information in commit message is not removed.>
+    
+    Change-Id: Id6845a9c8114ac71c56a1007a4d133a560a37fbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393314
+    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+
+ misc/cgo/testsanitizers/asan_test.go               |  3 ---
+ .../testsanitizers/testdata/asan_unsafe_fail1.go   | 27 ---------------------
+ .../testsanitizers/testdata/asan_unsafe_fail2.go   | 28 ----------------------
+ .../testsanitizers/testdata/asan_unsafe_fail3.go   | 21 ----------------
+ src/cmd/compile/internal/escape/expr.go            |  6 ++---
+ src/cmd/compile/internal/ir/expr.go                |  6 -----
+ 6 files changed, 3 insertions(+), 88 deletions(-)

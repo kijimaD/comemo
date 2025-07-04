@@ -1,0 +1,35 @@
+commit 3a7a528c2d7ee0c7b2988a7aee0b9347e973cbed
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Nov 14 20:13:10 2022 +0800
+
+    all: fix some comments for method
+    
+    Change-Id: I4cff6b2a1fed6acdf754539c3c53a61eaa3b3f84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450176
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/format.go                   |  4 ++--
+ src/archive/tar/reader.go                   |  2 +-
+ src/archive/tar/writer.go                   |  2 +-
+ src/cmd/compile/internal/abt/avlint32.go    |  2 +-
+ src/cmd/compile/internal/amd64/ssa.go       |  2 +-
+ src/cmd/compile/internal/logopt/log_opts.go |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go       |  2 +-
+ src/cmd/compile/internal/riscv64/ssa.go     |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go       |  2 +-
+ src/cmd/compile/internal/ssa/dom.go         |  4 ++--
+ src/cmd/compile/internal/ssa/func.go        | 12 ++++++------
+ src/cmd/compile/internal/ssa/magic.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go     |  4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go      | 10 +++++-----
+ src/cmd/compile/internal/syntax/parser.go   |  4 ++--
+ src/cmd/compile/internal/x86/ssa.go         |  2 +-
+ test/typeparam/list.go                      |  2 +-
+ test/typeparam/listimp.dir/a.go             |  2 +-
+ 18 files changed, 31 insertions(+), 31 deletions(-)

@@ -1,0 +1,28 @@
+commit f6fc0dd620a838be3c98acc798ba58d6cbb0bac2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 19 23:40:24 2017 -0500
+
+    cmd/compile: update signature of runtime.memclr*
+    
+    runtime.memclr* functions have signatures
+    
+    func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+    func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
+    
+    Update compiler's copy. Also teach gc/mkbuiltin.go to handle
+    unsafe.Pointer. The import statement and its support is not
+    really necessary, but just to make it look like real Go code.
+    
+    Fixes #19185.
+    
+    Change-Id: I251d02571fde2716d4727e31e04d56ec04b6f22a
+    Reviewed-on: https://go-review.googlesource.com/37257
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 85 +++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  6 +-
+ src/cmd/compile/internal/gc/mkbuiltin.go       | 11 ++++
+ src/cmd/compile/internal/gc/range.go           |  4 +-
+ 4 files changed, 60 insertions(+), 46 deletions(-)

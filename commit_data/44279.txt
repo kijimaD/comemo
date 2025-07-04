@@ -1,0 +1,28 @@
+commit 76ab626bfc52fad9ce8c12fac56177ce68ff744b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:01:00 2021 -0500
+
+    runtime: factor common code out of defs_windows_*.go
+    
+    Also give up on the fiction that these files can be regenerated.
+    They contain many manual edits, and they're fairly small anyway.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ib4e4e20a43d8beb1d5390fd184160c33607641f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288807
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/defs_windows.go       | 127 ++++++++++++++++++++------------------
+ src/runtime/defs_windows_386.go   |  84 ++-----------------------
+ src/runtime/defs_windows_amd64.go |  87 ++------------------------
+ src/runtime/defs_windows_arm.go   |  79 +-----------------------
+ src/runtime/signal_windows.go     |   4 +-
+ 5 files changed, 78 insertions(+), 303 deletions(-)

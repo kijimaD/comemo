@@ -1,0 +1,17 @@
+commit 63810f840f1a3d14eb3da22122c3a958c73f2549
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 14 11:09:53 2009 -0700
+
+    Account for CALL instructions before looking up the function
+    at PC, to deal with functions that end with a CALL
+    instruction.  Special case known call-by-return functions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=12  (6 added, 6 deleted, 0 changed)
+    OCL=33255
+    CL=33279
+
+ src/pkg/runtime/386/traceback.c   | 6 +++---
+ src/pkg/runtime/amd64/traceback.c | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

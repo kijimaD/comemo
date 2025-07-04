@@ -1,0 +1,11 @@
+commit 1ee83f851dd7b70564c54f60575957ed84a368b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 17:40:47 2009 -0800
+
+    gc: change "can we const evaluate this" from blacklist to whitelist
+    
+    R=ken2
+    https://golang.org/cl/155074
+
+ src/cmd/gc/const.c | 36 ++++++++++++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 6 deletions(-)

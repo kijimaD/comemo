@@ -1,0 +1,14 @@
+commit 3f4de49d0a6469b38a6e07194a6b59d7a35b1d51
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 20 11:32:11 2015 -0400
+
+    cmd/dist: enable c-archive test on darwin/arm64
+    
+    Turns out all the necessary pieces have already been submitted.
+    
+    Change-Id: I19c8d614cd756821ce400ca7a338029002780b18
+    Reviewed-on: https://go-review.googlesource.com/9076
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

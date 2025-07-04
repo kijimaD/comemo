@@ -1,0 +1,37 @@
+commit 36147dd1e8d8e21affbf5d8a758608e63304e4a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 15 11:50:27 2022 -0400
+
+    cmd/go/internal/modindex: disable indexing for modules outside GOROOT and the module cache
+    
+    Since CL 410821 we were indexing these modules with a cache key based
+    on the mtimes of the files within the module. However, that seems to
+    be causing test failures (#53269 and maybe #53371).
+    
+    In addition, indexing these modules caused a potentially-expensive
+    operation (re-indexing a whole module) whenever any individual file
+    within the module is changed, even if it isn't relevant to the
+    package(s) being loaded from that module. In some cases, that could
+    cause a significant performance regression for 'go' commands invoked
+    on a small subset of the packages in the module (such as running 'go
+    test' on a single changed package — a common case during development).
+    
+    Instead, we now index only those modules found within the module cache
+    and within GOROOT.
+    
+    In addition, we now check mtimes when indexing GOROOT modules if the
+    Go version begins with the string "devel ", which indicates a
+    non-released Go version that may include local file edits within GOROOT.
+    
+    For #53371.
+    For #53269.
+    
+    Change-Id: Id3aa81b55ecfc478e47dd420148d39d2cf476f2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412394
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modindex/read.go | 68 +++++++++++++++++++++++-------------
+ 1 file changed, 43 insertions(+), 25 deletions(-)

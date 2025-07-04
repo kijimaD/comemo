@@ -1,0 +1,29 @@
+commit 0c02280fe0b4a178f78633721201f899e5213414
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 25 00:12:57 2016 +0200
+
+    net: fix TestCloseError on Plan 9
+    
+    Since CL 30614, TestCloseError is failing on Plan 9,
+    because File.Write now checks f.fd == badFd before
+    calling syscall.Write.
+    
+    The f.fd == badFd check returns os.ErrClosed, while
+    syscall.Write returned a syscall.ErrorString error.
+    
+    TestCloseError was failing because it expected a
+    syscall.ErrorString error.
+    
+    We add a case in parseCloseError to handle the
+    os.ErrClosed case.
+    
+    Fixes #17569.
+    
+    Change-Id: I6b4d956d18ed6d3c2ac5211ffd50a4888f7521e1
+    Reviewed-on: https://go-review.googlesource.com/31872
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/error_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

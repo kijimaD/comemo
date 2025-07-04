@@ -1,0 +1,19 @@
+commit 7d7b9bbc7a37d3b83936a8caea08e0be7240a125
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Mar 3 07:28:44 2022 -0600
+
+    crypto/sha512: fix stack size for previous change
+    
+    In a recent change CL 388654 a function was updated so it
+    no longer needed stack space, but the TEXT statement was
+    not updated to reflect that change. This corrects that problem.
+    
+    Change-Id: I9e60cebddae620788b1097ab7b39c47b323d1f62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389674
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+
+ src/crypto/sha512/sha512block_ppc64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

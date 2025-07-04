@@ -1,0 +1,20 @@
+commit 94b0342f17eece0287601918526351733e8b29c4
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Dec 8 17:07:13 2011 -0500
+
+    math: document more special cases
+    
+    Acosh, Asinh, Atanh, Ceil, Floor, Trunc, Mod and Remainder affected. These changes add some non-finite arguments and results (and -0.0 results).
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5469046
+
+ src/pkg/math/acosh.go     | 1 +
+ src/pkg/math/asinh.go     | 1 +
+ src/pkg/math/atanh.go     | 3 ++-
+ src/pkg/math/floor.go     | 3 +++
+ src/pkg/math/mod.go       | 7 +++++--
+ src/pkg/math/nextafter.go | 1 +
+ src/pkg/math/remainder.go | 6 +++---
+ 7 files changed, 16 insertions(+), 6 deletions(-)

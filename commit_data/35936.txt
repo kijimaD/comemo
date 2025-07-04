@@ -1,0 +1,27 @@
+commit fa71076d242d0f9da48080dd9ddfd9c0f8a469cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 07:19:17 2018 -0700
+
+    cmd/go, cmd/cgo: only set TERM=dumb when running the compiler
+    
+    The clang compiler on some terminals will issue colored error
+    messages, which can confuse tools like cgo. To avoid this we used to
+    set TERM=dumb for all programs started by the go tool. However, that
+    confuses the pprof tool, which doesn't know whether to support fancy
+    editing and colors itself.
+    
+    Instead, change the go tool and the cgo tool to set TERM=dumb where it
+    matters--when invoking the C compiler--rather than in all cases.
+    
+    Updates #26254
+    
+    Change-Id: I95174f961ac269a50a83f5f9d268219043cba968
+    Reviewed-on: https://go-review.googlesource.com/122975
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/util.go               |  2 ++
+ src/cmd/go/internal/envcmd/env.go |  3 ---
+ src/cmd/go/internal/work/exec.go  | 17 ++++++++++++-----
+ 3 files changed, 14 insertions(+), 8 deletions(-)

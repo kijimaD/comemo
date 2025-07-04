@@ -1,0 +1,17 @@
+commit 278369152267b79853a9cceaa0390d6c7e1d86b9
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 4 07:49:51 2012 +1100
+
+    docs: replace references to gofix etc. with tool invocations
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5630045
+
+ doc/effective_go.html |  5 ++++-
+ doc/effective_go.tmpl |  5 ++++-
+ doc/go1.html          | 58 ++++++++++++++++++++++++++-------------------------
+ doc/go1.tmpl          | 58 ++++++++++++++++++++++++++-------------------------
+ doc/install.html      |  2 +-
+ src/cmd/nm/doc.go     |  3 +--
+ 6 files changed, 70 insertions(+), 61 deletions(-)

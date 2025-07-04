@@ -1,0 +1,15 @@
+commit ae299f0d6997329183e1709c28aeadb1c814b092
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 22 15:16:48 2009 -0800
+
+    cosmetic change only:
+    - slightly simplified a couple of productions (CommClause, SwitchClause)
+      by reordering
+    
+    R=r
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=23304
+    CL=23323
+
+ doc/go_spec.txt | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit df4b22fcffc28586c64e339a6b55c254602bcb8e
+Author: Olivier Antoine <olivier.antoine@gmail.com>
+Date:   Wed Feb 16 15:03:47 2011 -0500
+
+    net: reject invalid net:proto network names
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4129042
+
+ src/pkg/net/dial.go      | 28 +++++++++++++++++-----------
+ src/pkg/net/iprawsock.go |  4 ++--
+ src/pkg/net/parse.go     | 10 ----------
+ 3 files changed, 19 insertions(+), 23 deletions(-)

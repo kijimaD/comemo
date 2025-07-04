@@ -1,0 +1,16 @@
+commit eb6ae3ca7b0bb9f4bbeac03cc3cbd2362fc05342
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 05:56:03 2016 -0700
+
+    cmd/vet/all: remove cmd/compile/internal/big special case
+    
+    It no longer exists as of CL 31010.
+    
+    Change-Id: Idd61f392544cad8b3f3f8d984dc5c953b473e2e5
+    Reviewed-on: https://go-review.googlesource.com/31934
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/all/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

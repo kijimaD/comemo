@@ -1,0 +1,22 @@
+commit 2de897f4807aa552c5d223e0744c9624fa498d48
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Nov 8 00:06:02 2019 +0900
+
+    cmd: sync github.com/google/pprof@v0.0.0-20191105193234-27840fff0d09
+    
+    https://github.com/google/pprof/compare/54271f7e092f...27840fff0d09
+    
+    Change-Id: I7ded9be6deaaf8d11bd8d228bca8d7eb3ada8774
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205780
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 ++--
+ .../google/pprof/internal/driver/webhtml.go        | 24 ++++++++++++++--------
+ .../google/pprof/internal/driver/webui.go          |  2 +-
+ .../google/pprof/internal/graph/graph.go           | 17 ++++++++++++---
+ .../google/pprof/internal/plugin/plugin.go         |  2 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 7 files changed, 35 insertions(+), 18 deletions(-)

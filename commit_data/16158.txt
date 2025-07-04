@@ -1,0 +1,22 @@
+commit d06be395cc8094b3cb132be238d745b668dbfa04
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Wed Apr 10 21:41:54 2013 -0700
+
+        cmd/cgo, cmd/go: remove #cgo directive parsing from cmd/cgo
+    
+    This change removes processing of #cgo directives from cmd/cgo,
+    pushing the onus back on cmd/go to pass all necessary flags.
+    
+    Fixes #5224. See comments for rationale.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/8610044
+
+ misc/cgo/test/cflags.go   | 32 ++++++++++++++++
+ misc/cgo/test/cgo_test.go |  1 +
+ src/cmd/cgo/gcc.go        | 93 ++---------------------------------------------
+ src/cmd/cgo/main.go       | 18 +++------
+ src/cmd/go/build.go       | 57 +++++++++++++++++------------
+ src/cmd/go/main.go        | 26 +++++++++----
+ 6 files changed, 95 insertions(+), 132 deletions(-)

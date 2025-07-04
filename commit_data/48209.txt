@@ -1,0 +1,32 @@
+commit 7c694fbad1ed6f2f825fd09cf7a86da3be549cea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 13:35:16 2022 -0800
+
+    go/types, types2: delay receiver type validation
+    
+    Delay validation of receiver type as it may cause premature expansion
+    of types the receiver type is dependent on. This was actually a TODO.
+    
+    While the diff looks large-ish, the actual change is small: all the
+    receiver validation code has been moved inside the delayed function
+    body, and a couple of comments have been adjusted.
+    
+    Fixes #51232.
+    Fixes #51233.
+    
+    Change-Id: I44edf0ba615996266791724b832d81b9ccb8b435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387918
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/signature.go       | 105 ++++++++++----------
+ .../types2/testdata/fixedbugs/issue51232.go2       |  29 ++++++
+ .../types2/testdata/fixedbugs/issue51233.go2       |  25 +++++
+ src/go/types/signature.go                          | 107 ++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue51232.go2     |  29 ++++++
+ src/go/types/testdata/fixedbugs/issue51233.go2     |  25 +++++
+ test/typeparam/issue51232.go                       |  31 ++++++
+ test/typeparam/issue51233.go                       |  22 +++++
+ 8 files changed, 274 insertions(+), 99 deletions(-)

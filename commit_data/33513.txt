@@ -1,0 +1,18 @@
+commit dc3a4e4bca1eb0fed3304d22875ca26964091e82
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Oct 2 08:17:15 2017 +0900
+
+    cmd/objdump: pass the correct execution mode to x86asm.Decode in disasm_x86 on 386
+    
+    Fixes #22093
+    Fixes #19988
+    
+    Change-Id: Ibd8ec89e091fd527f363999e484676931d7aa6e2
+    Reviewed-on: https://go-review.googlesource.com/67450
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/objfile/disasm.go |  2 +-
+ src/cmd/objdump/objdump_test.go    | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

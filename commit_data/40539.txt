@@ -1,0 +1,20 @@
+commit 8de0bb77ebc3408a586ad96a3c9ae9c231fd15a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 1 17:53:53 2019 -0700
+
+    runtime: clear preemptStop in dropm
+    
+    Updates #10958
+    Updates #24543
+    Fixes #35294
+    
+    Change-Id: I60f024d08451565df6d9751dab9832b50cbf637a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testcarchive/carchive_test.go        | 49 +++++++++++++++++++++++++++
+ misc/cgo/testcarchive/testdata/libgo7/sink.go | 17 ++++++++++
+ misc/cgo/testcarchive/testdata/main7.c        | 17 ++++++++++
+ src/runtime/proc.go                           |  1 +
+ 4 files changed, 84 insertions(+)

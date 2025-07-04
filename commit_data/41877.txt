@@ -1,0 +1,20 @@
+commit f4827240dbd29d0c1c308b07c3406f600d5ef82b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 8 12:16:38 2020 -0400
+
+    crypto/x509: tidy darwin/arm64 build tags
+    
+    The cgo build tag is not necessary for root_darwin_arm64.go. We can't
+    build for darwin/arm64 without cgo, and even if we did 1) this code
+    would work fine 2) the no-cgo code that shells out to
+    /usr/bin/security would not work.
+    
+    (Suggested by Filippo.)
+    
+    Change-Id: I98cac2ea96ec5ac1ae60b7e32d195d5e86e2bd66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227583
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/root_darwin_arm64.go   | 2 --
+ src/crypto/x509/root_darwin_arm_gen.go | 2 --
+ 2 files changed, 4 deletions(-)

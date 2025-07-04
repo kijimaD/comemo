@@ -1,0 +1,15 @@
+commit e76934261449e82857fa060dbd3212492b08e2ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 22:52:30 2010 -0400
+
+    nacl: fix zero-length writes
+    
+    NaCl rejects zero-length write using nil pointer.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2237042
+
+ src/pkg/syscall/syscall_nacl.go      |  2 ++
+ src/pkg/syscall/zsyscall_nacl_386.go | 26 ++++++++++++++++----------
+ 2 files changed, 18 insertions(+), 10 deletions(-)

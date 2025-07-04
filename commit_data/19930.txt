@@ -1,0 +1,13 @@
+commit 9f07456c138f606350ff73f25a55ab65210e5b38
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 7 11:21:32 2014 +1000
+
+    C: add Paul Nasrat (Google CLA)
+    
+    TBR=gobot
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/125790043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

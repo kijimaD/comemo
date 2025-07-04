@@ -1,0 +1,31 @@
+commit a5be6dbbafaec51344c82a860f80c210b904f5d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 12:34:17 2023 -0400
+
+    cmd/go: refuse to download zip files for too-new modules
+    
+    In general an older version of Go does not know how to construct
+    a module written against a newer version of Go: the details may
+    change over time, such as for issues like #42965 (an ignore mechanism).
+    
+    For #57001.
+    
+    Change-Id: Id43fcfb71497375ad2eb5dfd292bad0adca0652e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497795
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/gotoolchain.go                        | 14 ++++---
+ src/cmd/go/internal/gover/toolchain.go           | 48 +++++++++++++++++++++++-
+ src/cmd/go/internal/modfetch/coderepo.go         | 12 ++++++
+ src/cmd/go/internal/modfetch/fetch.go            | 13 ++++++-
+ src/cmd/go/internal/modload/init.go              |  8 +++-
+ src/cmd/go/internal/modload/modfile.go           |  7 +++-
+ src/cmd/go/internal/modload/vendor.go            |  2 +-
+ src/cmd/go/testdata/mod/rsc.io_future_v1.0.0.txt | 16 ++++++++
+ src/cmd/go/testdata/script/gotoolchain.txt       |  4 +-
+ src/cmd/go/testdata/script/mod_get_future.txt    | 12 ++++++
+ src/cmd/go/testdata/script/mod_go_version.txt    |  9 +++--
+ 11 files changed, 130 insertions(+), 15 deletions(-)

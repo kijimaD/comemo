@@ -1,0 +1,12 @@
+commit bebd22f8e045676b1d902013ff87ab75c13c3d63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 12 14:53:28 2010 -0700
+
+    fix build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1815042
+
+ test/fixedbugs/bug243.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

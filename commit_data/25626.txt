@@ -1,0 +1,22 @@
+commit 2a09a68dd951a563b2e6fb6d0d3b5a77ec9e67d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 20:14:03 2016 -0500
+
+    unsafe: document valid uses of Pointer
+    
+    Add docs for valid uses of Pointer.
+    Then document change made for #13372 in CL 18584.
+    
+    Fixes #8994.
+    
+    Change-Id: Ifba71e5aeafd11f684aed0b7ddacf3c8ec07c580
+    Reviewed-on: https://go-review.googlesource.com/18640
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/unsafe/unsafe.go | 157 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 152 insertions(+), 5 deletions(-)

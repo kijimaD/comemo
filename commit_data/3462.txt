@@ -1,0 +1,20 @@
+commit ecb863a9a93c0eaee18e9ea5094828d729a23024
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 15:38:57 2009 -0700
+
+    apply gofmt to datafmt, ebnf, exec, expvar, flag, fmt
+    
+    R=gri
+    DELTA=456  (6 added, 3 deleted, 447 changed)
+    OCL=35398
+    CL=35406
+
+ src/pkg/datafmt/parser.go |  52 +++----
+ src/pkg/exec/exec.go      |  16 +--
+ src/pkg/expvar/expvar.go  |  54 ++++----
+ src/pkg/flag/flag.go      | 123 ++++++++---------
+ src/pkg/flag/flag_test.go |  30 ++--
+ src/pkg/fmt/fmt_test.go   | 344 +++++++++++++++++++++++-----------------------
+ src/pkg/fmt/format.go     |  58 ++++----
+ src/pkg/fmt/print.go      | 140 +++++++++----------
+ 8 files changed, 410 insertions(+), 407 deletions(-)

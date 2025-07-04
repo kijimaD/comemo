@@ -1,0 +1,21 @@
+commit c80da0a33a240469892a0b0713f09607efb28752
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:00:21 2021 -0500
+
+    runtime: handle nil gp in cpuprof
+    
+    This can happen on Windows when recording profile samples for system threads.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I5a7ba32b1900a69f3b7acada9cb6cf8396d8a03f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288797
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cpuprof.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

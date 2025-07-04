@@ -1,0 +1,31 @@
+commit 652f55672d9f8b77890127d010268375d975872c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 09:11:46 2009 -0800
+
+    x[lo:] - gc and runtime.
+      * add runtime sliceslice1 for x[lo:]
+      * remove runtime arraytoslice, rewriting &arr into arr[0:len(arr)].
+      * port cgen_inline into 8g, 5g.
+      * use native memmove in maps
+    
+    R=ken2
+    https://golang.org/cl/157106
+
+ src/cmd/5g/gg.h           |   2 +
+ src/cmd/5g/ggen.c         | 380 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/ggen.c         | 121 +++++++--------
+ src/cmd/8g/cgen.c         |   4 +
+ src/cmd/8g/gg.h           |   2 +
+ src/cmd/8g/ggen.c         | 345 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/builtin.c.boot |   2 +-
+ src/cmd/gc/go.y           |   8 +-
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/typecheck.c    |  14 +-
+ src/cmd/gc/walk.c         |  53 ++++---
+ src/pkg/runtime/hashmap.h |   1 -
+ src/pkg/runtime/runtime.c |  22 ---
+ src/pkg/runtime/runtime.h |   2 +-
+ src/pkg/runtime/slice.c   |  74 +++++----
+ test/ken/slicearray.go    |   8 +
+ test/ken/sliceslice.go    |   8 +
+ 17 files changed, 903 insertions(+), 145 deletions(-)

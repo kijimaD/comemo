@@ -1,0 +1,20 @@
+commit e8e074d1ba286c3e06847a96fe6aa90e294dfcd9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 19 14:03:09 2018 -0700
+
+    cmd/vet: implement old TODO from testdata/print.go
+    
+    The code was fixed in CL 108559 but the testing TODO was not implemented.
+    
+    Updates #22936
+    
+    Change-Id: I20a703260a181bbcf5f87609d6fb8221a182be1a
+    Reviewed-on: https://go-review.googlesource.com/125038
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/vet/testdata/print.go | 42 +++++++++++-------------------------------
+ src/cmd/vet/vet_test.go       |  3 +--
+ 2 files changed, 12 insertions(+), 33 deletions(-)

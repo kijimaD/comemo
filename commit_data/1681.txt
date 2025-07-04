@@ -1,0 +1,12 @@
+commit 55d13cf139e9aa682e0d71eb9c9453c342ce6f96
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 15 19:58:00 2009 -0800
+
+    change the URL in the test to avoid a redirection that breaks it in sydney.
+    
+    R=rsc
+    OCL=25054
+    CL=25054
+
+ src/lib/net/dialgoogle_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 324b293878613574a1c0ab8d87f238ad15a67387
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 28 23:25:55 2014 -0400
+
+    cmd/objdump: disassemble local text symbols
+    
+    Fixes #8803.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169720043
+
+ src/cmd/objdump/main.go         |  2 +-
+ src/cmd/objdump/objdump_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

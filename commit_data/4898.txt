@@ -1,0 +1,13 @@
+commit 55828cee94450d44f6346291fca7ea4b972e324f
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Feb 19 07:51:51 2010 -0800
+
+    http: add DumpRequest, DumpResponse, for debugging
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206050
+
+ src/pkg/http/Makefile |  1 +
+ src/pkg/http/dump.go  | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)

@@ -1,0 +1,15 @@
+commit 66f72f8a5048f017a6db4713edfc94e94c0a92e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 20 14:48:23 2014 +0900
+
+    doc/go1.3.html: switch default stack size back to 8kB
+    
+    Update #8030
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94680043
+
+ doc/go1.3.html | 4 ----
+ 1 file changed, 4 deletions(-)

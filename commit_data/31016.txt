@@ -1,0 +1,54 @@
+commit c311488283fc9d9ad22e20a9b6551681af8586ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 09:54:14 2017 -0700
+
+    cmd/internal/obj: remove Linklookup
+    
+    It was simply a wrapper around Link.Lookup.
+    Unwrap everything.
+    
+    CL prepared using eg with template:
+    
+    package p
+    
+    import "cmd/internal/obj"
+    
+    func before(ctxt *obj.Link, name string, version int) *obj.LSym {
+            return obj.Linklookup(ctxt, name, version)
+    }
+    
+    func after(ctxt *obj.Link, name string, version int) *obj.LSym {
+            return ctxt.Lookup(name, version)
+    }
+    
+    Then one comment in cmd/asm/internal/asm/parse.go
+    was manually updated (and gofmt'ed!),
+    and func Linklookup deleted.
+    
+    Passes toolstash-check (as a sanity measure).
+    
+    Change-Id: Icc4d56b0b2b5c8888d3184c1898c48359ea1e638
+    Reviewed-on: https://go-review.googlesource.com/39715
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go           |  8 ++++----
+ src/cmd/compile/internal/gc/obj.go          |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go         |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go      | 12 ++++++------
+ src/cmd/compile/internal/ssa/export_test.go |  2 +-
+ src/cmd/compile/internal/x86/ssa.go         |  2 +-
+ src/cmd/internal/obj/arm/asm5.go            |  2 +-
+ src/cmd/internal/obj/arm/obj5.go            | 22 +++++++++++-----------
+ src/cmd/internal/obj/arm64/obj7.go          | 10 +++++-----
+ src/cmd/internal/obj/mips/obj0.go           | 12 ++++++------
+ src/cmd/internal/obj/objfile.go             | 10 +++++-----
+ src/cmd/internal/obj/plist.go               |  4 ++--
+ src/cmd/internal/obj/ppc64/asm9.go          |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go          | 18 +++++++++---------
+ src/cmd/internal/obj/s390x/objz.go          | 12 ++++++------
+ src/cmd/internal/obj/sym.go                 |  4 ----
+ src/cmd/internal/obj/x86/asm6.go            |  8 ++++----
+ src/cmd/internal/obj/x86/obj6.go            | 16 ++++++++--------
+ 18 files changed, 75 insertions(+), 79 deletions(-)

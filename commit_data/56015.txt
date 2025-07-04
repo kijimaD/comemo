@@ -1,0 +1,33 @@
+commit aa1b50e1793dcbd5a23470bffd983d7c127b6cd3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 28 23:25:52 2024 +0000
+
+    runtime: make tidExists more robust
+    
+    The LockThreadExit tests in the runtime have been observed to fail after
+    reading /proc/self/task/<tid>/stat and blindly assuming its contents
+    followed a specific format. The parsing code is also wrong, because
+    splitting by spaces doesn't work when the comm name contains a space.
+    It also ignores errors without reporting them, which isn't great.
+    
+    This change rewrites tidExists to be more robust by using
+    /proc/self/task/<tid>/status instead. It also modifies tidExists'
+    signature to report an error to its caller. Its caller then prints that
+    error.
+    
+    Ignoring a non-not-exist error with opening this file is the likely but
+    unconfirmed cause of #65736 (ESRCH). This change also checks for that
+    error explicitly as an optimistic fix.
+    
+    Fixes #65736.
+    
+    Change-Id: Iea560b457d514426da2781b7eb7b8616a91ec23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567938
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/testdata/testprog/lockosthread.go   |  6 +++-
+ src/runtime/testdata/testprog/syscalls_linux.go | 42 +++++++++++++++++++++----
+ src/runtime/testdata/testprog/syscalls_none.go  |  4 +--
+ 3 files changed, 43 insertions(+), 9 deletions(-)

@@ -1,0 +1,23 @@
+commit d723df76da3ee4c8f3c03fd03be29fba9bfeb02a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 2 13:33:02 2022 -0400
+
+    internal/goversion: update Version to 1.20
+    
+    This is the start of the Go 1.20 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that
+    will soon open up for development (and eventually become released).
+    
+    For #40705.
+    For #53812.
+    
+    Change-Id: Ic8919a61c9b2f3139717434b9c776d1597175448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420816
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/goversion/goversion.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

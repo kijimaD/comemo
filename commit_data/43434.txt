@@ -1,0 +1,13 @@
+commit 5d9b66cdc67332be3323e13b3e33713d496d6a56
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 21:06:44 2020 -0400
+
+    cmd/compile: remove go115makeslicecopy
+    
+    Change-Id: I6fd65fe7c1046c3ba7d7ed0e67282f879c13e9e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264340
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 5 -----
+ 1 file changed, 5 deletions(-)

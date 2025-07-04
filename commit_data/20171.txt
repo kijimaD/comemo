@@ -1,0 +1,18 @@
+commit f02232072312d6cb7921ad89256894c4cbd0b63c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 28 11:45:30 2014 -0400
+
+    runtime: fix build
+    
+    'range hash' makes a copy of the hash array in the stack, creating
+    a very large stack frame. It's just the right amount that it
+    uses most but not all of the total stack size. If you have a lot
+    of environment variables, like the builders, then this is too
+    much and the g0 stack runs out of space.
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/132350043
+
+ src/pkg/runtime/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

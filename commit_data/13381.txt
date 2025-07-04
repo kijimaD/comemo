@@ -1,0 +1,18 @@
+commit bca01cd0bfdb9bfda3f076697bda4fae27d4e768
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 24 19:47:50 2012 -0400
+
+    runtime: detect hash map collision problems
+    
+    This can only happen if the hash function we're using is getting
+    far more than it's fair share of collisions, but that has happened
+    to us repeatedly as we've expanded the allowed use cases for
+    hash tables (issue 1544, issue 2609, issue 2630, issue 2883, issue 3695).
+    Maybe this will help the next time we try something new.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6306083
+
+ src/pkg/runtime/hashmap.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

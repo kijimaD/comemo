@@ -1,0 +1,16 @@
+commit 5c6db9a76ffe8ab9bf3bfc42dfb2dd51d89b7228
+Author: Aditya Harindar <aditya.harindar@gmail.com>
+Date:   Mon Oct 28 08:14:47 2019 +0000
+
+    doc/articles: format error string as per go style
+    
+    First letter of an error string should not be capitalized, as prescribed in the [wiki](https://github.com/golang/go/wiki/Errors).
+    
+    Change-Id: Iea1413f19b5240d3bef79f216094d210b54bdb62
+    GitHub-Last-Rev: d8e167107122b603c4f647d722537668ad1c680d
+    GitHub-Pull-Request: golang/go#35203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/articles/wiki/final-noclosure.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

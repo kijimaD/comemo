@@ -1,0 +1,16 @@
+commit 599c18fa3f7be22478cf39e7cc5f710a7b6f65b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 17:22:11 2011 -0800
+
+    spec: values of underlying type uintptr can be converted to unsafe.Pointer
+    
+    Not a language change, just stating the facts.
+    
+    Fixes #1793.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5488071
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

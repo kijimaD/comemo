@@ -1,0 +1,21 @@
+commit daa121167b6ce630aba00195f1c3872cda39a50c
+Author: Allan Simon <allan.simon@supinfo.com>
+Date:   Sun Oct 11 04:16:58 2015 +0800
+
+    encoding/xml: prevent omitempty from omitting non-nil pointers to empty values
+    
+    There was an inconsistency between the (json encoding + documentation)
+    and the xml encoding implementation. Pointer to an empty value was
+    not being serialized (i.e simply ignored). Which had the effect of making
+    impossible to have a struct with a string field for which we wanted to
+    serialize the value ""
+    
+    Fixes #5452
+    
+    Change-Id: Id858701801158409be01e962d2cda843424bd22a
+    Reviewed-on: https://go-review.googlesource.com/15684
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/marshal.go      | 18 ++++++++++--------
+ src/encoding/xml/marshal_test.go |  8 +++++++-
+ 2 files changed, 17 insertions(+), 9 deletions(-)

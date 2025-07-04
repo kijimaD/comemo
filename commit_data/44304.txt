@@ -1,0 +1,15 @@
+commit 40765ffa95e87e603845d83591f75efa54049eca
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 11:27:23 2021 -0500
+
+    os/exec: disable failing LookPathTest on windows/arm64
+    
+    For #44379.
+    
+    Change-Id: I9a3cf4d511a8286117f877c2ff9dbde56fa55983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293709
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+
+ src/os/exec/lp_windows_test.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

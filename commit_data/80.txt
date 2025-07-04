@@ -1,0 +1,74 @@
+commit 0cafb9ea3d3d34627e8f492ccafa6ba9b633a213
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 4 14:37:38 2008 -0700
+
+    Add compiler source to new directory structure
+    
+    SVN=121164
+
+ src/cmd/6a/a.h         |  206 +++++
+ src/cmd/6a/a.y         |  592 ++++++++++++++
+ src/cmd/6a/lex.c       | 1337 +++++++++++++++++++++++++++++++
+ src/cmd/6c/cgen.c      | 1971 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6c/div.c       |  236 ++++++
+ src/cmd/6c/gc.h        |  411 ++++++++++
+ src/cmd/6c/list.c      |  372 +++++++++
+ src/cmd/6c/machcap.c   |  108 +++
+ src/cmd/6c/mul.c       |  458 +++++++++++
+ src/cmd/6c/peep.c      |  876 +++++++++++++++++++++
+ src/cmd/6c/pgen.c      |  550 +++++++++++++
+ src/cmd/6c/pswt.c      |  168 ++++
+ src/cmd/6c/reg.c       | 1386 ++++++++++++++++++++++++++++++++
+ src/cmd/6c/sgen.c      |  465 +++++++++++
+ src/cmd/6c/swt.c       |  566 +++++++++++++
+ src/cmd/6c/txt.c       | 1546 ++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/align.c     |  210 +++++
+ src/cmd/6g/cgen.c      |  638 +++++++++++++++
+ src/cmd/6g/gen.c       |  820 +++++++++++++++++++
+ src/cmd/6g/gg.h        |  203 +++++
+ src/cmd/6g/gsubr.c     | 1649 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/list.c      |  336 ++++++++
+ src/cmd/6g/obj.c       |  604 ++++++++++++++
+ src/cmd/6g/runtime.c   |  595 ++++++++++++++
+ src/cmd/6g/runtime.h   |  107 +++
+ src/cmd/6l/6.out.h     |  857 ++++++++++++++++++++
+ src/cmd/6l/asm.c       |  617 +++++++++++++++
+ src/cmd/6l/l.h         |  430 ++++++++++
+ src/cmd/6l/list.c      |  397 ++++++++++
+ src/cmd/6l/mkenam      |   45 ++
+ src/cmd/6l/obj.c       | 1595 +++++++++++++++++++++++++++++++++++++
+ src/cmd/6l/optab.c     | 1213 ++++++++++++++++++++++++++++
+ src/cmd/6l/pass.c      |  820 +++++++++++++++++++
+ src/cmd/6l/span.c      | 1776 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/acid.c      |  331 ++++++++
+ src/cmd/cc/bits.c      |  119 +++
+ src/cmd/cc/cc.h        |  795 +++++++++++++++++++
+ src/cmd/cc/cc.y        | 1205 ++++++++++++++++++++++++++++
+ src/cmd/cc/com.c       | 1378 ++++++++++++++++++++++++++++++++
+ src/cmd/cc/com64.c     |  643 +++++++++++++++
+ src/cmd/cc/dcl.c       | 1664 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/dpchk.c     |  524 ++++++++++++
+ src/cmd/cc/funct.c     |  430 ++++++++++
+ src/cmd/cc/lex.c       | 1542 ++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/lexbody     |  723 +++++++++++++++++
+ src/cmd/cc/mac.c       |   33 +
+ src/cmd/cc/macbody     |  842 ++++++++++++++++++++
+ src/cmd/cc/omachcap.c  |   38 +
+ src/cmd/cc/pgen.c      |  550 +++++++++++++
+ src/cmd/cc/pickle.c    |  298 +++++++
+ src/cmd/cc/pswt.c      |  168 ++++
+ src/cmd/cc/scon.c      |  636 +++++++++++++++
+ src/cmd/cc/sub.c       | 2054 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/const.c     |  370 +++++++++
+ src/cmd/gc/dcl.c       |  814 +++++++++++++++++++
+ src/cmd/gc/export.c    |  578 ++++++++++++++
+ src/cmd/gc/go.h        |  553 +++++++++++++
+ src/cmd/gc/go.y        | 1292 ++++++++++++++++++++++++++++++
+ src/cmd/gc/lex.c       | 1088 +++++++++++++++++++++++++
+ src/cmd/gc/mksys.bash  |   19 +
+ src/cmd/gc/mpatof.c    |  342 ++++++++
+ src/cmd/gc/subr.c      | 1591 +++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/sys.go      |   44 ++
+ src/cmd/gc/sysimport.c |    2 +
+ src/cmd/gc/walk.c      | 1278 ++++++++++++++++++++++++++++++
+ 65 files changed, 46104 insertions(+)

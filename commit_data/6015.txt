@@ -1,0 +1,14 @@
+commit 10ae88f4abcbdb26dc8bd5d78611ce3fa20c0381
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 12 11:28:50 2010 -0700
+
+    partial correction for CL 1983043: fix various godoc-related regexp calls
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1987041
+
+ src/cmd/godoc/godoc.go    | 6 +++---
+ src/pkg/go/doc/comment.go | 2 +-
+ src/pkg/go/doc/doc.go     | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

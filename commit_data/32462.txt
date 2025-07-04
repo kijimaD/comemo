@@ -1,0 +1,19 @@
+commit e11fd00629e8ef664b07cdb93f5f21b8e7a61179
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Jul 27 12:51:17 2017 -0700
+
+    path/filepath: add example for Ext
+    
+    Make it dead simple to see visually what the function outputs in
+    various scenarios.
+    
+    Change-Id: I8f6fcd72fa1515361481f0510412cde221e1d4e3
+    Reviewed-on: https://go-review.googlesource.com/51630
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+
+ src/path/filepath/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

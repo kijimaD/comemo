@@ -1,0 +1,22 @@
+commit 58447d757c233f2a9c3c5a73e2d96a6885f2759a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 7 17:03:43 2023 -0400
+
+    cmd/go: fix missing case checking for empty slice
+    
+    When we were comparing the first element of import stacks when sorting
+    depserrors we checked if the first stack was non empty, but not the
+    second one. Do the check for both stacks.
+    
+    Fixes #61816
+    For #59905
+    
+    Change-Id: Id5c11c2b1104eec93196a08c53372ee2ba97c701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516739
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go                |  3 +++
+ src/cmd/go/testdata/script/list_issue_59905.txt | 26 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

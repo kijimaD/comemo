@@ -1,0 +1,16 @@
+commit 1e9835f5b1806e8e6197f87c1696dc773b68a98a
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sat Dec 28 13:56:04 2024 +0900
+
+    internal/sync: fix typo of panic message
+    
+    Change-Id: I3e7a8498514da1d278acd566d526fdf6278f7d41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638916
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/sync/hashtriemap.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

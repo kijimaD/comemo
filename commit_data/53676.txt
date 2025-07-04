@@ -1,0 +1,25 @@
+commit 5e4000ad7ff153d90e77c97d7f29d3a2fa6c7de0
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jul 11 09:07:43 2023 -0500
+
+    cmd/compile: on PPC64, fix sign/zero extension when masking
+    
+    (ANDCCconst [y] (MOV.*reg x)) should only be merged when zero
+    extending. Otherwise, sign bits are lost on negative values.
+    
+    (ANDCCconst [0xFF] (MOVBreg x)) should be simplified to a zero
+    extension of x. Likewise for the MOVHreg variant.
+    
+    Fixes #61297
+    
+    Change-Id: I04e4fd7dc6a826e870681f37506620d48393698b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508775
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules | 10 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 77 +++++----------------------
+ test/codegen/bits.go                          | 20 +++++++
+ 3 files changed, 37 insertions(+), 70 deletions(-)

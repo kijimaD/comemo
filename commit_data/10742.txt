@@ -1,0 +1,12 @@
+commit 2b600f77dd19b9d04f473eb12179437afefde26a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 13 10:27:17 2011 -0500
+
+    exp/ssh: improve client channel close behavior
+    
+    R=gustav.paul
+    CC=golang-dev
+    https://golang.org/cl/5480062
+
+ src/pkg/exp/ssh/client.go | 58 +++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 49 insertions(+), 9 deletions(-)

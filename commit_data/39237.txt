@@ -1,0 +1,69 @@
+commit 05092163bb48004fbad847b04c1b0545e3f0189f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Jan 12 14:29:08 2019 -0800
+
+    strconv: fix rounding in FormatFloat fallback path
+    
+    Float formatting uses a multiprecision fallback path where Grisu3
+    algorithm fails. This has a bug during the rounding phase: the
+    difference between the decimal value and the upper bound is examined
+    byte-by-byte and doesn't properly handle the case where the first
+    divergence has a difference of 1.
+    
+    For instance (using an example from #29491), for the number
+    498484681984085570, roundShortest examines the three decimal values:
+    
+    lower: 498484681984085536
+    d:     498484681984085568
+    upper: 498484681984085600
+    
+    After examining the 16th digit, we know that rounding d up will fall
+    within the bounds unless all remaining digits of d are 9 and all
+    remaining digits of upper are 0:
+    
+    d:     ...855xx
+    upper: ...856xx
+    
+    However, the loop forgets that d and upper have already diverged and
+    then on the next iteration sees that the 17th digit of d is actually
+    lower than the 17th digit of upper and decides that we still can't round
+    up:
+    
+    d:     ...8556x
+    upper: ...8560x
+    
+    Thus the original value is incorrectly rounded down to
+    498484681984085560 instead of the closer (and equally short)
+    498484681984085570.
+    
+    Thanks to Brian Kessler for diagnosing this bug.
+    
+    Fix it by remembering when we've seen divergence in previous digits.
+    
+    This CL also fixes another bug in the same loop: for some inputs, the
+    decimal value d or the lower bound may have fewer digits than the upper
+    bound, yet the iteration through the digits starts at i=0 for each of
+    them. For instance, given the float64 value 1e23, we have
+    
+    d:      99999999999999991611392
+    upper: 100000000000000000000000
+    
+    but the loop starts by comparing '9' to '1' rather than '0' to '1'.
+    
+    I haven't found any cases where this second bug causes incorrect output
+    because when the digit comparison fails on the first loop iteration the
+    upper bound always has more nonzero digits (i.e., the expression
+    'i+1 < upper.nd' is always true).
+    
+    Fixes #29491
+    
+    Change-Id: I58856a7a2e47935ec2f233d9f717ef15c78bb2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157697
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/ftoa.go      | 63 +++++++++++++++++++++++++++++++++++++++---------
+ src/strconv/ftoa_test.go |  4 +++
+ 2 files changed, 56 insertions(+), 11 deletions(-)

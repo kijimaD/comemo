@@ -1,0 +1,14 @@
+commit 38ad41c317e32752fe8b45cb90561dea60fe81c7
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 9 13:39:45 2010 -0800
+
+    fix bugs compiling things like
+    c = cmplx(imag(c), real(c))
+    without a temporary
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/360043
+
+ src/cmd/gc/cplx.c | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

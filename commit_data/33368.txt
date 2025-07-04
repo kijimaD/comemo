@@ -1,0 +1,27 @@
+commit a0dfd82f41145bd41b765d9fb13bc2c10c659571
+Author: griesemer <gri@golang.org>
+Date:   Wed Nov 1 14:24:06 2017 -0700
+
+    go/types: avoid repeated "declared but not used" errors for closure variables
+    
+    At the end of type-checking a function or closure, unused local variables
+    are reported by looking at all variables in the function scope and its
+    nested children scopes. If a nested scope belonged to a nested function
+    (closure), that scope would be searched twice, leading to multiple error
+    messages for unused variables.
+    
+    This CL introduces an internal-only marker to identify function scopes
+    so that they can be ignored where needed.
+    
+    Fixes #22524.
+    
+    Change-Id: If58cc17b2f0615a16f33ea262f50dffd0e86d0f0
+    Reviewed-on: https://go-review.googlesource.com/75251
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go              | 9 +++++++++
+ src/go/types/scope.go             | 3 ++-
+ src/go/types/stmt.go              | 6 +++++-
+ src/go/types/testdata/vardecl.src | 7 +++++++
+ src/go/types/typexpr.go           | 1 +
+ 5 files changed, 24 insertions(+), 2 deletions(-)

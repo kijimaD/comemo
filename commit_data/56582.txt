@@ -1,0 +1,16 @@
+commit 643865856c535a5a644201c602b18bd87b121c93
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Tue May 7 23:09:14 2024 +0300
+
+    cmd/compile: Fix SSA building bug for CAS atomics on ARM64
+    
+    Fixes #67229
+    
+    Change-Id: I39f1255d38d2b2083753e17f0f5acf520e6167d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583995
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Shu-Chun Weng <scw@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

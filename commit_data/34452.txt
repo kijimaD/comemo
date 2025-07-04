@@ -1,0 +1,30 @@
+commit ec0b8c0585a1dad79c5b5bc9c95d4d35ce56cc53
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 14:47:20 2018 +0100
+
+    test: use the version of Go used to run run.go
+    
+    Currently, the top-level testsuite always uses whatever version
+    of Go is found in the PATH to execute all the tests. This
+    forces the developers to tweak the PATH to run the testsuite.
+    
+    Change it to use the same version of Go used to run run.go.
+    This allows developers to run the testsuite using the tip
+    compiler by simply saying "../bin/go run run.go".
+    
+    I think this is a better solution compared to always forcing
+    "../bin/go", because it allows developers to run the testsuite
+    using different Go versions, for instance to check if a new
+    test is fixed in tip compared to the installed compiler.
+    
+    Fixes #24217
+    
+    Change-Id: I41b299c753b6e77c41e28be9091b2b630efea9d2
+    Reviewed-on: https://go-review.googlesource.com/98439
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/README.md |  2 +-
+ test/run.go    | 54 +++++++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 36 insertions(+), 20 deletions(-)

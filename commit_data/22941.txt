@@ -1,0 +1,12 @@
+commit 82359d1c2d835d44d84408b52fd8eaf4965ad363
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 9 01:29:03 2015 +0900
+
+    net: enable cgo test on solaris
+    
+    Change-Id: I4ade27469d82839b4396e1a88465dddc6b31d578
+    Reviewed-on: https://go-review.googlesource.com/9838
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/net/cgo_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

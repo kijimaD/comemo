@@ -1,0 +1,15 @@
+commit be0079abe1eff5b4d123a249ce6a14da279217a0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 14 16:47:40 2014 +1000
+
+    os: disable TestGetppid on plan9
+    
+    Fixes build.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/105140047
+
+ src/pkg/os/os_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

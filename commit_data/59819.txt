@@ -1,0 +1,20 @@
+commit 34cf5f6205c97eccca4fee5a33deca9d6b05e7b3
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jun 24 00:38:37 2025 +0000
+
+    go/types: add test for interface method field type
+    
+    Add a test that would have detected the regression in #74303: interface
+    method fields should have a recorded type.
+    
+    For #74303
+    
+    Change-Id: Ide5df51cd71c38809c364bb4f95950163ecefb66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 5 +++++
+ src/go/types/api_test.go                    | 5 +++++
+ 2 files changed, 10 insertions(+)

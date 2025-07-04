@@ -1,0 +1,28 @@
+commit 52cc058172fe299b11d01cf5f04500de725bde07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 8 13:52:36 2010 -0700
+
+    big: cleanups and performance tuning
+    
+    - removed last argument (n) from all core arithmetic routines;
+      instead, use the length of the result
+    
+    - simplified nat.make implementation and chose a better capacity
+      for new values, removed a TODO in the process
+    
+    Changing the constant e from 1 (old) to 4 (new) improved
+    pidigits -s -n 10000 by ~9% (on a 3.06GHz Intel Core 2 Duo):
+    
+    user    0m3.882s (old)
+    user    0m3.549s (new)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1133043
+
+ src/pkg/big/arith.go      |  54 ++++++++++++------------
+ src/pkg/big/arith_386.s   |  58 ++++++++++++-------------
+ src/pkg/big/arith_amd64.s |  58 ++++++++++++-------------
+ src/pkg/big/arith_test.go |  28 ++++++-------
+ src/pkg/big/nat.go        | 105 ++++++++++++++++++++--------------------------
+ 5 files changed, 142 insertions(+), 161 deletions(-)

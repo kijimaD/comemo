@@ -1,0 +1,42 @@
+commit c3b4c27fd31b51226274a0c038e9c10a65f11657
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Feb 1 13:23:02 2023 -0800
+
+    log: reduce lock contention
+    
+    Logger.Log methods are called in a highly concurrent manner in many servers.
+    Acquiring a lock in each method call results in high lock contention,
+    especially since each lock covers a non-trivial amount of work
+    (e.g., formatting the header and outputting to the writer).
+    
+    Changes made:
+    * Modify the Logger to use atomics so that the header formatting
+      can be moved out of the critical lock section.
+      Acquiring the flags does not occur in the same critical section
+      as outputting to the underlying writer, so this introduces
+      a very slight consistency instability where concurrently calling
+      multiple Logger.Output along with Logger.SetFlags may cause
+      the older flags to be used by some ongoing Logger.Output calls
+      even after Logger.SetFlags has returned.
+    * Use a sync.Pool to buffer the intermediate buffer.
+      This approach is identical to how fmt does it,
+      with the same max cap mitigation for #23199.
+    * Only protect outputting to the underlying writer with a lock
+      to ensure serialized ordering of output.
+    
+    Performance:
+            name           old time/op  new time/op  delta
+            Concurrent-24  19.9µs ± 2%   8.3µs ± 1%  -58.37%  (p=0.000 n=10+10)
+    
+    Updates #19438
+    
+    Change-Id: I091beb7431d8661976a6c01cdb0d145e37fe3d22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464344
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/log/log.go      | 120 +++++++++++++++++++++++++++++++---------------------
+ src/log/log_test.go |  35 ++++++++++++++-
+ 2 files changed, 104 insertions(+), 51 deletions(-)

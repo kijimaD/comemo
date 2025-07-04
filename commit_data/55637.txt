@@ -1,0 +1,23 @@
+commit 67361bf86807f7c9bf01e21ac1257730bb0b4cb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 8 15:35:22 2024 -0800
+
+    cmd/compile/internal/types2: use ExprString instead of syntax.String
+    
+    This further reduces the differences between go/types and types2.
+    
+    Change-Id: I1426c2f7c58e2d1123d93f68fbdda01b0cc2d46e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go      | 8 ++++----
+ src/cmd/compile/internal/types2/assignments.go   | 4 ++--
+ src/cmd/compile/internal/types2/builtins_test.go | 2 +-
+ src/cmd/compile/internal/types2/errors.go        | 4 ++--
+ src/cmd/compile/internal/types2/issues_test.go   | 6 +++---
+ src/cmd/compile/internal/types2/operand.go       | 2 +-
+ src/cmd/compile/internal/types2/util.go          | 3 +++
+ 7 files changed, 16 insertions(+), 13 deletions(-)

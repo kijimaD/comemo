@@ -1,0 +1,38 @@
+commit a2d2e6e7cb12c57cd8f5af64909882bab1dbca19
+Author: Jianwei Mao <maojianwei2012@126.com>
+Date:   Fri Aug 26 08:45:23 2022 +0000
+
+    net: add FlagRunning to exactly reflect the states of an interface.
+    
+    Correctly set this flag while parsing the syscall result.
+    
+    The FlagUp flag can not distinguish the following situations:
+    1. interface is plugged, automatically up, and in running(UP) state
+    2. interface is not plugged, administratively or manually set to up,
+    but in DOWN state
+    
+    So, We can't distinguish the state of a NIC by the FlagUp flag alone.
+    
+    Fixes #53482
+    
+    Change-Id: I43796bea1a7f72d1fddfef914efe603c81995e1b
+    GitHub-Last-Rev: 686b5d888e97e9b90cf36ac0c15943eb97e125d4
+    GitHub-Pull-Request: golang/go#53484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413454
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
+    Reviewed-by: Jianwei Mao <maojianwei2020@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next/53482.txt           | 2 ++
+ src/net/interface.go         | 4 +++-
+ src/net/interface_aix.go     | 3 +++
+ src/net/interface_bsd.go     | 3 +++
+ src/net/interface_linux.go   | 3 +++
+ src/net/interface_plan9.go   | 4 ++--
+ src/net/interface_solaris.go | 3 +++
+ src/net/interface_windows.go | 1 +
+ 8 files changed, 20 insertions(+), 3 deletions(-)

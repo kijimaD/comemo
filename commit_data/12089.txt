@@ -1,0 +1,14 @@
+commit 8729d158caa847d1e90a65dca36009972faf2cb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 21 11:11:18 2012 +1100
+
+    net: more docs on deadlines
+    
+    Fixes #2777
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5685060
+
+ src/pkg/net/net.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit 23173fc025f769aaa9e19f10aa0f69c851ca2f3b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 12:14:36 2016 +0100
+
+    net/http/httptrace: clarify ClientTrace docs
+    
+    The old wording over-promised.
+    
+    Fixes #16957
+    
+    Change-Id: Iaac04de0d24eb17a0db66beeeab9de70d0f6d391
+    Reviewed-on: https://go-review.googlesource.com/31735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/httptrace/trace.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

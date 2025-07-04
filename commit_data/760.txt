@@ -1,0 +1,12 @@
+commit 3a884d76ac4ab9ebac8c7595e31eec9868b606bc
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 27 17:46:40 2008 -0700
+
+    bug in simul assignment
+    
+    R=r
+    OCL=16053
+    CL=16053
+
+ src/cmd/gc/walk.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

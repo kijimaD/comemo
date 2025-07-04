@@ -1,0 +1,16 @@
+commit 4432be3b288976fd3f8a398801803020ec78c7f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 2 09:07:43 2013 -0700
+
+    compress/gzip: add Writer.Flush to call flate.Writer's Flush
+    
+    From a discussion on golang-nuts.
+    
+    R=golang-dev, dsymonds, nigeltao, coocood, adg
+    CC=golang-dev
+    https://golang.org/cl/8251043
+
+ doc/go1.1.html                     |  8 ++++++++
+ src/pkg/compress/gzip/gzip.go      | 24 ++++++++++++++++++++++-
+ src/pkg/compress/gzip/gzip_test.go | 40 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+), 1 deletion(-)

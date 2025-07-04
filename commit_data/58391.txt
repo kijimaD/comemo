@@ -1,0 +1,21 @@
+commit 8391579ecea7dede2f2c1dc79954131e1eae1ade
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 13 10:26:50 2024 -0500
+
+    runtime: migrate missing map linkname allowlists
+    
+    The swissmap implementation forgot to copy some of the linkname
+    allowlists from the old implementation. Copy them from map_noswiss.go.
+    Some were missing linkname entirely; others were linknamed but missing
+    the hall of shame comment.
+    
+    For #54766.
+    
+    Change-Id: Icc715384123e73d868b4cb729ab639abcd6bbfd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635995
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/map_swiss.go | 158 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 158 insertions(+)

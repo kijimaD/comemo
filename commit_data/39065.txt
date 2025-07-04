@@ -1,0 +1,22 @@
+commit 503e6ccd740c48f21c1d159d904b51da2d9a8ca9
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Mar 28 10:53:42 2019 +0000
+
+    math/big: fix the bug in assembly implementation of shlVU on arm64
+    
+    For the case where the addresses of parameter z and x of the function
+    shlVU overlap and the address of z is greater than x, x (input value)
+    can be polluted during the calculation when the high words of x are
+    overlapped with the low words of z (output value).
+    
+    Fixes #31084
+    
+    Change-Id: I9bb0266a1d7856b8faa9a9b1975d6f57dece0479
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169780
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/big/arith_arm64.s | 106 +++++++++++++++++++++++++--------------------
+ src/math/big/arith_test.go |  69 +++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+), 47 deletions(-)

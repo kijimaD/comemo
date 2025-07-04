@@ -1,0 +1,20 @@
+commit a8d78fae95d5a8a09e248ce4d26f04b38791a7b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 1 15:39:21 2021 -0700
+
+    cmd/compile: refactor gclocals sym creation
+    
+    It'll be used in second place in a subsequent change.
+    No functional changes.
+    
+    Change-Id: I58dd12d7dde45b36995d031fc7fbb27d6eaf48d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353670
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/liveness/plive.go | 13 +------------
+ src/cmd/internal/obj/sym.go                |  9 +++++++++
+ 2 files changed, 10 insertions(+), 12 deletions(-)

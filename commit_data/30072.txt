@@ -1,0 +1,26 @@
+commit 2cab41d5cb813956a367c464afc0b16b2c418331
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 14:51:57 2017 -0500
+
+    cmd/go: split out cmd/go/internal/help
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I4cf05b076d81b780c87a31378523929b5da8964b
+    Reviewed-on: https://go-review.googlesource.com/36194
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/base/base.go                 |   4 +
+ src/cmd/go/internal/help/help.go                 | 178 ++++++++++++++++++++
+ src/cmd/go/{help.go => internal/help/helpdoc.go} |  16 +-
+ src/cmd/go/main.go                               | 196 ++---------------------
+ 4 files changed, 205 insertions(+), 189 deletions(-)

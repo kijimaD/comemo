@@ -1,0 +1,29 @@
+commit fd4631e24f53cf836a67b00e82e2159854ec31d0
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 11 11:29:27 2021 -0400
+
+    cmd/compile/internal/dwarfgen: fix DWARF param DIE ordering
+    
+    The DWARF standard requires that the DIEs in a subprogram
+    corresponding to input and output parameters appear in declaration
+    order; this patch adds some new code in dwarfgen to enforce this
+    ordering (relying on the existing fn.Dcl ordering is not sufficient).
+    
+    Prior to the register ABI, it was easy to keep vars/decls sorted
+    during DWARF generation since you could always rely on frame offset;
+    with the ABI sorting by frame offset no longer gives you the original
+    declaration order in all cases.
+    
+    Fixes #46055.
+    
+    Change-Id: I0e070cb781d6453caba896e5d3bee7cd5388050d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318829
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 55 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf_test.go     | 30 +++++++++-------
+ 2 files changed, 72 insertions(+), 13 deletions(-)

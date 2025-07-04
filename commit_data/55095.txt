@@ -1,0 +1,21 @@
+commit b3b442449b0b979a035b5a26b8e62d8f6158fa69
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 16 10:22:13 2023 +0800
+
+    cmd/compile: fix If lowering on loong64
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I44477e32db765e0299d8361bd2b8d2c95564ed28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521788
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 27 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

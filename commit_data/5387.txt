@@ -1,0 +1,13 @@
+commit 96179629efd28cf5a6642b50a3b4da273554411d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 28 11:08:07 2010 -0700
+
+    Remove destination of symlink test in case it got left behind
+    earlier.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/972045
+
+ src/pkg/os/os_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,20 @@
+commit 3fad58f12efae91ee2ab40f28e513a8d02cbcf96
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 19:15:09 2020 +0100
+
+    crypto/x509: update iOS bundled roots to version 55161.140.3
+    
+    Extended the sorting logic to be stable even when there are two roots
+    with the same name and notBefore timestamp, like the GlobalSign ones.
+    
+    Updates #38843
+    
+    Change-Id: Ie4db0bb8b6a8b5ffbb7390b6bd527fc0c3badaca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266677
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/root.go         |   2 +-
+ src/crypto/x509/root_ios.go     | 213 +++++++---------------------------------
+ src/crypto/x509/root_ios_gen.go |   6 +-
+ 3 files changed, 41 insertions(+), 180 deletions(-)

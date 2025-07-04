@@ -1,0 +1,12 @@
+commit c7f6f9f318d8ce38ec43ef7e7299cb1a9df5622e
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Sep 5 13:05:57 2011 -0400
+
+    runtime: fix openbsd 386 raisesigpipe
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4950064
+
+ src/pkg/runtime/openbsd/386/sys.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit e09f1e7a46c0bd0f2160fa0d71d4b89104c6fe3b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 22 14:51:16 2012 -0500
+
+    misc/benchcmp: show byte allocation statistics
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6971048
+
+ misc/benchcmp | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 0dd120df7e97387411ddba9f58384e69e8862073
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Aug 17 13:22:22 2019 -0700
+
+    encoding/json: fix format string in the Fuzz func
+    
+    Currently test build fails with:
+    
+    $ go test -tags=gofuzz encoding/json
+    encoding/json/fuzz.go:36:4: Println call has possible formatting directive %s
+    FAIL    encoding/json [build failed]
+    
+    Change-Id: I23aef44a421ed0e7bcf48b74ac5a8c6768a4841b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

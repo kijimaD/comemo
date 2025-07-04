@@ -1,0 +1,15 @@
+commit 703043c8dcfdbf1d6b3fd5bea539da7392adce39
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 7 12:01:31 2012 +0400
+
+    cmd/gc: refactor racewalk
+    It is refactoring towards generic walk
+    + it handles mode nodes.
+    Partially fixes 4228 issue.
+    
+    R=golang-dev, lvd, rsc
+    CC=golang-dev
+    https://golang.org/cl/6775098
+
+ src/cmd/gc/racewalk.c | 39 ++++++++++++++++++---------------------
+ 1 file changed, 18 insertions(+), 21 deletions(-)

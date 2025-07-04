@@ -1,0 +1,18 @@
+commit 5a7283f1467014fb1f5e149b76f61e0a3138accf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 28 17:49:37 2017 -0700
+
+    cmd/link: remove unused SFILE and FileSym
+    
+    Change-Id: Iec610753052abcf6941a1cd16a9256ee9d689732
+    Reviewed-on: https://go-review.googlesource.com/59750
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go            | 4 ----
+ src/cmd/link/internal/ld/symkind.go        | 1 -
+ src/cmd/link/internal/ld/symkind_string.go | 4 ++--
+ src/cmd/link/internal/ld/symtab.go         | 7 +------
+ 4 files changed, 3 insertions(+), 13 deletions(-)

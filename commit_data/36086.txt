@@ -1,0 +1,21 @@
+commit ceca60228205652c0791d649368dd8e550073810
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 15:45:13 2018 -0400
+
+    cmd/go/internal/get: fix "mod over non-mod" preference for meta tags
+    
+    If there was a mod and non-mod meta tag for a given prefix,
+    the meta tag extractor was already dropping the non-mod meta tag.
+    But we might have mod and non-mod meta tags with different
+    prefixes, in which case the mod tag should prevail when both match.
+    
+    Fixes #26200.
+    
+    Change-Id: I17ab361338e270b9fa03999ad1954f2bbe0f5017
+    Reviewed-on: https://go-review.googlesource.com/124714
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/get/pkg_test.go | 17 +++++++++++++++++
+ src/cmd/go/internal/get/vcs.go      |  8 +++++++-
+ src/cmd/go/internal/get/vcs_test.go | 16 ++++++++++++++++
+ 3 files changed, 40 insertions(+), 1 deletion(-)

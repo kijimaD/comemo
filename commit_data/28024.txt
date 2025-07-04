@@ -1,0 +1,26 @@
+commit 6394eb378eb6b2c0e691c519b2a6664f930b427e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 16:02:19 2016 -0700
+
+    cmd/compile: export package for _ (blank) struct fields
+    
+    Blank struct fields are regular unexported fields. Two
+    blank fields are different if they are from different
+    packages. In order to correctly differentiate them, the
+    compiler needs the package information. Add it to the
+    export data.
+    
+    Fixes #15514.
+    
+    Change-Id: I421aaca22b542fcd0d66b2d2db777249cad78df6
+    Reviewed-on: https://go-review.googlesource.com/27639
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go |  7 ++-----
+ src/cmd/compile/internal/gc/bimport.go |  7 +------
+ src/go/internal/gcimporter/bimport.go  | 10 +++-------
+ test/fixedbugs/issue15514.dir/a.go     |  7 +++++++
+ test/fixedbugs/issue15514.dir/b.go     |  7 +++++++
+ test/fixedbugs/issue15514.dir/c.go     | 10 ++++++++++
+ test/fixedbugs/issue15514.go           |  7 +++++++
+ 7 files changed, 37 insertions(+), 18 deletions(-)

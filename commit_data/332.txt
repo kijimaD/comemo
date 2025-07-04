@@ -1,0 +1,19 @@
+commit 751ce3a77a833b84749a752b28cc8adf33c6c34e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jul 11 19:16:39 2008 -0700
+
+    segmented stacks AND goroutines
+    
+    SVN=126929
+
+ src/cmd/6g/gen.c               |   8 +-
+ src/cmd/6l/pass.c              |  13 ++-
+ src/cmd/gc/sys.go              |   7 ++
+ src/cmd/gc/sysimport.c         |  44 +++++---
+ src/runtime/rt0_amd64.s        | 218 ++++++++-----------------------------
+ src/runtime/rt2_amd64.c        |  16 ---
+ src/runtime/runtime.c          | 237 ++++++++++++++++++++++++++++++++++++++---
+ src/runtime/runtime.h          |  61 ++++++++---
+ src/runtime/sys_amd64_darwin.s |   4 -
+ src/runtime/sys_amd64_linux.s  |   4 -
+ 10 files changed, 364 insertions(+), 248 deletions(-)

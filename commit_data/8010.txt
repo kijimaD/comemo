@@ -1,0 +1,14 @@
+commit 2aceea630f29d3716eea4b8a7d7973f1b3b5e5c8
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Apr 7 14:20:42 2011 -0400
+
+    ld: fix Mach-O X86_64_RELOC_SIGNED relocations
+    
+    Fixes #1658.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4344066
+
+ src/cmd/ld/ldmacho.c | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)

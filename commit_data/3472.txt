@@ -1,0 +1,16 @@
+commit f77b255c389112beddc05e819c9b6c26395c0a92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 7 10:55:45 2009 -0700
+
+    support for "hard" and "soft" tabs:
+    - soft-tab separated columns can be discarded if empty and DiscardEmptyColumns is set
+    - hard-tab separated columns are never discarded
+    
+    R=rsc
+    DELTA=63  (42 added, 7 deleted, 14 changed)
+    OCL=35421
+    CL=35435
+
+ src/pkg/tabwriter/tabwriter.go      | 36 ++++++++++++++++++++++++------------
+ src/pkg/tabwriter/tabwriter_test.go | 35 +++++++++++++++++++++++++++++------
+ 2 files changed, 53 insertions(+), 18 deletions(-)

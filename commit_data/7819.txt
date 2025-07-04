@@ -1,0 +1,14 @@
+commit f91e677e121649ee78af1892679bacf80e39a2f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 21 14:18:12 2011 +1100
+
+    goinstall: add -clean flag to docs
+    
+    Fixes #1629.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4291057
+
+ src/cmd/goinstall/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

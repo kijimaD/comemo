@@ -1,0 +1,19 @@
+commit fdf5efe43ce8f49d8a2e9b6c9158f1f7b1303c2b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 4 11:58:00 2009 -0700
+
+    Update debugger to use Abort interface
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=314  (132 added, 2 deleted, 180 changed)
+    OCL=34376
+    CL=34396
+
+ usr/austin/ogle/abort.go     |  35 ++++++
+ usr/austin/ogle/frame.go     |  53 ++++++----
+ usr/austin/ogle/goroutine.go |  17 +--
+ usr/austin/ogle/process.go   |  21 ++--
+ usr/austin/ogle/rtype.go     |  38 +++----
+ usr/austin/ogle/rvalue.go    | 246 ++++++++++++++++++++++++++++---------------
+ 6 files changed, 272 insertions(+), 138 deletions(-)

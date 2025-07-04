@@ -1,0 +1,24 @@
+commit ba42b3ffd3220516911705fd2d060ea02e5502bb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 3 15:21:55 2017 -0400
+
+    cmd/link: sniff runtime-gdb.py path from runtime/proc.go
+    
+    Currently the linker figures out where runtime-gdb.py should be by
+    looking for the path to runtime/debug.go. However, debug.go contains
+    only a few symbols and can easily get dead-code eliminated entirely,
+    especially from simple binaries. When this happens, the resulting
+    binary lacks a reference to runtime-gdb.py, so the GDB helpers don't
+    get loaded.
+    
+    Fix this by instead sniffing for runtime/proc.go. This contains
+    runtime.main and the scheduler, so it's not going anywhere.
+    
+    Change-Id: Ie3380c77c840d28614fada68b8c5861625f2aff5
+    Reviewed-on: https://go-review.googlesource.com/68019
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

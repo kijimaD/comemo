@@ -1,0 +1,43 @@
+commit 84fce9832b7d1dfb8d39eb7cb76d689e306c4eed
+Author: Gernot Vormayr <gvormayr@gmail.com>
+Date:   Mon Jul 8 01:27:10 2019 +0200
+
+    cmd/cgo: fix check for conversion of ptr to struct field
+    
+    According to the documentation "When passing a pointer to a field in a
+    struct, the Go memory in question is the memory occupied by the field,
+    not the entire struct.". checkAddr states that this should also work
+    with type conversions, which is implemented in isType. However,
+    ast.StarExpr must be enclosed in ast.ParenExpr according to the go spec
+    (see example below), which is not considered in the checks.
+    
+    Example:
+        // struct Si { int i; int *p; }; void f(struct I *x) {}
+        import "C"
+        type S {
+            p *int
+            i C.struct_Si
+        }
+        func main() {
+            v := &S{new(int)}
+            C.f((*C.struct_I)(&v.i)) // <- panic
+        }
+    
+    This example will cause cgo to emit a cgoCheck that checks the whole
+    struct S instead of just S.i causing the panic "cgo argument has Go
+    pointer to Go pointer".
+    
+    This patch fixes this situation by adding support for ast.ParenExpr to
+    isType and adds a test, that fails without the fix.
+    
+    Fixes #32970.
+    
+    Change-Id: I15ea28c98f839e9fa708859ed107a2e5f1483133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185098
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/ptr_test.go | 9 +++++++++
+ src/cmd/cgo/gcc.go          | 2 ++
+ 2 files changed, 11 insertions(+)

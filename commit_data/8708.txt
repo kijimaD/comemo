@@ -1,0 +1,12 @@
+commit 34e0725dec7eb94b909050ba1182f64f2803800c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 14 11:49:33 2011 +1000
+
+    os: be explicit in the package comment that this package is for portable features only.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4602058
+
+ src/pkg/os/file.go | 2 ++
+ 1 file changed, 2 insertions(+)

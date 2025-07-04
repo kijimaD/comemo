@@ -1,0 +1,22 @@
+commit bf5805eae436a1ddbad593ec0671c9a7e8c67a9a
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Sep 27 12:23:26 2022 -0400
+
+    cmd/link: fix coverage counter issue on AIX
+    
+    Update the linker's XCOFF writer to handle coverage counter sections
+    properly; they need to be treated as bss, not data. Fixes a problem
+    with the aix-ppc64 builder introduced in CL 401235), e.g.
+    "runtime.covctrs: A symbol with type XTY_SD must be in a .text or
+    .data section".
+    
+    Updates #51430.
+    
+    Change-Id: I3fc385a37e2549c46cc7cc3b4718af989a36752a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/xcoff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

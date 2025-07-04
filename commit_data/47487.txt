@@ -1,0 +1,18 @@
+commit 313cae3861841e9c64bebe2c1aed8126cf6cc117
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 15:21:42 2021 -0800
+
+    cmd/compile/internal/types2: refactor the Context type map to accept arbitrary types
+    
+    This CL is a clean port of CL 362799 from go/types to types2.
+    
+    Change-Id: Id670aa4b1ca0b568a79bb6e4855747807dcf00f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364154
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/context.go     | 42 ++++++++++++++++----------
+ src/cmd/compile/internal/types2/instantiate.go | 25 ++++++++-------
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +--
+ 4 files changed, 41 insertions(+), 32 deletions(-)

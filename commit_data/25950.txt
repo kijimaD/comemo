@@ -1,0 +1,15 @@
+commit 71cc445cf92dd3014e8b382809ed1b9c077e7973
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 23 16:11:46 2016 -0800
+
+    cmd/cgo: recognize known C typedefs as types
+    
+    Fixes #14483.
+    
+    Change-Id: I0cddfe27fd8d00ba85659d0b618410e39ebf45cb
+    Reviewed-on: https://go-review.googlesource.com/19860
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/ptr.go | 10 ++++++++++
+ src/cmd/cgo/gcc.go     | 11 +++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

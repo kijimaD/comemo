@@ -1,0 +1,20 @@
+commit 5cf3e34f96f0ea975e0ce5fb8a5f3b036a916500
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat May 5 07:18:21 2018 -0700
+
+    database/sql: make error prefixes consistent
+    
+    Ensure all error prefixes in the "database/sql" package start with
+    "sql: ". Do not prefix errors for type conversions because they
+    are always embedded in another error message with a specific
+    context.
+    
+    Fixes #25251
+    
+    Change-Id: I349d9804f3bfda4eeb755b32b508ec5992c28e07
+    Reviewed-on: https://go-review.googlesource.com/111637
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go | 23 +++++++++++------------
+ src/database/sql/sql.go         |  4 ++--
+ 2 files changed, 13 insertions(+), 14 deletions(-)

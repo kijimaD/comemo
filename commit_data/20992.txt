@@ -1,0 +1,15 @@
+commit fccd9428032dca77e7fc511c6698353c0b3d35a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 17:14:25 2014 +1100
+
+    runtime: gofmt
+    
+    Fixes #9339
+    
+    Change-Id: I22faf2593cb73f42612c2c2bfe38de001fb2746b
+    Reviewed-on: https://go-review.googlesource.com/1630
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/runtime/debug/heapdump_test.go | 5 ++---
+ src/runtime/malloc2.go             | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)

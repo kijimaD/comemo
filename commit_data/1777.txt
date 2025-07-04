@@ -1,0 +1,13 @@
+commit b0609f14d23dece42cf5a659b0c77a087719f365
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 17:29:25 2009 -0800
+
+    document sort
+    
+    R=rsc
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=25869
+    CL=25872
+
+ src/lib/sort.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

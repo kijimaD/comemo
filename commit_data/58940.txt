@@ -1,0 +1,22 @@
+commit 8abb8aa9a96dc0590bd2e99628192e590b0295ec
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Mar 3 13:34:15 2025 +0000
+
+    testing: modify got,want equal comparison for unordered example output
+    
+    This change eliminates sortLines function to avoid strings.Join calls.
+    
+    It's not a performance problem, this change tries to make the comparison
+    more straightforward.
+    
+    Change-Id: I3a7ae877c9fc927833ab9f143205f7e007197f60
+    GitHub-Last-Rev: a71aa58c58533fed24ba9c101664b977a094caf9
+    GitHub-Pull-Request: golang/go#72025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653556
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/example.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,27 @@
+commit 847f15716625d24c6a6af8f741dff66781b6bcdd
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sat May 3 15:56:23 2025 +0300
+
+    internal/trace: add a validator test for the new clock snapshots
+    
+    Check that the clock snapshots, when expected to be present, are
+    non-zero and monotonically increasing.
+    
+    This required some refactoring to make the validator aware of the
+    version of the trace it is validating.
+    
+    Change-Id: I04c4dd10fe6975cbac12bb0ddaebcec3a5284e7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669715
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/trace/gc_test.go              |  2 +-
+ src/internal/trace/reader_test.go          |  7 +--
+ src/internal/trace/summary_test.go         |  4 +-
+ src/internal/trace/testtrace/format.go     | 23 +++++-----
+ src/internal/trace/testtrace/validation.go | 68 +++++++++++++++++++++---------
+ src/internal/trace/trace_test.go           |  3 +-
+ src/internal/trace/tracev1_test.go         |  3 +-
+ 7 files changed, 72 insertions(+), 38 deletions(-)

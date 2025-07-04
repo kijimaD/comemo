@@ -1,0 +1,20 @@
+commit b7a2f62c719dfe55cfc4d1b81f287ef0712253ce
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 8 23:07:12 2023 +0000
+
+    Revert "cmd/cgo: silence unaligned-access"
+    
+    This reverts commit http://go.dev/cl/c/go/+/526915
+    
+    Reason for revert: darwin builders unhappy with '-Wunaligned-access' C compiler flag
+    
+    Change-Id: I5e6ca7c9a0ca08b7e758b7f603da70a2fca79b58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526978
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/out.go | 2 --
+ 1 file changed, 2 deletions(-)

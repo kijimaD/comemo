@@ -1,0 +1,17 @@
+commit 25b00177af9f62f683ec68f1d697c2607d087ea6
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Sep 1 14:44:26 2015 -0300
+
+    net/http: make FileServer sort directory entries
+    
+    Fixes #11879
+    
+    Change-Id: If021f86b2764e01c69674e6a423699b822596f15
+    Reviewed-on: https://go-review.googlesource.com/14161
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      | 41 ++++++++++++++++++++++++++---------------
+ src/net/http/fs_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 15 deletions(-)

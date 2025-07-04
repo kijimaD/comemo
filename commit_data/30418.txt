@@ -1,0 +1,22 @@
+commit bab191042b92b125f5fac83dc8f0201160b79ecd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 20 17:49:56 2017 -0500
+
+    cmd/internal/obj, runtime: update funcdata comments
+    
+    The comments in cmd/internal/obj/funcdata.go are identical to the
+    comments in runtime/funcdata.h, but the majority of the definitions
+    they refer to don't apply to Go sources and have been stripped out of
+    funcdata.go.
+    
+    Remove these stale comments from funcdata.go and clean up the
+    references to other copies of the PCDATA and FUNCDATA indexes.
+    
+    Change-Id: I5d6e49a6e586cc9aecd7c3ce1567679f2a605884
+    Reviewed-on: https://go-review.googlesource.com/37330
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/funcdata.go | 43 +++++++++-------------------------------
+ src/runtime/funcdata.h           |  4 +---
+ src/runtime/symtab.go            |  4 +++-
+ 3 files changed, 13 insertions(+), 38 deletions(-)

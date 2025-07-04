@@ -1,0 +1,17 @@
+commit 763781c6ec92fceeb530167bc41985b865516f3a
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 22:24:30 2024 -0700
+
+    syscall: use testenv.Executable
+    
+    Change-Id: I4390d4bfb7deb974df6546e30ebbb4b6fff74730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609836
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux_test.go | 47 +++++++-----------------------------------
+ src/syscall/exec_unix_test.go  |  8 ++-----
+ 2 files changed, 9 insertions(+), 46 deletions(-)

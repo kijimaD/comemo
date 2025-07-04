@@ -1,0 +1,88 @@
+commit 3d4f41aea8f8b4d5d3548274f9d70620818a379f
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Aug 21 09:36:29 2023 +0200
+
+    cmd/compile: use shorter MOVs for clears of 9, 10, 11 and 12 bytes
+    
+    Instead of using two MOVQ, use a smaller MOV(B|W|L) for the remainder.
+    
+    compilecmp:
+    
+    vendor/golang.org/x/net/dns/dnsmessage
+    vendor/golang.org/x/net/dns/dnsmessage.(*SRVResource).GoString 1263 -> 1231  (-2.53%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*OpCode).GoString 285 -> 279  (-2.11%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*MXResource).GoString 603 -> 581  (-3.65%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*Option).GoString 485 -> 478  (-1.44%)
+    
+    os/signal
+    os/signal.cancel.func1 378 -> 346  (-8.47%)
+    
+    fmt
+    fmt.newPrinter 145 -> 138  (-4.83%)
+    fmt.(*pp).catchPanic 1369 -> 1357  (-0.88%)
+    fmt.(*fmt).clearflags 17 -> 13  (-23.53%)
+    fmt.(*fmt).init 85 -> 81  (-4.71%)
+    
+    vendor/golang.org/x/crypto/chacha20poly1305
+    vendor/golang.org/x/crypto/chacha20poly1305.(*xchacha20poly1305).Seal 527 -> 526  (-0.19%)
+    
+    cmd/vendor/golang.org/x/sys/unix
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCSocketAddr).tipcAddr 88 -> 86  (-2.27%)
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCServiceRange).tipcAddr 95 -> 93  (-2.11%)
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCServiceName).tipcAddr 95 -> 93  (-2.11%)
+    
+    fmt [cmd/compile]
+    fmt.(*fmt).clearflags 17 -> 13  (-23.53%)
+    fmt.newPrinter 304 -> 298  (-1.97%)
+    fmt.(*pp).catchPanic 1369 -> 1357  (-0.88%)
+    fmt.Fprint 536 -> 535  (-0.19%)
+    fmt.Sprintf 5009 -> 4945  (-1.28%)
+    fmt.(*fmt).init 85 -> 81  (-4.71%)
+    
+    net/http
+    net/http.http2FrameHeader.Header 89 -> 88  (-1.12%)
+    net/http.http2HeadersFrame.Header 95 -> 94  (-1.05%)
+    net/http.http2RSTStreamFrame.Header 120 -> 119  (-0.83%)
+    net/http.http2WindowUpdateFrame.Header 120 -> 119  (-0.83%)
+    net/http.http2Frame.Header 181 -> 179  (-1.10%)
+    net/http.http2PingFrame.Header 95 -> 94  (-1.05%)
+    net/http.(*http2FrameHeader).Header 119 -> 113  (-5.04%)
+    net/http.http2GoAwayFrame.Header 95 -> 94  (-1.05%)
+    net/http.http2MetaHeadersFrame.Header 133 -> 132  (-0.75%)
+    
+    cmd/vendor/golang.org/x/term
+    cmd/vendor/golang.org/x/term.(*Terminal).clearLineToRight 338 -> 337  (-0.30%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.appendString 424 -> 421  (-0.71%)
+    
+    cmd/compile/internal/reflectdata [cmd/compile]
+    cmd/compile/internal/reflectdata.dnameData 1574 -> 1561  (-0.83%)
+    
+    file                                             before   after    Δ       %
+    vendor/golang.org/x/net/dns/dnsmessage.s         74536    74469    -67     -0.090%
+    os/signal.s                                      7192     7160     -32     -0.445%
+    fmt.s                                            70428    70401    -27     -0.038%
+    vendor/golang.org/x/crypto/chacha20poly1305.s    7103     7102     -1      -0.014%
+    cmd/vendor/golang.org/x/sys/unix.s               118033   118027   -6      -0.005%
+    fmt [cmd/compile].s                              83679    83588    -91     -0.109%
+    net/http.s                                       536737   536722   -15     -0.003%
+    cmd/vendor/golang.org/x/term.s                   23505    23504    -1      -0.004%
+    cmd/link/internal/ld.s                           571046   571043   -3      -0.001%
+    cmd/compile/internal/reflectdata [cmd/compile].s 72645    72632    -13     -0.018%
+    cmd/compile/internal/ssa.s                       3193233  3193841  +608    +0.019%
+    cmd/compile/internal/ssa [cmd/compile].s         3362126  3362734  +608    +0.018%
+    total                                            30810158 30811118 +960    +0.003%
+    
+    Change-Id: Iade49c590027c0a09a6e546a3b94d2dccd5b7116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521455
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules | 18 +++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 84 ++++++++++++++++++++++++++-
+ 2 files changed, 99 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 90193fb67e4934aece718ffe4f898e7d05825a9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 6 15:10:36 2009 -0700
+
+    add IgnoreEmptyColumns feature to tabwriter
+    
+    R=rsc
+    DELTA=96  (74 added, 2 deleted, 20 changed)
+    OCL=35391
+    CL=35402
+
+ src/pkg/tabwriter/tabwriter.go      | 59 ++++++++++++++++++++++++-------------
+ src/pkg/tabwriter/tabwriter_test.go | 55 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 93 insertions(+), 21 deletions(-)

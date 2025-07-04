@@ -1,0 +1,32 @@
+commit 3d5703babe9c5344252db3fb8e96f20cd036535a
+Author: Stephan Renatus <srenatus@chef.io>
+Date:   Mon Nov 27 12:41:10 2017 +0100
+
+    net/http: add support for SameSite option in http.Cookie
+    
+    The same-site cookie attribute prevents a cookie from being sent along with
+    cross-site requests. The main goal is mitigate the risk of cross-origin
+    information leakage and provides some protection against cross-site request
+    forgery attacks.
+    
+    This change adds the option to http.Cookie so it can be stored and
+    passed to HTTP clients.
+    
+    Spec: https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
+    
+    Fixes #15867
+    
+    Based on
+    https://github.com/reedloden/go/commit/eb31a0f063c80058bbb3abff4ca09b3565985500
+    by Reed Loden <reed@hackerone.com>
+    
+    Change-Id: I98c8a9a92358b2f632990576879759e3aff38cff
+    Reviewed-on: https://go-review.googlesource.com/79919
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go        | 34 ++++++++++++++++++++++++++++++++++
+ src/net/http/cookie_test.go   | 39 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/cookiejar/jar.go | 10 ++++++++++
+ 3 files changed, 83 insertions(+)

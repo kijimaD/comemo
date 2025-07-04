@@ -1,0 +1,16 @@
+commit 0753396628c6d7282ca87fa8811fe6fc9007226c
+Author: limeidan <limeidan@loongson.cn>
+Date:   Fri Oct 18 09:30:23 2024 +0800
+
+    cmd/compile/internal/ssa: optimize store-zero rules on loong64
+    
+    Change-Id: I4c6ce7b77da05636895127de7bc687c59bd79787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 64 +++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

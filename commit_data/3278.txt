@@ -1,0 +1,15 @@
+commit 1c9e4b358fbe702ba851e581ff4110a05698a5b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 15 14:11:43 2009 -0700
+
+    declared and not used; this time for sure
+    
+    R=ken
+    OCL=34657
+    CL=34657
+
+ src/cmd/gc/gen.c       |  5 +----
+ src/cmd/gc/range.c     |  2 +-
+ src/cmd/gc/typecheck.c |  2 +-
+ src/cmd/gc/walk.c      | 14 ++++++++++++++
+ 4 files changed, 17 insertions(+), 6 deletions(-)

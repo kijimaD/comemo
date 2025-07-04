@@ -1,0 +1,12 @@
+commit 1e73fed888e313284fda240aa9b977dbe10aac5a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 22 11:16:25 2011 +1100
+
+    http: add pointer from Handle[Func] to ServeMux docs
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4169065
+
+ src/pkg/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

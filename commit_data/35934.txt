@@ -1,0 +1,27 @@
+commit 25c3bb377ac455184cc9870e690df45fe3f6e1ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 9 23:00:35 2018 -0400
+
+    cmd/go: add ImportMap to go list package struct
+    
+    Also populate Imports for test main with go list -test.
+    
+    Update comment in internal/load/test.go about
+    p.Imports, p.Internal.RawImports, and p.Imports
+    being perfectly aligned. The first two are,
+    but the third is not, as evidenced by CL 111175.
+    
+    Since p.Imports is not aligned, don't assume that anymore.
+    
+    Fixes #25949.
+    
+    Change-Id: Icbfbc881bc01d1e195a759648fbd1c978ddbc161
+    Reviewed-on: https://go-review.googlesource.com/122878
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/go_test.go            | 15 +++++++++++++
+ src/cmd/go/internal/list/list.go | 46 +++++++++++++++++++++++++++++-----------
+ src/cmd/go/internal/load/pkg.go  |  5 +++--
+ src/cmd/go/internal/load/test.go | 25 ++++++++++++++++++----
+ 4 files changed, 73 insertions(+), 18 deletions(-)

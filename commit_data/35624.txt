@@ -1,0 +1,42 @@
+commit 6269dcdc24d74379d8a609ce886149811020b2cc
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 18 14:49:21 2017 -0700
+
+    crypto: randomly read an extra byte of randomness in some places.
+    
+    Code has ended up depending on things like RSA's key generation being
+    deterministic given a fixed random Reader. This was never guaranteed and
+    would prevent us from ever changing anything about it.
+    
+    This change makes certain calls randomly (based on the internal
+    fastrand) read an extra byte from the random Reader. This helps to
+    ensure that code does not depend on internal details.
+    
+    I've not added this call in the key generation of ECDSA and DSA because,
+    in those cases, key generation is so obvious that it probably is
+    acceptable to do the obvious thing and not worry about code that depends
+    on that.
+    
+    This does not affect tests that use a Reader of constant bytes (e.g. a
+    zeroReader) because shifting such a stream is a no-op. The stdlib uses
+    this internally (which is fine because it can be atomically updated if
+    the crypto libraries change).
+    
+    It is possible that external tests could be doing the same and would
+    thus break if we ever, say, tweaked the way RSA key generation worked.
+    I feel that addressing that would be more effort than it's worth.
+    
+    Fixes #21915
+    
+    Change-Id: I84cff2e249acc921ad6eb5527171e02e6d39c530
+    Reviewed-on: https://go-review.googlesource.com/64451
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/dsa/dsa.go                    |  4 ++++
+ src/crypto/ecdsa/ecdsa.go                |  4 ++++
+ src/crypto/internal/randutil/randutil.go | 38 ++++++++++++++++++++++++++++++++
+ src/crypto/rsa/pkcs1v15.go               |  4 ++++
+ src/crypto/rsa/rsa.go                    |  6 +++++
+ src/go/build/deps_test.go                | 18 ++++++++-------
+ 6 files changed, 66 insertions(+), 8 deletions(-)

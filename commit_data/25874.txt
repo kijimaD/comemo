@@ -1,0 +1,21 @@
+commit a9581e2e7abfa0dd7033ee75ef6a64ce0a89bee2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 23 22:54:38 2016 +0100
+
+    unicode/utf16: speed up and clean up Encode and EncodeRune
+    
+    name                        old time/op  new time/op  delta
+    EncodeValidASCII-4          74.1ns ± 1%  70.1ns ± 1%   -5.46%  (p=0.000 n=10+10)
+    EncodeValidJapaneseChars-4  61.3ns ± 0%  58.9ns ± 0%   -3.82%  (p=0.000 n=10+10)
+    EncodeRune-4                13.1ns ± 1%   9.8ns ± 0%  -25.24%   (p=0.000 n=10+9)
+    
+    Fixes #6957
+    
+    Change-Id: I9dde6d77420c34c6e2ef3e6213bb6be9b58a3074
+    Reviewed-on: https://go-review.googlesource.com/19891
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/unicode/utf16/utf16.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

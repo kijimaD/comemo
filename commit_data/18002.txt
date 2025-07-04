@@ -1,0 +1,12 @@
+commit 4e23b693145790382bd8ed3f3e6634a5c527a9f6
+Author: Daniel Lidén <daniel.liden.87@gmail.com>
+Date:   Mon Dec 16 10:50:56 2013 -0800
+
+    strings: Add example function for IndexAny
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/42310044
+
+ src/pkg/strings/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

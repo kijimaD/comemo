@@ -1,0 +1,20 @@
+commit 2b59307ac21135ab8db58e08fb98211fbedbb10d
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Nov 11 18:34:18 2022 +0000
+
+    Revert "runtime: delay incrementing freeindex in malloc"
+    
+    This reverts commit bed2b7cf41471e1521af5a83ae28bd643eb3e038.
+    
+    Reason for revert: I clicked submit by accident on the wrong CL.
+    
+    Change-Id: Iddf128cb62f289d472510eb30466e515068271b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449501
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go   | 40 +++++++++++++++++-----------------------
+ src/runtime/mbitmap.go  | 17 ++++-------------
+ src/runtime/mcentral.go |  1 +
+ 3 files changed, 22 insertions(+), 36 deletions(-)

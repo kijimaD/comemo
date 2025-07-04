@@ -1,0 +1,16 @@
+commit 82e17c4d11296b0444c94b3f7527e79f2e82a8d6
+Author: Christopher Taylor <ccmtaylor@gmail.com>
+Date:   Thu Jun 22 07:32:37 2023 +0000
+
+    log/slog: fix broken link to Record.Clone in package docs
+    
+    Change-Id: If8b937fa9db89a537ad7d4ccb8c04f84d2cff3db
+    GitHub-Last-Rev: fdd4338118e6e19a0a3673f364afcdb0b60236a4
+    GitHub-Pull-Request: golang/go#60938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505075
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

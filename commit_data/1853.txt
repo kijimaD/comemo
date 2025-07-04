@@ -1,0 +1,19 @@
+commit 386845b23f49fa9fe43593916888f69fdcf96a0d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 20 10:34:46 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug090.go:41:6: error: floating point constant truncated to integer
+    bug090.go:32:6: error: floating point constant truncated to integer
+    bug090.go:34:14: error: floating point constant truncated to integer
+    bug090.go:37:5: error: incompatible types in assignment
+    bug090.go:40:5: error: incompatible types in assignment
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=26564
+    CL=26574
+
+ test/fixedbugs/bug090.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 986a1d2d1c4000955c5b63cf9a87cba91367b701
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 18:56:36 2014 +0100
+
+    runtime/pprof: add tracing support
+    
+    runtime/pprof part of tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
+    
+    Change-Id: I3143a569cbd33576f19ca47308d1ff5200d8c955
+    Reviewed-on: https://go-review.googlesource.com/1452
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

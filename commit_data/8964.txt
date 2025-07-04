@@ -1,0 +1,13 @@
+commit 7875ecb4629cf50d125dbfc7e9a744c1b4842a40
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 10:46:54 2011 +1000
+
+    C+A: Gideon Jan-Wessel Redelinghuys
+    
+    R=golang-dev, dsymonds
+    CC=gjredelinghuys, golang-dev
+    https://golang.org/cl/4675059
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

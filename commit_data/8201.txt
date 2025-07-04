@@ -1,0 +1,12 @@
+commit 4f7fd3cb7ff2f395668319d0f00792abb365a056
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 23 10:03:51 2011 -0400
+
+    runtime: disable long test (fix arm build)
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4449051
+
+ src/pkg/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

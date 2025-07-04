@@ -1,0 +1,14 @@
+commit 811006c89d85076b9ed7a43a64ed9b61ba72dd16
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 15:04:39 2012 -0800
+
+    cmd/go: handle cgo pkg-config pragmas
+    
+    Fixes #2681.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5540047
+
+ src/cmd/go/build.go | 83 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 57 insertions(+), 26 deletions(-)

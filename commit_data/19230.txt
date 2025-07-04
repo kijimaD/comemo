@@ -1,0 +1,15 @@
+commit 75ba181841aea2218d614bd9d30f1a570b4bcc1b
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Apr 25 20:09:04 2014 -0700
+
+    doc/contribute.html: link to wiki for more code review information
+    
+    (from the discussions on CL 89650044)
+    
+    LGTM=minux.ma, iant
+    R=iant, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/97770043
+
+ doc/contribute.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,22 @@
+commit 541e638f9b47f7b18ac21b587099eeea37047680
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:03:04 2009 -0700
+
+    6g, 8g: generate data structures for new reflect interface (CL 31107)
+    
+    R=ken
+    OCL=31122
+    CL=31278
+
+ src/cmd/6g/gobj.c         |  40 +++
+ src/cmd/8g/gobj.c         |  41 +++
+ src/cmd/gc/Makefile       |   1 +
+ src/cmd/gc/align.c        |   4 +
+ src/cmd/gc/builtin.c.boot |  27 +-
+ src/cmd/gc/go.h           |  11 +-
+ src/cmd/gc/obj.c          | 413 +--------------------------
+ src/cmd/gc/reflect.c      | 692 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c         |  58 ----
+ src/cmd/gc/unsafe.go      |   6 +-
+ src/cmd/gc/walk.c         |  21 +-
+ 11 files changed, 808 insertions(+), 506 deletions(-)

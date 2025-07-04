@@ -1,0 +1,19 @@
+commit c544e0fbdb7344b2025650aaf70bab3b09d72003
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:02:24 2018 +0000
+
+    strings: select Replacer algorithm and build machine lazily
+    
+    Saves 22KB of memory in stdlib packages.
+    
+    Updates #26775
+    
+    Change-Id: Ia19fe7aff61f6e2ddd83cd35969d7ff94526591f
+    Reviewed-on: https://go-review.googlesource.com/127661
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/export_test.go |  2 ++
+ src/strings/replace.go     | 28 ++++++++++++++++++++++------
+ 2 files changed, 24 insertions(+), 6 deletions(-)

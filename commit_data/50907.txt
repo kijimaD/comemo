@@ -1,0 +1,20 @@
+commit 85b02de083b5e337bcb581005d0efca883fdb3d9
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Oct 16 20:00:42 2022 +1030
+
+    runtime: remove redundant conversion
+    
+    This appears to have been left over from a C cast during the rewrite of
+    malloc into Go in https://golang.org/cl/108840046.
+    
+    Change-Id: I88f212089c2bcf79d5881b3e8bf3f94f343331d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443235
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

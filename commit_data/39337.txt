@@ -1,0 +1,23 @@
+commit e0dd927123df2bbaf7af91f50e68710cfc220dfa
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Jun 7 13:07:32 2019 -0400
+
+    syscall: refer to Proc.Call documentation for LazyProc.Call on Windows
+    
+    The documentation comment was duplicated for each of these methods, and
+    the LazyProc.Call documentation incorrectly mentioned that Call accepts
+    only 15 arguments, but it actually accepts 18 now.
+    
+    To prevent further documentation drift, refer the reader to the
+    documentation for Proc.Call instead of duplicating it for LazyProc.Call.
+    
+    In addition, note that LazyProc's Addr, Call, and Find methods each
+    trigger a procedure lookup.
+    
+    Change-Id: I6756cf7601fba79d1414ff5a5d6eef900aa590e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181199
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/dll_windows.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

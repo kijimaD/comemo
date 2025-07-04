@@ -1,0 +1,12 @@
+commit 90a68935733ef37d41cb520ffeb56f196a356811
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Dec 17 18:07:01 2015 -0700
+
+    doc: fix typo in go1.6.html
+    
+    Change-Id: I7405cf6f65bccbb07a27f2dc2e3802cab591e296
+    Reviewed-on: https://go-review.googlesource.com/18030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

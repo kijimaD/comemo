@@ -1,0 +1,14 @@
+commit e45e3244204a8c944e231a8e168e68b5b5134bea
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 18 11:47:11 2011 +1100
+
+    fmt: fix test relying on map iteration order.
+    
+    This fixes the 386 builds.
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/5293043
+
+ src/pkg/fmt/fmt_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

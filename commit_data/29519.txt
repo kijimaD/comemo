@@ -1,0 +1,17 @@
+commit 524cd4855e11a26d07a7ca7ee45d3bee38c54425
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Nov 12 20:08:02 2016 +0100
+
+    time: simplify stringification of Month
+    
+    Simplifies https://golang.org/cl/33145
+    which fixed #17720.
+    
+    Change-Id: Ib922d493cdc5920832dc95b55094796baca7243e
+    Reviewed-on: https://go-review.googlesource.com/33194
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

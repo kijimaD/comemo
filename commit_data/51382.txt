@@ -1,0 +1,25 @@
+commit f4f8397fed02b612c36c425fc9c5dce32408e21b
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 18 14:10:50 2022 -0800
+
+    net/http: deflake TestIssue4191_InfiniteGetTimeout
+    
+    This test exercises the case where a net.Conn error occurs while
+    writing a response body. It injects an error by setting a timeout
+    on the Conn. If this timeout expires before response headers are
+    written, the test fails. The test attempts to recover from this
+    failure by extending the timeout and retrying.
+    
+    Set the timeout after the response headers are removed, and
+    remove the retry loop.
+    
+    Fixes #56274.
+    
+    Change-Id: I293f8bedb7b20a21d14f43ea9bb48fc56b59441c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/transport_test.go | 48 ++++++++++++------------------------------
+ 1 file changed, 14 insertions(+), 34 deletions(-)

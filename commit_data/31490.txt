@@ -1,0 +1,15 @@
+commit 9dd70591c5a05f0b507f2b56ed9660fdd7965420
+Author: Adam Bender <abender@google.com>
+Date:   Wed May 3 18:57:40 2017 -0700
+
+    doc: fix minor formatting issues in contribute.html
+    
+    - remove <code> from <pre>
+    - replace `` with <code></code>
+    
+    Change-Id: I46f0aec8b7645e2ac8cb53bca73aed55441acd65
+    Reviewed-on: https://go-review.googlesource.com/42612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

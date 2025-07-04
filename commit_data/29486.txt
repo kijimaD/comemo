@@ -1,0 +1,20 @@
+commit c439a5d8b77a3b87d94bc49714faeeb2a04112f4
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Sep 16 16:25:48 2016 +0900
+
+    cmd/pprof: don't print binary outputs in interactive mode
+    
+    Some commands generate binary outputs which are not human readable.
+    In interactive mode, there are no use-cases for such outputs.
+    Instead, the new code writes it to the temporary file on the $CWD and
+    shows the file name. So the user can use any program to display the
+    file outside interactive shell.
+    
+    Fixes #17465
+    
+    Change-Id: I5c479db26017607f7a28eafbff2385533e5c584e
+    Reviewed-on: https://go-review.googlesource.com/31123
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/commands/commands.go | 38 ++++++++++++++---------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

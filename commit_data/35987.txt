@@ -1,0 +1,16 @@
+commit 5e60479ba4c351182838d2de2d8a8883d6b42c09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 13 20:56:46 2018 +0000
+
+    cmd/go: remove windows Skip in test that wasn't removed
+    
+    Was supposed to be removed from CL 123757
+    
+    Change-Id: I74405adab58be103f8e4a0c2405567f480a0e622
+    Reviewed-on: https://go-review.googlesource.com/123895
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/mod_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

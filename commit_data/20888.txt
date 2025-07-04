@@ -1,0 +1,13 @@
+commit de7d1c409474f0fe5cf88e5d106da683ea79f12e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 12 18:48:00 2014 +1100
+
+    hash/crc32: fix comment that the IEEE polynomial applies to MPEG-2.
+    
+    LGTM=minux
+    R=adg, minux
+    CC=golang-codereviews
+    https://golang.org/cl/170520043
+
+ src/hash/crc32/crc32.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

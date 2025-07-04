@@ -1,0 +1,43 @@
+commit a3eb55cea95b5894e97f311be981cda0e87bd465
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 30 16:20:07 2024 -0400
+
+    cmd/vendor: update x/tools to v0.20.1-0.20240429173604-74c9cfe4d22f
+    
+    The golang.org/x/tools/go/analysis/passes/stdversion was forcibly
+    added by means of an import in a throwaway file not committed.
+    
+    Change-Id: I194012ae354f6f8d2d0c1fa39612e5554a4ab1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582555
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |   2 +
+ src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go |  10 +-
+ .../golang.org/x/sync/semaphore/semaphore.go       |  42 ++++--
+ .../golang.org/x/tools/go/analysis/analysis.go     |  13 ++
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  30 ++--
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   2 +-
+ .../tools/go/analysis/passes/buildtag/buildtag.go  |   2 +-
+ .../go/analysis/passes/buildtag/buildtag_old.go    |   2 +-
+ .../go/analysis/passes/directive/directive.go      |   2 +-
+ .../analysis/passes/framepointer/framepointer.go   |   2 +-
+ .../analysis/passes/internal/analysisutil/util.go  |  11 +-
+ .../x/tools/go/analysis/passes/printf/doc.go       |  60 ++++++--
+ .../go/analysis/passes/stdversion/stdversion.go    | 159 +++++++++++++++++++++
+ .../x/tools/go/analysis/passes/tests/tests.go      |  19 ++-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +
+ .../golang.org/x/tools/go/types/typeutil/map.go    |  26 ++--
+ .../golang.org/x/tools/internal/aliases/aliases.go |  12 +-
+ .../x/tools/internal/aliases/aliases_go121.go      |  15 +-
+ .../x/tools/internal/aliases/aliases_go122.go      |  69 ++++-----
+ .../x/tools/internal/analysisinternal/analysis.go  |  53 +++++--
+ .../golang.org/x/tools/internal/facts/facts.go     |   4 +-
+ .../x/tools/internal/typeparams/common.go          |   2 +-
+ .../x/tools/internal/typesinternal/errorcode.go    |   4 +-
+ src/cmd/vendor/modules.txt                         |   7 +-
+ 27 files changed, 430 insertions(+), 140 deletions(-)

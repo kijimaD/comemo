@@ -1,0 +1,19 @@
+commit 5ba15db77f7ba92884b9a2fce21c9938c233967f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 17 17:08:05 2019 -0400
+
+    cmd/go: suppress errors with '@upgrade' when the latest version is replaced
+    
+    Fixes #33154
+    
+    Change-Id: I5a249a77843a8bd438006af0fa1d8b4429ee25f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186617
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
+ src/cmd/go/internal/modget/get.go                  | 19 +++++++++++++++++++
+ src/cmd/go/internal/modload/query_test.go          |  8 ++++----
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 13 +++++++++++++
+ 4 files changed, 43 insertions(+), 5 deletions(-)

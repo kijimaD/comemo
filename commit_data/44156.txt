@@ -1,0 +1,17 @@
+commit b186e4d70de28697d1ad7e3c31625793e6338ef0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 09:43:08 2021 -0500
+
+    cmd/go: add test case for cgo CC setting
+    
+    Change-Id: Ied986053a64447c5eac6369f6c9b69ed3d3f94d9
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/949415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284782
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/go/testdata/script/cgo_path.txt | 35 +++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

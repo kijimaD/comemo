@@ -1,0 +1,17 @@
+commit 623dfd1b072236d9020420e8321cc2a0147cdde6
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Mar 24 16:53:54 2010 -0700
+
+    depricate panicln
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/743041
+
+ src/cmd/gc/go.h        |  2 +-
+ src/cmd/gc/lex.c       |  1 -
+ src/cmd/gc/print.c     |  2 --
+ src/cmd/gc/subr.c      |  1 -
+ src/cmd/gc/typecheck.c |  1 -
+ src/cmd/gc/walk.c      | 10 +++-------
+ 6 files changed, 4 insertions(+), 13 deletions(-)

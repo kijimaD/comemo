@@ -1,0 +1,19 @@
+commit 9eb14f1b0e748c74f6a7da4cd195db860928cfbc
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 17 09:37:07 2022 -0800
+
+    doc: mention change in append behavior
+    
+    Introduced in CL 347917.
+    
+    Change-Id: I99b34341f787e779bd45b967110e70a035fa6558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386217
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

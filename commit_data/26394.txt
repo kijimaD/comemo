@@ -1,0 +1,27 @@
+commit fc6bcdee7926925efc1305ad17d8b784e0e071fa
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Mar 16 18:44:17 2016 -0500
+
+    cmd/compile: allow inlining of functions that declare a const
+    
+    Consider functions with an ODCLCONST for inlining and modify exprfmt to
+    ignore those nodes when exporting. Don't add symbols to the export list
+    if there is no definition.  This occurs when OLITERAL symbols are looked
+    up via Pkglookup for non-exported symbols.
+    
+    Fixes #7655
+    
+    Change-Id: I1de827850f4c69e58107447314fe7433e378e069
+    Reviewed-on: https://go-review.googlesource.com/20773
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 2 +-
+ src/cmd/compile/internal/gc/bimport.go | 2 +-
+ src/cmd/compile/internal/gc/export.go  | 4 ++--
+ src/cmd/compile/internal/gc/fmt.go     | 7 +++++++
+ src/cmd/compile/internal/gc/inl.go     | 3 +--
+ test/inline.go                         | 5 +++++
+ 6 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 657168fb17d8f3472f7f5c606bdc103640d8d7a6
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Jan 22 14:44:49 2013 -0500
+
+    time: standard time doc fix and format example
+    
+    This fixes the incorrect unix timestamp of the standard time and adds
+    an example for (Time) Format to clarify how timezones work in format strings.
+    
+    Fixes #4364.
+    
+    R=golang-dev, remyoudompheng, kevlar, rsc
+    CC=golang-dev
+    https://golang.org/cl/7069046
+
+ src/pkg/time/example_test.go | 10 ++++++++++
+ src/pkg/time/format.go       |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

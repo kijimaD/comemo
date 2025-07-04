@@ -1,0 +1,12 @@
+commit 0c7e20ba6766971d0c255f93a8f50509990ad590
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 9 09:46:10 2009 -0800
+
+    delete commented-out section; details now covered elsewhere
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025028
+
+ doc/root.html | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

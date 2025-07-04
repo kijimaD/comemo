@@ -1,0 +1,13 @@
+commit 8ffc4ec5d0c3d17d633c277ba5102da838834f03
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 21 23:17:20 2010 -0400
+
+    gc: implement new composite literal spec
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2350041
+
+ src/cmd/gc/go.y        | 27 ++++++++++-------
+ src/cmd/gc/typecheck.c | 78 +++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 72 insertions(+), 33 deletions(-)

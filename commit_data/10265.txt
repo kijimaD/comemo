@@ -1,0 +1,16 @@
+commit 75af79b9b59548c3177b7a0307d6ab75fbbd87a2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Nov 7 11:55:33 2011 +1100
+
+    net/http: fix whitespace handling in sniffer.
+    
+    A single character typo ("\n" instead of "\r") meant that
+    HTML data using DOS line breaks (CRLF) was not detected as HTML.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5365041
+
+ src/pkg/net/http/sniff.go      | 2 +-
+ src/pkg/net/http/sniff_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

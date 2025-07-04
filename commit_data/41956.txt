@@ -1,0 +1,29 @@
+commit 382fe3e2498f2066400e7e7007aa9903440e339d
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Apr 14 15:46:26 2020 +0100
+
+    cmd/compile: fix deallocation of live value copies in regalloc
+    
+    When deallocating the input register to a phi so that the phi
+    itself could be allocated to that register the code was also
+    deallocating all copies of that phi input value. Those copies
+    of the value could still be live and if they were the register
+    allocator could reuse them incorrectly to hold speculative
+    copies of other phi inputs. This causes strange bugs.
+    
+    No test because this is a very obscure scenario that is hard
+    to replicate but CL 228060 adds an assertion to the compiler
+    that does trigger when running the std tests on linux/s390x
+    without this CL applied. Hopefully that assertion will prevent
+    future regressions.
+    
+    Fixes #38195.
+    
+    Change-Id: Id975dadedd731c7bb21933b9ea6b17daaa5c9e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228061
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

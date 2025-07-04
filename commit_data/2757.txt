@@ -1,0 +1,16 @@
+commit 9e2fa390dab2f9c18ab8fe563be4e08753f13f71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 20 13:37:28 2009 -0700
+
+    - bignum.AndNot
+    - corresponding test cases
+    - some cleanups
+    
+    R=rsc
+    DELTA=173  (68 added, 3 deleted, 102 changed)
+    OCL=31866
+    CL=31869
+
+ src/pkg/bignum/bignum.go      |  72 +++++++++++-----
+ src/pkg/bignum/bignum_test.go | 195 +++++++++++++++++++++++++-----------------
+ 2 files changed, 166 insertions(+), 101 deletions(-)

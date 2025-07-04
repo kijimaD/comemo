@@ -1,0 +1,27 @@
+commit d9a61be73f73d4c7a49a5432ccb15cf8443fe279
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 23 17:34:18 2023 -0500
+
+    internal/abi: common up Method, Imethod, UncommonType types
+    
+    was two commits, the first contained a lot of intermediate work,
+    better this way.
+    
+    Change-Id: I7c5b79ef78b21a85828c8aaf9baeae86bb144db7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463118
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go       |   2 +-
+ src/cmd/link/internal/ld/dwarf_test.go  |   1 -
+ src/internal/reflectlite/export_test.go |   4 +-
+ src/internal/reflectlite/type.go        |  64 ++++---------
+ src/reflect/export_test.go              |   4 +-
+ src/reflect/type.go                     | 154 +++++++++++++-------------------
+ src/reflect/value.go                    |  14 +--
+ src/runtime/heapdump.go                 |   4 +-
+ src/runtime/iface.go                    |  18 ++--
+ src/runtime/type.go                     |  36 ++------
+ 10 files changed, 107 insertions(+), 194 deletions(-)

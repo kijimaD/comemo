@@ -1,0 +1,23 @@
+commit 06f7e655d1764f5ad57bc14f82326c181c37901c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 18 13:57:04 2020 +0700
+
+    cmd/compile: refactoring mixing untyped type logic
+    
+    defaultlit2 and typecheck use the same logic for getting mixing untyped
+    type, so move that logic to a function.
+    
+    This is a followup of CL 255217.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic0eadb7ed27a2f0f72e2d28fd5438500bf4c79e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255897
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     | 15 +++++++++------
+ src/cmd/compile/internal/gc/typecheck.go | 13 +------------
+ 2 files changed, 10 insertions(+), 18 deletions(-)

@@ -1,0 +1,14 @@
+commit 9604f7b00974ca31cacf5b69e2cbf4cc23531a50
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 19:56:32 2009 -0800
+
+    gotest: avoid problems with grepping for ·
+    
+    Fixes #7.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/154043
+
+ src/cmd/gotest/gotest | 5 +++++
+ 1 file changed, 5 insertions(+)

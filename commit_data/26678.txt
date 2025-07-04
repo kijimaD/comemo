@@ -1,0 +1,39 @@
+commit 7a8caf7d43886f2b546c4b3b5439dee93f006918
+Author: Eric Engestrom <eric@engestrom.ch>
+Date:   Sun Apr 3 12:43:27 2016 +0100
+
+    all: fix spelling mistakes
+    
+    Signed-off-by: Eric Engestrom <eric@engestrom.ch>
+    
+    Change-Id: I91873aaebf79bdf1c00d38aacc1a1fb8d79656a7
+    Reviewed-on: https://go-review.googlesource.com/21433
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/test.bash                   | 2 +-
+ misc/cgo/testshared/shared_test.go               | 2 +-
+ src/cmd/compile/internal/gc/cgen.go              | 2 +-
+ src/cmd/compile/internal/gc/const.go             | 2 +-
+ src/cmd/compile/internal/gc/ssa.go               | 2 +-
+ src/cmd/compile/internal/gc/swt.go               | 2 +-
+ src/cmd/compile/internal/gc/walk.go              | 2 +-
+ src/cmd/compile/internal/ssa/dom.go              | 2 +-
+ src/cmd/compile/internal/ssa/dom_test.go         | 4 ++--
+ src/cmd/compile/internal/ssa/loopbce.go          | 2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go    | 2 +-
+ src/cmd/compile/internal/ssa/prove.go            | 2 +-
+ src/cmd/internal/goobj/read.go                   | 2 +-
+ src/cmd/internal/obj/arm64/obj7.go               | 4 ++--
+ src/cmd/internal/obj/mips/obj0.go                | 6 +++---
+ src/cmd/internal/obj/ppc64/asm9.go               | 4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go               | 4 ++--
+ src/cmd/internal/obj/s390x/objz.go               | 4 ++--
+ src/cmd/link/internal/ld/deadcode.go             | 2 +-
+ src/crypto/elliptic/p256_amd64.go                | 2 +-
+ src/debug/elf/elf.go                             | 2 +-
+ src/runtime/signal_solaris.go                    | 2 +-
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go | 2 +-
+ test/ken/embed.go                                | 2 +-
+ 24 files changed, 31 insertions(+), 31 deletions(-)

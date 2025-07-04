@@ -1,0 +1,12 @@
+commit c5c6c3ab5728ecbecac69788eefa5fb185c0b72f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 25 17:29:33 2015 -0700
+
+    doc/go1.5.txt: add $DOLLAR to generate
+    
+    Change-Id: I6d129ef56baa2c0c5e0b278cfa67fc22f3bf18ac
+    Reviewed-on: https://go-review.googlesource.com/8052
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

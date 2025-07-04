@@ -1,0 +1,19 @@
+commit 4f2ee4997470c84a55d89d097e6b8fc45680978f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 16:48:02 2017 -0400
+
+    cmd/dist: translate /private/var to /var on darwin builders
+    
+    This is ugly but needed on the builders, because they do not set
+    PWD/GOROOT consistently, and the new content-based staleness
+    understands that the setting of GOROOT influences the content in
+    the linker outputs.
+    
+    Change-Id: I0606f2c70b719619b188864ad3ae1b34432140cb
+    Reviewed-on: https://go-review.googlesource.com/74070
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

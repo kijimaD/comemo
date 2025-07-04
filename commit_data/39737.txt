@@ -1,0 +1,16 @@
+commit f484e9699d9d18e578493dc0f9924ce2b56a42d9
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Aug 29 16:21:58 2019 -0700
+
+    runtime: use all 64 bits of hash seed on arm64
+    
+    Fixes #33960
+    
+    Change-Id: I4f8cf65dcf4140a97e7b368572b31c171c453316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192498
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

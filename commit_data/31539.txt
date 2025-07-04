@@ -1,0 +1,27 @@
+commit 9bced47706f605c3d1b75d694dd3c9fb771ce7ba
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 10 13:53:39 2017 +0200
+
+    reflect: don't panic in ArrayOf if elem size is 0
+    
+    We do a division by the elem type size to check if the array size would
+    be too large for the virtual address space. This is a silly check if the
+    size is 0, but the problem is that it means a division by zero and a
+    panic.
+    
+    Since arrays of empty structs are valid in a regular program, make them
+    also work in reflect.
+    
+    Use a separate, explicit test with struct{}{} to make sure the test for
+    a zero-sized type is not confused with the rest.
+    
+    Fixes #20313.
+    
+    Change-Id: I47b8b87e6541631280b79227bdea6a0f6035c9e0
+    Reviewed-on: https://go-review.googlesource.com/43131
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/all_test.go | 1 +
+ src/reflect/type.go     | 8 +++++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

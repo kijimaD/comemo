@@ -1,0 +1,13 @@
+commit b33592dcfd2c8cf1e574531ecb49af7755864e82
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 26 21:08:52 2022 -0800
+
+    spec: the -'s possessive suffix is English, not code
+    
+    Change-Id: I2debcf926ef116c632c7366646d37de8686b7c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388174
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

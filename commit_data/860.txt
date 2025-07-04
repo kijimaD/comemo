@@ -1,0 +1,23 @@
+commit 7c3a2c47b06fbe7b87055236af1b16675aa35611
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 14 18:14:01 2008 -0700
+
+    - snapshot of pretty printer work
+    - accepts all Go code (use -s flag)
+    - complete rewrite of AST, AST building, and printing
+      (as a result much more compact)
+    - printing severely screwed up at the moment, but should be
+      fully working in 1 more day
+    
+    R=r
+    DELTA=2118  (514 added, 980 deleted, 624 changed)
+    OCL=17161
+    CL=17161
+
+ usr/gri/pretty/Makefile   |   6 +-
+ usr/gri/pretty/ast.go     | 525 ----------------------------
+ usr/gri/pretty/node.go    | 248 ++++++++++++++
+ usr/gri/pretty/parser.go  | 849 ++++++++++++++++++++--------------------------
+ usr/gri/pretty/pretty.go  |   4 +-
+ usr/gri/pretty/printer.go | 628 +++++++++++++++-------------------
+ 6 files changed, 897 insertions(+), 1363 deletions(-)

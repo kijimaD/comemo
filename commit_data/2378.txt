@@ -1,0 +1,26 @@
+commit 3a0df4c451b1db1eb8ab178d4cd2522496bc892d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 11:16:03 2009 -0700
+
+    more 386 runtime fixes.
+    can pass many tests;
+    current stumbling block is an 8l bug.
+    
+    R=r
+    DELTA=122  (83 added, 8 deleted, 31 changed)
+    OCL=29872
+    CL=29876
+
+ src/cmd/clean.bash                      |  2 +-
+ src/cmd/gobuild/Makefile                | 10 +++--
+ src/cmd/make.bash                       | 13 ++++++-
+ src/lib/net/fd_darwin.go                | 23 ++++--------
+ src/lib/syscall/asm_darwin_386.s        |  2 +-
+ src/lib/syscall/syscall_darwin_386.go   |  9 +++++
+ src/lib/syscall/syscall_darwin_amd64.go |  5 +++
+ src/runtime/darwin/386/sys.s            | 65 +++++++++++++++++++++++++++++----
+ src/runtime/darwin/amd64/sys.s          |  1 +
+ src/runtime/darwin/thread.c             |  4 +-
+ src/runtime/runtime.h                   |  3 +-
+ test/env.go                             |  2 +-
+ 12 files changed, 107 insertions(+), 32 deletions(-)

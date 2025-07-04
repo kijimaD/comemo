@@ -1,0 +1,41 @@
+commit c5ff26a7a0ba7a8aa6320d70d0933f117d882dde
+Author: Brian Byrne <bdbyrne@gmail.com>
+Date:   Sun Jul 28 07:42:54 2024 -0700
+
+    sync: reduce OnceFunc (and variants) heap allocations
+    
+    The lifetime of the variables are identical; capture
+    them in a single struct to avoid individual allocations.
+    The inner closure can also avoid allocation by using the
+    capture of the outer closure.
+    
+    Escape analysis for OnceValues:
+    
+      /go/src/sync/oncefunc.go:74:29: moved to heap: sync.f
+      /go/src/sync/oncefunc.go:76:3: moved to heap: sync.once
+      /go/src/sync/oncefunc.go:77:3: moved to heap: sync.valid
+      /go/src/sync/oncefunc.go:78:3: moved to heap: sync.p
+      /go/src/sync/oncefunc.go:79:3: moved to heap: sync.r1
+      /go/src/sync/oncefunc.go:80:3: moved to heap: sync.r2
+      /go/src/sync/oncefunc.go:82:7: func literal escapes to heap
+      /go/src/sync/oncefunc.go:83:9: func literal does not escape
+      /go/src/sync/oncefunc.go:93:9: func literal escapes to heap
+    
+    After provided changes:
+    
+      /go/src/sync/oncefunc.go:86:2: moved to heap: sync.d
+      /go/src/sync/oncefunc.go:96:9: func literal escapes to heap
+      /go/src/sync/oncefunc.go:99:13: func literal does not escape
+      /go/src/sync/oncefunc.go:100:10: func literal does not escape
+    
+    Change-Id: Ib06e650fd427b57e0bdbdf1fe759fe436104ff79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601596
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go |   2 +-
+ src/sync/oncefunc.go                      | 109 ++++++++++++++------------
+ src/sync/oncefunc_test.go                 | 123 ++++++++++++++++++++++++++++--
+ 3 files changed, 175 insertions(+), 59 deletions(-)

@@ -1,0 +1,32 @@
+commit 5d24203c394e6b64c42a9f69b990d94cb6c8aad4
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Nov 10 16:22:08 2021 -0500
+
+    internal/fuzz: set timeout for each exec of fuzz target
+    
+    This change sets a timeout of 10 seconds on each
+    execution of the fuzz target, both during fuzzing
+    and during minimization. This is not currently
+    customizable by the user, but issue #48157 tracks
+    this work.
+    
+    Deadlocks will be considered non-recoverable errors,
+    and as such, will not be minimizable.
+    
+    Fixes #48591
+    
+    Change-Id: Ic86e8e9e9a0255e7860f7cbf5654e832785d1cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363134
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  2 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 16 +++++++++-
+ .../testdata/script/test_fuzz_mutator_repeat.txt   |  2 +-
+ .../testdata/script/test_fuzz_non_crash_signal.txt |  2 +-
+ src/internal/fuzz/minimize_test.go                 |  9 ++++--
+ src/internal/fuzz/worker.go                        | 36 ++++++++++++++--------
+ src/internal/fuzz/worker_test.go                   |  3 +-
+ 7 files changed, 49 insertions(+), 21 deletions(-)

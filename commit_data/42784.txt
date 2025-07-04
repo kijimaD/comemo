@@ -1,0 +1,16 @@
+commit 13e41bcde8c788224f4896503b56d42614e0bf97
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 22 12:06:24 2020 +1000
+
+    cmd/objdump: skip cgo test in testGoAndCgoDisasm on AIX
+    
+    Updates #40972.
+    
+    Change-Id: Id2092f0bef4fb4bdc4178e7bc9730716136f7b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249760
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

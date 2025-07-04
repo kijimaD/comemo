@@ -1,0 +1,18 @@
+commit 61089984a89743af1d8bad569dcffe62f00a6970
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Oct 22 14:20:51 2019 +0200
+
+    runtime: clarify that itab.hash of dynamic entries is unused
+    
+    The hash is used in type switches. However, compiler statically generates itab's
+    for all interface/type pairs used in switches (which are added to itabTable
+    in itabsinit). The dynamically-generated itab's never participate in type switches,
+    and thus the hash is irrelevant.
+    
+    Change-Id: I4f6e37be31b8f5605cca7a1806cb04708e948cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202448
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/iface.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit d5b2d809b09b5a7404ad334a5e56b2210a06254c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 21 19:12:38 2021 -0400
+
+    cmd/link: emit LC_BUILD_VERSION on Mach-O
+    
+    LC_VERSION_MIN_MACOSX seems deprecated. Emit LC_BUILD_VERSION
+    instead. Also emit it on darwin/arm64, where it was not emitted
+    before.
+    
+    Fixes #45091.
+    
+    Change-Id: I18fb80d571f681da3bd258e53beb520e68f354bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312550
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 28 ++++++++++++----------------
+ src/cmd/link/link_test.go         | 18 +++++++++---------
+ 2 files changed, 21 insertions(+), 25 deletions(-)

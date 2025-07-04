@@ -1,0 +1,15 @@
+commit bcb976c5b277b30dab6e771659c01bddec8c8a72
+Author: Blake Mizerany <blake.mizerany@gmail.com>
+Date:   Wed Jan 25 17:49:30 2012 -0800
+
+    database/sql: fix Tx.Query
+    
+    Fixes #2784
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5574073
+
+ src/pkg/database/sql/sql.go      |  7 +++++--
+ src/pkg/database/sql/sql_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

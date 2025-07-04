@@ -1,0 +1,18 @@
+commit 2b57a87678caa3adebc3254b1a54d18ab2ada941
+Author: Jan Mercl <befelemepeseveze@gmail.com>
+Date:   Sat Jun 2 13:00:09 2012 -0400
+
+    path/filepath: implement documented SkipDir behavior
+    
+    Currently walk() doesn't check for err == SkipDir when iterating
+    a directory list, but such promise is made in the docs for WalkFunc.
+    
+    Fixes #3486.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6257059
+
+ src/pkg/path/filepath/path.go      |  7 +++++--
+ src/pkg/path/filepath/path_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

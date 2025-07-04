@@ -1,0 +1,14 @@
+commit f579faa69dec37d388823b9cd0d54d739f40570b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 16:24:00 2013 -0500
+
+    cmd/go: diagnose un-bootstrapped runtime
+    
+    Fixes #4665.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7132057
+
+ src/cmd/go/build.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

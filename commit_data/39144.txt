@@ -1,0 +1,23 @@
+commit 5b4ea626e00e998eb9c72b9d80f1c167e72da569
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 11:21:51 2019 -0400
+
+    cmd/go: default to GO111MODULE=auto and make it trigger in GOPATH/src
+    
+    Fixes #31857
+    
+    Change-Id: Ib0b791376acb7ee1cdc163f808b8ecf77dbdaf06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176580
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                     |  5 ----
+ src/cmd/go/internal/get/get.go                     |  5 ----
+ src/cmd/go/internal/modload/init.go                | 33 ++--------------------
+ .../go/testdata/script/get_insecure_redirect.txt   |  1 +
+ src/cmd/go/testdata/script/mod_enabled.txt         | 21 ++++++++++----
+ src/cmd/go/testdata/script/mod_find.txt            | 10 ++-----
+ src/cmd/go/testdata/script/mod_get_warning.txt     | 10 -------
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_off_init.txt        |  6 ++--
+ 9 files changed, 25 insertions(+), 68 deletions(-)

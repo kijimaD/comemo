@@ -1,0 +1,16 @@
+commit 7ff6254c5066ad951ba03a85c05f1527e0b24ab2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 17:54:42 2015 -0500
+
+    misc/ios: run lldb commands much more carefully
+    
+    We now wait until we see the completed prompt from a command before
+    proceeding. This seems to cut down on a spurious error I have seen
+    this afternoon.
+    
+    Change-Id: Ic0a3481d8c265c3c3b4449ec7ac1c2752b85b0b6
+    Reviewed-on: https://go-review.googlesource.com/6691
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 47 ++++++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

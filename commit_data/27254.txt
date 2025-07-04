@@ -1,0 +1,21 @@
+commit b64c7fc6832902acb8eebc67c887d2ef9114f644
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 3 13:58:28 2016 -0700
+
+    cmd/compile: never CSE two memories
+    
+    It never makes sense to CSE two ops that generate memory.
+    We might as well start those ops off in their own partition.
+    
+    Fixes #15520
+    
+    Change-Id: I0091ed51640f2c10cd0117f290b034dde7a86721
+    Reviewed-on: https://go-review.googlesource.com/22741
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go    |  4 ----
+ src/cmd/compile/internal/ssa/config.go |  6 ------
+ src/cmd/compile/internal/ssa/cse.go    | 11 ++++-------
+ 3 files changed, 4 insertions(+), 17 deletions(-)

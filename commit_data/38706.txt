@@ -1,0 +1,14 @@
+commit 9a0a150c9f50f920f35cc4d50ac3005503f44f2d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 7 13:50:06 2019 +1000
+
+    all: spell "Deprecated: Use etc" consistently
+    
+    Change-Id: I209b75dc8dc4da881b68e5c5d98cbf08c1032dfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171098
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/x509/x509.go     | 2 +-
+ src/go/importer/importer.go | 2 +-
+ src/runtime/cpuprof.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

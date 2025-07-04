@@ -1,0 +1,20 @@
+commit 2681efaf0e0457ef7f4246033fe0e97e8d352172
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 31 10:49:31 2020 -0700
+
+    os/signal, runtime: remove runtime sigqueue initialization
+    
+    We can initialize the runtime sigqueue packages on first use.
+    We don't require an explicit initialization step. So, remove it.
+    
+    Change-Id: I484e02dc2c67395fd5584f35ecda2e28b37168df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226540
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/signal/signal.go       | 14 ++++++++------
+ src/os/signal/signal_plan9.go |  4 +---
+ src/os/signal/signal_unix.go  |  2 --
+ src/runtime/sigqueue.go       |  9 +++------
+ src/runtime/sigqueue_plan9.go |  5 +----
+ 5 files changed, 13 insertions(+), 21 deletions(-)

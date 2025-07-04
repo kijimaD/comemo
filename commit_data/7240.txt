@@ -1,0 +1,18 @@
+commit afc6928ad9f7ac251ef42998ff51ae94b97924a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 25 16:35:36 2011 -0500
+
+    runtime: prefer fixed stack allocator over general memory allocator
+      * move stack constants from proc.c to runtime.h
+      * make memclr take uintptr length
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3985046
+
+ src/pkg/runtime/amd64/asm.s |  6 +--
+ src/pkg/runtime/malloc.goc  | 10 +++--
+ src/pkg/runtime/proc.c      | 96 ++++-----------------------------------------
+ src/pkg/runtime/runtime.c   |  4 ++
+ src/pkg/runtime/runtime.h   | 91 +++++++++++++++++++++++++++++++++++++++---
+ 5 files changed, 108 insertions(+), 99 deletions(-)

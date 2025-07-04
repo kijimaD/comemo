@@ -1,0 +1,40 @@
+commit 2392b7061cfc71dcdaefeb027dcce0951f697658
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 12:10:24 2022 -0700
+
+    go/types, types2: use strings.Builder instead of bytes.Buffer where possible
+    
+    Also, consistently use declaration: var buf strings.Builder.
+    We don't change exported signatures to match go/types (where we
+    can't change the exported signatures for backward-compatibility).
+    
+    Change-Id: I75350886aa231889ae2fd5c4008dd4be9ed6e09f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428094
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go              |  4 ++--
+ src/cmd/compile/internal/types2/api_test.go         |  3 +--
+ src/cmd/compile/internal/types2/errors.go           | 17 ++++++++---------
+ src/cmd/compile/internal/types2/example_test.go     |  5 ++---
+ src/cmd/compile/internal/types2/infer.go            | 12 ++++++------
+ src/cmd/compile/internal/types2/instantiate_test.go |  8 ++++----
+ src/cmd/compile/internal/types2/issues_test.go      |  3 +--
+ src/cmd/compile/internal/types2/mono_test.go        |  3 +--
+ src/cmd/compile/internal/types2/scope.go            |  3 +--
+ src/cmd/compile/internal/types2/termlist.go         |  4 ++--
+ src/cmd/compile/internal/types2/typeset.go          |  4 ++--
+ src/go/types/api_test.go                            |  3 +--
+ src/go/types/errors.go                              | 14 +++++++-------
+ src/go/types/example_test.go                        |  7 +++----
+ src/go/types/infer.go                               | 12 ++++++------
+ src/go/types/instantiate_test.go                    |  8 ++++----
+ src/go/types/issues_test.go                         |  3 +--
+ src/go/types/mono_test.go                           |  3 +--
+ src/go/types/scope.go                               |  3 +--
+ src/go/types/termlist.go                            |  4 ++--
+ src/go/types/typeset.go                             |  4 ++--
+ 21 files changed, 58 insertions(+), 69 deletions(-)

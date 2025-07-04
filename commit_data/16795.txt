@@ -1,0 +1,19 @@
+commit b913cf84dc5bc78197b0ea42d9375ec1a7a01909
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 17 14:03:27 2013 -0400
+
+    runtime: re-enable preemption
+    
+    Update #543
+    
+    I believe the runtime is strong enough now to reenable
+    preemption during the function prologue.
+    Assuming this is or can be made stable, it will be in Go 1.2.
+    More aggressive preemption is not planned for Go 1.2.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11433045
+
+ src/pkg/runtime/proc.c | 6 ------
+ 1 file changed, 6 deletions(-)

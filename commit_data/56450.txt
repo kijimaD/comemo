@@ -1,0 +1,22 @@
+commit 59003b6d8795f337c8916e814343182116183491
+Author: lifubang <lifubang@acmcoder.com>
+Date:   Fri May 10 03:29:45 2024 +0000
+
+    syscall: don't change local limit if prlimit used for another process
+    
+    Fixes: #67184
+    
+    Change-Id: Ibdf3810cbba30ae29f466f7f95f357e8512f228b
+    GitHub-Last-Rev: 5eabc760be6b89ae85629627da37b517e8ec356f
+    GitHub-Pull-Request: golang/go#67185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583299
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/export_linux_test.go  |  1 +
+ src/syscall/export_rlimit_test.go |  6 ++++
+ src/syscall/syscall_linux.go      |  2 +-
+ src/syscall/syscall_linux_test.go | 66 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)

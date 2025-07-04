@@ -1,0 +1,17 @@
+commit e8fab405cb5f7e6f10357ed26720c6b8938a5be3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 12 13:40:30 2016 -0800
+
+    cmd/compile: minor cleanup
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ib8c76081956e1d4eecef16b82bc8d527d7849d7e
+    Reviewed-on: https://go-review.googlesource.com/20643
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go | 31 ++++++++-------------
+ src/cmd/internal/obj/objfile.go      | 52 +++++++++++++++---------------------
+ 2 files changed, 32 insertions(+), 51 deletions(-)

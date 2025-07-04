@@ -1,0 +1,21 @@
+commit 70ef564e795dea06d37e5233fcf3182b231c31f0
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 21 19:27:35 2016 +1300
+
+    cmd/link: delete unreachable hash collision check
+    
+    This expression in readsym:
+    
+        dup != nil && len(dup.P) > 0 && strings.HasPrefix(s.Name, "gclocals·")
+    
+    can never be true: if dup != nil, then s.Name is ".dup" (and this is not new:
+    the same broken logic is present in 1.4, at least). Delete the whole block.
+    
+    Change-Id: I33b14d9a82b292116d6fd79d22b38e3842501317
+    Reviewed-on: https://go-review.googlesource.com/20970
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 8 --------
+ 1 file changed, 8 deletions(-)

@@ -1,0 +1,15 @@
+commit 40d5e6d4e28eba538ec124d0e437dead63b0206e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 5 11:54:51 2021 -0700
+
+    cmd/compile/internal/types2: fix potential bugs in santitizer pass
+    
+    Change-Id: I88c5e1f620d0f3546ac9ac7b6a4b881772a38449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317329
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/sanitize.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

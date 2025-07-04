@@ -1,0 +1,18 @@
+commit c70f069902c8dc4c76003eb494e549bafdd3313e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 26 10:08:30 2020 -0500
+
+    cmd/link: reenable internal linking PIE on linux/amd64 and linux/arm64
+    
+    It was enabled in CL 207877, but then accidentally disabled in
+    CL 207299 due to a bad rebase. Reenable.
+    
+    Change-Id: I147bf724a4263d4aae54576a36cc7e1cad5e8a2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221098
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

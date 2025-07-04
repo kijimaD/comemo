@@ -1,0 +1,15 @@
+commit 8e84a5dd47d5c27e83f40439a4240a7504134039
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 15:24:28 2016 -0700
+
+    cmd/vet/all/whitelist: add readme.txt
+    
+    This was written for CL 27811,
+    but it got lost in the sea of new files.
+    
+    Change-Id: I5c52cb23dda499b21a6bb32ed5c586779ccbc2f1
+    Reviewed-on: https://go-review.googlesource.com/28960
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/readme.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

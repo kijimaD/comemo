@@ -1,0 +1,12 @@
+commit a4bade85921941a9323c63d0e387263df118076c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 4 13:16:38 2011 +1100
+
+    gobuilder: prefix the tarball with 'go.', tweak release regexp
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3775047
+
+ misc/dashboard/builder/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

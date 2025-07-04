@@ -1,0 +1,15 @@
+commit 9afe071c605c65302066fa8ece7bdecd00730f8b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 7 17:11:32 2021 -0400
+
+    doc/go1.17: remove TODO for Tools section
+    
+    Change-Id: I6cd7376bd051222a830cbf18cf7e887072b61f3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325911
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 4 ----
+ 1 file changed, 4 deletions(-)

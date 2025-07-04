@@ -1,0 +1,13 @@
+commit a85c258e670ced67412cc1b2b314ff28f5607f26
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Nov 30 12:03:43 2009 -0800
+
+    a[b:len(a)] -> a[b:]
+    
+    R=r, rsc
+    CC=agl1
+    https://golang.org/cl/161070
+
+ src/pkg/crypto/tls/handshake_client.go   |  4 ++--
+ src/pkg/crypto/tls/handshake_messages.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

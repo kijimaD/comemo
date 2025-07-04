@@ -1,0 +1,32 @@
+commit 6d6c8582dfffeec70d743bb9b03b5e3cc1b0a35e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 1 00:21:29 2018 +0000
+
+    net/http: update bundled x/net/http2
+    
+    This updates x/net/http2 to x/net git rev 351d144f for:
+    
+       http2: revert Transport's strict interpretation of MAX_CONCURRENT_STREAMS
+       https://golang.org/cl/151857
+    
+       http2: don't leak streams on broken body
+       https://golang.org/cl/132715
+    
+       http2: remove support for Go 1.8 and earlier
+       https://golang.org/cl/145677
+    
+       http2: reduce init-time work & allocations
+       https://golang.org/cl/127664
+    
+    And some CLs fixing typos.
+    
+    Fixes #27044
+    Fixes #27208
+    
+    Change-Id: I11cc32576c690199ceb4c0bd1448d01e3cab3097
+    Reviewed-on: https://go-review.googlesource.com/c/152080
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/h2_bundle.go | 522 ++++++++++++++++++++--------------------------
+ 1 file changed, 228 insertions(+), 294 deletions(-)

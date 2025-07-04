@@ -1,0 +1,19 @@
+commit fda92615040c831bdcd812fd20ddb0da9dcef70b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 13:57:48 2021 -0800
+
+    cmd/compile/internal/types2: better position for invalid slice indices error
+    
+    Report the error at the first place (which is to say, latest index)
+    causing the error.
+    
+    Change-Id: I31cf0a4d243fc66cfab84b7fec98055f4eb60ddf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363671
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/index.go               |  9 ++++++---
+ .../compile/internal/types2/testdata/check/expr3.src   | 18 +++++++++---------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

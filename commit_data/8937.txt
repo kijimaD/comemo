@@ -1,0 +1,21 @@
+commit 9cf37c3723383e3f489ee4b8087ecc152e79bf39
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 4 16:15:14 2011 +1000
+
+    docs: fold the prog.sh scripting from makehtml into htmlgen itself.
+    This allows us to drop some crufty scripting and provides a firmer
+    footing for building better tools for preparing documents with source
+    code inside.
+    
+    Also eliminate line numbers from the examples and text.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4650069
+
+ doc/go_tutorial.html | 1049 +++++++++++++++++++++++++-------------------------
+ doc/go_tutorial.txt  |  108 +++---
+ doc/htmlgen.go       |  167 +++++++-
+ doc/makehtml         |   16 +-
+ doc/prog.sh          |   72 ----
+ 5 files changed, 729 insertions(+), 683 deletions(-)

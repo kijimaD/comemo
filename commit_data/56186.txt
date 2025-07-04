@@ -1,0 +1,17 @@
+commit 5c20d5faeb3d048a31896f3edfb54dbd960d07cc
+Author: guangwu <guoguangwug@gmail.com>
+Date:   Thu Apr 11 05:36:19 2024 +0000
+
+    net/http: fix debugRoundTrip log typo
+    
+    Change-Id: I449fcb008fa4c1f51de0bef9f016907d8b99da67
+    GitHub-Last-Rev: b2e84f1a8a96199e1f9e4ae548225273e2ec94c0
+    GitHub-Pull-Request: golang/go#66772
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578135
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

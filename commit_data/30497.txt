@@ -1,0 +1,16 @@
+commit 359ca5ccc8b801d6ca8f8e417135436ccde00212
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 1 17:15:43 2017 -0800
+
+    go/types: support type checking of external tests with gotype
+    
+    - renamed -a flag to -t
+    - added -x flag to specify external test files
+    - improved documentation and usage string
+    
+    Change-Id: I7c850bd28a10ceaa55d599c22db07774147aa3f7
+    Reviewed-on: https://go-review.googlesource.com/37656
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/gotype.go | 85 +++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 63 insertions(+), 22 deletions(-)

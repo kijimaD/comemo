@@ -1,0 +1,100 @@
+commit e2ca417ee797e1e80d8d395e0f4760416b8346d9
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jan 25 10:46:08 2023 -0500
+
+    cmd/link: linker portion of dead map removal
+    
+    This patch contains the linker changes needed to enable deadcoding of
+    large unreferenced map variables, in combination with a previous
+    compiler change. We add a new cleanup function that runs just after
+    deadcode that looks for relocations in "init" funcs that are weak, of
+    type R_CALL (and siblings), and are targeting an unreachable function.
+    If we find such a relocation, after checking to make sure it targets a
+    map.init.XXX helper, we redirect the relocation to a point to a no-op
+    routine ("mapinitnoop") in the runtime.
+    
+    Compilebench results for this change:
+    
+                              │ out.base.txt │            out.wrap.txt            │
+                              │    sec/op    │   sec/op     vs base               │
+     Template                   218.6m ±  2%   221.1m ± 1%       ~ (p=0.129 n=39)
+     Unicode                    180.5m ±  1%   178.9m ± 1%  -0.93% (p=0.006 n=39)
+     GoTypes                     1.162 ±  1%    1.156 ± 1%       ~ (p=0.850 n=39)
+     Compiler                   143.6m ±  1%   142.6m ± 1%       ~ (p=0.743 n=39)
+     SSA                         8.698 ±  1%    8.719 ± 1%       ~ (p=0.145 n=39)
+     Flate                      142.6m ±  1%   143.9m ± 3%       ~ (p=0.287 n=39)
+     GoParser                   247.7m ±  1%   248.8m ± 1%       ~ (p=0.265 n=39)
+     Reflect                    588.0m ±  1%   590.4m ± 1%       ~ (p=0.269 n=39)
+     Tar                        198.5m ±  1%   201.3m ± 1%  +1.38% (p=0.005 n=39)
+     XML                        259.1m ±  1%   260.0m ± 1%       ~ (p=0.376 n=39)
+     LinkCompiler               746.8m ±  2%   747.8m ± 1%       ~ (p=0.706 n=39)
+     ExternalLinkCompiler        1.906 ±  0%    1.902 ± 1%       ~ (p=0.207 n=40)
+     LinkWithoutDebugCompiler   522.4m ± 21%   471.1m ± 1%  -9.81% (p=0.000 n=40)
+     StdCmd                      21.32 ±  0%    21.39 ± 0%  +0.32% (p=0.035 n=40)
+     geomean                    609.2m         606.0m       -0.53%
+    
+                              │ out.base.txt │            out.wrap.txt            │
+                              │ user-sec/op  │ user-sec/op  vs base               │
+     Template                    401.9m ± 3%   406.9m ± 2%       ~ (p=0.291 n=39)
+     Unicode                     191.9m ± 6%   196.1m ± 3%       ~ (p=0.052 n=39)
+     GoTypes                      3.967 ± 3%    4.056 ± 1%       ~ (p=0.099 n=39)
+     Compiler                    171.1m ± 3%   173.4m ± 3%       ~ (p=0.415 n=39)
+     SSA                          30.04 ± 4%    30.25 ± 4%       ~ (p=0.106 n=39)
+     Flate                       246.3m ± 3%   248.9m ± 4%       ~ (p=0.499 n=39)
+     GoParser                    518.7m ± 1%   520.6m ± 2%       ~ (p=0.531 n=39)
+     Reflect                      1.670 ± 1%    1.656 ± 2%       ~ (p=0.137 n=39)
+     Tar                         352.7m ± 2%   360.3m ± 2%       ~ (p=0.117 n=39)
+     XML                         528.8m ± 2%   521.1m ± 2%       ~ (p=0.296 n=39)
+     LinkCompiler                 1.128 ± 2%    1.140 ± 2%       ~ (p=0.324 n=39)
+     ExternalLinkCompiler         2.165 ± 2%    2.147 ± 2%       ~ (p=0.537 n=40)
+     LinkWithoutDebugCompiler    484.2m ± 4%   490.7m ± 3%       ~ (p=0.897 n=40)
+     geomean                     818.5m        825.1m       +0.80%
+    
+               │ out.base.txt │             out.wrap.txt              │
+               │  text-bytes  │  text-bytes   vs base                 │
+     HelloSize   766.0Ki ± 0%   766.0Ki ± 0%       ~ (p=1.000 n=40) ¹
+     CmdGoSize   10.02Mi ± 0%   10.02Mi ± 0%  -0.03% (n=40)
+     geomean     2.738Mi        2.738Mi       -0.01%
+     ¹ all samples are equal
+    
+               │ out.base.txt │             out.wrap.txt              │
+               │  data-bytes  │  data-bytes   vs base                 │
+     HelloSize   14.17Ki ± 0%   14.17Ki ± 0%       ~ (p=1.000 n=40) ¹
+     CmdGoSize   308.3Ki ± 0%   298.5Ki ± 0%  -3.19% (n=40)
+     geomean     66.10Ki        65.04Ki       -1.61%
+     ¹ all samples are equal
+    
+               │ out.base.txt │             out.wrap.txt              │
+               │  bss-bytes   │  bss-bytes    vs base                 │
+     HelloSize   197.3Ki ± 0%   197.3Ki ± 0%       ~ (p=1.000 n=40) ¹
+     CmdGoSize   228.2Ki ± 0%   228.1Ki ± 0%  -0.01% (n=40)
+     geomean     212.2Ki        212.1Ki       -0.01%
+     ¹ all samples are equal
+    
+               │ out.base.txt │            out.wrap.txt             │
+               │  exe-bytes   │  exe-bytes    vs base               │
+     HelloSize   1.192Mi ± 0%   1.192Mi ± 0%  +0.00% (p=0.000 n=40)
+     CmdGoSize   14.85Mi ± 0%   14.83Mi ± 0%  -0.09% (n=40)
+     geomean     4.207Mi        4.205Mi       -0.05%
+    
+    Also tested for any linker changes by benchmarking relink of k8s
+    "kubelet"; no changes to speak of there.
+    
+    Updates #2559.
+    Updates #36021.
+    Updates #14840.
+    
+    Change-Id: I4cc5370b3f20679a1065aaaf87bdf2881e257631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463395
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/pgen.go            |  4 --
+ src/cmd/link/internal/ld/deadcode.go               | 48 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/deadcode_test.go          | 28 ++++++++-----
+ src/cmd/link/internal/ld/main.go                   |  1 +
+ .../internal/ld/testdata/deadcode/globalmap.go     | 26 ++++++++++++
+ src/runtime/asm.s                                  |  4 ++
+ src/runtime/map.go                                 |  7 ++++
+ 7 files changed, 103 insertions(+), 15 deletions(-)

@@ -1,0 +1,13 @@
+commit 3200b06b14ba24551921cfa76da94c374d8f3e8d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 4 13:57:21 2008 -0800
+
+    prepare for recursive printfs
+    
+    R=rsc
+    DELTA=31  (9 added, 6 deleted, 16 changed)
+    OCL=18470
+    CL=18472
+
+ src/lib/fmt/print.go | 47 +++++++++++++++++++++++++----------------------
+ 1 file changed, 25 insertions(+), 22 deletions(-)

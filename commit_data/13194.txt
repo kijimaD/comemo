@@ -1,0 +1,11 @@
+commit c1b53d43e8c843717b8f6e18897d5fe8e7290a9d
+Merge: a0efca84e6 fb32d60cd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 29 14:37:41 2012 -0400
+
+    merge unexpected branch
+
+ src/pkg/runtime/signal_netbsd_386.c | 11 ++++++
+ src/pkg/runtime/sys_netbsd_386.s    | 67 +++++++++----------------------------
+ src/pkg/runtime/sys_netbsd_amd64.s  |  2 +-
+ 3 files changed, 28 insertions(+), 52 deletions(-)

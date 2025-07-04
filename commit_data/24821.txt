@@ -1,0 +1,19 @@
+commit e0053f8b1c2c90da483ba228fbf671c12063266d
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 24 08:42:10 2015 -0400
+
+    runtime: restructured os1_linux.go, added mips64 support
+    
+    Linux/mips64 uses a different type of sigset. To deal with it, related
+    functions in os1_linux.go is refactored to os1_linux_generic.go
+    (used for non-mips64 architectures), and os1_linux_mips64x.go (only used
+    in mips64{,le}), to avoid code copying.
+    
+    Change-Id: I5cadfccd86bfc4b30bf97e12607c3c614903ea4c
+    Reviewed-on: https://go-review.googlesource.com/14991
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_linux.go         | 10 ++++------
+ src/runtime/os1_linux_generic.go | 27 +++++++++++++++++++++++++++
+ src/runtime/os1_linux_mips64x.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit a023f3c8f3de3f6992d494e8c7fdd7e622f94682
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 14 13:53:08 2018 +1000
+
+    doc/contribute.html: clean up HTML and formatting
+    
+    Mostly just formatting and minor cleanup:
+    
+    - regularize HTML (add </p> etc.)
+    - remove all errors caught by tidy
+    - start all sentences on new line for easy editing
+    
+    Some wording changes, but there will be more to come.
+    It seemed there were already enough edits to send it out.
+    
+    Update #24487
+    
+    Change-Id: I613ce206b1e8e3e522ecb0bbcd2acb11c4ff5bae
+    Reviewed-on: https://go-review.googlesource.com/113015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 382 +++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 241 insertions(+), 141 deletions(-)

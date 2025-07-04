@@ -1,0 +1,16 @@
+commit f763da3d3404673484bcc9d0d911c75a40e326c2
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 19 16:58:14 2015 -0400
+
+    cmd/internal/gc: remove incorrect "write barrier prohibited" error
+    
+    Commit 9c9e36b pushed these errors down to where the write barriers
+    are actually emitted, but forgot to remove the original error that was
+    being pushed down.
+    
+    Change-Id: I751752a896e78fb9e63d69f88e7fb8d1ff5d344c
+    Reviewed-on: https://go-review.googlesource.com/10264
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/walk.go | 3 ---
+ 1 file changed, 3 deletions(-)

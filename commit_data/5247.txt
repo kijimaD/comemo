@@ -1,0 +1,18 @@
+commit 9aa8f95ba8c3fbbd817ba51eb243ac3de52e77f4
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Apr 8 13:24:04 2010 -0700
+
+    math: atan2 special cases (negative zero)
+    
+    Added Signbit(), revised Copysign()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/822045
+
+ src/pkg/math/Makefile    |  1 +
+ src/pkg/math/all_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/math/atan2.go    | 40 +++++++++++------------------
+ src/pkg/math/copysign.go |  7 ++----
+ src/pkg/math/signbit.go  | 10 ++++++++
+ 5 files changed, 91 insertions(+), 32 deletions(-)

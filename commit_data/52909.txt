@@ -1,0 +1,33 @@
+commit ea69de9b921a1c1abbfe82012194c8e946e14cfd
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 14 14:07:37 2023 -0400
+
+    cmd/compile: rework marking of dead hidden closure functions
+    
+    [This is a roll-forward of CL 484859, this time including a fix for
+    issue #59709. The call to do dead function marking was taking place in
+    the wrong spot, causing it to run more than once if generics were
+    instantiated.]
+    
+    This patch generalizes the code in the inliner that marks unreferenced
+    hidden closure functions as dead. Rather than doing the marking on the
+    fly (previous approach), this new approach does a single pass at the
+    end of inlining, which catches more dead functions.
+    
+    Change-Id: I0e079ad755c21295477201acbd7e1a732a98fffd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492016
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/inline/inl.go     | 95 ++++++++++++++++++------------
+ test/fixedbugs/issue59638.go               | 65 ++++++++++++++++++++
+ test/fixedbugs/issue59709.dir/aconfig.go   | 10 ++++
+ test/fixedbugs/issue59709.dir/bresource.go | 27 +++++++++
+ test/fixedbugs/issue59709.dir/cmem.go      | 37 ++++++++++++
+ test/fixedbugs/issue59709.dir/dcache.go    | 39 ++++++++++++
+ test/fixedbugs/issue59709.dir/main.go      | 17 ++++++
+ test/fixedbugs/issue59709.go               |  7 +++
+ 8 files changed, 260 insertions(+), 37 deletions(-)

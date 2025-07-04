@@ -1,0 +1,20 @@
+commit c9986d1452f3ef226bfd044fb0f128175a7dff03
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Aug 17 16:32:02 2018 -0400
+
+    runtime: fix use of wrong g in gentraceback
+    
+    gentraceback gets the currently running g to do some sanity checks, but
+    should use gp everywhere to do its actual work. Some noncritical checks
+    later accidentally used g instead of gp. This seems like it could be a
+    problem in many different contexts, but I noticed in Windows profiling,
+    where profilem calls gentraceback on a goroutine from a different
+    thread.
+    
+    Change-Id: I3da27a43e833b257f6411ee6893bdece45a9323f
+    Reviewed-on: https://go-review.googlesource.com/128895
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/traceback.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

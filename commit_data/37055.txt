@@ -1,0 +1,14 @@
+commit b917bdd3ba255cd71ec0aa837215fa296b89eb77
+Author: Genevieve Luyt <genevieve.luyt@gmail.com>
+Date:   Mon Oct 22 13:39:13 2018 -0400
+
+    doc: use the new log functions
+    
+    The log interface was changed in https://golang.org/cl/2419042.
+    
+    Change-Id: I3eaddd8a5cfcae961db16555fb1b0ce6770b6334
+    Reviewed-on: https://go-review.googlesource.com/c/143777
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

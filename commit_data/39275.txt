@@ -1,0 +1,21 @@
+commit 8ca524ab206323ebe70a929f3dea1e016af00adf
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 24 21:04:49 2019 -0400
+
+    cmd/link: new test case for Darwin/DWARF
+    
+    Test case for issue 32233.
+    
+    Updates #32233.
+    
+    Change-Id: I0e3b4a46832f39de4ef36d8fd8c6070bf9b1a019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178726
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go             | 23 ++++++++++++++++++++++
+ .../internal/ld/testdata/issue32233/lib/ObjC.m     | 14 +++++++++++++
+ .../internal/ld/testdata/issue32233/lib/lib.go     | 19 ++++++++++++++++++
+ .../internal/ld/testdata/issue32233/main/main.go   | 11 +++++++++++
+ 4 files changed, 67 insertions(+)

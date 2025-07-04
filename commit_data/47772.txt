@@ -1,0 +1,27 @@
+commit 36db10f3cb916a1b97af3bfd4be7e3a2932185f8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 9 17:00:51 2021 -0500
+
+    net: remove erroneous Dial check in TestListenerClose
+    
+    TestListenerClose had been asserting that a Dial to the newly-closed
+    address always fails, on the assumption that the listener's address
+    and port would not be reused by some other listener that could then
+    accept the connection.
+    
+    As far as I can tell, that assumption is not valid: the Dial after
+    Close may well connect to a Listener opened for some other test, or
+    even one opened by a completely different process running concurrently
+    on the same machine.
+    
+    Fixes #38700
+    
+    Change-Id: I925ed1b2ccb556135a2c5be0240d1789ed27d5fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370666
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go | 29 ++++++-----------------------
+ 1 file changed, 6 insertions(+), 23 deletions(-)

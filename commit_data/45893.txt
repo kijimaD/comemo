@@ -1,0 +1,20 @@
+commit eb437ba92cbb08a86ae064cbd7376c4a8e80485b
+Author: go101 <tapir.liu@gmail.com>
+Date:   Thu Jul 1 14:25:45 2021 +0000
+
+    cmd/compile: make stack value size threshold comparisons consistent
+    
+    Consistency is beautiful.
+    
+    Change-Id: Ib110dcff0ce2fa87b5576c79cd79c83aab385a7c
+    GitHub-Last-Rev: b8758f8ae02cb025267aa87ebc5c2f9b4c32e742
+    GitHub-Pull-Request: golang/go#47011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332230
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/escape.go | 8 ++++----
+ src/cmd/compile/internal/walk/builtin.go  | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

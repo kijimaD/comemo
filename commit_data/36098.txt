@@ -1,0 +1,19 @@
+commit eab8208687bf6dbea0ca36e2dabe84d2a51f252b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 17:15:32 2018 -0400
+
+    cmd/go: detect inconsistent 'go get' version requests
+    
+    If x v1.0.0 requires y v1.2.0, then
+    go get x@v1.0.0 y@v1.0.0 needs to fail gracefully.
+    
+    Fixes #25917.
+    
+    Change-Id: I9b426af23a30310fcb0c3545a8d97feb58b8ddbe
+    Reviewed-on: https://go-review.googlesource.com/124800
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                | 68 +++++++++++++++++++++++-
+ src/cmd/go/internal/modload/init.go              | 19 +++++++
+ src/cmd/go/testdata/script/mod_get_downgrade.txt | 11 ++++
+ 3 files changed, 96 insertions(+), 2 deletions(-)

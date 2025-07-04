@@ -1,0 +1,30 @@
+commit 42019613df2d9b6ad39e8ccf80861e75666025a0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 21:02:05 2020 +0000
+
+    runtime: make distributed/local malloc stats the source-of-truth
+    
+    This change makes it so that various local malloc stats (excluding
+    heap_scan and local_tinyallocs) are no longer written first to mheap
+    fields but are instead accessed directly from each mcache.
+    
+    This change is part of a move toward having stats be distributed, and
+    cleaning up some old code related to the stats.
+    
+    Note that because there's no central source-of-truth, when an mcache
+    dies, it must donate its stats to another mcache. It's always safe to
+    donate to the mcache for the 0th P, so do that.
+    
+    Change-Id: I2556093dbc27357cb9621c9b97671f3c00aa1173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246964
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go | 26 ++++++++++++++++++--------
+ src/runtime/mcache.go      | 31 +++++++++++++++++++++++++++++--
+ src/runtime/mheap.go       |  7 ++-----
+ src/runtime/mstats.go      | 41 +++++++++++++++++++----------------------
+ src/runtime/proc.go        |  2 +-
+ 5 files changed, 69 insertions(+), 38 deletions(-)

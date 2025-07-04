@@ -1,0 +1,47 @@
+commit d1ef967306b401474aafb2a0d351e972bdfeb54c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Sep 11 02:03:10 2021 +1000
+
+    cmd/link/internal/ld: assign temporary addresses to per-package text
+    
+    If trampolines may be required, the current text addressing second
+    pass resets all assigned addresses, before assigning addresses and
+    laying down trampolines in a linear fashion. However, this approach
+    means that intra-package calls are to a symbol that has not yet
+    been assigned an address, when the symbol is ahead of the current
+    function.
+    
+    In the case of RISC-V the JAL instruction is limited to +/-1MiB.
+    As such, if a call is to a symbol with no address currently assigned,
+    we have to assume that a trampoline will be required. During the
+    relocation phase we can fix up and avoid trampolines in some cases,
+    however this results in unused trampolines that are still present
+    in the binary (since removing them would change text addresses).
+    
+    In order to significantly reduce the number of unused trampolines,
+    assign temporary addresses to functions within the same package,
+    based on the maximum number of trampolines that may be required by
+    a function. This allows for better decisions to be made regarding
+    the requirement for intra-package trampolines, as we reset the
+    addressing for a function, assign its final address and lay down
+    any resulting trampolines.
+    
+    This results in ~2,300 unused trampolines being removed from the
+    Go binary and ~5,600 unused trampolines being removed from the
+    compile binary, on linux/riscv64.
+    
+    This reapplies CL 349650, however does not pass big to assignAddress
+    when assigning temporary addresses, as this can result in side
+    effects such as section splitting.
+    
+    Change-Id: Id7febdb65d962d6b1297a91294a8dc27c94d8696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534760
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go    | 89 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/ld_test.go | 68 ++++++++++++++++++++++++++++
+ 2 files changed, 132 insertions(+), 25 deletions(-)

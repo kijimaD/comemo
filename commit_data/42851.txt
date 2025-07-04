@@ -1,0 +1,23 @@
+commit 234e37bcda2b5efdd685ad11d1bb3d336415648e
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 11 13:21:14 2020 -0400
+
+    go/types: remove need to enumerate fixedbugs test files
+    
+    This is a port of CL 244628, updated to move some existing regression
+    tests into the fixedbugs directory, and to use subtests. Also,
+    'TestFixed' is renamed to 'TestFixedBugs'.
+    
+    Change-Id: I43aac3f75f2bd850567d08e8b008d91aeb717064
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247904
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go                         | 32 ++++++++++++++++++----
+ .../types/{testdata => fixedbugs}/issue23203a.src  |  0
+ .../types/{testdata => fixedbugs}/issue23203b.src  |  0
+ .../types/{testdata => fixedbugs}/issue26390.src   |  2 ++
+ .../types/{testdata => fixedbugs}/issue28251.src   |  0
+ src/go/types/{testdata => fixedbugs}/issue6977.src |  0
+ 6 files changed, 28 insertions(+), 6 deletions(-)

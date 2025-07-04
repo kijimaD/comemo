@@ -1,0 +1,14 @@
+commit bd09279c3fbe7617800da740103093fa75af522e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 17:48:08 2015 -0700
+
+    go/ast: fix ast.Inspect doc string
+    
+    Fixes #10243.
+    
+    Change-Id: I06ac53628980853faecbf1a57ff71b88098d65f2
+    Reviewed-on: https://go-review.googlesource.com/8382
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/go/ast/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 0eeec4f25dc6eccc4e76ab91053e2b4823c72714
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Tue Mar 17 10:41:45 2020 +0000
+
+    testing: use "exit code" in documentation consistently
+    
+    The documentation for m.Run says it returns an "exit code" to pass to
+    os.Exit. The argument to os.Exit is named "code".
+    
+    While "exit code", "exit status" and "exit status code" are all valid ways
+    to refer to the same concept, prefer to stick to one form for consistency
+    and to avoid confusing users.
+    
+    Change-Id: If76ee3fab5cc99c79e05ac1a4e413790a9c93d60
+    GitHub-Last-Rev: 85a081d2f03c2cf9e8e519916986c59c86aebf57
+    GitHub-Pull-Request: golang/go#37899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223778
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

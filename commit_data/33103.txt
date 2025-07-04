@@ -1,0 +1,32 @@
+commit 897080d5cbb1793f8ad3ef5fb7c6fafba2e97d42
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Sep 23 15:30:46 2017 -0700
+
+    database/sql: prevent race in driver by locking dc in Next
+    
+    Database drivers should be called from a single goroutine to ease
+    driver's design. If a driver chooses to handle context
+    cancels internally it may do so.
+    
+    The sql package violated this agreement when calling Next or
+    NextResultSet. It was possible for a concurrent rollback
+    triggered from a context cancel to call a Tx.Rollback (which
+    takes a driver connection lock) while a Rows.Next is in progress
+    (which does not tack the driver connection lock).
+    
+    The current internal design of the sql package is each call takes
+    roughly two locks: a closemu lock which prevents an disposing of
+    internal resources (assigning nil or removing from lists)
+    and a driver connection lock that prevents calling driver code from
+    multiple goroutines.
+    
+    Fixes #21117
+    
+    Change-Id: Ie340dc752a503089c27f57ffd43e191534829360
+    Reviewed-on: https://go-review.googlesource.com/65731
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/fakedb_test.go |  1 +
+ src/database/sql/sql.go         | 12 ++++++++++++
+ src/database/sql/sql_test.go    |  8 +++++++-
+ 3 files changed, 20 insertions(+), 1 deletion(-)

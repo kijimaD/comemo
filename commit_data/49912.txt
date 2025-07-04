@@ -1,0 +1,29 @@
+commit bd3c35e732ba3f4b6cbdf5d661120d11b59794bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 14:30:20 2022 -0400
+
+    testing: do not print 'root' benchName during test of package testing
+    
+            $ cd $GOROOT/src/testing
+            $ go test
+            root
+            root
+            root
+            root
+            PASS
+            $
+    
+    The root prints have been happening since Go 1.14.
+    There is a test in sub_test.go that calls b.Run directly
+    with a benchmark named "root", which triggers the print.
+    Silence them.
+    
+    Change-Id: I2f0c186f04c6139bc24fab0e91975fcf0a8e80fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421437
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/testing/benchmark.go | 9 ++++++++-
+ src/testing/sub_test.go  | 4 ++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

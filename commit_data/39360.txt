@@ -1,0 +1,18 @@
+commit 0c2953e4cb7536a07436688d0baaa3c59d00b521
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Jun 1 17:43:09 2019 -0400
+
+    cmd/go: include -errorsas in go test vet checks
+    
+    Make "go test" run the new errorsas vet check by default.
+    
+    Fixes #31213.
+    
+    Change-Id: I5c93c000874ffe1c0b6d647bf10de803f414c5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179977
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/test/test.go | 1 +
+ 1 file changed, 1 insertion(+)

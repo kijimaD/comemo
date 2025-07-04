@@ -1,0 +1,25 @@
+commit dab127baf5a0bae92c289d6fa754f7a7c08745d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 19:46:34 2014 -0500
+
+    liblink: remove use of linkmode on ARM
+    
+    Now that liblink is compiled into the compilers and assemblers,
+    it must not refer to the "linkmode", since that is not known until
+    link time. This CL makes the ARM support no longer use linkmode,
+    which fixes a bug with cgo binaries that contain their own TLS
+    variables.
+    
+    The x86 code must also remove linkmode; that is issue 7164.
+    
+    Fixes #6992.
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/55160043
+
+ src/cmd/ld/data.c         |  11 ++++-
+ src/liblink/asm5.c        |  20 ++++----
+ src/liblink/obj5.c        | 114 +++++++++++++++++++++++-----------------------
+ src/pkg/runtime/asm_arm.s |   8 +++-
+ 4 files changed, 82 insertions(+), 71 deletions(-)

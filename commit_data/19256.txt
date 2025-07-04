@@ -1,0 +1,14 @@
+commit 74dccea2f270d31d94e6cd27111d6b04c64db51c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 29 15:54:37 2014 -0400
+
+    doc/go1.3.html: update for FreeBSD/ARM support.
+    FreeBSD 10 is fully supported.
+    
+    LGTM=r
+    R=golang-codereviews, bradfitz, r
+    CC=dave, golang-codereviews
+    https://golang.org/cl/99810044
+
+ doc/go1.3.html | 5 +++++
+ 1 file changed, 5 insertions(+)
